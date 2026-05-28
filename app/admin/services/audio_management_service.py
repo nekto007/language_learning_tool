@@ -11,6 +11,7 @@ import re
 from app.words.models import CollectionWords
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
+from app.admin.utils.request_validators import escape_like
 
 logger = logging.getLogger(__name__)
 
@@ -585,6 +586,29 @@ class AudioManagementService:
         except OSError as e:
             logger.error(f"Error scanning media folder for orphans: {e}")
             return {'error': str(e)}
+
+    @staticmethod
+    def clear_audio_references(filename: str, db_session) -> int:
+        """Nullify Chapter.audio_url rows that reference ``filename``.
+
+        Call before (or after) deleting a referenced audio file so that the
+        DB is not left pointing at a missing path. Returns the count of rows
+        updated; does NOT commit — caller is responsible for the commit.
+        """
+        safe_name = safe_audio_filename(filename)
+        if safe_name is None:
+            return 0
+        from app.books.models import Chapter
+        updated = (
+            db_session.query(Chapter)
+            .filter(Chapter.audio_url.ilike(f'%{escape_like(safe_name)}', escape='\\'))
+            .all()
+        )
+        count = 0
+        for chapter in updated:
+            chapter.audio_url = None
+            count += 1
+        return count
 
     @staticmethod
     def delete_orphan_audio_files(media_folder, dry_run=True):

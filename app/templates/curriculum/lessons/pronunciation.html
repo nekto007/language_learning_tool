@@ -199,6 +199,10 @@ function playAudio(idx) {
 
 function startRecognition(idx) {
   if (itemDone[idx] || itemSubmitting[idx]) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    showSelfAssess(idx);
+    return;
+  }
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) return;
 
@@ -376,7 +380,8 @@ async function finishLesson() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition) && !prefersReducedMotion;
   const speechBtns = document.querySelectorAll('.speech-btn');
   const fallbackBtns = document.querySelectorAll('.fallback-btn');
 

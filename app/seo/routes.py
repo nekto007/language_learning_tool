@@ -1,3 +1,4 @@
+from datetime import date as _date
 from flask import Response, current_app
 from sqlalchemy import func
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -75,6 +76,7 @@ def sitemap() -> Response:
         .order_by(GrammarTopic.level, GrammarTopic.order)
         .all()
     )
+    today = _date.today()
     for base_url in site_urls:
         for topic in topics:
             url_el = SubElement(urlset, 'url')
@@ -82,7 +84,8 @@ def sitemap() -> Response:
             SubElement(url_el, 'priority').text = '0.7'
             SubElement(url_el, 'changefreq').text = 'monthly'
             if topic.updated_at:
-                SubElement(url_el, 'lastmod').text = topic.updated_at.strftime('%Y-%m-%d')
+                lastmod = min(topic.updated_at.date(), today)
+                SubElement(url_el, 'lastmod').text = lastmod.strftime('%Y-%m-%d')
 
     # Dictionary pages — all public words, capped at Google's per-sitemap limit (50k).
     # Words ordered by frequency_rank so the most valuable URLs are indexed first

@@ -179,6 +179,11 @@ class TestInitialEaseForDifficulty:
         ease = compute_initial_ease_for_difficulty(99)
         assert ease >= MIN_EASE_FACTOR
 
+    def test_float_1_0_does_not_go_below_min_ease(self):
+        # difficulty=1.0 as a float follows the normalized path (not int branch)
+        ease = compute_initial_ease_for_difficulty(1.0)
+        assert ease >= MIN_EASE_FACTOR
+
 
 class TestGetOrCreateSeedsEase:
     def test_easy_exercise_seeds_higher_ease(self, db_session, test_user, exercise_d1):
@@ -195,3 +200,55 @@ class TestGetOrCreateSeedsEase:
         db_session.commit()
         second = UserGrammarExercise.get_or_create(test_user.id, exercise_d3.id)
         assert second.ease_factor == 2.0
+
+
+class TestGetOrCreateConcurrency:
+    def test_idempotent_no_duplicate(self, db_session, test_user, exercise_d1):
+        """Calling get_or_create twice creates only one row."""
+        p1 = UserGrammarExercise.get_or_create(test_user.id, exercise_d1.id)
+        db_session.commit()
+        p2 = UserGrammarExercise.get_or_create(test_user.id, exercise_d1.id)
+        assert p1.id == p2.id
+        count = (db_session.query(UserGrammarExercise)
+                 .filter_by(user_id=test_user.id, exercise_id=exercise_d1.id)
+                 .count())
+        assert count == 1
+
+    def test_integrity_error_returns_existing(self, db_session, test_user, exercise_d1):
+        """Race condition: begin_nested raises IntegrityError → existing row returned, no raise."""
+        from sqlalchemy.exc import IntegrityError
+        from unittest.mock import patch, MagicMock
+        from app.utils.db import db as _db
+
+        pre = UserGrammarExercise(test_user.id, exercise_d1.id)
+        db_session.add(pre)
+        db_session.commit()
+
+        class _FailedNested:
+            def __enter__(self): raise IntegrityError("dup key", None, None)
+            def __exit__(self, *a): return False
+
+        # Simulate: first filter_by returns None (race window), second returns pre
+        mock_query = MagicMock()
+        first_q = MagicMock()
+        first_q.first.return_value = None
+        second_q = MagicMock()
+        second_q.first.return_value = pre
+        mock_query.filter_by.side_effect = [first_q, second_q]
+
+        with patch.object(UserGrammarExercise, 'query', mock_query):
+            with patch.object(_db.session, 'begin_nested', return_value=_FailedNested()):
+                result = UserGrammarExercise.get_or_create(test_user.id, exercise_d1.id)
+
+        assert result is pre
+
+    def test_topic_status_get_or_create_idempotent(self, db_session, test_user, topic):
+        """UserGrammarTopicStatus.get_or_create called twice creates only one row."""
+        s1 = UserGrammarTopicStatus.get_or_create(test_user.id, topic.id)
+        db_session.commit()
+        s2 = UserGrammarTopicStatus.get_or_create(test_user.id, topic.id)
+        assert s1.id == s2.id
+        count = (db_session.query(UserGrammarTopicStatus)
+                 .filter_by(user_id=test_user.id, topic_id=topic.id)
+                 .count())
+        assert count == 1

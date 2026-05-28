@@ -5,6 +5,7 @@ from flask_login import current_user
 from sqlalchemy import func, or_
 
 from app.api.decorators import api_auth_required
+from app.api.errors import api_error
 from app.utils.db import db
 from app.utils.validators import WordStatus, validate_enum
 from app.words.models import CollectionWords
@@ -186,30 +187,18 @@ def get_word(word_id):
 @api_auth_required
 def update_word_status():
     if not request.is_json:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid JSON format',
-            'status_code': 400
-        }), 400
+        return api_error('invalid_json', 'Invalid JSON format', 400)
 
     data = request.get_json()
     word_id = data.get('word_id')
     status = data.get('status')
 
     if not word_id or status is None:
-        return jsonify({
-            'success': False,
-            'error': 'Missing word_id or status',
-            'status_code': 400
-        }), 400
+        return api_error('missing_fields', 'Missing word_id or status', 400)
 
     word = CollectionWords.query.get(word_id)
     if not word:
-        return jsonify({
-            'success': False,
-            'error': 'Word not found',
-            'status_code': 404
-        }), 404
+        return api_error('not_found', 'Word not found', 404)
 
     try:
         # Уже используется метод User.set_word_status, который мы обновили
@@ -226,11 +215,7 @@ def update_word_status():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error updating word status: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Внутренняя ошибка сервера',
-            'status_code': 500
-        }), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 @api_words.route('/batch-update-status', methods=['POST'])
@@ -246,11 +231,7 @@ def batch_update_status():
         - deck_id (optional): ID of deck to add all words to
     """
     if not request.is_json:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid JSON format',
-            'status_code': 400
-        }), 400
+        return api_error('invalid_json', 'Invalid JSON format', 400)
 
     data = request.get_json()
     word_ids = data.get('word_ids', [])
@@ -258,11 +239,7 @@ def batch_update_status():
     deck_id = data.get('deck_id')  # Optional: deck to add words to
 
     if not word_ids or status is None:
-        return jsonify({
-            'success': False,
-            'error': 'Missing word_ids or status',
-            'status_code': 400
-        }), 400
+        return api_error('missing_fields', 'Missing word_ids or status', 400)
 
     try:
         # Verify all words exist
@@ -272,11 +249,7 @@ def batch_update_status():
 
         if len(existing_ids) != len(word_ids):
             missing_ids = set(word_ids) - set(existing_ids)
-            return jsonify({
-                'success': False,
-                'error': f'Some words not found: {missing_ids}',
-                'status_code': 404
-            }), 404
+            return api_error('not_found', f'Some words not found: {missing_ids}', 404)
 
         # Преобразуем строковый статус в числовой
         status_mapping = {
@@ -287,11 +260,7 @@ def batch_update_status():
         }
 
         if status not in status_mapping:
-            return jsonify({
-                'success': False,
-                'error': f'Invalid status: {status}',
-                'status_code': 400
-            }), 400
+            return api_error('invalid_status', f'Invalid status: {status}', 400)
 
         numeric_status = status_mapping[status]
 
@@ -331,12 +300,7 @@ def batch_update_status():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Database error in batch update: {e}")
-
-        return jsonify({
-            'success': False,
-            'error': 'Ошибка базы данных',
-            'status_code': 500
-        }), 500
+        return api_error('db_error', 'Ошибка базы данных', 500)
 
 
 @api_words.route('/search')
@@ -371,7 +335,7 @@ def search_words():
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error searching words: {e}")
-        return jsonify({"error": "Внутренняя ошибка сервера"}), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 # Добавьте этот endpoint в файл app/api/words.py
@@ -388,28 +352,19 @@ def update_single_word_status(word_id):
         - deck_id (optional): ID of deck to add word to
     """
     if not request.is_json:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid JSON format'
-        }), 400
+        return api_error('invalid_json', 'Invalid JSON format', 400)
 
     data = request.get_json()
     status = data.get('status')
     deck_id = data.get('deck_id')  # Optional: deck to add word to
 
     if not status:
-        return jsonify({
-            'success': False,
-            'error': 'Missing status'
-        }), 400
+        return api_error('missing_fields', 'Missing status', 400)
 
     word = CollectionWords.query.get_or_404(word_id)
 
     if not validate_enum(status, WordStatus):
-        return jsonify({
-            'success': False,
-            'error': f'Invalid status: {status}'
-        }), 400
+        return api_error('invalid_status', f'Invalid status: {status}', 400)
 
     try:
         # Преобразуем строковый статус в числовой
@@ -457,12 +412,8 @@ def update_single_word_status(word_id):
         return jsonify(response)
     except Exception as e:
         db.session.rollback()
-        error_msg = str(e)
-
-        return jsonify({
-            'success': False,
-            'error': f'Database error: {error_msg}'
-        }), 500
+        logger.error(f"Error updating word status: {e}")
+        return api_error('db_error', 'Database error', 500)
 
 
 @api_words.route('/user-words-status', methods=['POST'])
@@ -471,10 +422,7 @@ def update_single_word_status(word_id):
 def get_user_words_status():
     """Получить статусы слов пользователя для списка word_ids"""
     if not request.is_json:
-        return jsonify({
-            'success': False,
-            'error': 'Invalid JSON format'
-        }), 400
+        return api_error('invalid_json', 'Invalid JSON format', 400)
 
     data = request.get_json()
     word_ids = data.get('word_ids', [])

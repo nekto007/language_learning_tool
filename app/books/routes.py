@@ -7,7 +7,7 @@ import threading
 
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import desc, func
@@ -316,7 +316,9 @@ def read_selection():
 @login_required
 @module_required('books')
 def read_book(book_id):
-    Book.query.get_or_404(book_id)
+    book = Book.query.get_or_404(book_id)
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
     forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
     return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 
@@ -333,6 +335,9 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         book_id = book.id
     else:
         book = Book.query.get_or_404(book_id)
+
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
 
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
@@ -410,6 +415,9 @@ def book_list():
     letter_filter = request.args.get('letter', '')
 
     query = db.select(Book)
+
+    if not current_user.is_admin:
+        query = query.where(Book.is_published == True)
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -538,6 +546,9 @@ def book_list():
 def book_details(book_id):
     book = Book.query.get_or_404(book_id)
 
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
+
     word_stats_query = db.select(
         UserWord.status,
         func.count().label('count')
@@ -657,6 +668,9 @@ def book_details(book_id):
 def book_words(book_id):
     book = Book.query.get_or_404(book_id)
 
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
+
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     status = request.args.get('status', type=int)
@@ -711,10 +725,12 @@ def book_words(book_id):
     book_words = pagination.items
 
     word_ids = [item[0].id for item in book_words]
-    user_words = UserWord.query.filter(
-        UserWord.user_id == current_user.id,
-        UserWord.word_id.in_(word_ids)
-    ).all()
+    from app.utils.db_utils import chunk_ids, query_by_ids
+    user_words = query_by_ids(
+        UserWord.query.filter(UserWord.user_id == current_user.id),
+        UserWord.word_id,
+        word_ids,
+    ) if word_ids else []
 
     from app.utils.db import string_to_status
     word_statuses = {uw.word_id: string_to_status(uw.status) for uw in user_words}
@@ -906,6 +922,9 @@ def edit_book_info_with_cover(book_id):
 @module_required('books')
 def book_read(book_id):
     book = Book.query.get_or_404(book_id)
+
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
 
     has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
 

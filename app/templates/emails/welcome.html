@@ -50,7 +50,7 @@
             <h1>Добро пожаловать!</h1>
         </div>
         <div class="content">
-            <p>Здравствуйте, {{ username }}!</p>
+            <p>Здравствуйте, {{ username or '' }}!</p>
             <p>Спасибо за регистрацию в Language Learning Tool. Ваш аккаунт успешно создан.</p>
             <p>Вот что вы можете начать делать прямо сейчас:</p>
             <ul>
@@ -59,7 +59,7 @@
                 <li>Читать книги с интерактивными упражнениями</li>
             </ul>
             <div style="text-align: center;">
-                <a href="{{ dashboard_url }}" class="button">Начать обучение</a>
+                <a href="{{ dashboard_url or '#' }}" class="button">Начать обучение</a>
             </div>
             <p>Если у вас возникнут вопросы, не стесняйтесь обращаться.</p>
             <p>С уважением,<br>Команда Language Learning Tool</p>

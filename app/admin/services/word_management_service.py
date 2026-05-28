@@ -37,6 +37,7 @@ IMPORT_BASE_COLUMNS = 5
 IMPORT_ENRICHED_COLUMNS = 11
 IMPORT_BILINGUAL_TOPIC_COLUMNS = 12
 IMPORT_HEADER_NAMES = {'english_word', 'word', 'english'}
+MAX_IMPORT_ROWS = 10000
 TOPIC_SUGGESTION_THRESHOLD = 0.72
 TOPIC_TOKEN_ALIASES = {
     'action': 'action',
@@ -650,6 +651,26 @@ class WordManagementService:
             return False, 0, 0, str(e)
 
     @staticmethod
+    def bulk_delete_words(word_ids: list) -> int:
+        """Delete CollectionWords by id list.
+
+        WordCollocation and UserWord cascade-delete via DB FK.
+        Returns number of deleted rows. Flush only — caller commits.
+        """
+        if not word_ids:
+            return 0
+
+        deleted = 0
+        for chunk in chunk_ids(word_ids, chunk_size=500):
+            rows = CollectionWords.query.filter(CollectionWords.id.in_(chunk)).all()
+            for word in rows:
+                db.session.delete(word)
+                deleted += 1
+
+        db.session.flush()
+        return deleted
+
+    @staticmethod
     def get_words_for_export(status=None, user_id=None):
         """
         Получает слова для экспорта по критериям
@@ -731,6 +752,7 @@ class WordManagementService:
         """
         parsed_rows = []
         errors = []
+        seen_english_words: set[str] = set()
 
         reader = csv.reader(StringIO(content), delimiter=';')
         for line_num, parts in enumerate(reader, 1):
@@ -767,6 +789,28 @@ class WordManagementService:
             english_sentence = parts[2].strip()
             russian_sentence = parts[3].strip()
             level = parts[4].strip()
+
+            # Skip within-file duplicates — keep first occurrence only.
+            if english_word in seen_english_words:
+                errors.append({
+                    'line_num': line_num,
+                    'line': raw_line,
+                    'error': f'дублирующееся слово "{english_word}" (уже встречалось в файле)',
+                })
+                continue
+            seen_english_words.add(english_word)
+
+            # Enforce row limit — stop parsing once MAX_IMPORT_ROWS valid rows collected.
+            if len(parsed_rows) >= MAX_IMPORT_ROWS:
+                errors.append({
+                    'line_num': line_num,
+                    'line': raw_line,
+                    'error': (
+                        f'превышен лимит импорта ({MAX_IMPORT_ROWS} строк). '
+                        'Оставшиеся строки пропущены.'
+                    ),
+                })
+                break
 
             word_data = {
                 'line_num': line_num,
@@ -810,6 +854,7 @@ class WordManagementService:
                             '(используйте high/medium/low или 1/2/3)'
                         )
                     })
+                    seen_english_words.discard(english_word)
                     continue
 
                 word_data.update({

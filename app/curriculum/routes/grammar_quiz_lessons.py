@@ -8,7 +8,9 @@ from flask import abort, flash, jsonify, redirect, render_template, request, url
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
 
-from app.curriculum.models import LessonProgress, Lessons
+from sqlalchemy.orm import joinedload
+
+from app.curriculum.models import LessonProgress, Lessons, Module
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.grading import check_final_test_attempts_exhausted
@@ -1157,7 +1159,12 @@ def final_test_lesson(lesson_id):
 @require_lesson_access
 def final_test_results(lesson_id):
     """Display final test results"""
-    lesson = Lessons.query.get_or_404(lesson_id)
+    lesson = (
+        db.session.query(Lessons)
+        .options(joinedload(Lessons.module).joinedload(Module.level))
+        .filter(Lessons.id == lesson_id)
+        .first_or_404()
+    )
 
     if lesson.type != 'final_test':
         abort(400, "This is not a final test lesson")

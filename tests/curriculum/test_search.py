@@ -7,14 +7,12 @@ import pytest
 
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, Lessons, Module
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
 
 
 def _make_user(db_session) -> User:
@@ -32,7 +30,7 @@ def _make_user(db_session) -> User:
 
 
 def _make_level(db_session, order: int = 1) -> CEFRLevel:
-    level = CEFRLevel(code=_unique_code(), name='Test Level', description='d', order=order)
+    level = CEFRLevel(code=unique_level_code(), name='Test Level', description='d', order=order)
     db_session.add(level)
     db_session.commit()
     return level

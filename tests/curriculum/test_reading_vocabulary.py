@@ -12,6 +12,7 @@ import pytest
 
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.words.models import CollectionWords
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +35,7 @@ def _read_design_system_css() -> str:
 
 def _make_level(db_session) -> CEFRLevel:
     level = CEFRLevel(
-        code=uuid.uuid4().hex[:2].upper(),
+        code=unique_level_code(),
         name="TestLevel",
         description="d",
         order=1,

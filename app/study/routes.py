@@ -755,12 +755,44 @@ def insights():
     )
     from app.achievements.streak_service import get_milestone_history
 
-    heatmap = get_activity_heatmap(current_user.id)
-    best_time = get_best_study_time(current_user.id)
-    at_risk = get_words_at_risk(current_user.id)
-    weaknesses = get_grammar_weaknesses(current_user.id)
-    reading_trend = get_reading_speed_trend(current_user.id)
-    summary = get_learning_summary(current_user.id)
+    try:
+        heatmap = get_activity_heatmap(current_user.id)
+    except Exception:
+        logger.exception("activity_heatmap failed for user %s", current_user.id)
+        heatmap = []
+    try:
+        best_time = get_best_study_time(current_user.id)
+    except Exception:
+        logger.exception("best_study_time failed for user %s", current_user.id)
+        best_time = None
+    try:
+        at_risk = get_words_at_risk(current_user.id)
+    except Exception:
+        logger.exception("words_at_risk failed for user %s", current_user.id)
+        at_risk = []
+    try:
+        weaknesses = get_grammar_weaknesses(current_user.id)
+    except Exception:
+        logger.exception("grammar_weaknesses failed for user %s", current_user.id)
+        weaknesses = []
+    try:
+        reading_trend = get_reading_speed_trend(current_user.id)
+    except Exception:
+        logger.exception("reading_speed_trend failed for user %s", current_user.id)
+        reading_trend = []
+    try:
+        summary = get_learning_summary(current_user.id)
+    except Exception:
+        logger.exception("learning_summary failed for user %s", current_user.id)
+        summary = {
+            'total_words_learned': 0,
+            'total_words_review': 0,
+            'total_lessons': 0,
+            'total_hours': 0.0,
+            'books_enrolled': 0,
+            'grammar_topics_practiced': 0,
+            'current_streak_days': 0,
+        }
     try:
         milestone_history = get_milestone_history(current_user.id)
     except Exception:

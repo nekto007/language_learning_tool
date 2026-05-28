@@ -163,3 +163,81 @@ def test_no_duplicate_revisions(chain):
             counts[match.group(1)] = counts.get(match.group(1), 0) + 1
     duplicates = [rev for rev, c in counts.items() if c > 1]
     assert not duplicates, f"duplicate revision ids: {duplicates}"
+
+
+# ---------------------------------------------------------------------------
+# Task 57 additions: CASCADE idempotency, streak_shield DEFAULT, downgrade safety
+# ---------------------------------------------------------------------------
+
+_STREAK_SHIELD_MIGRATION = "20260523_streak_shield.py"
+_CASCADE_MIGRATION = "20260425_grammar_exercise_cascade.py"
+
+# The 5 most-recent non-merge migrations by chain proximity to current head.
+# Merge migrations intentionally have `pass` downgrade bodies, so they are
+# excluded from the "real downgrade" check.
+_LAST_5_NON_MERGE = [
+    "20260602_book_is_published.py",
+    "20260601_activity_feed_indexes.py",
+    "20260527_slot_skipped_unique_index.py",
+    "20260527_feedback.py",
+    "20260525_add_site_settings.py",
+]
+
+
+def test_streak_shield_has_server_default_false():
+    path = MIGRATIONS_DIR / _STREAK_SHIELD_MIGRATION
+    assert path.exists(), f"Migration file missing: {_STREAK_SHIELD_MIGRATION}"
+    text = path.read_text()
+    assert "streak_shield_active" in text, "streak_shield_active column not in migration"
+    # server_default must be 'false' (postgres boolean literal)
+    assert "server_default='false'" in text or 'server_default="false"' in text, (
+        "streak_shield_active migration must have server_default='false'"
+    )
+
+
+def test_grammar_cascade_migration_is_idempotent():
+    path = MIGRATIONS_DIR / _CASCADE_MIGRATION
+    assert path.exists(), f"Migration file missing: {_CASCADE_MIGRATION}"
+    text = path.read_text()
+    # Idempotency guard: migration inspects FK before recreating it
+    assert "_ensure_cascade" in text, "CASCADE migration must have idempotency guard (_ensure_cascade)"
+    # Must check existing FK options before dropping/recreating
+    assert "ondelete" in text.lower(), (
+        "CASCADE migration must inspect ondelete option to avoid redundant ALTER"
+    )
+    # Must skip on SQLite (test environment)
+    assert "sqlite" in text.lower() or "_is_postgres" in text, (
+        "CASCADE migration must skip on SQLite to avoid fragile batch ALTER"
+    )
+
+
+def test_last_5_migrations_have_real_downgrade():
+    for fname in _LAST_5_NON_MERGE:
+        path = MIGRATIONS_DIR / fname
+        assert path.exists(), f"Migration file missing: {fname}"
+        text = path.read_text()
+        # downgrade function must exist
+        assert "def downgrade" in text, f"{fname}: missing downgrade() function"
+        # Extract body after def downgrade():
+        m = re.search(r"def downgrade\(\)[^:]*:(.*)", text, re.DOTALL)
+        assert m, f"{fname}: could not parse downgrade body"
+        body = m.group(1)
+        # Meaningful downgrade = contains op. call or DROP/ALTER SQL
+        has_op_call = bool(re.search(r"\bop\.", body))
+        assert has_op_call, (
+            f"{fname}: downgrade() appears to be a no-op (no op.* calls). "
+            "Non-merge migrations must have a real downgrade."
+        )
+
+
+def test_cascade_migration_upgrade_skips_sqlite():
+    path = MIGRATIONS_DIR / _CASCADE_MIGRATION
+    text = path.read_text()
+    # The upgrade() function must early-return on non-postgres
+    # (to protect test environments that use SQLite)
+    m = re.search(r"def upgrade\(\)[^:]*:(.*?)(?=\ndef |\Z)", text, re.DOTALL)
+    assert m, "Could not find upgrade() in cascade migration"
+    body = m.group(1)
+    assert "not _is_postgres" in body or "return" in body, (
+        "upgrade() in cascade migration must return early on non-postgres"
+    )

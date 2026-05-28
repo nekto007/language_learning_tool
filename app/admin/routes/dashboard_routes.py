@@ -444,42 +444,57 @@ def get_srs_health_metrics() -> dict:
 
 @cache_result('retention_metrics', timeout=300)
 def get_retention_metrics() -> dict:
-    """Day 1, Day 7, Day 30 retention rates."""
+    """Day 1, Day 7, Day 30 retention rates.
+
+    Uses a single bulk query per day_offset instead of one UNION per registration
+    date — avoids the previous N+1 pattern that ran _active_user_ids_for_date()
+    inside a loop.
+    """
     now = datetime.now(timezone.utc)
     today = now.date()
+    earliest = today - timedelta(days=90)
+
+    # One query: all user IDs with their registration date for the 90-day window.
+    reg_user_rows = db.session.query(
+        User.id,
+        func.date(User.created_at).label('reg_date'),
+    ).filter(
+        func.date(User.created_at) >= earliest,
+        func.date(User.created_at) <= today,
+    ).all()
+
+    cohort_ids_by_date: dict = {}
+    for user_id, reg_date in reg_user_rows:
+        cohort_ids_by_date.setdefault(reg_date, set()).add(user_id)
 
     def _retention_rate(day_offset: int) -> float:
-        """Aggregated Day-N retention across all eligible cohorts (last 90 days)."""
-        earliest = today - timedelta(days=90)
         latest = today - timedelta(days=day_offset)
         if latest < earliest:
             return 0.0
 
-        total_cohort = 0
-        total_retained = 0
-
-        reg_dates = db.session.query(
-            func.date(User.created_at).label('reg_date'),
-            func.count(User.id).label('cnt'),
-        ).filter(
-            func.date(User.created_at) >= earliest,
-            func.date(User.created_at) <= latest,
-        ).group_by(func.date(User.created_at)).all()
-
-        for reg_date, cnt in reg_dates:
+        # Determine which (reg_date, target_date) pairs are in range.
+        valid_cohorts = []
+        for reg_date, cohort_ids in cohort_ids_by_date.items():
+            if reg_date > latest:
+                continue
             target_date = reg_date + timedelta(days=day_offset)
             if target_date > today:
                 continue
-            total_cohort += cnt
+            valid_cohorts.append((cohort_ids, target_date))
 
-            cohort_ids = [r[0] for r in db.session.query(User.id).filter(
-                func.date(User.created_at) == reg_date,
-            ).all()]
-            if not cohort_ids:
-                continue
-            active_ids = {r[0] for r in _active_user_ids_for_date(target_date).all()}
-            retained = len(active_ids.intersection(cohort_ids))
-            total_retained += retained
+        if not valid_cohorts:
+            return 0.0
+
+        # One UNION query covers all target dates for this day_offset.
+        target_dates = [vc[1] for vc in valid_cohorts]
+        activity_bucket = get_active_user_dates(min(target_dates), max(target_dates))
+
+        total_cohort = 0
+        total_retained = 0
+        for cohort_ids, target_date in valid_cohorts:
+            total_cohort += len(cohort_ids)
+            active_ids = activity_bucket.get(target_date, set())
+            total_retained += len(active_ids.intersection(cohort_ids))
 
         if total_cohort == 0:
             return 0.0
@@ -619,21 +634,31 @@ def get_content_quality() -> dict:
         func.count(LessonAttempt.id) >= 5,
     ).all()
 
-    low_pass_lessons = []
+    # Identify low-pass rows first, then bulk-load lessons to avoid N+1.
+    low_pass_rows = []
     for row in lesson_stats_rows:
         pass_rate = (row.passed / row.attempts * 100) if row.attempts > 0 else 0
         if pass_rate < 50:
-            lesson = Lessons.query.get(row.lesson_id)
-            if lesson:
-                low_pass_lessons.append({
-                    'lesson_id': row.lesson_id,
-                    'title': lesson.title,
-                    'type': lesson.type,
-                    'module_id': lesson.module_id,
-                    'pass_rate': round(pass_rate, 1),
-                    'attempts': row.attempts,
-                    'avg_score': round(row.avg_score or 0, 1),
-                })
+            low_pass_rows.append((row, round(pass_rate, 1)))
+
+    lessons_map: dict = {}
+    if low_pass_rows:
+        ids = [r[0].lesson_id for r in low_pass_rows]
+        lessons_map = {l.id: l for l in Lessons.query.filter(Lessons.id.in_(ids)).all()}
+
+    low_pass_lessons = []
+    for row, pass_rate in low_pass_rows:
+        lesson = lessons_map.get(row.lesson_id)
+        if lesson:
+            low_pass_lessons.append({
+                'lesson_id': row.lesson_id,
+                'title': lesson.title,
+                'type': lesson.type,
+                'module_id': lesson.module_id,
+                'pass_rate': pass_rate,
+                'attempts': row.attempts,
+                'avg_score': round(row.avg_score or 0, 1),
+            })
 
     low_pass_lessons.sort(key=lambda x: x['pass_rate'])
 
@@ -815,10 +840,11 @@ def get_content_alerts() -> list:
 
 @cache_result('system_health', timeout=60)
 def get_system_health() -> dict:
-    """System health: DB connection, uptime, 5xx error count (per worker)."""
+    """System health: DB connection, pool stats, uptime, 5xx error count (per worker)."""
     health = {
         'db_status': 'ok',
         'db_error': None,
+        'db_pool': None,
         'uptime_seconds': int(_time.time() - _app_start_time),
         'errors_5xx': _error_5xx_count,
     }
@@ -828,6 +854,18 @@ def get_system_health() -> dict:
         logger.warning("DB health check failed: %s", e)
         health['db_status'] = 'error'
         health['db_error'] = str(e)
+
+    try:
+        pool = db.engine.pool
+        health['db_pool'] = {
+            'size': pool.size(),
+            'checked_in': pool.checkedin(),
+            'checked_out': pool.checkedout(),
+            'overflow': pool.overflow(),
+        }
+    except Exception:
+        # Not all pool types (StaticPool, NullPool) support size/checkin stats.
+        pass
 
     return health
 

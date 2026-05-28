@@ -7,11 +7,13 @@ Covers the acceptance criteria documented in the design plan:
   false «Курс пройден» milestone — surfaces setup_level instead.
 - has_more_optional signals correctly.
 - Optional items dedup against required by id.
+- get_daily_plan_unified edge cases: paused, no-lessons, past pause date.
+- compute_day_secured_from_activity edge cases: missing _plan_meta, paused mode.
 """
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -19,6 +21,7 @@ from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.plan import build_optional, build_required, build_setup, get_daily_plan
 from app.utils.db import db as real_db
+from tests.conftest import unique_level_code
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -41,7 +44,7 @@ def _make_user(db_session, **kwargs) -> User:
 
 def _make_level(db_session, code: str | None = None, order: int = 1) -> CEFRLevel:
     if code is None:
-        code = uuid.uuid4().hex[:2].upper()
+        code = unique_level_code()
     level = CEFRLevel(code=code, name=f'Level {code}', description='', order=order)
     db_session.add(level)
     db_session.commit()
@@ -320,3 +323,144 @@ class TestUnifiedDaySecured:
         }
         completion = {'curriculum:lesson:1': True, 'srs:global': False}
         assert compute_day_secured_from_activity(plan, completion) is False
+
+    def test_compute_day_secured_missing_plan_meta_returns_false(self):
+        """When _plan_meta key is missing entirely, falls back to payload day_secured."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {'required': [], 'day_secured': False}
+        assert compute_day_secured_from_activity(plan, {}) is False
+
+    def test_compute_day_secured_paused_mode_returns_payload_value(self):
+        """In paused mode day_secured reflects the stored payload value."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'day_secured': True,
+            '_plan_meta': {'effective_mode': 'paused'},
+        }
+        assert compute_day_secured_from_activity(plan, {}) is True
+
+    def test_compute_day_secured_paused_mode_false(self):
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'day_secured': False,
+            '_plan_meta': {'effective_mode': 'paused'},
+        }
+        assert compute_day_secured_from_activity(plan, {}) is False
+
+    def test_compute_day_secured_item_already_completed_in_payload(self):
+        """Items with completed=True in the plan count without completion dict entry."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'required': [
+                {'id': 'curriculum:lesson:1', 'kind': 'curriculum', 'completed': True},
+            ],
+            '_plan_meta': {'effective_mode': 'unified'},
+        }
+        assert compute_day_secured_from_activity(plan, {}) is True
+
+
+# ── get_daily_plan_unified edge cases ────────────────────────────────
+
+
+class TestGetDailyPlanUnifiedEdgeCases:
+
+    @pytest.mark.smoke
+    def test_no_lessons_available_returns_valid_payload(self, db_session):
+        """When no lessons exist for the user's level, get_daily_plan_unified
+        still returns a valid payload (not 500) with required=[] or setup hints."""
+        user = _make_user(db_session, onboarding_level='C2')
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        assert 'required' in payload
+        assert 'optional' in payload
+        assert 'setup' in payload
+        assert isinstance(payload['required'], list)
+        assert payload.get('day_secured') is False
+
+    def test_plan_paused_until_past_does_not_block_plan(self, db_session):
+        """When plan_paused_until is yesterday, the plan is NOT paused."""
+        yesterday = date.today() - timedelta(days=1)
+        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=yesterday)
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        assert payload.get('mode') != 'paused', (
+            "past plan_paused_until must not keep the plan in paused state"
+        )
+
+    def test_plan_paused_until_today_does_not_block_plan(self, db_session):
+        """When plan_paused_until is today (not strictly > today), plan is active."""
+        today = date.today()
+        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=today)
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        assert payload.get('mode') != 'paused', (
+            "plan_paused_until == today should not block the plan (strict > check)"
+        )
+
+    def test_plan_paused_until_future_returns_paused_payload(self, db_session):
+        """When plan_paused_until is tomorrow, mode=paused is returned."""
+        tomorrow = date.today() + timedelta(days=1)
+        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=tomorrow)
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        assert payload.get('mode') == 'paused'
+        assert 'paused_until' in payload
+
+    def test_total_estimated_minutes_non_negative_no_lessons(self, db_session):
+        """total_estimated_minutes is >= 0 even when no required items exist."""
+        user = _make_user(db_session, onboarding_level='C2')
+
+        plan = get_daily_plan(user.id, real_db)
+
+        assert plan['total_estimated_minutes'] >= 0
+
+    def test_total_estimated_minutes_non_negative_with_lesson(self, db_session):
+        """total_estimated_minutes is >= 0 when required items exist."""
+        level = _make_level(db_session, code='A1', order=1)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module)
+        user = _make_user(db_session, onboarding_level='A1')
+
+        plan = get_daily_plan(user.id, real_db)
+
+        assert plan['total_estimated_minutes'] >= 0
+
+    def test_unified_payload_has_plan_meta(self, db_session):
+        """get_daily_plan_unified always attaches _plan_meta with effective_mode."""
+        user = _make_user(db_session, onboarding_level='C2')
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        assert '_plan_meta' in payload
+        assert payload['_plan_meta']['effective_mode'] in ('unified', 'paused')
+
+    def test_unified_fallback_payload_on_assembly_error(self, db_session, monkeypatch):
+        """If plan assembly raises, get_daily_plan_unified returns safe fallback."""
+        user = _make_user(db_session, onboarding_level='A1')
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("injected failure")
+
+        import app.daily_plan.plan as plan_mod
+        monkeypatch.setattr(plan_mod, 'get_daily_plan', _boom)
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        assert payload['mode'] == 'unified'
+        assert payload['required'] == []
+        assert payload['day_secured'] is False
+        assert payload['_plan_meta']['fallback_reason'] == 'unified_build_failed'

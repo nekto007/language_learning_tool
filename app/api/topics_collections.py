@@ -5,6 +5,7 @@ from flask_login import current_user
 from sqlalchemy import func, or_
 
 from app.api.decorators import api_auth_required
+from app.api.errors import api_error
 from app.study.models import UserWord
 from app.study.services.srs_service import get_user_word_ids
 from app.utils.db import db
@@ -313,11 +314,7 @@ def add_topic_to_study(topic_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error in topics/collections API: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Внутренняя ошибка сервера',
-            'status_code': 500
-        }), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 # API маршруты для коллекций (Collections)
@@ -637,11 +634,7 @@ def add_collection_to_study(collection_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error in topics/collections API: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Внутренняя ошибка сервера',
-            'status_code': 500
-        }), 500
+        return api_error('server_error', 'Внутренняя ошибка сервера', 500)
 
 
 # API для работы со словами в контексте тем и коллекций

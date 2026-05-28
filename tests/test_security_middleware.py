@@ -1,6 +1,13 @@
 """
 Tests for security middleware (app/middleware/security.py)
+
+Task 38: Security — headers and CSP
+- CSP nonce for inline scripts
+- HSTS with preload in production
+- X-Content-Type-Options: nosniff
+- Referrer-Policy header
 """
+import re
 import pytest
 from flask import Flask
 
@@ -267,3 +274,111 @@ class TestPermissionsPolicy:
             response = client.get('/test')
             policy = response.headers.get('Permissions-Policy')
             assert 'bluetooth=()' in policy
+
+
+class TestCSPNonce:
+    """Tests for per-request CSP nonce in script-src (Task 38)"""
+
+    @pytest.fixture
+    def app_with_security(self):
+        from app.middleware.security import add_security_headers
+
+        app = Flask(__name__)
+        app.config['TESTING'] = True
+
+        add_security_headers(app)
+
+        @app.route('/test')
+        def test_route():
+            return 'OK'
+
+        return app
+
+    def test_csp_contains_nonce(self, app_with_security):
+        """script-src in CSP must include a nonce- source"""
+        with app_with_security.test_client() as client:
+            response = client.get('/test')
+            csp = response.headers.get('Content-Security-Policy', '')
+            assert re.search(r"nonce-[A-Za-z0-9+/=]+", csp), (
+                "CSP script-src must contain a nonce- source"
+            )
+
+    def test_csp_nonce_is_base64(self, app_with_security):
+        """The nonce value must be valid base64"""
+        with app_with_security.test_client() as client:
+            response = client.get('/test')
+            csp = response.headers.get('Content-Security-Policy', '')
+            match = re.search(r"nonce-([A-Za-z0-9+/=]+)", csp)
+            assert match, "nonce must be present in CSP"
+            nonce_value = match.group(1)
+            import base64
+            decoded = base64.b64decode(nonce_value)
+            assert len(decoded) >= 16, "nonce must be at least 16 bytes"
+
+    def test_nonce_differs_per_request(self, app_with_security):
+        """Each request must get a fresh nonce"""
+        with app_with_security.test_client() as client:
+            r1 = client.get('/test')
+            r2 = client.get('/test')
+            csp1 = r1.headers.get('Content-Security-Policy', '')
+            csp2 = r2.headers.get('Content-Security-Policy', '')
+            m1 = re.search(r"nonce-([A-Za-z0-9+/=]+)", csp1)
+            m2 = re.search(r"nonce-([A-Za-z0-9+/=]+)", csp2)
+            assert m1 and m2
+            assert m1.group(1) != m2.group(1), "Each request must get a unique nonce"
+
+    def test_csp_nonce_context_processor(self, app_with_security):
+        """The csp_nonce template variable must match the CSP nonce"""
+        from flask import render_template_string
+
+        @app_with_security.route('/nonce-check')
+        def nonce_check():
+            return render_template_string('{{ csp_nonce }}')
+
+        with app_with_security.test_client() as client:
+            response = client.get('/nonce-check')
+            rendered_nonce = response.data.decode()
+            csp = response.headers.get('Content-Security-Policy', '')
+            assert rendered_nonce in csp, (
+                "Template csp_nonce variable must match the nonce in CSP header"
+            )
+
+    def test_x_content_type_options_nosniff(self, app_with_security):
+        """X-Content-Type-Options must be nosniff"""
+        with app_with_security.test_client() as client:
+            response = client.get('/test')
+            assert response.headers.get('X-Content-Type-Options') == 'nosniff'
+
+    def test_referrer_policy_present(self, app_with_security):
+        """Referrer-Policy header must be present"""
+        with app_with_security.test_client() as client:
+            response = client.get('/test')
+            referrer = response.headers.get('Referrer-Policy')
+            assert referrer is not None
+            assert referrer == 'strict-origin-when-cross-origin'
+
+    def test_hsts_production_has_preload(self):
+        """HSTS header in production must include preload"""
+        from app.middleware.security import add_security_headers
+
+        app = Flask(__name__)
+        app.config['TESTING'] = True
+        app.config['ENV'] = 'production'
+        add_security_headers(app)
+
+        @app.route('/test')
+        def test_route():
+            return 'OK'
+
+        with app.test_client() as client:
+            response = client.get('/test')
+            hsts = response.headers.get('Strict-Transport-Security', '')
+            assert 'preload' in hsts
+            assert 'includeSubDomains' in hsts
+            assert 'max-age=31536000' in hsts
+
+    def test_hsts_absent_in_non_production(self, app_with_security):
+        """HSTS must not be set outside production"""
+        with app_with_security.test_client() as client:
+            response = client.get('/test')
+            assert response.headers.get('Strict-Transport-Security') is None

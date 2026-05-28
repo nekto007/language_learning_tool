@@ -14,6 +14,9 @@ from typing import Any, Optional
 # One "not now" action per user-local day across all baseline slots.
 DAILY_SLOT_SKIP_QUOTA = 1
 
+# One curriculum-lesson deferral per user-local day.
+DAILY_LESSON_SKIP_QUOTA = 1
+
 
 def get_slot_skip_key(slot: dict[str, Any], index: Optional[int] = None) -> str:
     """Return a stable key identifying a single slot for skip dedup.

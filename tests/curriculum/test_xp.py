@@ -199,3 +199,162 @@ class TestAwardIdempotentHelperDate:
         assert first is not None
         assert second is None
         assert third is not None
+
+
+# ---------------------------------------------------------------------------
+# Flush-only: helper must not commit; caller owns the transaction
+# ---------------------------------------------------------------------------
+
+class TestFlushOnly:
+    def test_no_commit_called_from_helper(self, app, db_session, test_user, test_module):
+        """award_curriculum_lesson_xp_idempotent flushes but never commits."""
+        from unittest.mock import patch
+        from app.utils.db import db as db_ext
+
+        lesson = _make_lesson(db_session, test_module)
+        with app.app_context():
+            with patch.object(db_ext.session, 'commit') as mock_commit:
+                award_curriculum_lesson_xp_idempotent(
+                    test_user.id, lesson.id, date(2026, 5, 1),
+                )
+            mock_commit.assert_not_called()
+
+    def test_streak_event_visible_after_flush_before_commit(
+        self, app, db_session, test_user, test_module,
+    ):
+        """StreakEvent must be queryable within the same transaction after flush."""
+        lesson = _make_lesson(db_session, test_module)
+        for_date = date(2026, 5, 2)
+        with app.app_context():
+            result = award_curriculum_lesson_xp_idempotent(
+                test_user.id, lesson.id, for_date,
+            )
+            events = _xp_events(db_session, test_user.id, lesson.id)
+        assert result is not None
+        assert len(events) == 1
+        assert events[0].event_date == for_date
+
+    def test_duplicate_call_same_flush_no_double_streak_event(
+        self, app, db_session, test_user, test_module,
+    ):
+        """Second same-day call sees the flushed row and returns None."""
+        lesson = _make_lesson(db_session, test_module)
+        with app.app_context():
+            first = award_curriculum_lesson_xp_idempotent(
+                test_user.id, lesson.id, date(2026, 5, 3),
+            )
+            second = award_curriculum_lesson_xp_idempotent(
+                test_user.id, lesson.id, date(2026, 5, 3),
+            )
+        assert first is not None
+        assert second is None
+        events = _xp_events(db_session, test_user.id, lesson.id)
+        assert len(events) == 1
+
+
+# ---------------------------------------------------------------------------
+# maybe_award_listening_xp / maybe_award_writing_xp idempotency key
+# ---------------------------------------------------------------------------
+
+class TestListeningWritingXPIdempotency:
+    """Verify that listening/writing slot XP dedup is keyed on source correctly."""
+
+    def test_maybe_award_listening_xp_idempotent_same_date(
+        self, app, db_session, test_user,
+    ):
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.xp import maybe_award_listening_xp, LINEAR_XP_EVENT_TYPE
+
+        for_date = date(2026, 5, 10)
+        with app.app_context():
+            first = maybe_award_listening_xp(test_user.id, for_date=for_date)
+            second = maybe_award_listening_xp(test_user.id, for_date=for_date)
+
+        assert first is not None, 'First call should award XP'
+        assert second is None, 'Second call on same date must be a no-op'
+
+        events = db_session.query(StreakEvent).filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == for_date,
+            StreakEvent.details['source'].astext == 'linear_listening',
+        ).all()
+        assert len(events) == 1
+
+    def test_maybe_award_listening_xp_different_dates_independent(
+        self, app, db_session, test_user,
+    ):
+        from app.daily_plan.linear.xp import maybe_award_listening_xp
+
+        day1 = date(2026, 5, 11)
+        day2 = date(2026, 5, 12)
+        with app.app_context():
+            first = maybe_award_listening_xp(test_user.id, for_date=day1)
+            second = maybe_award_listening_xp(test_user.id, for_date=day2)
+
+        assert first is not None
+        assert second is not None
+
+    def test_maybe_award_writing_xp_idempotent_same_date(
+        self, app, db_session, test_user,
+    ):
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.xp import maybe_award_writing_xp, LINEAR_XP_EVENT_TYPE
+
+        for_date = date(2026, 5, 13)
+        with app.app_context():
+            first = maybe_award_writing_xp(test_user.id, for_date=for_date)
+            second = maybe_award_writing_xp(test_user.id, for_date=for_date)
+
+        assert first is not None, 'First call should award XP'
+        assert second is None, 'Second call on same date must be a no-op'
+
+        events = db_session.query(StreakEvent).filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == for_date,
+            StreakEvent.details['source'].astext == 'linear_writing',
+        ).all()
+        assert len(events) == 1
+
+    def test_maybe_award_writing_xp_different_dates_independent(
+        self, app, db_session, test_user,
+    ):
+        from app.daily_plan.linear.xp import maybe_award_writing_xp
+
+        day1 = date(2026, 5, 14)
+        day2 = date(2026, 5, 15)
+        with app.app_context():
+            first = maybe_award_writing_xp(test_user.id, for_date=day1)
+            second = maybe_award_writing_xp(test_user.id, for_date=day2)
+
+        assert first is not None
+        assert second is not None
+
+    def test_for_date_falls_back_to_user_local_date(self, app, db_session, test_user):
+        """When for_date is omitted, helpers use get_user_local_date (not UTC now)."""
+        from datetime import datetime, timezone
+        from unittest.mock import patch
+        from app.daily_plan.linear.xp import maybe_award_listening_xp
+
+        test_user.timezone = 'America/New_York'
+        db_session.commit()
+
+        local_day = date(2026, 5, 16)
+        with app.app_context(), patch(
+            'app.utils.time_utils.get_user_local_date', return_value=local_day,
+        ):
+            result = maybe_award_listening_xp(test_user.id)
+
+        assert result is not None
+
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+        events = db_session.query(StreakEvent).filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.details['source'].astext == 'linear_listening',
+        ).all()
+        assert any(e.event_date == local_day for e in events), (
+            'StreakEvent must use user-local date, not UTC'
+        )

@@ -69,6 +69,10 @@ def users():
 @admin_required
 def toggle_user_status(user_id):
     """Активация/деактивация пользователя"""
+    if user_id == current_user.id:
+        flash('Вы не можете деактивировать свой собственный аккаунт.', 'danger')
+        return redirect(url_for('user_admin.users'))
+
     result = UserManagementService.toggle_user_status(user_id)
 
     if result:

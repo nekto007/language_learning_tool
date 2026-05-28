@@ -239,7 +239,8 @@ def grade_audio_fill_blank(user_answers: list, items: list) -> dict:
         dict with score (0-100), passed (bool), correct_items (int),
         total_items (int), item_results (list of {answer, user_answer, correct}).
     """
-    total = len(items)
+    total = len(items or [])
+    items = items or []
     if total == 0:
         return {
             'score': 0,
@@ -389,7 +390,8 @@ def grade_sentence_correction_multi(user_answers: list, items: list) -> dict:
         correct_sentence, user_answer, correct, explanation, error_type,
         error_type_ru, translation}).
     """
-    total = len(items)
+    total = len(items or [])
+    items = items or []
     if total == 0:
         return {
             'score': 0,
@@ -441,7 +443,8 @@ def grade_sentence_completion(user_answers: list, items: list) -> dict:
         dict with score (0-100), passed (bool), correct_items (int),
         total_items (int), item_results (list of {prompt, answer, user_answer, correct}).
     """
-    total = len(items)
+    total = len(items or [])
+    items = items or []
     if total == 0:
         return {
             'score': 0,
@@ -489,7 +492,8 @@ def grade_collocation_matching(user_pairs: list, correct_pairs: list) -> dict:
         dict with score (0-100), passed (bool), correct_items (int),
         total_items (int), pair_results (list of {phrase, translation, correct}).
     """
-    total = len(correct_pairs)
+    total = len(correct_pairs or [])
+    correct_pairs = correct_pairs or []
     if total == 0:
         return {
             'score': 0,

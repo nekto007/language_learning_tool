@@ -31,6 +31,7 @@ from app.daily_plan.challenge import (
     get_challenge_streak,
     get_today_challenge,
 )
+from tests.conftest import unique_level_code
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ def _make_user(db_session):
 
 def _make_dictation_lesson(db_session):
     from app.curriculum.models import CEFRLevel, Lessons, Module
-    uid = uuid.uuid4().hex[:2].upper()
+    uid = unique_level_code()
     level = CEFRLevel(code=uid, name='Test', description='d', order=99)
     db_session.add(level)
     db_session.commit()
@@ -483,3 +484,200 @@ class TestChallengeLeaderboardBonus:
             .first()
         )
         assert participant.points == 0
+
+
+# ── Task 65: no-challenge day, duplicate prevention, bonus_xp, streak ────────
+
+
+class TestNoChallengeDay:
+    """get_today_challenge auto-seeds and never raises 500 when no challenge exists."""
+
+    def test_no_preexisting_challenge_returns_dict_not_none(self, db_session):
+        """Returns a valid dict (not None) when called on a day with no pre-seeded challenge."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        # Verify no DailyChallenge row exists for today yet
+        count_before = DailyChallenge.query.filter_by(challenge_date=today).count()
+        # Note: other tests may have already seeded today's challenge; clear expectation
+        # is that the function returns a dict regardless.
+
+        result = get_today_challenge(user.id, db)
+
+        assert isinstance(result, dict), "get_today_challenge must return a dict, not raise"
+        assert result['category'] in ('speed_run', 'accuracy_focus', 'listening_deep')
+        assert result['is_completed'] is False
+        assert result['challenge_streak'] == 0
+
+    def test_returns_non_none_result(self, db_session):
+        """get_today_challenge never returns None."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        result = get_today_challenge(user.id, db)
+        assert result is not None
+
+    def test_challenge_auto_seeded_when_missing(self, db_session):
+        """When no challenge exists for today, one is created automatically."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        get_today_challenge(user.id, db)
+
+        # A DailyChallenge row must now exist for today
+        challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
+        assert challenge is not None
+        assert challenge.bonus_xp > 0
+
+    def test_challenge_seeded_only_once_even_with_concurrent_calls(self, db_session):
+        """Repeated calls do not create multiple DailyChallenge rows for same day."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        get_today_challenge(user.id, db)
+        get_today_challenge(user.id, db)
+        get_today_challenge(user.id, db)
+
+        count = DailyChallenge.query.filter_by(challenge_date=today).count()
+        assert count == 1
+
+
+class TestDuplicateCompletionPrevention:
+    """challenge completion cannot be duplicated on retry."""
+
+    def test_retry_returns_already_completed(self, db_session):
+        """Second call to complete_challenge returns already_completed=True."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        challenge_data = get_today_challenge(user.id, db)
+        challenge_id = challenge_data['id']
+
+        first = complete_challenge(user.id, challenge_id, score=90.0, time_spent_seconds=180, db=db)
+        db_session.commit()
+        second = complete_challenge(user.id, challenge_id, score=95.0, time_spent_seconds=60, db=db)
+
+        assert first['already_completed'] is False
+        assert second['already_completed'] is True
+
+    def test_retry_does_not_create_duplicate_completion_row(self, db_session):
+        """Only one DailyChallengeCompletion row exists after multiple complete calls."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        challenge_data = get_today_challenge(user.id, db)
+        challenge_id = challenge_data['id']
+
+        complete_challenge(user.id, challenge_id, score=85.0, time_spent_seconds=200, db=db)
+        db_session.commit()
+        complete_challenge(user.id, challenge_id, score=95.0, time_spent_seconds=100, db=db)
+        db_session.commit()
+
+        count = DailyChallengeCompletion.query.filter_by(
+            challenge_id=challenge_id, user_id=user.id
+        ).count()
+        assert count == 1
+
+    def test_already_completed_response_has_no_bonus_xp(self, db_session):
+        """When already completed, response omits bonus_xp to prevent double-award."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        challenge_data = get_today_challenge(user.id, db)
+        challenge_id = challenge_data['id']
+
+        complete_challenge(user.id, challenge_id, score=88.0, time_spent_seconds=150, db=db)
+        db_session.commit()
+        retry = complete_challenge(user.id, challenge_id, score=99.0, time_spent_seconds=50, db=db)
+
+        # Retry response must not carry bonus_xp — callers use this to guard XP award
+        assert 'bonus_xp' not in retry
+
+
+class TestBonusXpOnlyOnCompletion:
+    """bonus_xp is awarded only on real completion, not on view."""
+
+    def test_get_today_challenge_does_not_change_xp(self, db_session):
+        """Calling get_today_challenge (view) does not award any XP."""
+        from app.utils.db import db
+        from app.achievements.models import UserStatistics
+
+        user = _make_user(db_session)
+        stats_before = UserStatistics.query.filter_by(user_id=user.id).first()
+        xp_before = stats_before.total_xp if stats_before else 0
+
+        # View the challenge three times
+        get_today_challenge(user.id, db)
+        get_today_challenge(user.id, db)
+        get_today_challenge(user.id, db)
+
+        stats_after = UserStatistics.query.filter_by(user_id=user.id).first()
+        xp_after = stats_after.total_xp if stats_after else 0
+        assert xp_after == xp_before, "get_today_challenge must not award XP"
+
+    def test_complete_challenge_first_time_includes_bonus_xp(self, db_session):
+        """First completion returns bonus_xp in the response."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        challenge_data = get_today_challenge(user.id, db)
+        challenge_id = challenge_data['id']
+
+        result = complete_challenge(user.id, challenge_id, score=92.0, time_spent_seconds=120, db=db)
+        db_session.commit()
+
+        assert result['already_completed'] is False
+        assert result.get('bonus_xp', 0) > 0
+
+    def test_complete_challenge_invalid_id_raises_value_error(self, db_session):
+        """Completing a non-existent challenge raises ValueError (not silent None)."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+
+        import pytest
+        with pytest.raises(ValueError):
+            complete_challenge(user.id, challenge_id=999999, score=None, time_spent_seconds=None, db=db)
+
+
+class TestChallengeStreak7Correctness:
+    """challenge_streak_7 achievement uses the correct streak walk-backward logic."""
+
+    def test_streak_7_requires_all_7_consecutive_days(self, db_session):
+        """Exactly 7 consecutive completions produce a streak of 7."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        for offset in range(7):
+            _complete_for_date(user.id, today - timedelta(days=offset), db_session)
+
+        assert get_challenge_streak(user.id, db) == 7
+
+    def test_six_days_insufficient_for_streak_7(self, db_session):
+        """6 consecutive days gives streak=6, not 7."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        for offset in range(6):
+            _complete_for_date(user.id, today - timedelta(days=offset), db_session)
+
+        assert get_challenge_streak(user.id, db) == 6
+
+    def test_gap_on_day_1_limits_streak_to_one(self, db_session):
+        """If yesterday is missing but today completed, streak = 1 (gap on day 1 stops walk)."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        today = date.today()
+
+        # Complete today and days 2-7 ago; yesterday (offset=1) is missing
+        _complete_for_date(user.id, today, db_session)
+        for offset in range(2, 8):
+            _complete_for_date(user.id, today - timedelta(days=offset), db_session)
+
+        # Walk: today=1, yesterday missing → break → streak=1
+        assert get_challenge_streak(user.id, db) == 1
+
+    def test_zero_completions_streak_is_zero(self, db_session):
+        """User with no completions has streak=0."""
+        from app.utils.db import db
+        user = _make_user(db_session)
+        assert get_challenge_streak(user.id, db) == 0

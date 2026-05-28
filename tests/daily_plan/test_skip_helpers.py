@@ -24,6 +24,7 @@ from app.daily_plan.linear.slots.curriculum_slot import (
 )
 from app.daily_plan.models import LessonSkip
 from app.utils.db import db as real_db
+from tests.conftest import unique_level_code
 
 
 def _uid() -> str:
@@ -40,7 +41,7 @@ def _make_user(db_session) -> User:
 
 
 def _make_level(db_session, order: int) -> CEFRLevel:
-    code = uuid.uuid4().hex[:2].upper()
+    code = unique_level_code()
     level = CEFRLevel(code=code, name=f'Level {code}', description='desc', order=order)
     db_session.add(level)
     db_session.commit()

@@ -14,6 +14,7 @@ from app.achievements.xp_service import (
     LevelInfo,
     XPAward,
     apply_score_to_base,
+    award_game_xp_idempotent,
     award_linear_xp,
     award_xp,
     award_phase_xp_idempotent,
@@ -1134,3 +1135,165 @@ class TestLinearPerfectDayBonus:
         assert result is not None
         assert result.multiplier == 2.0
         assert result.xp_awarded == PERFECT_DAY_BONUS_XP_LINEAR * 2  # 50
+
+
+# ---------------------------------------------------------------------------
+# award_game_xp_idempotent — session_id=None returns None
+# ---------------------------------------------------------------------------
+
+class TestAwardGameXpIdempotent:
+    def _ensure_stats(self, db_session, user_id):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
+            db.session.add(stats)
+            db.session.flush()
+        else:
+            stats.total_xp = 0
+            stats.current_streak_days = 0
+            db.session.flush()
+        return stats
+
+    def test_none_session_id_returns_none(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_game_xp_idempotent(
+            test_user.id, None, 'matching', 20, date.today()
+        )
+        assert result is None
+
+    def test_valid_session_awards_xp(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_game_xp_idempotent(
+            test_user.id, 42, 'matching', 20, date.today()
+        )
+        assert result is not None
+        assert result.xp_awarded >= 20
+
+    def test_idempotent_same_session_returns_none(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        first = award_game_xp_idempotent(test_user.id, 99, 'quiz', 15, today)
+        assert first is not None
+        second = award_game_xp_idempotent(test_user.id, 99, 'quiz', 15, today)
+        assert second is None
+
+    def test_different_game_types_same_session_both_awarded(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        today = date.today()
+        r1 = award_game_xp_idempotent(test_user.id, 100, 'matching', 20, today)
+        r2 = award_game_xp_idempotent(test_user.id, 100, 'quiz', 15, today)
+        assert r1 is not None
+        assert r2 is not None
+
+    def test_zero_xp_returns_none(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id)
+        result = award_game_xp_idempotent(test_user.id, 55, 'matching', 0, date.today())
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Streak multiplier cap verification
+# ---------------------------------------------------------------------------
+
+class TestStreakMultiplierCapAwardXp:
+    def _ensure_stats(self, db_session, user_id, streak_days=0):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=streak_days)
+            db.session.add(stats)
+            db.session.flush()
+        else:
+            stats.total_xp = 0
+            stats.current_streak_days = streak_days
+            db.session.flush()
+        return stats
+
+    def test_streak_50_gives_exactly_2x(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id, streak_days=50)
+        result = award_xp(test_user.id, 100, 'test_cap_50')
+        assert result.multiplier == 2.0
+        assert result.xp_awarded == 200
+
+    def test_streak_over_50_still_capped_at_2x(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id, streak_days=100)
+        result = award_xp(test_user.id, 100, 'test_over_cap')
+        assert result.multiplier == 2.0
+        assert result.xp_awarded == 200
+
+    def test_streak_0_gives_1x(self, db_session, test_user):
+        self._ensure_stats(db_session, test_user.id, streak_days=0)
+        result = award_xp(test_user.id, 100, 'test_0_streak')
+        assert result.multiplier == 1.0
+        assert result.xp_awarded == 100
+
+
+# ---------------------------------------------------------------------------
+# Broken streak — consecutive perfect-day multiplier does not carry over
+# ---------------------------------------------------------------------------
+
+class TestBrokenStreakConsecutiveMultiplier:
+    def _ensure_stats(self, db_session, user_id):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
+            db.session.add(stats)
+            db.session.flush()
+        else:
+            stats.total_xp = 0
+            stats.current_streak_days = 0
+            db.session.flush()
+        return stats
+
+    def test_broken_streak_resets_consecutive_to_1(self, db_session, test_user):
+        from app.achievements.models import UserStatistics
+        from app.utils.db import db
+        stats = self._ensure_stats(db_session, test_user.id)
+        stats.consecutive_perfect_days = 6
+        db.session.flush()
+
+        # No yesterday event → gap → counter resets to 1
+        today = date.today()
+        award_perfect_day_xp_idempotent(test_user.id, today)
+        updated = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert updated.consecutive_perfect_days == 1
+
+    def test_broken_streak_applies_only_1x_perfect_multiplier(self, db_session, test_user):
+        from app.utils.db import db
+        stats = self._ensure_stats(db_session, test_user.id)
+        stats.consecutive_perfect_days = 6  # would be 2.5x if continuous
+        db.session.flush()
+
+        # No yesterday event → reset to day 1 → perfect mult = 1.0
+        today = date.today()
+        result = award_perfect_day_xp_idempotent(test_user.id, today)
+        assert result is not None
+        # day1 perfect mult=1.0, streak_days=0 streak mult=1.0 → full base
+        assert result.xp_awarded == PERFECT_DAY_BONUS_XP
+
+    def test_continuous_streak_applies_higher_multiplier(self, db_session, test_user):
+        from app.achievements.models import StreakEvent, UserStatistics
+        from app.utils.db import db
+        stats = self._ensure_stats(db_session, test_user.id)
+        stats.consecutive_perfect_days = 6
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
+        db.session.add(StreakEvent(
+            user_id=test_user.id,
+            event_type='xp_perfect_day',
+            event_date=yesterday,
+            coins_delta=0,
+            details={'xp': 50, 'consecutive_days': 6, 'perfect_day_multiplier': 2.0},
+        ))
+        db.session.flush()
+
+        result = award_perfect_day_xp_idempotent(test_user.id, today)
+        assert result is not None
+        # Day 7 continuous → perfect mult = 2.5, streak_days=0 → awarded = 50*2.5 = 125
+        assert result.xp_awarded == int(PERFECT_DAY_BONUS_XP * 2.5)

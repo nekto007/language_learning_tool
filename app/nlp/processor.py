@@ -2,6 +2,7 @@
 Natural language processing module for English texts.
 Includes functions for tokenization, lemmatization, and word processing.
 """
+import concurrent.futures
 import logging
 import re
 from typing import List, Set, Tuple
@@ -12,6 +13,8 @@ from nltk.corpus import wordnet
 from nltk.stem import WordNetLemmatizer
 
 from app.nlp.setup import initialize_nltk
+
+NLP_TIMEOUT_SECONDS = 30
 
 logger = logging.getLogger(__name__)
 
@@ -564,6 +567,9 @@ def process_text(text: str, english_vocab: Set[str], stop_words: Set[str],
     Returns:
         List[str]: List of processed words.
     """
+    if not text or not text.strip():
+        return []
+
     # Tokenization and filtering
     words = tokenize_and_filter(text, stop_words)
 
@@ -599,24 +605,42 @@ def process_text(text: str, english_vocab: Set[str], stop_words: Set[str],
     return english_words
 
 
-def process_html_content(html_content: str, selector: str = None) -> List[str]:
+def process_html_content(html_content: str, selector: str = None,
+                         timeout: int = NLP_TIMEOUT_SECONDS) -> List[str]:
     """
     Extracts and processes text from HTML content.
 
     Args:
         html_content (str): HTML content.
         selector (str, optional): CSS selector. Defaults to None.
+        timeout (int): Maximum seconds to spend on NLP processing.
 
     Returns:
         List[str]: List of processed words.
     """
-    # Initialize NLTK resources
-    english_vocab, _, stop_words = initialize_nltk()
+    if not html_content or not html_content.strip():
+        return []
+
+    # Initialize NLTK resources (cached after first call)
+    english_vocab, brown_words, stop_words = initialize_nltk()
+
     # Extract text
     text = extract_text_from_html(html_content, selector)
+    if not text or not text.strip():
+        return []
 
-    # Process text
-    return process_text(text, english_vocab, stop_words)
+    # Run NLP processing with a timeout guard.
+    # Use shutdown(wait=False) so the executor doesn't block until the worker
+    # thread finishes when a timeout fires.
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(process_text, text, english_vocab, stop_words, brown_words)
+    try:
+        return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        logger.error("NLP processing timed out after %ds", timeout)
+        return []
+    finally:
+        executor.shutdown(wait=False)
 
 
 def prepare_word_data(words: List[str], brown_words: Set[str]) -> List[Tuple]:

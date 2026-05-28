@@ -340,3 +340,91 @@ class TestActivityFunnelRoute:
         resp = client.get('/admin/activity/funnel')
         html = resp.data.decode('utf-8')
         assert 'Когортное удержание' in html
+
+    def test_funnel_route_invalid_weeks_falls_back(self, app, client, admin_user):
+        """Invalid weeks value (not in whitelist) falls back to 8."""
+        resp = client.get('/admin/activity/funnel?weeks=3')
+        assert resp.status_code == 200
+
+    def test_funnel_route_negative_days_falls_back(self, app, client, admin_user):
+        """Negative days value falls back to 30 (whitelist rejects it)."""
+        resp = client.get('/admin/activity/funnel?days=-1')
+        assert resp.status_code == 200
+
+    def test_funnel_route_zero_days_falls_back(self, app, client, admin_user):
+        """days=0 is not in whitelist, falls back to 30."""
+        resp = client.get('/admin/activity/funnel?days=0')
+        assert resp.status_code == 200
+
+    def test_funnel_route_all_valid_days_accepted(self, app, client, admin_user):
+        """All whitelisted days values are accepted without error."""
+        for d in (7, 14, 30, 60, 90):
+            resp = client.get(f'/admin/activity/funnel?days={d}')
+            assert resp.status_code == 200, f'days={d} should be valid'
+
+    def test_funnel_route_all_valid_weeks_accepted(self, app, client, admin_user):
+        """All whitelisted weeks values are accepted without error."""
+        for w in (4, 8, 12, 16):
+            resp = client.get(f'/admin/activity/funnel?weeks={w}')
+            assert resp.status_code == 200, f'weeks={w} should be valid'
+
+
+class TestNaiveDatetimeHandling:
+    """Verify cohort service uses naive UTC datetimes consistently."""
+
+    def test_get_funnel_data_does_not_raise_with_tz_naive_db(self, app, db_session):
+        """get_funnel_data succeeds without tz-aware/naive mismatch errors."""
+        from app.admin.services.cohort_service import get_funnel_data
+
+        u = _make_user(db_session, registered_days_ago=2, onboarding_done=True)
+        db_session.commit()
+
+        # Should not raise DatatypeMismatch or similar tz-mix errors
+        result = get_funnel_data(db_session, days=30)
+        assert result is not None
+        assert all(step.count >= 0 for step in result.steps)
+
+    def test_get_cohort_retention_does_not_raise(self, app, db_session):
+        """get_cohort_retention completes without tz-aware datetime errors."""
+        from app.admin.services.cohort_service import get_cohort_retention
+
+        _make_user(db_session, registered_days_ago=3)
+        db_session.commit()
+
+        result = get_cohort_retention(db_session, weeks=4)
+        assert len(result) == 4
+        for week in result:
+            # pct values, when present, must be in [0, 100]
+            if week.day1_pct is not None:
+                assert 0.0 <= week.day1_pct <= 100.0
+            if week.day7_pct is not None:
+                assert 0.0 <= week.day7_pct <= 100.0
+            if week.day30_pct is not None:
+                assert 0.0 <= week.day30_pct <= 100.0
+
+    def test_funnel_generated_at_is_aware(self, app, db_session):
+        """FunnelData.generated_at is timezone-aware (UTC) for display purposes."""
+        from app.admin.services.cohort_service import get_funnel_data
+
+        result = get_funnel_data(db_session, days=30)
+        assert result.generated_at.tzinfo is not None
+
+    def test_zero_cohort_retention_returns_none_pcts(self, app, db_session):
+        """When cohort has 0 users, all percentage fields are None."""
+        from app.admin.services.cohort_service import get_cohort_retention
+
+        result = get_cohort_retention(db_session, weeks=4)
+        # No users were created, so all cohorts have size 0
+        for week in result:
+            assert week.cohort_size == 0
+            assert week.day1_pct is None
+            assert week.day7_pct is None
+            assert week.day30_pct is None
+
+    def test_funnel_with_zero_registered_no_division_error(self, app, db_session):
+        """Funnel with 0 registered users produces 0.0 conversion_from_top (no ZeroDivisionError)."""
+        from app.admin.services.cohort_service import get_funnel_data
+
+        result = get_funnel_data(db_session, days=30)
+        for step in result.steps:
+            assert step.conversion_from_top == 0.0

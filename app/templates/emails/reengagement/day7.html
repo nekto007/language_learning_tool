@@ -11,9 +11,9 @@
         </div>
         <div style="padding: 20px; text-align: center;">
             <p style="font-size: 20px; font-weight: bold; color: #0f172a;">Не теряй прогресс!</p>
-            <p style="color: #64748b;">{{ username }}, прошла уже неделя. Ты прошёл {{ lessons_completed }} уроков — не бросай на полпути!</p>
+            <p style="color: #64748b;">{{ username or '' }}, прошла уже неделя. Ты прошёл {{ lessons_completed or 0 }} уроков — не бросай на полпути!</p>
             <div style="background: #f8fafc; border-radius: 12px; padding: 16px; margin: 16px 0;">
-                <p style="font-size: 2rem; font-weight: 800; color: #2563eb; margin: 0;">{{ lessons_completed }}</p>
+                <p style="font-size: 2rem; font-weight: 800; color: #2563eb; margin: 0;">{{ lessons_completed or 0 }}</p>
                 <p style="color: #64748b; margin: 4px 0 0; font-size: 14px;">уроков пройдено</p>
             </div>
             <p style="color: #64748b;">Вернись и продолжи — всего 10 минут!</p>

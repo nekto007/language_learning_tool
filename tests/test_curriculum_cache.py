@@ -405,3 +405,79 @@ class TestCurriculumCacheMethodsStructure:
         """Тест что метод invalidate_user_cache существует"""
         assert hasattr(CurriculumCache, 'invalidate_user_cache')
         assert callable(CurriculumCache.invalidate_user_cache)
+
+
+# ---------------------------------------------------------------------------
+# Tests for prune() and max-size eviction (Task 60)
+# ---------------------------------------------------------------------------
+
+class TestSimpleCachePrune:
+    """Tests for cache eviction and pruning logic."""
+
+    def test_prune_removes_expired_entries(self):
+        """prune() removes entries whose TTL has elapsed."""
+        cache = SimpleCache()
+        cache.set('live', 'value', timeout=300)
+        cache.set('dead', 'value', timeout=1)
+
+        # Manually expire 'dead'
+        cache._expiry['dead'] = datetime.now(timezone.utc) - timedelta(seconds=1)
+
+        removed = cache.prune()
+        assert removed == 1
+        assert cache.get('live') == 'value'
+        assert 'dead' not in cache._cache
+
+    def test_prune_returns_zero_when_nothing_expired(self):
+        cache = SimpleCache()
+        cache.set('a', 1, timeout=300)
+        cache.set('b', 2, timeout=300)
+        assert cache.prune() == 0
+
+    def test_prune_removes_all_expired(self):
+        cache = SimpleCache()
+        past = datetime.now(timezone.utc) - timedelta(seconds=1)
+        for i in range(10):
+            cache.set(f'k{i}', i, timeout=1)
+            cache._expiry[f'k{i}'] = past
+
+        removed = cache.prune()
+        assert removed == 10
+        assert cache.size() == 0
+
+    def test_set_prunes_when_over_max_size(self):
+        """Adding an entry beyond _CACHE_MAX_SIZE triggers eviction of expired entries."""
+        from app.curriculum.cache import _CACHE_MAX_SIZE
+        cache = SimpleCache()
+        past = datetime.now(timezone.utc) - timedelta(seconds=1)
+
+        # Fill cache to just over the max with expired entries
+        for i in range(_CACHE_MAX_SIZE):
+            cache._cache[f'old_{i}'] = i
+            cache._expiry[f'old_{i}'] = past
+
+        # One more set should trigger prune
+        cache.set('new_key', 'new_value', timeout=300)
+        # All old expired entries should be gone
+        assert cache.size() < _CACHE_MAX_SIZE, (
+            "set() should prune expired entries when size exceeds _CACHE_MAX_SIZE"
+        )
+        assert cache.get('new_key') == 'new_value'
+
+    @pytest.mark.smoke
+    def test_cache_does_not_grow_unbounded(self):
+        """Repeated sets of expired entries don't accumulate past the max threshold."""
+        from app.curriculum.cache import _CACHE_MAX_SIZE
+        cache = SimpleCache()
+
+        # Add 2x max entries, each expired
+        for i in range(_CACHE_MAX_SIZE * 2):
+            cache.set(f'key_{i}', i, timeout=1)
+            cache._expiry[f'key_{i}'] = datetime.now(timezone.utc) - timedelta(seconds=1)
+            if i > _CACHE_MAX_SIZE:
+                cache.set(f'trigger_{i}', i, timeout=300)
+
+        # After all that activity, size should be bounded
+        assert cache.size() <= _CACHE_MAX_SIZE + 50, (
+            "Cache must not grow unbounded — expired entries should be pruned"
+        )

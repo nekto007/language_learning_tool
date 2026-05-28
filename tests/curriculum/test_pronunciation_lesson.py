@@ -13,18 +13,16 @@ from app.curriculum.grading import grade_pronunciation_match
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.validators import LessonContentValidator
 from app.daily_plan.linear.xp import LESSON_TYPE_TO_SOURCE
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
-
 
 def _make_pronunciation_lesson(db_session) -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name="Level", description="d", order=1)
+    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(
@@ -245,6 +243,37 @@ class TestPronunciationTemplate:
         tpl = _read_template()
         assert '<audio' in tpl
 
+    def test_prefers_reduced_motion_check_present(self):
+        tpl = _read_template()
+        assert 'prefers-reduced-motion' in tpl
+
+    def test_prefers_reduced_motion_disables_speech_recognition(self):
+        tpl = _read_template()
+        assert 'prefersReducedMotion' in tpl
+        assert '!prefersReducedMotion' in tpl
+
+    def test_prefers_reduced_motion_guard_in_start_recognition(self):
+        tpl = _read_template()
+        assert 'prefers-reduced-motion' in tpl
+        # startRecognition must bail out when reduced-motion is active
+        assert 'showSelfAssess' in tpl
+
+    def test_permission_denied_shows_fallback_not_blank(self):
+        tpl = _read_template()
+        # onerror handler must catch 'not-allowed' and show self-assess
+        assert "event.error === 'not-allowed'" in tpl
+        # and it must call showSelfAssess (not just render badge)
+        lines = tpl.splitlines()
+        not_allowed_idx = next(
+            i for i, l in enumerate(lines) if "not-allowed" in l
+        )
+        nearby = '\n'.join(lines[not_allowed_idx:not_allowed_idx + 5])
+        assert 'showSelfAssess' in nearby
+
+    def test_fallback_button_onclick_triggers_self_assess(self):
+        tpl = _read_template()
+        assert 'showSelfAssess(' in tpl
+
 
 # ---------------------------------------------------------------------------
 # Route tests — GET
@@ -374,6 +403,48 @@ class TestPronunciationSubmit:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["success"] is True
+
+    def test_self_assessed_records_pronunciation_attempt(
+        self, app, db_session, test_user, client
+    ):
+        from app.curriculum.models import PronunciationAttempt
+        lesson = _make_pronunciation_lesson(db_session)
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/pronunciation")
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={
+                "lesson_type": "pronunciation",
+                "item_index": 0,
+                "target_word": "hello",
+                "self_assessed": True,
+            },
+            content_type="application/json",
+        )
+        db_session.expire_all()
+        attempts = (
+            db_session.query(PronunciationAttempt)
+            .filter_by(user_id=test_user.id, word="hello")
+            .all()
+        )
+        assert len(attempts) >= 1
+
+    def test_speech_recognition_item_records_pronunciation_attempt(
+        self, app, db_session, test_user, client
+    ):
+        from app.curriculum.models import PronunciationAttempt
+        lesson = _make_pronunciation_lesson(db_session)
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/pronunciation")
+        self._submit_item(client, lesson.id, "hello", "hello")
+        db_session.expire_all()
+        attempts = (
+            db_session.query(PronunciationAttempt)
+            .filter_by(user_id=test_user.id, word="hello")
+            .all()
+        )
+        assert len(attempts) >= 1
+        assert any(a.matched for a in attempts)
 
     def test_unauthenticated_submit_redirects(self, app, db_session, client):
         lesson = _make_pronunciation_lesson(db_session)

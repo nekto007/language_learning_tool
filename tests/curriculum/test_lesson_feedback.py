@@ -10,14 +10,11 @@ from app.curriculum.models import (
     CEFRLevel, LessonFeedback, Lessons, Module, save_lesson_feedback,
 )
 from app.utils.db import db
-
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
+from tests.conftest import unique_level_code
 
 
 def _make_lesson(db_session) -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name="Level", description="d", order=1)
+    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(

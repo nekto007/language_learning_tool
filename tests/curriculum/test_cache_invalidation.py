@@ -8,6 +8,7 @@ import app.curriculum.cache as _cache_module
 
 from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
 from app.curriculum.cache import CurriculumCache, SimpleCache
+from tests.conftest import unique_level_code
 
 
 def _cache():
@@ -20,7 +21,7 @@ def _cache():
 # ---------------------------------------------------------------------------
 
 def _make_level(db_session, order=1):
-    code = uuid.uuid4().hex[:2].upper()
+    code = unique_level_code()
     level = CEFRLevel(code=code, name=f'Level {order}', order=order)
     db_session.add(level)
     db_session.commit()

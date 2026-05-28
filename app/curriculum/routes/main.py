@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
@@ -510,6 +511,13 @@ def lesson_by_id(lesson_id):
             )
             db.session.add(progress)
             db.session.commit()
+        except IntegrityError:
+            # Concurrent request already created the row — fetch it
+            db.session.rollback()
+            progress = LessonProgress.query.filter_by(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+            ).first()
         except Exception as e:
             logger.error(f"Error creating lesson progress: {str(e)}")
             db.session.rollback()

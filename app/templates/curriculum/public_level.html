@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block head_extra %}
-<link rel="canonical" href="https://llt-english.com/courses/{{ level.code }}">
+<link rel="canonical" href="{{ url_for('courses.level_detail', level_code=level.code, _external=True) }}">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -22,7 +22,7 @@
   "provider": {"@type": "Organization", "name": "LLT English"},
   "educationalLevel": "{{ level.code }}",
   "inLanguage": ["en", "ru"],
-  "url": "https://llt-english.com/courses/{{ level.code }}",
+  "url": "{{ url_for('courses.level_detail', level_code=level.code, _external=True) }}",
   "hasCourseInstance": [
     {% for item in modules_data %}
     {

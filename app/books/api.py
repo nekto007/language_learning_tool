@@ -10,7 +10,9 @@ import sys
 from datetime import UTC, datetime
 from typing import Optional
 
-from flask import Blueprint, jsonify, request, url_for
+import re as _re
+
+from flask import Blueprint, Response, jsonify, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -266,18 +268,57 @@ if not pymorphy2_available:
 @books_api.route('/audio/<int:book_id>/chapter/<int:chapter_num>')
 @login_required
 def serve_chapter_audio(book_id: int, chapter_num: int):
-    """Serve audio file for a book chapter."""
-    from flask import send_file
+    """Serve audio file for a book chapter with Range request support."""
     chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first_or_404()
+    book = chapter.book
+    if not book.is_published and not current_user.is_admin:
+        return 'Not found', 404
     if not chapter.audio_url:
         return 'No audio available', 404
-    # Resolve path relative to project root
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    audio_path = os.path.join(project_root, chapter.audio_url)
+    audio_path = os.path.realpath(os.path.join(project_root, chapter.audio_url))
+    if not audio_path.startswith(os.path.realpath(project_root) + os.sep):
+        return 'Not found', 404
     if not os.path.isfile(audio_path):
         logger.warning(f"Audio file not found: {audio_path}")
         return 'Audio file not found', 404
-    return send_file(audio_path, mimetype='audio/mpeg')
+
+    file_size = os.path.getsize(audio_path)
+    mimetype = 'audio/mpeg'
+    range_header = request.headers.get('Range')
+
+    if not range_header:
+        resp = send_file(audio_path, mimetype=mimetype, conditional=True)
+        resp.headers['Accept-Ranges'] = 'bytes'
+        return resp
+
+    m = _re.match(r'bytes=(\d+)-(\d*)', range_header)
+    if not m:
+        return Response(status=400, headers={'Content-Range': f'bytes */{file_size}'})
+
+    start = int(m.group(1))
+    end = int(m.group(2)) if m.group(2) else file_size - 1
+
+    if start > end or start >= file_size:
+        return Response(status=416, headers={'Content-Range': f'bytes */{file_size}'})
+
+    end = min(end, file_size - 1)
+    length = end - start + 1
+
+    with open(audio_path, 'rb') as f:
+        f.seek(start)
+        data = f.read(length)
+
+    return Response(
+        data,
+        status=206,
+        mimetype=mimetype,
+        headers={
+            'Content-Range': f'bytes {start}-{end}/{file_size}',
+            'Accept-Ranges': 'bytes',
+            'Content-Length': str(length),
+        },
+    )
 
 
 @books_api.route('/api/translate', methods=['POST'])
@@ -871,6 +912,8 @@ def save_reading_position():
     chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first()
     if not chapter:
         return jsonify({'success': False, 'message': 'Chapter not found'}), 404
+    if not chapter.book.is_published and not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Chapter not found'}), 404
 
     # Lock existing progress row to serialize concurrent updates from
     # two tabs completing the same chapter. First insert wins via PK;
@@ -1025,6 +1068,8 @@ def reading_session_start():
 
     chapter = Chapter.query.get(chapter_id)
     if chapter is None:
+        return api_error('not_found', 'chapter not found', 404)
+    if not chapter.book.is_published and not current_user.is_admin:
         return api_error('not_found', 'chapter not found', 404)
 
     session = start_session(current_user.id, chapter_id, db)

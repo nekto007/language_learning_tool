@@ -6,6 +6,8 @@ import logging
 from datetime import datetime, UTC
 from typing import Any, Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -224,12 +226,30 @@ def get_site_setting(key: str, default: Any = None, db_session=None) -> Optional
 
 
 def set_site_setting(key: str, value: str, db_session=None) -> SiteSettings:
-    """Upsert *key* → *value*.  Flush only — caller commits."""
+    """Upsert *key* → *value*.  Flush only — caller commits.
+
+    Uses a savepoint for the initial INSERT so that concurrent callers that
+    both observe a missing row don't produce an unhandled duplicate-key
+    IntegrityError.  The losing writer reloads the winner's row and applies
+    its update instead.
+    """
     session = db_session or db.session
     row = session.get(SiteSettings, key)
     if row is None:
-        row = SiteSettings(key=key, value=value)
-        session.add(row)
+        try:
+            nested = session.begin_nested()
+            row = SiteSettings(key=key, value=value)
+            session.add(row)
+            nested.commit()
+        except IntegrityError:
+            nested.rollback()
+            # Another concurrent writer already inserted this key; reload it.
+            # Use a direct query instead of expire_all() so we don't discard
+            # pending mutations on other objects in the caller's session.
+            row = session.query(SiteSettings).filter(SiteSettings.key == key).first()
+            if row is not None:
+                row.value = value
+                row.updated_at = datetime.now(UTC).replace(tzinfo=None)
     else:
         row.value = value
         row.updated_at = datetime.now(UTC).replace(tzinfo=None)
@@ -287,10 +307,20 @@ def get_public_settings(db_session=None) -> dict[str, str]:
 
 
 def ensure_defaults_seeded(db_session=None) -> None:
-    """Create any missing default rows in site_settings.  Caller commits."""
+    """Create any missing default rows in site_settings.  Caller commits.
+
+    Uses per-key savepoints so concurrent startup workers don't collide —
+    a duplicate-key IntegrityError for a given row is silently absorbed
+    rather than aborting the whole seed pass.
+    """
     session = db_session or db.session
     for key, default_value in SETTING_DEFAULTS.items():
         existing = session.get(SiteSettings, key)
-        if existing is None:
+        if existing is not None:
+            continue
+        try:
+            nested = session.begin_nested()
             session.add(SiteSettings(key=key, value=default_value))
-    session.flush()
+            nested.commit()
+        except IntegrityError:
+            nested.rollback()

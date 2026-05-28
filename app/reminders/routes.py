@@ -137,10 +137,14 @@ def send_email(to_email, subject, html_content, from_email=DEFAULT_FROM_EMAIL):
         return False
 
 
+REMINDER_MIN_INTERVAL_HOURS = 24
+
+
 def get_inactive_users(days=7):
     """
     Получает список пользователей, которые не входили в систему более указанного количества дней.
     Если days=0, возвращает всех активных пользователей.
+    Фильтрует пользователей с email_opted_out=True или notify_email_reminders=False.
 
     Args:
         days (int): Количество дней неактивности (0 = все пользователи)
@@ -148,17 +152,33 @@ def get_inactive_users(days=7):
     Returns:
         list: Список пользователей
     """
+    base_filter = User.query.filter(
+        User.active == True,
+        User.email_opted_out == False,
+        User.notify_email_reminders == True,
+    )
+
     if days == 0:
-        # Вернуть всех активных пользователей
-        return User.query.filter(User.active == True).all()
+        return base_filter.all()
 
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-    inactive_users = User.query.filter(
+    inactive_users = base_filter.filter(
         (User.last_login < cutoff_date) | (User.last_login.is_(None))
-    ).filter(User.active == True).all()
+    ).all()
 
     return inactive_users
+
+
+def _was_recently_reminded(user_id: int, hours: int = REMINDER_MIN_INTERVAL_HOURS) -> bool:
+    """Return True if user received a reminder within the last `hours` hours."""
+    # sent_at is a naive UTC column; compare against naive UTC to avoid psycopg2
+    # aware/naive mismatch that can silently return wrong results across server timezones.
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
+    return ReminderLog.query.filter(
+        ReminderLog.user_id == user_id,
+        ReminderLog.sent_at >= cutoff,
+    ).first() is not None
 
 
 @reminders.route('/', methods=['GET'])
@@ -207,17 +227,30 @@ def send_reminders():
         flash('Не выбрано ни одного пользователя для отправки напоминаний.', 'warning')
         return redirect(url_for('reminders.reminder_dashboard'))
 
-    users = User.query.filter(User.id.in_(user_ids)).all()
+    users = User.query.filter(
+        User.id.in_(user_ids),
+        User.active == True,
+        User.email_opted_out == False,
+        User.notify_email_reminders == True,
+    ).all()
     success_count = 0
 
     now = datetime.now(timezone.utc)
 
     for user in users:
+        if _was_recently_reminded(user.id):
+            logger.info(f"Skipping reminder for user {user.id}: sent within last {REMINDER_MIN_INTERVAL_HOURS}h")
+            continue
+
+        from app.email_scheduler import ensure_unsubscribe_token
+        unsubscribe_token = ensure_unsubscribe_token(user)
+
         # Формируем HTML-содержимое письма на основе шаблона
         html_content = render_template(
             f'emails/reminders/{reminder_template}.html',
             user=user,
-            now=now
+            now=now,
+            unsubscribe_token=unsubscribe_token,
         )
 
         # Отправляем письмо

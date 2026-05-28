@@ -196,3 +196,157 @@ class TestWebhook:
             headers={'X-Telegram-Bot-Api-Secret-Token': 'test-secret'},
         )
         assert resp.status_code == 200
+
+    @patch('app.telegram.bot.handle_update')
+    def test_webhook_duplicate_update_id_skips_handler(self, mock_handle, app, client):
+        """Same update_id processed twice — handler called only once (idempotency)."""
+        from app.telegram.routes import _update_tracker
+        app.config['TELEGRAM_WEBHOOK_SECRET'] = 'idem-secret'
+        # Reset tracker state for isolation (use a unique update_id unlikely to collide)
+        update_id = 999888777
+        # Ensure it's not in tracker
+        _update_tracker._seen.discard(update_id)
+
+        payload = {'update_id': update_id, 'message': {'text': '/start'}}
+        headers = {'X-Telegram-Bot-Api-Secret-Token': 'idem-secret'}
+
+        resp1 = client.post('/telegram/webhook', json=payload, headers=headers)
+        resp2 = client.post('/telegram/webhook', json=payload, headers=headers)
+
+        assert resp1.status_code == 200
+        assert resp2.status_code == 200
+        assert mock_handle.call_count == 1
+
+    @patch('app.telegram.bot.handle_update')
+    def test_webhook_different_update_ids_both_processed(self, mock_handle, app, client):
+        """Different update_ids are both delivered to handler."""
+        app.config['TELEGRAM_WEBHOOK_SECRET'] = 'idem-secret2'
+        headers = {'X-Telegram-Bot-Api-Secret-Token': 'idem-secret2'}
+
+        client.post('/telegram/webhook', json={'update_id': 111000001}, headers=headers)
+        client.post('/telegram/webhook', json={'update_id': 111000002}, headers=headers)
+
+        assert mock_handle.call_count == 2
+
+    @patch('app.telegram.bot.handle_update')
+    def test_webhook_no_update_id_always_processed(self, mock_handle, app, client):
+        """Updates without update_id field are never deduplicated."""
+        app.config['TELEGRAM_WEBHOOK_SECRET'] = 'idem-secret3'
+        headers = {'X-Telegram-Bot-Api-Secret-Token': 'idem-secret3'}
+        payload = {'message': {'text': '/start'}}  # no update_id
+
+        client.post('/telegram/webhook', json=payload, headers=headers)
+        client.post('/telegram/webhook', json=payload, headers=headers)
+
+        assert mock_handle.call_count == 2
+
+
+class TestLinkingHijackPrevention:
+    """Account linking cannot be used to hijack another user's account."""
+
+    def test_telegram_id_already_linked_blocks_relink(self, db_session, test_user):
+        """telegram_id already linked to an account — /link with new code rejected."""
+        from app.telegram.bot import _handle_link
+
+        # test_user already has a TelegramUser
+        tg_user = TelegramUser(
+            user_id=test_user.id,
+            telegram_id=500000001,
+            username='hijack_test',
+            is_active=True,
+        )
+        db_session.add(tg_user)
+        db_session.commit()
+
+        sent = []
+        with patch('app.telegram.bot._send_message', side_effect=lambda c, t, **kw: sent.append(t)):
+            with patch('app.telegram.models.TelegramLinkCode.verify') as mock_verify:
+                mock_code = MagicMock()
+                mock_code.user_id = test_user.id + 999  # different user's code
+                mock_verify.return_value = mock_code
+
+                _handle_link(
+                    chat_id=500000001,
+                    telegram_id=500000001,
+                    username='hijack_test',
+                    args='123456',
+                )
+
+        assert len(sent) == 1
+        assert 'уже привязан' in sent[0].lower() or 'unlink' in sent[0].lower()
+
+    def test_link_code_must_be_valid_to_link(self, db_session, test_user):
+        """Invalid / expired code returns error without linking."""
+        from app.telegram.bot import _handle_link
+
+        sent = []
+        with patch('app.telegram.bot._send_message', side_effect=lambda c, t, **kw: sent.append(t)):
+            with patch('app.telegram.models.TelegramLinkCode.verify', return_value=None):
+                _handle_link(
+                    chat_id=600000001,
+                    telegram_id=600000001,
+                    username='nocode',
+                    args='000000',
+                )
+
+        assert len(sent) == 1
+        assert 'неверный' in sent[0].lower() or 'истёк' in sent[0].lower()
+        # Verify no TelegramUser was created
+        assert TelegramUser.query.filter_by(telegram_id=600000001).first() is None
+
+    def test_link_code_consumed_after_use(self, app, db_session, test_user):
+        """Link code is consumed (one-time use) after successful linking."""
+        from app.telegram.models import TelegramLinkCode
+
+        link_code = TelegramLinkCode.generate(test_user.id)
+        code_value = link_code.code
+
+        # Verify code exists
+        assert TelegramLinkCode.verify(code_value) is not None
+
+        # Use the code via the bot handler
+        from app.telegram.bot import _handle_link
+        with patch('app.telegram.bot._send_message'):
+            _handle_link(
+                chat_id=700000001,
+                telegram_id=700000001,
+                username='codeuser',
+                args=code_value,
+            )
+
+        # Code should be consumed
+        assert TelegramLinkCode.verify(code_value) is None
+
+    def test_bot_exception_log_does_not_include_token(self, app):
+        """RequestException logging uses type name only, not full exception (which includes URL with token)."""
+        import logging as _logging
+        from unittest.mock import patch
+        import requests as _requests
+
+        app.config['TELEGRAM_BOT_TOKEN'] = 'SECRET_BOT_TOKEN_12345'
+
+        log_records = []
+
+        class CapturingHandler(_logging.Handler):
+            def emit(self, record):
+                log_records.append(self.format(record))
+
+        handler = CapturingHandler()
+        tg_logger = _logging.getLogger('app.telegram.bot')
+        tg_logger.addHandler(handler)
+        tg_logger.setLevel(_logging.ERROR)
+
+        try:
+            with app.app_context():
+                from app.telegram.bot import _send_message
+                with patch('requests.post', side_effect=_requests.ConnectionError(
+                    'HTTPSConnectionPool: Max retries exceeded with url: /botSECRET_BOT_TOKEN_12345/sendMessage'
+                )):
+                    _send_message(chat_id=1, text='test')
+        finally:
+            tg_logger.removeHandler(handler)
+
+        for record in log_records:
+            assert 'SECRET_BOT_TOKEN_12345' not in record, (
+                f'Bot token leaked in log: {record}'
+            )

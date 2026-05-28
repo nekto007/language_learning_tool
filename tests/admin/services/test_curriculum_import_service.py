@@ -72,22 +72,24 @@ class TestProcessVocabulary:
     @patch('app.admin.services.curriculum_import_service.CollectionWordLink')
     @patch('app.admin.services.curriculum_import_service.CollectionWords')
     def test_process_vocabulary_new_word(self, mock_words, mock_links, mock_db):
-        """Test processing vocabulary with new word"""
-        # Setup
+        """Test processing vocabulary with new word (batch IN lookup returns empty)."""
         mock_collection = MagicMock()
         mock_collection.id = 1
 
-        mock_words.query.filter_by.return_value.first.return_value = None
-        mock_links.query.filter_by.return_value.first.return_value = None
+        # Batch lookup via filter().all() returns no existing words
+        mock_words.query.filter.return_value.all.return_value = []
+
+        new_word = MagicMock()
+        new_word.id = 99
+        new_word.english_word = 'test'
+        mock_words.return_value = new_word
 
         vocabulary_data = [
             {'word': 'test', 'translation': 'тест', 'frequency_rank': 100}
         ]
 
-        # Execute
         CurriculumImportService.process_vocabulary(vocabulary_data, mock_collection, 'A1')
 
-        # Assert
         mock_db.session.add.assert_called()
         mock_db.session.flush.assert_called()
 
@@ -95,24 +97,24 @@ class TestProcessVocabulary:
     @patch('app.admin.services.curriculum_import_service.CollectionWordLink')
     @patch('app.admin.services.curriculum_import_service.CollectionWords')
     def test_process_vocabulary_existing_word(self, mock_words, mock_links, mock_db):
-        """Test processing vocabulary with existing word"""
-        # Setup
+        """Test processing vocabulary with existing word (batch IN lookup returns it)."""
         mock_collection = MagicMock()
         mock_collection.id = 1
 
         mock_existing_word = MagicMock()
         mock_existing_word.id = 10
-        mock_words.query.filter_by.return_value.first.return_value = mock_existing_word
-        mock_links.query.filter_by.return_value.first.return_value = None
+        mock_existing_word.english_word = 'test'
+
+        # Batch lookup returns the existing word
+        mock_words.query.filter.return_value.all.return_value = [mock_existing_word]
 
         vocabulary_data = [
             {'word': 'test', 'translation': 'новый перевод', 'frequency_rank': 50}
         ]
 
-        # Execute
         CurriculumImportService.process_vocabulary(vocabulary_data, mock_collection, 'A1')
 
-        # Assert - word updated
+        # Word fields must be updated in place
         assert mock_existing_word.russian_word == 'новый перевод'
         assert mock_existing_word.frequency_rank == 50
 

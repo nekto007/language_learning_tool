@@ -19,6 +19,35 @@ logger = logging.getLogger(__name__)
 DEFAULT_TZ = DEFAULT_TIMEZONE
 
 
+def _count_leech_suspended(user_id: int) -> int:
+    """Count distinct words currently buried due to leech threshold crossing.
+
+    Returns an int (never None). Counts distinct user_word_id so a word
+    leeched in both directions counts as one suspended item for the UI toast.
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy import func, distinct
+    from app.study.models import UserCardDirection, UserWord
+    from app.srs.constants import LEECH_THRESHOLD
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    try:
+        return (
+            db.session.query(func.count(distinct(UserCardDirection.user_word_id)))
+            .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+            .filter(
+                UserWord.user_id == user_id,
+                UserCardDirection.lapses >= LEECH_THRESHOLD,
+                UserCardDirection.buried_until.isnot(None),
+                UserCardDirection.buried_until > now,
+            )
+            .scalar() or 0
+        )
+    except Exception:
+        logger.warning("leech_suspended count failed for user %s", user_id, exc_info=True)
+        return 0
+
+
 def _streak_shield_visible(user) -> bool:
     """Return True only when the user holds a shield AND the feature is enabled."""
     from app.admin.site_settings import is_streak_shield_enabled
@@ -347,6 +376,7 @@ def daily_status():
         pronunciation_weak_words = []
 
     recovery_suggestion = _get_recovery_suggestion(user_id, tz)
+    leech_suspended_count = _count_leech_suspended(user_id)
 
     payload = {
         'success': True,
@@ -367,6 +397,7 @@ def daily_status():
         'pronunciation_weak_words': pronunciation_weak_words,
         'minutes_studied_today': minutes_studied_today,
         'streak_shield_active': _streak_shield_visible(current_user),
+        'leech_suspended_count': leech_suspended_count,
         **listening_goal_data,
         **goal_progress_data,
     }
@@ -562,7 +593,11 @@ def daily_plan_continuation():
     from app.daily_plan.next_step import get_next_best_step
 
     user_id = current_user.id
-    steps = get_next_best_step(user_id, db)
+    try:
+        steps = get_next_best_step(user_id, db)
+    except Exception:
+        logger.exception("get_next_best_step failed for user=%s", user_id)
+        steps = []
 
     def _serialize(s):
         return {
@@ -717,6 +752,8 @@ def record_daily_plan_event():
             )
         event_mission_type = get_slot_skip_key(active_slot, active_index)[:20]
 
+    from sqlalchemy.exc import IntegrityError as _IntegrityError
+
     event = DailyPlanEvent(
         user_id=current_user.id,
         event_type=event_type,
@@ -725,7 +762,16 @@ def record_daily_plan_event():
         step_kind=step_kind,
         reason_text=reason_text,
     )
-    db.session.add(event)
+    try:
+        with db.session.begin_nested():
+            db.session.add(event)
+    except _IntegrityError:
+        # begin_nested() already rolled back the savepoint — outer session is still usable.
+        # Concurrent slot_skipped insert hit the unique partial index —
+        # treat it the same as quota_exhausted so the client sees a clean error.
+        if event_type == 'slot_skipped':
+            return api_error('skip_quota_exhausted', 'Лимит пропусков на сегодня исчерпан', 429)
+        return api_error('db_error', 'Failed to record event', 500)
     try:
         db.session.commit()
     except Exception:
@@ -1083,3 +1129,100 @@ def challenge_complete():
         return api_error('db_error', 'Failed to record challenge completion', 500)
 
     return jsonify(result)
+
+
+@api_daily_plan.route('/daily-plan/skip-lesson', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def skip_lesson():
+    """Defer today's curriculum lesson to tomorrow.
+
+    Body JSON:
+        lesson_id (int): ID of the current curriculum lesson to defer
+
+    Returns:
+        next_lesson_id (int|null): ID of the replacement lesson, or null
+        if no eligible lesson remains after deferral.
+
+    Errors:
+        400 invalid_input       — lesson_id missing or not a positive integer
+        400 invalid_lesson      — lesson does not exist
+        400 already_deferred    — this lesson is already deferred today
+        429 skip_quota_exhausted — daily lesson-skip quota (1) already used
+    """
+    from datetime import timedelta
+    from sqlalchemy.exc import IntegrityError
+
+    from app.curriculum.models import Lessons
+    from app.curriculum.navigation import find_next_lesson
+    from app.daily_plan.models import LessonSkip
+    from app.daily_plan.skips import DAILY_LESSON_SKIP_QUOTA
+    from app.utils.time_utils import get_user_local_date
+
+    if not request.is_json:
+        return api_error('invalid_content_type', 'Request must be JSON', 400)
+
+    body = request.get_json(silent=True) or {}
+    lesson_id = body.get('lesson_id')
+
+    if isinstance(lesson_id, bool) or not isinstance(lesson_id, int) or lesson_id <= 0:
+        return api_error('invalid_input', 'lesson_id must be a positive integer', 400)
+
+    lesson = db.session.get(Lessons, lesson_id)
+    if lesson is None:
+        return api_error('invalid_lesson', 'Lesson not found', 400)
+
+    today = get_user_local_date(current_user.id, db)
+    tomorrow = today + timedelta(days=1)
+    user_id = current_user.id
+
+    # Check if this exact lesson is already deferred today.
+    already = db.session.query(LessonSkip).filter_by(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        skipped_on_date=today,
+    ).first()
+    if already is not None:
+        return api_error('already_deferred', 'Этот урок уже отложен на сегодня', 400)
+
+    # Check daily quota: count distinct lessons deferred today.
+    skips_today = db.session.query(LessonSkip).filter_by(
+        user_id=user_id,
+        skipped_on_date=today,
+    ).count()
+    if skips_today >= DAILY_LESSON_SKIP_QUOTA:
+        return api_error('skip_quota_exhausted', 'Лимит пропусков уроков на сегодня исчерпан', 429)
+
+    # Write the deferral inside a savepoint so a concurrent duplicate insert
+    # (same user/lesson/date) surfaces as already_deferred rather than 500.
+    skip = LessonSkip(
+        user_id=user_id,
+        lesson_id=lesson_id,
+        skipped_on_date=today,
+        defer_until_date=tomorrow,
+    )
+    try:
+        with db.session.begin_nested():
+            db.session.add(skip)
+    except IntegrityError:
+        # begin_nested() already rolled back the savepoint — outer session is still usable.
+        return api_error('already_deferred', 'Этот урок уже отложен на сегодня', 400)
+
+    # Find the replacement lesson excluding the newly deferred one.
+    deferred_ids: set[int] = {
+        row.lesson_id
+        for row in db.session.query(LessonSkip.lesson_id).filter_by(
+            user_id=user_id,
+            skipped_on_date=today,
+        )
+    }
+    next_lesson = find_next_lesson(user_id, db, exclude_lesson_ids=deferred_ids)
+    next_lesson_id = next_lesson.id if next_lesson is not None else None
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return api_error('db_error', 'Failed to record lesson skip', 500)
+
+    return jsonify({'success': True, 'next_lesson_id': next_lesson_id})

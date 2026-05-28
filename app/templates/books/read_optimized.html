@@ -37,6 +37,7 @@
     <!-- Main Reading Content -->
     <div class="reading-content" id="readingContent" data-book-id="{{ book.id }}" data-position="{{ progress.position or 0 }}">
         <div class="content-wrapper">
+            {# book.content is admin-uploaded HTML (EPUB/TXT converted server-side); |safe is intentional #}
             {{ book.content|safe }}
         </div>
     </div>

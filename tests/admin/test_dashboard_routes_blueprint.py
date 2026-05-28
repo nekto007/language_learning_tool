@@ -64,6 +64,48 @@ def test_main_routes_no_longer_owns_dashboard_helpers():
         )
 
 
+def test_5xx_counter_increments_via_error_handler(app):
+    """The 500 error handler in __init__.py must call increment_5xx_counter."""
+    from app.admin.routes import dashboard_routes
+
+    before = dashboard_routes._error_5xx_count
+
+    with app.test_request_context('/'):
+        # Flask stores 500 handlers keyed by (None, 500, None) in Werkzeug's
+        # error_handler_spec.  Invoke it directly to verify the counter path.
+        handlers_500 = app.error_handler_spec.get(None, {}).get(500, {})
+        # There should be exactly one handler registered for 500 (None key = catch-all).
+        assert handlers_500, "No 500 error handler registered"
+        handler_fn = next(iter(handlers_500.values()))
+        handler_fn(Exception('boom'))
+
+    assert dashboard_routes._error_5xx_count == before + 1
+    # Restore counter to avoid polluting other tests.
+    dashboard_routes._error_5xx_count = before
+
+
+def test_get_system_health_includes_db_pool_field(app):
+    """get_system_health should include db_pool key (may be None for test pool)."""
+    from app.admin.routes.dashboard_routes import get_system_health
+    from app.admin.utils.cache import _cache
+
+    # Clear cached value so we get a fresh call.
+    _cache.pop('system_health', None)
+
+    with app.app_context():
+        health = get_system_health()
+
+    assert 'db_pool' in health
+    # In the test env we use StaticPool which may not support size()/checkedin(),
+    # so db_pool may be None — that is acceptable.
+    if health['db_pool'] is not None:
+        for key in ('size', 'checked_in', 'checked_out', 'overflow'):
+            assert key in health['db_pool'], f"db_pool missing '{key}'"
+
+    # Cleanup cached value.
+    _cache.pop('system_health', None)
+
+
 @pytest.mark.smoke
 def test_dashboard_route_renders_for_admin(client, app, db_session):
     """Smoke-test the moved ``/admin/`` route end-to-end for an admin session."""

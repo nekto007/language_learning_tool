@@ -11,8 +11,20 @@ Task 79: Accuracy improvement chart.
 """
 from __future__ import annotations
 
+import itertools
 import uuid
 from datetime import datetime, date, timedelta, timezone
+
+# Thread-safe sequential counter for unique 2-char CEFR codes in tests.
+# Uses base-36 (0-9, A-Z) starting from high values to avoid real codes (A1..C2).
+_CODE_COUNTER = itertools.count(100)  # starts at '2S' in base-36
+
+
+def _unique_level_code() -> str:
+    """Return a unique 2-char code that won't collide within a test session."""
+    n = next(_CODE_COUNTER)
+    chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    return chars[n // 36 % 36] + chars[n % 36]
 
 import pytest
 
@@ -28,7 +40,7 @@ from app.utils.db import db
 # ---------------------------------------------------------------------------
 
 def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
+    return _unique_level_code()
 
 
 def _make_lesson(db_session) -> Lessons:
@@ -984,7 +996,7 @@ _eta_order_counter = 100
 
 def _make_cefr_level(db_session, order: int) -> CEFRLevel:
     """Create a CEFRLevel with a unique 2-char code."""
-    code = uuid.uuid4().hex[:2].upper()
+    code = _unique_level_code()
     level = CEFRLevel(code=code, name=f'Level {code}', description='d', order=order)
     db_session.add(level)
     db_session.flush()
@@ -1113,7 +1125,7 @@ class TestGetLevelEta:
 # ---------------------------------------------------------------------------
 
 def _make_quiz_lesson(db_session, lesson_type: str = 'quiz') -> Lessons:
-    code = uuid.uuid4().hex[:2].upper()
+    code = _unique_level_code()
     level = CEFRLevel(code=code, name='LevelQ', description='d', order=99)
     db_session.add(level)
     db_session.flush()
@@ -1417,7 +1429,7 @@ class TestGetStudyTimeDistribution:
 # ---------------------------------------------------------------------------
 
 def _make_dictation_lesson(db_session) -> Lessons:
-    code = uuid.uuid4().hex[:2].upper()
+    code = _unique_level_code()
     level = CEFRLevel(code=code, name='LevelD', description='d', order=99)
     db_session.add(level)
     db_session.flush()
@@ -1591,3 +1603,73 @@ class TestWeeklyReportWithImmersionAttempts:
         result = get_pronunciation_stats(test_user.id)
         assert result['total_attempts'] > 0
         assert result['total_words'] > 0
+
+
+# ---------------------------------------------------------------------------
+# Task 30: insights widget safety — empty stats and graceful failure
+# ---------------------------------------------------------------------------
+
+_SKILLS_BALANCE_KEYS = {'vocabulary', 'grammar', 'reading', 'listening', 'writing', 'speaking'}
+
+
+class TestInsightsWidgetsFallback:
+    """Verify insights widgets return sensible defaults for users with no data."""
+
+    def test_skills_balance_always_returns_6_keys(self, app, db_session, test_user):
+        result = get_skills_balance(test_user.id)
+        assert set(result.keys()) == _SKILLS_BALANCE_KEYS
+
+    def test_skills_balance_values_non_negative(self, app, db_session, test_user):
+        result = get_skills_balance(test_user.id)
+        for key in _SKILLS_BALANCE_KEYS:
+            assert result[key] >= 0, f"{key} is negative: {result[key]}"
+
+    def test_skills_balance_values_at_most_100(self, app, db_session, test_user):
+        result = get_skills_balance(test_user.id)
+        for key in _SKILLS_BALANCE_KEYS:
+            assert result[key] <= 100, f"{key} exceeds 100: {result[key]}"
+
+    def test_listening_stats_empty_user_all_zeros(self, app, db_session, test_user):
+        result = get_listening_stats(test_user.id)
+        assert result == {'total_lessons': 0, 'avg_score': 0.0, 'total_replays': 0}
+
+    def test_writing_stats_empty_user_all_zeros(self, app, db_session, test_user):
+        result = get_writing_stats(test_user.id)
+        assert result['total_attempts'] == 0
+        assert result['avg_word_count'] == 0.0
+        assert result['consecutive_days'] == 0
+
+    def test_pronunciation_stats_empty_user_all_zeros(self, app, db_session, test_user):
+        result = get_pronunciation_stats(test_user.id)
+        assert result == {'total_attempts': 0, 'total_words': 0, 'match_rate_7d': 0.0}
+
+
+class TestInsightsRouteGracefulFailure:
+    """Verify the /study/insights route handles individual widget failures without 500."""
+
+    def test_heatmap_failure_returns_200(self, app, authenticated_client):
+        from unittest.mock import patch
+        with patch(
+            'app.study.insights_service.get_activity_heatmap',
+            side_effect=RuntimeError('DB exploded'),
+        ):
+            response = authenticated_client.get('/study/insights')
+        assert response.status_code == 200
+
+    def test_summary_failure_returns_200(self, app, authenticated_client):
+        from unittest.mock import patch
+        with patch(
+            'app.study.insights_service.get_learning_summary',
+            side_effect=RuntimeError('DB exploded'),
+        ):
+            response = authenticated_client.get('/study/insights')
+        assert response.status_code == 200
+
+    def test_grammar_weaknesses_failure_returns_200(self, app, authenticated_client):
+        from unittest.mock import patch
+        with patch(
+            'app.study.insights_service.get_grammar_weaknesses',
+            side_effect=RuntimeError('DB exploded'),
+        ):
+            response = authenticated_client.get('/study/insights')
+        assert response.status_code == 200

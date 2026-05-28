@@ -7,8 +7,11 @@ from datetime import UTC, datetime, timezone
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 
+from app import limiter
+from app.utils.rate_limit_helpers import get_authenticated_user_key
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
 from app.curriculum.service import (
@@ -71,6 +74,13 @@ def lesson_detail(lesson_id):
             )
             db.session.add(progress)
             db.session.commit()
+        except IntegrityError:
+            # Concurrent request already created the row — fetch it
+            db.session.rollback()
+            progress = LessonProgress.query.filter_by(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+            ).first()
         except Exception as e:
             logger.error(f"Error creating lesson progress: {str(e)}")
             db.session.rollback()
@@ -297,6 +307,7 @@ def update_lesson_progress(lesson_id):
 
 @lessons_bp.route('/api/lesson/<int:lesson_id>/submit', methods=['POST'])
 @login_required
+@limiter.limit("30 per minute", key_func=get_authenticated_user_key)
 @require_lesson_access
 def submit_lesson(lesson_id):
     """Submit lesson answers with proper validation"""

@@ -2,12 +2,15 @@
 
 import logging
 
+import bleach
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
 
+from sqlalchemy.orm import joinedload
+
 from app.curriculum.models import (
-    LessonProgress, Lessons, WordCollocation,
+    LessonProgress, Lessons, Module, WordCollocation,
     get_collocations_for_word, VocabAnnotation, save_annotation,
     CulturalNote, get_cultural_notes_for_word,
 )
@@ -139,7 +142,7 @@ def render_vocabulary_lesson(lesson):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
-                    'etymology': word.etymology or '',
+                    'etymology': bleach.clean(word.etymology or '', tags=[], strip=True),
                     'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {
@@ -466,7 +469,7 @@ def vocabulary_lesson(lesson_id):
                     'synonyms': word.synonyms or [],
                     'antonyms': word.antonyms or [],
                     'frequency_band': word.frequency_band,
-                    'etymology': word.etymology or '',
+                    'etymology': bleach.clean(word.etymology or '', tags=[], strip=True),
                     'annotation': annotations.get(word.id, ''),
                     'examples': [
                         {
@@ -585,7 +588,12 @@ def matching_lesson(lesson_id):
 @require_lesson_access
 def listening_immersion_lesson(lesson_id):
     """Display a dedicated listening immersion lesson."""
-    lesson = Lessons.query.get_or_404(lesson_id)
+    lesson = (
+        db.session.query(Lessons)
+        .options(joinedload(Lessons.module).joinedload(Module.level))
+        .filter(Lessons.id == lesson_id)
+        .first_or_404()
+    )
 
     if lesson.type != 'listening_immersion':
         abort(400, "This is not a listening immersion lesson")
@@ -663,7 +671,12 @@ def listening_immersion_lesson(lesson_id):
 @require_lesson_access
 def text_lesson(lesson_id):
     """Display text lesson with sanitized content"""
-    lesson = Lessons.query.get_or_404(lesson_id)
+    lesson = (
+        db.session.query(Lessons)
+        .options(joinedload(Lessons.module).joinedload(Module.level))
+        .filter(Lessons.id == lesson_id)
+        .first_or_404()
+    )
 
     if lesson.type not in ['text', 'reading', 'listening_immersion_quiz']:
         abort(400, "This is not a text lesson")
@@ -783,6 +796,9 @@ def save_word_annotation(word_id: int):
         return jsonify({'error': 'word not found'}), 404
     data = request.get_json(silent=True) or {}
     note = data.get('note', '').strip()
+    if not note:
+        return jsonify({'error': 'note is required'}), 400
+    note = bleach.clean(note, tags=[], strip=True)
     if not note:
         return jsonify({'error': 'note is required'}), 400
     if len(note) > 2000:

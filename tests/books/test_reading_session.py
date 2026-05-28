@@ -189,6 +189,133 @@ class TestSaveReadingPositionTimeGate:
         assert events == 0
 
 
+class TestTask15Audit:
+    """Task 15 audit: ownership, no-duplicate sessions, aggregation, negative offset."""
+
+    def test_end_session_returns_403_for_foreign_session(
+        self, authenticated_client, db_session, second_user, test_chapter,
+    ):
+        """end_session API must return 403 when session belongs to a different user."""
+        other = start_session(second_user.id, test_chapter.id, db)
+        db_session.commit()
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': other.id},
+        )
+        assert r.status_code == 403
+        body = r.get_json()
+        assert body.get('error') == 'forbidden'
+
+    def test_start_session_no_duplicate_open_rows(
+        self, app, db_session, test_user, test_chapter,
+    ):
+        """start_session must produce at most one open row per (user, chapter).
+
+        A second call auto-closes the first open session before inserting a
+        new one — the partial unique index enforces the invariant.
+        """
+        s1 = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+        s2 = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        open_count = (
+            db_session.query(UserReadingSession)
+            .filter(
+                UserReadingSession.user_id == test_user.id,
+                UserReadingSession.chapter_id == test_chapter.id,
+                UserReadingSession.ended_at.is_(None),
+            )
+            .count()
+        )
+        assert open_count == 1
+        # First session must now be closed
+        s1_fresh = db.session.get(UserReadingSession, s1.id)
+        assert s1_fresh.ended_at is not None
+        # Second session is the currently open one
+        s2_fresh = db.session.get(UserReadingSession, s2.id)
+        assert s2_fresh.ended_at is None
+
+    def test_has_min_reading_time_aggregates_multiple_sessions(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """Two sessions each shorter than MIN_READING_SECONDS must together
+        satisfy has_min_reading_time_today when their sum >= minimum.
+        """
+        half = MIN_READING_SECONDS // 2 + 5  # each session alone: below threshold
+
+        s1 = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s1, half)
+        s2 = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s2, half)
+        db_session.commit()
+
+        total = get_session_duration(test_user.id, test_chapter.id, db)
+        assert total >= MIN_READING_SECONDS
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is True
+
+    def test_single_session_below_threshold_insufficient(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """A single session shorter than MIN_READING_SECONDS must not satisfy
+        has_min_reading_time_today even when another open (unclosed) session exists.
+        """
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, MIN_READING_SECONDS - 10)
+        # Open session — must NOT contribute to duration
+        start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is False
+
+    def test_negative_offset_delta_does_not_break_aggregation(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """offset_delta is always clamped to >= 0 by end_session (max(0, ...)).
+        has_min_reading_time_today aggregates duration_seconds — unaffected
+        by offset values. A session with offset_delta=0 still contributes
+        its full duration to the time-gate sum.
+        """
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, MIN_READING_SECONDS + 5)
+        # Force offset_delta to 0 (simulates start_offset_pct == current offset)
+        s.offset_delta = 0.0
+        db_session.commit()
+
+        # Duration gate still met regardless of offset_delta value
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is True
+
+    def test_end_session_offset_delta_clamped_never_negative(
+        self, app, db_session, test_user, test_chapter,
+    ):
+        """end_session must compute offset_delta = max(0, ...) so it can never
+        be negative even when start_offset_pct > current progress.
+        """
+        from app.books.models import UserChapterProgress
+
+        # Persist progress at 0.5, then start a session that snapshots 0.5
+        db_session.add(UserChapterProgress(
+            user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.5,
+        ))
+        db_session.commit()
+
+        s = start_session(test_user.id, test_chapter.id, db)
+        # Simulate progress going backward (should not happen in practice but
+        # we want to verify the guard)
+        progress = (
+            db_session.query(UserChapterProgress)
+            .filter_by(user_id=test_user.id, chapter_id=test_chapter.id)
+            .first()
+        )
+        progress.offset_pct = 0.0  # regressed
+        db_session.commit()
+
+        closed = end_session(s.id, db_session=db)
+        db_session.commit()
+        assert closed is not None
+        assert closed.offset_delta >= 0.0
+
+
 class TestReadingSessionEndpoints:
     def test_start_then_end_returns_duration(
         self, authenticated_client, db_session, test_user, test_chapter,
@@ -505,3 +632,235 @@ class TestReadingSessionEndpoints:
             StreakEvent.details['source'].astext == 'linear_book_reading',
         ).count()
         assert events == 1
+
+
+class TestTask51ReaderAudit:
+    """Task 51: scroll dedup, unload handler, offset bounds."""
+
+    # ------------------------------------------------------------------
+    # offset bounds
+    # ------------------------------------------------------------------
+
+    def test_end_session_offset_delta_never_exceeds_1(
+        self, app, db_session, test_user, test_chapter,
+    ):
+        """offset_delta = max(0, current - start) <= 1.0 always because both
+        current and start_offset_pct are in [0, 1]."""
+        from app.books.models import UserChapterProgress
+
+        db_session.add(UserChapterProgress(
+            user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.0,
+        ))
+        db_session.commit()
+
+        s = start_session(test_user.id, test_chapter.id, db)
+        progress = (
+            db_session.query(UserChapterProgress)
+            .filter_by(user_id=test_user.id, chapter_id=test_chapter.id)
+            .first()
+        )
+        progress.offset_pct = 1.0
+        db_session.commit()
+
+        closed = end_session(s.id, db_session=db)
+        db_session.commit()
+        assert closed is not None
+        assert 0.0 <= closed.offset_delta <= 1.0
+
+    def test_current_offset_pct_greater_than_1_rejected(
+        self, authenticated_client, db_session, test_user, test_chapter,
+    ):
+        """API must reject current_offset_pct > 1.0 with 400."""
+        s = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': 1.5},
+        )
+        assert r.status_code == 400
+        body = r.get_json()
+        assert body.get('error') == 'invalid_offset_delta'
+
+    def test_current_offset_pct_negative_rejected(
+        self, authenticated_client, db_session, test_user, test_chapter,
+    ):
+        """API must reject current_offset_pct < 0 with 400."""
+        s = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': -0.1},
+        )
+        assert r.status_code == 400
+        body = r.get_json()
+        assert body.get('error') == 'invalid_offset_delta'
+
+    def test_end_session_clamps_hint_to_0_1(
+        self, app, db_session, test_user, test_chapter,
+    ):
+        """end_session helper clamps the hint via max(0, min(1, hint)) before
+        writing to UserChapterProgress even if called directly with bad input."""
+        s = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        closed = end_session(s.id, db_session=db, current_offset_pct=2.5)
+        db_session.commit()
+        assert closed is not None
+        assert closed.offset_delta <= 1.0
+
+    # ------------------------------------------------------------------
+    # sendBeacon / text-plain body (unload handler)
+    # ------------------------------------------------------------------
+
+    def test_end_session_accepts_text_plain_body(
+        self, authenticated_client, db_session, test_user, test_chapter,
+    ):
+        """navigator.sendBeacon sends Content-Type: text/plain.
+        The endpoint must parse the JSON body regardless of content-type."""
+        import json
+
+        s = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        payload = json.dumps({'session_id': s.id})
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            data=payload,
+            content_type='text/plain',
+        )
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body['success'] is True
+        assert body['session_id'] == s.id
+
+    def test_end_session_accepts_text_plain_with_offset_hint(
+        self, authenticated_client, db_session, test_user, test_chapter,
+    ):
+        """sendBeacon can carry a current_offset_pct hint in text/plain body."""
+        import json
+
+        s = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        payload = json.dumps({'session_id': s.id, 'current_offset_pct': 0.4})
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            data=payload,
+            content_type='text/plain',
+        )
+        assert r.status_code == 200
+        closed = db.session.get(UserReadingSession, s.id)
+        assert closed.offset_delta == pytest.approx(0.4)
+
+    def test_end_session_idempotent_via_pagehide_replay(
+        self, authenticated_client, db_session, test_user, test_chapter,
+    ):
+        """pagehide fires both beforeunload AND pagehide; the JS guards with
+        a sessionEnded flag, but a second call to end the same session must
+        be a no-op (still 200) and not widen offset_delta."""
+        s = start_session(test_user.id, test_chapter.id, db)
+        db_session.commit()
+
+        r1 = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id},
+        )
+        assert r1.status_code == 200
+
+        r2 = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': 0.9},
+        )
+        assert r2.status_code == 200
+        closed = db.session.get(UserReadingSession, s.id)
+        assert closed.offset_delta == pytest.approx(0.0)
+
+    # ------------------------------------------------------------------
+    # Rapid progress saves (scroll dedup — server side)
+    # ------------------------------------------------------------------
+
+    def test_rapid_progress_saves_are_monotonic(
+        self, authenticated_client, db_session, test_user, test_chapter, test_book,
+    ):
+        """Multiple quick /api/save-reading-position calls with advancing
+        position must not duplicate UserChapterProgress rows and the final
+        offset_pct must equal the maximum position seen."""
+        from app.books.models import UserChapterProgress
+
+        positions = [0.1, 0.15, 0.2, 0.18, 0.25]
+        for pos in positions:
+            r = authenticated_client.post(
+                '/api/save-reading-position',
+                json={
+                    'book_id': test_book.id,
+                    'position': pos,
+                    'chapter': test_chapter.chap_num,
+                },
+            )
+            assert r.status_code == 200
+
+        rows = (
+            db_session.query(UserChapterProgress)
+            .filter_by(user_id=test_user.id, chapter_id=test_chapter.id)
+            .all()
+        )
+        assert len(rows) == 1
+        assert rows[0].offset_pct == pytest.approx(max(positions))
+
+    def test_rapid_progress_saves_with_same_position_idempotent(
+        self, authenticated_client, db_session, test_user, test_chapter, test_book,
+    ):
+        """Repeated saves of the same offset are safe — no extra rows, no
+        artificial forward progress."""
+        from app.books.models import UserChapterProgress
+
+        for _ in range(5):
+            r = authenticated_client.post(
+                '/api/save-reading-position',
+                json={
+                    'book_id': test_book.id,
+                    'position': 0.3,
+                    'chapter': test_chapter.chap_num,
+                },
+            )
+            assert r.status_code == 200
+
+        rows = (
+            db_session.query(UserChapterProgress)
+            .filter_by(user_id=test_user.id, chapter_id=test_chapter.id)
+            .all()
+        )
+        assert len(rows) == 1
+        assert rows[0].offset_pct == pytest.approx(0.3)
+
+    # ------------------------------------------------------------------
+    # Tab switch + return: position persistence
+    # ------------------------------------------------------------------
+
+    def test_saved_position_persists_for_restoration(
+        self, authenticated_client, db_session, test_user, test_chapter, test_book,
+    ):
+        """After saving a reading position the server persists it in
+        UserChapterProgress so that the reader template can restore the scroll
+        position on the next page load (simulates tab switch then return)."""
+        from app.books.models import UserChapterProgress
+
+        r = authenticated_client.post(
+            '/api/save-reading-position',
+            json={
+                'book_id': test_book.id,
+                'position': 0.42,
+                'chapter': test_chapter.chap_num,
+            },
+        )
+        assert r.status_code == 200
+
+        progress = (
+            db_session.query(UserChapterProgress)
+            .filter_by(user_id=test_user.id, chapter_id=test_chapter.id)
+            .first()
+        )
+        assert progress is not None
+        assert progress.offset_pct == pytest.approx(0.42)

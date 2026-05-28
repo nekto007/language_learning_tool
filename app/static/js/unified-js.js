@@ -187,19 +187,26 @@ function initializeTooltips() {
  * Show completion celebration with confetti
  */
 function showCompletionCelebration() {
+  const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   // Show celebration section
   const celebrationElement = document.querySelector('.completion-celebration');
   if (celebrationElement) {
     celebrationElement.style.display = 'block';
 
-    // Scroll to celebration
+    // Scroll to celebration — instant when motion is reduced
     setTimeout(() => {
-      celebrationElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      celebrationElement.scrollIntoView({
+        behavior: noMotion ? 'instant' : 'smooth',
+        block: 'center'
+      });
     }, 500);
   }
 
-  // Show confetti
-  showConfetti();
+  // Show confetti only when motion is not reduced
+  if (!noMotion) {
+    showConfetti();
+  }
 }
 
 /**
@@ -225,6 +232,7 @@ function initializeConfetti() {
  * Show confetti animation
  */
 function showConfetti() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const canvas = document.getElementById('confetti-canvas');
   if (!canvas) return;
 

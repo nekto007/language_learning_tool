@@ -9,6 +9,7 @@ from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
 from app.curriculum.service import complete_lesson, get_next_lesson
 from app.curriculum.security import check_lesson_access, check_module_access
 from app.daily_plan.level_utils import get_user_current_cefr_level
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
@@ -16,7 +17,7 @@ from app.daily_plan.level_utils import get_user_current_cefr_level
 # ---------------------------------------------------------------------------
 
 def _make_level(db_session, order=1):
-    code = uuid.uuid4().hex[:2].upper()
+    code = unique_level_code()
     level = CEFRLevel(code=code, name=f'Level {order}', order=order)
     db_session.add(level)
     db_session.commit()

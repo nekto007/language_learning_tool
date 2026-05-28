@@ -1,4 +1,5 @@
 """Tests for admin content quality dashboard."""
+import itertools
 import uuid
 from datetime import datetime, timezone
 
@@ -9,10 +10,18 @@ from app.curriculum.models import CEFRLevel, LessonFeedback, LessonProgress, Les
 from app.utils.db import db
 from app.words.models import Collection, CollectionWordLink, CollectionWords
 
+_CODE_COUNTER = itertools.count(200)
+
+
+def _unique_level_code() -> str:
+    n = next(_CODE_COUNTER)
+    chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    return chars[n // 36 % 36] + chars[n % 36]
+
 
 def _make_level(db_session):
     level = CEFRLevel(
-        code=uuid.uuid4().hex[:2].upper(),
+        code=_unique_level_code(),
         name='Test',
         description='Test',
         order=uuid.uuid4().int % 900 + 100,

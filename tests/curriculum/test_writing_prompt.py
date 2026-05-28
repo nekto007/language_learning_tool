@@ -13,14 +13,12 @@ from app.curriculum.models import (
     CEFRLevel, LessonProgress, Lessons, Module, UserWritingAttempt,
     save_writing_attempt,
 )
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
 
 
 def _make_writing_lesson(
@@ -31,7 +29,7 @@ def _make_writing_lesson(
     example_response: str | None = None,
     checklist: list[str] | None = None,
 ) -> Lessons:
-    level = CEFRLevel(code=_unique_code(), name="Level", description="d", order=1)
+    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(
@@ -145,11 +143,11 @@ class TestUserWritingAttemptModel:
         )
         assert attempt.word_count == 3
 
-    def test_empty_text_word_count_zero(self, app, db_session, test_user):
+    def test_empty_text_raises_value_error(self, app, db_session, test_user):
         lesson = _make_writing_lesson(db_session)
         from app.utils.db import db
-        attempt = save_writing_attempt(test_user.id, lesson.id, "", False, db)
-        assert attempt.word_count == 0
+        with pytest.raises(ValueError, match="response_text cannot be empty"):
+            save_writing_attempt(test_user.id, lesson.id, "", False, db)
 
     def test_multiple_attempts_per_lesson_allowed(self, app, db_session, test_user):
         lesson = _make_writing_lesson(db_session)

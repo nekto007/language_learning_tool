@@ -21,6 +21,109 @@ MAX_COVER_WIDTH = 400
 MAX_COVER_HEIGHT = 600
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
+# Extensions that are ALWAYS forbidden regardless of allowed_extensions whitelist
+FORBIDDEN_EXTENSIONS = frozenset({
+    'env', 'py', 'pyc', 'pyo', 'pyd',  # Python / config secrets
+    'sh', 'bash', 'zsh', 'fish',         # Shell scripts
+    'php', 'php3', 'php4', 'php5', 'phtml',  # PHP
+    'asp', 'aspx', 'jsp', 'jspx',        # Server-side scripts
+    'exe', 'dll', 'so', 'dylib',         # Executables / shared libs
+    'bat', 'cmd', 'ps1', 'psm1',         # Windows scripts
+    'rb', 'pl', 'pm', 'cgi',             # Ruby / Perl
+    'htaccess', 'htpasswd',              # Apache config
+    'key', 'pem', 'p12', 'pfx', 'cer',  # Certificates / keys
+    'sql',                                # SQL dumps
+})
+
+# Magic byte signatures for dangerous file types
+# Maps (prefix_bytes, description) — prefix_bytes is checked against start of file
+DANGEROUS_MAGIC_SIGNATURES: list = [
+    (b'MZ', 'Windows PE executable'),                   # EXE, DLL
+    (b'\x7fELF', 'ELF executable'),                    # Linux binary
+    (b'<?php', 'PHP script'),
+    (b'#!/', 'Shell script (shebang)'),
+    (b'\xca\xfe\xba\xbe', 'Mach-O fat binary'),        # macOS executable
+    (b'\xfe\xed\xfa\xce', 'Mach-O binary (LE)'),
+    (b'\xce\xfa\xed\xfe', 'Mach-O binary (BE)'),
+    (b'PK\x03\x04', 'ZIP archive'),                    # ZIP, DOCX, JAR etc.
+    (b'Rar!', 'RAR archive'),
+    (b'\x1f\x8b', 'GZIP archive'),
+]
+
+
+ALLOWED_AUDIO_MIME_TYPES = frozenset({'audio/mpeg', 'audio/wav'})
+
+
+def check_forbidden_magic_bytes(data: bytes) -> Optional[str]:
+    """
+    Check file content for dangerous magic byte signatures.
+
+    Returns description of the dangerous type detected, or None if safe.
+    """
+    for signature, description in DANGEROUS_MAGIC_SIGNATURES:
+        if data[:len(signature)] == signature:
+            return description
+    return None
+
+
+def check_audio_mime_type(data: bytes) -> Optional[str]:
+    """Detect audio MIME type from magic bytes.
+
+    Returns 'audio/mpeg', 'audio/wav', or None for unrecognised/non-audio data.
+    Only audio/mpeg and audio/wav are considered valid for upload.
+    """
+    if len(data) < 4:
+        return None
+    # WAV: RIFF header + WAVE marker at offset 8
+    if data[:4] == b'RIFF' and len(data) >= 12 and data[8:12] == b'WAVE':
+        return 'audio/wav'
+    # MP3 with ID3v2 tag
+    if data[:3] == b'ID3':
+        return 'audio/mpeg'
+    # MP3 without ID3 tag (MPEG sync bytes: 0xff + 0b111xxxxx)
+    if len(data) >= 2 and data[0] == 0xff and (data[1] & 0xe0) == 0xe0:
+        return 'audio/mpeg'
+    return None
+
+
+def validate_audio_file_upload(
+    file: FileStorage,
+    max_size_mb: int = 50,
+) -> Tuple[bool, Optional[str]]:
+    """Validate an uploaded audio file.
+
+    Checks extension allow-list (mp3, wav), size limit, and magic bytes.
+    Returns (is_valid, error_message).
+    """
+    if not file or not hasattr(file, 'filename') or not file.filename:
+        return False, "Файл не предоставлен"
+
+    from werkzeug.utils import secure_filename as _secure
+    safe_name = _secure(file.filename)
+    if not safe_name or '.' not in safe_name:
+        return False, "Недопустимое имя файла"
+
+    ext = safe_name.rsplit('.', 1)[1].lower()
+    if ext not in {'mp3', 'wav'}:
+        return False, f"Расширение .{ext} не разрешено. Разрешены: mp3, wav"
+
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size > max_size_mb * 1024 * 1024:
+        return False, f"Файл ({size / 1024 / 1024:.1f} МБ) превышает лимит {max_size_mb} МБ"
+    if size == 0:
+        return False, "Файл пуст"
+
+    header = file.read(12)
+    file.seek(0)
+
+    detected = check_audio_mime_type(header)
+    if detected not in ALLOWED_AUDIO_MIME_TYPES:
+        return False, "Файл не является аудиофайлом допустимого формата (audio/mpeg или audio/wav)"
+
+    return True, None
+
 
 def validate_image_mime_type(file_path: str) -> bool:
     """
@@ -52,9 +155,11 @@ def validate_image_mime_type(file_path: str) -> bool:
                 logger.warning(f"Image type {image_type} is not allowed")
                 return False
 
-            # Проверяем, что файл - валидное изображение
-            img.verify()
-            return True
+        # verify() must be called on a freshly opened Image (it destroys the
+        # image object state and must be the sole operation on that handle).
+        with Image.open(file_path) as _img:
+            _img.verify()
+        return True
 
     except Exception as e:
         logger.error(f"Error validating image MIME type: {e}")
@@ -246,6 +351,11 @@ def validate_text_file_upload(
         return False, "Файл должен иметь расширение"
 
     extension = safe_name.rsplit('.', 1)[1].lower()
+
+    # Defense-in-depth: always block forbidden extensions regardless of whitelist
+    if extension in FORBIDDEN_EXTENSIONS:
+        return False, f"Расширение .{extension} запрещено по соображениям безопасности"
+
     if extension not in allowed_extensions:
         return False, f"Расширение .{extension} не разрешено. Разрешены: {', '.join(allowed_extensions)}"
 
@@ -285,6 +395,12 @@ def validate_text_file_upload(
 
         if not sample:
             return False, "Файл пуст"
+
+        # Check magic bytes for known dangerous binary formats
+        dangerous_type = check_forbidden_magic_bytes(sample)
+        if dangerous_type:
+            logger.warning(f"Dangerous magic bytes detected ({dangerous_type}) in file {safe_name}")
+            return False, f"Содержимое файла не является текстовым ({dangerous_type})"
 
         # Проверяем, что это текст (UTF-8)
         # Выборка может обрезать многобайтовый символ UTF-8 (кириллица = 2 байта)

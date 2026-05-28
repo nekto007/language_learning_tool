@@ -11,6 +11,7 @@ Models:
 
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import backref, relationship
 from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS, DEFAULT_EASE_FACTOR, MIN_EASE_FACTOR
 from app.srs.mixins import SRSFieldsMixin
@@ -270,12 +271,15 @@ class UserGrammarTopicStatus(db.Model):
 
     @classmethod
     def get_or_create(cls, user_id: int, topic_id: int):
-        """Get existing status or create new one"""
+        """Get existing status or create new one. Safe under concurrent writers."""
         status = cls.query.filter_by(user_id=user_id, topic_id=topic_id).first()
         if not status:
             status = cls(user_id=user_id, topic_id=topic_id)
-            db.session.add(status)
-            db.session.flush()
+            try:
+                with db.session.begin_nested():
+                    db.session.add(status)
+            except IntegrityError:
+                status = cls.query.filter_by(user_id=user_id, topic_id=topic_id).first()
         return status
 
     def add_xp(self, amount: int):
@@ -450,12 +454,15 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
 
     @classmethod
     def get_or_create(cls, user_id: int, exercise_id: int):
-        """Get existing progress or create new one"""
+        """Get existing progress or create new one. Safe under concurrent writers."""
         progress = cls.query.filter_by(user_id=user_id, exercise_id=exercise_id).first()
         if not progress:
             progress = cls(user_id=user_id, exercise_id=exercise_id)
-            db.session.add(progress)
-            db.session.flush()
+            try:
+                with db.session.begin_nested():
+                    db.session.add(progress)
+            except IntegrityError:
+                progress = cls.query.filter_by(user_id=user_id, exercise_id=exercise_id).first()
         return progress
 
     @property

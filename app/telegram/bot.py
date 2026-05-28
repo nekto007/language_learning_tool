@@ -4,6 +4,7 @@ from typing import Any
 
 import requests
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 
 from app.telegram.models import TelegramUser, TelegramLinkCode, PendingTelegramLink
 from app.utils.db import db
@@ -41,8 +42,10 @@ def _send_message(chat_id: int, text: str, parse_mode: str = 'HTML',
         )
         if not resp.ok:
             logger.warning('Telegram API error: %s', resp.text)
-    except requests.RequestException:
-        logger.exception('Failed to send Telegram message')
+    except requests.RequestException as e:
+        # Use type name only — full exception repr includes the request URL
+        # which contains the bot token.
+        logger.error('Failed to send Telegram message: %s', type(e).__name__)
 
 
 def send_message(chat_id: int, text: str, parse_mode: str = 'HTML',
@@ -100,14 +103,25 @@ def _handle_link(chat_id: int, telegram_id: int, username: str | None,
         _send_message(chat_id, 'Этот Telegram уже привязан к другому аккаунту. Сначала /unlink.')
         return
 
-    # Create link
+    # Check if this user account is already linked to a different Telegram
+    existing_user_link = TelegramUser.query.filter_by(user_id=link_code.user_id).first()
+    if existing_user_link:
+        _send_message(chat_id, 'Этот аккаунт уже привязан к другому Telegram. Сначала /unlink на сайте.')
+        return
+
+    # Create link — wrap in try/except to handle concurrent duplicate attempts
     tg_user = TelegramUser(
         user_id=link_code.user_id,
         telegram_id=telegram_id,
         username=username,
     )
     db.session.add(tg_user)
-    link_code.consume()
+    try:
+        link_code.consume()
+    except IntegrityError:
+        db.session.rollback()
+        _send_message(chat_id, 'Этот Telegram уже привязан к аккаунту. Сначала /unlink.')
+        return
 
     _send_message(chat_id, (
         'Аккаунт привязан!\n\n'
@@ -260,8 +274,8 @@ def _edit_message(chat_id: int, message_id: int, text: str,
             f'https://api.telegram.org/bot{token}/editMessageText',
             json=payload, timeout=10,
         )
-    except requests.RequestException:
-        logger.exception('Failed to edit message')
+    except requests.RequestException as e:
+        logger.error('Failed to edit message: %s', type(e).__name__)
 
 
 def _remove_reply_markup(chat_id: int, message_id: int) -> None:
@@ -275,8 +289,8 @@ def _remove_reply_markup(chat_id: int, message_id: int) -> None:
             json={'chat_id': chat_id, 'message_id': message_id},
             timeout=10,
         )
-    except requests.RequestException:
-        logger.exception('Failed to remove reply markup')
+    except requests.RequestException as e:
+        logger.error('Failed to remove reply markup: %s', type(e).__name__)
 
 
 def _answer_callback(callback_query_id: str, text: str = 'Сохранено!') -> None:

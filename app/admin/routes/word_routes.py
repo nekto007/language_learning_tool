@@ -295,6 +295,136 @@ def word_statistics():
         return redirect(url_for('word_admin.word_management'))
 
 
+@word_bp.route('/words/bulk-delete', methods=['POST'])
+@admin_required
+def bulk_delete_words():
+    """Bulk delete words by ID list.
+
+    WordCollocation and UserWord rows cascade-delete automatically via DB-level
+    FK ``ondelete='CASCADE'``.  The route logs the operation and commits once.
+    """
+    data = request.get_json(silent=True) or {}
+    word_ids = data.get('word_ids', [])
+
+    if not word_ids or not isinstance(word_ids, list):
+        return jsonify({'success': False, 'error': 'word_ids list required'}), 400
+
+    try:
+        word_ids = [int(wid) for wid in word_ids]
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'word_ids must be integers'}), 400
+
+    deleted = WordManagementService.bulk_delete_words(word_ids)
+
+    log_admin_action(
+        current_user.id,
+        'word.bulk_delete',
+        target_type='word',
+    )
+    db.session.commit()
+    clear_admin_cache()
+
+    logger.info("Bulk word delete by %s: %d words removed", current_user.username, deleted)
+    return jsonify({'success': True, 'deleted_count': deleted})
+
+
+@word_bp.route('/words/<int:word_id>/collocations', methods=['POST'])
+@admin_required
+def add_collocation(word_id: int):
+    """Add a collocation phrase to a word."""
+    from app.words.models import CollectionWords as _CW
+    from app.curriculum.models import WordCollocation
+
+    word = _CW.query.get(word_id)
+    if word is None:
+        return jsonify({'success': False, 'error': 'word not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    phrase = (data.get('collocation_phrase') or '').strip()
+    translation = (data.get('translation') or '').strip()
+    example = (data.get('example') or '').strip() or None
+
+    if not phrase or not translation:
+        return jsonify({'success': False, 'error': 'collocation_phrase and translation required'}), 400
+
+    collocation = WordCollocation(
+        word_id=word_id,
+        collocation_phrase=phrase,
+        translation=translation,
+        example=example,
+    )
+    db.session.add(collocation)
+    db.session.flush()
+
+    log_admin_action(
+        current_user.id,
+        'word.collocation_add',
+        target_type='word',
+        target_id=word_id,
+    )
+    db.session.commit()
+
+    return jsonify({'success': True, 'collocation_id': collocation.id}), 201
+
+
+@word_bp.route('/words/<int:word_id>/collocations/<int:collocation_id>', methods=['DELETE'])
+@admin_required
+def remove_collocation(word_id: int, collocation_id: int):
+    """Remove a collocation from a word."""
+    from app.curriculum.models import WordCollocation
+
+    collocation = WordCollocation.query.filter_by(id=collocation_id, word_id=word_id).first()
+    if collocation is None:
+        return jsonify({'success': False, 'error': 'collocation not found'}), 404
+
+    db.session.delete(collocation)
+    log_admin_action(
+        current_user.id,
+        'word.collocation_remove',
+        target_type='word',
+        target_id=word_id,
+    )
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
+@word_bp.route('/words/<int:word_id>/frequency-band', methods=['POST'])
+@admin_required
+def update_frequency_band(word_id: int):
+    """Update the frequency_band for a word (1, 2, 3, or null)."""
+    from app.words.models import CollectionWords as _CW
+
+    word = _CW.query.get(word_id)
+    if word is None:
+        return jsonify({'success': False, 'error': 'word not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    raw = data.get('frequency_band')
+
+    if raw is None or raw == '':
+        band = None
+    else:
+        try:
+            band = int(raw)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'frequency_band must be 1, 2, 3, or null'}), 400
+        if band not in (1, 2, 3):
+            return jsonify({'success': False, 'error': 'frequency_band must be 1, 2, 3, or null'}), 400
+
+    word.frequency_band = band
+    log_admin_action(
+        current_user.id,
+        'word.frequency_band_update',
+        target_type='word',
+        target_id=word_id,
+    )
+    db.session.commit()
+    clear_admin_cache()
+
+    return jsonify({'success': True, 'frequency_band': band})
+
+
 @word_bp.route('/words/import-phrasal-verbs', methods=['GET', 'POST'])
 @admin_required
 def import_phrasal_verbs():

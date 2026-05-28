@@ -12,6 +12,7 @@ from app.nlp.setup import (
     get_brown_words,
     get_stopwords,
     initialize_nltk,
+    _reset_cache,
     REQUIRED_RESOURCES
 )
 
@@ -225,6 +226,14 @@ class TestGetStopwords:
 
 class TestInitializeNltk:
     """Тесты функции initialize_nltk"""
+
+    def setup_method(self):
+        """Reset module-level cache before each test so mocks take effect."""
+        _reset_cache()
+
+    def teardown_method(self):
+        """Reset cache after each test so real NLTK state is re-initialized on demand."""
+        _reset_cache()
 
     @patch('app.nlp.setup.get_stopwords')
     @patch('app.nlp.setup.get_brown_words')

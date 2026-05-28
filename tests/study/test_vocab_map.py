@@ -13,19 +13,17 @@ from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.study.models import UserCardDirection, UserWord
 from app.words.models import Collection, CollectionWordLink, CollectionWords
 from app.utils.db import db
+from tests.conftest import unique_level_code
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _unique_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
-
 
 def _make_level(db_session, order: int = 1) -> CEFRLevel:
     level = CEFRLevel(
-        code=_unique_code(),
+        code=unique_level_code(),
         name='Test Level',
         description='d',
         order=order,

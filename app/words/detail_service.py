@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 
+import bleach
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
 
@@ -63,6 +64,13 @@ def _clean_optional_text(value) -> str:
         return ''
     text = str(value).strip()
     return '' if text.lower() in _EMPTY_TEXT_VALUES else text
+
+
+def _strip_html(text: str) -> str:
+    """Strip all HTML tags from plain-text fields (e.g. etymology)."""
+    if not text:
+        return ''
+    return bleach.clean(text, tags=[], strip=True)
 
 
 def _normalise_lookup(value: str) -> str:
@@ -171,7 +179,7 @@ def build_word_profile(word: CollectionWords, *, public_only: bool = False) -> d
     synonyms = normalise_word_list(word.synonyms)
     antonyms = normalise_word_list(word.antonyms)
     usage_context = _clean_optional_text(word.usage_context)
-    etymology = _clean_optional_text(word.etymology)
+    etymology = _strip_html(_clean_optional_text(word.etymology))
     phrasal_verbs = sorted(
         list(getattr(word, 'phrasal_verbs', []) or []),
         key=lambda item: ((item.frequency_rank or 999999), item.english_word or ''),

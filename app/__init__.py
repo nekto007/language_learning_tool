@@ -1,5 +1,7 @@
 import logging
 import os
+import time
+import threading
 
 from flask import Flask
 from flask_compress import Compress
@@ -42,6 +44,10 @@ _ONBOARDING_SKIP_PREFIXES = (
 
 csrf = CSRFProtect()
 
+# Module-level TTL cache for public site settings (avoids DB query on every request).
+_site_settings_cache: dict = {'data': None, 'expires': 0.0, 'lock': threading.Lock()}
+_SITE_SETTINGS_TTL = 60  # seconds
+
 # JWT Manager for API authentication
 jwt = JWTManager()
 
@@ -83,6 +89,13 @@ def create_app(config_class=Config):
     migrate = Migrate(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
+
+    # Warn if using in-memory rate limit storage in production
+    if not app.config.get('TESTING') and os.environ.get('RATELIMIT_STORAGE_URI', 'memory://') == 'memory://':
+        logger.warning(
+            "Rate limit storage is 'memory://' — limits are not shared across workers. "
+            "Set RATELIMIT_STORAGE_URI to a Redis URL for production deployments."
+        )
     jwt.init_app(app)
     init_babel(app)
 
@@ -296,7 +309,7 @@ def create_app(config_class=Config):
         from flask import jsonify, render_template
         from app.admin.error_handlers import is_admin_request, render_admin_403
         if _wants_json():
-            return jsonify({'success': False, 'error': 'Forbidden'}), 403
+            return jsonify({'success': False, 'error': 'forbidden', 'message': 'Forbidden', 'status': 403}), 403
         if is_admin_request():
             return render_admin_403()
         return render_template('errors/403.html'), 403
@@ -306,7 +319,7 @@ def create_app(config_class=Config):
         from flask import jsonify, render_template
         from app.admin.error_handlers import is_admin_request, render_admin_404
         if _wants_json():
-            return jsonify({'success': False, 'error': 'Not found'}), 404
+            return jsonify({'success': False, 'error': 'not_found', 'message': 'Not found', 'status': 404}), 404
         if is_admin_request():
             return render_admin_404()
         return render_template('errors/404.html'), 404
@@ -322,7 +335,7 @@ def create_app(config_class=Config):
             logger.exception("Failed to rollback session in 500 handler")
         increment_5xx_counter()
         if _wants_json():
-            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+            return jsonify({'success': False, 'error': 'internal_error', 'message': 'Internal server error', 'status': 500}), 500
         if is_admin_request():
             return render_admin_500()
         return render_template('errors/500.html'), 500
@@ -443,18 +456,33 @@ def create_app(config_class=Config):
     def _inject_site_settings():
         from flask import g
 
-        cached = getattr(g, '_site_settings_cached', None)
-        if cached is not None:
-            return {'site_settings': cached}
+        # Fast path: already resolved for this request.
+        request_cached = getattr(g, '_site_settings_cached', None)
+        if request_cached is not None:
+            return {'site_settings': request_cached}
+
+        # Cross-request TTL cache: one DB query per 60 s across all requests.
+        now = time.time()
+        with _site_settings_cache['lock']:
+            if _site_settings_cache['data'] is not None and now < _site_settings_cache['expires']:
+                result = _site_settings_cache['data']
+                g._site_settings_cached = result
+                return {'site_settings': result}
 
         try:
             from app.admin.site_settings import get_public_settings
-            cached = get_public_settings()
+            fresh = get_public_settings()
+            ttl = _SITE_SETTINGS_TTL
         except Exception:
             logger.exception('Failed to load public site settings')
-            cached = {}
-        g._site_settings_cached = cached
-        return {'site_settings': cached}
+            fresh = {}
+            ttl = 5  # retry quickly on DB failure rather than hammering every request
+        with _site_settings_cache['lock']:
+            _site_settings_cache['data'] = fresh
+            _site_settings_cache['expires'] = time.time() + ttl
+
+        g._site_settings_cached = fresh
+        return {'site_settings': fresh}
 
     # Set up database-specific optimizations via SQLAlchemy events
     from app.utils.db_config import configure_database_engine

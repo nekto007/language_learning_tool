@@ -362,3 +362,75 @@ class TestImmersionWeekBadge:
         check_immersion_achievement(imm_user.id, TODAY, db_session)
         awarded2 = check_immersion_achievement(imm_user.id, TODAY, db_session)
         assert awarded2 == []
+
+
+class TestImmersionTimezoneEdge:
+    """Verify that check_immersion_achievement correctly windows activity to the user's LOCAL day.
+
+    Uses Asia/Kolkata (UTC+5:30) so the UTC day boundary falls at an unusual fractional offset.
+    Kolkata Jan 2, 2025 spans UTC 2025-01-01T18:30:00 … 2025-01-02T18:30:00.
+    """
+
+    TZ = 'Asia/Kolkata'
+    TARGET = date(2025, 1, 2)
+    # Start of Kolkata Jan 2 in naive UTC
+    WIN_START = datetime(2025, 1, 1, 18, 30, 0)
+    # End of Kolkata Jan 2 in naive UTC (exclusive)
+    WIN_END = datetime(2025, 1, 2, 18, 30, 0)
+
+    def _add_all_at(self, db_session, user_id, lesson_id, chapter_id, ts_naive):
+        ts_tz = ts_naive.replace(tzinfo=timezone.utc)
+        _add_listening(db_session, user_id, lesson_id, created_at=ts_naive)
+        _add_writing(db_session, user_id, lesson_id, created_at=ts_naive)
+        _add_speaking(db_session, user_id, created_at=ts_naive)
+        _add_reading(db_session, user_id, chapter_id, started_at=ts_tz)
+
+    def test_activity_just_inside_window_counts(
+        self, db_session, imm_user, imm_badge, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        # 19:00 UTC Jan 1 = 00:30 Kolkata Jan 2 — inside the Kolkata day
+        ts = self.WIN_START + timedelta(minutes=30)
+        self._add_all_at(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, ts)
+        awarded = check_immersion_achievement(imm_user.id, self.TARGET, db_session, tz=self.TZ)
+        assert BADGE_CODE in {a.code for a in awarded}
+
+    def test_activity_just_before_window_does_not_count(
+        self, db_session, imm_user, imm_badge, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        # 18:29 UTC Jan 1 = 23:59 Kolkata Jan 1 — still the previous Kolkata day
+        ts = self.WIN_START - timedelta(minutes=1)
+        self._add_all_at(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, ts)
+        awarded = check_immersion_achievement(imm_user.id, self.TARGET, db_session, tz=self.TZ)
+        assert awarded == []
+
+    def test_activity_just_after_window_end_does_not_count(
+        self, db_session, imm_user, imm_badge, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        # 18:31 UTC Jan 2 = 00:01 Kolkata Jan 3 — already the next Kolkata day
+        ts = self.WIN_END + timedelta(minutes=1)
+        self._add_all_at(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, ts)
+        awarded = check_immersion_achievement(imm_user.id, self.TARGET, db_session, tz=self.TZ)
+        assert awarded == []
+
+    def test_activity_spanning_utc_midnight_counts(
+        self, db_session, imm_user, imm_badge, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        # 23:00 UTC Jan 1 = 04:30 Kolkata Jan 2 — crosses UTC midnight, still Kolkata Jan 2
+        ts = datetime(2025, 1, 1, 23, 0, 0)
+        self._add_all_at(db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, ts)
+        awarded = check_immersion_achievement(imm_user.id, self.TARGET, db_session, tz=self.TZ)
+        assert BADGE_CODE in {a.code for a in awarded}
+
+    def test_unknown_timezone_falls_back_to_utc(
+        self, db_session, imm_user, imm_badge, test_lesson_for_imm, test_chapter_for_imm
+    ):
+        # With invalid tz the function falls back to UTC, so UTC midnight activity counts for UTC date.
+        utc_jan2_start = datetime(2025, 1, 2, 0, 0, 0)
+        self._add_all_at(
+            db_session, imm_user.id, test_lesson_for_imm.id, test_chapter_for_imm.id, utc_jan2_start
+        )
+        target_utc = date(2025, 1, 2)
+        awarded = check_immersion_achievement(
+            imm_user.id, target_utc, db_session, tz='Not/ATimezone'
+        )
+        assert BADGE_CODE in {a.code for a in awarded}

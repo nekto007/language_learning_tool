@@ -9,6 +9,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
+from app import limiter
+from app.utils.rate_limit_helpers import get_authenticated_user_key
 from app.study.blueprint import study, get_audio_url_for_word
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.models import QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord
@@ -495,6 +497,7 @@ def get_study_items():
 
 @study.route('/api/update-study-item', methods=['POST'])
 @login_required
+@limiter.limit("120 per minute", key_func=get_authenticated_user_key)
 def update_study_item():
     from app.srs.constants import CardState
 

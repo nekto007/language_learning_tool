@@ -733,7 +733,9 @@
 
     <div class="wdet-hero__content">
       <h1 class="wdet-hero__word">{{ word.english_word }}</h1>
+      {% if word.russian_word %}
       <p class="wdet-hero__translation">{{ word.russian_word }}</p>
+      {% endif %}
       {% if word.ipa_transcription %}
       <div class="wdet-hero__pronunciation">/{{ word.ipa_transcription }}/</div>
       {% endif %}

@@ -228,7 +228,8 @@ class TestBatchUpdateStatus:
         data = response.get_json()
 
         assert data['success'] is False
-        assert 'Invalid status' in data['error']
+        # api_error() puts machine code in 'error', human text in 'message'
+        assert data['error'] == 'invalid_status' or 'Invalid' in data.get('message', '')
 
     def test_batch_update_missing_words(self, authenticated_client):
         """Test error when some words don't exist"""
@@ -241,7 +242,7 @@ class TestBatchUpdateStatus:
         data = response.get_json()
 
         assert data['success'] is False
-        assert 'not found' in data['error']
+        assert data['error'] == 'not_found' or 'not found' in data.get('message', '')
 
     def test_batch_update_missing_fields(self, authenticated_client):
         """Test error when missing required fields"""

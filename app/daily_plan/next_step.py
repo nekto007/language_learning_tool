@@ -28,6 +28,10 @@ class NextStep:
     data: dict         # kind-specific payload (lesson_id, topic_id, words_due, book_id, …)
     estimated_minutes: Optional[int] = None
 
+    def __post_init__(self) -> None:
+        if self.estimated_minutes is not None and self.estimated_minutes < 1:
+            self.estimated_minutes = 1
+
 
 def get_next_best_step(user_id: int, db, max_steps: int = 3) -> list[NextStep]:
     """Return up to max_steps continuation tasks for user_id, in priority order.

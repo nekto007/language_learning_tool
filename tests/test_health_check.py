@@ -15,6 +15,16 @@ class TestHealthCheck:
         assert data['status'] == 'ok'
         assert data['db'] == 'ok'
 
+    def test_health_response_contains_version_and_timestamp(self, client):
+        response = client.get('/health')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'version' in data, "version field missing from health response"
+        assert 'timestamp' in data, "timestamp field missing from health response"
+        # timestamp must be an ISO-8601 string
+        assert isinstance(data['timestamp'], str)
+        assert 'T' in data['timestamp'], "timestamp must be ISO-8601 format"
+
     def test_health_returns_503_when_db_disconnected(self, app):
         with app.test_client() as test_client:
             with patch.object(
@@ -29,14 +39,42 @@ class TestHealthCheck:
                 assert data['db'] == 'error'
                 # Must NOT leak exception details
                 assert 'connection refused' not in str(data)
+                # version and timestamp still present even on error
+                assert 'version' in data
+                assert 'timestamp' in data
 
     def test_health_no_auth_required(self, client):
-        """Health endpoint must work without authentication."""
+        """Health endpoint must work without authentication (for load balancers)."""
         response = client.get('/health')
+        # Must not redirect to login
+        assert response.status_code not in (301, 302, 401, 403)
         assert response.status_code == 200
-        assert response.status_code != 302
 
     def test_health_no_csrf_required(self, client):
         """Health endpoint must not require CSRF token."""
         response = client.get('/health')
         assert response.status_code == 200
+
+    def test_health_db_timeout_path_does_not_stall(self, app):
+        """Simulate statement_timeout firing: health must return 503, not hang."""
+        with app.test_client() as test_client:
+            call_count = 0
+
+            def mock_execute(stmt, *args, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                # First call is SET LOCAL statement_timeout — succeeds.
+                # Second call is SELECT 1 — raises timeout-like error.
+                if call_count >= 2:
+                    raise OperationalError('canceling statement due to statement timeout', '', Exception())
+
+            with patch.object(
+                app.extensions['sqlalchemy'].session,
+                'execute',
+                side_effect=mock_execute,
+            ):
+                response = test_client.get('/health')
+                assert response.status_code == 503
+                data = response.get_json()
+                assert data['status'] == 'error'
+                assert data['db'] == 'error'

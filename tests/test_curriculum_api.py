@@ -17,15 +17,12 @@ from unittest.mock import patch
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
 from app.utils.db import db
+from tests.conftest import unique_level_code
 
 
 @pytest.fixture
 def curriculum_data(db_session):
-    code = uuid.uuid4().hex[:2].upper()
-    for _ in range(50):
-        if not CEFRLevel.query.filter_by(code=code).first():
-            break
-        code = uuid.uuid4().hex[:2].upper()
+    code = unique_level_code()
     level = CEFRLevel(code=code, name='Test Level', description='desc', order=1)
     db_session.add(level)
     db_session.flush()

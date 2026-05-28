@@ -475,6 +475,8 @@ def save_writing_attempt(
     lesson are allowed — each submission creates a new row.
     Caller owns the commit.
     """
+    if not text or not text.strip():
+        raise ValueError("response_text cannot be empty")
     word_count = len(text.split()) if text.strip() else 0
     attempt = UserWritingAttempt(
         user_id=user_id,

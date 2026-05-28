@@ -17,10 +17,11 @@ from app.curriculum.navigation import find_next_lesson
 from app.daily_plan.assembler import _find_next_lesson as mission_find_next_lesson
 from app.daily_plan.linear.progression import find_next_lesson_linear
 from app.utils.db import db as real_db
+from tests.conftest import unique_level_code
 
 
 def _uniq_code() -> str:
-    return uuid.uuid4().hex[:2].upper()
+    return unique_level_code()
 
 
 def _make_user(db_session, onboarding_level: str | None = None) -> User:

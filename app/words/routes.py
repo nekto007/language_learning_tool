@@ -318,6 +318,16 @@ def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
     return data
 
 
+def invalidate_leaderboard_cache() -> None:
+    """Expire the leaderboard cache immediately.
+
+    Call this after any XP award so the next dashboard request reflects
+    the updated ranking without waiting for the 5-minute TTL to expire.
+    """
+    with _leaderboard_cache['lock']:
+        _leaderboard_cache['expires'] = 0.0
+
+
 _MEDAL_BY_RANK = {1: 'gold', 2: 'silver', 3: 'bronze'}
 
 
@@ -2080,24 +2090,52 @@ def word_list():
     # Обновляем words.items
     words.items = word_list
 
-    # Получаем статистику по статусам
+    # Предзагружаем book ассоциации для текущей страницы одним запросом
+    # чтобы избежать N+1 при обращении к word.books в шаблоне.
+    # Используем set_committed_value, чтобы пометить атрибут как уже загруженный
+    # и не дать SQLAlchemy запустить lazy-load при обращении из шаблона.
+    if word_list:
+        from app.books.models import Book
+        from app.words.models import word_book_link as _wbl
+        from sqlalchemy.orm import attributes as _sa_attrs
+        _page_word_ids = [w.id for w in word_list]
+        _book_rows = db.session.query(Book, _wbl.c.word_id).join(
+            _wbl, Book.id == _wbl.c.book_id
+        ).filter(
+            _wbl.c.word_id.in_(_page_word_ids),
+            Book.is_published == True,
+        ).all()
+        _word_books: dict[int, list] = {}
+        for _book, _wid in _book_rows:
+            _word_books.setdefault(_wid, []).append(_book)
+        for _word in word_list:
+            _sa_attrs.set_committed_value(_word, 'books', _word_books.get(_word.id, []))
+
+    # Получаем статистику по статусам — один GROUP BY запрос вместо N отдельных COUNT
     status_counts = {}
     if current_user.is_authenticated:
-        base_user_words = db.session.query(UserWord).join(
-            CollectionWords, CollectionWords.id == UserWord.word_id
-        ).filter(
+        _base_filters = [
             UserWord.user_id == current_user.id,
             CollectionWords.english_word.isnot(None),
             func.trim(CollectionWords.english_word) != '',
             CollectionWords.level.in_(PUBLIC_CEFR_CODES),
-        )
-        status_counts['new'] = base_user_words.filter(UserWord.status == 'new').count()
-        status_counts['learning'] = base_user_words.filter(UserWord.status == 'learning').count()
-        status_counts['mastered'] = db.session.query(func.count()).select_from(mastered_subquery).scalar() or 0
-        status_counts['review'] = base_user_words.filter(
-            UserWord.status == 'review',
-            ~UserWord.word_id.in_(db.session.query(mastered_subquery.c.word_id)),
-        ).count()
+        ]
+        status_rows = db.session.query(
+            UserWord.status,
+            func.count(UserWord.id).label('cnt'),
+        ).join(
+            CollectionWords, CollectionWords.id == UserWord.word_id
+        ).filter(*_base_filters).group_by(UserWord.status).all()
+        _sc = {row.status: row.cnt for row in status_rows}
+
+        mastered_count = db.session.query(func.count()).select_from(mastered_subquery).scalar() or 0
+        review_total = _sc.get('review', 0)
+        status_counts = {
+            'new': _sc.get('new', 0),
+            'learning': _sc.get('learning', 0),
+            'mastered': mastered_count,
+            'review': max(0, review_total - mastered_count),
+        }
         status_counts['mine'] = (
             status_counts['new']
             + status_counts['learning']
@@ -2105,25 +2143,21 @@ def word_list():
             + status_counts['mastered']
         )
 
-    # Получаем количество по типам
+    # Получаем количество по типам — один GROUP BY запрос вместо трёх COUNT
+    _base_type_filters = [
+        CollectionWords.english_word.isnot(None),
+        func.trim(CollectionWords.english_word) != '',
+        CollectionWords.level.in_(PUBLIC_CEFR_CODES),
+    ]
+    type_rows = db.session.query(
+        CollectionWords.item_type,
+        func.count(CollectionWords.id).label('cnt'),
+    ).filter(*_base_type_filters).group_by(CollectionWords.item_type).all()
+    _tc = {row.item_type: row.cnt for row in type_rows}
     type_counts = {
-        'all': CollectionWords.query.filter(
-            CollectionWords.english_word.isnot(None),
-            func.trim(CollectionWords.english_word) != '',
-            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
-        ).count(),
-        'word': CollectionWords.query.filter(
-            CollectionWords.item_type == 'word',
-            CollectionWords.english_word.isnot(None),
-            func.trim(CollectionWords.english_word) != '',
-            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
-        ).count(),
-        'phrasal_verb': CollectionWords.query.filter(
-            CollectionWords.item_type == 'phrasal_verb',
-            CollectionWords.english_word.isnot(None),
-            func.trim(CollectionWords.english_word) != '',
-            CollectionWords.level.in_(PUBLIC_CEFR_CODES),
-        ).count()
+        'word': _tc.get('word', 0),
+        'phrasal_verb': _tc.get('phrasal_verb', 0),
+        'all': sum(_tc.values()),
     }
 
     return render_template(
@@ -2173,9 +2207,23 @@ def word_detail(word_id):
         .all()
     )
 
-    word_profile = build_word_profile(word)
+    try:
+        word_profile = build_word_profile(word)
+    except Exception:
+        logger.exception('build_word_profile failed for word_id=%s', word_id)
+        word_profile = {
+            'synonyms': [], 'antonyms': [], 'usage_context': '', 'etymology': '',
+            'frequency_band_label': 'Не указана', 'item_type_label': '',
+            'audio_available': False, 'facts': [], 'admin_facts': [],
+            'study_facts': [], 'public_facts': [],
+            'base_word': None, 'phrasal_verbs': [], 'common_mistake': None,
+        }
     study_summary = build_word_study_summary(user_word)
-    related_words = get_related_words(word, limit=6)
+    try:
+        related_words = get_related_words(word, limit=6)
+    except Exception:
+        logger.exception('get_related_words failed for word_id=%s', word_id)
+        related_words = []
 
     return render_template(
         'words/details_optimized.html',

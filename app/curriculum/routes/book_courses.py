@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.book_courses import (
@@ -43,6 +44,8 @@ def list_book_courses():
 
         course_data = []
         for course in courses:
+            if course.book and not course.book.is_published and not current_user.is_admin:
+                continue
             enrollment = user_enrollments.get(course.id)
             course_data.append({
                 'course': course,
@@ -81,6 +84,9 @@ def view_course(course_id):
         if not course.is_active:
             flash('Этот курс больше не доступен', 'error')
             return redirect(url_for('book_courses.list_book_courses'))
+
+        if course.book and not course.book.is_published and not current_user.is_admin:
+            abort(404)
 
         enrollment = BookCourseEnrollment.query.filter_by(
             user_id=current_user.id,
@@ -188,6 +194,10 @@ def enroll_in_course(course_id):
             'enrollment_id': enrollment.id
         })
 
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Вы уже записаны на этот курс'}), 400
+
     except Exception as e:
         logger.error(f"Error enrolling in course {course_id}: {str(e)}")
         db.session.rollback()
@@ -286,6 +296,10 @@ def view_module(course_id, module_id):
 def _prepare_lesson_context(course_id, module_id, daily_lesson=None, lesson_number=None):
     """Common setup for view_lesson and view_lesson_by_id."""
     course = BookCourse.query.get_or_404(course_id)
+
+    if course.book and not course.book.is_published and not current_user.is_admin:
+        abort(404)
+
     module = BookCourseModule.query.get_or_404(module_id)
 
     if module.course_id != course_id:

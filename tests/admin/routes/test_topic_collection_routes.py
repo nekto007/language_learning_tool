@@ -288,3 +288,168 @@ class TestCollectionCrud:
         assert response.status_code == 200
         data = response.get_json()
         assert any(w['id'] == sample_word.id for w in data)
+
+
+class TestTopicCascadeDelete:
+    """Task 87: verify topic delete cascades TopicWord associations."""
+
+    def test_delete_topic_cascades_topic_words(
+        self, admin_client, mock_admin_user, db_session, sample_word
+    ):
+        """Deleting a topic removes TopicWord rows but keeps the words themselves."""
+        topic = Topic(name=f'CascadeTopic_{uuid.uuid4().hex[:6]}')
+        db_session.add(topic)
+        db_session.flush()
+        tw = TopicWord(topic_id=topic.id, word_id=sample_word.id)
+        db_session.add(tw)
+        db_session.commit()
+        topic_id = topic.id
+        tw_id = tw.id
+
+        response = admin_client.post(
+            f'/admin/topics/{topic_id}/delete', follow_redirects=False
+        )
+        assert response.status_code == 302
+
+        # Expire identity map so assertions hit the DB, not SQLAlchemy cache.
+        db_session.expire_all()
+
+        assert Topic.query.get(topic_id) is None
+        # TopicWord rows removed via CASCADE (DB constraint) or ORM secondary delete.
+        remaining = TopicWord.query.filter_by(topic_id=topic_id).count()
+        assert remaining == 0
+        # The word itself must still exist — no cascade to words
+        assert CollectionWords.query.get(sample_word.id) is not None
+
+    def test_delete_topic_with_no_words_succeeds(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        """Deleting a topic that has zero words does not crash."""
+        topic = Topic(name=f'EmptyTopic_{uuid.uuid4().hex[:6]}')
+        db_session.add(topic)
+        db_session.commit()
+        topic_id = topic.id
+
+        response = admin_client.post(
+            f'/admin/topics/{topic_id}/delete', follow_redirects=False
+        )
+        assert response.status_code == 302
+        assert Topic.query.get(topic_id) is None
+
+    def test_topic_name_unique_case_insensitive(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        """Topic name acts as unique slug — duplicate names (any case) are rejected."""
+        name = f'UniqueSlug_{uuid.uuid4().hex[:6]}'
+        db_session.add(Topic(name=name))
+        db_session.commit()
+
+        # Attempt to create with same name uppercased
+        response = admin_client.post(
+            '/admin/topics/create',
+            data={'name': name.upper(), 'description': '', 'submit': 'Save'},
+            follow_redirects=False,
+        )
+        assert response.status_code == 200  # form re-rendered, not redirected
+        count = Topic.query.filter(
+            db.func.lower(Topic.name) == name.lower()
+        ).count()
+        assert count == 1
+
+    def test_topic_name_html_is_not_executed(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        """HTML in topic name is stored literally (no script injection at list page)."""
+        name = f'<script>alert(1)</script>_{uuid.uuid4().hex[:6]}'
+        response = admin_client.post(
+            '/admin/topics/create',
+            data={'name': name, 'description': '', 'submit': 'Save'},
+            follow_redirects=True,
+        )
+        # If the form accepts it, the list page must NOT render raw <script>
+        if response.status_code == 200:
+            body = response.get_data(as_text=True)
+            assert '<script>alert(1)</script>' not in body
+
+
+class TestCollectionZeroItems:
+    """Task 87: verify collections with 0 words are accessible (no 500)."""
+
+    def test_collection_list_with_zero_word_collection_returns_200(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        """Collection list page must not 500 when a collection has no words."""
+        col = Collection(name=f'EmptyCol_{uuid.uuid4().hex[:6]}', description='')
+        db_session.add(col)
+        db_session.commit()
+
+        response = admin_client.get('/admin/collections')
+        assert response.status_code == 200
+
+    def test_edit_page_for_empty_collection_returns_200(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        """Edit page for a collection with 0 words must not 500."""
+        col = Collection(name=f'EmptyEditCol_{uuid.uuid4().hex[:6]}', description='')
+        db_session.add(col)
+        db_session.commit()
+
+        response = admin_client.get(f'/admin/collections/{col.id}/edit')
+        assert response.status_code == 200
+
+    def test_delete_empty_collection_cascades_no_links(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        """Deleting a collection with 0 words succeeds without integrity errors."""
+        col = Collection(name=f'DelEmpty_{uuid.uuid4().hex[:6]}', description='')
+        db_session.add(col)
+        db_session.commit()
+        col_id = col.id
+
+        response = admin_client.post(
+            f'/admin/collections/{col_id}/delete', follow_redirects=False
+        )
+        assert response.status_code == 302
+        assert Collection.query.get(col_id) is None
+
+    def test_collection_sort_order_consistent(
+        self, admin_client, mock_admin_user, db_session
+    ):
+        """All valid sort params return 200 with no duplicate rows."""
+        suffix = uuid.uuid4().hex[:6]
+        for i in range(3):
+            col = Collection(name=f'SortCol_{suffix}_{i}', description='')
+            db_session.add(col)
+        db_session.commit()
+
+        for sort_param in ('name', 'word_count', 'created_at'):
+            response = admin_client.get(f'/admin/collections?sort={sort_param}')
+            assert response.status_code == 200
+
+        # Invalid sort falls back safely
+        response = admin_client.get('/admin/collections?sort=injection;DROP')
+        assert response.status_code == 200
+
+    def test_delete_collection_cascades_word_links(
+        self, admin_client, mock_admin_user, db_session, sample_word
+    ):
+        """Deleting a collection removes CollectionWordLink rows but keeps words."""
+        col = Collection(name=f'LinkCascade_{uuid.uuid4().hex[:6]}', description='')
+        db_session.add(col)
+        db_session.flush()
+        link = CollectionWordLink(collection_id=col.id, word_id=sample_word.id)
+        db_session.add(link)
+        db_session.commit()
+        col_id = col.id
+
+        response = admin_client.post(
+            f'/admin/collections/{col_id}/delete', follow_redirects=False
+        )
+        assert response.status_code == 302
+
+        db_session.expire_all()
+
+        assert Collection.query.get(col_id) is None
+        remaining = CollectionWordLink.query.filter_by(collection_id=col_id).count()
+        assert remaining == 0
+        assert CollectionWords.query.get(sample_word.id) is not None
