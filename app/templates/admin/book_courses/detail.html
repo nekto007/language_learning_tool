@@ -459,7 +459,7 @@
             </a>
             {% if not course.is_active %}
             <button class="btn-icon btn-icon-success"
-                    onclick="generateModules({{ course.id }})" title="Сгенерировать модули">
+                    data-action="generate-modules" data-course-id="{{ course.id }}" title="Сгенерировать модули">
                 <i class="fas fa-magic"></i>
             </button>
             {% endif %}
@@ -467,7 +467,7 @@
                class="btn-icon" title="Аналитика">
                 <i class="fas fa-chart-bar"></i>
             </a>
-            <button class="btn-icon danger" onclick="deleteCourse({{ course.id }})" title="Удалить">
+            <button class="btn-icon danger" data-action="delete-course" data-course-id="{{ course.id }}" title="Удалить">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -536,7 +536,7 @@
         <div class="section-header">
             <h3><i class="fas fa-layer-group"></i> Модули курса</h3>
             {% if not modules %}
-            <button class="btn btn-primary btn-sm" onclick="generateModules({{ course.id }})">
+            <button class="btn btn-primary btn-sm" data-action="generate-modules" data-course-id="{{ course.id }}">
                 <i class="fas fa-magic me-1"></i> Сгенерировать
             </button>
             {% else %}
@@ -573,7 +573,7 @@
                     <i class="fas fa-layer-group"></i>
                     <h5>Модули не созданы</h5>
                     <p>Нажмите "Сгенерировать" для автоматического создания модулей из книги</p>
-                    <button class="btn btn-primary" onclick="generateModules({{ course.id }})">
+                    <button class="btn btn-primary" data-action="generate-modules" data-course-id="{{ course.id }}">
                         <i class="fas fa-magic me-2"></i> Сгенерировать модули
                     </button>
                 </div>
@@ -633,27 +633,27 @@
                     </a>
 
                     {% if modules %}
-                    <button class="quick-action-btn warning" onclick="regenerateCourse({{ course.id }})">
+                    <button class="quick-action-btn warning" data-action="regenerate-course" data-course-id="{{ course.id }}">
                         <i class="fas fa-sync-alt"></i> Пересоздать курс
                     </button>
                     {% endif %}
 
                     {% if course.is_active %}
-                    <button class="quick-action-btn warning" onclick="toggleCourseStatus({{ course.id }}, false)">
+                    <button class="quick-action-btn warning" data-action="toggle-course-status" data-course-id="{{ course.id }}" data-active="false">
                         <i class="fas fa-pause"></i> Деактивировать
                     </button>
                     {% else %}
-                    <button class="quick-action-btn success" onclick="toggleCourseStatus({{ course.id }}, true)">
+                    <button class="quick-action-btn success" data-action="toggle-course-status" data-course-id="{{ course.id }}" data-active="true">
                         <i class="fas fa-play"></i> Активировать
                     </button>
                     {% endif %}
 
                     {% if course.is_featured %}
-                    <button class="quick-action-btn" onclick="toggleFeatured({{ course.id }}, false)">
+                    <button class="quick-action-btn" data-action="toggle-featured" data-course-id="{{ course.id }}" data-featured="false">
                         <i class="fas fa-star-half-alt"></i> Убрать из рекомендуемых
                     </button>
                     {% else %}
-                    <button class="quick-action-btn" onclick="toggleFeatured({{ course.id }}, true)">
+                    <button class="quick-action-btn" data-action="toggle-featured" data-course-id="{{ course.id }}" data-featured="true">
                         <i class="fas fa-star"></i> В рекомендуемые
                     </button>
                     {% endif %}
@@ -663,7 +663,7 @@
                         <i class="fas fa-chart-line"></i> Подробная аналитика
                     </a>
 
-                    <button class="quick-action-btn danger" onclick="deleteCourse({{ course.id }})">
+                    <button class="quick-action-btn danger" data-action="delete-course" data-course-id="{{ course.id }}">
                         <i class="fas fa-trash"></i> Удалить курс
                     </button>
                 </div>
@@ -796,12 +796,12 @@ function deleteCourse(courseId) {
                 <div class="modal-body modal-body-padded">
                     <p class="mb-4">Выберите тип удаления:</p>
                     <div class="delete-options-container">
-                        <button class="btn btn-warning delete-option-btn" onclick="deleteCourseAction(${courseId}, 'soft')">
+                        <button class="btn btn-warning delete-option-btn" data-action="delete-course-action" data-course-id="${courseId}" data-mode="soft">
                             <i class="fas fa-eye-slash me-2"></i>
                             <strong>Деактивировать</strong>
                             <small class="d-block text-muted mt-1">Курс останется в базе, но будет скрыт</small>
                         </button>
-                        <button class="btn btn-danger delete-option-btn" onclick="deleteCourseAction(${courseId}, 'hard')">
+                        <button class="btn btn-danger delete-option-btn" data-action="delete-course-action" data-course-id="${courseId}" data-mode="hard">
                             <i class="fas fa-trash me-2"></i>
                             <strong>Удалить полностью</strong>
                             <small class="d-block mt-1 delete-warning-text">⚠️ Удалит курс и все данные НАВСЕГДА</small>
@@ -856,5 +856,33 @@ function showAlert(type, message) {
     document.body.appendChild(alertDiv);
     setTimeout(() => alertDiv.remove(), 5000);
 }
+
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    const courseId = parseInt(target.dataset.courseId, 10);
+    switch (action) {
+        case 'generate-modules':
+            generateModules(courseId);
+            break;
+        case 'regenerate-course':
+            regenerateCourse(courseId);
+            break;
+        case 'toggle-course-status':
+            toggleCourseStatus(courseId, target.dataset.active === 'true');
+            break;
+        case 'toggle-featured':
+            toggleFeatured(courseId, target.dataset.featured === 'true');
+            break;
+        case 'delete-course':
+            deleteCourse(courseId);
+            break;
+        case 'delete-course-action':
+            deleteCourseAction(courseId, target.dataset.mode);
+            break;
+    }
+});
 </script>
 {% endblock %}

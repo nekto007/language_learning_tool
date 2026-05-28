@@ -1221,7 +1221,7 @@ body:has(.quiz-results-compact) #lesson-completion {
         {# В daily-plan-потоке прячем «Повторить ошибки» — пользователь должен
            двинуться к следующему слоту плана, а не зависать на этом. Через
            каталог поведение прежнее. #}
-        <button type="button" class="lsn-btn lsn-btn--outline" onclick="retryErrorsOnly()">
+        <button type="button" class="lsn-btn lsn-btn--outline" data-action="retry-errors-only">
           <i class="fas fa-redo"></i> {{ _('Повторить ошибки') }} ({{ errors|length }})
         </button>
         {% endif %}
@@ -1231,7 +1231,7 @@ body:has(.quiz-results-compact) #lesson-completion {
       {# В daily-plan-потоке скрываем «пройти заново» — пользователь идёт
          дальше по плану дня, ретрай уводит от цели. #}
       <div class="quiz-final-secondary">
-        <button type="button" class="quiz-secondary-link" onclick="retryQuiz()">
+        <button type="button" class="quiz-secondary-link" data-action="retry-quiz">
           <i class="fas fa-redo"></i> {{ _('Пройти викторину заново') }}
         </button>
       </div>
@@ -1416,21 +1416,21 @@ body:has(.quiz-results-compact) #lesson-completion {
                     <button type="button"
                             class="word-button"
                             data-word="{{ word }}"
-                            onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)">
+                            data-action="add-word-to-sentence" data-question-index="{{ question_index }}" data-word="{{ word }}">
                       {{ word }}
                     </button>
                   {% endfor %}
                 </div>
                 <div class="sentence-container">
                   <div class="sentence-display" id="sentence-{{ question_index }}"
-                       onclick="clearSentence({{ question_index }})">
+                       data-action="clear-sentence" data-question-index="{{ question_index }}">
                     <span class="placeholder-text">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
                   </div>
                 </div>
                 <button type="button"
                         class="btn btn-primary mt-3 reorder-submit-btn"
                         data-question="{{ question_index }}"
-                        onclick="submitReorderAnswer({{ question_index }})">
+                        data-action="submit-reorder-answer" data-question-index="{{ question_index }}">
                   {{ _('Отправить ответ') }}
                 </button>
               </div>
@@ -1454,7 +1454,7 @@ body:has(.quiz-results-compact) #lesson-completion {
                   {% for item in right_items %}
                     <div class="matching-item right"
                          data-value="{{ item }}"
-                         onclick="selectRightOption({{ question_index }}, '{{ item }}', this)">
+                         data-action="select-right-option" data-question-index="{{ question_index }}" data-item="{{ item }}">
                       {{ item }}
                     </div>
                   {% endfor %}
@@ -1463,7 +1463,7 @@ body:has(.quiz-results-compact) #lesson-completion {
                 <button type="button"
                         class="btn btn-primary mt-3 matching-submit-btn"
                         data-question="{{ question_index }}"
-                        onclick="submitMatchingAnswer({{ question_index }})">
+                        data-action="submit-matching-answer" data-question-index="{{ question_index }}">
                   {{ _('Проверить') }}
                 </button>
               </div>
@@ -1482,7 +1482,7 @@ body:has(.quiz-results-compact) #lesson-completion {
                 <button type="button"
                         class="btn btn-primary mt-3 transformation-submit-btn"
                         data-question="{{ question_index }}"
-                        onclick="submitTransformationAnswer({{ question_index }})">
+                        data-action="submit-transformation-answer" data-question-index="{{ question_index }}">
                   {{ _('Отправить ответ') }}
                 </button>
               </div>
@@ -1496,7 +1496,7 @@ body:has(.quiz-results-compact) #lesson-completion {
               {% endif %}
               {% if question.get('audio') %}
                 <div class="quiz-audio-player">
-                  <button class="quiz-audio-btn" onclick="playQuestionAudio('{{ question.get('audio') }}', this)">
+                  <button class="quiz-audio-btn" data-action="play-question-audio" data-audio-src="{{ question.get('audio') }}">
                     <i class="fas fa-play"></i> {{ _('Прослушать') }}
                   </button>
                 </div>
@@ -1569,7 +1569,7 @@ body:has(.quiz-results-compact) #lesson-completion {
                 <div class="feedback-icon"></div>
                 <div class="feedback-text"></div>
               </div>
-              <button type="button" class="btn btn-primary mt-2 quiz-next-btn-full" onclick="QuizApp.nextQuestion()">
+              <button type="button" class="btn btn-primary mt-2 quiz-next-btn-full" data-action="quiz-next-question">
                 <span class="btn-text">{{ _('Следующий вопрос') }}</span>
                 <i class="fas fa-arrow-right ms-1"></i>
               </button>
@@ -2899,6 +2899,26 @@ function playQuestionAudio(audioFile, button) {
     button.disabled = false;
   });
 }
+
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    const qIdx = target.dataset.questionIndex ? parseInt(target.dataset.questionIndex, 10) : null;
+    switch (action) {
+        case 'retry-errors-only':           retryErrorsOnly(); break;
+        case 'retry-quiz':                  retryQuiz(); break;
+        case 'add-word-to-sentence':        addWordToSentence(qIdx, target.dataset.word, target); break;
+        case 'clear-sentence':              clearSentence(qIdx); break;
+        case 'submit-reorder-answer':       submitReorderAnswer(qIdx); break;
+        case 'select-right-option':         selectRightOption(qIdx, target.dataset.item, target); break;
+        case 'submit-matching-answer':      submitMatchingAnswer(qIdx); break;
+        case 'submit-transformation-answer': submitTransformationAnswer(qIdx); break;
+        case 'play-question-audio':         playQuestionAudio(target.dataset.audioSrc, target); break;
+        case 'quiz-next-question':          QuizApp.nextQuestion(); break;
+    }
+});
 </script>
 {% endblock %}
 

@@ -1472,16 +1472,16 @@
                 <span id="selectedCount">0</span> {{ _('слов выбрано') }}
             </div>
             <div class="vocab-bulk__actions">
-                <button class="vocab-bulk__btn" onclick="bulkUpdateStatus('learning')">
+                <button class="vocab-bulk__btn" data-action="bulk-update-status" data-status="learning">
                     <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
                 </button>
-                <button class="vocab-bulk__btn" onclick="bulkUpdateStatus('review')">
+                <button class="vocab-bulk__btn" data-action="bulk-update-status" data-status="review">
                     <i class="fas fa-redo me-1"></i>{{ _('Повторение') }}
                 </button>
-                <button class="vocab-bulk__btn" onclick="bulkUpdateStatus('mastered')">
+                <button class="vocab-bulk__btn" data-action="bulk-update-status" data-status="mastered">
                     <i class="fas fa-check me-1"></i>{{ _('Знаю') }}
                 </button>
-                <button class="vocab-bulk__btn vocab-bulk__btn--cancel" onclick="clearSelection()">
+                <button class="vocab-bulk__btn vocab-bulk__btn--cancel" data-action="clear-selection">
                     <i class="fas fa-times me-1"></i>{{ _('Отмена') }}
                 </button>
             </div>
@@ -1530,7 +1530,7 @@
                     <td>
                         {% if word.get_download and word.listening %}
                         {% set audio_url = url_for('static', filename='audio/' + (word.listening|audio_filename)) %}
-                        <button class="vocab-table__audio-btn" onclick='playAudio({{ audio_url|tojson }})' title="{{ _('Прослушать произношение') }}">
+                        <button class="vocab-table__audio-btn" data-action="play-audio" data-audio-url="{{ audio_url }}" title="{{ _('Прослушать произношение') }}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
                         </button>
                         {% else %}
@@ -1559,7 +1559,7 @@
                             {% else %}
                             <!-- New word - show add buttons -->
                             <div class="btn-group btn-group-sm" style="display:inline-flex;">
-                                <button class="vocab-table__add-btn" onclick="addToStudyDefault({{ word.id }})" title="{{ _('Добавить в изучение') }}">
+                                <button class="vocab-table__add-btn" data-action="add-to-study-default" data-word-id="{{ word.id }}" title="{{ _('Добавить в изучение') }}">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                     {{ _('Изучать') }}
                                 </button>
@@ -1567,10 +1567,10 @@
                                     <span class="visually-hidden">{{ _('Выбрать') }}</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
-                                    <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="markAsKnown({{ word.id }}); return false;"><i class="fas fa-star me-2 text-warning"></i>{{ _('Уже знаю') }}</a></li>
+                                    <li><a class="dropdown-item" href="#" data-action="add-to-study-choose-deck" data-word-id="{{ word.id }}"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
+                                    <li><a class="dropdown-item" href="#" data-action="mark-as-known" data-word-id="{{ word.id }}"><i class="fas fa-star me-2 text-warning"></i>{{ _('Уже знаю') }}</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-muted small" href="#" onclick="openDefaultDeckSettings(); return false;"><i class="fas fa-cog me-2"></i>{{ _('Настроить по умолчанию') }}</a></li>
+                                    <li><a class="dropdown-item text-muted small" href="#" data-action="open-default-deck-settings"><i class="fas fa-cog me-2"></i>{{ _('Настроить по умолчанию') }}</a></li>
                                 </ul>
                             </div>
                             {% endif %}
@@ -1611,7 +1611,7 @@
 
                 {% if word.get_download and word.listening %}
                 {% set audio_url = url_for('static', filename='audio/' + (word.listening|audio_filename)) %}
-                <button class="vocab-table__audio-btn" style="width:28px;height:28px;" onclick='playAudio({{ audio_url|tojson }})' title="{{ _('Прослушать произношение') }}">
+                <button class="vocab-table__audio-btn" style="width:28px;height:28px;" data-action="play-audio" data-audio-url="{{ audio_url }}" title="{{ _('Прослушать произношение') }}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
                 </button>
                 {% endif %}
@@ -1635,15 +1635,15 @@
                 </a>
                 {% else %}
                 <div class="btn-group btn-group-sm" style="display:inline-flex;">
-                    <button class="btn btn-primary" onclick="addToStudyDefault({{ word.id }})">
+                    <button class="btn btn-primary" data-action="add-to-study-default" data-word-id="{{ word.id }}">
                         <i class="fas fa-plus me-1"></i>{{ _('Изучать') }}
                     </button>
                     <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="visually-hidden">{{ _('Выбрать') }}</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end add-word-dropdown">
-                        <li><a class="dropdown-item" href="#" onclick="addToStudyChooseDeck({{ word.id }}); return false;"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="markAsKnown({{ word.id }}); return false;"><i class="fas fa-star me-2 text-warning"></i>{{ _('Уже знаю') }}</a></li>
+                        <li><a class="dropdown-item" href="#" data-action="add-to-study-choose-deck" data-word-id="{{ word.id }}"><i class="fas fa-layer-group me-2 text-primary"></i>{{ _('В колоду...') }}</a></li>
+                        <li><a class="dropdown-item" href="#" data-action="mark-as-known" data-word-id="{{ word.id }}"><i class="fas fa-star me-2 text-warning"></i>{{ _('Уже знаю') }}</a></li>
                     </ul>
                 </div>
                 {% endif %}
@@ -2136,6 +2136,28 @@ document.addEventListener('DOMContentLoaded', function() {
     wordCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', updateBulkActionsPanel);
     });
+});
+
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    const wordId = target.dataset.wordId ? parseInt(target.dataset.wordId, 10) : null;
+    if (action === 'play-audio') {
+        playAudio(target.dataset.audioUrl);
+        return;
+    }
+    // Anchor-based actions need preventDefault so the # href doesn't scroll.
+    if (target.tagName === 'A') e.preventDefault();
+    switch (action) {
+        case 'bulk-update-status':         bulkUpdateStatus(target.dataset.status); break;
+        case 'clear-selection':            clearSelection(); break;
+        case 'add-to-study-default':       addToStudyDefault(wordId); break;
+        case 'add-to-study-choose-deck':   addToStudyChooseDeck(wordId); break;
+        case 'mark-as-known':              markAsKnown(wordId); break;
+        case 'open-default-deck-settings': openDefaultDeckSettings(); break;
+    }
 });
 </script>
 {% endblock %}

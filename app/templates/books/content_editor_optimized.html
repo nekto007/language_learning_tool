@@ -18,7 +18,7 @@
                 <h1 class="h3 mb-0">{{ _('Редактировать содержимое:') }} {{ book.title }}</h1>
             </div>
             <div>
-                <button class="btn btn-light" onclick="saveContent()">
+                <button class="btn btn-light" data-action="save-content">
                     <i class="fas fa-save me-2"></i>{{ _('Сохранить') }}
                 </button>
                 <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="btn btn-outline-light">
@@ -32,13 +32,13 @@
 <div class="container-fluid mt-3">
     <!-- View Toggle -->
     <div class="view-toggle">
-        <button class="active" onclick="setView('split')">
+        <button class="active" data-action="set-view" data-view="split">
             <i class="fas fa-columns me-2"></i>{{ _('Разделить') }}
         </button>
-        <button onclick="setView('editor')">
+        <button data-action="set-view" data-view="editor">
             <i class="fas fa-code me-2"></i>{{ _('Редактор') }}
         </button>
-        <button onclick="setView('preview')">
+        <button data-action="set-view" data-view="preview">
             <i class="fas fa-eye me-2"></i>{{ _('Предпросмотр') }}
         </button>
     </div>
@@ -55,30 +55,30 @@
             <!-- Editor Panel -->
             <div class="editor-panel" id="editorPanel">
                 <div class="editor-toolbar">
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="{{ _('Жирный') }}">
+                    <button type="button" class="toolbar-btn" data-action="insert-md" data-before="**" data-after="**" title="{{ _('Жирный') }}">
                         <i class="fas fa-bold"></i>
                     </button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="{{ _('Курсив') }}">
+                    <button type="button" class="toolbar-btn" data-action="insert-md" data-before="*" data-after="*" title="{{ _('Курсив') }}">
                         <i class="fas fa-italic"></i>
                     </button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('## ', '')" title="{{ _('Заголовок') }}">
+                    <button type="button" class="toolbar-btn" data-action="insert-md" data-before="## " data-after="" title="{{ _('Заголовок') }}">
                         <i class="fas fa-heading"></i>
                     </button>
                     <div class="toolbar-separator"></div>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('- ', '')" title="{{ _('Список') }}">
+                    <button type="button" class="toolbar-btn" data-action="insert-md" data-before="- " data-after="" title="{{ _('Список') }}">
                         <i class="fas fa-list"></i>
                     </button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('> ', '')" title="{{ _('Цитата') }}">
+                    <button type="button" class="toolbar-btn" data-action="insert-md" data-before="> " data-after="" title="{{ _('Цитата') }}">
                         <i class="fas fa-quote-right"></i>
                     </button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('`', '`')" title="{{ _('Код') }}">
+                    <button type="button" class="toolbar-btn" data-action="insert-md" data-before="`" data-after="`" title="{{ _('Код') }}">
                         <i class="fas fa-code"></i>
                     </button>
                     <div class="toolbar-separator"></div>
-                    <button type="button" class="toolbar-btn" onclick="formatContent()" title="{{ _('Форматировать') }}">
+                    <button type="button" class="toolbar-btn" data-action="format-content" title="{{ _('Форматировать') }}">
                         <i class="fas fa-align-left"></i> {{ _('Формат') }}
                     </button>
-                    <button type="button" class="toolbar-btn" onclick="countWords()" title="{{ _('Подсчет слов') }}">
+                    <button type="button" class="toolbar-btn" data-action="count-words" title="{{ _('Подсчет слов') }}">
                         <i class="fas fa-calculator"></i> {{ _('Подсчет') }}
                     </button>
                 </div>
@@ -102,7 +102,7 @@
             <div class="preview-panel" id="previewPanel">
                 <div class="preview-header">
                     <span>{{ _('Предпросмотр') }}</span>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="togglePreviewMode()">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="toggle-preview-mode">
                         <i class="fas fa-expand"></i>
                     </button>
                 </div>
@@ -121,7 +121,7 @@
             <h5>{{ _('Загрузить файл для замены содержимого') }}</h5>
             <p class="text-muted">{{ _('Перетащите файл сюда или нажмите для выбора') }}</p>
             {{ form.file(class="d-none", id="fileInput", accept=".txt,.pdf,.epub,.fb2,.doc,.docx") }}
-            <button type="button" class="btn btn-primary mt-2" onclick="document.getElementById('fileInput').click()">
+            <button type="button" class="btn btn-primary mt-2" data-action="trigger-file-input">
                 {{ _('Выбрать файл') }}
             </button>
         </div>
@@ -428,6 +428,22 @@ document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
         e.preventDefault();
         insertMarkdown('*', '*');
+    }
+});
+
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    switch (action) {
+        case 'save-content':         saveContent(); break;
+        case 'set-view':             setView(target.dataset.view); break;
+        case 'insert-md':            insertMarkdown(target.dataset.before || '', target.dataset.after || ''); break;
+        case 'format-content':       formatContent(); break;
+        case 'count-words':          countWords(); break;
+        case 'toggle-preview-mode':  togglePreviewMode(); break;
+        case 'trigger-file-input':   document.getElementById('fileInput')?.click(); break;
     }
 });
 </script>

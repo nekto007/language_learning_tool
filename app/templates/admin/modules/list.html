@@ -155,12 +155,16 @@
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <button type="button" class="btn btn-outline-info"
-                                        onclick="openUsersModal({{ module.id }}, '{{ module.name }}')"
+                                        data-action="open-users-modal"
+                                        data-module-id="{{ module.id }}"
+                                        data-module-name="{{ module.name }}"
                                         title="Управление пользователями">
                                     <i class="fas fa-users"></i>
                                 </button>
                                 <button type="button" class="btn btn-outline-danger"
-                                        onclick="deleteModule({{ module.id }}, '{{ module.name }}')"
+                                        data-action="delete-module"
+                                        data-module-id="{{ module.id }}"
+                                        data-module-name="{{ module.name }}"
                                         title="Удалить">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -205,15 +209,15 @@
                     <div class="col-md-6">
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-sm btn-outline-primary active"
-                                    onclick="filterModalUsers('all')">
+                                    data-action="filter-modal-users" data-filter="all">
                                 Все (<span id="countAll">0</span>)
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-success"
-                                    onclick="filterModalUsers('has')">
+                                    data-action="filter-modal-users" data-filter="has">
                                 С модулем (<span id="countWith">0</span>)
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary"
-                                    onclick="filterModalUsers('without')">
+                                    data-action="filter-modal-users" data-filter="without">
                                 Без модуля (<span id="countWithout">0</span>)
                             </button>
                         </div>
@@ -222,13 +226,13 @@
 
                 <!-- Bulk Actions -->
                 <div class="d-flex gap-2 mb-3">
-                    <button type="button" class="btn btn-sm btn-success" onclick="modalBulkGrant()">
+                    <button type="button" class="btn btn-sm btn-success" data-action="modal-bulk-grant">
                         <i class="fas fa-check me-1"></i> Выдать выбранным
                     </button>
-                    <button type="button" class="btn btn-sm btn-warning" onclick="modalBulkRevoke()">
+                    <button type="button" class="btn btn-sm btn-warning" data-action="modal-bulk-revoke">
                         <i class="fas fa-ban me-1"></i> Отозвать у выбранных
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="modalToggleAll()">
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-action="modal-toggle-all">
                         <i class="fas fa-check-square me-1"></i> Выбрать все
                     </button>
                 </div>
@@ -239,7 +243,7 @@
                         <thead class="sticky-top bg-white">
                             <tr>
                                 <th class="modal-users-col-checkbox">
-                                    <input type="checkbox" id="modalSelectAll" onclick="modalToggleAll()">
+                                    <input type="checkbox" id="modalSelectAll" data-action="modal-toggle-all">
                                 </th>
                                 <th>ID</th>
                                 <th>Пользователь</th>
@@ -397,12 +401,16 @@ function renderModalUsers(users) {
             <td>
                 ${user.has_module ? `
                     <button type="button" class="btn btn-sm btn-warning"
-                            onclick="modalRevokeModule(${user.id}, '${user.username}')">
+                            data-action="modal-revoke-module"
+                            data-user-id="${user.id}"
+                            data-username="${user.username}">
                         <i class="fas fa-ban"></i> Отозвать
                     </button>
                 ` : `
                     <button type="button" class="btn btn-sm btn-success"
-                            onclick="modalGrantModule(${user.id}, '${user.username}')">
+                            data-action="modal-grant-module"
+                            data-user-id="${user.id}"
+                            data-username="${user.username}">
                         <i class="fas fa-check"></i> Выдать
                     </button>
                 `}
@@ -435,12 +443,12 @@ document.getElementById('modalUserSearch')?.addEventListener('input', function(e
 });
 
 // Filter users
-function filterModalUsers(filter) {
+function filterModalUsers(filter, clickedBtn) {
     const rows = document.querySelectorAll('.modal-user-row');
-    const buttons = document.querySelectorAll('[onclick^="filterModalUsers"]');
+    const buttons = document.querySelectorAll('[data-action="filter-modal-users"]');
 
     buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    if (clickedBtn) clickedBtn.classList.add('active');
 
     rows.forEach(row => {
         const hasModule = row.dataset.hasModule === 'true';
@@ -607,5 +615,38 @@ function showToast(message, type = 'info') {
 
     setTimeout(() => toast.remove(), 3000);
 }
+
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    switch (action) {
+        case 'open-users-modal':
+            openUsersModal(parseInt(target.dataset.moduleId, 10), target.dataset.moduleName);
+            break;
+        case 'delete-module':
+            deleteModule(parseInt(target.dataset.moduleId, 10), target.dataset.moduleName);
+            break;
+        case 'filter-modal-users':
+            filterModalUsers(target.dataset.filter, target);
+            break;
+        case 'modal-bulk-grant':
+            modalBulkGrant();
+            break;
+        case 'modal-bulk-revoke':
+            modalBulkRevoke();
+            break;
+        case 'modal-toggle-all':
+            modalToggleAll();
+            break;
+        case 'modal-grant-module':
+            modalGrantModule(parseInt(target.dataset.userId, 10), target.dataset.username);
+            break;
+        case 'modal-revoke-module':
+            modalRevokeModule(parseInt(target.dataset.userId, 10), target.dataset.username);
+            break;
+    }
+});
 </script>
 {% endblock %}

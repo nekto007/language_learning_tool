@@ -123,10 +123,10 @@
       </audio>
       <div class="audio-speed-controls" id="audio-speed-controls">
         <span class="audio-speed-label">{{ _('Скорость:') }}</span>
-        <button class="audio-speed-btn" data-speed="0.75" onclick="setAudioSpeed(0.75)">0.75×</button>
-        <button class="audio-speed-btn audio-speed-btn--active" data-speed="1" onclick="setAudioSpeed(1)">1×</button>
-        <button class="audio-speed-btn" data-speed="1.25" onclick="setAudioSpeed(1.25)">1.25×</button>
-        <button class="audio-speed-btn" data-speed="1.5" onclick="setAudioSpeed(1.5)">1.5×</button>
+        <button class="audio-speed-btn" data-speed="0.75" data-action="set-audio-speed">0.75×</button>
+        <button class="audio-speed-btn audio-speed-btn--active" data-speed="1" data-action="set-audio-speed">1×</button>
+        <button class="audio-speed-btn" data-speed="1.25" data-action="set-audio-speed">1.25×</button>
+        <button class="audio-speed-btn" data-speed="1.5" data-action="set-audio-speed">1.5×</button>
       </div>
       <p>
         <i class="fas fa-info-circle"></i> Прослушайте несколько раз для лучшего запоминания
@@ -141,7 +141,7 @@
     <div class="audio-controller-bar">
       <div class="audio-controller-content">
         <div class="d-flex align-items-center gap-3 flex-grow-1 audio-controller-row">
-          <button id="play-all-btn" class="audio-play-btn" onclick="toggleAutoPlay()">
+          <button id="play-all-btn" class="audio-play-btn" data-action="toggle-auto-play">
             <i class="fas fa-play"></i>
             <span class="play-btn-text">{{ _('Воспроизвести всё') }}</span>
             <span class="play-btn-text-short" style="display: none;">{{ _('Играть') }}</span>
@@ -192,7 +192,7 @@
           {% if _has_any_translation and not is_advanced %}
           <div class="reading-translations-toggle-row">
             <button class="reading-translations-toggle-all" id="reading-translations-toggle-all"
-                    type="button" onclick="toggleAllTranslations(this)"
+                    type="button" data-action="toggle-all-translations"
                     aria-pressed="false">
               <i class="fas fa-language" aria-hidden="true"></i>
               <span class="reading-translations-toggle-all__label">{{ _('Показать переводы') }}</span>
@@ -206,14 +206,14 @@
                 {{ line.text|sanitize }}
                 {% if line.audio %}
                   {% set audio_file = line.audio.replace('[sound:', '').replace(']', '') if '[sound:' in line.audio else line.audio %}
-                  <button class="reading-audio-btn" onclick="playAudio('{{ audio_file }}', this)">
+                  <button class="reading-audio-btn" data-action="play-audio" data-audio-file="{{ audio_file }}">
                     <i class="fas fa-volume-up"></i>
                   </button>
                 {% endif %}
                 {% if line.translation and not is_advanced %}
                   <button class="reading-line-translation-btn"
                           type="button"
-                          onclick="toggleLineTranslation(this)"
+                          data-action="toggle-line-translation"
                           aria-expanded="false"
                           title="{{ _('Показать перевод') }}">
                     <i class="fas fa-language" aria-hidden="true"></i>
@@ -241,7 +241,7 @@
              сначала слушает «вслепую», затем открывает текст. -->
         <div class="listening-reveal-controls">
           <button class="transcript-toggle" id="transcript-toggle-btn"
-                  onclick="toggleTranscript()"
+                  data-action="toggle-transcript"
                   data-default-visible="false">
             <i class="fas fa-eye"></i>
             <span id="transcript-toggle-label">{{ _('Показать текст') }}</span>
@@ -250,7 +250,7 @@
           <button class="transcript-toggle transcript-toggle--translation"
                   id="listening-translation-toggle-btn"
                   type="button"
-                  onclick="toggleListeningTranslation()"
+                  data-action="toggle-listening-translation"
                   data-default-visible="false">
             <i class="fas fa-language"></i>
             <span id="listening-translation-toggle-label">{{ _('Показать перевод') }}</span>
@@ -348,7 +348,7 @@
               {% for sentence in text_content.sentences %}
                 <div class="sentence-replay-item">
                   <button class="sentence-replay-btn"
-                          onclick="replaySentence({{ sentence.start_time }}, {{ sentence.end_time }})"
+                          data-action="replay-sentence" data-start-time="{{ sentence.start_time }}" data-end-time="{{ sentence.end_time }}"
                           title="{{ _('Воспроизвести фразу') }}">
                     <i class="fas fa-redo-alt"></i>
                   </button>
@@ -387,7 +387,7 @@
   <!-- Словарь -->
   {% if text_content and text_content.vocabulary %}
     <div class="vocabulary-section">
-      <button class="vocab-toggle" onclick="toggleVocabulary()">
+      <button class="vocab-toggle" data-action="toggle-vocabulary">
         <i class="fas fa-book"></i>
         {{ _('Словарь') }} ({{ text_content.vocabulary|length }})
         <i class="fas fa-chevron-down toggle-icon"></i>
@@ -406,7 +406,7 @@
               <strong>{{ word.word }}</strong>
               <span class="translation">{{ word.translation }}</span>
               {% if word.audio %}
-                <button class="vocab-audio-btn" onclick="playAudio('{{ word.audio }}', this)">
+                <button class="vocab-audio-btn" data-action="play-audio" data-audio-file="{{ word.audio }}">
                   <i class="fas fa-volume-up"></i>
                 </button>
               {% endif %}
@@ -431,10 +431,10 @@
             {% if question.type == 'true_false' %}
               {# True/False question #}
               <div class="answer-options answer-options-flex">
-                <button class="answer-option-btn flex-fill" data-value="true" onclick="checkTrueFalseAnswer({{ question_index }}, true)">
+                <button class="answer-option-btn flex-fill" data-value="true" data-action="check-true-false" data-question-index="{{ question_index }}" data-bool="true">
                   <i class="fas fa-check-circle text-success"></i> {{ _('Правда') }}
                 </button>
-                <button class="answer-option-btn flex-fill" data-value="false" onclick="checkTrueFalseAnswer({{ question_index }}, false)">
+                <button class="answer-option-btn flex-fill" data-value="false" data-action="check-true-false" data-question-index="{{ question_index }}" data-bool="false">
                   <i class="fas fa-times-circle text-danger"></i> {{ _('Ложь') }}
                 </button>
               </div>
@@ -443,7 +443,7 @@
               {# Multiple choice question #}
               <div class="answer-options answer-options-grid">
                 {% for option in question.options %}
-                  <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
+                  <button class="answer-option-btn" data-value="{{ option }}" data-action="check-fill-blank" data-question-index="{{ question_index }}" data-option="{{ option }}">
                     {{ option|sanitize }}
                   </button>
                 {% endfor %}
@@ -453,7 +453,7 @@
               {# Fill blank with options #}
               <div class="answer-options answer-options-grid-2col">
                 {% for option in question.options %}
-                  <button class="answer-option-btn" data-value="{{ option }}" onclick="checkFillBlankAnswer({{ question_index }}, '{{ option }}')">
+                  <button class="answer-option-btn" data-value="{{ option }}" data-action="check-fill-blank" data-question-index="{{ question_index }}" data-option="{{ option }}">
                     {{ option|sanitize }}
                   </button>
                 {% endfor %}
@@ -467,17 +467,17 @@
               <div class="reorder-answer">
                 <div class="words-container" data-needs-shuffle="true" id="words-container-{{ question_index }}">
                   {% for word in question.words %}
-                    <button type="button" class="word-button" data-word="{{ word }}" onclick="addWordToSentence({{ question_index }}, '{{ word }}', this)">
+                    <button type="button" class="word-button" data-word="{{ word }}" data-action="add-word-to-sentence" data-question-index="{{ question_index }}" data-word="{{ word }}">
                       {{ word }}
                     </button>
                   {% endfor %}
                 </div>
                 <div class="sentence-container">
-                  <div class="sentence-display" id="sentence-{{ question_index }}" onclick="clearSentence({{ question_index }})">
+                  <div class="sentence-display" id="sentence-{{ question_index }}" data-action="clear-sentence" data-question-index="{{ question_index }}">
                     <span class="placeholder-text">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
                   </div>
                 </div>
-                <button type="button" class="btn btn-primary mt-3" onclick="submitOrderingAnswer({{ question_index }})">
+                <button type="button" class="btn btn-primary mt-3" data-action="submit-ordering-answer" data-question-index="{{ question_index }}">
                   {{ _('Проверить') }}
                 </button>
               </div>
@@ -490,7 +490,7 @@
                        placeholder="{{ _('Введите ваш ответ...') }}"
                        data-correct="{{ question.correct_answer or question.correct }}"
                        data-alternatives="{{ question.alternative_answers|join(',') if question.alternative_answers else '' }}">
-                <button class="check-answer-btn" onclick="checkAnswer({{ question_index }})">
+                <button class="check-answer-btn" data-action="check-answer" data-question-index="{{ question_index }}">
                   <i class="fas fa-check"></i>
                 </button>
               </div>
@@ -2246,5 +2246,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }).catch(function() {});
   }
 })();
+</script>
+
+<script nonce="{{ csp_nonce }}">
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    const qIdx = target.dataset.questionIndex ? parseInt(target.dataset.questionIndex, 10) : null;
+    switch (action) {
+        case 'set-audio-speed':           setAudioSpeed(parseFloat(target.dataset.speed)); break;
+        case 'toggle-auto-play':          toggleAutoPlay(); break;
+        case 'toggle-all-translations':   toggleAllTranslations(target); break;
+        case 'play-audio':                playAudio(target.dataset.audioFile, target); break;
+        case 'toggle-line-translation':   toggleLineTranslation(target); break;
+        case 'toggle-transcript':         toggleTranscript(); break;
+        case 'toggle-listening-translation': toggleListeningTranslation(); break;
+        case 'replay-sentence':           replaySentence(parseFloat(target.dataset.startTime), parseFloat(target.dataset.endTime)); break;
+        case 'toggle-vocabulary':         toggleVocabulary(); break;
+        case 'check-true-false':          checkTrueFalseAnswer(qIdx, target.dataset.bool === 'true'); break;
+        case 'check-fill-blank':          checkFillBlankAnswer(qIdx, target.dataset.option); break;
+        case 'add-word-to-sentence':      addWordToSentence(qIdx, target.dataset.word, target); break;
+        case 'clear-sentence':            clearSentence(qIdx); break;
+        case 'submit-ordering-answer':    submitOrderingAnswer(qIdx); break;
+        case 'check-answer':              checkAnswer(qIdx); break;
+    }
+});
 </script>
 {% endblock %}

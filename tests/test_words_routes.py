@@ -435,8 +435,15 @@ class TestWordList:
         html = resp.get_data(as_text=True)
 
         assert resp.status_code == 200
-        assert "playAudio('" not in html
-        assert 'onclick=\'playAudio("' in html
+        # After the onclick → addEventListener migration, audio URLs are
+        # rendered as data-audio-url="..." attributes on the audio button
+        # (Jinja autoescapes the value). The click handler is wired via
+        # event delegation — no inline JS argument injection vector remains.
+        assert 'onclick="playAudio(' not in html
+        assert "onclick='playAudio(" not in html
+        assert 'data-action="play-audio"' in html
+        # The malicious payload must not appear unescaped in the HTML.
+        assert "');alert(1);//" not in html
 
 
 # ==================== WORD DETAIL ====================

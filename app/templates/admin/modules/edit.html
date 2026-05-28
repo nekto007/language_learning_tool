@@ -174,7 +174,9 @@
                             Удаление модуля необратимо и удалит все связи с пользователями.
                         </p>
                         <button type="button" class="btn btn-danger w-100"
-                                onclick="deleteModule({{ module.id }}, '{{ module.name }}')">
+                                data-action="delete-module"
+                                data-module-id="{{ module.id }}"
+                                data-module-name="{{ module.name }}">
                             <i class="fas fa-trash me-1"></i> Удалить модуль
                         </button>
                     </div>
@@ -205,26 +207,26 @@
             <div class="card-body">
                 <!-- Filter Buttons -->
                 <div class="btn-group mb-3" role="group">
-                    <button type="button" class="btn btn-sm btn-outline-primary active" onclick="filterUsers('all')">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-action="filter-users" data-filter="all">
                         Все пользователи ({{ all_users|length if all_users else 0 }})
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-success" onclick="filterUsers('has')">
+                    <button type="button" class="btn btn-sm btn-outline-success" data-action="filter-users" data-filter="has">
                         С модулем ({{ users_with_module|length if users_with_module else 0 }})
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="filterUsers('without')">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="filter-users" data-filter="without">
                         Без модуля ({{ users_without_module|length if users_without_module else 0 }})
                     </button>
                 </div>
 
                 <!-- Bulk Actions -->
                 <div class="d-flex gap-2 mb-3">
-                    <button type="button" class="btn btn-sm btn-success" onclick="bulkGrant()">
+                    <button type="button" class="btn btn-sm btn-success" data-action="bulk-grant">
                         <i class="fas fa-check me-1"></i> Выдать выбранным
                     </button>
-                    <button type="button" class="btn btn-sm btn-warning" onclick="bulkRevoke()">
+                    <button type="button" class="btn btn-sm btn-warning" data-action="bulk-revoke">
                         <i class="fas fa-ban me-1"></i> Отозвать у выбранных
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="toggleAll()">
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-action="toggle-all">
                         <i class="fas fa-check-square me-1"></i> Выбрать все
                     </button>
                 </div>
@@ -235,7 +237,7 @@
                         <thead>
                             <tr>
                                 <th class="col-checkbox">
-                                    <input type="checkbox" id="selectAll" onclick="toggleAll()">
+                                    <input type="checkbox" id="selectAll" data-action="toggle-all">
                                 </th>
                                 <th>ID</th>
                                 <th>Пользователь</th>
@@ -279,12 +281,16 @@
                                 <td>
                                     {% if user_module and user_module.is_enabled %}
                                     <button type="button" class="btn btn-sm btn-warning"
-                                            onclick="revokeModule({{ user.id }}, '{{ user.username }}')">
+                                            data-action="revoke-module"
+                                            data-user-id="{{ user.id }}"
+                                            data-username="{{ user.username }}">
                                         <i class="fas fa-ban"></i> Отозвать
                                     </button>
                                     {% else %}
                                     <button type="button" class="btn btn-sm btn-success"
-                                            onclick="grantModule({{ user.id }}, '{{ user.username }}')">
+                                            data-action="grant-module"
+                                            data-user-id="{{ user.id }}"
+                                            data-username="{{ user.username }}">
                                         <i class="fas fa-check"></i> Выдать
                                     </button>
                                     {% endif %}
@@ -365,13 +371,13 @@ document.getElementById('userSearch')?.addEventListener('input', function(e) {
 });
 
 // Filter functionality
-function filterUsers(filter) {
+function filterUsers(filter, clickedBtn) {
     const rows = document.querySelectorAll('.user-row');
-    const buttons = document.querySelectorAll('[onclick^="filterUsers"]');
+    const buttons = document.querySelectorAll('[data-action="filter-users"]');
 
     // Update button states
     buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    if (clickedBtn) clickedBtn.classList.add('active');
 
     rows.forEach(row => {
         const hasModule = row.dataset.hasModule === 'true';
@@ -565,5 +571,37 @@ function showToast(message, type = 'info') {
 
     setTimeout(() => toast.remove(), 3000);
 }
+
+// Event delegation for data-action attributes (CSP-safe replacement for
+// inline onclick=). One listener dispatches all action clicks, including
+// dynamically added rows.
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    switch (action) {
+        case 'delete-module':
+            deleteModule(parseInt(target.dataset.moduleId, 10), target.dataset.moduleName);
+            break;
+        case 'filter-users':
+            filterUsers(target.dataset.filter, target);
+            break;
+        case 'bulk-grant':
+            bulkGrant();
+            break;
+        case 'bulk-revoke':
+            bulkRevoke();
+            break;
+        case 'toggle-all':
+            toggleAll();
+            break;
+        case 'grant-module':
+            grantModule(parseInt(target.dataset.userId, 10), target.dataset.username);
+            break;
+        case 'revoke-module':
+            revokeModule(parseInt(target.dataset.userId, 10), target.dataset.username);
+            break;
+    }
+});
 </script>
 {% endblock %}

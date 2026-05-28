@@ -1032,7 +1032,7 @@ body.dark-theme .rdr-timer-bar__pause {
     </div>
 
     <div class="rdr-header__right">
-      <button class="rdr-menu-btn" onclick="toggleSidebar()" title="Настройки">
+      <button class="rdr-menu-btn" data-action="toggle-sidebar" title="Настройки">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </div>
@@ -1043,11 +1043,11 @@ body.dark-theme .rdr-timer-bar__pause {
   <div class="rdr-audio" id="audioBar" style="display: none;">
     <audio id="chapterAudio" preload="none"
            src="{{ url_for('books.serve_chapter_audio', book_id=book.id, chapter_num=current_chapter.chap_num) }}"></audio>
-    <button class="rdr-audio__play" id="audioPlayBtn" onclick="toggleAudio()">
+    <button class="rdr-audio__play" id="audioPlayBtn" data-action="toggle-audio">
       <svg id="audioPlayIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
       <svg id="audioPauseIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>
     </button>
-    <div class="rdr-audio__progress" id="audioProgressBar" onclick="seekAudio(event)">
+    <div class="rdr-audio__progress" id="audioProgressBar" data-action="seek-audio">
       <div class="rdr-audio__progress-fill" id="audioProgressFill"></div>
     </div>
     <span class="rdr-audio__time" id="audioTime">0:00</span>
@@ -1057,9 +1057,9 @@ body.dark-theme .rdr-timer-bar__pause {
       <option value="1.25">1.25x</option>
       <option value="1.5">1.5x</option>
     </select>
-    <button class="rdr-audio__toggle" onclick="hideAudioBar()" title="Скрыть плеер">&times;</button>
+    <button class="rdr-audio__toggle" data-action="hide-audio-bar" title="Скрыть плеер">&times;</button>
   </div>
-  <button class="rdr-audio-show" id="audioShowBtn" onclick="showAudioBar()" title="Показать аудиоплеер">
+  <button class="rdr-audio-show" id="audioShowBtn" data-action="show-audio-bar" title="Показать аудиоплеер">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
   </button>
   {% endif %}
@@ -1128,13 +1128,13 @@ body.dark-theme .rdr-timer-bar__pause {
 </div>
 
 <!-- Sidebar overlay -->
-<div class="rdr-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="rdr-overlay" id="sidebarOverlay" data-action="close-sidebar"></div>
 
 <!-- Sidebar -->
 <div class="rdr-sidebar" id="sidebarModal">
   <div class="rdr-sidebar__header">
     <h2 class="rdr-sidebar__title">{{ book.title }}</h2>
-    <button class="rdr-sidebar__close" onclick="closeSidebar()">
+    <button class="rdr-sidebar__close" data-action="close-sidebar">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
   </div>
@@ -1167,11 +1167,11 @@ body.dark-theme .rdr-timer-bar__pause {
       <!-- Font Size -->
       <div style="margin-bottom: 1rem;">
         <div class="rdr-font-controls">
-          <button class="rdr-font-btn" onclick="changeFontSize(-2)">
+          <button class="rdr-font-btn" data-action="change-font-size" data-delta="-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
           <div class="rdr-font-display" id="sidebarFontSize">18px</div>
-          <button class="rdr-font-btn" onclick="changeFontSize(2)">
+          <button class="rdr-font-btn" data-action="change-font-size" data-delta="2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
         </div>
@@ -1180,7 +1180,7 @@ body.dark-theme .rdr-timer-bar__pause {
       <!-- Dark Theme -->
       <div class="rdr-theme-row">
         <span class="rdr-theme-label">Тёмная тема</span>
-        <div class="rdr-toggle" id="themeToggle" onclick="toggleTheme()"></div>
+        <div class="rdr-toggle" id="themeToggle" data-action="toggle-theme"></div>
       </div>
     </div>
 
@@ -1739,12 +1739,12 @@ function handleWordClick(e) {
                 const safeWord = word.replace(/'/g, "\\'");
 
                 if (data.has_audio) {
-                    const safeUrl = data.audio_url.replace(/'/g, "\\'");
-                    actionsHTML += `<button class="rdr-popup-btn--audio" onclick="playWordAudio('${safeUrl}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></button>`;
+                    const safeUrl = data.audio_url.replace(/"/g, "&quot;");
+                    actionsHTML += `<button class="rdr-popup-btn--audio" data-action="play-word-audio" data-audio-url="${safeUrl}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></button>`;
                 }
 
                 if (!data.in_reading_deck) {
-                    actionsHTML += `<button class="rdr-popup-btn--add" onclick="addToLearning(${data.id}, '${safeWord}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Добавить</button>`;
+                    actionsHTML += `<button class="rdr-popup-btn--add" data-action="add-to-learning" data-word-id="${data.id}" data-word="${safeWord}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Добавить</button>`;
                 } else {
                     actionsHTML += `<span class="rdr-popup-badge">В колоде для чтения</span>`;
                 }
@@ -1960,4 +1960,25 @@ document.addEventListener('keydown', (e) => {
 })();
 </script>
 {% endif %}
+
+<script nonce="{{ csp_nonce }}">
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    switch (action) {
+        case 'toggle-sidebar':     toggleSidebar(); break;
+        case 'close-sidebar':      closeSidebar(); break;
+        case 'toggle-audio':       toggleAudio(); break;
+        case 'seek-audio':         seekAudio(e); break;
+        case 'hide-audio-bar':     hideAudioBar(); break;
+        case 'show-audio-bar':     showAudioBar(); break;
+        case 'change-font-size':   changeFontSize(parseInt(target.dataset.delta, 10)); break;
+        case 'toggle-theme':       toggleTheme(); break;
+        case 'play-word-audio':    playWordAudio(target.dataset.audioUrl); break;
+        case 'add-to-learning':    addToLearning(parseInt(target.dataset.wordId, 10), target.dataset.word); break;
+    }
+});
+</script>
 {% endblock %}

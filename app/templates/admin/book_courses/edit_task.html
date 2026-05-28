@@ -579,7 +579,7 @@ textarea.form-control {
                     </p>
                     <div class="db-words-grid">
                         {% for word in slice_vocabulary %}
-                        <div class="db-word-card" data-word-id="{{ word.word_id }}" onclick="addWordToCards(this)">
+                        <div class="db-word-card" data-word-id="{{ word.word_id }}" data-action="add-word-to-cards">
                             <div class="db-word-english">{{ word.english }}</div>
                             <div class="db-word-russian">{{ word.russian }}</div>
                             <div class="db-word-meta">
@@ -610,7 +610,7 @@ textarea.form-control {
                         <div class="item-header">
                             <span class="item-number">{{ loop.index }}</span>
                             <div class="item-actions">
-                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                <button type="button" class="btn-icon delete" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -632,7 +632,7 @@ textarea.form-control {
                     </div>
                     {% endfor %}
                 </div>
-                <button type="button" class="add-item-btn" onclick="addVocabularyCard()">
+                <button type="button" class="add-item-btn" data-action="add-vocabulary-card">
                     <i class="fas fa-plus"></i> Добавить карточку
                 </button>
 
@@ -645,7 +645,7 @@ textarea.form-control {
                         <div class="item-header">
                             <span class="item-number">{{ loop.index }}</span>
                             <div class="item-actions">
-                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                <button type="button" class="btn-icon delete" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -669,7 +669,7 @@ textarea.form-control {
                     </div>
                     {% endfor %}
                 </div>
-                <button type="button" class="add-item-btn" onclick="addMCQQuestion()">
+                <button type="button" class="add-item-btn" data-action="add-mcq-question">
                     <i class="fas fa-plus"></i> Добавить вопрос
                 </button>
 
@@ -682,7 +682,7 @@ textarea.form-control {
                         <div class="item-header">
                             <span class="item-number">{{ p.id }}</span>
                             <div class="item-actions">
-                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                <button type="button" class="btn-icon delete" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -695,7 +695,7 @@ textarea.form-control {
                     </div>
                     {% endfor %}
                 </div>
-                <button type="button" class="add-item-btn" onclick="addParagraph()">
+                <button type="button" class="add-item-btn" data-action="add-paragraph">
                     <i class="fas fa-plus"></i> Добавить параграф
                 </button>
 
@@ -706,7 +706,7 @@ textarea.form-control {
                         <div class="item-header">
                             <span class="item-number">{{ h.id }}</span>
                             <div class="item-actions">
-                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                <button type="button" class="btn-icon delete" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -728,7 +728,7 @@ textarea.form-control {
                     </div>
                     {% endfor %}
                 </div>
-                <button type="button" class="add-item-btn" onclick="addHeading()">
+                <button type="button" class="add-item-btn" data-action="add-heading">
                     <i class="fas fa-plus"></i> Добавить заголовок
                 </button>
 
@@ -747,7 +747,7 @@ textarea.form-control {
                         <div class="item-header">
                             <span class="item-number">{{ gap.id }}</span>
                             <div class="item-actions">
-                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                <button type="button" class="btn-icon delete" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -769,7 +769,7 @@ textarea.form-control {
                     </div>
                     {% endfor %}
                 </div>
-                <button type="button" class="add-item-btn" onclick="addGap()">
+                <button type="button" class="add-item-btn" data-action="add-gap">
                     <i class="fas fa-plus"></i> Добавить ответ
                 </button>
 
@@ -782,7 +782,7 @@ textarea.form-control {
                         <div class="item-header">
                             <span class="item-number">{{ loop.index }}</span>
                             <div class="item-actions">
-                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                <button type="button" class="btn-icon delete" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -808,7 +808,7 @@ textarea.form-control {
                     </div>
                     {% endfor %}
                 </div>
-                <button type="button" class="add-item-btn" onclick="addWordFormation()">
+                <button type="button" class="add-item-btn" data-action="add-word-formation">
                     <i class="fas fa-plus"></i> Добавить предложение
                 </button>
 
@@ -834,7 +834,7 @@ textarea.form-control {
                         <div class="item-header">
                             <span class="item-number">{{ loop.index }}</span>
                             <div class="item-actions">
-                                <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                                <button type="button" class="btn-icon delete" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -858,7 +858,7 @@ textarea.form-control {
                     </div>
                     {% endfor %}
                 </div>
-                <button type="button" class="add-item-btn" onclick="addGrammarExercise()">
+                <button type="button" class="add-item-btn" data-action="add-grammar-exercise">
                     <i class="fas fa-plus"></i> Добавить упражнение
                 </button>
 
@@ -878,7 +878,7 @@ textarea.form-control {
                class="btn btn-secondary">
                 <i class="fas fa-times"></i> Отмена
             </a>
-            <button type="button" class="btn btn-primary" onclick="saveTask()">
+            <button type="button" class="btn btn-primary" data-action="save-task">
                 <i class="fas fa-save"></i> Сохранить задание
             </button>
         </div>
@@ -940,7 +940,7 @@ function addWordToCards(element) {
             <div class="item-header">
                 <span class="item-number">${cardIndex + 1}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -978,7 +978,7 @@ function addVocabularyCard() {
             <div class="item-header">
                 <span class="item-number">${cardIndex + 1}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1011,7 +1011,7 @@ function addMCQQuestion() {
             <div class="item-header">
                 <span class="item-number">${questionIndex + 1}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1057,7 +1057,7 @@ function addParagraph() {
             <div class="item-header">
                 <span class="item-number">${paragraphIndex}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1081,7 +1081,7 @@ function addHeading() {
             <div class="item-header">
                 <span class="item-number">${nextLetter}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1113,7 +1113,7 @@ function addGap() {
             <div class="item-header">
                 <span class="item-number">${gapIndex}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1145,7 +1145,7 @@ function addWordFormation() {
             <div class="item-header">
                 <span class="item-number">${itemIndex}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1180,7 +1180,7 @@ function addGrammarExercise() {
             <div class="item-header">
                 <span class="item-number">${exerciseIndex + 1}</span>
                 <div class="item-actions">
-                    <button type="button" class="btn-icon delete" onclick="removeItem(this)">
+                    <button type="button" class="btn-icon delete" data-action="remove-item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -1339,7 +1339,7 @@ function saveTask() {
     const payload = collectPayload();
     if (!payload) return;
 
-    const saveBtn = document.querySelector('button[onclick="saveTask()"]');
+    const saveBtn = document.querySelector('button[data-action="save-task"]');
     const originalText = saveBtn.innerHTML;
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
@@ -1369,5 +1369,24 @@ function saveTask() {
         saveBtn.innerHTML = originalText;
     });
 }
+
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    switch (action) {
+        case 'remove-item':           removeItem(target); break;
+        case 'add-word-to-cards':     addWordToCards(target); break;
+        case 'add-vocabulary-card':   addVocabularyCard(); break;
+        case 'add-mcq-question':      addMCQQuestion(); break;
+        case 'add-paragraph':         addParagraph(); break;
+        case 'add-heading':           addHeading(); break;
+        case 'add-gap':               addGap(); break;
+        case 'add-word-formation':    addWordFormation(); break;
+        case 'add-grammar-exercise':  addGrammarExercise(); break;
+        case 'save-task':             saveTask(); break;
+    }
+});
 </script>
 {% endblock %}

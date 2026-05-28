@@ -37,7 +37,7 @@
             <div class="card mt-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Examples</h5>
-                    <button type="button" class="btn btn-success btn-sm" onclick="addExample()">
+                    <button type="button" class="btn btn-success btn-sm" data-action="add-example">
                         <i class="fas fa-plus me-1"></i>Add Example
                     </button>
                 </div>
@@ -47,7 +47,7 @@
                         <div class="example-item mb-3">
                             <div class="input-group">
                                 <input type="text" name="examples[]" class="form-control" value="{{ example }}" placeholder="Enter an example sentence">
-                                <button type="button" class="btn btn-outline-danger" onclick="removeItem(this)">
+                                <button type="button" class="btn btn-outline-danger" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -57,7 +57,7 @@
                         <div class="example-item mb-3">
                             <div class="input-group">
                                 <input type="text" name="examples[]" class="form-control" placeholder="Enter an example sentence">
-                                <button type="button" class="btn btn-outline-danger" onclick="removeItem(this)">
+                                <button type="button" class="btn btn-outline-danger" data-action="remove-item">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -76,12 +76,12 @@
                             <i class="fas fa-plus me-1"></i>Add Exercise
                         </button>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" onclick="addExercise('fill_blanks')">Fill in the Blanks</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="addExercise('multiple_choice')">Multiple Choice</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="addExercise('true_false')">True/False</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="addExercise('match')">Matching</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="addExercise('reorder')">Word Reordering</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="addExercise('translate')">Translation</a></li>
+                            <li><a class="dropdown-item" href="#" data-action="add-exercise" data-exercise-type="fill_blanks">Fill in the Blanks</a></li>
+                            <li><a class="dropdown-item" href="#" data-action="add-exercise" data-exercise-type="multiple_choice">Multiple Choice</a></li>
+                            <li><a class="dropdown-item" href="#" data-action="add-exercise" data-exercise-type="true_false">True/False</a></li>
+                            <li><a class="dropdown-item" href="#" data-action="add-exercise" data-exercise-type="match">Matching</a></li>
+                            <li><a class="dropdown-item" href="#" data-action="add-exercise" data-exercise-type="reorder">Word Reordering</a></li>
+                            <li><a class="dropdown-item" href="#" data-action="add-exercise" data-exercise-type="translate">Translation</a></li>
                         </ul>
                     </div>
                 </div>
@@ -100,7 +100,7 @@
                                     {% elif exercise.type == 'translate' %}Translation
                                     {% else %}{{ exercise.type }}{% endif %}
                                 </span>
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeExercise(this)">
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-exercise">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -230,7 +230,7 @@ function addExample() {
     div.innerHTML = `
         <div class="input-group">
             <input type="text" name="examples[]" class="form-control" placeholder="Enter an example sentence">
-            <button type="button" class="btn btn-outline-danger" onclick="removeItem(this)">
+            <button type="button" class="btn btn-outline-danger" data-action="remove-item">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -350,7 +350,7 @@ function addExercise(type) {
     div.innerHTML = `
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <span class="exercise-type-label">${typeLabel}</span>
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeExercise(this)">
+            <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-exercise">
                 <i class="fas fa-trash"></i>
             </button>
         </div>
@@ -368,5 +368,27 @@ function addExercise(type) {
     exerciseIndex++;
     updateExerciseCount();
 }
+
+// Event delegation (CSP-safe replacement for inline onclick=).
+document.addEventListener('click', function(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    switch (action) {
+        case 'add-example':
+            addExample();
+            break;
+        case 'remove-item':
+            removeItem(target);
+            break;
+        case 'add-exercise':
+            e.preventDefault();
+            addExercise(target.dataset.exerciseType);
+            break;
+        case 'remove-exercise':
+            removeExercise(target);
+            break;
+    }
+});
 </script>
 {% endblock %}
