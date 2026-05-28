@@ -1,0 +1,180 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Acquisition — атрибуция трафика{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Acquisition', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Acquisition', 'Откуда приходят пользователи: UTM-источники, рефереры, конверсия в онбординг') }}
+
+<!-- Controls -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <form method="GET" action="{{ url_for('acquisition_admin.acquisition_index') }}" class="d-flex align-items-center gap-3 flex-wrap">
+            <label class="mb-0 text-nowrap">Окно:</label>
+            <select name="days" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                {% for d in windows %}
+                <option value="{{ d }}" {% if d == days %}selected{% endif %}>{{ d }} дней</option>
+                {% endfor %}
+            </select>
+            <span class="text-muted small ms-auto">
+                UTM записываются на первом визите и сохраняются на User.acquisition_meta при регистрации.
+            </span>
+        </form>
+    </div>
+</div>
+
+<!-- Totals -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Регистраций</div>
+                <div class="display-6 fw-bold">{{ overview.totals.signups }}</div>
+                <div class="text-muted small">за {{ overview.totals.days }} дней</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Завершили онбординг</div>
+                <div class="display-6 fw-bold">{{ overview.totals.onboarded }}</div>
+                <div class="text-muted small">{{ overview.totals.onboarded_pct }}% от регистраций</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Уникальных источников</div>
+                <div class="display-6 fw-bold">{{ overview.by_source|length }}</div>
+                <div class="text-muted small">(source × medium × campaign)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- By source -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Разбивка по UTM-источникам</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if overview.by_source %}
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>source</th>
+                    <th>medium</th>
+                    <th>campaign</th>
+                    <th class="text-end">Регистраций</th>
+                    <th class="text-end">Онбординг</th>
+                    <th class="text-end">% онбординга</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in overview.by_source %}
+                <tr>
+                    <td><code>{{ row.source }}</code></td>
+                    <td><code>{{ row.medium }}</code></td>
+                    <td><code>{{ row.campaign }}</code></td>
+                    <td class="text-end fw-bold">{{ row.signups }}</td>
+                    <td class="text-end">{{ row.onboarded }}</td>
+                    <td class="text-end">{{ row.onboarded_pct }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            За выбранный период регистраций ещё нет.
+            Чтобы собрать атрибуцию, добавьте к ссылкам UTM-параметры: <code>?utm_source=telegram&utm_medium=channel&utm_campaign=launch</code>.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Top referrers -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Топ-рефереры (без UTM)</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if referrers %}
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Хост</th>
+                    <th class="text-end">Регистраций</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in referrers %}
+                <tr>
+                    <td><code>{{ r.host }}</code></td>
+                    <td class="text-end fw-bold">{{ r.signups }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            Внешних рефереров пока не зафиксировано.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Daily chart -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Ежедневные регистрации</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="acquisitionDailyChart" height="80"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}">
+(function(){
+    var ctx = document.getElementById('acquisitionDailyChart');
+    if (!ctx) return;
+    var daily = {{ overview.daily|tojson }};
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: daily.map(function(d){ return d.date; }),
+            datasets: [
+                {
+                    label: 'Регистрации',
+                    data: daily.map(function(d){ return d.signups; }),
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.12)',
+                    tension: 0.25,
+                    fill: true,
+                },
+                {
+                    label: 'Онбординг завершён',
+                    data: daily.map(function(d){ return d.onboarded; }),
+                    borderColor: '#16a34a',
+                    backgroundColor: 'rgba(22,163,74,0.12)',
+                    tension: 0.25,
+                    fill: true,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+})();
+</script>
+{% endblock %}

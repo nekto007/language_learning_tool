@@ -86,9 +86,11 @@ def init_template_utils(app):
     @app.context_processor
     def utility_processor():
         from datetime import datetime
+        from app.utils.gtag_events import consume_gtag_events
         return {
             'url_params': url_params_with_updated_args,
-            'now': datetime.now
+            'now': datetime.now,
+            'pending_gtag_events': consume_gtag_events(),
         }
 
     @app.context_processor

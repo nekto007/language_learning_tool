@@ -87,5 +87,9 @@ def register_admin_routes(flask_app):
     from app.admin.routes.feedback_routes import feedback_admin_bp
     flask_app.register_blueprint(feedback_admin_bp, url_prefix='/admin')
 
+    # Import and register acquisition attribution blueprint
+    from app.admin.routes.acquisition_routes import acquisition_bp
+    flask_app.register_blueprint(acquisition_bp, url_prefix='/admin')
+
     # Now register the complete blueprint with all routes
     flask_app.register_blueprint(admin)

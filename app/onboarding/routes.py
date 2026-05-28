@@ -49,8 +49,21 @@ def complete():
         parts = [p.strip() for p in focus.split(',') if p.strip()]
         if parts and all(p in valid_focuses for p in parts):
             current_user.onboarding_focus = ','.join(parts)
+    was_completed = current_user.onboarding_completed
     current_user.onboarding_completed = True
     db.session.commit()
+
+    if not was_completed:
+        # Fire GA4 onboarding_done on the dashboard page render. Skipped on
+        # re-saves of the wizard so the event represents a true funnel step.
+        from app.utils.gtag_events import queue_gtag_event
+        queue_gtag_event(
+            'onboarding_done',
+            {
+                'level': current_user.onboarding_level or '',
+                'focus': current_user.onboarding_focus or '',
+            },
+        )
 
     # Redirect to originally requested page or dashboard
     next_url = request.form.get('next', '')

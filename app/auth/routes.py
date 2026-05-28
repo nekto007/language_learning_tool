@@ -326,12 +326,20 @@ def register():
     ref_param = request.args.get('ref', '')
 
     if form.validate_on_submit():
+        # Pull captured first-touch attribution from session before any commits;
+        # consume() clears the session entry so it doesn't leak into a second
+        # signup from the same browser.
+        from app.middleware.acquisition import consume_acquisition_meta
+        acq_meta = consume_acquisition_meta()
+
         user = User(
             username=form.username.data,
             email=form.email.data,
             active=True  # Set user as active by default
         )
         user.set_password(form.password.data)
+        if acq_meta:
+            user.acquisition_meta = acq_meta
 
         # All users default to the unified daily plan; legacy linear/mission
         # flags have been removed.
@@ -411,6 +419,19 @@ def register():
                 )
             except (OSError, RuntimeError):
                 current_app.logger.warning("Welcome email failed for user=%s", user.email, exc_info=True)
+
+            # Fire GA4 signup_completed on the next page render (onboarding wizard).
+            # Carries the captured source so funnel analysis works per channel.
+            from app.utils.gtag_events import queue_gtag_event
+            queue_gtag_event(
+                'signup_completed',
+                {
+                    'method': 'email',
+                    'utm_source': (acq_meta or {}).get('utm_source', ''),
+                    'utm_medium': (acq_meta or {}).get('utm_medium', ''),
+                    'utm_campaign': (acq_meta or {}).get('utm_campaign', ''),
+                },
+            )
 
             flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
             resp = redirect(url_for('onboarding.wizard'))

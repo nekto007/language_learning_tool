@@ -37,7 +37,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.',
     'curriculum_admin.', 'reminders.', 'settings_admin.', 'seo_admin.',
     'activity_admin.', 'audit_admin.', 'dashboard_admin.',
-    'feedback.', 'feedback_admin.',
+    'feedback.', 'feedback_admin.', 'acquisition_admin.',
     'refresh_csrf_token',
     'health_check',
 )
@@ -145,6 +145,10 @@ def create_app(config_class=Config):
     # Initialize request ID middleware
     from app.middleware.request_id import add_request_id
     add_request_id(app)
+
+    # Initialize acquisition (UTM) capture middleware
+    from app.middleware.acquisition import add_acquisition_capture
+    add_acquisition_capture(app)
 
     # Ensure directories exist
     os.makedirs(app.config['AUDIO_UPLOAD_FOLDER'], exist_ok=True)

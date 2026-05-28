@@ -8,6 +8,7 @@ from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.utils.db import db
+from app.utils.types import JSONBCompat
 
 
 def _generate_referral_code() -> str:
@@ -87,6 +88,11 @@ class User(db.Model, UserMixin):
     # Streak shield: use-once protection against a single missed day.
     # Earned at each 7-day streak milestone (7, 14, 21, …). Max 1 active at a time.
     streak_shield_active = Column(Boolean, default=False, nullable=False, server_default='false')
+
+    # Acquisition attribution: first-touch UTM + referrer captured at registration.
+    # Shape: {utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+    #         referrer, landing_path, captured_at_iso}
+    acquisition_meta = Column(JSONBCompat, nullable=True)
 
     referred_by = relationship('User', remote_side='User.id', foreign_keys=[referred_by_id])
 

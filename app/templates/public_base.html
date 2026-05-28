@@ -32,6 +32,14 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', {{ config.GOOGLE_ANALYTICS_ID|tojson }});
+      {% if pending_gtag_events %}
+      (function(){
+        var pending = {{ pending_gtag_events|tojson }};
+        pending.forEach(function(ev){
+          try { gtag('event', ev.name, ev.params || {}); } catch (e) {}
+        });
+      })();
+      {% endif %}
     </script>
     {% endif %}
     <style>
