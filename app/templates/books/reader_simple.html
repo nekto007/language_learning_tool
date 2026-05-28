@@ -1392,6 +1392,7 @@ setTimeout(updateProgress, 100);
     let displayTickerInterval = null;            // 1Hz interval for timer display refresh
     let snoozeUntil = 0;                         // banner suppressed (epoch ms) when user picks "Ещё 5 минут"
     let didSeedFromServer = false;               // first /start response seeds today-total once
+    let targetReached = false;                   // true once elapsed >= DAILY_TARGET_SECONDS; freezes display
 
     function _currentOffsetPct() {
         try {
@@ -1496,6 +1497,13 @@ setTimeout(updateProgress, 100);
         elapsedEl.textContent = _formatTime(elapsed);
         bar.classList.toggle('is-target-met', elapsed >= DAILY_TARGET_SECONDS);
         bar.classList.toggle('is-paused', state === 'paused' || manualPause);
+        if (elapsed >= DAILY_TARGET_SECONDS && !targetReached && displayTickerInterval) {
+            targetReached = true;
+            activeSecondsToday = DAILY_TARGET_SECONDS;
+            activeTickAnchor = null;
+            _stopDisplayTicker();
+            return;
+        }
     }
 
     function _startDisplayTicker() {
@@ -1603,6 +1611,16 @@ setTimeout(updateProgress, 100);
     function _resume() {
         if (state === 'active') return;
         manualPause = false;
+        if (targetReached) {
+            // Target already met — resume session tracking but keep display frozen
+            state = 'active';
+            _openSession().then(() => {
+                _scheduleHeartbeat();
+                _scheduleIdleCheck();
+                _updatePauseBtn();
+            });
+            return;
+        }
         _start();
     }
 
