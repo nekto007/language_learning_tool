@@ -222,11 +222,60 @@ body.dark-theme .rdr-bottom-nav {
   color: var(--rdr-primary);
 }
 
+/* ── Reading timer bar (always-visible under header) ── */
+.rdr-timer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--rdr-surface);
+  border-bottom: 1px solid var(--rdr-border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--rdr-text-muted);
+  flex-shrink: 0;
+}
+.rdr-timer-bar__icon { font-size: 1rem; }
+.rdr-timer-bar__text {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.rdr-timer-bar__sep { margin: 0 4px; color: var(--rdr-border); }
+.rdr-timer-bar__target { color: var(--rdr-text-muted); }
+.rdr-timer-bar.is-target-met .rdr-timer-bar__text { color: #059669; }
+.rdr-timer-bar.is-paused { background: #fef3c7; border-color: #f59e0b; }
+.rdr-timer-bar.is-paused .rdr-timer-bar__text { color: #92400e; }
+.rdr-timer-bar__pause {
+  margin-left: auto;
+  background: transparent;
+  color: var(--rdr-text);
+  border: 1px solid var(--rdr-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.rdr-timer-bar__pause:hover { background: var(--rdr-surface-alt); border-color: var(--rdr-primary); }
+.rdr-timer-bar__pause[aria-pressed="true"] {
+  background: #fff;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+body.dark-theme .rdr-timer-bar {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+body.dark-theme .rdr-timer-bar__pause {
+  background: transparent;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
 /* ── Daily-target banner ── */
 .reading-banner {
-  position: sticky;
-  top: 0;
-  z-index: 50;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -237,6 +286,7 @@ body.dark-theme .rdr-bottom-nav {
   border-bottom: 1px solid #10b981;
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
   animation: reading-banner-slide-in 0.35s ease-out;
+  flex-shrink: 0;
 }
 @keyframes reading-banner-slide-in {
   from { transform: translateY(-100%); opacity: 0; }
@@ -289,35 +339,6 @@ body.dark-theme .rdr-bottom-nav {
   padding: 8px 10px;
 }
 .reading-banner__btn--ghost:hover { color: #064e3b; text-decoration: underline; }
-
-/* ── Pause timer button ── */
-.rdr-pause-btn {
-  position: fixed;
-  bottom: 88px;
-  right: 16px;
-  z-index: 40;
-  background: rgba(255, 255, 255, 0.95);
-  color: #0f172a;
-  border: 1px solid var(--rdr-border, #e2e8f0);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: background 0.15s, transform 0.15s;
-}
-.rdr-pause-btn:hover { background: #fff; transform: translateY(-1px); }
-.rdr-pause-btn[aria-pressed="true"] {
-  background: #fef3c7;
-  border-color: #f59e0b;
-  color: #92400e;
-}
-body.dark-theme .rdr-pause-btn {
-  background: rgba(30, 41, 59, 0.95);
-  color: #e2e8f0;
-  border-color: #334155;
-}
 
 /* ── Scrollable Content ── */
 .rdr-body {
@@ -1043,16 +1064,23 @@ body.dark-theme .rdr-pause-btn {
   </button>
   {% endif %}
 
+  <!-- Reading timer + pause: always-visible bar between header and content -->
+  <div id="reading-timer-bar" class="rdr-timer-bar">
+    <span class="rdr-timer-bar__icon" aria-hidden="true">📖</span>
+    <span class="rdr-timer-bar__text">
+      <span id="reading-timer-elapsed">00:00</span>
+      <span class="rdr-timer-bar__sep">/</span>
+      <span class="rdr-timer-bar__target">05:00</span>
+    </span>
+    <button id="reading-pause-btn" type="button" class="rdr-timer-bar__pause"
+            aria-label="Пауза таймера чтения" aria-pressed="false">⏸️ Пауза</button>
+  </div>
+
   <!-- Daily reading target banner (hidden until server signals threshold) -->
   <div id="reading-completion-banner" class="reading-banner" hidden role="status" aria-live="polite">
     <div class="reading-banner__title"></div>
     <div class="reading-banner__cta"></div>
   </div>
-
-  <!-- Manual pause button (timer-control) -->
-  <button id="reading-pause-btn" type="button" class="rdr-pause-btn"
-          aria-label="Пауза таймера чтения" aria-pressed="false"
-          title="Пауза таймера чтения">⏸️ Пауза</button>
 
   <!-- Scrollable content -->
   <div class="rdr-body" id="readerBody">
@@ -1349,7 +1377,8 @@ setTimeout(updateProgress, 100);
     const chapterId = {{ current_chapter.id }};
     const HEARTBEAT_INTERVAL_MS = 60000;        // close+reopen session every 60s
     const IDLE_THRESHOLD_MS = 60000;            // auto-pause after 60s no activity
-    const BANNER_DISMISS_KEY = 'llt_reading_banner_dismissed_' + chapterId + '_' + (new Date()).toISOString().slice(0, 10);
+    const SNOOZE_MS = 5 * 60 * 1000;            // "Ещё 5 минут" hide duration
+    const DAILY_TARGET_SECONDS = 300;           // mirror of server DAILY_READING_TARGET_SECONDS
 
     let sessionId = null;
     let state = 'idle';                          // 'idle' | 'active' | 'paused'
@@ -1358,6 +1387,10 @@ setTimeout(updateProgress, 100);
     let manualPause = false;
     let bannerShown = false;
     let beaconUsed = false;                      // suppress duplicate sends from pagehide+beforeunload
+    let activeSecondsToday = 0;                  // client-tracked active reading time (ticks on resume)
+    let activeTickAnchor = null;                 // Date.now() when most recent active state began
+    let displayTickerInterval = null;            // 1Hz interval for timer display refresh
+    let snoozeUntil = 0;                         // banner suppressed (epoch ms) when user picks "Ещё 5 минут"
 
     function _currentOffsetPct() {
         try {
@@ -1419,11 +1452,49 @@ setTimeout(updateProgress, 100);
     }
 
     function _handleEndResponse(data) {
+        if (!data) return;
+        // The local ticker tracks active time independently via
+        // activeTickAnchor; we do NOT add data.duration_seconds here
+        // because the heartbeat path closes a session without moving
+        // the anchor, and adding both would double-count.
         if (bannerShown) return;
-        if (!data || !data.banner_state || data.banner_state === 'none') return;
-        if (localStorage.getItem(BANNER_DISMISS_KEY) === '1') return;
+        if (!data.banner_state || data.banner_state === 'none') return;
+        if (Date.now() < snoozeUntil) return;   // user snoozed via "Ещё 5 минут"
         bannerShown = true;
         _showBanner(data);
+    }
+
+    function _formatTime(seconds) {
+        seconds = Math.max(0, Math.floor(seconds));
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function _renderTimer() {
+        const bar = document.getElementById('reading-timer-bar');
+        const elapsedEl = document.getElementById('reading-timer-elapsed');
+        if (!bar || !elapsedEl) return;
+        let elapsed = activeSecondsToday;
+        if (state === 'active' && activeTickAnchor !== null) {
+            elapsed += Math.floor((Date.now() - activeTickAnchor) / 1000);
+        }
+        elapsedEl.textContent = _formatTime(elapsed);
+        bar.classList.toggle('is-target-met', elapsed >= DAILY_TARGET_SECONDS);
+        bar.classList.toggle('is-paused', state === 'paused' || manualPause);
+    }
+
+    function _startDisplayTicker() {
+        if (displayTickerInterval) return;
+        displayTickerInterval = setInterval(_renderTimer, 1000);
+        _renderTimer();
+    }
+
+    function _stopDisplayTicker() {
+        if (!displayTickerInterval) return;
+        clearInterval(displayTickerInterval);
+        displayTickerInterval = null;
+        _renderTimer();
     }
 
     function _showBanner(data) {
@@ -1468,16 +1539,19 @@ setTimeout(updateProgress, 100);
             ctaArea.appendChild(secondary);
         }
 
-        // Dismiss: hide for the rest of the day (per chapter)
-        const dismiss = document.createElement('button');
-        dismiss.type = 'button';
-        dismiss.className = 'reading-banner__btn reading-banner__btn--ghost';
-        dismiss.textContent = 'Продолжить читать';
-        dismiss.addEventListener('click', function () {
+        // Snooze: hide for 5 minutes. On the next heartbeat after the
+        // snooze window, banner re-appears (the server still reports
+        // banner_state for the same session-end ticks).
+        const snooze = document.createElement('button');
+        snooze.type = 'button';
+        snooze.className = 'reading-banner__btn reading-banner__btn--ghost';
+        snooze.textContent = 'Ещё 5 минут';
+        snooze.addEventListener('click', function () {
             banner.hidden = true;
-            try { localStorage.setItem(BANNER_DISMISS_KEY, '1'); } catch (e) {}
+            bannerShown = false;
+            snoozeUntil = Date.now() + SNOOZE_MS;
         });
-        ctaArea.appendChild(dismiss);
+        ctaArea.appendChild(snooze);
 
         banner.hidden = false;
     }
@@ -1488,19 +1562,28 @@ setTimeout(updateProgress, 100);
         if (state === 'active') return;
         if (manualPause) return;          // honour user's manual pause
         state = 'active';
+        activeTickAnchor = Date.now();
         _openSession().then(() => {
             _scheduleHeartbeat();
             _scheduleIdleCheck();
+            _startDisplayTicker();
             _updatePauseBtn();
         });
     }
 
     function _pause() {
         if (state !== 'active') return;
+        // Freeze tick anchor — drop accumulated active time into the bucket.
+        if (activeTickAnchor !== null) {
+            activeSecondsToday += Math.floor((Date.now() - activeTickAnchor) / 1000);
+            activeTickAnchor = null;
+        }
         state = 'paused';
         _clearTimers();
+        _stopDisplayTicker();
         _updatePauseBtn();
         _closeSession(false);
+        _renderTimer();
     }
 
     function _resume() {
