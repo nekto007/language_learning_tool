@@ -992,17 +992,17 @@ def save_reading_position():
         )
         # The reader auto-saves every ~3 seconds, so each save's delta is
         # tiny — gating on per-save delta would never fire for users reading
-        # incrementally. Instead require a closed reading session today
-        # that itself met BOTH the 60s and 5%-offset thresholds, plus
-        # absolute position past the threshold and forward progress this
-        # save. This closes the bypass where a user reads 60s once and
-        # then mints XP from later trivial nudges.
+        # incrementally. Use the aggregated daily-target check (5min active
+        # reading + 2% offset advance summed across pause-cycled sessions
+        # today), plus absolute position past the threshold and forward
+        # progress this save. This unifies XP and slot completion under the
+        # same daily target.
         advanced = position - previous_offset
         if position >= READ_PROGRESS_THRESHOLD and advanced > 0:
             pref = get_user_reading_preference(current_user.id, db)
             if pref is not None and pref.book_id == book_id:
-                from app.books.reading_session import has_qualifying_reading_session_today
-                if has_qualifying_reading_session_today(current_user.id, book_id, db):
+                from app.books.reading_session import is_daily_reading_target_met_today
+                if is_daily_reading_target_met_today(current_user.id, book_id, db):
                     with db.session.begin_nested():
                         if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
                             maybe_award_linear_perfect_day(current_user.id, db_session=db)
@@ -1186,9 +1186,9 @@ def reading_session_end():
             )
             db.session.rollback()
 
-    # Closing the session may itself push the user past the 60s reading-time
-    # gate; re-run the slot-award check so a single qualifying visit credits
-    # the reading slot without waiting for the next progress save.
+    # Closing the session may itself push the user past the daily reading
+    # target; re-run the slot-award check so a qualifying day credits the
+    # reading slot without waiting for the next progress save.
     reading_slot_completed = False
     try:
         from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
@@ -1196,21 +1196,19 @@ def reading_session_end():
             maybe_award_book_reading_xp,
             maybe_award_linear_perfect_day,
         )
-        from app.books.reading_session import has_qualifying_reading_session_today
+        from app.books.reading_session import is_daily_reading_target_met_today
 
         chapter = Chapter.query.get(session.chapter_id)
-        # Per the reading-gate contract (docs/plans/2026-04-26-learning-quality-audit.md
-        # task 11), linear reading XP requires a per-session offset_delta
-        # >= READ_PROGRESS_THRESHOLD AND duration >= MIN_READING_SECONDS in a
-        # single closed session — has_qualifying_reading_session_today enforces
-        # both. We must NOT additionally gate on the persisted
-        # UserChapterProgress.offset_pct here: the reader debounces progress
-        # saves by 3s, so on page-leave the persisted row may still trail the
-        # session's own snapshot+hint and starve the slot of XP.
+        # Daily target = 5min active reading + 2% offset advance in any
+        # chapter of the user's selected book today, aggregated across
+        # pause-cycled sessions. The reader debounces progress saves by 3s,
+        # so on page-leave the persisted offset may still trail the
+        # session's own snapshot+hint; we already applied the hint above,
+        # so the aggregated check sees the current authoritative state.
         if chapter is not None:
             pref = get_user_reading_preference(current_user.id, db)
             if pref is not None and pref.book_id == chapter.book_id:
-                if has_qualifying_reading_session_today(current_user.id, chapter.book_id, db):
+                if is_daily_reading_target_met_today(current_user.id, chapter.book_id, db):
                     if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
                         maybe_award_linear_perfect_day(current_user.id, db_session=db)
                         db.session.commit()
@@ -1222,9 +1220,78 @@ def reading_session_end():
         )
         db.session.rollback()
 
+    # Compute banner state for the client. Three possible variants:
+    # - 'daily_target' : the user just hit (or has already met) the daily
+    #   reading target for this book today, but the current chapter is
+    #   not finished. Banner: "Дневная норма выполнена" + dashboard CTAs.
+    # - 'chapter_completed' : the current chapter was completed in today's
+    #   sessions, but the daily target is NOT yet met. Banner: "Глава
+    #   прочитана! Норма дня ещё не выполнена — продолжи в следующей главе."
+    # - 'both' : both events happened. Banner: combined congrats.
+    # - 'none' : nothing crossed; client keeps reading silently.
+    from app.books.reading_session import compute_chapter_daily_target_state
+
+    banner_state = 'none'
+    daily_target_met_today = False
+    chapter_completed_in_session = False
+    try:
+        state = compute_chapter_daily_target_state(
+            current_user.id, session.chapter_id, db
+        )
+        # Per-book daily target: True if ANY chapter today met the target,
+        # not just the current one (user may have hit it earlier in another
+        # chapter and re-opened this one).
+        if chapter is not None:
+            daily_target_met_today = is_daily_reading_target_met_today(
+                current_user.id, chapter.book_id, db
+            )
+        else:
+            daily_target_met_today = state['daily_target_met']
+        chapter_completed_in_session = state['chapter_completed_today']
+        if daily_target_met_today and chapter_completed_in_session:
+            banner_state = 'both'
+        elif daily_target_met_today:
+            banner_state = 'daily_target'
+        elif chapter_completed_in_session:
+            banner_state = 'chapter_completed'
+    except Exception:
+        logger.warning(
+            "reading-banner: state compute failed user=%s session=%s",
+            current_user.id, session.id, exc_info=True,
+        )
+
+    # Daily-plan context for the banner CTAs. When the reader was opened
+    # from a daily-plan slot link (?from=linear_plan&slot=book) and the
+    # Referer survives the XHR, build_lesson_context resolves the next
+    # plan slot; otherwise dashboard-only CTAs are used.
+    next_slot_url = None
+    next_slot_title = None
+    dashboard_url = None
+    try:
+        from flask import url_for as _url_for
+        from app.daily_plan.linear.lesson_context import build_lesson_context
+        ctx = build_lesson_context(current_user.id, db)
+        dashboard_url = ctx.dashboard_url
+        if ctx.is_daily_plan:
+            next_slot_url = ctx.next_slot_url
+            next_slot_title = ctx.next_slot_title
+        else:
+            dashboard_url = _url_for('words.dashboard')
+    except Exception:
+        logger.warning(
+            "reading-banner: lesson-context build failed user=%s",
+            current_user.id, exc_info=True,
+        )
+
     return jsonify({
         'success': True,
         'session_id': session.id,
         'duration_seconds': session.duration_seconds(),
         'reading_slot_completed': reading_slot_completed,
+        'daily_target_met': daily_target_met_today,
+        'chapter_completed_in_session': chapter_completed_in_session,
+        'banner_state': banner_state,
+        'next_slot_url': next_slot_url,
+        'next_slot_title': next_slot_title,
+        'dashboard_url': dashboard_url,
     })

@@ -23,7 +23,18 @@ from sqlalchemy.exc import IntegrityError
 from app.utils.db import db
 
 
-MIN_READING_SECONDS = 60
+# Legacy per-session thresholds (still used by /save_reading_position and the
+# linear XP path for the older one-session-must-qualify rule).
+MIN_READING_SECONDS = 300
+
+# Daily-target thresholds for the unified plan reading slot. These gate the
+# "Дневная норма по чтению выполнена" banner and the slot's completion event.
+# Aggregated across all of today's closed sessions on the same chapter — so
+# pause/resume cycles (which split a long read into many short sessions) are
+# summed honestly.
+DAILY_READING_TARGET_SECONDS = 300
+DAILY_CHAPTER_ADVANCE_MIN = 0.02
+CHAPTER_COMPLETION_THRESHOLD = 0.99
 
 
 def _utcnow() -> datetime:
@@ -360,3 +371,97 @@ def has_qualifying_reading_session_today(
         .all()
     )
     return any(r.duration_seconds() >= minimum_seconds for r in rows)
+
+
+def compute_chapter_daily_target_state(
+    user_id: int,
+    chapter_id: int,
+    db_session: Any = db,
+) -> dict:
+    """Aggregate today's reading state for one chapter.
+
+    Returns a dict describing whether the user has met the "daily reading
+    target" inside this chapter today AND whether the chapter has just been
+    completed during today's sessions:
+
+    - ``active_seconds`` — sum of closed-session durations today on this chapter
+    - ``earliest_start_offset`` — lowest ``start_offset_pct`` of today's sessions
+    - ``current_offset`` — current persisted ``UserChapterProgress.offset_pct``
+    - ``offset_advance`` — ``max(0, current - earliest_start)``
+    - ``chapter_completed_today`` — earliest_start < threshold AND current >= threshold
+    - ``daily_target_met`` — ``active_seconds >= DAILY_READING_TARGET_SECONDS``
+      AND ``offset_advance >= DAILY_CHAPTER_ADVANCE_MIN``
+
+    Aggregation across sessions (rather than per-session) is intentional:
+    pause/resume cycles split a continuous read into many short sessions
+    (auto-pause on tab hidden / idle / manual pause). Summing honours the
+    real active reading time without penalising honest pauses.
+    """
+    start_utc, end_utc = _user_local_day_window_utc(user_id, db_session)
+    sessions = (
+        db_session.session.query(UserReadingSession)
+        .filter(
+            UserReadingSession.user_id == user_id,
+            UserReadingSession.chapter_id == chapter_id,
+            UserReadingSession.ended_at.isnot(None),
+            UserReadingSession.ended_at >= start_utc,
+            UserReadingSession.ended_at < end_utc,
+        )
+        .all()
+    )
+    active_seconds = sum(s.duration_seconds() for s in sessions)
+    earliest_start = min(
+        (float(s.start_offset_pct or 0.0) for s in sessions),
+        default=0.0,
+    )
+    current_offset = _current_chapter_offset(user_id, chapter_id, db_session)
+    offset_advance = max(0.0, current_offset - earliest_start)
+    chapter_completed_today = (
+        bool(sessions)
+        and earliest_start < CHAPTER_COMPLETION_THRESHOLD
+        and current_offset >= CHAPTER_COMPLETION_THRESHOLD
+    )
+    daily_target_met = (
+        active_seconds >= DAILY_READING_TARGET_SECONDS
+        and offset_advance >= DAILY_CHAPTER_ADVANCE_MIN
+    )
+    return {
+        'active_seconds': active_seconds,
+        'earliest_start_offset': earliest_start,
+        'current_offset': current_offset,
+        'offset_advance': offset_advance,
+        'chapter_completed_today': chapter_completed_today,
+        'daily_target_met': daily_target_met,
+    }
+
+
+def is_daily_reading_target_met_today(
+    user_id: int,
+    book_id: int,
+    db_session: Any = db,
+) -> bool:
+    """Return True iff any chapter of ``book_id`` reached the daily target
+    today (aggregated time + offset advance). Used by the unified daily
+    plan reading slot to decide completion.
+    """
+    from app.books.models import Chapter
+
+    start_utc, end_utc = _user_local_day_window_utc(user_id, db_session)
+    chapter_rows = (
+        db_session.session.query(UserReadingSession.chapter_id)
+        .join(Chapter, Chapter.id == UserReadingSession.chapter_id)
+        .filter(
+            UserReadingSession.user_id == user_id,
+            Chapter.book_id == book_id,
+            UserReadingSession.ended_at.isnot(None),
+            UserReadingSession.ended_at >= start_utc,
+            UserReadingSession.ended_at < end_utc,
+        )
+        .distinct()
+        .all()
+    )
+    for (chapter_id,) in chapter_rows:
+        state = compute_chapter_daily_target_state(user_id, chapter_id, db_session)
+        if state['daily_target_met']:
+            return True
+    return False

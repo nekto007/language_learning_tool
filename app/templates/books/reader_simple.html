@@ -222,6 +222,103 @@ body.dark-theme .rdr-bottom-nav {
   color: var(--rdr-primary);
 }
 
+/* ── Daily-target banner ── */
+.reading-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border-bottom: 1px solid #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
+  animation: reading-banner-slide-in 0.35s ease-out;
+}
+@keyframes reading-banner-slide-in {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reading-banner { animation: none; }
+}
+.reading-banner[hidden] { display: none !important; }
+.reading-banner__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #064e3b;
+  flex: 1 1 auto;
+  min-width: 220px;
+}
+.reading-banner__cta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.reading-banner__btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.reading-banner__btn--primary {
+  background: #10b981;
+  color: #fff;
+}
+.reading-banner__btn--primary:hover { background: #059669; }
+.reading-banner__btn--outline {
+  background: #fff;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.reading-banner__btn--outline:hover { border-color: #34d399; }
+.reading-banner__btn--ghost {
+  background: transparent;
+  color: #047857;
+  border: none;
+  padding: 8px 10px;
+}
+.reading-banner__btn--ghost:hover { color: #064e3b; text-decoration: underline; }
+
+/* ── Pause timer button ── */
+.rdr-pause-btn {
+  position: fixed;
+  bottom: 88px;
+  right: 16px;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  border: 1px solid var(--rdr-border, #e2e8f0);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s, transform 0.15s;
+}
+.rdr-pause-btn:hover { background: #fff; transform: translateY(-1px); }
+.rdr-pause-btn[aria-pressed="true"] {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+body.dark-theme .rdr-pause-btn {
+  background: rgba(30, 41, 59, 0.95);
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
 /* ── Scrollable Content ── */
 .rdr-body {
   flex: 1;
@@ -946,6 +1043,17 @@ body.dark-theme .rdr-bottom-nav {
   </button>
   {% endif %}
 
+  <!-- Daily reading target banner (hidden until server signals threshold) -->
+  <div id="reading-completion-banner" class="reading-banner" hidden role="status" aria-live="polite">
+    <div class="reading-banner__title"></div>
+    <div class="reading-banner__cta"></div>
+  </div>
+
+  <!-- Manual pause button (timer-control) -->
+  <button id="reading-pause-btn" type="button" class="rdr-pause-btn"
+          aria-label="Пауза таймера чтения" aria-pressed="false"
+          title="Пауза таймера чтения">⏸️ Пауза</button>
+
   <!-- Scrollable content -->
   <div class="rdr-body" id="readerBody">
     <div class="rdr-content">
@@ -1224,80 +1332,268 @@ readerBody.addEventListener('scroll', updateProgress);
 window.addEventListener('resize', updateProgress);
 setTimeout(updateProgress, 100);
 
-// Reading session — time-on-page tracking for the linear-plan reading slot.
-// Server-side gate (`has_min_reading_time_today`) requires >=60s of closed
-// session time per book per day before linear book-reading XP is awarded.
+// Reading session — active-time tracking + daily-target banner.
+//
+// Server-side, the unified plan reading slot requires 5 minutes of
+// active reading + 2% offset advance within a chapter today (aggregated
+// across pause-cycled sessions). The client opens a session on activity,
+// auto-pauses (closes) on hidden tab / idle / manual pause, and reopens
+// on resume. A 60s heartbeat closes-then-reopens so the server can
+// award the slot mid-read without waiting for page-leave.
+//
+// On every /end response, the server returns a `banner_state` flag —
+// when it transitions to 'daily_target', 'chapter_completed' or 'both',
+// the client shows an inline banner with plan-aware CTAs.
 (function () {
     const csrfToken = '{{ csrf_token() }}';
     const chapterId = {{ current_chapter.id }};
-    let sessionId = null;
-    let sessionEnded = false;
+    const HEARTBEAT_INTERVAL_MS = 60000;        // close+reopen session every 60s
+    const IDLE_THRESHOLD_MS = 60000;            // auto-pause after 60s no activity
+    const BANNER_DISMISS_KEY = 'llt_reading_banner_dismissed_' + chapterId + '_' + (new Date()).toISOString().slice(0, 10);
 
-    function startReadingSession() {
-        fetch('/api/books/reading-session/start', {
+    let sessionId = null;
+    let state = 'idle';                          // 'idle' | 'active' | 'paused'
+    let heartbeatTimer = null;
+    let idleTimer = null;
+    let manualPause = false;
+    let bannerShown = false;
+    let beaconUsed = false;                      // suppress duplicate sends from pagehide+beforeunload
+
+    function _currentOffsetPct() {
+        try {
+            const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
+            if (scrollHeight > 0) {
+                return Math.min(readerBody.scrollTop / scrollHeight, 1);
+            }
+        } catch (e) { /* readerBody may be detached on pagehide */ }
+        return null;
+    }
+
+    function _post(url, payload) {
+        return fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken,
             },
-            body: JSON.stringify({ chapter_id: chapterId }),
+            body: JSON.stringify(payload),
             keepalive: true,
-        })
-            .then(r => r.ok ? r.json() : null)
+        }).then(r => r.ok ? r.json() : null).catch(() => null);
+    }
+
+    function _openSession() {
+        return _post('/api/books/reading-session/start', { chapter_id: chapterId })
             .then(data => {
                 if (data && data.session_id) {
                     sessionId = data.session_id;
                 }
-            })
-            .catch(() => {});
+            });
     }
 
-    function endReadingSession() {
-        if (!sessionId || sessionEnded) return;
-        sessionEnded = true;
-        // saveProgress is debounced 3s, so the persisted UserChapterProgress
-        // may lag the latest scroll on page-leave. Send the live offset as a
-        // hint so the server's per-visit delta reflects what the user
-        // actually reached. This does not expand the trust boundary because
-        // PATCH /api/progress already accepts arbitrary client offset values.
-        let currentOffsetPct = null;
-        try {
-            const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
-            if (scrollHeight > 0) {
-                currentOffsetPct = Math.min(readerBody.scrollTop / scrollHeight, 1);
-            }
-        } catch (e) { /* readerBody may be detached on pagehide */ }
-        const payload = JSON.stringify({
+    function _closeSession(unloading) {
+        if (!sessionId) return Promise.resolve(null);
+        const payload = {
             session_id: sessionId,
-            current_offset_pct: currentOffsetPct,
+            current_offset_pct: _currentOffsetPct(),
+        };
+        sessionId = null;  // optimistic clear — prevents double-close races
+        if (unloading) {
+            // pagehide path: sendBeacon survives tab close. We get no
+            // response, so the banner won't fire here — but the user is
+            // already leaving the page, which is fine.
+            try {
+                if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+                    const blob = new Blob([JSON.stringify(payload)], { type: 'text/plain' });
+                    if (navigator.sendBeacon('/api/books/reading-session/end', blob)) {
+                        beaconUsed = true;
+                        return Promise.resolve(null);
+                    }
+                }
+            } catch (e) { /* fall through */ }
+        }
+        return _post('/api/books/reading-session/end', payload)
+            .then(data => {
+                if (data) _handleEndResponse(data);
+                return data;
+            });
+    }
+
+    function _handleEndResponse(data) {
+        if (bannerShown) return;
+        if (!data || !data.banner_state || data.banner_state === 'none') return;
+        if (localStorage.getItem(BANNER_DISMISS_KEY) === '1') return;
+        bannerShown = true;
+        _showBanner(data);
+    }
+
+    function _showBanner(data) {
+        const banner = document.getElementById('reading-completion-banner');
+        if (!banner) return;
+        const titleEl = banner.querySelector('.reading-banner__title');
+        const ctaArea = banner.querySelector('.reading-banner__cta');
+        if (!titleEl || !ctaArea) return;
+
+        let title = '';
+        if (data.banner_state === 'both') {
+            title = '🎉 Глава прочитана и дневная норма выполнена!';
+        } else if (data.banner_state === 'daily_target') {
+            title = '🎉 Дневная норма по чтению выполнена';
+        } else if (data.banner_state === 'chapter_completed') {
+            title = '✓ Глава прочитана! Норма дня ещё не выполнена — продолжи в следующей главе.';
+        }
+        titleEl.textContent = title;
+
+        ctaArea.innerHTML = '';
+        const dashUrl = data.dashboard_url || '/dashboard';
+        const isPlan = !!data.next_slot_url;
+
+        // Primary: next slot of plan (if from plan) or dashboard (otherwise)
+        const primary = document.createElement('a');
+        primary.className = 'reading-banner__btn reading-banner__btn--primary';
+        if (isPlan) {
+            primary.href = data.next_slot_url;
+            primary.textContent = 'Следующий урок плана';
+        } else {
+            primary.href = dashUrl;
+            primary.textContent = 'На дашборд';
+        }
+        ctaArea.appendChild(primary);
+
+        // Secondary (only when there's both a plan-next AND a dashboard link)
+        if (isPlan) {
+            const secondary = document.createElement('a');
+            secondary.className = 'reading-banner__btn reading-banner__btn--outline';
+            secondary.href = dashUrl;
+            secondary.textContent = 'На дашборд';
+            ctaArea.appendChild(secondary);
+        }
+
+        // Dismiss: hide for the rest of the day (per chapter)
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.className = 'reading-banner__btn reading-banner__btn--ghost';
+        dismiss.textContent = 'Продолжить читать';
+        dismiss.addEventListener('click', function () {
+            banner.hidden = true;
+            try { localStorage.setItem(BANNER_DISMISS_KEY, '1'); } catch (e) {}
         });
-        // Prefer navigator.sendBeacon on pagehide — it survives tab close
-        // even when the browser has already started tearing down the page,
-        // where fetch+keepalive can be aborted. The endpoint is csrf-exempt
-        // and accepts text/plain bodies parsed as JSON.
-        let beaconSent = false;
-        try {
-            if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-                const blob = new Blob([payload], { type: 'text/plain' });
-                beaconSent = navigator.sendBeacon('/api/books/reading-session/end', blob);
-            }
-        } catch (e) { beaconSent = false; }
-        if (!beaconSent) {
-            fetch('/api/books/reading-session/end', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
-                },
-                body: payload,
-                keepalive: true,
-            }).catch(() => {});
+        ctaArea.appendChild(dismiss);
+
+        banner.hidden = false;
+    }
+
+    // ---- State machine ----
+
+    function _start() {
+        if (state === 'active') return;
+        if (manualPause) return;          // honour user's manual pause
+        state = 'active';
+        _openSession().then(() => {
+            _scheduleHeartbeat();
+            _scheduleIdleCheck();
+            _updatePauseBtn();
+        });
+    }
+
+    function _pause() {
+        if (state !== 'active') return;
+        state = 'paused';
+        _clearTimers();
+        _updatePauseBtn();
+        _closeSession(false);
+    }
+
+    function _resume() {
+        if (state === 'active') return;
+        manualPause = false;
+        _start();
+    }
+
+    function _clearTimers() {
+        if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    }
+
+    function _scheduleHeartbeat() {
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        heartbeatTimer = setInterval(function () {
+            if (state !== 'active') return;
+            // Close current session (commits duration on server, may trigger
+            // banner via response), then immediately open a new one so the
+            // timer keeps counting.
+            _closeSession(false).then(() => {
+                if (state === 'active' && !manualPause) {
+                    _openSession();
+                }
+            });
+        }, HEARTBEAT_INTERVAL_MS);
+    }
+
+    function _scheduleIdleCheck() {
+        const resetIdle = function () {
+            if (idleTimer) clearTimeout(idleTimer);
+            if (state !== 'active') return;
+            idleTimer = setTimeout(function () {
+                if (state === 'active') _pause();
+            }, IDLE_THRESHOLD_MS);
+        };
+        ['scroll', 'keypress', 'mousemove', 'touchstart', 'click'].forEach(function (evt) {
+            document.addEventListener(evt, function () {
+                if (state === 'paused' && !manualPause && !document.hidden) {
+                    _resume();
+                }
+                resetIdle();
+            }, { passive: true });
+        });
+        resetIdle();
+    }
+
+    // ---- Visibility / unload integration ----
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            _pause();
+        } else if (!manualPause) {
+            _resume();
+        }
+    });
+
+    function _onUnload() {
+        if (beaconUsed) return;
+        _closeSession(true);
+    }
+    window.addEventListener('pagehide', _onUnload);
+    window.addEventListener('beforeunload', _onUnload);
+
+    // ---- Manual pause button ----
+
+    function _updatePauseBtn() {
+        const btn = document.getElementById('reading-pause-btn');
+        if (!btn) return;
+        if (state === 'paused' || manualPause) {
+            btn.innerHTML = '▶️ Продолжить';
+            btn.setAttribute('aria-pressed', 'true');
+        } else {
+            btn.innerHTML = '⏸️ Пауза';
+            btn.setAttribute('aria-pressed', 'false');
         }
     }
 
-    startReadingSession();
-    window.addEventListener('pagehide', endReadingSession);
-    window.addEventListener('beforeunload', endReadingSession);
+    document.addEventListener('DOMContentLoaded', function () {
+        const btn = document.getElementById('reading-pause-btn');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                if (state === 'active') {
+                    manualPause = true;
+                    _pause();
+                } else {
+                    manualPause = false;
+                    _resume();
+                }
+            });
+        }
+        _start();
+    });
 })();
 
 // Word translation

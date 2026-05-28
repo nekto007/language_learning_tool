@@ -5,11 +5,15 @@ import pytest
 
 from app.achievements.models import StreakEvent
 from app.books.reading_session import (
+    DAILY_CHAPTER_ADVANCE_MIN,
+    DAILY_READING_TARGET_SECONDS,
     MIN_READING_SECONDS,
     UserReadingSession,
+    compute_chapter_daily_target_state,
     end_session,
     get_session_duration,
     has_min_reading_time_today,
+    is_daily_reading_target_met_today,
     start_session,
 )
 from app.daily_plan.linear.models import UserReadingPreference
@@ -163,17 +167,19 @@ class TestSaveReadingPositionTimeGate:
         ).count()
         assert events == 1
 
-    def test_qualifying_duration_but_low_session_offset_no_xp(
+    def test_qualifying_duration_with_aggregate_offset_advance_credits_xp(
         self, authenticated_client, db_session, test_user, test_chapter, test_book,
     ):
-        """Bypass guard: a 60s+ session whose own offset_delta is below 5%
-        must NOT credit linear book-reading XP, even when subsequent
-        progress saves push absolute offset_pct past the threshold.
+        """Daily-target aggregation: active reading time >= 5 minutes plus
+        chapter offset advance >= 2% across today's sessions credits the
+        linear book-reading XP. Per-session enforcement was retired with
+        the unified-plan daily reading target (the old 60s + 5%-per-session
+        gate has been replaced by 300s + 2%-advance aggregated across
+        pause-cycled sessions on the same chapter).
         """
         self._enable_linear_with_pref(db_session, test_user, test_book)
         s = start_session(test_user.id, test_chapter.id, db)
         _close_session_with_duration(s, MIN_READING_SECONDS + 10)
-        s.offset_delta = 0.001  # nudge: well below per-visit 5% gate
         db_session.commit()
 
         r = authenticated_client.post(
@@ -186,7 +192,7 @@ class TestSaveReadingPositionTimeGate:
             StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
             StreakEvent.details['source'].astext == 'linear_book_reading',
         ).count()
-        assert events == 0
+        assert events == 1
 
 
 class TestTask15Audit:
@@ -445,9 +451,12 @@ class TestReadingSessionEndpoints:
         self, authenticated_client, db_session, test_user, test_chapter, test_book,
     ):
         """A closed session is locked: replaying /end with the same
-        ``session_id`` after a later visit advanced ``UserChapterProgress``
-        must NOT retroactively combine the old session's duration with the
-        new session's progress to qualify for reading XP.
+        ``session_id`` must NOT mutate the session's ``offset_delta`` field
+        on the row itself, even when ``UserChapterProgress`` advanced after
+        the original close. (The unified daily target uses an aggregated
+        check across all sessions of the day, so once progress crosses the
+        2%-advance threshold the slot does fire — but the individual
+        session row remains locked, which is what this test guards.)
         """
         from app.books.models import UserChapterProgress
 
@@ -459,7 +468,7 @@ class TestReadingSessionEndpoints:
         db_session.add(progress)
         db_session.commit()
 
-        # Visit A: 60s+, no scroll. Closes with offset_delta=0.
+        # Visit A: 300s+, no scroll. Closes with offset_delta=0.
         s_a = start_session(test_user.id, test_chapter.id, db)
         s_a.started_at = datetime.now(timezone.utc) - timedelta(seconds=MIN_READING_SECONDS + 30)
         db_session.commit()
@@ -468,29 +477,28 @@ class TestReadingSessionEndpoints:
             json={'session_id': s_a.id},
         )
         assert r1.status_code == 200
+        # At this point UserChapterProgress.offset_pct is still 0, so the
+        # aggregated daily-target check (offset_advance < 2%) cannot fire
+        # the slot yet.
         assert r1.get_json()['reading_slot_completed'] is False
         s_a_refetched = db.session.get(UserReadingSession, s_a.id)
         assert s_a_refetched.offset_delta == pytest.approx(0.0)
 
-        # Later visit B: short, but progress advances past 5%.
+        # Progress advances past 2% (e.g. a new visit that wrote progress).
         progress.offset_pct = 0.5
         db_session.commit()
 
-        # Replay /end on session A — must be a no-op for offset_delta.
+        # Replay /end on session A — must be a no-op for the session row.
         r2 = authenticated_client.post(
             '/api/books/reading-session/end',
             json={'session_id': s_a.id, 'current_offset_pct': 0.9},
         )
         assert r2.status_code == 200
-        assert r2.get_json()['reading_slot_completed'] is False
         s_a_after = db.session.get(UserReadingSession, s_a.id)
+        # The closed session's own offset_delta field stays at 0 — the
+        # replay is idempotent on the row even if the aggregated target
+        # has since been met by other progress.
         assert s_a_after.offset_delta == pytest.approx(0.0)
-        events = StreakEvent.query.filter(
-            StreakEvent.user_id == test_user.id,
-            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
-            StreakEvent.details['source'].astext == 'linear_book_reading',
-        ).count()
-        assert events == 0
 
     def test_end_session_uses_client_offset_hint_when_progress_lags(
         self, authenticated_client, db_session, test_user, test_chapter, test_book,
@@ -555,14 +563,16 @@ class TestReadingSessionEndpoints:
         assert r.status_code == 200
         assert r.get_json()['reading_slot_completed'] is True
 
-    def test_concurrent_open_sessions_idle_tab_cannot_steal_progress(
+    def test_concurrent_open_sessions_auto_close_prior(
         self, authenticated_client, db_session, test_user, test_chapter, test_book,
     ):
-        """Two tabs on the same chapter both open sessions snapshotting
-        offset=0. Tab B scrolls past 5% and persists progress; if tab A is
-        later closed it must NOT inherit B's progress as its own
-        ``offset_delta``. ``start_session`` auto-closes the prior open
-        session so this combination is impossible.
+        """``start_session`` auto-closes any prior open session for the same
+        ``(user, chapter)``. The closed session's own ``offset_delta`` field
+        records the delta between its snapshot and the persisted progress
+        AT close-time — it does not pick up later writes to that progress
+        row. The unified daily-target check uses the aggregated state of
+        all closed sessions for the day, so subsequent honest reading from
+        the second tab still counts toward today's slot completion.
         """
         from app.books.models import UserChapterProgress
 
@@ -579,24 +589,24 @@ class TestReadingSessionEndpoints:
         s_a.started_at = datetime.now(timezone.utc) - timedelta(seconds=MIN_READING_SECONDS + 30)
         db_session.commit()
 
-        # Tab B opens later — should auto-close tab A.
+        # Tab B opens later — should auto-close tab A. At close-time the
+        # persisted progress is still 0, so tab A's offset_delta is 0.
         s_b = start_session(test_user.id, test_chapter.id, db)
         db_session.commit()
         s_a_after_b_start = db.session.get(UserReadingSession, s_a.id)
         assert s_a_after_b_start.ended_at is not None
         assert s_a_after_b_start.offset_delta == pytest.approx(0.0)
 
-        # Tab B scrolls and persists progress, then closes.
+        # Tab B scrolls and persists progress to 50%.
         progress.offset_pct = 0.5
         db_session.commit()
 
-        # A late /end on tab A must be a no-op (already closed).
+        # A late /end on tab A is a no-op for that row (already closed).
         r = authenticated_client.post(
             '/api/books/reading-session/end',
             json={'session_id': s_a.id, 'current_offset_pct': 0.9},
         )
         assert r.status_code == 200
-        assert r.get_json()['reading_slot_completed'] is False
         s_a_final = db.session.get(UserReadingSession, s_a.id)
         assert s_a_final.offset_delta == pytest.approx(0.0)
 
@@ -864,3 +874,204 @@ class TestTask51ReaderAudit:
         )
         assert progress is not None
         assert progress.offset_pct == pytest.approx(0.42)
+
+
+class TestDailyReadingTarget:
+    """Aggregated per-chapter daily target: 5min active reading + 2% advance,
+    OR chapter completed during today's sessions. Designed to replace the
+    legacy per-session 60s+5% gate with a model that survives pause/resume
+    cycles cleanly.
+    """
+
+    @staticmethod
+    def _set_chapter_progress(db_session, user, chapter, offset):
+        from app.books.models import UserChapterProgress
+        existing = (
+            db_session.query(UserChapterProgress)
+            .filter_by(user_id=user.id, chapter_id=chapter.id)
+            .first()
+        )
+        if existing:
+            existing.offset_pct = offset
+        else:
+            db_session.add(UserChapterProgress(
+                user_id=user.id, chapter_id=chapter.id, offset_pct=offset,
+            ))
+        db_session.commit()
+
+    def test_target_met_requires_both_time_and_offset(
+        self, db_session, test_user, test_chapter,
+    ):
+        """Both 5min time AND 2% advance are required; meeting only one
+        is insufficient."""
+        # 5min+ time but 0% advance — not met
+        self._set_chapter_progress(db_session, test_user, test_chapter, 0.0)
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, DAILY_READING_TARGET_SECONDS + 10)
+        db_session.commit()
+        state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
+        assert state['active_seconds'] >= DAILY_READING_TARGET_SECONDS
+        assert state['offset_advance'] == pytest.approx(0.0)
+        assert state['daily_target_met'] is False
+
+        # Now advance progress to 5% — both conditions met
+        self._set_chapter_progress(db_session, test_user, test_chapter, 0.05)
+        state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
+        assert state['offset_advance'] == pytest.approx(0.05)
+        assert state['daily_target_met'] is True
+
+    def test_target_only_offset_no_time(self, db_session, test_user, test_chapter):
+        """2% advance with under-5min time — not met."""
+        # Start session at offset 0, advance during session to 10%, but
+        # only 30s elapsed — time gate fails.
+        self._set_chapter_progress(db_session, test_user, test_chapter, 0.0)
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, 30)
+        self._set_chapter_progress(db_session, test_user, test_chapter, 0.10)
+        state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
+        assert state['offset_advance'] == pytest.approx(0.10)
+        assert state['active_seconds'] == 30
+        assert state['daily_target_met'] is False
+
+    def test_target_aggregates_pause_cycled_sessions(
+        self, db_session, test_user, test_chapter,
+    ):
+        """Multiple short sessions on the same chapter today sum honestly.
+        This is the pause/resume model: each pause closes a session and
+        resume opens a new one. Their durations must add up to satisfy
+        the 5min threshold.
+        """
+        # Two sessions of 200s each = 400s aggregated (>300)
+        s1 = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s1, 200)
+        db_session.commit()
+        s2 = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s2, 200)
+        db_session.commit()
+        self._set_chapter_progress(db_session, test_user, test_chapter, 0.10)
+
+        state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
+        assert state['active_seconds'] == 400
+        assert state['daily_target_met'] is True
+
+    def test_chapter_completed_detected(self, db_session, test_user, test_chapter):
+        """Chapter reaching 99%+ in today's sessions is flagged separately
+        from the daily target (used for the chapter-finished banner)."""
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, 60)
+        db_session.commit()
+        self._set_chapter_progress(db_session, test_user, test_chapter, 1.0)
+        state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
+        assert state['chapter_completed_today'] is True
+
+    def test_chapter_not_completed_when_started_above_threshold(
+        self, db_session, test_user, test_chapter,
+    ):
+        """If the user started today's first session already at >=99%,
+        we do NOT consider the chapter "completed today" — the work
+        happened on a previous day.
+        """
+        self._set_chapter_progress(db_session, test_user, test_chapter, 1.0)
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, 30)
+        db_session.commit()
+        state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
+        assert state['chapter_completed_today'] is False
+
+    def test_is_daily_reading_target_met_today_book_scope(
+        self, db_session, test_user, test_book, test_chapter,
+    ):
+        """The book-scoped check returns True when any chapter of the book
+        meets the daily target today.
+        """
+        assert is_daily_reading_target_met_today(test_user.id, test_book.id, db) is False
+        s = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s, DAILY_READING_TARGET_SECONDS + 10)
+        db_session.commit()
+        self._set_chapter_progress(db_session, test_user, test_chapter, 0.10)
+        assert is_daily_reading_target_met_today(test_user.id, test_book.id, db) is True
+
+
+class TestReadingSessionEndBannerState:
+    """`/api/books/reading-session/end` returns banner_state for the client
+    to drive the inline completion banner."""
+
+    def test_banner_state_none_when_below_thresholds(
+        self, authenticated_client, db_session, test_user, test_book, test_chapter,
+    ):
+        s = start_session(test_user.id, test_chapter.id, db)
+        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=30)
+        db_session.commit()
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': 0.01},
+        )
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body['banner_state'] == 'none'
+        assert body['daily_target_met'] is False
+        assert body['chapter_completed_in_session'] is False
+
+    def test_banner_state_daily_target(
+        self, authenticated_client, db_session, test_user, test_book, test_chapter,
+    ):
+        test_user.use_unified_plan = True
+        db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
+        db_session.commit()
+
+        s = start_session(test_user.id, test_chapter.id, db)
+        s.started_at = datetime.now(timezone.utc) - timedelta(
+            seconds=DAILY_READING_TARGET_SECONDS + 30,
+        )
+        db_session.commit()
+        # 10% advance — well past 2%
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': 0.10},
+        )
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body['daily_target_met'] is True
+        assert body['chapter_completed_in_session'] is False
+        assert body['banner_state'] == 'daily_target'
+
+    def test_banner_state_chapter_completed(
+        self, authenticated_client, db_session, test_user, test_book, test_chapter,
+    ):
+        """Chapter finished in a single short session — under daily target,
+        but the chapter-completed branch fires for the banner."""
+        s = start_session(test_user.id, test_chapter.id, db)
+        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=60)
+        db_session.commit()
+        # Hint pushes chapter offset to 1.0 — chapter completed in session
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': 1.0},
+        )
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body['chapter_completed_in_session'] is True
+        assert body['banner_state'] in ('chapter_completed', 'both')
+
+    def test_banner_state_both(
+        self, authenticated_client, db_session, test_user, test_book, test_chapter,
+    ):
+        """Long session that finishes the chapter — combined banner."""
+        test_user.use_unified_plan = True
+        db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
+        db_session.commit()
+
+        s = start_session(test_user.id, test_chapter.id, db)
+        s.started_at = datetime.now(timezone.utc) - timedelta(
+            seconds=DAILY_READING_TARGET_SECONDS + 30,
+        )
+        db_session.commit()
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': 1.0},
+        )
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body['daily_target_met'] is True
+        assert body['chapter_completed_in_session'] is True
+        assert body['banner_state'] == 'both'
