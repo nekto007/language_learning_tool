@@ -314,15 +314,7 @@ def bulk_delete_words():
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': 'word_ids must be integers'}), 400
 
-    from app.words.models import CollectionWords as _CW
-    from app.utils.db_utils import chunk_ids
-
-    deleted = 0
-    for chunk in chunk_ids(word_ids, chunk_size=500):
-        rows = _CW.query.filter(_CW.id.in_(chunk)).all()
-        for word in rows:
-            db.session.delete(word)
-            deleted += 1
+    deleted = WordManagementService.bulk_delete_words(word_ids)
 
     log_admin_action(
         current_user.id,

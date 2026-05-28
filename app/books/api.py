@@ -270,6 +270,9 @@ if not pymorphy2_available:
 def serve_chapter_audio(book_id: int, chapter_num: int):
     """Serve audio file for a book chapter with Range request support."""
     chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first_or_404()
+    book = chapter.book
+    if not book.is_published and not current_user.is_admin:
+        return 'Not found', 404
     if not chapter.audio_url:
         return 'No audio available', 404
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -907,6 +910,8 @@ def save_reading_position():
     chapter = Chapter.query.filter_by(book_id=book_id, chap_num=chapter_num).first()
     if not chapter:
         return jsonify({'success': False, 'message': 'Chapter not found'}), 404
+    if not chapter.book.is_published and not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Chapter not found'}), 404
 
     # Lock existing progress row to serialize concurrent updates from
     # two tabs completing the same chapter. First insert wins via PK;
@@ -1061,6 +1066,8 @@ def reading_session_start():
 
     chapter = Chapter.query.get(chapter_id)
     if chapter is None:
+        return api_error('not_found', 'chapter not found', 404)
+    if not chapter.book.is_published and not current_user.is_admin:
         return api_error('not_found', 'chapter not found', 404)
 
     session = start_session(current_user.id, chapter_id, db)

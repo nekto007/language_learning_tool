@@ -115,9 +115,8 @@ def add_security_headers(app: Flask):
     @app.after_request
     def set_static_cache_headers(response):
         """Set Cache-Control headers for static file responses."""
-        from flask import request as _req
-        if _req.endpoint == 'static':
-            if _req.args.get('v'):
+        if request.endpoint == 'static':
+            if request.args.get('v'):
                 # Versioned assets are immutable — safe to cache for 1 year
                 response.cache_control.public = True
                 response.cache_control.max_age = 31536000

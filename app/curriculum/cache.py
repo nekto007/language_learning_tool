@@ -244,46 +244,6 @@ class CurriculumCache:
         logger.info(f"Invalidated cache for module {module_id}")
 
 
-class CacheStats:
-    """Cache statistics tracking"""
-
-    def __init__(self):
-        self.hits = 0
-        self.misses = 0
-        self.sets = 0
-        self.deletes = 0
-
-    def record_hit(self):
-        self.hits += 1
-
-    def record_miss(self):
-        self.misses += 1
-
-    def record_set(self):
-        self.sets += 1
-
-    def record_delete(self):
-        self.deletes += 1
-
-    def get_hit_rate(self) -> float:
-        total = self.hits + self.misses
-        return (self.hits / total * 100) if total > 0 else 0
-
-    def get_stats(self) -> Dict[str, Any]:
-        return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'sets': self.sets,
-            'deletes': self.deletes,
-            'hit_rate': self.get_hit_rate(),
-            'cache_size': cache.size()
-        }
-
-
-# Global cache stats
-cache_stats = CacheStats()
-
-
 def warm_cache():
     """Warm up cache with commonly accessed data"""
     try:
@@ -312,98 +272,12 @@ def warm_cache():
         logger.error(f"Error warming cache: {str(e)}")
 
 
-def cache_middleware(f):
-    """Middleware to handle cache invalidation on data changes"""
-
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        result = f(*args, **kwargs)
-
-        # Check if this was a data modification operation
-        if hasattr(result, 'status_code') and result.status_code in [200, 201]:
-            # Invalidate relevant cache entries
-            if 'lesson' in f.__name__:
-                cache.clear()  # Simple approach - clear all
-            elif 'progress' in f.__name__ and current_user.is_authenticated:
-                CurriculumCache.invalidate_user_cache(current_user.id)
-
-        return result
-
-    return decorated_function
-
-
-class RedisCache:
-    """Redis cache implementation (for production use)"""
-
-    def __init__(self, redis_client=None):
-        self.redis = redis_client
-        self.default_timeout = 300
-
-    def get(self, key: str) -> Optional[Any]:
-        """Get value from Redis cache"""
-        if not self.redis:
-            return None
-
-        try:
-            value = self.redis.get(key)
-            if value:
-                return json.loads(value)
-            return None
-        except Exception as e:
-            logger.error(f"Redis get error: {str(e)}")
-            return None
-
-    def set(self, key: str, value: Any, timeout: int = None) -> bool:
-        """Set value in Redis cache"""
-        if not self.redis:
-            return False
-
-        try:
-            timeout = timeout or self.default_timeout
-            serialized = json.dumps(value, default=str)
-            return self.redis.setex(key, timeout, serialized)
-        except Exception as e:
-            logger.error(f"Redis set error: {str(e)}")
-            return False
-
-    def delete(self, key: str) -> bool:
-        """Delete key from Redis cache"""
-        if not self.redis:
-            return False
-
-        try:
-            return self.redis.delete(key)
-        except Exception as e:
-            logger.error(f"Redis delete error: {str(e)}")
-            return False
-
-    def clear_pattern(self, pattern: str) -> int:
-        """Delete keys matching pattern"""
-        if not self.redis:
-            return 0
-
-        try:
-            keys = self.redis.keys(pattern)
-            if keys:
-                return self.redis.delete(*keys)
-            return 0
-        except Exception as e:
-            logger.error(f"Redis clear pattern error: {str(e)}")
-            return 0
-
-
 def init_cache(app, redis_client=None):
     """Initialize cache system"""
     global cache
 
-    if redis_client:
-        # Use Redis for production
-        cache = RedisCache(redis_client)
-        logger.info("Initialized Redis cache")
-    else:
-        # Use simple cache for development
-        cache = SimpleCache()
-        logger.info("Initialized simple cache")
+    cache = SimpleCache()
+    logger.info("Initialized simple cache")
 
     # Warm cache on startup
     # Skip in testing mode - tests will handle their own setup

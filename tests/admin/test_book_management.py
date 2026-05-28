@@ -5,7 +5,7 @@ import uuid
 import pytest
 
 from app.books.models import Book, Chapter
-from app.curriculum.book_courses import BookCourse, sync_book_course_from_book
+from app.curriculum.book_courses import BookCourse, generate_slug, sync_book_course_from_book
 from app.utils.db import db
 
 
@@ -203,7 +203,10 @@ class TestSlugUniqueness:
 
         db_session.refresh(course)
         # No collision — plain generated slug must be used (no suffix)
-        assert "-" + str(course.id) not in course.slug or course.slug.endswith(str(book.title.lower().replace(" ", "-")))
+        expected_slug = generate_slug(book.title)
+        assert course.slug == expected_slug, (
+            f"Expected plain slug {expected_slug!r}, got {course.slug!r}"
+        )
 
 
 # ---------------------------------------------------------------------------

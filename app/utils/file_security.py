@@ -42,7 +42,6 @@ DANGEROUS_MAGIC_SIGNATURES: list = [
     (b'\x7fELF', 'ELF executable'),                    # Linux binary
     (b'<?php', 'PHP script'),
     (b'#!/', 'Shell script (shebang)'),
-    (b'#!/', 'Shell script (shebang)'),
     (b'\xca\xfe\xba\xbe', 'Mach-O fat binary'),        # macOS executable
     (b'\xfe\xed\xfa\xce', 'Mach-O binary (LE)'),
     (b'\xce\xfa\xed\xfe', 'Mach-O binary (BE)'),

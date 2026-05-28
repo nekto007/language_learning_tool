@@ -111,14 +111,10 @@ def initialize_nltk() -> tuple:
         stop_words = get_stopwords()
     except (LookupError, OSError) as e:
         logger.error("Failed to initialize NLTK resources: %s. Using empty sets.", e)
-        english_vocab = set()
-        brown_words_set = set()
-        stop_words = set()
+        return (set(), set(), set())
     except Exception as e:
         logger.error("Unexpected error initializing NLTK: %s. Using empty sets.", e)
-        english_vocab = set()
-        brown_words_set = set()
-        stop_words = set()
+        return (set(), set(), set())
 
     _nltk_cache = (english_vocab, brown_words_set, stop_words)
     return _nltk_cache
