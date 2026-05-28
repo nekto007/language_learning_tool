@@ -98,6 +98,10 @@ window.__moduleUrl = {{ module_url | tojson if module_url else '"/learn/"' }};
 const SAVED_STATE = {{ (progress.data | tojson) if (progress and progress.data) else '{}' }};
 const IS_COMPLETED = {{ 'true' if is_completed else 'false' }};
 const CACHED_NEXT_LESSON_URL = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
+// Daily-plan context: when the user opened this lesson with
+// ?from=linear_plan&slot=..., CTAs should point back to the plan, not
+// to the curriculum module page.
+const DAILY_PLAN_CTX = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
 
 // Per-item state. Pending → terminal (correct or given-up after MAX_ATTEMPTS
 // failed tries). Wrong-attempts are tracked for the error-dots column.
@@ -592,22 +596,41 @@ function showResults(data) {
   nextArea.style.gap = '0.75rem';
   nextArea.style.marginTop = '1rem';
 
-  if (isPerfect && data.next_lesson_url) {
-    // Perfect run — usual pair: К списку уроков (outline) + Следующий урок (primary).
-    const secondary = document.createElement('a');
-    secondary.href = window.__moduleUrl || '/learn/';
-    secondary.className = 'lsn-btn lsn-btn--outline';
-    secondary.textContent = '{{ _("К списку уроков") }}';
-    nextArea.appendChild(secondary);
-    const primary = document.createElement('a');
-    primary.href = data.next_lesson_url;
-    primary.className = 'lsn-btn lsn-btn--primary';
-    primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
-    nextArea.appendChild(primary);
+  // When opened from the daily plan, replace the catalog "К списку уроков"
+  // escape hatch with a "На дашборд" + "Следующий урок плана" pair so the
+  // learner stays on the plan flow instead of falling into the module view.
+  const dp = (DAILY_PLAN_CTX && DAILY_PLAN_CTX.is_daily_plan) ? DAILY_PLAN_CTX : null;
+
+  if (isPerfect && (data.next_lesson_url || dp)) {
+    if (dp) {
+      const dashLink = document.createElement('a');
+      dashLink.href = dp.dashboard_url + (dp.day_secured ? '?day_secured=1' : '');
+      dashLink.className = 'lsn-btn lsn-btn--outline';
+      dashLink.textContent = (dp.day_secured && !dp.next_slot_url) ? 'День завершён · на дашборд' : 'На дашборд';
+      nextArea.appendChild(dashLink);
+      if (dp.next_slot_url) {
+        const planNext = document.createElement('a');
+        planNext.href = dp.next_slot_url;
+        planNext.className = 'lsn-btn lsn-btn--primary';
+        planNext.innerHTML = 'Следующий урок плана <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+        nextArea.appendChild(planNext);
+      }
+    } else {
+      // Catalog flow — usual pair: К списку уроков (outline) + Следующий урок (primary).
+      const secondary = document.createElement('a');
+      secondary.href = window.__moduleUrl || '/learn/';
+      secondary.className = 'lsn-btn lsn-btn--outline';
+      secondary.textContent = '{{ _("К списку уроков") }}';
+      nextArea.appendChild(secondary);
+      const primary = document.createElement('a');
+      primary.href = data.next_lesson_url;
+      primary.className = 'lsn-btn lsn-btn--primary';
+      primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+      nextArea.appendChild(primary);
+    }
   } else {
     // Has at least one given-up item — offer a retry path that unlocks
-    // those rows and lets the learner have another go. К списку уроков
-    // remains as the secondary escape hatch.
+    // those rows and lets the learner have another go.
     const retry = document.createElement('button');
     retry.type = 'button';
     retry.className = 'lsn-btn lsn-btn--primary';
@@ -615,9 +638,14 @@ function showResults(data) {
     retry.addEventListener('click', _retryGivenUp);
     nextArea.appendChild(retry);
     const secondary = document.createElement('a');
-    secondary.href = window.__moduleUrl || '/learn/';
+    if (dp) {
+      secondary.href = dp.dashboard_url;
+      secondary.textContent = 'На дашборд';
+    } else {
+      secondary.href = window.__moduleUrl || '/learn/';
+      secondary.textContent = '{{ _("К списку уроков") }}';
+    }
     secondary.className = 'lsn-btn lsn-btn--outline';
-    secondary.textContent = '{{ _("К списку уроков") }}';
     nextArea.appendChild(secondary);
   }
 

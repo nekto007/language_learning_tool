@@ -424,6 +424,7 @@ const SAVED_STATE = {{ (progress.data | tojson) if (progress and progress.data) 
 const IS_COMPLETED = {{ 'true' if is_completed else 'false' }};
 const CACHED_NEXT_LESSON_URL = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
 window.__moduleUrl = {{ module_url | tojson if module_url else '"/learn/"' }};
+const DAILY_PLAN_CTX = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
 
 // Hide the legacy single-item submit row + result area — multi-item flow
 // renders its own per-item feedback and a separate summary panel below.
@@ -660,17 +661,26 @@ function _scShowSummary(data) {
   nextArea.style.gap = '0.75rem';
   nextArea.style.marginTop = '1rem';
 
-  if (isPerfect && (data.next_lesson_url || CACHED_NEXT_LESSON_URL)) {
+  const dp = (DAILY_PLAN_CTX && DAILY_PLAN_CTX.is_daily_plan) ? DAILY_PLAN_CTX : null;
+  if (isPerfect && (data.next_lesson_url || CACHED_NEXT_LESSON_URL || dp)) {
     const secondary = document.createElement('a');
-    secondary.href = window.__moduleUrl || '/learn/';
     secondary.className = 'lsn-btn lsn-btn--outline';
-    secondary.textContent = '{{ _("К списку уроков") }}';
+    if (dp) {
+      secondary.href = dp.dashboard_url + (dp.day_secured ? '?day_secured=1' : '');
+      secondary.textContent = (dp.day_secured && !dp.next_slot_url) ? 'День завершён · на дашборд' : 'На дашборд';
+    } else {
+      secondary.href = window.__moduleUrl || '/learn/';
+      secondary.textContent = '{{ _("К списку уроков") }}';
+    }
     nextArea.appendChild(secondary);
-    const primary = document.createElement('a');
-    primary.href = data.next_lesson_url || CACHED_NEXT_LESSON_URL;
-    primary.className = 'lsn-btn lsn-btn--primary';
-    primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
-    nextArea.appendChild(primary);
+    const primaryHref = dp ? dp.next_slot_url : (data.next_lesson_url || CACHED_NEXT_LESSON_URL);
+    if (primaryHref) {
+      const primary = document.createElement('a');
+      primary.href = primaryHref;
+      primary.className = 'lsn-btn lsn-btn--primary';
+      primary.innerHTML = (dp ? 'Следующий урок плана' : '{{ _("Следующий урок") }}') + ' <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+      nextArea.appendChild(primary);
+    }
   } else {
     const retry = document.createElement('button');
     retry.type = 'button';
@@ -679,9 +689,14 @@ function _scShowSummary(data) {
     retry.addEventListener('click', _scRetryGivenUp);
     nextArea.appendChild(retry);
     const secondary = document.createElement('a');
-    secondary.href = window.__moduleUrl || '/learn/';
     secondary.className = 'lsn-btn lsn-btn--outline';
-    secondary.textContent = '{{ _("К списку уроков") }}';
+    if (dp) {
+      secondary.href = dp.dashboard_url;
+      secondary.textContent = 'На дашборд';
+    } else {
+      secondary.href = window.__moduleUrl || '/learn/';
+      secondary.textContent = '{{ _("К списку уроков") }}';
+    }
     nextArea.appendChild(secondary);
   }
   resultArea.hidden = false;

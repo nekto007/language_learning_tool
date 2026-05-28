@@ -331,6 +331,7 @@ const totalPairs = {{ pairs | length }};
 // re-submitting to the API.
 const isAlreadyCompleted = {{ 'true' if is_completed else 'false' }};
 const cachedNextLessonUrl = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
+const DAILY_PLAN_CTX = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
 // URL of the parent module's lessons page — destination for "К списку уроков"
 // (kept distinct from the global /learn/ index).
 const moduleUrl = {{ module_url | tojson }};
@@ -580,18 +581,25 @@ function renderFinalState(nextLessonUrl) {
   // left, primary "Следующий урок →" on the right. Using the same lsn-btn
   // classes keeps the look identical across every lesson type.
   const finalActions = document.getElementById('matching-final-actions');
+  const dp = (DAILY_PLAN_CTX && DAILY_PLAN_CTX.is_daily_plan) ? DAILY_PLAN_CTX : null;
   if (finalActions) {
     finalActions.innerHTML = '';
     const secondary = document.createElement('a');
-    secondary.href = moduleUrl;
     secondary.className = 'lsn-btn lsn-btn--outline';
-    secondary.textContent = '{{ _("К списку уроков") }}';
+    if (dp) {
+      secondary.href = dp.dashboard_url + (dp.day_secured ? '?day_secured=1' : '');
+      secondary.textContent = (dp.day_secured && !dp.next_slot_url) ? 'День завершён · на дашборд' : 'На дашборд';
+    } else {
+      secondary.href = moduleUrl;
+      secondary.textContent = '{{ _("К списку уроков") }}';
+    }
     finalActions.appendChild(secondary);
-    if (nextLessonUrl) {
+    const primaryHref = dp ? dp.next_slot_url : nextLessonUrl;
+    if (primaryHref) {
       const primary = document.createElement('a');
-      primary.href = nextLessonUrl;
+      primary.href = primaryHref;
       primary.className = 'lsn-btn lsn-btn--primary';
-      primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+      primary.innerHTML = (dp ? 'Следующий урок плана' : '{{ _("Следующий урок") }}') + ' <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
       finalActions.appendChild(primary);
     }
   }

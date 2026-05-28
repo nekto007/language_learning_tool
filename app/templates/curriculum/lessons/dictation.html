@@ -519,10 +519,12 @@ function showResults(data) {
 
   nextArea.innerHTML = '';
   if (passed) {
-    // На passed используем общую плашку «Урок завершён!» из lesson_base —
-    // те же CTA «К списку уроков» / «Следующий урок», что и в других уроках.
+    // На passed используем общую плашку «Урок завершён!» из lesson_base.
+    // Передаём daily_plan_ctx из submit-response (или серверный template-fallback),
+    // чтобы при заходе через план дня CTA вели на дашборд, а не в curriculum.
     if (typeof window.showLessonCompletion === 'function') {
-      window.showLessonCompletion({ score: score, silent: data._silent === true });
+      const dpCtx = data.daily_plan_ctx || {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+      window.showLessonCompletion({ score: score, silent: data._silent === true, daily_plan_ctx: dpCtx });
     }
   } else {
     nextArea.innerHTML = `

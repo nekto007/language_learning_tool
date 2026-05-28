@@ -460,7 +460,8 @@ async function finishLesson() {
     if (actions) actions.hidden = true;
 
     if (typeof window.showLessonCompletion === 'function') {
-      window.showLessonCompletion({ score: 100 });
+      const dpCtx = data.daily_plan_ctx || {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+      window.showLessonCompletion({ score: 100, daily_plan_ctx: dpCtx });
     }
   } catch (err) {
     console.error('Listening immersion finish error:', err);
@@ -478,7 +479,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // глобальную плашку «Урок завершён!» (silent=true, без авто-скролла,
   // чтобы пользователь сначала видел сам контент).
   if (typeof window.showLessonCompletion === 'function') {
-    window.showLessonCompletion({ score: 100, silent: true });
+    const dpCtx = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+    window.showLessonCompletion({ score: 100, silent: true, daily_plan_ctx: dpCtx });
   }
   {% endif %}
 });
