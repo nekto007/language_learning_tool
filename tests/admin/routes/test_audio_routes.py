@@ -798,31 +798,47 @@ class TestAudioStreamingRange:
 
     def test_serve_audio_no_range_returns_200(self, client, db_session, tmp_path):
         from unittest.mock import patch
+        import os as _os
         book, chapter, audio_file = self._seed_chapter_with_audio(db_session, tmp_path)
+        # serve_chapter_audio enforces a path-traversal guard with
+        # ``realpath(audio_path).startswith(realpath(project_root))``. The
+        # tmp_path fixture lives outside the project root, so realpath must
+        # be patched to make both arms resolve under the same logical root
+        # (the fake audio_file path doubles as the "project root" prefix).
+        # We append os.sep when the call is the project_root arg so the
+        # startswith check passes cleanly.
+        project_prefix = str(audio_file.parent)
+        def _fake_realpath(p):
+            return str(audio_file) if str(p) == str(audio_file) else project_prefix
         with patch('flask_login.utils._get_user', return_value=self._make_authed_user()):
             with patch('app.books.api.Chapter.query') as mock_q:
                 mock_q.filter_by.return_value.first_or_404.return_value = chapter
                 chapter.audio_url = str(audio_file)
                 with patch('app.books.api.os.path.join', return_value=str(audio_file)):
-                    with patch('app.books.api.os.path.isfile', return_value=True):
-                        resp = client.get(f'/audio/{book.id}/chapter/1')
+                    with patch('app.books.api.os.path.realpath', side_effect=_fake_realpath):
+                        with patch('app.books.api.os.path.isfile', return_value=True):
+                            resp = client.get(f'/audio/{book.id}/chapter/1')
         assert resp.status_code in (200, 206)
 
     def test_serve_audio_range_header_returns_206(self, client, db_session, tmp_path):
         """Sending Range header must yield 206 Partial Content."""
         from unittest.mock import patch
         book, chapter, audio_file = self._seed_chapter_with_audio(db_session, tmp_path)
+        project_prefix = str(audio_file.parent)
+        def _fake_realpath(p):
+            return str(audio_file) if str(p) == str(audio_file) else project_prefix
         with patch('flask_login.utils._get_user', return_value=self._make_authed_user()):
             with patch('app.books.api.Chapter.query') as mock_q:
                 mock_q.filter_by.return_value.first_or_404.return_value = chapter
                 chapter.audio_url = str(audio_file)
                 with patch('app.books.api.os.path.join', return_value=str(audio_file)):
-                    with patch('app.books.api.os.path.isfile', return_value=True):
-                        with patch('app.books.api.os.path.getsize', return_value=305):
-                            resp = client.get(
-                                f'/audio/{book.id}/chapter/1',
-                                headers={'Range': 'bytes=0-99'},
-                            )
+                    with patch('app.books.api.os.path.realpath', side_effect=_fake_realpath):
+                        with patch('app.books.api.os.path.isfile', return_value=True):
+                            with patch('app.books.api.os.path.getsize', return_value=305):
+                                resp = client.get(
+                                    f'/audio/{book.id}/chapter/1',
+                                    headers={'Range': 'bytes=0-99'},
+                                )
         assert resp.status_code == 206
         assert 'Content-Range' in resp.headers
         assert resp.headers.get('Content-Range', '').startswith('bytes 0-99/')
