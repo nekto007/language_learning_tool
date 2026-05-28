@@ -41,6 +41,21 @@ def _find_next_skill_lesson(
     db: Any,
     lesson_types: Iterable[str],
 ) -> Optional[Lessons]:
+    """Return the next incomplete skill lesson within the user's current
+    module, respecting linear ordering on the spine.
+
+    "Respecting ordering" means we never offer a skill lesson that sits
+    ahead of the spine's current position — otherwise the user would be
+    handed e.g. lesson 7 (listening) when they're still on lesson 5
+    (sentence_completion), and the lesson-access decorator would block
+    them with "complete previous lessons first". The unified plan goal
+    is sequential progression: SRS → curriculum lesson 4 → reading →
+    curriculum lesson 5 → ..., not random skill picks out of order.
+
+    Concretely: the candidate's ``number`` must be ``<= next_lesson.number``.
+    When the spine's next lesson is itself a skill type, the curriculum
+    slot already offers it and the orchestrator dedup eliminates duplicates.
+    """
     next_lesson = find_next_lesson_linear(user_id, db)
     if next_lesson is None:
         return None
@@ -60,6 +75,9 @@ def _find_next_skill_lesson(
             Lessons.module_id == next_lesson.module_id,
             Lessons.type.in_(list(lesson_types)),
             Lessons.id.notin_(db.session.query(completed_subq.c.lesson_id)),
+            # Only offer a skill lesson that the spine has already reached —
+            # i.e. it sits at or before the next-incomplete spine position.
+            Lessons.number <= next_lesson.number,
         )
         .order_by(Lessons.number.asc(), Lessons.id.asc())
         .first()

@@ -54,12 +54,12 @@ def _make_module(db_session, level, number=1, prerequisites=None) -> Module:
     return module
 
 
-def _make_lesson(db_session, module, number=1) -> Lessons:
+def _make_lesson(db_session, module, number=1, lesson_type='vocabulary') -> Lessons:
     lesson = Lessons(
         module_id=module.id,
         number=number,
         title=f'Lesson {number}',
-        type='vocabulary',
+        type=lesson_type,
         order=number,
         content={},
     )
