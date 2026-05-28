@@ -1285,11 +1285,11 @@ def reading_session_end():
     # Vocab pull: on daily-target transition (False → True) extract unlearned
     # words from the just-read chapter slice and queue them as SRS cards.
     queued_vocab_count = 0
-    if not was_target_met and daily_target_met_today and chapter is not None:
+    if not was_target_met and daily_target_met_today and chapter is not None and state is not None:
         try:
             from app.books.vocab_pull import extract_chapter_vocab, queue_vocab_as_srs
-            start_off = state['earliest_start_offset'] if state else 0.0
-            end_off = state['current_offset'] if state else 1.0
+            start_off = state['earliest_start_offset']
+            end_off = state['current_offset']
             words = extract_chapter_vocab(
                 session.chapter_id, start_off, end_off, current_user.id, db
             )
