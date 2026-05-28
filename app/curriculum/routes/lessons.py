@@ -121,7 +121,15 @@ def lesson_detail(lesson_id):
 
     route_name = route_map.get(lesson.type)
     if route_name:
-        return redirect(url_for(route_name, lesson_id=lesson.id))
+        # Preserve query string across the type-routing redirect so
+        # ?from=linear_plan&slot=... survives — otherwise the lesson page
+        # loses its daily-plan context and renders catalog-style CTAs
+        # after completion.
+        query = request.query_string.decode('utf-8') if request.query_string else ''
+        target = url_for(route_name, lesson_id=lesson.id)
+        if query:
+            target = f'{target}?{query}'
+        return redirect(target)
     else:
         flash(f'Неизвестный тип урока: {lesson.type}', 'error')
         return redirect('/learn/')
