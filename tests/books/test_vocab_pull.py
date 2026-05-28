@@ -79,7 +79,8 @@ class TestExtractChapterVocab:
 
         result = extract_chapter_vocab(chapter.id, 0.0, 1.0, test_user.id, db)
         english_words = [w.english_word for w in result]
-        assert 'vocabulary' in english_words or 'practice' in english_words
+        assert 'vocabulary' in english_words
+        assert 'practice' in english_words
 
     def test_stop_words_are_filtered(self, app, db_session, test_user, chapter, word_factory):
         # 'the' is a stop word - even if it exists in DB it should be excluded
@@ -103,6 +104,7 @@ class TestExtractChapterVocab:
         result = extract_chapter_vocab(chapter.id, 0.0, 1.0, test_user.id, db)
         english_words = [w.english_word for w in result]
         assert 'vocabulary' not in english_words
+        assert 'practice' in english_words
 
     def test_respects_count_limit(self, app, db_session, test_user, chapter, word_factory):
         # Create several words that appear in chapter text
@@ -122,8 +124,8 @@ class TestExtractChapterVocab:
         db_session.commit()
 
         result = extract_chapter_vocab(chapter.id, 0.0, 1.0, test_user.id, db, count=2)
-        if len(result) >= 2:
-            assert result[0].frequency_rank <= result[1].frequency_rank
+        assert len(result) == 2
+        assert result[0].frequency_rank <= result[1].frequency_rank
 
     def test_offset_slice_limits_text(self, app, db_session, test_user, book, word_factory):
         """Word only in first half should not appear when we slice second half."""
@@ -139,6 +141,13 @@ class TestExtractChapterVocab:
         result = extract_chapter_vocab(ch.id, 0.5, 1.0, test_user.id, db)
         english_words = [w.english_word for w in result]
         assert 'vocabulary' not in english_words
+
+    def test_inverted_offsets_returns_list(self, app, db_session, test_user, chapter, word_factory):
+        word_factory('vocabulary', frequency_rank=500)
+        db_session.commit()
+
+        result = extract_chapter_vocab(chapter.id, 0.8, 0.3, test_user.id, db)
+        assert isinstance(result, list)
 
     def test_returns_empty_when_no_matches_in_db(self, app, db_session, test_user, chapter):
         # No CollectionWords in DB for chapter text words

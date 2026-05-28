@@ -1034,6 +1034,8 @@ class TestReadingSessionEndBannerState:
         assert body['daily_target_met'] is True
         assert body['chapter_completed_in_session'] is False
         assert body['banner_state'] == 'daily_target'
+        assert 'queued_vocab_count' in body
+        assert isinstance(body['queued_vocab_count'], int)
 
     def test_banner_state_chapter_completed(
         self, authenticated_client, db_session, test_user, test_book, test_chapter,

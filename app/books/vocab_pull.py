@@ -8,7 +8,6 @@ the response.
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 from app.utils.db import db
@@ -29,26 +28,6 @@ STOP_WORDS: frozenset[str] = frozenset({
 
 _WORD_RE = re.compile(r'\b[a-zA-Z]{3,}\b')
 
-
-def _tomorrow_naive_utc(user_id: int, db_session: Any) -> datetime:
-    """Return tomorrow midnight in the user's local timezone as naive UTC."""
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:  # pragma: no cover
-        from backports.zoneinfo import ZoneInfo  # type: ignore
-
-    from app.daily_plan.linear.xp import _get_user_timezone
-    from app.utils.time_utils import get_user_local_date
-
-    today: date = get_user_local_date(user_id, db_session)
-    tz_name = _get_user_timezone(user_id, db_session)
-    try:
-        tz = ZoneInfo(tz_name)
-    except Exception:  # noqa: BLE001
-        tz = timezone.utc
-
-    tomorrow_local = datetime(today.year, today.month, today.day, tzinfo=tz) + timedelta(days=1)
-    return tomorrow_local.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def extract_chapter_vocab(
@@ -108,7 +87,7 @@ def extract_chapter_vocab(
 
     unlearned = [w for w in found if w.id not in known_ids]
     unlearned.sort(
-        key=lambda w: (w.frequency_rank is None, w.frequency_rank or 0)
+        key=lambda w: (not w.frequency_rank, w.frequency_rank or 999999)
     )
     return unlearned[:count]
 
@@ -128,7 +107,8 @@ def queue_vocab_as_srs(words: list, user_id: int, db_session: Any = db) -> int:
     if not words:
         return 0
 
-    tomorrow = _tomorrow_naive_utc(user_id, db_session)
+    from app.utils.time_utils import get_user_local_day_bounds
+    tomorrow = get_user_local_day_bounds(user_id, db_session)[1]
     created = 0
 
     for word in words:
