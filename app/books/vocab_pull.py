@@ -26,7 +26,7 @@ STOP_WORDS: frozenset[str] = frozenset({
     'no', 'nor', 'too', 'very', 'just', 'also', 'only', 'own', 'same',
 })
 
-_WORD_RE = re.compile(r'\b[a-zA-Z]{3,}\b')
+_WORD_RE = re.compile(r'\b[a-z]{3,}\b')
 
 
 

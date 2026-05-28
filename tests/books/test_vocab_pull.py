@@ -72,6 +72,7 @@ class TestExtractChapterVocab:
         result = extract_chapter_vocab(99999, 0.0, 1.0, test_user.id, db)
         assert result == []
 
+    @pytest.mark.smoke
     def test_returns_matched_words(self, app, db_session, test_user, chapter, word_factory):
         word_factory('vocabulary', frequency_rank=500)
         word_factory('practice', frequency_rank=600)
@@ -164,6 +165,7 @@ class TestQueueVocabAsSrs:
         count = queue_vocab_as_srs([], test_user.id, db)
         assert count == 0
 
+    @pytest.mark.smoke
     def test_creates_two_cards_per_word(self, app, db_session, test_user, word_factory):
         from app.study.models import UserCardDirection, UserWord
         w = word_factory('reading', frequency_rank=300)
@@ -209,6 +211,7 @@ class TestQueueVocabAsSrs:
         for card in cards:
             assert card.source == 'book_reading'
 
+    @pytest.mark.smoke
     def test_idempotent_no_duplicate_cards(self, app, db_session, test_user, word_factory):
         from app.study.models import UserCardDirection, UserWord
         w = word_factory('concepts', frequency_rank=700)
