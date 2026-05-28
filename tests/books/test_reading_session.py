@@ -1039,7 +1039,11 @@ class TestReadingSessionEndBannerState:
         self, authenticated_client, db_session, test_user, test_book, test_chapter,
     ):
         """Chapter finished in a single short session — under daily target,
-        but the chapter-completed branch fires for the banner."""
+        but the chapter-completed branch fires for the banner. Banner only
+        fires when the chapter belongs to the user's selected book."""
+        db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
+        db_session.commit()
+
         s = start_session(test_user.id, test_chapter.id, db)
         s.started_at = datetime.now(timezone.utc) - timedelta(seconds=60)
         db_session.commit()
@@ -1052,6 +1056,30 @@ class TestReadingSessionEndBannerState:
         body = r.get_json()
         assert body['chapter_completed_in_session'] is True
         assert body['banner_state'] in ('chapter_completed', 'both')
+
+    def test_banner_suppressed_when_book_not_user_preference(
+        self, authenticated_client, db_session, test_user, test_book, test_chapter,
+    ):
+        """Reading a chapter from a book that is NOT the user's selected
+        book must not fire the banner — the daily-plan reading slot is
+        per-preference, so a misleading "норма выполнена" on a side book
+        would not actually close the slot on the dashboard."""
+        # No UserReadingPreference set ⇒ banner stays 'none' even with
+        # session duration + chapter completion that would otherwise fire.
+        s = start_session(test_user.id, test_chapter.id, db)
+        s.started_at = datetime.now(timezone.utc) - timedelta(
+            seconds=DAILY_READING_TARGET_SECONDS + 30,
+        )
+        db_session.commit()
+        r = authenticated_client.post(
+            '/api/books/reading-session/end',
+            json={'session_id': s.id, 'current_offset_pct': 1.0},
+        )
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body['banner_state'] == 'none'
+        assert body['daily_target_met'] is False
+        assert body['chapter_completed_in_session'] is False
 
     def test_banner_state_both(
         self, authenticated_client, db_session, test_user, test_book, test_chapter,

@@ -1074,7 +1074,19 @@ def reading_session_start():
 
     session = start_session(current_user.id, chapter_id, db)
     db.session.commit()
-    return jsonify({'success': True, 'session_id': session.id})
+
+    # Surface today's accumulated reading time for the book so the client
+    # timer can seed itself instead of resetting to 00:00 on every chapter
+    # transition.
+    from app.books.reading_session import get_book_reading_seconds_today
+    book_seconds_today = get_book_reading_seconds_today(
+        current_user.id, chapter.book_id, db,
+    )
+    return jsonify({
+        'success': True,
+        'session_id': session.id,
+        'book_seconds_today': book_seconds_today,
+    })
 
 
 @books_api.route('/api/books/reading-session/end', methods=['POST'])
@@ -1220,40 +1232,41 @@ def reading_session_end():
         )
         db.session.rollback()
 
-    # Compute banner state for the client. Three possible variants:
-    # - 'daily_target' : the user just hit (or has already met) the daily
-    #   reading target for this book today, but the current chapter is
-    #   not finished. Banner: "Дневная норма выполнена" + dashboard CTAs.
-    # - 'chapter_completed' : the current chapter was completed in today's
-    #   sessions, but the daily target is NOT yet met. Banner: "Глава
-    #   прочитана! Норма дня ещё не выполнена — продолжи в следующей главе."
-    # - 'both' : both events happened. Banner: combined congrats.
-    # - 'none' : nothing crossed; client keeps reading silently.
+    # Compute banner state for the client. Banner is gated on the
+    # currently-read book matching the user's reading preference: the
+    # daily-plan reading slot is per-preference, and a misleading
+    # "норма выполнена" on a non-preference book would not actually
+    # close the slot on the dashboard.
     from app.books.reading_session import compute_chapter_daily_target_state
+    from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference as _get_pref
 
     banner_state = 'none'
     daily_target_met_today = False
     chapter_completed_in_session = False
     try:
-        state = compute_chapter_daily_target_state(
-            current_user.id, session.chapter_id, db
+        pref_for_banner = _get_pref(current_user.id, db)
+        is_preference_book = (
+            chapter is not None
+            and pref_for_banner is not None
+            and pref_for_banner.book_id == chapter.book_id
         )
-        # Per-book daily target: True if ANY chapter today met the target,
-        # not just the current one (user may have hit it earlier in another
-        # chapter and re-opened this one).
-        if chapter is not None:
+        if is_preference_book:
+            state = compute_chapter_daily_target_state(
+                current_user.id, session.chapter_id, db
+            )
+            # Per-book daily target: True if ANY chapter today met the
+            # target, not just the current one (user may have hit it
+            # earlier in another chapter and re-opened this one).
             daily_target_met_today = is_daily_reading_target_met_today(
                 current_user.id, chapter.book_id, db
             )
-        else:
-            daily_target_met_today = state['daily_target_met']
-        chapter_completed_in_session = state['chapter_completed_today']
-        if daily_target_met_today and chapter_completed_in_session:
-            banner_state = 'both'
-        elif daily_target_met_today:
-            banner_state = 'daily_target'
-        elif chapter_completed_in_session:
-            banner_state = 'chapter_completed'
+            chapter_completed_in_session = state['chapter_completed_today']
+            if daily_target_met_today and chapter_completed_in_session:
+                banner_state = 'both'
+            elif daily_target_met_today:
+                banner_state = 'daily_target'
+            elif chapter_completed_in_session:
+                banner_state = 'chapter_completed'
     except Exception:
         logger.warning(
             "reading-banner: state compute failed user=%s session=%s",

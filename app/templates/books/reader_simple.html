@@ -1391,6 +1391,7 @@ setTimeout(updateProgress, 100);
     let activeTickAnchor = null;                 // Date.now() when most recent active state began
     let displayTickerInterval = null;            // 1Hz interval for timer display refresh
     let snoozeUntil = 0;                         // banner suppressed (epoch ms) when user picks "Ещё 5 минут"
+    let didSeedFromServer = false;               // first /start response seeds today-total once
 
     function _currentOffsetPct() {
         try {
@@ -1419,6 +1420,19 @@ setTimeout(updateProgress, 100);
             .then(data => {
                 if (data && data.session_id) {
                     sessionId = data.session_id;
+                }
+                // Seed today's accumulated reading time from server on the
+                // very first /start of this page load. Heartbeat-driven
+                // re-opens of subsequent sessions do not re-seed (we already
+                // own the local count from then on).
+                if (
+                    !didSeedFromServer
+                    && data
+                    && typeof data.book_seconds_today === 'number'
+                ) {
+                    didSeedFromServer = true;
+                    activeSecondsToday = data.book_seconds_today;
+                    _renderTimer();
                 }
             });
     }
