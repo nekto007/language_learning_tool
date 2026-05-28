@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from sqlalchemy import func
+
 from app.utils.db import db
 
 STOP_WORDS: frozenset[str] = frozenset({
@@ -59,7 +61,7 @@ def extract_chapter_vocab(
     start_char = int(start_offset * len(text))
     end_char = int(end_offset * len(text))
     if end_char <= start_char:
-        end_char = len(text)
+        return []
     text_slice = text[start_char:end_char]
 
     raw_tokens = _WORD_RE.findall(text_slice.lower())
@@ -71,7 +73,7 @@ def extract_chapter_vocab(
 
     found = (
         db_session.session.query(CollectionWords)
-        .filter(CollectionWords.english_word.in_(unique_tokens))
+        .filter(func.lower(CollectionWords.english_word).in_(unique_tokens))
         .all()
     )
     if not found:

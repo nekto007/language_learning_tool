@@ -1260,14 +1260,14 @@ def reading_session_end():
             and pref_for_banner.book_id == chapter.book_id
         )
         if is_preference_book:
-            state = compute_chapter_daily_target_state(
-                current_user.id, session.chapter_id, db
-            )
-            # Per-book daily target: True if ANY chapter today met the
-            # target, not just the current one (user may have hit it
-            # earlier in another chapter and re-opened this one).
+            # Per-book daily target: checked before state computation so that
+            # an exception in compute_chapter_daily_target_state does not
+            # silently suppress the vocab-pull that follows.
             daily_target_met_today = is_daily_reading_target_met_today(
                 current_user.id, chapter.book_id, db
+            )
+            state = compute_chapter_daily_target_state(
+                current_user.id, session.chapter_id, db
             )
             chapter_completed_in_session = state['chapter_completed_today']
             if daily_target_met_today and chapter_completed_in_session:
@@ -1285,11 +1285,11 @@ def reading_session_end():
     # Vocab pull: on daily-target transition (False → True) extract unlearned
     # words from the just-read chapter slice and queue them as SRS cards.
     queued_vocab_count = 0
-    if not was_target_met and daily_target_met_today and chapter is not None and state is not None:
+    if not was_target_met and daily_target_met_today and chapter is not None:
         try:
             from app.books.vocab_pull import extract_chapter_vocab, queue_vocab_as_srs
-            start_off = state['earliest_start_offset']
-            end_off = state['current_offset']
+            start_off = state['earliest_start_offset'] if state else 0.0
+            end_off = state['current_offset'] if state else 1.0
             words = extract_chapter_vocab(
                 session.chapter_id, start_off, end_off, current_user.id, db
             )
