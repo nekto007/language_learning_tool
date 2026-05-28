@@ -19,6 +19,17 @@ depends_on = None
 def upgrade():
     op.execute(
         """
+        DELETE FROM daily_plan_events
+        WHERE event_type = 'slot_skipped'
+          AND id NOT IN (
+            SELECT MIN(id) FROM daily_plan_events
+            WHERE event_type = 'slot_skipped'
+            GROUP BY user_id, plan_date
+          )
+        """
+    )
+    op.execute(
+        """
         CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_plan_events_slot_skipped
         ON daily_plan_events (user_id, plan_date)
         WHERE event_type = 'slot_skipped'
