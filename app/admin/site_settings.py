@@ -244,8 +244,9 @@ def set_site_setting(key: str, value: str, db_session=None) -> SiteSettings:
         except IntegrityError:
             nested.rollback()
             # Another concurrent writer already inserted this key; reload it.
-            session.expire_all()
-            row = session.get(SiteSettings, key)
+            # Use a direct query instead of expire_all() so we don't discard
+            # pending mutations on other objects in the caller's session.
+            row = session.query(SiteSettings).filter(SiteSettings.key == key).first()
             if row is not None:
                 row.value = value
                 row.updated_at = datetime.now(UTC).replace(tzinfo=None)

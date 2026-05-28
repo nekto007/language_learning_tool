@@ -316,7 +316,7 @@ class BookModuleProgress(db.Model):
         # Update progress percentage based on completed lessons
         total_lessons = self.module.total_lessons
         if total_lessons > 0:
-            self.progress_percentage = (len(self.lessons_completed) / total_lessons) * 100
+            self.progress_percentage = min((len(self.lessons_completed) / total_lessons) * 100, 100.0)
             
             # Mark module as completed if all lessons are done
             if len(self.lessons_completed) >= total_lessons:

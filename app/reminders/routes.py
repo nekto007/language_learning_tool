@@ -172,7 +172,9 @@ def get_inactive_users(days=7):
 
 def _was_recently_reminded(user_id: int, hours: int = REMINDER_MIN_INTERVAL_HOURS) -> bool:
     """Return True if user received a reminder within the last `hours` hours."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    # sent_at is a naive UTC column; compare against naive UTC to avoid psycopg2
+    # aware/naive mismatch that can silently return wrong results across server timezones.
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
     return ReminderLog.query.filter(
         ReminderLog.user_id == user_id,
         ReminderLog.sent_at >= cutoff,
