@@ -1168,10 +1168,10 @@ def reading_session_end():
     # Capture pre-close daily target state so we can detect the False→True
     # transition and fire vocab-pull for the first qualifying session today.
     was_target_met = False
-    _pre_chapter = Chapter.query.get(existing.chapter_id)
+    _pre_chapter = db.session.get(Chapter, existing.chapter_id)
     if _pre_chapter is not None:
-        from app.books.reading_session import is_daily_reading_target_met_today as _check_target
-        was_target_met = _check_target(current_user.id, _pre_chapter.book_id, db)
+        from app.books.reading_session import is_daily_reading_target_met_today
+        was_target_met = is_daily_reading_target_met_today(current_user.id, _pre_chapter.book_id, db)
 
     session = end_session(session_id, db, current_offset_pct=current_offset_hint)
     db.session.commit()
@@ -1260,9 +1260,6 @@ def reading_session_end():
             and pref_for_banner.book_id == chapter.book_id
         )
         if is_preference_book:
-            # Per-book daily target: checked before state computation so that
-            # an exception in compute_chapter_daily_target_state does not
-            # silently suppress the vocab-pull that follows.
             daily_target_met_today = is_daily_reading_target_met_today(
                 current_user.id, chapter.book_id, db
             )
@@ -1284,12 +1281,13 @@ def reading_session_end():
 
     # Vocab pull: on daily-target transition (False → True) extract unlearned
     # words from the just-read chapter slice and queue them as SRS cards.
+    # Fall back to the full chapter (0.0–1.0) when state is unavailable.
     queued_vocab_count = 0
-    if not was_target_met and daily_target_met_today and chapter is not None and state is not None:
+    if not was_target_met and daily_target_met_today and chapter is not None:
         try:
             from app.books.vocab_pull import extract_chapter_vocab, queue_vocab_as_srs
-            start_off = state['earliest_start_offset']
-            end_off = state['current_offset']
+            start_off = state['earliest_start_offset'] if state is not None else 0.0
+            end_off = state['current_offset'] if state is not None else 1.0
             words = extract_chapter_vocab(
                 session.chapter_id, start_off, end_off, current_user.id, db
             )
