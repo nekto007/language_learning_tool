@@ -316,7 +316,9 @@ def read_selection():
 @login_required
 @module_required('books')
 def read_book(book_id):
-    Book.query.get_or_404(book_id)
+    book = Book.query.get_or_404(book_id)
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
     forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
     return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 

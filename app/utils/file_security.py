@@ -157,7 +157,8 @@ def validate_image_mime_type(file_path: str) -> bool:
 
         # verify() must be called on a freshly opened Image (it destroys the
         # image object state and must be the sole operation on that handle).
-        Image.open(file_path).verify()
+        with Image.open(file_path) as _img:
+            _img.verify()
         return True
 
     except Exception as e:

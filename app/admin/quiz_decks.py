@@ -413,6 +413,8 @@ def quiz_deck_import():
     words_data = data.get('words', [])
     if not isinstance(words_data, list):
         return jsonify({'success': False, 'message': 'words must be a list'}), 400
+    if len(words_data) > 1000:
+        return jsonify({'success': False, 'message': 'too many words (max 1000)'}), 400
 
     # Validate every word entry before touching the DB
     for i, word in enumerate(words_data):

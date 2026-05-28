@@ -276,7 +276,9 @@ def serve_chapter_audio(book_id: int, chapter_num: int):
     if not chapter.audio_url:
         return 'No audio available', 404
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    audio_path = os.path.join(project_root, chapter.audio_url)
+    audio_path = os.path.realpath(os.path.join(project_root, chapter.audio_url))
+    if not audio_path.startswith(os.path.realpath(project_root) + os.sep):
+        return 'Not found', 404
     if not os.path.isfile(audio_path):
         logger.warning(f"Audio file not found: {audio_path}")
         return 'Audio file not found', 404

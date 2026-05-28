@@ -103,6 +103,12 @@ def _handle_link(chat_id: int, telegram_id: int, username: str | None,
         _send_message(chat_id, 'Этот Telegram уже привязан к другому аккаунту. Сначала /unlink.')
         return
 
+    # Check if this user account is already linked to a different Telegram
+    existing_user_link = TelegramUser.query.filter_by(user_id=link_code.user_id).first()
+    if existing_user_link:
+        _send_message(chat_id, 'Этот аккаунт уже привязан к другому Telegram. Сначала /unlink на сайте.')
+        return
+
     # Create link — wrap in try/except to handle concurrent duplicate attempts
     tg_user = TelegramUser(
         user_id=link_code.user_id,
