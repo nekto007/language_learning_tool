@@ -10,8 +10,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from sqlalchemy import func
-
 from app.utils.db import db
 
 STOP_WORDS: frozenset[str] = frozenset({
@@ -67,13 +65,14 @@ def extract_chapter_vocab(
     raw_tokens = _WORD_RE.findall(text_slice.lower())
     unique_tokens = list(dict.fromkeys(
         t for t in raw_tokens if t not in STOP_WORDS
-    ))
+    ))[:500]  # cap before IN() to avoid large query plans
     if not unique_tokens:
         return []
 
+    # english_word is stored lowercase; direct match uses the B-tree index
     found = (
         db_session.session.query(CollectionWords)
-        .filter(func.lower(CollectionWords.english_word).in_(unique_tokens))
+        .filter(CollectionWords.english_word.in_(unique_tokens))
         .all()
     )
     if not found:
