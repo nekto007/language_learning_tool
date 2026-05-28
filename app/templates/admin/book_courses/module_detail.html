@@ -927,7 +927,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function exportModuleData(moduleId) {
     showToast('info', 'Функция экспорта данных модуля будет реализована в следующих версиях');
 }

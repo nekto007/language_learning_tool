@@ -296,7 +296,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Handle download list form
     document.getElementById('download-list-form').addEventListener('submit', function(e) {

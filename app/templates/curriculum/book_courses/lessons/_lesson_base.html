@@ -620,7 +620,7 @@
 <!-- CSRF Token Meta -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
-<script>
+<script nonce="{{ csp_nonce }}">
 const courseId = {{ course.id }};
 const moduleId = {{ module.id }};
 const lessonNumber = {{ lesson_number | default(0) }};

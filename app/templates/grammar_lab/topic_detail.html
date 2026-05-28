@@ -1737,7 +1737,7 @@
 {% if not current_user.is_authenticated %}
 <script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
 {% endif %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const topicId = {{ topic.id }};
 
 // Get CSRF token safely

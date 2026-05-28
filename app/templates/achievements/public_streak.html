@@ -125,7 +125,7 @@
   {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var activeDates = {{ calendar.active_dates | tojson }};
     var grid = document.getElementById('streak-grid');

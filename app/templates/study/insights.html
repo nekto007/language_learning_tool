@@ -101,7 +101,7 @@
             {% endfor %}
         </div>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-        <script>
+        <script nonce="{{ csp_nonce }}">
         (function () {
             var ctx = document.getElementById('skillsRadarChart');
             if (!ctx) return;
@@ -263,7 +263,7 @@
         <div class="grammar-mastery-chart" id="grammarMasteryChart" style="position:relative;height:{{ [grammar_mastery|length * 44, 200]|max }}px;">
             <canvas id="grammarMasteryCanvas"></canvas>
         </div>
-        <script>
+        <script nonce="{{ csp_nonce }}">
         (function() {
             var ctx = document.getElementById('grammarMasteryCanvas');
             if (!ctx) return;
@@ -431,7 +431,7 @@
         <div style="position:relative;height:200px;">
             <canvas id="accuracyTrendCanvas"></canvas>
         </div>
-        <script>
+        <script nonce="{{ csp_nonce }}">
         (function() {
             var ctx = document.getElementById('accuracyTrendCanvas');
             if (!ctx) return;
@@ -539,7 +539,7 @@
         <div style="position:relative;height:150px;">
             <canvas id="studyTimeDistCanvas"></canvas>
         </div>
-        <script>
+        <script nonce="{{ csp_nonce }}">
         (function() {
             var ctx = document.getElementById('studyTimeDistCanvas');
             if (!ctx) return;

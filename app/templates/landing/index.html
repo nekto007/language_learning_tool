@@ -871,7 +871,7 @@
 .land-audio-btn:hover { border-color: var(--land-primary) !important; color: var(--land-primary) !important; }
 .land-wod-cta:hover { transform: translateY(-1px); }
 </style>
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('click', function(e) {
     var btn = e.target.closest('.land-audio-btn');
     if (!btn) return;

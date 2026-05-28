@@ -268,7 +268,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Add all words
     const addAllForm = document.getElementById('add-all-form');

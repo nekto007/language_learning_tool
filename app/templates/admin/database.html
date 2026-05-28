@@ -264,7 +264,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('test-connection-btn').addEventListener('click', function() {
     const btn = this;
     const originalText = btn.innerHTML;

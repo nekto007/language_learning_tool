@@ -285,7 +285,7 @@
 <script id="existing-topics-data" type="application/json">
 {{ existing_topics | tojson }}
 </script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var dataNode = document.getElementById('existing-topics-data');
     if (!dataNode) return;
@@ -317,7 +317,7 @@
 </script>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function selectAllMissing() {
     const checkboxes = document.querySelectorAll('.missing-word-checkbox');
     checkboxes.forEach(cb => cb.checked = true);

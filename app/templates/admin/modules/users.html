@@ -170,7 +170,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function revokeModule(userId, moduleId, username) {
     if (!confirm(`Отозвать доступ к модулю у пользователя "${username}"?`)) {
         return;

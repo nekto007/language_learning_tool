@@ -167,7 +167,7 @@
 </style>
 
 {% if total_active > 0 %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     const chartDays = {{ chart_days | tojson }};
     const labels = chartDays.map(function (d) { return d.label; });

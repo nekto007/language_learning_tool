@@ -239,7 +239,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // CPU Usage Chart
 const cpuCtx = document.getElementById('cpuChart').getContext('2d');
 new Chart(cpuCtx, {

@@ -235,7 +235,7 @@
   </div>
 </section>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ lesson.id }};
 const wordTimestamps = {{ words | tojson }};
 const PHASE_THRESHOLD = 0.5;  // доля длительности для разблокировки

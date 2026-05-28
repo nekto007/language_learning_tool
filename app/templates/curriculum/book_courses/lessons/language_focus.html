@@ -332,7 +332,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
 const miniPractice = {{ lf.mini_practice | tojson | safe if lf.mini_practice else '[]' }};
 const hasNext = {{ 'true' if has_next_lesson else 'false' }};

@@ -298,7 +298,7 @@
     </div>
 </form>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 let questionIndex = {{ questions|length }};
 
 function updateQuestionNumbers() {

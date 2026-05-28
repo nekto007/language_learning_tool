@@ -196,7 +196,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Registration Chart
 const registrationData = {
     {% for reg in user_registrations %}

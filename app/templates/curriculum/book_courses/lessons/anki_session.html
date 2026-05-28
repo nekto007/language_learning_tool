@@ -108,7 +108,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const LANG = '{{ instr_lang }}';
 // SRS data will be loaded from API
 let cards = [];

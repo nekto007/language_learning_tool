@@ -586,7 +586,7 @@
 <!-- CSRF Token Meta -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 // Auto-save toast helper
 window.showSaveToast = function() {
   var toast = document.getElementById('save-toast');
@@ -727,7 +727,7 @@ window.showLessonCompletion = function(opts) {
 };
 </script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 // Dispatch daily plan event when lesson completion buttons become visible
 (function() {
   var completeBtn = document.getElementById('complete-exercise') || document.getElementById('complete-module');

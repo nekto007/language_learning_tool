@@ -285,7 +285,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const LANG = '{{ instr_lang }}';
 const totalQuestions = 4;
 let answeredQuestions = new Set();

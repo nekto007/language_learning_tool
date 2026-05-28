@@ -236,7 +236,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Select all checkbox
 const selectAllEl = document.getElementById('selectAll');
 if (selectAllEl) {

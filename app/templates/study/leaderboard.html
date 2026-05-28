@@ -842,7 +842,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
   const tabs = document.querySelectorAll('.lb-tabs__btn');
   const panels = document.querySelectorAll('.lb-panel');

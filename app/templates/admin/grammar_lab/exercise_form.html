@@ -103,7 +103,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const templates = {
     fill_blank: {
         "question": "She ___ (work) here for 5 years.",

@@ -399,7 +399,7 @@
 </style>
 
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
   'use strict';
 

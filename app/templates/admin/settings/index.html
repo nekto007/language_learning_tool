@@ -181,7 +181,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             const triggers = document.querySelectorAll('[data-bs-toggle="tooltip"]');

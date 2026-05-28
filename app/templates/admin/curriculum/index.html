@@ -268,7 +268,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Add smooth animations
 document.addEventListener('DOMContentLoaded', function() {
     // Animate stat cards on page load

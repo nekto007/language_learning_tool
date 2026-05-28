@@ -181,7 +181,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     const labels = {{ funnel.steps | map(attribute='label') | list | tojson }};
     const counts = {{ funnel.steps | map(attribute='count') | list | tojson }};

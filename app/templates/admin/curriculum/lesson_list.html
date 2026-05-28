@@ -240,7 +240,7 @@
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function updateModules() {
     const levelId = document.getElementById('level_id').value;
     const moduleSelect = document.getElementById('module_id');

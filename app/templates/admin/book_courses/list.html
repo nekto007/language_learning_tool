@@ -618,7 +618,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 let selectedCourses = new Set();
 
 function updateSelection() {

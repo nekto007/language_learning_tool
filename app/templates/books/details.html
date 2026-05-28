@@ -395,7 +395,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce }}">
     // Image preview for cover upload
     document.addEventListener('DOMContentLoaded', function() {
         const coverInput = document.getElementById('coverImageFile');

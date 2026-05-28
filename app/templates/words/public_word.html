@@ -364,7 +364,7 @@
 <!-- Audio Element -->
 <audio id="audioPlayer" style="display:none;"></audio>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function playAudio(audioUrl) {
     const audio = document.getElementById('audioPlayer');
     if (!audio) return;

@@ -292,7 +292,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Words Distribution Chart
     {% if top_books_by_words %}

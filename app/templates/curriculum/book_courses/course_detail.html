@@ -882,7 +882,7 @@
 .cd-module:nth-child(8) { animation-delay: 0.5s; }
 .cd-module:nth-child(n+9) { animation-delay: 0.55s; }
 </style>
-<script>
+<script nonce="{{ csp_nonce }}">
 function enrollInCourse(courseId) {
   const btn = document.getElementById('enroll-btn');
   btn.disabled = true;

@@ -267,7 +267,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 let currentModalModuleId = null;
 let currentModalUsers = [];
 const csrfToken = '{{ csrf_token() }}';

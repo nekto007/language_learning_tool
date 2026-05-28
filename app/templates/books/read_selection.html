@@ -686,7 +686,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Search functionality
 document.getElementById('bookSearch').addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();

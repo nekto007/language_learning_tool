@@ -887,7 +887,7 @@ textarea.form-control {
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const taskType = '{{ task_type }}';
 let questionIndex = {{ payload.get('questions', [])|length }};
 let cardIndex = {{ payload.get('cards', [])|length }};

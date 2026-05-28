@@ -600,7 +600,7 @@ select.form-control {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Status preview updates
 document.getElementById('is_active').addEventListener('change', function() {
     const activePreview = document.getElementById('activePreview');

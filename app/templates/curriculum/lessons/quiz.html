@@ -1582,7 +1582,7 @@ body:has(.quiz-results-compact) #lesson-completion {
   {% endif %}
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Fisher-Yates shuffle algorithm
 function shuffleArray(array) {
   const shuffled = [...array];

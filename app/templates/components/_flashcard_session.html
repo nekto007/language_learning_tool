@@ -424,7 +424,7 @@
 
 <!-- Flashcard Session JS -->
 <script src="{{ url_for('static', filename='js/flashcard-session.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         new FlashcardSession({
             cards: {{ fc_cards | tojson }},
@@ -456,7 +456,7 @@
         });
     });
 </script>
-<script>
+<script nonce="{{ csp_nonce }}">
 // Plan-aware celebration: when the session was opened via the linear plan
 // (`?source=linear_plan&slot=srs|curriculum`), swap the standalone «К
 // колодам» CTA for «Следующий слот плана» + «На дашборд» by calling

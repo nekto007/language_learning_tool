@@ -66,7 +66,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const LANG = '{{ instr_lang }}';
 let readingComplete = false;
 let maxProgress = 0;

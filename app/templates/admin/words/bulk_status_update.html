@@ -139,7 +139,7 @@ house</pre>
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('bulk-update-form');
     const textInputGroup = document.getElementById('text-input-group');

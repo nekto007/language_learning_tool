@@ -44,7 +44,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const LANG = '{{ instr_lang }}';
 const NAV_LANG = '{{ nav_lang }}';
 

@@ -135,7 +135,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 async function deleteDeck(button, deckId) {
     if (!confirm('Удалить эту колоду?')) {
         return;

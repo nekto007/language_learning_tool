@@ -872,7 +872,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Final Test data
 window.finalTestData = {
   questions: {{ exercises|tojson|safe }},

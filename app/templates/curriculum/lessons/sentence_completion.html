@@ -79,7 +79,7 @@
   </div>
 </section>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ lesson.id }};
 const itemCount = {{ items | length }};
 const MAX_ATTEMPTS = 3;

@@ -161,7 +161,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
 const hasNext = {{ 'true' if has_next_lesson else 'false' }};
 const nextUrl = '{{ next_lesson_url or "" }}';

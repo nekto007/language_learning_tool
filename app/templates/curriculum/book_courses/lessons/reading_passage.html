@@ -305,7 +305,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const LANG = '{{ instr_lang }}';
 const NAV_LANG = '{{ nav_lang }}';
 const L = LANG === 'ru' ? {
@@ -344,7 +344,7 @@ const L = LANG === 'ru' ? {
   finish_btn: 'Finish'
 };
 </script>
-<script>
+<script nonce="{{ csp_nonce }}">
 let currentWord = null;
 let currentWordId = null;
 // courseId already defined in _lesson_base.html

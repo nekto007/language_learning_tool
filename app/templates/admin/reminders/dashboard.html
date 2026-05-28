@@ -261,7 +261,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Select all checkbox functionality
         const selectAllCheckbox = document.getElementById('select-all');

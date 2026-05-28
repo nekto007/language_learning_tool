@@ -173,7 +173,7 @@
   </div>
 </section>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ lesson.id }};
 const minWords = {{ min_words | default(0) | int }};
 const minSentences = {{ min_sentences | default(0) | int }};

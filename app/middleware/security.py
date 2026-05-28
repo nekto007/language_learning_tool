@@ -82,9 +82,14 @@ def add_security_headers(app: Flask):
         ]
         script_src = ' '.join(script_src_parts)
 
+        # script-src-attr explicitly allows inline event handlers (onclick=,
+        # onsubmit=, etc.) because the project has ~400 inline handlers that
+        # have not yet been migrated to addEventListener. Inline <script>
+        # blocks (script-src-elem) still require a nonce.
         csp_policy = (
             "default-src 'self'; "
             f"script-src {script_src}; "
+            "script-src-attr 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com "
             "https://cdn.jsdelivr.net https://fonts.googleapis.com; "
             "font-src 'self' data: https://cdnjs.cloudflare.com "

@@ -77,7 +77,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
 const gapsData = {{ pc.gaps | tojson | safe }};
 const clozeText = {{ pc.text | tojson | safe }};

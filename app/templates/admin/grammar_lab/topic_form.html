@@ -218,7 +218,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Format JSON on blur
 document.getElementById('content-json')?.addEventListener('blur', function() {
     try {

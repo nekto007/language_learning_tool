@@ -230,7 +230,7 @@
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function grantModule(userId, moduleId, moduleName) {
     if (!confirm(`Выдать модуль "${moduleName}" пользователю?`)) {
         return;

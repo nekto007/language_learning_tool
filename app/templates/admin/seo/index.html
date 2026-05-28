@@ -303,7 +303,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var btn = document.getElementById('seo-refresh-btn');
     if (!btn) return;
@@ -338,7 +338,7 @@
 </script>
 {% if gsc_connected and gsc_data and gsc_data.chart_dates %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     var ctx = document.getElementById('gscChart');
     if (!ctx) return;

@@ -45,12 +45,12 @@
 
 {% block lesson_scripts %}
 <!-- Server data -->
-<script>
+<script nonce="{{ csp_nonce }}">
 const serverClozeData = {{ cloze_data | tojson | safe if cloze_data else 'null' }};
 const NAV_LANG = '{{ nav_lang }}';
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Cloze data - load from server or use fallback
 const clozeData = serverClozeData || {
   text: `The importance of reading cannot (1) ______ overstated. When we read, we not only gain knowledge (2) ______ also improve our vocabulary and critical thinking skills. Many successful people attribute their achievements (3) ______ the habit of reading regularly.

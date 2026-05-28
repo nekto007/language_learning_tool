@@ -44,7 +44,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Sample matching data
 const matchingData = {
   paragraphs: [

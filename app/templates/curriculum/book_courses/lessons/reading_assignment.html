@@ -72,7 +72,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const comprehensionQuestions = [
   {
     id: 1,

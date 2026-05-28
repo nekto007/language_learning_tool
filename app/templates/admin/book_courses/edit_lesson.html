@@ -655,7 +655,7 @@ select.form-control {
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('editLessonForm');
     const textArea = document.getElementById('slice_text');

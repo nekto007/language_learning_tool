@@ -25,7 +25,7 @@
       </div>
       {% endfor %}
     </div>
-    <script>
+    <script nonce="{{ csp_nonce }}">
       (function () {
         var popup = document.getElementById('dash-badge-popup');
         if (!popup) return;
@@ -139,7 +139,7 @@
             <div class="dash-streak-flash__text">Серия восстановлена!</div>
         </div>
     </div>
-    <script>
+    <script nonce="{{ csp_nonce }}">
         (function () {
             var flash = document.querySelector('[data-streak-flash="true"]');
             if (!flash) return;
@@ -221,7 +221,7 @@
             </div>
         </div>
     </div>
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function () {
         var card = document.getElementById('weekly-report-card');
         if (!card) return;
@@ -4691,7 +4691,7 @@ a.dash-hero__cta:focus {
 .dash-words-empty__btn:hover { opacity: 0.9; }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 async function repairStreak() {
     const btn = document.getElementById('repair-streak-btn');
     if (!btn) return;
@@ -4929,7 +4929,7 @@ async function repairStreak() {
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 // CSP-safe delegated handlers for dashboard actions
 document.addEventListener('click', function(e) {
   var t = e.target.closest('[data-action]');

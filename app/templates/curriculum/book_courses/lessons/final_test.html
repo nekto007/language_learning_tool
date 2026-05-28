@@ -125,7 +125,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const hasNextLesson = {{ 'true' if has_next_lesson else 'false' }};
 const nextLessonUrl = '{{ next_lesson_url or "" }}';
 const moduleUrl = '{% if course.slug %}{{ url_for("book_courses.view_module_by_slug", course_slug=course.slug, module_number=module.module_number) }}{% else %}{{ url_for("book_courses.view_module", course_id=course.id, module_id=module.id) }}{% endif %}';

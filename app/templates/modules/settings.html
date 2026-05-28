@@ -775,7 +775,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function toggleModule(moduleId, enabled) {
     fetch(`/modules/api/modules/${moduleId}/toggle`, {
         method: 'POST',

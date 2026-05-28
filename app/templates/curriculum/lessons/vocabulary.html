@@ -389,7 +389,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Lesson configuration
 const lessonConfig = {
   isCompleted: {% if is_completed %}true{% else %}false{% endif %},

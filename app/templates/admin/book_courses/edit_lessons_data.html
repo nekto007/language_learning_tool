@@ -513,7 +513,7 @@ select.form-control {
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ csp_nonce }}">
 let lessonIndex = {{ lessons_data.get('lessons', [])|length }};
 
 function toggleLesson(btn) {

@@ -217,7 +217,7 @@
   </div>
 </section>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ lesson.id }};
 const hasItems = {{ 'true' if items else 'false' }};
 const hasOptions = {{ 'true' if options else 'false' }};

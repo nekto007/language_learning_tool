@@ -975,7 +975,7 @@
 <!-- Deck Select Modal JS -->
 <script src="{{ url_for('static', filename='js/deck-select-modal.js') }}"></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 const currentWordStatus = '{{ word.user_status or "new" }}';
 const currentStudyStatus = '{{ summary.status or "new" }}';
 const wordId = {{ word.id }};

@@ -345,7 +345,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function updateBookStatistics(bookId = null) {
     showProgressModal(bookId ? 'Обновление статистики книги...' : 'Обновление статистики всех книг...');
     

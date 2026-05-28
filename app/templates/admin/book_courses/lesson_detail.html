@@ -761,7 +761,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function deleteLesson() {
     if (!confirm('Удалить этот урок? Это действие нельзя отменить.')) {
         return;

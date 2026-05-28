@@ -1154,7 +1154,7 @@
 
 {% block scripts %}
 {% if session.exercises %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const sessionId = '{{ session.session_id }}';
 let exercises = {{ session.exercises|tojson|safe }};
 {% if topic %}

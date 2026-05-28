@@ -260,7 +260,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Form validation and user experience improvements
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('bookForm');

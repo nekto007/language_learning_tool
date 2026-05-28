@@ -1320,7 +1320,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce }}">
 const csrfToken = document.querySelector('input[name="csrf_token"]')?.value;
 
 function checkTelegramStatus() {

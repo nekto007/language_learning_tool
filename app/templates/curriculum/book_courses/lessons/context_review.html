@@ -99,7 +99,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
 const chooseData = {{ cr.choose_best_phrase | tojson | safe if cr.choose_best_phrase else '[]' }};
 const completeData = {{ cr.complete_the_sentence | tojson | safe if cr.complete_the_sentence else '[]' }};

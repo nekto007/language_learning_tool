@@ -150,7 +150,7 @@
 
 {% block scripts %}
   {{ super() }}
-  <script>
+  <script nonce="{{ csp_nonce }}">
       document.addEventListener('DOMContentLoaded', function () {
           // Хранилище выбранных слов и тем
           const selectedWords = new Map();

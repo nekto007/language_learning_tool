@@ -568,7 +568,7 @@
 <script type="application/json" id="lessonVocabData">{{ vocab_js_data | tojson }}</script>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 let startTime = Date.now();
 let readingTime = 0;
 let hasScrolledToBottom = false;
@@ -2081,14 +2081,14 @@ function handleMobileLayout() {
 
 {% if is_advanced %}
 <script src="{{ url_for('static', filename='js/word-translator.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     new WordTranslator({ container: '.text-container' });
 });
 </script>
 {% endif %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
   var vocabDataEl = document.getElementById('lessonVocabData');
   if (!vocabDataEl) return;

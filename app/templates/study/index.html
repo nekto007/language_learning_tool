@@ -1891,7 +1891,7 @@
 <!-- Linear plan context: captures ?from=linear_plan&slot=srs into sessionStorage
      so deck links further in the flow keep plan-aware completion active. -->
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 // Quiz modal
 let selectedDeckId = null;
 

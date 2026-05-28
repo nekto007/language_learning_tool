@@ -217,7 +217,7 @@ Thank you | Спасибо"></textarea>
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 let pairIndex = {{ pairs|length }} || 1;
 
 function updatePairIndices() {

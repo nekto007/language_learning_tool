@@ -104,7 +104,7 @@
 {% endif %}
 
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function flipCard(cardElement) {
     const front = cardElement.querySelector('.card-front');
     const back = cardElement.querySelector('.card-back');

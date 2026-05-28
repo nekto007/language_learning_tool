@@ -129,7 +129,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Prepare data for charts
 const moduleNames = [{% for code, stat in stats.items() %}'{{ stat.name }}',{% endfor %}];
 const totalUsers = [{% for code, stat in stats.items() %}{{ stat.total_users }},{% endfor %}];

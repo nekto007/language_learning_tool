@@ -1107,7 +1107,7 @@ body.dark-theme .rdr-bottom-nav {
   <div class="word-actions" id="popupActions"></div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Font size control
 const chapterContent = document.getElementById('chapterContent');
 const fontSizeValue = document.getElementById('fontSizeValue');
@@ -1493,7 +1493,7 @@ document.addEventListener('keydown', (e) => {
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
 {% if current_chapter.audio_url %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
   var audio = document.getElementById('chapterAudio');
   var bar = document.getElementById('audioBar');

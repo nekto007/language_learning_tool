@@ -39,7 +39,7 @@
     {% if config.GOOGLE_ANALYTICS_ID %}
     <!-- Google Analytics (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ config.GOOGLE_ANALYTICS_ID }}"></script>
-    <script>
+    <script nonce="{{ csp_nonce }}">
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
@@ -216,14 +216,14 @@
                     {% if current_user.is_authenticated %}
                     <!-- Notification Bell -->
                     <li class="nav-item" style="position: relative;">
-                        <a class="nav-link" href="#" id="notif-bell" onclick="toggleNotifPanel(); return false;" style="position: relative;">
+                        <a class="nav-link" href="#" id="notif-bell" style="position: relative;">
                             <i class="fas fa-bell"></i>
                             <span id="notif-badge" style="display:none; position:absolute; top:4px; right:2px; background:#ef4444; color:#fff; font-size:0.65rem; font-weight:700; border-radius:50%; min-width:16px; height:16px; line-height:16px; text-align:center; padding:0 3px;">0</span>
                         </a>
                         <div id="notif-panel" style="display:none; position:absolute; right:0; top:100%; width:320px; max-height:400px; overflow-y:auto; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); z-index:1050; padding:0.5rem 0;">
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 1rem; border-bottom:1px solid #e2e8f0;">
                                 <span style="font-weight:600; font-size:0.9rem;">Уведомления</span>
-                                <a href="#" onclick="markAllRead(); return false;" style="font-size:0.75rem; color:#2563eb; text-decoration:none;">Прочитать все</a>
+                                <a href="#" id="notif-mark-all-read" style="font-size:0.75rem; color:#2563eb; text-decoration:none;">Прочитать все</a>
                             </div>
                             <div id="notif-list" style="padding:0.25rem 0;">
                                 <div style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.85rem;">Загрузка...</div>
@@ -405,7 +405,7 @@
             </div>
         </div>
     </nav>
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
         var moreBtn = document.getElementById('bottom-nav-more');
         var dropdown = document.getElementById('bottom-nav-dropdown');
@@ -424,7 +424,7 @@
 
     <!-- Canvas for confetti effects -->
     <canvas id="confetti-canvas"></canvas>
-<script>
+<script nonce="{{ csp_nonce }}">
     // Register service worker for book reader
     if ('serviceWorker' in navigator && window.location.pathname.includes('/reader/')) {
         navigator.serviceWorker.register('/static/js/reader-sw.js')
@@ -451,7 +451,7 @@
 
 {% if current_user.is_authenticated %}
 <!-- Notification center JS -->
-<script>
+<script nonce="{{ csp_nonce }}">
 var notifPanelOpen = false;
 function toggleNotifPanel() {
     var panel = document.getElementById('notif-panel');
@@ -538,12 +538,12 @@ document.addEventListener('click', function(e) {
     <h2 style="font-size:1.5rem; font-weight:800; margin:0 0 0.5rem;" id="levelup-title">Новый уровень!</h2>
     <p style="font-size:1rem; color:#64748b; margin:0 0 1rem;" id="levelup-desc"></p>
     <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
-      <button onclick="document.getElementById('levelup-modal').style.display='none'" style="padding:0.625rem 1.5rem; background:linear-gradient(135deg,#2563eb,#0ea5e9); color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">Отлично!</button>
-      <a href="#" onclick="shareVia('telegram','{{ url_for('landing.index', _external=True) }}',document.getElementById('levelup-title').textContent); document.getElementById('levelup-modal').style.display='none'; return false;" style="padding:0.625rem 1.5rem; border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:10px; font-weight:600; text-decoration:none; font-size:0.9rem;">Поделиться</a>
+      <button type="button" id="levelup-modal-close" style="padding:0.625rem 1.5rem; background:linear-gradient(135deg,#2563eb,#0ea5e9); color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-size:0.9rem;">Отлично!</button>
+      <a href="#" id="levelup-modal-share" data-share-url="{{ url_for('landing.index', _external=True) }}" style="padding:0.625rem 1.5rem; border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:10px; font-weight:600; text-decoration:none; font-size:0.9rem;">Поделиться</a>
     </div>
   </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     var CHECK_DELAY = 2000;
     setTimeout(function() {
@@ -588,6 +588,36 @@ document.addEventListener('click', function(e) {
             })
             .catch(function() {});
     }, CHECK_DELAY);
+
+    // CSP-safe wiring for inline onclick handlers (notif bell, mark-all-read,
+    // levelup modal close & share). Replaces old inline onclick="..." which
+    // is blocked by script-src-attr.
+    document.addEventListener('DOMContentLoaded', function() {
+        var bell = document.getElementById('notif-bell');
+        if (bell) bell.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof toggleNotifPanel === 'function') toggleNotifPanel();
+        });
+        var markAll = document.getElementById('notif-mark-all-read');
+        if (markAll) markAll.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof markAllRead === 'function') markAllRead();
+        });
+        var lvlClose = document.getElementById('levelup-modal-close');
+        if (lvlClose) lvlClose.addEventListener('click', function() {
+            var m = document.getElementById('levelup-modal');
+            if (m) m.style.display = 'none';
+        });
+        var lvlShare = document.getElementById('levelup-modal-share');
+        if (lvlShare) lvlShare.addEventListener('click', function(e) {
+            e.preventDefault();
+            var url = lvlShare.dataset.shareUrl || window.location.origin;
+            var title = (document.getElementById('levelup-title') || {}).textContent || '';
+            if (typeof shareVia === 'function') shareVia('telegram', url, title);
+            var m = document.getElementById('levelup-modal');
+            if (m) m.style.display = 'none';
+        });
+    });
 })();
 </script>
 {% endif %}

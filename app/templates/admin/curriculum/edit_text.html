@@ -240,7 +240,7 @@
     </div>
 </form>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function toggleTextSource() {
     const isCustom = document.getElementById('customText').checked;
     document.getElementById('customTextSection').style.display = isCustom ? 'block' : 'none';

@@ -994,7 +994,7 @@ a.test-errors-summary__topic-chip:hover {
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function retryCheckpoint() {
   if (confirm('{{ _("Вы хотите пройти финальный тест заново? Предыдущие результаты будут сброшены.") }}')) {
     // Preserve daily-plan context (?from=linear_plan&slot=<kind>) across the

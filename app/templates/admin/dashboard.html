@@ -365,7 +365,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const styles = getComputedStyle(document.documentElement);
 const C = {
     primary: styles.getPropertyValue('--chart-primary').trim(),

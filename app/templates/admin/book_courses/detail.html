@@ -674,7 +674,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function generateModules(courseId) {
     if (!confirm('Сгенерировать модули и уроки?\nЭто может занять некоторое время.')) return;
 

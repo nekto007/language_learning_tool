@@ -1718,7 +1718,7 @@
 <!-- Deck Select Modal JS -->
 <script src="{{ url_for('static', filename='js/deck-select-modal.js') }}"></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function playAudio(audioUrl) {
     const audio = document.getElementById('audioPlayer');
     if (!audio) return;

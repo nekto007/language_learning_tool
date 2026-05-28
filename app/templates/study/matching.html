@@ -677,7 +677,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Config from server
         const sessionId = {{ session_id }};

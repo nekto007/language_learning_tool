@@ -180,7 +180,7 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Animate stats on scroll
 const observerOptions = {
     threshold: 0.5,

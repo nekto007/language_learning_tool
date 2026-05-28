@@ -79,13 +79,13 @@
 
 {% block lesson_scripts %}
 <!-- Server data -->
-<script>
+<script nonce="{{ csp_nonce }}">
 const serverQuestionData = {{ mcq_data | tojson | safe if mcq_data else 'null' }};
 const LANG = '{{ instr_lang }}';
 const NAV_LANG = '{{ nav_lang }}';
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Quiz data - load from server or use fallback
 let questions = [];
 let currentQuestion = 0;

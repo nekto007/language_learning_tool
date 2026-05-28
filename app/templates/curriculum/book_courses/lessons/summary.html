@@ -242,7 +242,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 let selectedAssessment = 0;
 
 function updateWordCount() {

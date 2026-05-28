@@ -205,7 +205,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/quiz-deck-editor.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
     // Initialize the quiz deck editor
     document.addEventListener('DOMContentLoaded', function() {
         const editor = new QuizDeckEditor({{ deck.id }}, '{{ csrf_token() }}');

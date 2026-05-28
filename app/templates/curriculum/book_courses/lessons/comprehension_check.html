@@ -120,7 +120,7 @@
 {% endblock %}
 
 {% block lesson_scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 const lessonId = {{ daily_lesson.id if daily_lesson else 0 }};
 const questions = {{ cc.questions | tojson | safe }};
 const resultBands = {{ cc.result_bands | tojson | safe if cc.result_bands else '[]' }};

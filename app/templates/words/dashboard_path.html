@@ -50,7 +50,7 @@ Mobile: rail re-orders below path, hero shrinks, stats wrap 2x2.
 </div>
 <script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Click-on-locked-node → toast.
 (function() {
   var shell = document.querySelector('.path-shell');

@@ -1452,7 +1452,7 @@ textarea.de-field__input {
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const englishInput = document.getElementById('custom_english');
     const russianInput = document.getElementById('custom_russian');
