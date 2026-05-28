@@ -766,12 +766,11 @@ def record_daily_plan_event():
         with db.session.begin_nested():
             db.session.add(event)
     except _IntegrityError:
+        # begin_nested() already rolled back the savepoint — outer session is still usable.
         # Concurrent slot_skipped insert hit the unique partial index —
         # treat it the same as quota_exhausted so the client sees a clean error.
         if event_type == 'slot_skipped':
-            db.session.rollback()
             return api_error('skip_quota_exhausted', 'Лимит пропусков на сегодня исчерпан', 429)
-        db.session.rollback()
         return api_error('db_error', 'Failed to record event', 500)
     try:
         db.session.commit()
@@ -1206,7 +1205,7 @@ def skip_lesson():
         with db.session.begin_nested():
             db.session.add(skip)
     except IntegrityError:
-        db.session.rollback()
+        # begin_nested() already rolled back the savepoint — outer session is still usable.
         return api_error('already_deferred', 'Этот урок уже отложен на сегодня', 400)
 
     # Find the replacement lesson excluding the newly deferred one.

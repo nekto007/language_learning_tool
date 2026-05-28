@@ -2101,7 +2101,10 @@ def word_list():
         _page_word_ids = [w.id for w in word_list]
         _book_rows = db.session.query(Book, _wbl.c.word_id).join(
             _wbl, Book.id == _wbl.c.book_id
-        ).filter(_wbl.c.word_id.in_(_page_word_ids)).all()
+        ).filter(
+            _wbl.c.word_id.in_(_page_word_ids),
+            Book.is_published == True,
+        ).all()
         _word_books: dict[int, list] = {}
         for _book, _wid in _book_rows:
             _word_books.setdefault(_wid, []).append(_book)

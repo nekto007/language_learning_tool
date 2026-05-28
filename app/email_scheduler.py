@@ -52,6 +52,7 @@ def get_inactive_users(days_inactive: int, tolerance_hours: int = 12) -> list[Us
     return User.query.filter(
         User.active == True,
         User.email_opted_out == False,
+        User.notify_email_reminders == True,
         User.last_login.isnot(None),
         User.last_login.between(window_start, window_end),
         User.email.isnot(None),

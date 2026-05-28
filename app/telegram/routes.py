@@ -1,4 +1,5 @@
 """Telegram webhook and account linking routes."""
+import hmac
 import logging
 import threading
 from collections import deque
@@ -102,7 +103,7 @@ def webhook():
         return '', 500
 
     token = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
-    if not token or token != secret:
+    if not token or not hmac.compare_digest(token, secret):
         logger.warning('Webhook request with invalid or missing secret token')
         return '', 403
 
