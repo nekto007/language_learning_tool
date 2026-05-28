@@ -16,7 +16,10 @@ from __future__ import annotations
 from datetime import date as date_cls, datetime, time, timedelta, timezone
 from typing import Any, Optional
 
+from app.utils.request_cache import request_memoize
 
+
+@request_memoize(key_fn=lambda user_id, *_a, **_k: user_id)
 def _get_user_timezone(user_id: int, db_session: Any = None):
     from zoneinfo import ZoneInfo
 

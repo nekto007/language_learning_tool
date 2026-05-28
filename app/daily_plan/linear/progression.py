@@ -58,7 +58,21 @@ def find_next_lesson_linear(
     lessons already represented elsewhere in the current chain.
 
     Returns None when the user has completed every eligible lesson.
+
+    Result is memoized per request keyed on (user_id, exclude_lesson_ids)
+    because dashboard / plan assembly calls this 8+ times with the same
+    args and each call is a full lessons-table scan (~130ms).
     """
+    from app.utils.request_cache import _get_cache
+
+    cache = _get_cache()
+    cache_key: Any = None
+    if cache is not None:
+        ex_key = frozenset(exclude_lesson_ids) if exclude_lesson_ids else None
+        cache_key = ('find_next_lesson_linear', user_id, ex_key)
+        if cache_key in cache:
+            return cache[cache_key]
+
     min_order = _user_min_level_order(user_id, db)
 
     completed_subq = (
@@ -121,8 +135,12 @@ def find_next_lesson_linear(
                 user_id, lesson.id, lesson.type,
                 getattr(module, 'number', None), level_code,
             )
+            if cache is not None and cache_key is not None:
+                cache[cache_key] = lesson
             return lesson
     logger.debug("linear_progression user=%s no_eligible_lesson min_order=%s", user_id, min_order)
+    if cache is not None and cache_key is not None:
+        cache[cache_key] = None
     return None
 
 

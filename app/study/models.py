@@ -100,7 +100,17 @@ class StudySettings(db.Model):
         Args:
             user_id: User ID
             lock_for_update: If True, use SELECT FOR UPDATE to prevent race conditions
+
+        Read-path (``lock_for_update=False``) is memoized per request so the
+        dashboard / plan assembly doesn't re-query the same row 8+ times.
+        Write-path always re-fetches and locks.
         """
+        if lock_for_update:
+            return cls._fetch_settings(user_id, lock_for_update=True)
+        return cls._fetch_settings_cached(user_id)
+
+    @classmethod
+    def _fetch_settings(cls, user_id, lock_for_update=False):
         query = cls.query.filter_by(user_id=user_id)
         if lock_for_update:
             query = query.with_for_update()
@@ -113,6 +123,18 @@ class StudySettings(db.Model):
             else:
                 db.session.flush()
         return settings
+
+    @classmethod
+    def _fetch_settings_cached(cls, user_id):
+        from app.utils.request_cache import _get_cache
+
+        cache = _get_cache()
+        if cache is None:
+            return cls._fetch_settings(user_id, lock_for_update=False)
+        key = ('StudySettings.get_settings', user_id)
+        if key not in cache:
+            cache[key] = cls._fetch_settings(user_id, lock_for_update=False)
+        return cache[key]
 
 
 class GameScore(db.Model):
