@@ -91,7 +91,7 @@
             <p>
                 <a href="{{ url_for('study.settings', _external=True) }}">Настройки уведомлений</a> |
                 {% if unsubscribe_token %}
-                <a href="{{ url_for('study.settings', token=unsubscribe_token, _external=True) }}">Отписаться</a>
+                <a href="{{ url_for('auth.unsubscribe', token=unsubscribe_token, _external=True) }}">Отписаться</a>
                 {% endif %}
             </p>
         </div>

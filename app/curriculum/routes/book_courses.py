@@ -44,6 +44,8 @@ def list_book_courses():
 
         course_data = []
         for course in courses:
+            if course.book and not course.book.is_published and not current_user.is_admin:
+                continue
             enrollment = user_enrollments.get(course.id)
             course_data.append({
                 'course': course,

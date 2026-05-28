@@ -11,6 +11,7 @@ import re
 from app.words.models import CollectionWords
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
+from app.admin.utils.request_validators import escape_like
 
 logger = logging.getLogger(__name__)
 
@@ -600,7 +601,7 @@ class AudioManagementService:
         from app.books.models import Chapter
         updated = (
             db_session.query(Chapter)
-            .filter(Chapter.audio_url.ilike(f'%{safe_name}'))
+            .filter(Chapter.audio_url.ilike(f'%{escape_like(safe_name)}', escape='\\'))
             .all()
         )
         count = 0

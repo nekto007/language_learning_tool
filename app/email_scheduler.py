@@ -23,13 +23,13 @@ _scheduler: BackgroundScheduler | None = None
 # Unsubscribe token field name on User model
 UNSUBSCRIBE_TOKEN_FIELD = 'email_unsubscribe_token'
 
-# Only deliver emails during this local-time window (inclusive).
+# Only deliver emails during this local-time window: [8, 20) — 8am inclusive, 8pm exclusive.
 DELIVERY_HOUR_START = 8
 DELIVERY_HOUR_END = 20
 
 
 def is_delivery_window(user: User) -> bool:
-    """Return True if user's local time is within the delivery window (8am–8pm).
+    """Return True if user's local time is within the delivery window (8:00–19:59).
 
     Falls back to UTC if the timezone is unknown or invalid.
     """

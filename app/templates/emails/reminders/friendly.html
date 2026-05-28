@@ -176,7 +176,7 @@
         <div class="footer">
             <p>© {{ now.year }} LLT English. Все права защищены.</p>
             <p>Вы получили это письмо, потому что зарегистрированы на LLT English.</p>
-            <p><a href="{{ url_for('study.settings', _external=True) }}">Настройки уведомлений</a> | <a href="{{ url_for('study.settings', token=unsubscribe_token, _external=True) }}">Отписаться</a></p>
+            <p><a href="{{ url_for('study.settings', _external=True) }}">Настройки уведомлений</a> | <a href="{{ url_for('auth.unsubscribe', token=unsubscribe_token, _external=True) }}">Отписаться</a></p>
         </div>
     </div>
 </body>
