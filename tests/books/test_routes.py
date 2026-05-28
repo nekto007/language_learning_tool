@@ -163,6 +163,18 @@ class TestBookDetailNoChapters:
 class TestChapterPagination:
     """Chapter reader handles edge-case chapter indices without crashing."""
 
+    @pytest.mark.smoke
+    def test_reader_renders_200(self, authenticated_client, published_book):
+        """reader_simple.html renders without errors for a published book."""
+        with patch(
+            'app.modules.service.ModuleService.is_module_enabled_for_user',
+            return_value=True,
+        ):
+            response = authenticated_client.get(
+                f'/read/{published_book.id}/chapters?chapter=1'
+            )
+        assert response.status_code == 200
+
     def test_first_chapter_accessible(self, authenticated_client, published_book):
         with patch(
             'app.modules.service.ModuleService.is_module_enabled_for_user',

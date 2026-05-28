@@ -1165,6 +1165,14 @@ def reading_session_end():
     )
     pre_offset = pre_progress.offset_pct if pre_progress else 0.0
 
+    # Capture pre-close daily target state so we can detect the False→True
+    # transition and fire vocab-pull for the first qualifying session today.
+    was_target_met = False
+    _pre_chapter = db.session.get(Chapter, existing.chapter_id)
+    if _pre_chapter is not None:
+        from app.books.reading_session import is_daily_reading_target_met_today
+        was_target_met = is_daily_reading_target_met_today(current_user.id, _pre_chapter.book_id, db)
+
     session = end_session(session_id, db, current_offset_pct=current_offset_hint)
     db.session.commit()
 
@@ -1243,6 +1251,7 @@ def reading_session_end():
     banner_state = 'none'
     daily_target_met_today = False
     chapter_completed_in_session = False
+    state = None
     try:
         pref_for_banner = _get_pref(current_user.id, db)
         is_preference_book = (
@@ -1251,14 +1260,11 @@ def reading_session_end():
             and pref_for_banner.book_id == chapter.book_id
         )
         if is_preference_book:
-            state = compute_chapter_daily_target_state(
-                current_user.id, session.chapter_id, db
-            )
-            # Per-book daily target: True if ANY chapter today met the
-            # target, not just the current one (user may have hit it
-            # earlier in another chapter and re-opened this one).
             daily_target_met_today = is_daily_reading_target_met_today(
                 current_user.id, chapter.book_id, db
+            )
+            state = compute_chapter_daily_target_state(
+                current_user.id, session.chapter_id, db
             )
             chapter_completed_in_session = state['chapter_completed_today']
             if daily_target_met_today and chapter_completed_in_session:
@@ -1272,6 +1278,28 @@ def reading_session_end():
             "reading-banner: state compute failed user=%s session=%s",
             current_user.id, session.id, exc_info=True,
         )
+
+    # Vocab pull: on daily-target transition (False → True) extract unlearned
+    # words from the just-read chapter slice and queue them as SRS cards.
+    # Fall back to the full chapter (0.0–1.0) when state is unavailable.
+    queued_vocab_count = 0
+    if not was_target_met and daily_target_met_today and chapter is not None:
+        try:
+            from app.books.vocab_pull import extract_chapter_vocab, queue_vocab_as_srs
+            start_off = state['earliest_start_offset'] if state is not None else 0.0
+            end_off = state['current_offset'] if state is not None else 1.0
+            words = extract_chapter_vocab(
+                session.chapter_id, start_off, end_off, current_user.id, db
+            )
+            queued_vocab_count = queue_vocab_as_srs(words, current_user.id, db)
+            if queued_vocab_count:
+                db.session.commit()
+        except Exception:
+            logger.warning(
+                "vocab_pull: failed user=%s chapter=%s",
+                current_user.id, session.chapter_id, exc_info=True,
+            )
+            db.session.rollback()
 
     # Daily-plan context for the banner CTAs. When the reader was opened
     # from a daily-plan slot link (?from=linear_plan&slot=book) and the
@@ -1307,4 +1335,5 @@ def reading_session_end():
         'next_slot_url': next_slot_url,
         'next_slot_title': next_slot_title,
         'dashboard_url': dashboard_url,
+        'queued_vocab_count': queued_vocab_count,
     })
