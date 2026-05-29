@@ -264,6 +264,92 @@ def public_word(word_slug: str):
     )
 
 
+@words.route('/contrast/<a_slug>/<b_slug>')
+def public_contrast(a_slug: str, b_slug: str):
+    """Standalone page for a word-contrast pair (X vs Y).
+
+    Target SEO intent: «разница между X и Y» / «X or Y». Each contrast pair
+    gets one canonical URL with ``word_a`` always the smaller-id side, so a
+    request for the reverse order 301-redirects to the canonical form. This
+    keeps PageRank consolidated on a single URL and avoids duplicate-content
+    flags.
+    """
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.words.models import WordContrast
+
+    a_name = decode_word_slug(a_slug)
+    b_name = decode_word_slug(b_slug)
+    word_a = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word) == a_name.lower()
+    ).first()
+    word_b = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word) == b_name.lower()
+    ).first()
+    if not word_a or not word_b or word_a.id == word_b.id:
+        abort(404)
+    for w in (word_a, word_b):
+        if w.level and w.level not in PUBLIC_CEFR_CODES:
+            abort(404)
+
+    low_id, high_id = sorted((word_a.id, word_b.id))
+    contrast = WordContrast.query.filter_by(
+        word_a_id=low_id, word_b_id=high_id,
+    ).first()
+    if contrast is None:
+        abort(404)
+
+    # Canonicalise URL order. word_a in the URL must be the row's word_a
+    # (smaller id). If the visitor came in via the reverse order, redirect.
+    canonical_a = contrast.word_a
+    canonical_b = contrast.word_b
+    if word_a.id != canonical_a.id:
+        return redirect(
+            url_for(
+                'words.public_contrast',
+                a_slug=encode_word_slug(canonical_a.english_word),
+                b_slug=encode_word_slug(canonical_b.english_word),
+            ),
+            code=301,
+        )
+
+    canonical_url = (
+        f'{_public_site_url()}'
+        f'{url_for("words.public_contrast", a_slug=encode_word_slug(canonical_a.english_word), b_slug=encode_word_slug(canonical_b.english_word))}'
+    )
+    meta_description = (
+        f'{canonical_a.english_word} vs {canonical_b.english_word} — '
+        f'в чём разница. {canonical_a.russian_word or ""} или '
+        f'{canonical_b.russian_word or ""}. Объяснение с примерами и ссылками '
+        f'на полные карточки слов.'
+    )
+
+    # Other pairs that share either word — gives the page some internal
+    # depth and helps crawlers discover related contrasts.
+    related = (
+        WordContrast.query
+        .filter(WordContrast.id != contrast.id)
+        .filter(
+            (WordContrast.word_a_id == canonical_a.id)
+            | (WordContrast.word_b_id == canonical_a.id)
+            | (WordContrast.word_a_id == canonical_b.id)
+            | (WordContrast.word_b_id == canonical_b.id)
+        )
+        .order_by(WordContrast.id)
+        .limit(6)
+        .all()
+    )
+
+    return render_template(
+        'words/public_contrast.html',
+        contrast=contrast,
+        word_a=canonical_a,
+        word_b=canonical_b,
+        related=related,
+        canonical_url=canonical_url,
+        meta_description=meta_description,
+    )
+
+
 def _process_referral_reward_on_first_visit(user) -> None:
     """Award referral XP to referrer after the referred user completes onboarding.
 

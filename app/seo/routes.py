@@ -117,6 +117,36 @@ def sitemap() -> Response:
         for word in top_words:
             _add(urlset, f'{base_url}/dictionary/{encode_word_slug(word.english_word)}', '0.6', 'monthly')
 
+    # Word contrast pages — one URL per curated pair. Each one targets a
+    # distinct «X vs Y / разница между X и Y» search intent, so they earn
+    # their own sitemap entries with a slightly higher priority than
+    # individual dictionary pages.
+    from app.words.models import WordContrast
+    from app.words.routes import encode_word_slug
+    contrasts = (
+        WordContrast.query
+        .join(CollectionWords, CollectionWords.id == WordContrast.word_a_id)
+        .filter(CollectionWords.item_type == 'word')
+        .filter(CollectionWords.level.in_(PUBLIC_CEFR_CODES))
+        .all()
+    )
+    public_levels = set(PUBLIC_CEFR_CODES)
+    for base_url in site_urls:
+        for c in contrasts:
+            a, b = c.word_a, c.word_b
+            if not a or not b:
+                continue
+            if (a.level and a.level not in public_levels) or (
+                b.level and b.level not in public_levels
+            ):
+                continue
+            _add(
+                urlset,
+                f'{base_url}/contrast/{encode_word_slug(a.english_word)}/'
+                f'{encode_word_slug(b.english_word)}',
+                '0.7', 'monthly',
+            )
+
     xml_bytes = b'<?xml version="1.0" encoding="UTF-8"?>\n' + tostring(urlset, encoding='unicode').encode('utf-8')
     return Response(xml_bytes, mimetype='application/xml')
 
@@ -178,6 +208,48 @@ def og_word(word_slug: str) -> Response:
     return Response(
         data,
         mimetype='image/png',
+        headers={'Cache-Control': 'public, max-age=86400'},
+    )
+
+
+@seo_bp.route('/og/contrast/<a_slug>/<b_slug>.png')
+def og_contrast(a_slug: str, b_slug: str) -> Response:
+    """Branded OG image for a contrast pair page."""
+    from app.words.models import CollectionWords, WordContrast
+    from app.words.routes import decode_word_slug
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.seo.og_image import render_og_image
+
+    a_name = decode_word_slug(a_slug)
+    b_name = decode_word_slug(b_slug)
+    a = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word) == a_name.lower()
+    ).first()
+    b = CollectionWords.query.filter(
+        func.lower(CollectionWords.english_word) == b_name.lower()
+    ).first()
+    if not a or not b or a.id == b.id:
+        abort(404)
+    for w in (a, b):
+        if w.level and w.level not in PUBLIC_CEFR_CODES:
+            abort(404)
+
+    low_id, high_id = sorted((a.id, b.id))
+    if not WordContrast.query.filter_by(word_a_id=low_id, word_b_id=high_id).first():
+        abort(404)
+
+    # Show ``a vs b`` in canonical order. Same level for both is shown when
+    # they match; otherwise drop the level pill to avoid a misleading badge.
+    title = f'{a.english_word if a.id == low_id else b.english_word} vs ' \
+            f'{b.english_word if a.id == low_id else a.english_word}'
+    level = a.level if a.level == b.level else ''
+
+    data = render_og_image(
+        kind='contrast', title=title, subtitle='в чём разница',
+        level=level or '',
+    )
+    return Response(
+        data, mimetype='image/png',
         headers={'Cache-Control': 'public, max-age=86400'},
     )
 

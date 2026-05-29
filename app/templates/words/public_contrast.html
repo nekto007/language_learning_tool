@@ -1,0 +1,195 @@
+{% extends 'public_base.html' %}
+
+{% block title %}{{ word_a.english_word }} vs {{ word_b.english_word }} — в чём разница | LLT English{% endblock %}
+
+{% block meta_description %}<meta name="description" content="{{ meta_description | default('') }}">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:title" content="{{ word_a.english_word }} vs {{ word_b.english_word }} — в чём разница">
+<meta property="og:description" content="{{ meta_description | default('') }}">
+<meta property="og:type" content="article">
+<meta property="og:url" content="{{ canonical_url | default(request.base_url) }}">
+{% endblock %}
+
+{% block og_image %}{{ url_for('seo.og_contrast', a_slug=word_a.english_word|word_slug, b_slug=word_b.english_word|word_slug, _external=True) }}{% endblock %}
+
+{% block head_extra %}
+<link rel="canonical" href="{{ canonical_url | default(request.base_url) }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [{
+    "@type": "Question",
+    "name": "В чём разница между {{ word_a.english_word }} и {{ word_b.english_word }}?",
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": {{ contrast.note_ru|striptags|tojson }}
+    }
+  }]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<style>
+.contrast-page {
+  font-family: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+.contrast-bread {
+  display: flex; gap: 0.5rem; align-items: center;
+  font-size: 0.85rem; color: #64748b; margin: 1.25rem 0 0.75rem;
+}
+.contrast-bread a { color: #64748b; text-decoration: none; }
+.contrast-bread a:hover { color: #2563eb; }
+.contrast-hero {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  border-radius: 16px;
+  padding: 2rem 1.5rem;
+  margin-bottom: 1.5rem;
+  color: #fff;
+  text-align: center;
+}
+.contrast-hero__kicker {
+  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; opacity: 0.85; margin-bottom: 0.5rem;
+}
+.contrast-hero h1 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 800; margin: 0 0 0.4rem; line-height: 1.15;
+}
+.contrast-hero__subtitle {
+  font-size: 1.05rem; opacity: 0.92; margin: 0;
+}
+.contrast-cards {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1rem; margin-bottom: 1.5rem;
+}
+@media (max-width: 640px) { .contrast-cards { grid-template-columns: 1fr; } }
+.contrast-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+  padding: 1.25rem; text-decoration: none; color: inherit;
+  transition: all 0.2s;
+}
+.contrast-card:hover {
+  border-color: #2563eb; transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37,99,235,0.10); color: inherit;
+}
+.contrast-card__en {
+  font-size: 1.55rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem;
+}
+.contrast-card__ipa {
+  display: inline-block; font-family: ui-monospace, Menlo, Monaco, monospace;
+  background: #eff6ff; color: #1d4ed8; border-radius: 999px;
+  padding: 0.15rem 0.55rem; font-size: 0.85rem; font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.contrast-card__ru {
+  color: #475569; font-size: 1rem; line-height: 1.5; margin-bottom: 0.5rem;
+}
+.contrast-card__level {
+  display: inline-block; background: #ecfdf5; color: #047857;
+  border-radius: 999px; padding: 0.15rem 0.55rem;
+  font-size: 0.78rem; font-weight: 700;
+}
+.contrast-explain {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+  padding: 1.25rem; margin-bottom: 1.5rem;
+}
+.contrast-explain h2 {
+  font-size: 1.1rem; font-weight: 800; color: #0f172a;
+  margin: 0 0 0.75rem; display: flex; align-items: center; gap: 0.4rem;
+}
+.contrast-explain__body {
+  color: #0f172a; font-size: 1rem; line-height: 1.65;
+}
+.contrast-explain__body b { color: #b45309; font-weight: 750; }
+.contrast-related {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px;
+  padding: 1.25rem; margin-bottom: 1.5rem;
+}
+.contrast-related h2 {
+  font-size: 1rem; font-weight: 800; color: #0f172a;
+  margin: 0 0 0.75rem;
+}
+.contrast-related__grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.625rem;
+}
+.contrast-related__item {
+  display: block; padding: 0.65rem 0.85rem;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  text-decoration: none; color: #0f172a; font-weight: 650;
+  transition: all 0.15s;
+}
+.contrast-related__item:hover {
+  border-color: #f59e0b; color: #9a3412;
+}
+.contrast-cta {
+  text-align: center; padding: 1.25rem; background: #2563eb;
+  border-radius: 14px; color: #fff;
+}
+.contrast-cta a {
+  color: #fff; text-decoration: underline; font-weight: 700;
+}
+</style>
+
+<div class="contrast-page">
+  <nav class="contrast-bread" aria-label="breadcrumb">
+    <a href="{{ url_for('words.public_dictionary') }}">Словарь</a>
+    <span>›</span>
+    <span>{{ word_a.english_word }} vs {{ word_b.english_word }}</span>
+  </nav>
+
+  <section class="contrast-hero">
+    <div class="contrast-hero__kicker">⚖️ Не путай</div>
+    <h1>{{ word_a.english_word }} vs {{ word_b.english_word }}</h1>
+    <p class="contrast-hero__subtitle">В чём разница и когда какое слово использовать</p>
+  </section>
+
+  <div class="contrast-cards">
+    <a href="{{ url_for('words.public_word', word_slug=word_a.english_word|word_slug) }}" class="contrast-card">
+      <div class="contrast-card__en">{{ word_a.english_word }}</div>
+      {% if word_a.ipa_transcription %}<div class="contrast-card__ipa">/{{ word_a.ipa_transcription }}/</div>{% endif %}
+      <div class="contrast-card__ru">{{ word_a.russian_word or '' }}</div>
+      {% if word_a.level %}<span class="contrast-card__level">{{ word_a.level }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('words.public_word', word_slug=word_b.english_word|word_slug) }}" class="contrast-card">
+      <div class="contrast-card__en">{{ word_b.english_word }}</div>
+      {% if word_b.ipa_transcription %}<div class="contrast-card__ipa">/{{ word_b.ipa_transcription }}/</div>{% endif %}
+      <div class="contrast-card__ru">{{ word_b.russian_word or '' }}</div>
+      {% if word_b.level %}<span class="contrast-card__level">{{ word_b.level }}</span>{% endif %}
+    </a>
+  </div>
+
+  <section class="contrast-explain">
+    <h2>💡 В чём разница</h2>
+    <div class="contrast-explain__body">{{ contrast.note_ru|safe }}</div>
+  </section>
+
+  {% if related %}
+  <section class="contrast-related">
+    <h2>Также часто путают</h2>
+    <div class="contrast-related__grid">
+      {% for r in related %}
+        {% set other_a = r.word_a %}
+        {% set other_b = r.word_b %}
+        {% if other_a and other_b %}
+        <a class="contrast-related__item"
+           href="{{ url_for('words.public_contrast', a_slug=other_a.english_word|word_slug, b_slug=other_b.english_word|word_slug) }}">
+          {{ other_a.english_word }} vs {{ other_b.english_word }}
+        </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="contrast-cta">
+    🎯 <a href="{{ url_for('auth.register') }}">Создай аккаунт</a> и тренируй разницу в карточках с интервальным повторением.
+  </section>
+</div>
+{% endblock %}

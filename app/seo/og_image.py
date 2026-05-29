@@ -214,6 +214,7 @@ def render_og_image(
         'word': 'СЛОВО ДНЯ',
         'grammar': 'ГРАММАТИКА',
         'mistake': 'ЗАПОМНИ',
+        'contrast': 'НЕ ПУТАЙ',
     }.get(kind, kind.upper())
     rubric_font = _load_font(36, bold=True)
     draw.text((PADDING, PADDING - 6), rubric_label, font=rubric_font, fill=TEXT_COLOR)

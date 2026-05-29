@@ -287,6 +287,12 @@
           {% endif %}
         </div>
         <div style="color:#1f2937; font-size:0.95rem; line-height:1.55;">{{ c.note_ru|safe }}</div>
+        <div style="margin-top:0.5rem;">
+          <a href="{{ url_for('words.public_contrast', a_slug=word.english_word|word_slug, b_slug=c.other.english_word|word_slug) }}"
+             style="display:inline-flex; align-items:center; gap:0.3rem; color:#b45309; font-weight:650; text-decoration:none; font-size:0.85rem;">
+            ⚖️ {{ word.english_word }} vs {{ c.other.english_word }} — подробнее →
+          </a>
+        </div>
       </li>
       {% endfor %}
     </ul>
