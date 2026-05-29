@@ -46,9 +46,16 @@ from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 from app.grammar_lab.models import GrammarTopic
 from app.telegram.channel_models import (
     ALLOWED_KINDS, ChannelPost,
-    KIND_GRAMMAR, KIND_MANUAL, KIND_WORD,
+    KIND_GRAMMAR, KIND_MANUAL, KIND_MISTAKE, KIND_WORD,
     STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
 )
+
+
+# Within a KIND_MISTAKE post, content_ref_id encodes (topic_id, mistake_index)
+# as topic_id * _MISTAKE_INDEX_STRIDE + mistake_index. This keeps the dedup
+# index unique per (topic, mistake) pair without a schema migration. Stride
+# of 1000 is safe — no grammar topic ships with anywhere near 1000 mistakes.
+_MISTAKE_INDEX_STRIDE = 1000
 from app.utils.db import db as _default_db
 from app.words.models import CollectionWords
 from app.words.routes import encode_word_slug
@@ -167,6 +174,89 @@ def pick_next_word(db_session: Session, dedup_days: int) -> CollectionWords | No
         )
         .first()
     )
+
+
+def _topic_tip_candidates(topic: GrammarTopic) -> list[tuple[int, dict | str]]:
+    """Return a list of (index, payload) tips this topic can contribute.
+
+    Two sources, in priority order:
+    1. ``content['common_mistakes']`` — structured ``{wrong, correct, ...}``
+       dicts (rarely populated in the current seed; richer post when present).
+    2. ``content['important_notes']`` — list of curated tip strings (universal:
+       all 76 seeded topics have these).
+
+    Indices reuse ``_MISTAKE_INDEX_STRIDE`` slots so dedup keeps both sources
+    distinct: structured mistakes occupy indices 0..499, free-form notes
+    500..999.
+    """
+    content = topic.content if isinstance(topic.content, dict) else {}
+    out: list[tuple[int, dict | str]] = []
+
+    mistakes = content.get('common_mistakes') or []
+    if isinstance(mistakes, list):
+        for i, mistake in enumerate(mistakes):
+            if not isinstance(mistake, dict):
+                continue
+            if (mistake.get('wrong') or '').strip() and (mistake.get('correct') or '').strip():
+                out.append((i, mistake))
+                if i >= 499:
+                    break
+
+    notes = content.get('important_notes') or []
+    if isinstance(notes, list):
+        for i, note in enumerate(notes):
+            if not isinstance(note, str):
+                continue
+            text = note.strip()
+            if not text:
+                continue
+            out.append((500 + i, text))
+            if i >= 499:
+                break
+
+    return out
+
+
+def pick_next_mistake(
+    db_session: Session, dedup_days: int,
+) -> tuple[GrammarTopic, dict | str, int] | None:
+    """Pick a (topic, payload, index) triple not posted recently.
+
+    ``payload`` is either a structured ``common_mistakes`` dict or a free-form
+    ``important_notes`` string. Dedup keys on (topic_id, encoded index) so the
+    same tip never recurs within ``dedup_days``.
+    """
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=dedup_days)
+    rows = (
+        db_session.query(ChannelPost.content_ref_id)
+        .filter(
+            ChannelPost.kind == KIND_MISTAKE,
+            ChannelPost.content_ref_type == 'grammar_mistake',
+            ChannelPost.content_ref_id.isnot(None),
+            ChannelPost.created_at >= cutoff,
+        )
+        .all()
+    )
+    skip_pairs: set[tuple[int, int]] = {
+        (row[0] // _MISTAKE_INDEX_STRIDE, row[0] % _MISTAKE_INDEX_STRIDE)
+        for row in rows if row[0] is not None
+    }
+
+    topics = (
+        GrammarTopic.query
+        .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
+        .order_by(GrammarTopic.order.asc(), GrammarTopic.id.asc())
+        .all()
+    )
+    level_priority = {'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5}
+    topics.sort(key=lambda t: (level_priority.get(t.level, 99), t.order or 0, t.id))
+
+    for topic in topics:
+        for idx, payload in _topic_tip_candidates(topic):
+            if (topic.id, idx) in skip_pairs:
+                continue
+            return topic, payload, idx
+    return None
 
 
 def pick_next_grammar_topic(db_session: Session, dedup_days: int) -> GrammarTopic | None:
@@ -317,6 +407,53 @@ def format_word_post(word: CollectionWords, site_url: str | None = None) -> str:
     return '\n'.join(parts)
 
 
+def format_mistake_post(
+    topic: GrammarTopic, payload: dict | str, site_url: str | None = None,
+) -> str:
+    """Render an 'Ошибка дня / Запомни' post in Telegram HTML.
+
+    Two layouts depending on the payload type:
+    - dict (from ``common_mistakes``): ❌ wrong → ✅ correct → 💬 explanation.
+      Best when curated structured data is available.
+    - str (from ``important_notes``): a single tip rendered verbatim under
+      the 💡 heading. Fallback used when no structured mistakes exist.
+    """
+    base = (site_url or _site_url()).rstrip('/')
+
+    parts: list[str] = []
+    if isinstance(payload, dict):
+        wrong = (payload.get('wrong') or '').strip()
+        correct = (payload.get('correct') or '').strip()
+        explanation = (payload.get('explanation') or '').strip()
+        parts.extend(['❌ <b>Ошибка дня</b>', ''])
+        parts.append(f'❌ <i>{_h(wrong)}</i>')
+        parts.append(f'✅ <i>{_h(correct)}</i>')
+        if explanation:
+            parts.extend(['', f'💬 {_h(explanation[:400])}'])
+    else:
+        # important_notes entries already start with their own emoji (⚠️, 💡, …);
+        # strip a leading copy so we don't repeat it next to our 💡 heading.
+        tip = str(payload).strip()
+        tip = re.sub(r'^[⚠️💡📌🔥✨]+\s*', '', tip)
+        parts.extend(['💡 <b>Запомни сегодня</b>', '', _h(tip[:500])])
+
+    title_ru = topic.title_ru or topic.title
+    meta_bits: list[str] = []
+    if topic.level:
+        meta_bits.append(f'📚 Уровень {_h(topic.level)}')
+    if title_ru:
+        meta_bits.append(f'из темы «{_h(title_ru)}»')
+    if meta_bits:
+        parts.extend(['', ' · '.join(meta_bits)])
+
+    parts.extend([
+        '',
+        '✅ Разобрать тему до конца + упражнения →',
+        _h(f'{base}/grammar-lab/topic/{topic.slug}'),
+    ])
+    return '\n'.join(parts)
+
+
 def _extract_grammar_examples(content: dict, limit: int = 3) -> list[str]:
     """Pull a handful of concrete usage examples from topic.content.
 
@@ -432,15 +569,20 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
 
 def _slot_kind_for_time(
     hour: int, minute: int, morning_hour: int, morning_minute: int,
+    slot_date: date,
 ) -> str:
     """Decide which content kind a given UTC slot represents.
 
-    Morning slot → word; evening slot → grammar. The publisher only ever
-    fills the two configured slots, so anything else defaults to KIND_WORD
-    defensively.
+    Morning slot → always KIND_WORD.
+    Evening slot → alternates by weekday parity:
+        Mon (0) Wed (2) Fri (4) Sun (6) → KIND_GRAMMAR
+        Tue (1) Thu (3) Sat (5)         → KIND_MISTAKE
+    Gives 4 grammar + 3 mistake posts per week without any extra config.
     """
     is_morning = hour == morning_hour and minute == morning_minute
-    return KIND_WORD if is_morning else KIND_GRAMMAR
+    if is_morning:
+        return KIND_WORD
+    return KIND_MISTAKE if slot_date.weekday() % 2 else KIND_GRAMMAR
 
 
 def _existing_slot(scheduled_for: datetime, db_session: Session) -> ChannelPost | None:
@@ -496,6 +638,7 @@ def queue_upcoming(
 
             kind = _slot_kind_for_time(
                 hour, minute, cfg['morning_hour'], cfg['morning_minute'],
+                slot_date,
             )
             post = _build_auto_post(
                 kind=kind,
@@ -553,6 +696,20 @@ def _build_auto_post(
             scheduled_for=scheduled_for,
             status=STATUS_QUEUED,
             text_snapshot=format_grammar_post(topic, site_url=site_url),
+            is_manual=False,
+        )
+    if kind == KIND_MISTAKE:
+        picked = pick_next_mistake(db_session, dedup_days)
+        if picked is None:
+            return None
+        topic, mistake, idx = picked
+        return ChannelPost(
+            kind=KIND_MISTAKE,
+            content_ref_type='grammar_mistake',
+            content_ref_id=topic.id * _MISTAKE_INDEX_STRIDE + idx,
+            scheduled_for=scheduled_for,
+            status=STATUS_QUEUED,
+            text_snapshot=format_mistake_post(topic, mistake, site_url=site_url),
             is_manual=False,
         )
     return None

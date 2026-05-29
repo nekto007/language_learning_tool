@@ -9,12 +9,14 @@ import pytest
 from app.admin.site_settings import set_site_setting
 from app.grammar_lab.models import GrammarTopic
 from app.telegram.channel_models import (
-    ChannelPost, KIND_GRAMMAR, KIND_WORD,
+    ChannelPost, KIND_GRAMMAR, KIND_MISTAKE, KIND_WORD,
     STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
 )
 from app.telegram.channel_publisher import (
-    format_grammar_post, format_word_post,
-    get_channel_config, pick_next_grammar_topic, pick_next_word,
+    _MISTAKE_INDEX_STRIDE,
+    format_grammar_post, format_mistake_post, format_word_post,
+    get_channel_config,
+    pick_next_grammar_topic, pick_next_mistake, pick_next_word,
     publish_due, queue_upcoming,
 )
 from app.words.models import CollectionWords
@@ -236,6 +238,128 @@ def test_format_grammar_post_includes_mini_practice_and_action_cta(candidate_top
     assert 'упражнения' in text.lower() or 'упражнениях' in text.lower()
 
 
+@pytest.fixture
+def mistake_topic(db_session):
+    """Topic with two common_mistakes — enough to test (topic, index) dedup."""
+    suffix = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'mistake-topic-{suffix}', title='Articles',
+        title_ru='Артикли',
+        level='A1', order=1,
+        content={
+            'introduction': 'Артикли a/an перед профессией.',
+            'common_mistakes': [
+                {'wrong': 'I am student.', 'correct': 'I am a student.',
+                 'explanation': 'Перед профессией нужен a/an.'},
+                {'wrong': 'She is teacher.', 'correct': 'She is a teacher.'},
+            ],
+        },
+    )
+    db_session.add(topic)
+    db_session.commit()
+    return topic
+
+
+def test_pick_next_mistake_returns_triple(db_session, mistake_topic):
+    picked = pick_next_mistake(db_session, dedup_days=90)
+    assert picked is not None
+    topic, payload, idx = picked
+    assert idx in (0, 1)
+    assert isinstance(payload, dict)
+    assert payload.get('wrong')
+    assert payload.get('correct')
+
+
+def test_pick_next_mistake_falls_back_to_important_notes(db_session):
+    """When a topic has no common_mistakes but has important_notes, picker
+    must still return a usable tip — that's the universal seeded path."""
+    suffix = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'notes-only-{suffix}', title='Notes', title_ru='Заметки',
+        level='A1', order=1,
+        content={
+            'introduction': '...',
+            'important_notes': [
+                '⚠️ Нельзя сказать «I student», нужно «I am a student».',
+            ],
+        },
+    )
+    db_session.add(topic)
+    db_session.commit()
+    picked = pick_next_mistake(db_session, dedup_days=90)
+    assert picked is not None
+    _, payload, idx = picked
+    # important_notes indices live in the upper half (500+) of the stride.
+    assert idx >= 500
+    assert isinstance(payload, str)
+
+
+def test_pick_next_mistake_skips_used_pair(db_session, mistake_topic):
+    """When index 0 was already posted, picker must return index 1 of the
+    same topic (or move to another topic), not repeat index 0."""
+    used = ChannelPost(
+        kind=KIND_MISTAKE,
+        content_ref_type='grammar_mistake',
+        content_ref_id=mistake_topic.id * _MISTAKE_INDEX_STRIDE + 0,
+        scheduled_for=datetime.utcnow() - timedelta(hours=1),
+        status=STATUS_PUBLISHED,
+        text_snapshot='snap',
+    )
+    db_session.add(used)
+    db_session.commit()
+
+    picked = pick_next_mistake(db_session, dedup_days=90)
+    assert picked is not None
+    topic, mistake, idx = picked
+    # Either the same topic's second mistake, or a different topic entirely —
+    # but NOT (mistake_topic, 0).
+    assert not (topic.id == mistake_topic.id and idx == 0)
+
+
+def test_format_mistake_post_renders_contrast_and_link(mistake_topic):
+    mistake = mistake_topic.content['common_mistakes'][0]
+    text = format_mistake_post(mistake_topic, mistake, site_url='https://llt-english.com')
+    assert 'Ошибка дня' in text
+    assert 'I am student.' in text
+    assert 'I am a student.' in text
+    assert 'Перед профессией' in text
+    assert 'Артикли' in text
+    assert '/grammar-lab/topic/' in text
+
+
+def test_format_mistake_post_handles_important_note_string(mistake_topic):
+    """String payload (from important_notes) renders under the 💡 heading and
+    strips a leading emoji so we don't double it up next to our own."""
+    note = '⚠️ Нельзя забывать про артикль перед профессией!'
+    text = format_mistake_post(mistake_topic, note, site_url='https://llt-english.com')
+    assert 'Запомни' in text
+    assert 'Нельзя забывать' in text
+    # Original ⚠️ has been consumed by our heading; only one warning emoji at
+    # the start of the body line, not two.
+    assert text.count('⚠️') <= 1
+
+
+def test_queue_upcoming_alternates_evening_kinds(
+    db_session, candidate_word, mistake_topic, configured_channel,
+):
+    """Evening slot alternates between KIND_GRAMMAR (even weekday) and
+    KIND_MISTAKE (odd weekday)."""
+    from app.admin.site_settings import set_site_setting
+    set_site_setting('telegram_channel_morning_utc_hour', '0', db_session=db_session)
+    set_site_setting('telegram_channel_morning_utc_minute', '0', db_session=db_session)
+    set_site_setting('telegram_channel_evening_utc_hour', '23', db_session=db_session)
+    set_site_setting('telegram_channel_evening_utc_minute', '59', db_session=db_session)
+    db_session.commit()
+
+    created = queue_upcoming(db_session=db_session, days_ahead=7)
+    evening_posts = [p for p in created if p.scheduled_for.hour == 23]
+    kinds_by_weekday = {p.scheduled_for.weekday(): p.kind for p in evening_posts}
+    # Verify rotation rule on whatever weekdays were queued.
+    for weekday, kind in kinds_by_weekday.items():
+        expected = KIND_MISTAKE if weekday % 2 else KIND_GRAMMAR
+        assert kind == expected, (weekday, kind, expected)
+
+
 def test_format_grammar_post_without_optional_fields(db_session):
     suffix = uuid.uuid4().hex[:6]
     topic = GrammarTopic(
@@ -265,7 +389,7 @@ def test_queue_upcoming_creates_slots(db_session, candidate_word, candidate_topi
     # 2 days × 2 slots = up to 4 posts (may be fewer if today's slots already past)
     assert 1 <= len(created) <= 4
     for post in created:
-        assert post.kind in (KIND_WORD, KIND_GRAMMAR)
+        assert post.kind in (KIND_WORD, KIND_GRAMMAR, KIND_MISTAKE)
         assert post.status == STATUS_QUEUED
         assert post.text_snapshot
         assert post.scheduled_for > datetime.utcnow()

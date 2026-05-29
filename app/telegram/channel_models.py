@@ -25,8 +25,9 @@ from app.utils.db import db
 # allowed values self-documenting; the publisher tests against the same set.
 KIND_WORD = 'word_of_day'
 KIND_GRAMMAR = 'grammar_tip'
+KIND_MISTAKE = 'mistake_of_day'
 KIND_MANUAL = 'manual'
-ALLOWED_KINDS = {KIND_WORD, KIND_GRAMMAR, KIND_MANUAL}
+ALLOWED_KINDS = {KIND_WORD, KIND_GRAMMAR, KIND_MISTAKE, KIND_MANUAL}
 
 # Lifecycle states. ``queued`` rows are eligible for publishing once their
 # ``scheduled_for`` arrives; ``published`` is terminal-success; ``failed``
