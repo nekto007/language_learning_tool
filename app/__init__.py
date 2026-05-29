@@ -38,6 +38,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'curriculum_admin.', 'reminders.', 'settings_admin.', 'seo_admin.',
     'activity_admin.', 'audit_admin.', 'dashboard_admin.',
     'feedback.', 'feedback_admin.', 'acquisition_admin.',
+    'telegram_channel_admin.',
     'refresh_csrf_token',
     'health_check',
 )
@@ -121,6 +122,7 @@ def create_app(config_class=Config):
     from app.grammar_lab import models as grammar_models  # noqa: F401
     from app.reminders import models as reminders_models  # noqa: F401
     from app.telegram import models as telegram_models  # noqa: F401
+    from app.telegram import channel_models as telegram_channel_models  # noqa: F401
     from app.achievements import models as achievements_models  # noqa: F401
     from app.achievements import daily_race as achievements_daily_race  # noqa: F401
     from app.notifications import models as notifications_models  # noqa: F401

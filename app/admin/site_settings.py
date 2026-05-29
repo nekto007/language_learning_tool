@@ -39,6 +39,20 @@ SETTING_DEFAULTS: dict[str, str] = {
     # per-worker in-memory cache across all gunicorn workers (each worker
     # recomputes once on next read instead of serving stale data).
     'seo_audit_cache_version': '1',
+    # Telegram channel auto-publisher.
+    # ``telegram_channel_id`` MUST be the numeric chat id of the channel
+    # (negative, e.g. -1001234567890) — bot must be a channel admin with
+    # post permission. Empty value disables publishing entirely.
+    'telegram_channel_id': '',
+    # ``telegram_channel_username`` is the public @handle without the @.
+    # Used only for building share/permalink URLs in the admin UI.
+    'telegram_channel_username': '',
+    # Morning post hour (UTC, 0..23). Default 06:00 UTC ≈ 09:00 MSK.
+    'telegram_channel_morning_utc_hour': '6',
+    # Evening post hour (UTC, 0..23). Default 15:00 UTC ≈ 18:00 MSK.
+    'telegram_channel_evening_utc_hour': '15',
+    # Picker won't repeat the same word/topic within this many days.
+    'telegram_channel_dedup_days': '90',
 }
 
 
@@ -104,6 +118,37 @@ SETTING_META: dict[str, dict[str, str]] = {
         'type': 'int',
         'description': 'Версия кэша SEO-аудита. Bump инвалидируется per-worker кэш.',
         'min': '0',
+    },
+    'telegram_channel_id': {
+        'type': 'str',
+        'description': (
+            'Числовой ID Telegram-канала (например, -1001234567890). Бот должен '
+            'быть админом канала с правом постить. Пусто = публикатор выключен.'
+        ),
+        'max_length': '32',
+    },
+    'telegram_channel_username': {
+        'type': 'str',
+        'description': 'Публичный @handle канала без @ (для построения ссылок в админке).',
+        'max_length': '64',
+    },
+    'telegram_channel_morning_utc_hour': {
+        'type': 'int',
+        'description': 'Час утреннего поста в UTC (0..23). По умолчанию 6 (= 09:00 МСК).',
+        'min': '0',
+        'max': '23',
+    },
+    'telegram_channel_evening_utc_hour': {
+        'type': 'int',
+        'description': 'Час вечернего поста в UTC (0..23). По умолчанию 15 (= 18:00 МСК).',
+        'min': '0',
+        'max': '23',
+    },
+    'telegram_channel_dedup_days': {
+        'type': 'int',
+        'description': 'Сколько дней не повторять одно и то же слово/тему в канале.',
+        'min': '1',
+        'max': '365',
     },
 }
 

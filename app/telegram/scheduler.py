@@ -63,8 +63,48 @@ def init_scheduler(app) -> None:
         id='telegram_hourly',
         replace_existing=True,
     )
+    # Channel publisher: publish_due runs every 15 minutes so a slot fires
+    # close to its scheduled UTC hour. queue_upcoming refills the next 7
+    # days of slots once a day at 02:00 UTC.
+    _scheduler.add_job(
+        _channel_publish_due,
+        'interval',
+        minutes=15,
+        args=[app],
+        id='telegram_channel_publish',
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _channel_refill_queue,
+        'cron',
+        hour=2,
+        minute=0,
+        args=[app],
+        id='telegram_channel_queue_refill',
+        replace_existing=True,
+    )
     _scheduler.start()
     logger.info('Telegram scheduler started (pid=%s)', os.getpid())
+
+
+def _channel_publish_due(app) -> None:
+    """Hourly hook: deliver any queued channel posts that are now due."""
+    with app.app_context():
+        try:
+            from app.telegram.channel_publisher import publish_due
+            publish_due()
+        except Exception:
+            logger.exception('Channel publisher publish_due failed')
+
+
+def _channel_refill_queue(app) -> None:
+    """Daily hook: top up the next 7 days of morning + evening channel slots."""
+    with app.app_context():
+        try:
+            from app.telegram.channel_publisher import queue_upcoming
+            queue_upcoming(days_ahead=7)
+        except Exception:
+            logger.exception('Channel publisher queue_upcoming failed')
 
 
 def _hourly_check(app) -> None:

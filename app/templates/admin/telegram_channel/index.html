@@ -1,0 +1,169 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Telegram-канал — публикатор{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Telegram-канал', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Telegram-канал', 'Очередь авто-постов и журнал отправок') }}
+
+<!-- Channel config snapshot -->
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Конфигурация</h5></div>
+    <div class="card-body">
+        {% if not config.channel_id %}
+        <div class="alert alert-warning mb-3">
+            <strong>Канал не настроен.</strong> Задайте <code>telegram_channel_id</code>
+            в <a href="{{ url_for('settings_admin.settings_index') }}">настройках</a>,
+            иначе публикатор будет помечать очередь как <code>skipped</code> при сроке отправки.
+        </div>
+        {% endif %}
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Channel ID</dt>
+            <dd class="col-sm-8"><code>{{ config.channel_id or '—' }}</code></dd>
+            <dt class="col-sm-4">Username</dt>
+            <dd class="col-sm-8">
+                {% if config.channel_username %}
+                <a href="https://t.me/{{ config.channel_username }}" target="_blank" rel="noopener">
+                    @{{ config.channel_username }}
+                </a>
+                {% else %}—{% endif %}
+            </dd>
+            <dt class="col-sm-4">Утро (UTC)</dt>
+            <dd class="col-sm-8">{{ '%02d:00'|format(config.morning_hour) }} — Слово дня</dd>
+            <dt class="col-sm-4">Вечер (UTC)</dt>
+            <dd class="col-sm-8">{{ '%02d:00'|format(config.evening_hour) }} — Грамматика</dd>
+            <dt class="col-sm-4">Дедуп окно</dt>
+            <dd class="col-sm-8">{{ config.dedup_days }} дней</dd>
+        </dl>
+    </div>
+</div>
+
+<!-- Refill action -->
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_refill') }}" class="d-flex align-items-center gap-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="mb-0">Пополнить очередь на:</label>
+            <select name="days_ahead" class="form-select form-select-sm" style="width:auto;">
+                {% for d in [3, 7, 14, 30] %}
+                <option value="{{ d }}" {% if d == 7 %}selected{% endif %}>{{ d }} дней</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Пополнить</button>
+            <span class="text-muted small ms-auto">
+                Авто-пополнение запускается ежедневно в 02:00 UTC.
+            </span>
+        </form>
+    </div>
+</div>
+
+<!-- Failed -->
+{% if failed %}
+<div class="card mb-4 border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">⚠ Не отправлены ({{ failed|length }})</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Когда планировался</th>
+                    <th>Тип</th>
+                    <th>Ошибка</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in failed %}
+                <tr>
+                    <td><code>{{ p.scheduled_for.strftime('%Y-%m-%d %H:%M') }} UTC</code></td>
+                    <td><span class="badge bg-secondary">{{ p.kind }}</span></td>
+                    <td><code class="text-danger">{{ p.error or '—' }}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Upcoming queue -->
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Очередь ({{ upcoming|length }})</h5></div>
+    <div class="card-body p-0">
+        {% if upcoming %}
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Когда</th>
+                    <th>Тип</th>
+                    <th>Превью</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in upcoming %}
+                <tr>
+                    <td><code>{{ p.scheduled_for.strftime('%Y-%m-%d %H:%M') }} UTC</code></td>
+                    <td><span class="badge bg-info text-dark">{{ p.kind }}</span></td>
+                    <td><pre class="small mb-0" style="max-width: 480px; white-space: pre-wrap; word-break: break-word;">{{ p.text_snapshot[:280] }}{% if p.text_snapshot|length > 280 %}…{% endif %}</pre></td>
+                    <td class="text-end">
+                        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_skip', post_id=p.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm" onclick="return confirm('Пропустить пост #{{ p.id }}?')">Пропустить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            Очередь пуста. Нажмите «Пополнить» или дождитесь авто-пополнения.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recently published -->
+<div class="card">
+    <div class="card-header"><h5 class="mb-0">Опубликовано за 14 дней ({{ published|length }})</h5></div>
+    <div class="card-body p-0">
+        {% if published %}
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Когда</th>
+                    <th>Тип</th>
+                    <th>Ссылка</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in published %}
+                <tr>
+                    <td><code>{{ p.published_at.strftime('%Y-%m-%d %H:%M') }} UTC</code></td>
+                    <td><span class="badge bg-success">{{ p.kind }}</span></td>
+                    <td>
+                        {% if config.channel_username and p.message_id %}
+                        <a href="https://t.me/{{ config.channel_username }}/{{ p.message_id }}" target="_blank" rel="noopener">
+                            Открыть пост
+                        </a>
+                        {% else %}
+                        <span class="text-muted">message_id={{ p.message_id or '—' }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            Пока ничего не опубликовано.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
