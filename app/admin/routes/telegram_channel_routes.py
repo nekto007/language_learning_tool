@@ -16,7 +16,9 @@ from app.admin.utils.decorators import admin_required
 from app.telegram.channel_models import (
     ChannelPost, STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
 )
-from app.telegram.channel_publisher import get_channel_config, queue_upcoming
+from app.telegram.channel_publisher import (
+    get_channel_config, publish_due, queue_upcoming, send_test_message,
+)
 from app.utils.db import db
 
 telegram_channel_bp = Blueprint('telegram_channel_admin', __name__)
@@ -95,4 +97,61 @@ def telegram_channel_refill():
         f'Добавлено постов: {len(created)} (на {days_ahead} дней вперёд).',
         'success' if created else 'info',
     )
+    return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
+
+
+@telegram_channel_bp.route('/telegram-channel/test', methods=['POST'])
+@admin_required
+def telegram_channel_test():
+    """Send a one-off test message to the configured channel."""
+    ok, message = send_test_message(db.session)
+    flash(message, 'success' if ok else 'danger')
+    return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
+
+
+@telegram_channel_bp.route('/telegram-channel/publish-now', methods=['POST'])
+@admin_required
+def telegram_channel_publish_now():
+    """Run publish_due immediately — useful when the APScheduler is not running
+    (e.g. dev without start-bot, or just after the admin set the channel id)."""
+    try:
+        result = publish_due()
+    except Exception:
+        logger.exception('Admin publish_now failed')
+        flash('Ошибка при принудительной отправке. Смотрите логи.', 'danger')
+        return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
+    if result['sent']:
+        flash(
+            f'Отправлено постов: {result["sent"]}. Провалов: {result["failed"]}.',
+            'success' if not result['failed'] else 'warning',
+        )
+    elif result['failed']:
+        flash(
+            f'Не удалось отправить ни одного поста ({result["failed"]} провал). '
+            f'Откройте раздел «Не отправлены».',
+            'danger',
+        )
+    elif result['skipped_no_channel']:
+        flash(
+            f'channel_id не задан — {result["skipped_no_channel"]} постов помечено как skipped.',
+            'warning',
+        )
+    else:
+        flash('Постов, готовых к отправке, нет (scheduled_for в будущем).', 'info')
+    return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
+
+
+@telegram_channel_bp.route('/telegram-channel/resend/<int:post_id>', methods=['POST'])
+@admin_required
+def telegram_channel_resend(post_id: int):
+    """Re-queue a failed post so the next publish cycle retries it."""
+    from app.telegram.channel_models import ChannelPost, STATUS_QUEUED
+    from datetime import datetime, timezone
+
+    post = ChannelPost.query.get_or_404(post_id)
+    post.status = STATUS_QUEUED
+    post.error = None
+    post.scheduled_for = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.commit()
+    flash(f'Пост #{post.id} возвращён в очередь.', 'success')
     return redirect(url_for('telegram_channel_admin.telegram_channel_index'))

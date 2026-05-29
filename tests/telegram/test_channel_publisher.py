@@ -262,6 +262,7 @@ def test_publish_due_sends_and_marks_published(
 
     fake_resp = SimpleNamespace(
         ok=True,
+        status_code=200,
         content=b'{"ok":true,"result":{"message_id":42}}',
         text='ok',
     )
@@ -295,6 +296,7 @@ def test_publish_due_records_failure(
 
     fake_resp = SimpleNamespace(
         ok=False,
+        status_code=400,
         content=b'{"ok":false,"description":"chat not found"}',
         text='{"ok":false,"description":"chat not found"}',
     )
@@ -303,6 +305,44 @@ def test_publish_due_records_failure(
         result = publish_due(db_session=db_session)
 
     assert result['failed'] == 1
+    db_session.refresh(post)
+    assert post.status == STATUS_FAILED
+    assert post.error and 'chat not found' in post.error
+
+
+def test_publish_due_treats_200_with_ok_false_as_failure(
+    db_session, app, candidate_word, configured_channel,
+):
+    """Regression: Telegram sometimes returns HTTP 200 with ok=false.
+
+    The previous publisher trusted resp.ok and marked the post PUBLISHED,
+    so the row showed a phantom message_id while nothing landed in the
+    channel. The fix is to also check body['ok'].
+    """
+    app.config['TELEGRAM_BOT_TOKEN'] = 'fake-test-token'
+    post = ChannelPost(
+        kind=KIND_WORD,
+        content_ref_type='word',
+        content_ref_id=candidate_word.id,
+        scheduled_for=datetime.utcnow() - timedelta(minutes=1),
+        status=STATUS_QUEUED,
+        text_snapshot=format_word_post(candidate_word),
+    )
+    db_session.add(post)
+    db_session.commit()
+
+    fake_resp = SimpleNamespace(
+        ok=True,
+        status_code=200,
+        content=b'{"ok":false,"description":"Bad Request: chat not found"}',
+        text='{"ok":false,"description":"Bad Request: chat not found"}',
+    )
+    fake_resp.json = lambda: {'ok': False, 'description': 'Bad Request: chat not found'}
+    with patch('app.telegram.channel_publisher.requests.post', return_value=fake_resp):
+        result = publish_due(db_session=db_session)
+
+    assert result['failed'] == 1
+    assert result['sent'] == 0
     db_session.refresh(post)
     assert post.status == STATUS_FAILED
     assert post.error and 'chat not found' in post.error

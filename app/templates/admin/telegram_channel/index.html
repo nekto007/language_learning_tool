@@ -42,22 +42,38 @@
     </div>
 </div>
 
-<!-- Refill action -->
+<!-- Actions -->
 <div class="card mb-4">
-    <div class="card-body py-3">
-        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_refill') }}" class="d-flex align-items-center gap-3">
+    <div class="card-body py-3 d-flex flex-wrap gap-3 align-items-center">
+        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_refill') }}" class="d-flex align-items-center gap-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <label class="mb-0">Пополнить очередь на:</label>
+            <label class="mb-0 small">Пополнить очередь на</label>
             <select name="days_ahead" class="form-select form-select-sm" style="width:auto;">
                 {% for d in [3, 7, 14, 30] %}
                 <option value="{{ d }}" {% if d == 7 %}selected{% endif %}>{{ d }} дней</option>
                 {% endfor %}
             </select>
             <button type="submit" class="btn btn-primary btn-sm">Пополнить</button>
-            <span class="text-muted small ms-auto">
-                Авто-пополнение запускается ежедневно в 02:00 UTC.
-            </span>
         </form>
+
+        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_publish_now') }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning btn-sm"
+                    onclick="return confirm('Принудительно отправить всё, что приспело?')">
+                Опубликовать готовое сейчас
+            </button>
+        </form>
+
+        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_test') }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-info btn-sm">
+                🧪 Тест-пост в канал
+            </button>
+        </form>
+
+        <span class="text-muted small ms-auto">
+            Авто-пополнение — 02:00 UTC, проверка очереди — каждые 5 мин.
+        </span>
     </div>
 </div>
 
@@ -74,6 +90,7 @@
                     <th>Когда планировался</th>
                     <th>Тип</th>
                     <th>Ошибка</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -82,6 +99,12 @@
                     <td><code>{{ p.scheduled_for.strftime('%Y-%m-%d %H:%M') }} UTC</code></td>
                     <td><span class="badge bg-secondary">{{ p.kind }}</span></td>
                     <td><code class="text-danger">{{ p.error or '—' }}</code></td>
+                    <td class="text-end">
+                        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_resend', post_id=p.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-warning btn-sm">Переотправить</button>
+                        </form>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

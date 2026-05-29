@@ -389,7 +389,14 @@ def _build_auto_post(
 
 
 def _send_to_channel(channel_id: str, text: str) -> tuple[bool, int | None, str | None]:
-    """POST sendMessage to Telegram. Returns (success, message_id, error)."""
+    """POST sendMessage to Telegram. Returns (success, message_id, error).
+
+    ``success`` reflects *Telegram's* ok flag, not just HTTP 200. Some
+    error cases (e.g. inactive chat, missing rights) come back as 200/OK
+    with ``ok: false`` in the body; treating those as success would let the
+    publisher mark the post published while nothing actually appeared in
+    the channel.
+    """
     try:
         token = current_app.config.get('TELEGRAM_BOT_TOKEN')
     except RuntimeError:
@@ -412,13 +419,41 @@ def _send_to_channel(channel_id: str, text: str) -> tuple[bool, int | None, str 
         # Avoid leaking token in repr.
         return False, None, f'{type(e).__name__}'
 
-    if not resp.ok:
-        # Telegram error bodies are short JSON — safe to surface.
-        return False, None, resp.text[:400]
+    try:
+        body = resp.json() if resp.content else {}
+    except ValueError:
+        body = {}
 
-    body = resp.json() if resp.content else {}
+    if not resp.ok or not body.get('ok'):
+        # Build a single-line diagnostic the admin can grok at a glance.
+        description = body.get('description') or resp.text[:200]
+        return False, None, f'HTTP {resp.status_code}: {description}'
+
     message_id = (body.get('result') or {}).get('message_id')
     return True, message_id, None
+
+
+def send_test_message(db_session: Session) -> tuple[bool, str]:
+    """Send a one-off test post to the configured channel.
+
+    Returns ``(ok, message)`` where ``message`` is a human-readable
+    description of what happened — suitable for surfacing via flash().
+    The post is NOT recorded in the queue (we don't want test traffic in
+    the published history).
+    """
+    cfg = get_channel_config(db_session)
+    channel_id = cfg['channel_id']
+    if not channel_id:
+        return False, 'telegram_channel_id не задан в настройках.'
+    text = (
+        '🧪 <b>Тест канала</b>\n\n'
+        'Если вы видите это сообщение в канале — публикатор настроен правильно.\n'
+        f'<i>Отправлено: {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}</i>'
+    )
+    ok, message_id, err = _send_to_channel(channel_id, text)
+    if ok:
+        return True, f'Тест отправлен. message_id={message_id}. Проверьте канал.'
+    return False, f'Ошибка отправки: {err}'
 
 
 def publish_due(
