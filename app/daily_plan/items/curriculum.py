@@ -292,8 +292,14 @@ def build_curriculum_item(
     # ``_compute_unified_item_completion`` keys on ``item.id`` and only ever
     # sees the freshly-built L4 card whose ``completed`` is False. Re-render
     # tomorrow will naturally advance the spine.
+    #
+    # For the OPTIONAL section we skip this short-circuit: the required card
+    # is already showing today's done lesson, and the optional slot should
+    # offer the next pending lesson so users who finished their plan can
+    # keep going. Without the skip, optional would render the same done
+    # lesson, get de-duped by id against required, and disappear.
     done_today = _curriculum_done_today(user_id, db)
-    if done_today:
+    if done_today and section == 'required':
         completed_lesson = _get_lesson_completed_today(user_id, db) or next_lesson
         c_module = completed_lesson.module
         c_level = c_module.level if c_module is not None else None

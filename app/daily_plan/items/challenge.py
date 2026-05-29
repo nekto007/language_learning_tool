@@ -11,23 +11,24 @@ import logging
 from typing import Any, Optional
 
 from app.daily_plan.items import PlanItem
+from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 
 logger = logging.getLogger(__name__)
 
 _CHALLENGE_ETA_MINUTES = 7
 
-# Map challenge categories to a CTA URL. ``listening_deep`` accepts any
-# listening attempt today; speed_run / accuracy_focus apply to the next
-# curriculum lesson, so we send the user to the standard /learn entry.
-_CATEGORY_DEFAULT_URL = '/learn/'
-
 
 def build_challenge_item(user_id: int, db: Any) -> Optional[PlanItem]:
-    """Return today's daily-challenge PlanItem, or None on errors / already done.
+    """Return today's daily-challenge PlanItem (completed or pending).
 
-    Already-completed challenges are intentionally skipped — they don't add
-    value as a card after the bonus is claimed. Future enhancement could
-    return a celebratory completed-state item; keep simple for now.
+    Completed challenges are surfaced as a done card so the dashboard
+    shows the user what they accomplished today, instead of hiding the
+    section entirely. ``completed=True`` lets the template render the
+    strike-through state.
+
+    URL targets the specific lesson the challenge is bound to
+    (``DailyChallenge.lesson_id``), with ``?from=linear_plan&slot=challenge``
+    so the lesson page renders plan-aware CTAs after completion.
     """
     from app.daily_plan.challenge import get_today_challenge
 
@@ -37,8 +38,7 @@ def build_challenge_item(user_id: int, db: Any) -> Optional[PlanItem]:
         logger.exception("challenge_item user=%s failed to load challenge", user_id)
         return None
 
-    if info.get('is_completed'):
-        return None
+    is_completed = bool(info.get('is_completed'))
 
     category = info.get('category') or 'speed_run'
     bonus_xp = int(info.get('bonus_xp') or 0)
@@ -51,6 +51,35 @@ def build_challenge_item(user_id: int, db: Any) -> Optional[PlanItem]:
     }
     subtitle = f'+{bonus_xp} XP · сегодня' if bonus_xp else 'Бонус-задание дня'
 
+    # Resolve the target lesson for the challenge:
+    #   - listening_deep → DailyChallenge.lesson_id (pre-pinned dictation/listening
+    #     when seeded with a chosen lesson); fall back to the next listening
+    #     lesson on the user's spine.
+    #   - speed_run / accuracy_focus → the user's next curriculum lesson.
+    # If nothing resolves (spine exhausted, no challenge lesson), fall back
+    # to ``/learn/`` — better than a 404, even though it loses plan ctx.
+    lesson_id = info.get('lesson_id')
+    if lesson_id is None:
+        try:
+            from app.daily_plan.linear.progression import find_next_lesson_linear
+            next_lesson = find_next_lesson_linear(user_id, db)
+            if category == 'listening_deep':
+                from app.daily_plan.items.skills import (
+                    _LISTENING_LESSON_TYPES, _find_next_skill_lesson,
+                )
+                skill_lesson = _find_next_skill_lesson(user_id, db, _LISTENING_LESSON_TYPES)
+                lesson_id = skill_lesson.id if skill_lesson is not None else (
+                    next_lesson.id if next_lesson is not None else None
+                )
+            else:
+                lesson_id = next_lesson.id if next_lesson is not None else None
+        except Exception:
+            logger.exception("challenge_item user=%s lesson resolution failed", user_id)
+            lesson_id = None
+
+    base_url = f'/learn/{lesson_id}/' if lesson_id else '/learn/'
+    url = build_slot_url(base_url, LinearSlotKind.CHALLENGE)
+
     return PlanItem(
         id=f'challenge:{challenge_id}',
         section='optional',
@@ -58,9 +87,9 @@ def build_challenge_item(user_id: int, db: Any) -> Optional[PlanItem]:
         title=title_map.get(category, 'Челлендж дня'),
         subtitle=subtitle,
         lesson_type=None,
-        eta_minutes=_CHALLENGE_ETA_MINUTES,
-        url=_CATEGORY_DEFAULT_URL,
-        completed=False,
+        eta_minutes=0 if is_completed else _CHALLENGE_ETA_MINUTES,
+        url=None if is_completed else url,
+        completed=is_completed,
         completion_signal='challenge_completed',
         data={
             'is_challenge': True,
@@ -68,5 +97,7 @@ def build_challenge_item(user_id: int, db: Any) -> Optional[PlanItem]:
             'category': category,
             'bonus_xp': bonus_xp,
             'challenge_streak': info.get('challenge_streak') or 0,
+            'lesson_id': lesson_id,
+            'completed_score': (info.get('completion') or {}).get('score') if is_completed else None,
         },
     )

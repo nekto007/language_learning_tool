@@ -30,6 +30,7 @@ class LinearSlotKind(str, Enum):
     SPEAKING = 'speaking'
     WRITING = 'writing'
     ERROR_REVIEW = 'error_review'
+    CHALLENGE = 'challenge'
 
 
 def build_slot_url(base_url: Optional[str], slot_kind: LinearSlotKind) -> Optional[str]:
