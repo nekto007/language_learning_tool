@@ -1,5 +1,5 @@
 from datetime import date as _date
-from flask import Response, current_app
+from flask import Response, abort, current_app
 from sqlalchemy import func
 from xml.etree.ElementTree import Element, SubElement, tostring
 from . import seo_bp
@@ -148,6 +148,63 @@ def llms_txt() -> Response:
         f'- [Robots]({site_url}/robots.txt)\n'
     )
     return Response(content, mimetype='text/plain; charset=utf-8')
+
+
+@seo_bp.route('/og/word/<word_slug>.png')
+def og_word(word_slug: str) -> Response:
+    """Branded OG image for a public word page."""
+    from app.words.models import CollectionWords
+    from app.words.routes import decode_word_slug
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.seo.og_image import render_og_image
+
+    name = decode_word_slug(word_slug)
+    word = (
+        CollectionWords.query
+        .filter(func.lower(CollectionWords.english_word) == name.lower())
+        .first()
+    )
+    if not word:
+        abort(404)
+    if word.level and word.level not in PUBLIC_CEFR_CODES:
+        abort(404)
+
+    data = render_og_image(
+        kind='word',
+        title=word.english_word,
+        subtitle=word.russian_word or '',
+        level=word.level or '',
+    )
+    return Response(
+        data,
+        mimetype='image/png',
+        headers={'Cache-Control': 'public, max-age=86400'},
+    )
+
+
+@seo_bp.route('/og/grammar/<slug>.png')
+def og_grammar(slug: str) -> Response:
+    """Branded OG image for a grammar topic page."""
+    from app.grammar_lab.models import GrammarTopic
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.seo.og_image import render_og_image
+
+    topic = GrammarTopic.query.filter_by(slug=slug).first()
+    if not topic or (topic.level and topic.level not in PUBLIC_CEFR_CODES):
+        abort(404)
+    title = topic.title_ru or topic.title or ''
+    subtitle = topic.title if topic.title and topic.title != title else ''
+    data = render_og_image(
+        kind='grammar',
+        title=title,
+        subtitle=subtitle,
+        level=topic.level or '',
+    )
+    return Response(
+        data,
+        mimetype='image/png',
+        headers={'Cache-Control': 'public, max-age=86400'},
+    )
 
 
 @seo_bp.route('/robots.txt')

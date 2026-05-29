@@ -11,6 +11,8 @@
 <meta property="og:url" content="{{ canonical_url | default(request.base_url) }}">
 {% endblock %}
 
+{% block og_image %}{{ url_for('seo.og_word', word_slug=word.english_word|word_slug, _external=True) }}{% endblock %}
+
 {% block head_extra %}
 <link rel="canonical" href="{{ canonical_url | default(request.base_url) }}">
 <script type="application/ld+json">

@@ -12,6 +12,8 @@
 <meta property="og:url" content="{{ request.base_url }}">
 {% endblock %}
 
+{% block og_image %}{{ url_for('seo.og_grammar', slug=topic.slug, _external=True) }}{% endblock %}
+
 {% block meta_description %}<meta name="description" content="{{ meta_description | default('')}}">{% endblock %}
 
 {% block head_extra %}
