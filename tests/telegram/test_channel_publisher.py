@@ -147,6 +147,46 @@ def test_format_word_post_escapes_html(db_session):
     assert '&lt;b&gt;evil&lt;/b&gt;' in text
 
 
+def test_format_word_post_converts_br_to_newline(db_session):
+    """word.sentences contains web-style <br>; channel post must turn that
+    into a real line break so Telegram doesn't show '<br>' literally."""
+    suffix = uuid.uuid4().hex[:6]
+    word = CollectionWords(
+        english_word=f'br_word_{suffix}',
+        russian_word='тест',
+        item_type='word',
+        level='A1',
+        ipa_transcription='x',
+        sentences='I am ready.<br>Я готов.',
+    )
+    db_session.add(word)
+    db_session.commit()
+    text = format_word_post(word)
+    assert '<br>' not in text
+    assert '&lt;br&gt;' not in text
+    assert 'I am ready.' in text
+    assert 'Я готов.' in text
+
+
+def test_format_word_post_strips_other_html(db_session):
+    suffix = uuid.uuid4().hex[:6]
+    word = CollectionWords(
+        english_word=f'span_word_{suffix}',
+        russian_word='тест',
+        item_type='word',
+        level='A1',
+        ipa_transcription='x',
+        sentences='<span class="x">hello</span><br><em>привет</em>',
+    )
+    db_session.add(word)
+    db_session.commit()
+    text = format_word_post(word)
+    assert '<span' not in text and '&lt;span' not in text
+    assert '<em>' not in text and '&lt;em&gt;' not in text
+    assert 'hello' in text
+    assert 'привет' in text
+
+
 def test_format_grammar_post_includes_common_mistake(candidate_topic):
     text = format_grammar_post(candidate_topic, site_url='https://llt-english.com')
     assert 'Грамматика' in text

@@ -134,6 +134,13 @@
                     <td><span class="badge bg-info text-dark">{{ p.kind }}</span></td>
                     <td><pre class="small mb-0" style="max-width: 480px; white-space: pre-wrap; word-break: break-word;">{{ p.text_snapshot[:280] }}{% if p.text_snapshot|length > 280 %}…{% endif %}</pre></td>
                     <td class="text-end">
+                        <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_send_now', post_id=p.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-success btn-sm"
+                                    onclick="return confirm('Отправить пост #{{ p.id }} прямо сейчас (не дожидаясь {{ p.scheduled_for.strftime('%H:%M') }} UTC)?')">
+                                Отправить сейчас
+                            </button>
+                        </form>
                         <form method="POST" action="{{ url_for('telegram_channel_admin.telegram_channel_skip', post_id=p.id) }}" class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-outline-secondary btn-sm" onclick="return confirm('Пропустить пост #{{ p.id }}?')">Пропустить</button>

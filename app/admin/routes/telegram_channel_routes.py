@@ -155,3 +155,42 @@ def telegram_channel_resend(post_id: int):
     db.session.commit()
     flash(f'Пост #{post.id} возвращён в очередь.', 'success')
     return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
+
+
+@telegram_channel_bp.route('/telegram-channel/send-now/<int:post_id>', methods=['POST'])
+@admin_required
+def telegram_channel_send_now(post_id: int):
+    """Pull a queued post's schedule into the past and publish immediately.
+
+    Useful when the queue is full of future slots and the admin wants to
+    test a specific row right now (rather than waiting until 15:00 UTC).
+    """
+    from datetime import datetime, timezone
+    from app.telegram.channel_models import ChannelPost, STATUS_QUEUED
+
+    post = ChannelPost.query.get_or_404(post_id)
+    if post.status != STATUS_QUEUED:
+        flash(f'Пост #{post.id} уже не в очереди (статус: {post.status}).', 'warning')
+        return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
+
+    # Snap scheduled_for to "now minus one second" so publish_due picks it up.
+    post.scheduled_for = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.commit()
+
+    try:
+        result = publish_due()
+    except Exception:
+        logger.exception('Admin send-now failed for post=%s', post_id)
+        flash('Ошибка при отправке. Смотрите логи приложения.', 'danger')
+        return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
+
+    if result['sent']:
+        flash(f'Пост #{post.id} отправлен в канал.', 'success')
+    elif result['failed']:
+        flash(
+            f'Не удалось отправить пост #{post.id}. См. раздел «Не отправлены».',
+            'danger',
+        )
+    else:
+        flash('Неожиданный результат: пост не отправлен и не помечен как failed.', 'warning')
+    return redirect(url_for('telegram_channel_admin.telegram_channel_index'))

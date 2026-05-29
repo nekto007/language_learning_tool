@@ -23,9 +23,18 @@ short-circuits with a warning instead of calling Telegram.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, time, timedelta, timezone
 from html import escape
 from typing import Any
+
+
+# Match every <br> / <br/> / <br /> variant case-insensitively.
+_BR_RE = re.compile(r'<\s*br\s*/?\s*>', flags=re.IGNORECASE)
+# Strip any remaining HTML tags so we don't leak markup into the channel
+# post (Telegram HTML allows a restricted set, and content like word.sentences
+# is authored as web-style HTML rather than Telegram-style).
+_TAG_RE = re.compile(r'<[^>]+>')
 
 import requests
 from flask import current_app
@@ -189,6 +198,26 @@ def _h(value: Any) -> str:
     return escape(str(value)) if value is not None else ''
 
 
+def _clean_html_for_telegram(value: Any) -> str:
+    """Convert web-style HTML content into plain text suitable for Telegram.
+
+    word.sentences and a few grammar fields are stored as web-page snippets:
+    they wrap translations in <br>, sometimes <i>/<b>. Telegram's HTML mode
+    only supports a tiny subset and treats <br> as a literal. We strip every
+    tag here, leaving Telegram-safe text that the formatter can still wrap
+    in <i>/<b> on the outside.
+    """
+    if value is None:
+        return ''
+    text = str(value)
+    # Normalise breaks BEFORE stripping tags so we keep line structure.
+    text = _BR_RE.sub('\n', text)
+    text = _TAG_RE.sub('', text)
+    # Collapse any 3+ consecutive blank lines that the strip may produce.
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text
+
+
 def format_word_post(word: CollectionWords, site_url: str | None = None) -> str:
     """Render a Word-of-Day post in Telegram HTML."""
     base = (site_url or _site_url()).rstrip('/')
@@ -200,10 +229,11 @@ def format_word_post(word: CollectionWords, site_url: str | None = None) -> str:
         f'🇷🇺 {_h(word.russian_word)}',
     ]
     if word.sentences:
-        # ``sentences`` may contain markup tags from the seed data; strip them
-        # by escaping for safety even though Telegram HTML supports <i>.
-        snippet = _h(word.sentences)[:300]
-        parts.extend(['', f'<i>{snippet}</i>'])
+        # ``sentences`` is web-style HTML (<br>, <i>, …). Strip tags to plain
+        # text, then escape so we can safely wrap in Telegram's <i>.
+        snippet = _h(_clean_html_for_telegram(word.sentences))[:300]
+        if snippet:
+            parts.extend(['', f'<i>{snippet}</i>'])
     parts.append('')
     if word.level:
         parts.append(f'📚 Уровень {_h(word.level)}')
@@ -219,11 +249,9 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
     """Render a Grammar-tip post in Telegram HTML."""
     base = (site_url or _site_url()).rstrip('/')
     content = topic.content if isinstance(topic.content, dict) else {}
-    intro = (content.get('introduction') or '').strip()
+    intro = _clean_html_for_telegram(content.get('introduction'))
     if not intro and topic.telegram_summary:
-        intro = topic.telegram_summary.strip()
-    if not intro:
-        intro = ''  # Worst case: no body, just title + link.
+        intro = _clean_html_for_telegram(topic.telegram_summary)
 
     title_ru = topic.title_ru or topic.title
     parts = [
