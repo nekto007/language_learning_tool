@@ -197,11 +197,11 @@ and is not part of this plan.
 - Modify: `app/daily_plan/linear/xp.py` (may need new source key)
 - Modify: `tests/curriculum/`
 
-- [ ] Decide whether book SRS gets its own XP key (`linear_book_srs`) or shares `linear_srs_global` — recommend separate key so the SRS slot's daily idempotency is not consumed by book practice
-- [ ] In `process_card_grade`: after `update_after_review` returns successfully, call the new XP awarder (best-effort try/except, do not block grading on XP failure)
-- [ ] Add idempotency via `StreakEvent(event_type='xp_linear', source='linear_book_srs')` per `(user, date)`
-- [ ] Write tests: grading book card credits XP once per day; second grade same day does not double-credit
-- [ ] Run `pytest tests/curriculum/ tests/daily_plan/ -x` — must pass before task 11
+- [x] Decide whether book SRS gets its own XP key (`linear_book_srs`) or shares `linear_srs_global` — recommend separate key so the SRS slot's daily idempotency is not consumed by book practice
+- [x] In `process_card_grade`: after `update_after_review` returns successfully, call the new XP awarder (best-effort try/except, do not block grading on XP failure)
+- [x] Add idempotency via `StreakEvent(event_type='xp_linear', source='linear_book_srs')` per `(user, date)`
+- [x] Write tests: grading book card credits XP once per day; second grade same day does not double-credit
+- [x] Run `pytest tests/curriculum/ tests/daily_plan/ -x` — must pass before task 11
 
 ### Task 11: Phase 5.b — Evaluate SRS XP for matching/word-scramble games (L3)
 

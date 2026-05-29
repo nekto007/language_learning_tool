@@ -313,3 +313,90 @@ class TestCallerCommitsContract:
         # Re-fetch and verify the original state is restored
         restored = UserCardDirection.query.get(card.id)
         assert restored.repetitions == original_repetitions
+
+
+# ---------------------------------------------------------------------------
+# Task 10: Book SRS grading awards XP via linear_book_srs (idempotent)
+# ---------------------------------------------------------------------------
+
+class TestBookSrsXp:
+    """process_card_grade credits linear_book_srs XP exactly once per day."""
+
+    def test_grading_book_card_awards_xp(self, db_session, user):
+        """First grade of the day should create a StreakEvent with source=linear_book_srs."""
+        from app.achievements.models import StreakEvent
+        from app.utils.db import db
+
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user.id, word)
+        card = _make_card(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            repetitions=3,
+            next_review=_naive_now() - timedelta(hours=1),
+        )
+
+        srs = BookSRSIntegration()
+        result = srs.process_card_grade(user.id, card.id, grade=4, session_key='xp_test')
+        assert result['success'] is True
+
+        db_session.commit()
+
+        events = (
+            db_session.query(StreakEvent)
+            .filter(
+                StreakEvent.user_id == user.id,
+                StreakEvent.event_type == 'xp_linear',
+                StreakEvent.details['source'].astext == 'linear_book_srs',
+            )
+            .all()
+        )
+        assert len(events) == 1, (
+            "Grading a book card should create exactly one xp_linear StreakEvent "
+            "with source=linear_book_srs"
+        )
+
+    def test_grading_same_card_twice_does_not_double_credit(self, db_session, user):
+        """Second grade on the same day must not create a second StreakEvent."""
+        from app.achievements.models import StreakEvent
+        from app.utils.db import db
+
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user.id, word)
+        card = _make_card(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            repetitions=5,
+            next_review=_naive_now() - timedelta(hours=2),
+        )
+
+        srs = BookSRSIntegration()
+
+        # Grade once
+        r1 = srs.process_card_grade(user.id, card.id, grade=4, session_key='xp_once')
+        assert r1['success'] is True
+        db_session.commit()
+
+        # Refresh card for second grade
+        db_session.refresh(card)
+        card.next_review = _naive_now() - timedelta(minutes=1)
+        db_session.commit()
+
+        # Grade again same day
+        r2 = srs.process_card_grade(user.id, card.id, grade=4, session_key='xp_twice')
+        assert r2['success'] is True
+        db_session.commit()
+
+        events = (
+            db_session.query(StreakEvent)
+            .filter(
+                StreakEvent.user_id == user.id,
+                StreakEvent.event_type == 'xp_linear',
+                StreakEvent.details['source'].astext == 'linear_book_srs',
+            )
+            .all()
+        )
+        assert len(events) == 1, (
+            "XP should be awarded only once per day regardless of how many "
+            "book SRS cards are graded"
+        )

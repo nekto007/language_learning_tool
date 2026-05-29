@@ -456,13 +456,15 @@ class BookSRSIntegration:
         """
         Обрабатывает оценку карточки согласно спецификации:
         POST /api/v1/srs/grade {card_id,grade,session_key}
-        
+
         Система оценок (согласно детальному плану):
         0 (Again): "Не помню" - сброс прогресса
         1-2: Неправильный ответ
-        3 (Hard): Правильно, но сложно  
+        3 (Hard): Правильно, но сложно
         4 (Good): Стандартный правильный ответ
         5 (Easy): Легкий ответ
+
+        Caller commits — this method flushes but does not commit.
         """
         try:
             card = UserCardDirection.query.filter_by(id=card_id).first()
@@ -471,12 +473,22 @@ class BookSRSIntegration:
                 return {'success': False, 'error': 'Card not found or access denied'}
 
             # Обновляем карточку согласно алгоритму SM-2
-            result = card.update_after_review(grade)
+            card.update_after_review(grade)
 
             # Логируем review
             self._log_card_review(card, grade, session_key)
 
             db.session.flush()  # caller commits
+
+            # Award book SRS XP once per day (best-effort, does not block grading).
+            try:
+                from app.daily_plan.linear.xp import maybe_award_book_srs_xp
+                maybe_award_book_srs_xp(user_id)
+            except Exception:
+                logger.warning(
+                    'book_srs_integration: XP award failed for user=%s card=%s',
+                    user_id, card_id, exc_info=True,
+                )
 
             # Возвращаем результат с next_due для фронтенда
             return {
