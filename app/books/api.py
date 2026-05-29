@@ -1165,14 +1165,6 @@ def reading_session_end():
     )
     pre_offset = pre_progress.offset_pct if pre_progress else 0.0
 
-    # Capture pre-close daily target state so we can detect the False→True
-    # transition and fire vocab-pull for the first qualifying session today.
-    was_target_met = False
-    _pre_chapter = db.session.get(Chapter, existing.chapter_id)
-    if _pre_chapter is not None:
-        from app.books.reading_session import is_daily_reading_target_met_today
-        was_target_met = is_daily_reading_target_met_today(current_user.id, _pre_chapter.book_id, db)
-
     session = end_session(session_id, db, current_offset_pct=current_offset_hint)
     db.session.commit()
 
@@ -1279,20 +1271,49 @@ def reading_session_end():
             current_user.id, session.id, exc_info=True,
         )
 
-    # Vocab pull: on daily-target transition (False → True) extract unlearned
-    # words from the just-read chapter slice and queue them as SRS cards.
-    # Fall back to the full chapter (0.0–1.0) when state is unavailable.
+    # Vocab pull: extract unlearned words from the just-read chapter slice
+    # and queue them as SRS cards. Fires once per (user, local-date) — we
+    # cannot use the (was_target_met → daily_target_met_today) transition
+    # any more, because the open-session grace credit
+    # (OPEN_SESSION_GRACE_SECONDS) means ``was_target_met`` can already be
+    # True when the heartbeat-driven /end runs, hiding the transition.
+    # Use a StreakEvent marker for idempotency, mirroring the XP write-paths.
     queued_vocab_count = 0
-    if not was_target_met and daily_target_met_today and chapter is not None:
+    if daily_target_met_today and chapter is not None:
         try:
+            from app.achievements.models import StreakEvent
             from app.books.vocab_pull import extract_chapter_vocab, queue_vocab_as_srs
-            start_off = state['earliest_start_offset'] if state is not None else 0.0
-            end_off = state['current_offset'] if state is not None else 1.0
-            words = extract_chapter_vocab(
-                session.chapter_id, start_off, end_off, current_user.id, db
+            from app.utils.time_utils import get_user_local_date
+
+            today_local = get_user_local_date(current_user.id, db)
+            already_pulled = (
+                db.session.query(StreakEvent)
+                .filter(
+                    StreakEvent.user_id == current_user.id,
+                    StreakEvent.event_type == 'vocab_pull',
+                    StreakEvent.event_date == today_local,
+                )
+                .first()
             )
-            queued_vocab_count = queue_vocab_as_srs(words, current_user.id, db)
-            if queued_vocab_count:
+            if already_pulled is None:
+                start_off = state['earliest_start_offset'] if state is not None else 0.0
+                end_off = state['current_offset'] if state is not None else 1.0
+                words = extract_chapter_vocab(
+                    session.chapter_id, start_off, end_off, current_user.id, db
+                )
+                queued_vocab_count = queue_vocab_as_srs(words, current_user.id, db)
+                # Always write the StreakEvent so a follow-up /end doesn't
+                # re-extract — even when 0 cards were created (all words
+                # already known by the user).
+                db.session.add(StreakEvent(
+                    user_id=current_user.id,
+                    event_type='vocab_pull',
+                    event_date=today_local,
+                    details={
+                        'chapter_id': session.chapter_id,
+                        'queued_count': queued_vocab_count,
+                    },
+                ))
                 db.session.commit()
         except Exception:
             logger.warning(
