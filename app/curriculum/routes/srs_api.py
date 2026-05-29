@@ -12,6 +12,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from app.curriculum.book_courses import BookCourseEnrollment
+from app.utils.db import db
 from app.curriculum.daily_lessons import DailyLesson
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.srs import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW
@@ -129,10 +130,13 @@ def grade_card():
         if not result['success']:
             return jsonify(result), 400
 
+        # grade_card flushes only; commit here after any downstream ops (XP, plan)
+        db.session.commit()
         return jsonify(result)
 
     except Exception as e:
         logger.error(f"Error grading card: {str(e)}")
+        db.session.rollback()
         return jsonify({'error': 'Internal server error'}), 500
 
 

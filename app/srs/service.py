@@ -406,6 +406,9 @@ class UnifiedSRSService:
         """
         Process card rating and update SM-2 parameters using Anki-like state machine.
 
+        Contract: flushes changes to the session but does NOT commit.
+        Caller is responsible for committing (and rolling back on downstream failure).
+
         Args:
             card_id: Card ID (UserCardDirection)
             rating: Rating (1, 2, 3)
@@ -497,7 +500,8 @@ class UnifiedSRSService:
             # Update parent UserWord status
             self._update_user_word_status(card)
 
-            db.session.commit()
+            # Flush only — caller commits (allows downstream XP/plan ops in same tx)
+            db.session.flush()
 
             # Calculate requeue position for client-side queue management
             requeue_position = self.get_requeue_position(
