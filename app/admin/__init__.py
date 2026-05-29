@@ -95,5 +95,9 @@ def register_admin_routes(flask_app):
     from app.admin.routes.telegram_channel_routes import telegram_channel_bp
     flask_app.register_blueprint(telegram_channel_bp, url_prefix='/admin')
 
+    # Import and register word-contrast pairs admin blueprint
+    from app.admin.routes.word_contrast_routes import word_contrast_bp
+    flask_app.register_blueprint(word_contrast_bp, url_prefix='/admin')
+
     # Now register the complete blueprint with all routes
     flask_app.register_blueprint(admin)

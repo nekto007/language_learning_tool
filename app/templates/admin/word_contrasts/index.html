@@ -1,0 +1,132 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Контрастные пары слов{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Контрастные пары', '')]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header('Контрастные пары слов', 'Курированные «не путай» — попадают на word page и в канал') }}
+
+<!-- Add form -->
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Добавить пару</h5></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('word_contrast_admin.word_contrast_create') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label" for="word_a">Слово A (английское)</label>
+                    <input type="text" class="form-control" id="word_a" name="word_a"
+                           placeholder="bus stop" required>
+                    <div class="form-text">Точное english_word из словаря, без учёта регистра.</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="word_b">Слово B (английское)</label>
+                    <input type="text" class="form-control" id="word_b" name="word_b"
+                           placeholder="bus station" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="note_ru">Объяснение (русский, разрешён &lt;b&gt;)</label>
+                    <textarea class="form-control" id="note_ru" name="note_ru" rows="3"
+                              maxlength="{{ max_note_length }}" required
+                              placeholder="<b>bus stop</b> — место, где останавливается автобус. <b>bus station</b> — автовокзал."></textarea>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="GET" action="{{ url_for('word_contrast_admin.word_contrast_index') }}" class="d-flex align-items-center gap-3 flex-wrap">
+            <label class="mb-0">Поиск по слову:</label>
+            <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" style="max-width:280px;" placeholder="much">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Найти</button>
+            {% if search %}
+            <a href="{{ url_for('word_contrast_admin.word_contrast_index') }}" class="btn btn-link btn-sm">сбросить</a>
+            {% endif %}
+            <span class="text-muted small ms-auto">Всего: {{ pagination.total }}</span>
+        </form>
+    </div>
+</div>
+
+<!-- List -->
+<div class="card">
+    <div class="card-body p-0">
+        {% if contrasts %}
+        <table class="table table-striped mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">#</th>
+                    <th>Пара</th>
+                    <th>Объяснение</th>
+                    <th class="text-end" style="width: 220px;">Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contrasts %}
+                <tr>
+                    <td><code>{{ c.id }}</code></td>
+                    <td>
+                        {% set a = c.word_a %}
+                        {% set b = c.word_b %}
+                        {% if a %}
+                        <div><b>{{ a.english_word }}</b> <span class="text-muted small">{{ a.russian_word or '' }}</span></div>
+                        {% endif %}
+                        {% if b %}
+                        <div><b>{{ b.english_word }}</b> <span class="text-muted small">{{ b.russian_word or '' }}</span></div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <details>
+                            <summary class="small">{{ c.note_ru[:120] }}{% if c.note_ru|length > 120 %}…{% endif %}</summary>
+                            <form method="POST" action="{{ url_for('word_contrast_admin.word_contrast_update', pair_id=c.id) }}" class="mt-2">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <textarea class="form-control" name="note_ru" rows="3" maxlength="{{ max_note_length }}">{{ c.note_ru }}</textarea>
+                                <div class="mt-2">
+                                    <button type="submit" class="btn btn-sm btn-success">Сохранить</button>
+                                </div>
+                            </form>
+                        </details>
+                    </td>
+                    <td class="text-end">
+                        <form method="POST" action="{{ url_for('word_contrast_admin.word_contrast_delete', pair_id=c.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Удалить пару #{{ c.id }}?')">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            {% if search %}По запросу «{{ search }}» ничего не найдено.{% else %}Контрастных пар пока нет.{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<nav class="mt-3 d-flex justify-content-center">
+    <ul class="pagination">
+        {% if pagination.has_prev %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('word_contrast_admin.word_contrast_index', page=pagination.prev_num, q=search or None) }}">Назад</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.pages }}</span></li>
+        {% if pagination.has_next %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('word_contrast_admin.word_contrast_index', page=pagination.next_num, q=search or None) }}">Далее</a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

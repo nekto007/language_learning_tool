@@ -222,6 +222,10 @@
                         <i class="fab fa-telegram" aria-hidden="true"></i>
                         <span>Telegram-канал</span>
                     </a>
+                    <a href="{{ url_for('word_contrast_admin.word_contrast_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('word_contrast_admin.') }}">
+                        <i class="fas fa-balance-scale" aria-hidden="true"></i>
+                        <span>Контрастные пары</span>
+                    </a>
                     <a href="{{ url_for('feedback_admin.feedback_index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('feedback_admin.') }}">
                         <i class="fas fa-comments" aria-hidden="true"></i>
                         <span>Обратная связь</span>

@@ -38,7 +38,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'curriculum_admin.', 'reminders.', 'settings_admin.', 'seo_admin.',
     'activity_admin.', 'audit_admin.', 'dashboard_admin.',
     'feedback.', 'feedback_admin.', 'acquisition_admin.',
-    'telegram_channel_admin.',
+    'telegram_channel_admin.', 'word_contrast_admin.',
     'refresh_csrf_token',
     'health_check',
 )
