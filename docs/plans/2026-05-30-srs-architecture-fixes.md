@@ -126,13 +126,13 @@ and is not part of this plan.
 - Modify: `app/daily_plan/assembler.py` (`_has_guided_recall_content`, M5)
 - Modify: `tests/study/`, `tests/daily_plan/`
 
-- [ ] Replace internal cutoff `end_of_today` with `now` (naive UTC)
-- [ ] Add state filter: `UserCardDirection.state.in_([LEARNING, RELEARNING, REVIEW])` — exclude NEW
-- [ ] Add buried filter: `(buried_until IS NULL) | (buried_until <= now)`
-- [ ] OR — replace the whole function with delegation to `count_due_cards(user_id, db)` plus the UI-specific shape adapter (return the same dict the routes expect)
-- [ ] Change `_has_guided_recall_content` in `app/daily_plan/assembler.py` to call `count_due_cards`
-- [ ] Write tests: NEW cards (just created) NOT counted; cards due tomorrow NOT counted; cards due in 1 minute counted; buried cards NOT counted
-- [ ] Run `pytest tests/study/ tests/daily_plan/ -x` — must pass before task 6
+- [x] Replace internal cutoff `end_of_today` with `now` (naive UTC)
+- [x] Add state filter: `UserCardDirection.state.in_([LEARNING, RELEARNING, REVIEW])` — exclude NEW
+- [x] Add buried filter: `(buried_until IS NULL) | (buried_until <= now)`
+- [x] OR — replace the whole function with delegation to `count_due_cards(user_id, db)` plus the UI-specific shape adapter (return the same dict the routes expect)
+- [x] Change `_has_guided_recall_content` in `app/daily_plan/assembler.py` to call `count_due_cards`
+- [x] Write tests: NEW cards (just created) NOT counted; cards due tomorrow NOT counted; cards due in 1 minute counted; buried cards NOT counted
+- [x] Run `pytest tests/study/ tests/daily_plan/ -x` — must pass before task 6
 
 ### Task 6: Phase 2.b — Fix `repetitions == 0` proxy in book and curriculum SRS (H4, B5)
 

@@ -225,17 +225,36 @@ def _has_guided_recall_content(user_id: int) -> bool:
     mix pool is empty/fully studied today, or because the new-card budget is
     already spent elsewhere. Without this check, a user can land in an empty
     card session and see the daily-limit banner mid-flow.
+
+    Uses canonical ``count_due_cards`` (LEARNING/RELEARNING/REVIEW, due now,
+    not buried) to agree with the daily-plan assembler on what "due" means.
     """
-    from app.study.services.srs_service import SRSService
+    from app.srs.counting import count_due_cards, get_new_card_budget
+    from app.study.models import UserCardDirection, UserWord
 
     mix_word_ids = get_daily_plan_mix_word_ids(user_id)
     if not mix_word_ids:
         return False
 
-    counts = SRSService.get_card_counts(user_id, deck_word_ids=mix_word_ids)
-    if counts['due_count'] > 0:
+    if count_due_cards(user_id, word_ids=mix_word_ids) > 0:
         return True
-    return counts['new_count'] > 0 and counts['can_study_new']
+
+    remaining_new, _ = get_new_card_budget(user_id)
+    if remaining_new <= 0:
+        return False
+
+    words_with_directions_set = {
+        row[0]
+        for row in db.session.query(UserWord.word_id)
+        .join(UserCardDirection, UserWord.id == UserCardDirection.user_word_id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.word_id.in_(mix_word_ids),
+        )
+        .all()
+    }
+    new_count = sum(1 for wid in mix_word_ids if wid not in words_with_directions_set)
+    return new_count > 0
 
 
 def _find_next_lesson(user_id: int) -> Optional[dict[str, Any]]:
