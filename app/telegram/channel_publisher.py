@@ -218,30 +218,93 @@ def _clean_html_for_telegram(value: Any) -> str:
     return text
 
 
+_FREQ_LABELS = {1: 'Топ-1000', 2: 'Топ-3000', 3: 'Топ-10000'}
+
+
+def _word_examples(word: CollectionWords, max_pairs: int = 2) -> list[tuple[str, str]]:
+    """Split word.sentences into up to *max_pairs* (english, russian) lines.
+
+    Stored format alternates English then Russian, separated by <br>. After
+    _clean_html_for_telegram() those breaks become real newlines, so we just
+    pair adjacent non-empty lines.
+    """
+    if not word.sentences:
+        return []
+    cleaned = _clean_html_for_telegram(word.sentences)
+    lines = [line.strip() for line in cleaned.split('\n') if line.strip()]
+    pairs: list[tuple[str, str]] = []
+    for i in range(0, len(lines) - 1, 2):
+        pairs.append((lines[i], lines[i + 1]))
+        if len(pairs) >= max_pairs:
+            break
+    if not pairs and lines:
+        # Odd line out: at least show the first sentence.
+        pairs.append((lines[0], ''))
+    return pairs
+
+
 def format_word_post(word: CollectionWords, site_url: str | None = None) -> str:
     """Render a Word-of-Day post in Telegram HTML."""
     base = (site_url or _site_url()).rstrip('/')
-    parts = [
-        '📖 <b>Слово дня</b>',
-        '',
-        f'🇬🇧 <b>{_h(word.english_word)}</b>'
-        + (f' <code>/{_h(word.ipa_transcription)}/</code>' if word.ipa_transcription else ''),
-        f'🇷🇺 {_h(word.russian_word)}',
-    ]
-    if word.sentences:
-        # ``sentences`` is web-style HTML (<br>, <i>, …). Strip tags to plain
-        # text, then escape so we can safely wrap in Telegram's <i>.
-        snippet = _h(_clean_html_for_telegram(word.sentences))[:300]
-        if snippet:
-            parts.extend(['', f'<i>{snippet}</i>'])
-    parts.append('')
+
+    parts: list[str] = ['📖 <b>Слово дня</b>', '']
+
+    head = f'🇬🇧 <b>{_h(word.english_word)}</b>'
+    if word.ipa_transcription:
+        head += f' <code>/{_h(word.ipa_transcription)}/</code>'
+    parts.append(head)
+    parts.append(f'🇷🇺 {_h(word.russian_word)}')
+
+    # Level + frequency tag on one line.
+    tags: list[str] = []
     if word.level:
-        parts.append(f'📚 Уровень {_h(word.level)}')
-    # Escape the URL line too: defends against words containing HTML special
-    # characters (none in production seed data, but cheap insurance).
-    parts.append(
-        '🔗 ' + _h(f'{base}/dictionary/{encode_word_slug(word.english_word)}')
-    )
+        tags.append(f'📚 Уровень {_h(word.level)}')
+    freq_label = _FREQ_LABELS.get(getattr(word, 'frequency_band', None) or 0)
+    if freq_label:
+        tags.append(f'🏆 {freq_label}')
+    if tags:
+        parts.extend(['', ' · '.join(tags)])
+
+    pairs = _word_examples(word)
+    if pairs:
+        parts.extend(['', '📝 <b>Примеры:</b>'])
+        for en, ru in pairs:
+            parts.append(f'• <i>{_h(en)}</i>')
+            if ru:
+                parts.append(f'  {_h(ru)}')
+
+    # Synonyms / antonyms — stored as JSON lists on CollectionWords.
+    # Some legacy rows have the literal string 'null' or whitespace-only
+    # entries; filter both out so we don't print garbage tags.
+    def _clean_list(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        out: list[str] = []
+        for raw in value:
+            if raw is None:
+                continue
+            text = str(raw).strip()
+            if not text or text.lower() in ('null', 'none', 'nan'):
+                continue
+            out.append(text)
+        return out
+
+    synonyms = _clean_list(getattr(word, 'synonyms', None))
+    antonyms = _clean_list(getattr(word, 'antonyms', None))
+    if synonyms:
+        names = ', '.join(_h(s) for s in synonyms[:4])
+        parts.extend(['', f'🔄 Синонимы: {names}'])
+    if antonyms:
+        names = ', '.join(_h(a) for a in antonyms[:3])
+        parts.append(f'⚡ Антонимы: {names}')
+
+    parts.extend([
+        '',
+        '🔗 Полная карточка с упражнениями →',
+        _h(f'{base}/dictionary/{encode_word_slug(word.english_word)}'),
+        '',
+        '💡 Учи английские слова с интервальным повторением — бесплатно на llt-english.com',
+    ])
     return '\n'.join(parts)
 
 
@@ -249,36 +312,55 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
     """Render a Grammar-tip post in Telegram HTML."""
     base = (site_url or _site_url()).rstrip('/')
     content = topic.content if isinstance(topic.content, dict) else {}
-    intro = _clean_html_for_telegram(content.get('introduction'))
-    if not intro and topic.telegram_summary:
-        intro = _clean_html_for_telegram(topic.telegram_summary)
+
+    # telegram_summary is curated specifically for messenger length —
+    # prefer it over the longer web intro when both exist.
+    intro = _clean_html_for_telegram(topic.telegram_summary)
+    if not intro:
+        intro = _clean_html_for_telegram(content.get('introduction'))
 
     title_ru = topic.title_ru or topic.title
-    parts = [
-        f'🧠 <b>Грамматика: {_h(title_ru)}</b>'
-        + (f' ({_h(topic.title)})' if topic.title and topic.title != title_ru else ''),
-    ]
-    if intro:
-        parts.extend(['', _h(intro[:600])])
+    head = f'🧠 <b>Грамматика: {_h(title_ru)}</b>'
+    if topic.title and topic.title != title_ru:
+        head += f' ({_h(topic.title)})'
+    parts: list[str] = [head]
 
-    # Surface one common mistake when present — useful, attention-grabbing.
+    # Level + estimated time as a single meta line.
+    meta_bits: list[str] = []
+    if topic.level:
+        meta_bits.append(f'📚 Уровень {_h(topic.level)}')
+    if topic.estimated_time:
+        meta_bits.append(f'⏱ ~{int(topic.estimated_time)} мин')
+    if meta_bits:
+        parts.append(' · '.join(meta_bits))
+
+    if intro:
+        parts.extend(['', _h(intro[:500])])
+
+    # Surface one common mistake when present — high-engagement element.
     mistakes = content.get('common_mistakes') or []
     if mistakes:
         first = mistakes[0] if isinstance(mistakes[0], dict) else {}
         wrong = (first.get('wrong') or '').strip()
         correct = (first.get('correct') or '').strip()
+        explanation = (first.get('explanation') or '').strip()
         if wrong and correct:
             parts.extend([
                 '',
-                '⚠️ Частая ошибка:',
+                '⚠️ <b>Частая ошибка:</b>',
                 f'❌ <i>{_h(wrong)}</i>',
                 f'✅ <i>{_h(correct)}</i>',
             ])
+            if explanation:
+                parts.append(f'💬 {_h(explanation[:200])}')
 
-    parts.append('')
-    if topic.level:
-        parts.append(f'📚 Уровень {_h(topic.level)}')
-    parts.append(f'🔗 {base}/grammar-lab/topic/{_h(topic.slug)}')
+    parts.extend([
+        '',
+        '🔗 Разбор + упражнения с автопроверкой →',
+        _h(f'{base}/grammar-lab/topic/{topic.slug}'),
+        '',
+        '💪 Не просто читай правило — закрепи его в упражнениях.',
+    ])
     return '\n'.join(parts)
 
 
