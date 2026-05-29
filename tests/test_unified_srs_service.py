@@ -391,7 +391,9 @@ class TestGradeCard:
         assert result['state'] == CardState.REVIEW.value
         assert 'next_review' in result
         assert result['requeue_position'] is None  # No requeue for graduated card
-        mock_db.session.commit.assert_called_once()
+        # grade_card flushes (caller commits) — verify flush was called, not commit
+        mock_db.session.flush.assert_called()
+        mock_db.session.commit.assert_not_called()
 
     @patch('app.srs.service.UserCardDirection')
     def test_grade_card_not_found(self, mock_model, service):

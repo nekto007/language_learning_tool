@@ -393,6 +393,8 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         return f"<UserCardDirection {self.id}: word={self.user_word_id} {self.direction} state={self.state}>"
 
     def __init__(self, user_word_id, direction, source=None, **kwargs):
+        from app.srs.constants import DEFAULT_EASE_FACTOR
+
         self.user_word_id = user_word_id
         self.direction = direction
         self.source = source
@@ -400,7 +402,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.step_index = 0
         self.lapses = 0
         self.repetitions = 0
-        self.ease_factor = 2.5
+        self.ease_factor = DEFAULT_EASE_FACTOR
         self.interval = 0
         self.correct_count = 0
         self.incorrect_count = 0

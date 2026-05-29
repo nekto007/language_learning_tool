@@ -1,7 +1,7 @@
 """Tests for SRSService"""
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, UTC, timedelta, timezone
 from app.curriculum.services.srs_service import SRSService
 
 
@@ -95,9 +95,9 @@ class TestGetCardsForLesson:
         # Mock UserWord constructor for creating new ones
         mock_user_word_model.return_value = mock_user_word
 
-        # Create mock new card direction instances
-        new_card = Mock()
-        new_card.repetitions = 0
+        # Create mock new card direction instances (state=NEW so they're counted as new)
+        from app.srs.constants import CardState
+        new_card = Mock(repetitions=0, state=CardState.NEW.value, next_review=None)
         mock_card_dir_model.return_value = new_card
 
         # Mock no existing card directions (batch query returns empty)
@@ -123,12 +123,16 @@ class TestGetCardsForLesson:
         # Mock existing user word found by batch query
         mock_user_word_model.query.filter.return_value.all.return_value = [mock_user_word]
 
-        # Mock existing card directions that are due for both directions
+        # Mock existing card directions that are due for both directions (naive UTC)
+        from app.srs.constants import CardState
+        naive_overdue = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
         dir_eng = Mock(user_word_id=1, direction='eng-rus',
-                       next_review=datetime.now(UTC) - timedelta(hours=1),
+                       next_review=naive_overdue,
+                       state=CardState.REVIEW.value,
                        repetitions=5)
         dir_rus = Mock(user_word_id=1, direction='rus-eng',
-                       next_review=datetime.now(UTC) - timedelta(hours=1),
+                       next_review=naive_overdue,
+                       state=CardState.REVIEW.value,
                        repetitions=3)
         mock_card_dir_model.query.filter.return_value.all.return_value = [dir_eng, dir_rus]
 
@@ -151,8 +155,9 @@ class TestGetCardsForLesson:
         user_words = [Mock(id=i, user_id=1, word_id=i) for i in range(1, 11)]
         mock_user_word_model.query.filter.return_value.all.return_value = user_words
 
-        # Create mock new card instances
-        new_card = Mock(repetitions=0)
+        # Create mock new card instances (state=NEW so the limit applies)
+        from app.srs.constants import CardState
+        new_card = Mock(repetitions=0, state=CardState.NEW.value, next_review=None)
         mock_card_dir_model.return_value = new_card
 
         # No existing card directions (batch query returns empty)

@@ -227,8 +227,9 @@ class TestFilterDueCards:
     """Test _filter_due_cards method"""
 
     def test_includes_new_cards(self, integration):
-        """Test including new cards (repetitions=0)"""
-        new_card = Mock(repetitions=0, next_review=None, direction='eng-rus')
+        """Test including new cards (state=NEW) regardless of next_review."""
+        from app.srs.constants import CardState
+        new_card = Mock(state=CardState.NEW.value, next_review=None, direction='eng-rus')
         cards = [{'card': new_card, 'context': None}]
 
         result = integration._filter_due_cards(cards)

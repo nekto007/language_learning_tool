@@ -239,3 +239,19 @@ class TestQueueVocabAsSrs:
         db_session.commit()
 
         assert created == 4
+
+    def test_ease_factor_uses_constant(self, app, db_session, test_user, word_factory):
+        """Cards created by queue_vocab_as_srs must use DEFAULT_EASE_FACTOR."""
+        from app.srs.constants import DEFAULT_EASE_FACTOR
+        from app.study.models import UserCardDirection, UserWord
+        w = word_factory('concepts', frequency_rank=350)
+        db_session.commit()
+
+        queue_vocab_as_srs([w], test_user.id, db)
+        db_session.commit()
+
+        uw = UserWord.query.filter_by(user_id=test_user.id, word_id=w.id).first()
+        cards = UserCardDirection.query.filter_by(user_word_id=uw.id).all()
+        assert len(cards) == 2
+        for card in cards:
+            assert card.ease_factor == DEFAULT_EASE_FACTOR

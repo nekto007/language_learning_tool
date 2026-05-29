@@ -169,11 +169,12 @@ and is not part of this plan.
 - Modify: `app/auth/models.py`
 - Modify: `tests/books/`, `tests/auth/`
 
-- [ ] In `_get_or_create_card_direction` (`book_srs_integration.py:~330`): replace `2.5` with `DEFAULT_EASE_FACTOR`
-- [ ] In `queue_vocab_as_srs` (`vocab_pull.py:~127`): same replacement
-- [ ] In `is_already_known` path (`auth/models.py:~196`): same replacement
-- [ ] Write tests: each path uses constant; bumping `DEFAULT_EASE_FACTOR` in the test pushes the seeded value through (parameterised constant assertion)
-- [ ] Run `pytest tests/ -x` — must pass before task 9
+- [x] In `_get_or_create_card_direction` (`book_srs_integration.py:~330`): replace `2.5` with `DEFAULT_EASE_FACTOR`
+- [x] In `queue_vocab_as_srs` (`vocab_pull.py:~127`): same replacement
+- [x] In `is_already_known` path (`auth/models.py:~196`): same replacement
+- [x] Also covered `UserCardDirection.__init__` default in `study/models.py:403` (same L1 hardcode)
+- [x] Write tests: each path uses constant; bumping `DEFAULT_EASE_FACTOR` in the test pushes the seeded value through (parameterised constant assertion)
+- [x] Run `pytest tests/ -x` — must pass before task 9
 
 ### Task 9: Phase 4 — Remove mid-request commits from SRS helpers (L2)
 
