@@ -427,8 +427,8 @@
             // Initialize global search
             initGlobalSearch();
 
-            // Auto-hide alerts
-            const alerts = document.querySelectorAll('.alert');
+            // Auto-hide alerts (skip those marked data-persist="true")
+            const alerts = document.querySelectorAll('.alert:not([data-persist="true"])');
             alerts.forEach(alert => {
                 setTimeout(() => {
                     const bsAlert = new bootstrap.Alert(alert);
