@@ -155,11 +155,11 @@ and is not part of this plan.
 - Modify: `app/curriculum/routes/card_lessons.py`
 - Modify: `tests/curriculum/test_card_lessons.py`
 
-- [ ] At the card-creation site (~line 129), loop over both directions (`eng-rus` and `rus-eng`) when inserting `UserCardDirection`
-- [ ] Use `DEFAULT_EASE_FACTOR` (from `app/srs/constants.py`) instead of relying on the column default
-- [ ] Set `state=CardState.NEW.value` explicitly so the canonical counter logic picks it up
-- [ ] Write tests: completing a card lesson creates both `eng-rus` AND `rus-eng` rows; second invocation idempotent (no duplicates)
-- [ ] Run `pytest tests/curriculum/ tests/srs/ -x` — must pass before task 8
+- [x] At the card-creation site (~line 129), loop over both directions (`eng-rus` and `rus-eng`) when inserting `UserCardDirection`
+- [x] Use `DEFAULT_EASE_FACTOR` (from `app/srs/constants.py`) instead of relying on the column default
+- [x] Set `state=CardState.NEW.value` explicitly so the canonical counter logic picks it up
+- [x] Write tests: completing a card lesson creates both `eng-rus` AND `rus-eng` rows; second invocation idempotent (no duplicates)
+- [x] Run `pytest tests/curriculum/ tests/srs/ -x` — must pass before task 8
 
 ### Task 8: Phase 3.b — Replace hardcoded 2.5 with DEFAULT_EASE_FACTOR (L1)
 

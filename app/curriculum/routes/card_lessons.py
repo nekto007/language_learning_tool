@@ -14,6 +14,9 @@ from app.curriculum.service import (
     get_card_session_for_lesson, process_card_review_for_lesson, sync_lesson_cards_to_words,
 )
 from app.curriculum.validators import SRSReviewSchema, validate_request_data
+from app.srs.constants import (
+    CardState, DEFAULT_EASE_FACTOR, DIRECTION_ENG_RUS, DIRECTION_RUS_ENG,
+)
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -126,9 +129,23 @@ def _build_cards_for_words(
                 if not uw:
                     uw = UserWord.get_or_create(user_id, word.id)
                     user_word_map[word.id] = uw
-                dir_obj = UserCardDirection(user_word_id=uw.id, direction='eng-rus', source='lesson_vocab')
-                db.session.add(dir_obj)
-                directions_by_word[word.id] = [dir_obj]
+                dir_eng_rus = UserCardDirection(
+                    user_word_id=uw.id,
+                    direction=DIRECTION_ENG_RUS,
+                    source='lesson_vocab',
+                    ease_factor=DEFAULT_EASE_FACTOR,
+                    state=CardState.NEW.value,
+                )
+                dir_rus_eng = UserCardDirection(
+                    user_word_id=uw.id,
+                    direction=DIRECTION_RUS_ENG,
+                    source='lesson_vocab',
+                    ease_factor=DEFAULT_EASE_FACTOR,
+                    state=CardState.NEW.value,
+                )
+                db.session.add(dir_eng_rus)
+                db.session.add(dir_rus_eng)
+                directions_by_word[word.id] = [dir_eng_rus, dir_rus_eng]
                 needs_flush = True
 
         if needs_flush:
@@ -215,7 +232,7 @@ def _build_cards_for_words(
                 'is_new': True,
                 'status': 'new',
                 'interval': 0,
-                'ease_factor': 2.5,
+                'ease_factor': DEFAULT_EASE_FACTOR,
                 'repetitions': 0,
                 'session_attempts': 0,
                 'audio': audio_file,
