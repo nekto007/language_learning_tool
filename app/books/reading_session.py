@@ -9,15 +9,19 @@ Frontend lifecycle:
     - ``POST /api/books/reading-session/start`` on chapter open / scroll-in
     - ``POST /api/books/reading-session/end``   on page-leave / scroll-out
 
-A session's ``ended_at`` is nullable — an in-progress (open) session
-contributes 0 seconds to the duration sum until it is closed.
+A session's ``ended_at`` is nullable. Open sessions are still credited
+*conservatively* (capped at ``OPEN_SESSION_GRACE_SECONDS``) by the daily
+helpers below so that a sendBeacon-delivered close racing with a
+dashboard rebuild does not strip already-read minutes from the reading
+slot. The grace cap matches one client heartbeat window plus network
+slack, so a stale open session can never over-credit.
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, and_, or_
 from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
@@ -29,16 +33,66 @@ MIN_READING_SECONDS = 300
 
 # Daily-target thresholds for the unified plan reading slot. These gate the
 # "Дневная норма по чтению выполнена" banner and the slot's completion event.
-# Aggregated across all of today's closed sessions on the same chapter — so
+# Aggregated across all of today's sessions on the same chapter — so
 # pause/resume cycles (which split a long read into many short sessions) are
 # summed honestly.
 DAILY_READING_TARGET_SECONDS = 300
 DAILY_CHAPTER_ADVANCE_MIN = 0.02
 CHAPTER_COMPLETION_THRESHOLD = 0.99
 
+# Max seconds we credit to an in-progress (still-open) session. Matches the
+# reader's heartbeat interval (60s, see ``HEARTBEAT_INTERVAL_MS`` in
+# ``reader_simple.html``) plus a 30s slack for network latency. A stale open
+# session — e.g. a tab the user walked away from — cannot exceed this cap
+# regardless of wall-clock age, so the grace window is bounded.
+OPEN_SESSION_GRACE_SECONDS = 90
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _session_credit_seconds(
+    session: 'UserReadingSession', now: Optional[datetime] = None
+) -> int:
+    """Seconds to credit for one session, treating open sessions as actively
+    read for at most ``OPEN_SESSION_GRACE_SECONDS``.
+
+    Closes the race where a user navigates from the reader to the
+    dashboard before the sendBeacon close has committed: the open row
+    is still visible and credited up to one heartbeat window, matching
+    what would have committed had the close request arrived.
+    """
+    if session.ended_at is not None:
+        return session.duration_seconds()
+    if session.started_at is None:
+        return 0
+    now = now or _utcnow()
+    elapsed = int((now - session.started_at).total_seconds())
+    if elapsed <= 0:
+        return 0
+    return min(elapsed, OPEN_SESSION_GRACE_SECONDS)
+
+
+def _sessions_in_local_day_filter(start_utc: datetime, end_utc: datetime):
+    """SQLAlchemy predicate matching closed sessions by ``ended_at`` AND
+    open sessions by ``started_at`` within the user's local-day window.
+
+    Open sessions are anchored on ``started_at`` because they have no
+    ``ended_at`` yet — we credit them today if they were begun today.
+    """
+    return or_(
+        and_(
+            UserReadingSession.ended_at.isnot(None),
+            UserReadingSession.ended_at >= start_utc,
+            UserReadingSession.ended_at < end_utc,
+        ),
+        and_(
+            UserReadingSession.ended_at.is_(None),
+            UserReadingSession.started_at >= start_utc,
+            UserReadingSession.started_at < end_utc,
+        ),
+    )
 
 
 class UserReadingSession(db.Model):
@@ -261,14 +315,14 @@ def get_session_duration(
     chapter_id: int,
     db_session: Any = db,
 ) -> int:
-    """Sum the duration (in seconds) of *closed* sessions for the user's
-    local day, scoped to ``chapter_id``.
+    """Sum the seconds spent in ``chapter_id`` today.
 
-    Open sessions (``ended_at is None``) contribute 0 — closing the session
-    is the signal that the user actually finished a reading window. The
-    day window filters on ``ended_at`` so a session that crosses local
-    midnight (started 23:59, closed 00:01) is credited to the day the
-    user actually finished reading rather than being lost on both sides.
+    Closed sessions are credited for their full ``duration_seconds()``;
+    still-open sessions are credited up to ``OPEN_SESSION_GRACE_SECONDS``
+    so a sendBeacon close that hasn't committed yet doesn't make
+    already-read time disappear from the slot. Closed sessions are
+    bucketed by ``ended_at`` so a midnight-crossing session is credited
+    to the day the user actually finished reading.
     """
     start_utc, end_utc = _user_local_day_window_utc(user_id, db_session)
     rows = (
@@ -276,13 +330,12 @@ def get_session_duration(
         .filter(
             UserReadingSession.user_id == user_id,
             UserReadingSession.chapter_id == chapter_id,
-            UserReadingSession.ended_at.isnot(None),
-            UserReadingSession.ended_at >= start_utc,
-            UserReadingSession.ended_at < end_utc,
+            _sessions_in_local_day_filter(start_utc, end_utc),
         )
         .all()
     )
-    return sum(r.duration_seconds() for r in rows)
+    now = _utcnow()
+    return sum(_session_credit_seconds(r, now) for r in rows)
 
 
 def get_book_reading_seconds_today(
@@ -290,9 +343,14 @@ def get_book_reading_seconds_today(
     book_id: int,
     db_session: Any = db,
 ) -> int:
-    """Total closed-session seconds across all chapters of ``book_id`` for
-    the user's local day. Used by the linear reading slot to surface
-    "Прочитано N сек / 60 сек" progress against the time gate."""
+    """Total seconds spent reading any chapter of ``book_id`` today.
+
+    Closed sessions count for ``duration_seconds()``; still-open ones
+    contribute up to ``OPEN_SESSION_GRACE_SECONDS`` (one heartbeat
+    window) so a sendBeacon close racing with the dashboard rebuild
+    can't strip already-read time from the slot. Used by the unified
+    reading slot to surface "Прочитано N сек / 300 сек" progress.
+    """
     from app.books.models import Chapter
 
     start_utc, end_utc = _user_local_day_window_utc(user_id, db_session)
@@ -302,13 +360,12 @@ def get_book_reading_seconds_today(
         .filter(
             UserReadingSession.user_id == user_id,
             Chapter.book_id == book_id,
-            UserReadingSession.ended_at.isnot(None),
-            UserReadingSession.ended_at >= start_utc,
-            UserReadingSession.ended_at < end_utc,
+            _sessions_in_local_day_filter(start_utc, end_utc),
         )
         .all()
     )
-    return sum(r.duration_seconds() for r in rows)
+    now = _utcnow()
+    return sum(_session_credit_seconds(r, now) for r in rows)
 
 
 def has_min_reading_time_today(
@@ -317,8 +374,12 @@ def has_min_reading_time_today(
     db_session: Any = db,
     minimum_seconds: int = MIN_READING_SECONDS,
 ) -> bool:
-    """Return True when total closed-session time for any chapter of
-    ``book_id`` reached ``minimum_seconds`` within the user's local day.
+    """Return True when total reading time for any chapter of ``book_id``
+    reached ``minimum_seconds`` within the user's local day.
+
+    Includes still-open sessions credited up to one heartbeat window so
+    a sendBeacon-close racing with the dashboard rebuild doesn't drop
+    the slot back to incomplete.
     """
     from app.books.models import Chapter
 
@@ -329,13 +390,12 @@ def has_min_reading_time_today(
         .filter(
             UserReadingSession.user_id == user_id,
             Chapter.book_id == book_id,
-            UserReadingSession.ended_at.isnot(None),
-            UserReadingSession.ended_at >= start_utc,
-            UserReadingSession.ended_at < end_utc,
+            _sessions_in_local_day_filter(start_utc, end_utc),
         )
         .all()
     )
-    total = sum(r.duration_seconds() for r in rows)
+    now = _utcnow()
+    total = sum(_session_credit_seconds(r, now) for r in rows)
     return total >= minimum_seconds
 
 
@@ -384,7 +444,11 @@ def compute_chapter_daily_target_state(
     target" inside this chapter today AND whether the chapter has just been
     completed during today's sessions:
 
-    - ``active_seconds`` — sum of closed-session durations today on this chapter
+    - ``active_seconds`` — sum of session durations today on this chapter.
+      Closed sessions contribute their full ``duration_seconds()``; an
+      in-progress session contributes up to ``OPEN_SESSION_GRACE_SECONDS``
+      so the slot doesn't temporarily un-complete while the close request
+      is in flight.
     - ``earliest_start_offset`` — lowest ``start_offset_pct`` of today's sessions
     - ``current_offset`` — current persisted ``UserChapterProgress.offset_pct``
     - ``offset_advance`` — ``max(0, current - earliest_start)``
@@ -403,13 +467,12 @@ def compute_chapter_daily_target_state(
         .filter(
             UserReadingSession.user_id == user_id,
             UserReadingSession.chapter_id == chapter_id,
-            UserReadingSession.ended_at.isnot(None),
-            UserReadingSession.ended_at >= start_utc,
-            UserReadingSession.ended_at < end_utc,
+            _sessions_in_local_day_filter(start_utc, end_utc),
         )
         .all()
     )
-    active_seconds = sum(s.duration_seconds() for s in sessions)
+    now = _utcnow()
+    active_seconds = sum(_session_credit_seconds(s, now) for s in sessions)
     earliest_start = min(
         (float(s.start_offset_pct or 0.0) for s in sessions),
         default=0.0,
@@ -443,6 +506,11 @@ def is_daily_reading_target_met_today(
     """Return True iff any chapter of ``book_id`` reached the daily target
     today (aggregated time + offset advance). Used by the unified daily
     plan reading slot to decide completion.
+
+    Open sessions count toward both the chapter shortlist and the
+    per-chapter aggregate via ``compute_chapter_daily_target_state``, so
+    a navigation from the reader straight to the dashboard no longer
+    needs the sendBeacon close to land before the slot can flip.
     """
     from app.books.models import Chapter
 
@@ -453,9 +521,7 @@ def is_daily_reading_target_met_today(
         .filter(
             UserReadingSession.user_id == user_id,
             Chapter.book_id == book_id,
-            UserReadingSession.ended_at.isnot(None),
-            UserReadingSession.ended_at >= start_utc,
-            UserReadingSession.ended_at < end_utc,
+            _sessions_in_local_day_filter(start_utc, end_utc),
         )
         .distinct()
         .all()

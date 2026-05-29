@@ -263,15 +263,55 @@ class TestTask15Audit:
     def test_single_session_below_threshold_insufficient(
         self, app, db_session, test_user, test_chapter, test_book,
     ):
-        """A single session shorter than MIN_READING_SECONDS must not satisfy
-        has_min_reading_time_today even when another open (unclosed) session exists.
+        """A single closed session shorter than MIN_READING_SECONDS combined
+        with a *fresh* open session must not yet satisfy the time gate.
+
+        A fresh open session contributes near-zero seconds (now - started_at),
+        so 290s + ~0s < 300s and the slot stays uncompleted.
         """
         s = start_session(test_user.id, test_chapter.id, db)
         _close_session_with_duration(s, MIN_READING_SECONDS - 10)
-        # Open session — must NOT contribute to duration
+        # Fresh open session — credits ~0s (started_at = now) via the
+        # OPEN_SESSION_GRACE_SECONDS path.
         start_session(test_user.id, test_chapter.id, db)
         db_session.commit()
 
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is False
+
+    def test_open_session_credited_up_to_grace_window(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """An in-progress session started a heartbeat ago must contribute its
+        elapsed seconds — closes the sendBeacon-vs-dashboard race where the
+        close request hasn't committed before the plan rebuilds.
+        """
+        from app.books.reading_session import OPEN_SESSION_GRACE_SECONDS
+
+        # Closed session: 240s, so we still need ~60s more to hit the gate.
+        s_closed = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s_closed, MIN_READING_SECONDS - 60)
+        # Open session backdated 60 seconds — within the grace window.
+        s_open = start_session(test_user.id, test_chapter.id, db)
+        s_open.started_at = datetime.now(timezone.utc) - timedelta(seconds=60)
+        db_session.commit()
+
+        assert has_min_reading_time_today(test_user.id, test_book.id, db) is True
+
+    def test_open_session_credit_capped_at_grace_window(
+        self, app, db_session, test_user, test_chapter, test_book,
+    ):
+        """A stale open session (started hours ago) must not over-credit; the
+        cap prevents an abandoned tab from completing the slot indefinitely.
+        """
+        from app.books.reading_session import OPEN_SESSION_GRACE_SECONDS
+
+        s_open = start_session(test_user.id, test_chapter.id, db)
+        # Started 3 hours ago — capped at OPEN_SESSION_GRACE_SECONDS (90s),
+        # which alone is well below MIN_READING_SECONDS (300s).
+        s_open.started_at = datetime.now(timezone.utc) - timedelta(hours=3)
+        db_session.commit()
+
+        assert get_session_duration(test_user.id, test_chapter.id, db) <= OPEN_SESSION_GRACE_SECONDS
         assert has_min_reading_time_today(test_user.id, test_book.id, db) is False
 
     def test_negative_offset_delta_does_not_break_aggregation(
