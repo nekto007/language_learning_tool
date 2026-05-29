@@ -501,6 +501,7 @@ def get_srs_session(lesson_id):
             daily_lesson=daily_lesson,
             enrollment=enrollment
         )
+        db.session.commit()
 
         return jsonify(session_data)
 
@@ -530,6 +531,8 @@ def grade_srs_card():
             session_key=session_key
         )
 
+        if result.get('success'):
+            db.session.commit()
         return jsonify(result)
 
     except Exception as e:
@@ -559,6 +562,7 @@ def add_word_to_srs():
         )
 
         if result.get('success'):
+            db.session.commit()
             return jsonify(result)
         else:
             return jsonify(result), 400

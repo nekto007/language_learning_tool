@@ -105,6 +105,9 @@ class BookSRSIntegration:
         """
         Создает SRS сессию для daily lesson согласно спецификации:
         GET /api/v1/srs/session?lesson_id=:id → { deck:[{card_id,front,back,phase,new}], session_key }
+
+        Flushes newly created UserWord/UserCardDirection rows but does NOT commit.
+        Caller is responsible for committing the transaction.
         """
         try:
             logger.info(f"Creating SRS session for user {user_id}, lesson {daily_lesson.id}")
@@ -119,8 +122,8 @@ class BookSRSIntegration:
             # Создаем или получаем SRS карточки для этих слов
             cards = self._get_or_create_srs_cards(user_id, vocabulary_words, daily_lesson)
 
-            # Commit новые карточки в базу
-            db.session.commit()
+            # Flush новые карточки; caller commits
+            db.session.flush()
 
             # Фильтруем карточки по дате повторения (due today or overdue)
             due_cards = self._filter_due_cards(cards)
@@ -473,7 +476,7 @@ class BookSRSIntegration:
             # Логируем review
             self._log_card_review(card, grade, session_key)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             # Возвращаем результат с next_due для фронтенда
             return {
@@ -516,7 +519,7 @@ class BookSRSIntegration:
             )
 
             db.session.add(event)
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             logger.info(f"SRS session completed for user {user_id}, lesson {daily_lesson_id}")
             return True
@@ -544,7 +547,7 @@ class BookSRSIntegration:
             # Создаем SRS карточки для всех слов
             self._get_or_create_srs_cards(user_id, vocabulary_words, daily_lesson)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             logger.info(f"Auto-created SRS cards for {len(vocabulary_words)} words from lesson {daily_lesson.id}")
             return True
@@ -734,7 +737,7 @@ class BookSRSIntegration:
                         deck_word = QuizDeckWord(deck_id=deck.id, word_id=word_id)
                         db.session.add(deck_word)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             logger.info(f"Added word {word_id} to SRS for user {user_id} (source: {source}, course: {course_id})")
 

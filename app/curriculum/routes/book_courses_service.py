@@ -185,6 +185,7 @@ def _build_vocabulary_fc_vars(
                     daily_lesson=daily_lesson,
                     enrollment=enrollment
                 )
+                db.session.commit()
                 srs_session_key = session_data.get('session_key')
                 studied_today = session_data.get('studied_today', 0)
                 for card in session_data.get('deck', []):

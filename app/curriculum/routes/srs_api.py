@@ -57,6 +57,7 @@ def get_srs_session():
             daily_lesson=daily_lesson,
             enrollment=enrollment
         )
+        db.session.commit()
 
         if not session_data['session_key']:
             return jsonify({'error': 'No cards available for review'}), 404
@@ -173,6 +174,7 @@ def complete_srs_session():
         if not success:
             return jsonify({'error': 'Failed to complete session'}), 500
 
+        db.session.commit()
         return jsonify({
             'success': True,
             'message': 'SRS session completed successfully'
@@ -268,6 +270,7 @@ def create_srs_cards_for_lesson():
         if not success:
             return jsonify({'error': 'Failed to create SRS cards'}), 500
 
+        db.session.commit()
         return jsonify({
             'success': True,
             'message': 'SRS cards created successfully'
@@ -296,6 +299,7 @@ def on_lesson_completed(lesson_id):
                 user_id=current_user.id,
                 daily_lesson=daily_lesson
             )
+            db.session.commit()
 
             logger.info(f"Auto-created SRS cards for vocabulary lesson {lesson_id}")
 

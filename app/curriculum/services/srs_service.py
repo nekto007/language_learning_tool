@@ -19,12 +19,15 @@ class SRSService:
     @staticmethod
     def get_cards_for_lesson(lesson: Lessons, user_id: int) -> Dict:
         """
-        Get cards for SRS lesson
-        
+        Get cards for SRS lesson.
+
+        Flushes newly created UserWord/UserCardDirection rows but does NOT commit.
+        Caller is responsible for committing the transaction.
+
         Args:
             lesson: SRS lesson
             user_id: User ID
-            
+
         Returns:
             Dictionary with card statistics and due cards
         """
@@ -102,7 +105,7 @@ class SRSService:
                         review_cards += 1
                         due_directions.append(card_dir)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             # Get SRS settings from lesson
             srs_settings = lesson.get_srs_settings()
@@ -249,7 +252,7 @@ class SRSService:
 
             # Note: session_attempts is already incremented inside update_after_review()
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             # Check if lesson is complete
             cards_data = SRSService.get_cards_for_lesson(

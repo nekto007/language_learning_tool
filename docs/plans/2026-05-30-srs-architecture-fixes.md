@@ -184,11 +184,11 @@ and is not part of this plan.
 - Modify: all callers — add commits at request boundary
 - Modify: `tests/curriculum/`
 
-- [ ] Replace `db.session.commit()` with `db.session.flush()` inside the helpers
-- [ ] Identify all callers via grep (`grep -rn create_srs_session_for_lesson app/`) and ensure each commits at the route handler boundary
-- [ ] Document caller-commits contract in docstrings
-- [ ] Write tests: exception after `get_cards_for_lesson` rolls back the created `UserCardDirection` rows (verify with `db.session.rollback()` + recount)
-- [ ] Run `pytest tests/curriculum/ -x` — must pass before task 10
+- [x] Replace `db.session.commit()` with `db.session.flush()` inside the helpers
+- [x] Identify all callers via grep (`grep -rn create_srs_session_for_lesson app/`) and ensure each commits at the route handler boundary
+- [x] Document caller-commits contract in docstrings
+- [x] Write tests: exception after `get_cards_for_lesson` rolls back the created `UserCardDirection` rows (verify with `db.session.rollback()` + recount)
+- [x] Run `pytest tests/curriculum/ -x` — must pass before task 10
 
 ### Task 10: Phase 5.a — Add XP hook to book SRS grading (M4)
 

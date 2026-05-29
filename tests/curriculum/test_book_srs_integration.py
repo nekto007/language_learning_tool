@@ -239,3 +239,77 @@ class TestGetDueCardsCount:
         srs = BookSRSIntegration()
         count = srs.get_due_cards_count(user.id)
         assert count == 0
+
+
+# ---------------------------------------------------------------------------
+# Task 9: caller-commits contract — helpers flush, do NOT commit
+# ---------------------------------------------------------------------------
+
+class TestCallerCommitsContract:
+    """Verify that SRS helpers flush but do not commit; rollback discards new cards."""
+
+    def test_get_or_create_card_direction_flushes_not_commits(self, db_session, user):
+        """
+        _get_or_create_card_direction creates a card via flush.
+        Rolling back the transaction (simulating exception in caller) discards it.
+        """
+        from app.utils.db import db
+
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user.id, word)
+
+        srs = BookSRSIntegration()
+
+        # Before: no card directions for this user_word
+        count_before = UserCardDirection.query.filter_by(user_word_id=uw.id).count()
+        assert count_before == 0
+
+        # Call the helper — it flushes so the new card has an id
+        card = srs._get_or_create_card_direction(uw, 'eng-rus')
+        assert card.id is not None, "flush should assign a PK"
+
+        # Within the same session the card is visible
+        count_flushed = UserCardDirection.query.filter_by(user_word_id=uw.id).count()
+        assert count_flushed == 1
+
+        # Simulate caller exception — roll back without committing
+        db.session.rollback()
+
+        # After rollback the card must not be persisted
+        count_after = UserCardDirection.query.filter_by(user_word_id=uw.id).count()
+        assert count_after == 0, (
+            "_get_or_create_card_direction must flush only; "
+            "rollback should discard the new card"
+        )
+
+    def test_process_card_grade_flushes_not_commits(self, db_session, user):
+        """
+        process_card_grade updates a card via flush.
+        Rolling back discards the update.
+        """
+        from app.utils.db import db
+
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user.id, word)
+        card = _make_card(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            repetitions=3,
+            next_review=_naive_now() - timedelta(hours=1),
+        )
+        original_repetitions = card.repetitions
+
+        srs = BookSRSIntegration()
+        result = srs.process_card_grade(user.id, card.id, grade=4, session_key='test')
+        assert result['success'] is True
+
+        # Update is visible in current session (after flush)
+        db_session.refresh(card)
+        assert card.repetitions != original_repetitions or card.interval != 0
+
+        # Roll back — the update must be discarded
+        db.session.rollback()
+
+        # Re-fetch and verify the original state is restored
+        restored = UserCardDirection.query.get(card.id)
+        assert restored.repetitions == original_repetitions
