@@ -497,6 +497,17 @@ def create_app(config_class=Config):
     # Register CLI commands for startup jobs (seed, warm-cache, start-bot, start-email-scheduler)
     _register_cli_commands(app)
 
+    # Auto-start the Telegram APScheduler inside one gunicorn worker.
+    # init_scheduler uses a file lock (/tmp/tg_scheduler.lock) so only one
+    # worker takes the jobs; the rest exit immediately. Skipped in tests
+    # to avoid background threads running during pytest runs.
+    if not app.config.get('TESTING') and app.config.get('TELEGRAM_BOT_TOKEN'):
+        try:
+            from app.telegram.scheduler import init_scheduler
+            init_scheduler(app)
+        except Exception:
+            logger.exception('Auto-init of Telegram scheduler failed')
+
     return app
 
 
