@@ -374,3 +374,86 @@ class TestEaseFactorFloor:
 
         db_session.refresh(card)
         assert card.ease_factor >= MIN_EASE_FACTOR
+
+
+def _make_new_card(db_session, user: User) -> UserCardDirection:
+    """Create a NEW-state card with no review history."""
+    from app.srs.constants import DEFAULT_EASE_FACTOR
+    suffix = uuid.uuid4().hex[:8]
+    word = CollectionWords(
+        english_word=f'newcard_{suffix}',
+        russian_word=f'новое_{suffix}',
+        level='A1',
+    )
+    db_session.add(word)
+    db_session.commit()
+    uw = UserWord(user_id=user.id, word_id=word.id)
+    uw.status = 'new'
+    db_session.add(uw)
+    db_session.commit()
+    card = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+    card.state = CardState.NEW.value
+    card.repetitions = 0
+    card.interval = 0
+    card.ease_factor = DEFAULT_EASE_FACTOR
+    card.step_index = 0
+    card.lapses = 0
+    card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
+    card.first_reviewed = None
+    card.last_reviewed = None
+    db_session.add(card)
+    db_session.commit()
+    return card
+
+
+class TestFirstReviewedCanonicalPath:
+    """grade_card must set first_reviewed on first grade (Task 1 fix, H2)."""
+
+    def test_new_card_graded_sets_first_reviewed(self, db_session):
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+        assert card.first_reviewed is None
+
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_KNOW, user_id=user.id,
+        )
+        assert result['success'] is True
+
+        db_session.refresh(card)
+        assert card.first_reviewed is not None
+        # Must be naive UTC
+        assert card.first_reviewed.tzinfo is None
+
+    def test_subsequent_grade_does_not_overwrite_first_reviewed(self, db_session):
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        db_session.refresh(card)
+        first = card.first_reviewed
+
+        # Make card due again then grade again
+        card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
+        db_session.commit()
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        db_session.refresh(card)
+        assert card.first_reviewed == first
+
+    def test_last_reviewed_is_naive_utc(self, db_session):
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        db_session.refresh(card)
+        assert card.last_reviewed is not None
+        assert card.last_reviewed.tzinfo is None
+
+    def test_count_new_cards_today_sees_canonical_graded_card(self, db_session):
+        from app.srs.counting import count_new_cards_today
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        before = count_new_cards_today(user.id)
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        after = count_new_cards_today(user.id)
+        assert after == before + 1

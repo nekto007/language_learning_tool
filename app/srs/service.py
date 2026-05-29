@@ -440,6 +440,9 @@ class UnifiedSRSService:
             current_state = card.state or CardState.NEW.value
             current_step = card.step_index or 0
 
+            # Capture first-review flag before state changes
+            is_first_review = card.first_reviewed is None
+
             # Calculate new parameters using state machine
             update_result = self.calculate_sm2_update(
                 rating=rating,
@@ -458,11 +461,14 @@ class UnifiedSRSService:
             card.interval = update_result['interval']
             card.ease_factor = update_result['ease_factor']
             card.lapses = update_result['lapses']
-            card.last_reviewed = datetime.now(timezone.utc)
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+            card.last_reviewed = now_naive
+            if is_first_review:
+                card.first_reviewed = now_naive
 
             bury_days = update_result.get('bury_days')
             if bury_days:
-                card.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
+                card.buried_until = now_naive + timedelta(days=bury_days)
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -474,7 +480,6 @@ class UnifiedSRSService:
             card.session_attempts = (card.session_attempts or 0) + 1
 
             # Calculate next_review based on state
-            now = datetime.now(timezone.utc)
             requeue_minutes = update_result['requeue_minutes']
             days_until_review = update_result['days_until_review']
 
@@ -482,12 +487,12 @@ class UnifiedSRSService:
                 # Add ±10% variance to prevent review cliff
                 variance = random.uniform(0.9, 1.1)
                 adjusted_days = max(1, round(days_until_review * variance))
-                card.next_review = now + timedelta(days=adjusted_days)
+                card.next_review = now_naive + timedelta(days=adjusted_days)
             elif requeue_minutes:
                 # Learning/Relearning: schedule for minutes from now
-                card.next_review = now + timedelta(minutes=requeue_minutes)
+                card.next_review = now_naive + timedelta(minutes=requeue_minutes)
             else:
-                card.next_review = now
+                card.next_review = now_naive
 
             # Update parent UserWord status
             self._update_user_word_status(card)
