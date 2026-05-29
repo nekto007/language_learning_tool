@@ -57,13 +57,68 @@ def telegram_channel_index():
     )
 
     config = get_channel_config(db.session)
+    scheduler_status = _build_scheduler_status(db.session)
     return render_template(
         'admin/telegram_channel/index.html',
         upcoming=upcoming,
         published=published,
         failed=failed,
         config=config,
+        scheduler_status=scheduler_status,
     )
+
+
+def _build_scheduler_status(db_session) -> dict:
+    """Build the scheduler-liveness snapshot shown in the admin header.
+
+    Returns a dict with:
+    - ``last_tick_iso``: raw value from SiteSettings (or '' if never written).
+    - ``last_tick_age_seconds``: seconds since last tick, or None if unknown.
+    - ``healthy``: True if last_tick is within ~3× the publisher interval (5 min),
+      i.e. <=15 minutes ago.
+    - ``message``: human-readable diagnostic for the admin UI.
+    """
+    from app.admin.site_settings import get_site_setting
+
+    raw = (get_site_setting('telegram_channel_last_tick_iso', '', db_session=db_session) or '').strip()
+    if not raw:
+        return {
+            'last_tick_iso': '',
+            'last_tick_age_seconds': None,
+            'healthy': False,
+            'message': (
+                'APScheduler ни разу не отметился. '
+                'Скорее всего процесс flask start-bot не запущен — '
+                'без него автопубликация не работает (только ручные кнопки).'
+            ),
+        }
+    try:
+        last = datetime.fromisoformat(raw)
+    except ValueError:
+        return {
+            'last_tick_iso': raw,
+            'last_tick_age_seconds': None,
+            'healthy': False,
+            'message': f'Некорректное значение last_tick_iso: {raw}',
+        }
+    now = datetime.now(timezone.utc)
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    age = int((now - last).total_seconds())
+    healthy = 0 <= age <= 15 * 60  # 3× publisher interval
+    if healthy:
+        message = f'APScheduler жив, последний тик {age // 60} мин назад.'
+    else:
+        message = (
+            f'Последний тик scheduler\'а {age // 60} мин назад — это слишком давно. '
+            f'Проверьте, что процесс flask start-bot работает.'
+        )
+    return {
+        'last_tick_iso': raw,
+        'last_tick_age_seconds': age,
+        'healthy': healthy,
+        'message': message,
+    }
 
 
 @telegram_channel_bp.route('/telegram-channel/skip/<int:post_id>', methods=['POST'])

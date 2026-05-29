@@ -10,6 +10,15 @@
 {% block content %}
 {{ page_header('Telegram-канал', 'Очередь авто-постов и журнал отправок') }}
 
+<!-- Scheduler health -->
+<div class="alert {% if scheduler_status.healthy %}alert-success{% else %}alert-warning{% endif %} mb-4">
+    <strong>Scheduler:</strong>
+    {{ scheduler_status.message }}
+    {% if scheduler_status.last_tick_iso %}
+    <span class="text-muted small ms-2">last tick: <code>{{ scheduler_status.last_tick_iso }}</code></span>
+    {% endif %}
+</div>
+
 <!-- Channel config snapshot -->
 <div class="card mb-4">
     <div class="card-header"><h5 class="mb-0">Конфигурация</h5></div>

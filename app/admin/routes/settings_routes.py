@@ -26,7 +26,10 @@ logger = logging.getLogger(__name__)
 # All editable keys exposed in the settings form.
 # GSC tokens are managed via the OAuth flow, not the settings form;
 # seo_audit_cache_version is bumped via the SEO admin "refresh" button.
-_HIDDEN_KEYS = {'gsc_refresh_token', 'gsc_site_url', 'seo_audit_cache_version'}
+_HIDDEN_KEYS = {
+    'gsc_refresh_token', 'gsc_site_url', 'seo_audit_cache_version',
+    'telegram_channel_last_tick_iso',
+}
 _ALL_KEYS = [k for k in SETTING_DEFAULTS if k not in _HIDDEN_KEYS]
 
 

@@ -57,6 +57,10 @@ SETTING_DEFAULTS: dict[str, str] = {
     'telegram_channel_evening_utc_minute': '0',
     # Picker won't repeat the same word/topic within this many days.
     'telegram_channel_dedup_days': '90',
+    # Watchdog: ISO timestamp of the last scheduler tick that ran publish_due.
+    # Admin page reads it to detect a dead/missing scheduler. Updated by the
+    # publisher itself, not editable in the settings UI.
+    'telegram_channel_last_tick_iso': '',
 }
 
 
@@ -165,6 +169,11 @@ SETTING_META: dict[str, dict[str, str]] = {
         'description': 'Сколько дней не повторять одно и то же слово/тему в канале.',
         'min': '1',
         'max': '365',
+    },
+    'telegram_channel_last_tick_iso': {
+        'type': 'str',
+        'description': 'Время последнего тика APScheduler\'а (служебное, обновляется автоматически).',
+        'max_length': '40',
     },
 }
 

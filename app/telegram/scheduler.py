@@ -89,11 +89,26 @@ def init_scheduler(app) -> None:
 
 
 def _channel_publish_due(app) -> None:
-    """Hourly hook: deliver any queued channel posts that are now due."""
+    """5-minute hook: deliver any queued channel posts that are now due.
+
+    Always writes a watchdog timestamp (``telegram_channel_last_tick_iso``)
+    even when nothing was sent, so the admin page can detect a stuck/missing
+    scheduler — a stale timestamp means the APScheduler process is dead.
+    """
     with app.app_context():
         try:
+            from app.admin.site_settings import set_site_setting
             from app.telegram.channel_publisher import publish_due
-            publish_due()
+            from app.utils.db import db as _db
+            try:
+                publish_due()
+            finally:
+                # Record liveness even if publish failed mid-flight.
+                set_site_setting(
+                    'telegram_channel_last_tick_iso',
+                    datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                )
+                _db.session.commit()
         except Exception:
             logger.exception('Channel publisher publish_due failed')
 
