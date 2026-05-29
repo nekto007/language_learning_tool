@@ -197,6 +197,45 @@ def test_format_grammar_post_includes_common_mistake(candidate_topic):
     assert '/grammar-lab/topic/' in text
 
 
+def test_format_word_post_includes_mini_practice_and_action_cta(candidate_word):
+    text = format_word_post(candidate_word)
+    assert 'Мини-практика' in text
+    assert candidate_word.english_word in text
+    # Action-oriented CTA — must mention произношение/карточк.
+    assert 'Послушай' in text or 'послушай' in text.lower()
+    assert 'карточк' in text
+
+
+def test_format_grammar_post_examples_appear_before_theory(db_session):
+    """Live examples must surface above the abstract introduction text."""
+    suffix = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'examples-first-{suffix}', title='Examples first',
+        title_ru='Сначала примеры',
+        level='A2', order=1,
+        content={
+            'introduction': 'ZZZ-INTRO теория про конструкции.',
+            'sections': [
+                {'examples': [
+                    {'en': 'I have a glass of water.', 'ru': 'У меня стакан воды.'},
+                    {'en': 'She drinks a cup of tea.', 'ru': 'Она пьёт чашку чая.'},
+                ]},
+            ],
+        },
+    )
+    db_session.add(topic)
+    db_session.commit()
+    text = format_grammar_post(topic)
+    assert 'glass of water' in text
+    assert text.index('glass of water') < text.index('ZZZ-INTRO')
+
+
+def test_format_grammar_post_includes_mini_practice_and_action_cta(candidate_topic):
+    text = format_grammar_post(candidate_topic)
+    assert 'Мини-практика' in text
+    assert 'упражнения' in text.lower() or 'упражнениях' in text.lower()
+
+
 def test_format_grammar_post_without_optional_fields(db_session):
     suffix = uuid.uuid4().hex[:6]
     topic = GrammarTopic(

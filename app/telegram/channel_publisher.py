@@ -298,18 +298,69 @@ def format_word_post(word: CollectionWords, site_url: str | None = None) -> str:
         names = ', '.join(_h(a) for a in antonyms[:3])
         parts.append(f'⚡ Антонимы: {names}')
 
+    # Mini-practice: works without curated per-word data. The "Попробуй сам"
+    # framing pushes the reader from passive recognition to active recall —
+    # the single biggest predictor of retention.
     parts.extend([
         '',
-        '🔗 Полная карточка с упражнениями →',
-        _h(f'{base}/dictionary/{encode_word_slug(word.english_word)}'),
+        '✍️ <b>Мини-практика:</b>',
+        f'Составь своё предложение со словом <b>{_h(word.english_word)}</b>.',
+    ])
+
+    # Action-oriented CTA — tells the user what they get on the page,
+    # not just "more details".
+    parts.extend([
         '',
-        '💡 Учи английские слова с интервальным повторением — бесплатно на llt-english.com',
+        '🎧 Послушай произношение и добавь в карточки →',
+        _h(f'{base}/dictionary/{encode_word_slug(word.english_word)}'),
     ])
     return '\n'.join(parts)
 
 
+def _extract_grammar_examples(content: dict, limit: int = 3) -> list[str]:
+    """Pull a handful of concrete usage examples from topic.content.
+
+    The seed format has examples in two places:
+    - ``content['sections'][i]['examples']`` — list of strings or
+      {'en': ..., 'ru': ...} dicts.
+    - ``content['summary_table']['rows']`` — fallback for terse topics.
+
+    Examples land in the post BEFORE the prose theory so the reader sees a
+    concrete pattern first (the "грамматика без боли" framing from the
+    Telegram-channel feedback).
+    """
+    found: list[str] = []
+    sections = content.get('sections') or []
+    if not isinstance(sections, list):
+        sections = []
+    for section in sections:
+        if not isinstance(section, dict):
+            continue
+        for raw in section.get('examples') or []:
+            if isinstance(raw, dict):
+                en = (raw.get('en') or raw.get('english') or '').strip()
+                ru = (raw.get('ru') or raw.get('russian') or '').strip()
+                if en and ru:
+                    found.append(f'{en} — {ru}')
+                elif en:
+                    found.append(en)
+            elif isinstance(raw, str):
+                text = raw.strip()
+                if text:
+                    found.append(text)
+            if len(found) >= limit:
+                return found
+    return found
+
+
 def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str:
-    """Render a Grammar-tip post in Telegram HTML."""
+    """Render a Grammar-tip post in Telegram HTML.
+
+    Order is deliberate: title → meta → live examples → short rule →
+    common mistake → CTA. Reader gets a pattern they recognise before
+    any abstract terminology, which mirrors how the channel feedback
+    asked us to frame grammar posts.
+    """
     base = (site_url or _site_url()).rstrip('/')
     content = topic.content if isinstance(topic.content, dict) else {}
 
@@ -334,8 +385,16 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
     if meta_bits:
         parts.append(' · '.join(meta_bits))
 
+    examples = _extract_grammar_examples(content)
+    if examples:
+        parts.extend(['', '✅ <b>Примеры:</b>'])
+        for ex in examples:
+            parts.append(f'• <i>{_h(ex)}</i>')
+
+    # Short rule body. Kept tight: 400 chars is enough for a quick read
+    # without crowding out the examples and CTA.
     if intro:
-        parts.extend(['', _h(intro[:500])])
+        parts.extend(['', _h(intro[:400])])
 
     # Surface one common mistake when present — high-engagement element.
     mistakes = content.get('common_mistakes') or []
@@ -356,10 +415,14 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
 
     parts.extend([
         '',
-        '🔗 Разбор + упражнения с автопроверкой →',
-        _h(f'{base}/grammar-lab/topic/{topic.slug}'),
+        '✍️ <b>Мини-практика:</b>',
+        'Составь своё предложение по этому правилу — проверь себя в упражнениях по ссылке.',
+    ])
+
+    parts.extend([
         '',
-        '💪 Не просто читай правило — закрепи его в упражнениях.',
+        '✅ Пройти упражнения с автопроверкой →',
+        _h(f'{base}/grammar-lab/topic/{topic.slug}'),
     ])
     return '\n'.join(parts)
 
