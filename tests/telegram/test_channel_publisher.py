@@ -10,17 +10,20 @@ from app.admin.site_settings import set_site_setting
 from app.grammar_lab.models import GrammarTopic
 from app.grammar_lab.models import GrammarExercise
 from app.telegram.channel_models import (
-    ChannelPost, KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ, KIND_WORD,
+    ChannelPost, KIND_CONTRAST, KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ, KIND_WORD,
     STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
 )
 from app.telegram.channel_publisher import (
     _MISTAKE_INDEX_STRIDE,
     _quiz_payload_from_exercise,
-    format_grammar_post, format_mistake_post, format_quiz_preview, format_word_post,
+    format_contrast_post, format_grammar_post, format_mistake_post,
+    format_quiz_preview, format_word_post,
     get_channel_config,
-    pick_next_grammar_topic, pick_next_mistake, pick_next_quiz, pick_next_word,
+    pick_next_contrast, pick_next_grammar_topic, pick_next_mistake,
+    pick_next_quiz, pick_next_word,
     publish_due, queue_upcoming,
 )
+from app.words.models import WordContrast
 from app.words.models import CollectionWords
 
 
@@ -524,6 +527,72 @@ def test_publish_due_marks_quiz_failed_when_exercise_invalid(
     assert post.error and 'unavailable or invalid' in post.error
 
 
+@pytest.fixture
+def contrast_pair(db_session):
+    """Create two public words and a WordContrast row between them."""
+    suffix = uuid.uuid4().hex[:6]
+    a = CollectionWords(
+        english_word=f'contrastA_{suffix}', russian_word='первое',
+        item_type='word', level='A1', ipa_transcription='x',
+    )
+    b = CollectionWords(
+        english_word=f'contrastB_{suffix}', russian_word='второе',
+        item_type='word', level='A1', ipa_transcription='y',
+    )
+    db_session.add_all([a, b])
+    db_session.commit()
+    low_id, high_id = sorted((a.id, b.id))
+    row = WordContrast(
+        word_a_id=low_id, word_b_id=high_id,
+        note_ru='<b>contrastA</b> — про одно. <b>contrastB</b> — про другое.',
+    )
+    db_session.add(row)
+    db_session.commit()
+    return row
+
+
+def test_pick_next_contrast_returns_eligible(db_session, contrast_pair):
+    picked = pick_next_contrast(db_session, dedup_days=90)
+    assert picked is not None
+    assert picked.id == contrast_pair.id
+
+
+def test_pick_next_contrast_skips_recently_used(db_session, contrast_pair):
+    used = ChannelPost(
+        kind=KIND_CONTRAST, content_ref_type='word_contrast',
+        content_ref_id=contrast_pair.id,
+        scheduled_for=datetime.utcnow() - timedelta(hours=1),
+        status=STATUS_PUBLISHED, text_snapshot='snap',
+    )
+    db_session.add(used)
+    db_session.commit()
+    picked = pick_next_contrast(db_session, dedup_days=90)
+    assert picked is None or picked.id != contrast_pair.id
+
+
+def test_format_contrast_post_keeps_bold_strips_other_tags(contrast_pair):
+    text = format_contrast_post(contrast_pair, site_url='https://llt-english.com')
+    assert 'Не путай' in text
+    # Bold markup must survive — that's the visual hook for the contrasted words.
+    assert '<b>' in text
+    # English words appear in their own lines.
+    assert contrast_pair.word_a.english_word in text
+    assert contrast_pair.word_b.english_word in text
+    # Both word pages are linked.
+    assert '/dictionary/' in text
+
+
+def test_format_contrast_post_escapes_unsafe_text(db_session, contrast_pair):
+    """Any non-<b> markup or stray HTML in the note must be neutralised."""
+    contrast_pair.note_ru = 'Plain text <script>alert(1)</script> with <b>bold</b>.'
+    db_session.commit()
+    text = format_contrast_post(contrast_pair)
+    assert '<script>' not in text
+    assert '&lt;script&gt;' in text
+    # Bold survives.
+    assert '<b>bold</b>' in text
+
+
 def test_format_mistake_post_handles_important_note_string(mistake_topic):
     """String payload (from important_notes) renders under the 💡 heading and
     strips a leading emoji so we don't double it up next to our own."""
@@ -551,9 +620,9 @@ def test_queue_upcoming_rotates_evening_kinds(
     created = queue_upcoming(db_session=db_session, days_ahead=7)
     evening_posts = [p for p in created if p.scheduled_for.hour == 23]
     kinds_by_weekday = {p.scheduled_for.weekday(): p.kind for p in evening_posts}
-    rotation = (KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ)
+    rotation = (KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ, KIND_CONTRAST)
     for weekday, kind in kinds_by_weekday.items():
-        expected = rotation[weekday % 3]
+        expected = rotation[weekday % 4]
         assert kind == expected, (weekday, kind, expected)
 
 
@@ -586,7 +655,7 @@ def test_queue_upcoming_creates_slots(db_session, candidate_word, candidate_topi
     # 2 days × 2 slots = up to 4 posts (may be fewer if today's slots already past)
     assert 1 <= len(created) <= 4
     for post in created:
-        assert post.kind in (KIND_WORD, KIND_GRAMMAR, KIND_MISTAKE)
+        assert post.kind in (KIND_WORD, KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ, KIND_CONTRAST)
         assert post.status == STATUS_QUEUED
         assert post.text_snapshot
         assert post.scheduled_for > datetime.utcnow()

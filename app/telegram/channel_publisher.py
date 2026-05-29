@@ -47,9 +47,10 @@ from app.grammar_lab.models import GrammarTopic
 from app.grammar_lab.models import GrammarExercise
 from app.telegram.channel_models import (
     ALLOWED_KINDS, ChannelPost,
-    KIND_GRAMMAR, KIND_MANUAL, KIND_MISTAKE, KIND_QUIZ, KIND_WORD,
+    KIND_CONTRAST, KIND_GRAMMAR, KIND_MANUAL, KIND_MISTAKE, KIND_QUIZ, KIND_WORD,
     STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
 )
+from app.words.models import WordContrast
 
 
 # Within a KIND_MISTAKE post, content_ref_id encodes (topic_id, mistake_index)
@@ -382,6 +383,92 @@ def format_quiz_preview(exercise: GrammarExercise) -> str:
     return '\n'.join(lines)
 
 
+def pick_next_contrast(db_session: Session, dedup_days: int) -> WordContrast | None:
+    """Pick a curated word-contrast pair not posted within the dedup window.
+
+    Both sides must be public (CEFR level in PUBLIC_CEFR_CODES) so the link
+    in the post lands on a publicly-served word page.
+    """
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=dedup_days)
+    skip_ids: set[int] = {
+        row[0] for row in db_session.query(ChannelPost.content_ref_id).filter(
+            ChannelPost.kind == KIND_CONTRAST,
+            ChannelPost.content_ref_type == 'word_contrast',
+            ChannelPost.content_ref_id.isnot(None),
+            ChannelPost.created_at >= cutoff,
+        ).all()
+        if row[0] is not None
+    }
+    query = WordContrast.query
+    if skip_ids:
+        query = query.filter(~WordContrast.id.in_(skip_ids))
+    for row in query.order_by(WordContrast.id.asc()).all():
+        # Both words must exist and be public.
+        a, b = row.word_a, row.word_b
+        if not a or not b:
+            continue
+        if (a.level and a.level not in PUBLIC_CEFR_CODES) or (
+            b.level and b.level not in PUBLIC_CEFR_CODES
+        ):
+            continue
+        return row
+    return None
+
+
+def format_contrast_post(contrast: WordContrast, site_url: str | None = None) -> str:
+    """Render an '⚖️ Не путай' post in Telegram HTML.
+
+    Pulls the curated note straight from the DB (Russian, with optional <b>
+    markup that Telegram supports). Both word pages get linked so readers
+    can dig deeper into whichever side they care about.
+    """
+    base = (site_url or _site_url()).rstrip('/')
+    a, b = contrast.word_a, contrast.word_b
+
+    parts: list[str] = [
+        '⚖️ <b>Не путай</b>',
+        '',
+        f'🇬🇧 <b>{_h(a.english_word)}</b> — {_h(a.russian_word or "")}',
+        f'🇬🇧 <b>{_h(b.english_word)}</b> — {_h(b.russian_word or "")}',
+        '',
+        # Note is curated, stored as HTML with <b> tags — Telegram supports it.
+        # The seed JSON is part of our codebase, so passing it through unescaped
+        # is a controlled trust boundary, not user input.
+        _clean_html_for_telegram_keeping_bold(contrast.note_ru),
+        '',
+        '🎧 Послушай произношение и добавь обе в карточки:',
+        '• ' + _h(f'{base}/dictionary/{encode_word_slug(a.english_word)}'),
+        '• ' + _h(f'{base}/dictionary/{encode_word_slug(b.english_word)}'),
+    ]
+    return '\n'.join(parts)
+
+
+def _clean_html_for_telegram_keeping_bold(value: Any) -> str:
+    """Like _clean_html_for_telegram, but preserves <b>...</b> for emphasis.
+
+    The contrast notes ship with intentional bold markup on the contrasted
+    words (``<b>bus stop</b>``). Stripping it would flatten the visual hook.
+    Other tags are still removed, and we escape the text segments between
+    bold runs so user-supplied content can never sneak in unsafe markup —
+    even though the seed file is under our control.
+    """
+    if value is None:
+        return ''
+    raw = str(value)
+    out: list[str] = []
+    cursor = 0
+    for match in re.finditer(r'<\s*(/?)\s*b\s*>', raw, flags=re.IGNORECASE):
+        out.append(_h(raw[cursor:match.start()]))
+        out.append('</b>' if match.group(1) else '<b>')
+        cursor = match.end()
+    out.append(_h(raw[cursor:]))
+    text = ''.join(out)
+    # Normalise newlines that may have come from a <br> in the seed note.
+    text = re.sub(r'<\s*br\s*/?\s*>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text
+
+
 def pick_next_grammar_topic(db_session: Session, dedup_days: int) -> GrammarTopic | None:
     """Pick a grammar topic not posted recently.
 
@@ -690,7 +777,7 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
 # ─── Queueing ──────────────────────────────────────────────────────────
 
 
-_EVENING_ROTATION = (KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ)
+_EVENING_ROTATION = (KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ, KIND_CONTRAST)
 
 
 def _slot_kind_for_time(
@@ -700,16 +787,18 @@ def _slot_kind_for_time(
     """Decide which content kind a given UTC slot represents.
 
     Morning slot → always KIND_WORD.
-    Evening slot → rotates Grammar → Mistake → Quiz by weekday % 3:
-        Mon (0) Thu (3) Sun (6) → grammar
-        Tue (1) Fri (4)         → mistake
-        Wed (2) Sat (5)         → quiz
-    Gives 3 grammar + 2 mistake + 2 quiz posts per week, no extra config.
+    Evening slot → rotates Grammar → Mistake → Quiz → Contrast by weekday % 4:
+        Mon (0) Fri (4)         → grammar
+        Tue (1) Sat (5)         → mistake
+        Wed (2) Sun (6)         → quiz
+        Thu (3)                 → contrast
+    Distribution over a calendar week: 2 grammar + 2 mistake + 2 quiz + 1
+    contrast (small initial contrast set, deliberately rare).
     """
     is_morning = hour == morning_hour and minute == morning_minute
     if is_morning:
         return KIND_WORD
-    return _EVENING_ROTATION[slot_date.weekday() % 3]
+    return _EVENING_ROTATION[slot_date.weekday() % 4]
 
 
 def _existing_slot(scheduled_for: datetime, db_session: Session) -> ChannelPost | None:
@@ -850,6 +939,19 @@ def _build_auto_post(
             scheduled_for=scheduled_for,
             status=STATUS_QUEUED,
             text_snapshot=format_quiz_preview(exercise),
+            is_manual=False,
+        )
+    if kind == KIND_CONTRAST:
+        contrast = pick_next_contrast(db_session, dedup_days)
+        if contrast is None:
+            return None
+        return ChannelPost(
+            kind=KIND_CONTRAST,
+            content_ref_type='word_contrast',
+            content_ref_id=contrast.id,
+            scheduled_for=scheduled_for,
+            status=STATUS_QUEUED,
+            text_snapshot=format_contrast_post(contrast, site_url=site_url),
             is_manual=False,
         )
     return None

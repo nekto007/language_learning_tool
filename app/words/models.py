@@ -162,3 +162,56 @@ word_book_link = db.Table(
     UniqueConstraint('word_id', 'book_id', name='uq_word_book'),
     extend_existing=True
 )
+
+
+class WordContrast(db.Model):
+    """Pair of commonly-confused words with a short Russian-language note
+    explaining the difference (e.g. ``bus stop`` vs ``bus station``).
+
+    Rows are stored with ``word_a_id < word_b_id`` so the pair is unique
+    regardless of which direction the seed entry originally specified.
+    """
+
+    __tablename__ = 'word_contrasts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    word_a_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    word_b_id = Column(Integer, ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False)
+    note_ru = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    word_a = relationship('CollectionWords', foreign_keys=[word_a_id])
+    word_b = relationship('CollectionWords', foreign_keys=[word_b_id])
+
+    __table_args__ = (
+        UniqueConstraint('word_a_id', 'word_b_id', name='uq_word_contrast_pair'),
+        Index('idx_word_contrasts_word_a', 'word_a_id'),
+        Index('idx_word_contrasts_word_b', 'word_b_id'),
+    )
+
+    def __repr__(self) -> str:
+        return f'<WordContrast {self.word_a_id}↔{self.word_b_id}>'
+
+    def other_word(self, word_id: int) -> 'CollectionWords | None':
+        """Return the word in this pair that *isn't* ``word_id``."""
+        if word_id == self.word_a_id:
+            return self.word_b
+        if word_id == self.word_b_id:
+            return self.word_a
+        return None
+
+
+def get_contrasts_for_word(word_id: int, db_session) -> list[WordContrast]:
+    """All contrast pairs that reference ``word_id`` (either side).
+
+    ``db_session`` is the scoped session (e.g. ``db.session``) — same shape as
+    the existing ``get_collocations_for_word`` helper uses.
+    """
+    return (
+        db_session.query(WordContrast)
+        .filter(
+            (WordContrast.word_a_id == word_id) | (WordContrast.word_b_id == word_id)
+        )
+        .order_by(WordContrast.id)
+        .all()
+    )

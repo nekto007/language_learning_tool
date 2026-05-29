@@ -524,6 +524,16 @@ def _register_cli_commands(app):
         seed_achievements()
         click.echo('Seeding complete.')
 
+    @app.cli.command('seed-word-contrasts')
+    def seed_word_contrasts_cmd():
+        """Load word_contrasts.json into the DB. Idempotent (existing pairs untouched)."""
+        from app.words.seed_contrasts import seed_word_contrasts
+        created, skipped, missing = seed_word_contrasts()
+        click.echo(
+            f'Word contrasts seeded: {created} created, {skipped} already present, '
+            f'{missing} skipped (word not in DB).'
+        )
+
     @app.cli.command('warm-cache')
     def warm_cache_cmd():
         """Warm the curriculum cache."""

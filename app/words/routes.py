@@ -225,6 +225,22 @@ def public_word(word_slug: str):
         .all()
     )
 
+    # Contrast pairs — surface as unique on-page content (SEO depth) and to
+    # help learners distinguish commonly-confused words.
+    from app.words.models import WordContrast
+    contrast_rows = (
+        WordContrast.query
+        .filter((WordContrast.word_a_id == word.id) | (WordContrast.word_b_id == word.id))
+        .order_by(WordContrast.id)
+        .all()
+    )
+    contrasts = []
+    for row in contrast_rows:
+        other = row.other_word(word.id)
+        if other is None:
+            continue
+        contrasts.append({'other': other, 'note_ru': row.note_ru})
+
     meta_description = (
         f'{word.english_word} — перевод: {word.russian_word}. '
         f'Уровень {word.level or ""}. Примеры, произношение и упражнения.'
@@ -242,6 +258,7 @@ def public_word(word_slug: str):
         related_words=related_words,
         related_grammar=related_grammar,
         collocations=collocations,
+        contrasts=contrasts,
         meta_description=meta_description,
         canonical_url=canonical_url,
     )
