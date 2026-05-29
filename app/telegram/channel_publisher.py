@@ -44,9 +44,10 @@ from sqlalchemy.orm import Session
 from app.admin.site_settings import get_site_setting
 from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 from app.grammar_lab.models import GrammarTopic
+from app.grammar_lab.models import GrammarExercise
 from app.telegram.channel_models import (
     ALLOWED_KINDS, ChannelPost,
-    KIND_GRAMMAR, KIND_MANUAL, KIND_MISTAKE, KIND_WORD,
+    KIND_GRAMMAR, KIND_MANUAL, KIND_MISTAKE, KIND_QUIZ, KIND_WORD,
     STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
 )
 
@@ -257,6 +258,128 @@ def pick_next_mistake(
                 continue
             return topic, payload, idx
     return None
+
+
+# Telegram sendPoll constraints.
+_POLL_QUESTION_MAX = 300
+_POLL_OPTION_MAX = 100
+_POLL_EXPLANATION_MAX = 200
+_POLL_MIN_OPTIONS = 2
+_POLL_MAX_OPTIONS = 10
+
+
+def pick_next_quiz(db_session: Session, dedup_days: int) -> GrammarExercise | None:
+    """Pick a multiple-choice grammar exercise eligible for a Telegram quiz poll.
+
+    Eligibility:
+    - exercise_type == 'multiple_choice' and parent topic level is public.
+    - options list has 2..10 entries.
+    - correct_answer is present and appears in options.
+    - question + every option + explanation fits Telegram's sendPoll limits.
+    - exercise.id not already used as a KIND_QUIZ content_ref within the
+      dedup window.
+    """
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=dedup_days)
+    skip_ids: set[int] = {
+        row[0] for row in db_session.query(ChannelPost.content_ref_id).filter(
+            ChannelPost.kind == KIND_QUIZ,
+            ChannelPost.content_ref_type == 'grammar_exercise',
+            ChannelPost.content_ref_id.isnot(None),
+            ChannelPost.created_at >= cutoff,
+        ).all()
+        if row[0] is not None
+    }
+
+    query = (
+        GrammarExercise.query
+        .join(GrammarTopic, GrammarExercise.topic_id == GrammarTopic.id)
+        .filter(GrammarExercise.exercise_type == 'multiple_choice')
+        .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
+    )
+    if skip_ids:
+        query = query.filter(~GrammarExercise.id.in_(skip_ids))
+
+    for exercise in query.order_by(GrammarTopic.order.asc(), GrammarExercise.id.asc()).all():
+        if _quiz_payload_from_exercise(exercise) is not None:
+            return exercise
+    return None
+
+
+def _quiz_payload_from_exercise(exercise: GrammarExercise) -> dict | None:
+    """Validate an exercise and return a ready-to-send sendPoll payload, or None.
+
+    Centralised so the picker, formatter, and sender agree on what counts as a
+    well-formed quiz. Returns dict with question / options / correct_index /
+    explanation, all clipped to Telegram limits.
+    """
+    content = exercise.content if isinstance(exercise.content, dict) else {}
+    question = str(content.get('question') or '').strip()
+    raw_options = content.get('options') or []
+    raw_correct = content.get('correct_answer')
+    if not question or not isinstance(raw_options, list) or raw_correct is None:
+        return None
+
+    options: list[str] = []
+    for raw in raw_options:
+        if raw is None:
+            continue
+        text = str(raw).strip()
+        if not text or len(text) > _POLL_OPTION_MAX:
+            return None
+        options.append(text)
+    if not (_POLL_MIN_OPTIONS <= len(options) <= _POLL_MAX_OPTIONS):
+        return None
+    if len(question) > _POLL_QUESTION_MAX:
+        return None
+
+    # ``correct_answer`` is sometimes a string match against options, sometimes
+    # already an integer index — handle both shapes.
+    if isinstance(raw_correct, bool):
+        return None
+    if isinstance(raw_correct, int):
+        correct_index = raw_correct
+        if not (0 <= correct_index < len(options)):
+            return None
+    else:
+        correct_text = str(raw_correct).strip()
+        if not correct_text:
+            return None
+        try:
+            correct_index = options.index(correct_text)
+        except ValueError:
+            return None
+
+    explanation = str(content.get('explanation') or '').strip()
+    if len(explanation) > _POLL_EXPLANATION_MAX:
+        explanation = explanation[: _POLL_EXPLANATION_MAX - 1].rstrip() + '…'
+
+    return {
+        'question': question,
+        'options': options,
+        'correct_index': correct_index,
+        'explanation': explanation,
+    }
+
+
+def format_quiz_preview(exercise: GrammarExercise) -> str:
+    """Human-readable text_snapshot for a quiz post.
+
+    Stored at queue time so the admin queue page can show a meaningful
+    preview without re-parsing JSON or fetching the exercise. The actual
+    sendPoll payload is rebuilt from DB at publish time (so admin edits
+    to the exercise are reflected in the live poll).
+    """
+    payload = _quiz_payload_from_exercise(exercise)
+    if payload is None:
+        return f'⚠ Quiz preview unavailable (exercise #{exercise.id} no longer valid).'
+
+    lines: list[str] = ['📊 Мини-квиз', '', payload['question'], '']
+    for idx, option in enumerate(payload['options']):
+        marker = '✅' if idx == payload['correct_index'] else '•'
+        lines.append(f'{marker} {option}')
+    if payload['explanation']:
+        lines.extend(['', f'💬 {payload["explanation"]}'])
+    return '\n'.join(lines)
 
 
 def pick_next_grammar_topic(db_session: Session, dedup_days: int) -> GrammarTopic | None:
@@ -567,6 +690,9 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
 # ─── Queueing ──────────────────────────────────────────────────────────
 
 
+_EVENING_ROTATION = (KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ)
+
+
 def _slot_kind_for_time(
     hour: int, minute: int, morning_hour: int, morning_minute: int,
     slot_date: date,
@@ -574,15 +700,16 @@ def _slot_kind_for_time(
     """Decide which content kind a given UTC slot represents.
 
     Morning slot → always KIND_WORD.
-    Evening slot → alternates by weekday parity:
-        Mon (0) Wed (2) Fri (4) Sun (6) → KIND_GRAMMAR
-        Tue (1) Thu (3) Sat (5)         → KIND_MISTAKE
-    Gives 4 grammar + 3 mistake posts per week without any extra config.
+    Evening slot → rotates Grammar → Mistake → Quiz by weekday % 3:
+        Mon (0) Thu (3) Sun (6) → grammar
+        Tue (1) Fri (4)         → mistake
+        Wed (2) Sat (5)         → quiz
+    Gives 3 grammar + 2 mistake + 2 quiz posts per week, no extra config.
     """
     is_morning = hour == morning_hour and minute == morning_minute
     if is_morning:
         return KIND_WORD
-    return KIND_MISTAKE if slot_date.weekday() % 2 else KIND_GRAMMAR
+    return _EVENING_ROTATION[slot_date.weekday() % 3]
 
 
 def _existing_slot(scheduled_for: datetime, db_session: Session) -> ChannelPost | None:
@@ -712,6 +839,19 @@ def _build_auto_post(
             text_snapshot=format_mistake_post(topic, mistake, site_url=site_url),
             is_manual=False,
         )
+    if kind == KIND_QUIZ:
+        exercise = pick_next_quiz(db_session, dedup_days)
+        if exercise is None:
+            return None
+        return ChannelPost(
+            kind=KIND_QUIZ,
+            content_ref_type='grammar_exercise',
+            content_ref_id=exercise.id,
+            scheduled_for=scheduled_for,
+            status=STATUS_QUEUED,
+            text_snapshot=format_quiz_preview(exercise),
+            is_manual=False,
+        )
     return None
 
 
@@ -760,6 +900,54 @@ def _send_to_channel(channel_id: str, text: str) -> tuple[bool, int | None, str 
         return False, None, f'HTTP {resp.status_code}: {description}'
 
     message_id = (body.get('result') or {}).get('message_id')
+    return True, message_id, None
+
+
+def _send_poll_to_channel(
+    channel_id: str, payload: dict,
+) -> tuple[bool, int | None, str | None]:
+    """POST sendPoll to Telegram. ``payload`` matches _quiz_payload_from_exercise.
+
+    Same ``(ok, message_id, error)`` shape as ``_send_to_channel`` so the
+    caller can treat both kinds uniformly.
+    """
+    try:
+        token = current_app.config.get('TELEGRAM_BOT_TOKEN')
+    except RuntimeError:
+        token = None
+    if not token:
+        return False, None, 'TELEGRAM_BOT_TOKEN not configured'
+
+    body: dict = {
+        'chat_id': channel_id,
+        'question': payload['question'][:_POLL_QUESTION_MAX],
+        'options': [str(o)[:_POLL_OPTION_MAX] for o in payload['options']],
+        'type': 'quiz',
+        'correct_option_id': int(payload['correct_index']),
+        'is_anonymous': True,
+    }
+    if payload.get('explanation'):
+        body['explanation'] = payload['explanation'][:_POLL_EXPLANATION_MAX]
+        body['explanation_parse_mode'] = 'HTML'
+
+    try:
+        resp = requests.post(
+            f'https://api.telegram.org/bot{token}/sendPoll',
+            json=body, timeout=10,
+        )
+    except requests.RequestException as e:
+        return False, None, f'{type(e).__name__}'
+
+    try:
+        rbody = resp.json() if resp.content else {}
+    except ValueError:
+        rbody = {}
+
+    if not resp.ok or not rbody.get('ok'):
+        description = rbody.get('description') or resp.text[:200]
+        return False, None, f'HTTP {resp.status_code}: {description}'
+
+    message_id = (rbody.get('result') or {}).get('message_id')
     return True, message_id, None
 
 
@@ -823,7 +1011,21 @@ def publish_due(
     sent = 0
     failed = 0
     for post in due:
-        ok, message_id, err = _send_to_channel(channel_id, post.text_snapshot)
+        if post.kind == KIND_QUIZ:
+            # Rebuild the poll payload from the live exercise so admin edits
+            # made after queueing are reflected in the post that actually
+            # ships. If the exercise was deleted or now fails validation,
+            # mark the post failed with a clear reason.
+            exercise = GrammarExercise.query.get(post.content_ref_id) if post.content_ref_id else None
+            payload = _quiz_payload_from_exercise(exercise) if exercise else None
+            if payload is None:
+                ok, message_id, err = False, None, (
+                    f'quiz exercise #{post.content_ref_id} unavailable or invalid'
+                )
+            else:
+                ok, message_id, err = _send_poll_to_channel(channel_id, payload)
+        else:
+            ok, message_id, err = _send_to_channel(channel_id, post.text_snapshot)
         if ok:
             post.status = STATUS_PUBLISHED
             post.published_at = datetime.now(timezone.utc).replace(tzinfo=None)

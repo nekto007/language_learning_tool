@@ -8,15 +8,17 @@ import pytest
 
 from app.admin.site_settings import set_site_setting
 from app.grammar_lab.models import GrammarTopic
+from app.grammar_lab.models import GrammarExercise
 from app.telegram.channel_models import (
-    ChannelPost, KIND_GRAMMAR, KIND_MISTAKE, KIND_WORD,
+    ChannelPost, KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ, KIND_WORD,
     STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
 )
 from app.telegram.channel_publisher import (
     _MISTAKE_INDEX_STRIDE,
-    format_grammar_post, format_mistake_post, format_word_post,
+    _quiz_payload_from_exercise,
+    format_grammar_post, format_mistake_post, format_quiz_preview, format_word_post,
     get_channel_config,
-    pick_next_grammar_topic, pick_next_mistake, pick_next_word,
+    pick_next_grammar_topic, pick_next_mistake, pick_next_quiz, pick_next_word,
     publish_due, queue_upcoming,
 )
 from app.words.models import CollectionWords
@@ -327,6 +329,201 @@ def test_format_mistake_post_renders_contrast_and_link(mistake_topic):
     assert '/grammar-lab/topic/' in text
 
 
+@pytest.fixture
+def quiz_exercise(db_session):
+    """Multiple-choice exercise suitable for Telegram quiz poll."""
+    suffix = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'quiz-topic-{suffix}', title='Quiz Topic', title_ru='Тема квиза',
+        level='A1', order=1, content={'introduction': 'i'},
+    )
+    db_session.add(topic)
+    db_session.commit()
+    exercise = GrammarExercise(
+        topic_id=topic.id,
+        exercise_type='multiple_choice',
+        content={
+            'question': 'I ___ a student.',
+            'options': ['am', 'is', 'are', 'be'],
+            'correct_answer': 'am',
+            'explanation': 'С местоимением I используем am.',
+        },
+        difficulty=1,
+    )
+    db_session.add(exercise)
+    db_session.commit()
+    return exercise
+
+
+def test_quiz_payload_validates_well_formed_exercise(quiz_exercise):
+    payload = _quiz_payload_from_exercise(quiz_exercise)
+    assert payload is not None
+    assert payload['question'] == 'I ___ a student.'
+    assert payload['options'] == ['am', 'is', 'are', 'be']
+    assert payload['correct_index'] == 0
+    assert 'am' in payload['explanation']
+
+
+def test_quiz_payload_rejects_correct_answer_not_in_options(db_session):
+    suffix = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'q-bad-{suffix}', title='B', title_ru='Б', level='A1', order=1,
+        content={},
+    )
+    db_session.add(topic)
+    db_session.commit()
+    exercise = GrammarExercise(
+        topic_id=topic.id, exercise_type='multiple_choice',
+        content={
+            'question': 'Pick one',
+            'options': ['a', 'b', 'c'],
+            'correct_answer': 'd',  # not in options
+        }, difficulty=1,
+    )
+    db_session.add(exercise)
+    db_session.commit()
+    assert _quiz_payload_from_exercise(exercise) is None
+
+
+def test_quiz_payload_accepts_int_correct_answer(db_session):
+    """Some legacy exercises store correct_answer as an int index."""
+    suffix = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'q-int-{suffix}', title='Y', title_ru='Й', level='A1', order=1, content={},
+    )
+    db_session.add(topic)
+    db_session.commit()
+    exercise = GrammarExercise(
+        topic_id=topic.id, exercise_type='multiple_choice',
+        content={
+            'question': 'Pick the second',
+            'options': ['a', 'b', 'c'],
+            'correct_answer': 1,
+        }, difficulty=1,
+    )
+    db_session.add(exercise)
+    db_session.commit()
+    payload = _quiz_payload_from_exercise(exercise)
+    assert payload is not None
+    assert payload['correct_index'] == 1
+
+
+def test_quiz_payload_rejects_too_few_options(db_session):
+    suffix = uuid.uuid4().hex[:6]
+    topic = GrammarTopic(
+        slug=f'q-few-{suffix}', title='X', title_ru='Х', level='A1', order=1, content={},
+    )
+    db_session.add(topic)
+    db_session.commit()
+    exercise = GrammarExercise(
+        topic_id=topic.id, exercise_type='multiple_choice',
+        content={
+            'question': 'Q', 'options': ['only'], 'correct_answer': 'only',
+        }, difficulty=1,
+    )
+    db_session.add(exercise)
+    db_session.commit()
+    assert _quiz_payload_from_exercise(exercise) is None
+
+
+def test_pick_next_quiz_returns_eligible(db_session, quiz_exercise):
+    picked = pick_next_quiz(db_session, dedup_days=90)
+    assert picked is not None
+    assert picked.exercise_type == 'multiple_choice'
+
+
+def test_pick_next_quiz_skips_recently_used(db_session, quiz_exercise):
+    used = ChannelPost(
+        kind=KIND_QUIZ, content_ref_type='grammar_exercise',
+        content_ref_id=quiz_exercise.id,
+        scheduled_for=datetime.utcnow() - timedelta(hours=1),
+        status=STATUS_PUBLISHED, text_snapshot='preview',
+    )
+    db_session.add(used)
+    db_session.commit()
+    picked = pick_next_quiz(db_session, dedup_days=90)
+    assert picked is None or picked.id != quiz_exercise.id
+
+
+def test_format_quiz_preview_shows_correct_marker(quiz_exercise):
+    preview = format_quiz_preview(quiz_exercise)
+    assert 'Мини-квиз' in preview
+    assert 'I ___ a student.' in preview
+    # Correct answer must be marked, distractors must not be marked.
+    assert '✅ am' in preview
+    assert '✅ is' not in preview
+
+
+def test_publish_due_sends_quiz_via_send_poll(
+    db_session, app, quiz_exercise, configured_channel,
+):
+    """KIND_QUIZ posts must dispatch to sendPoll (not sendMessage) and
+    rebuild the poll payload from the live exercise."""
+    app.config['TELEGRAM_BOT_TOKEN'] = 'fake-test-token'
+    post = ChannelPost(
+        kind=KIND_QUIZ, content_ref_type='grammar_exercise',
+        content_ref_id=quiz_exercise.id,
+        scheduled_for=datetime.utcnow() - timedelta(minutes=1),
+        status=STATUS_QUEUED,
+        text_snapshot=format_quiz_preview(quiz_exercise),
+    )
+    db_session.add(post)
+    db_session.commit()
+
+    captured: dict = {}
+
+    def fake_post(url, json=None, timeout=None, **kw):
+        captured['url'] = url
+        captured['json'] = json
+        return SimpleNamespace(
+            ok=True, status_code=200,
+            content=b'{"ok":true,"result":{"message_id":99}}',
+            text='ok',
+            json=lambda: {'ok': True, 'result': {'message_id': 99}},
+        )
+
+    with patch('app.telegram.channel_publisher.requests.post', side_effect=fake_post):
+        result = publish_due(db_session=db_session)
+
+    assert result['sent'] == 1
+    assert captured['url'].endswith('/sendPoll')
+    body = captured['json']
+    assert body['type'] == 'quiz'
+    assert body['question'] == 'I ___ a student.'
+    assert body['options'] == ['am', 'is', 'are', 'be']
+    assert body['correct_option_id'] == 0
+    db_session.refresh(post)
+    assert post.status == STATUS_PUBLISHED
+    assert post.message_id == 99
+
+
+def test_publish_due_marks_quiz_failed_when_exercise_invalid(
+    db_session, app, quiz_exercise, configured_channel,
+):
+    """If the source exercise is mutated to an invalid state between queue and
+    publish, the post must fail with a descriptive error instead of sending
+    a half-baked poll."""
+    app.config['TELEGRAM_BOT_TOKEN'] = 'fake-test-token'
+    post = ChannelPost(
+        kind=KIND_QUIZ, content_ref_type='grammar_exercise',
+        content_ref_id=quiz_exercise.id,
+        scheduled_for=datetime.utcnow() - timedelta(minutes=1),
+        status=STATUS_QUEUED, text_snapshot='preview',
+    )
+    db_session.add(post)
+    db_session.commit()
+
+    # Break the exercise so validation now returns None.
+    quiz_exercise.content = {'question': '', 'options': [], 'correct_answer': ''}
+    db_session.commit()
+
+    result = publish_due(db_session=db_session)
+    assert result['failed'] == 1
+    db_session.refresh(post)
+    assert post.status == STATUS_FAILED
+    assert post.error and 'unavailable or invalid' in post.error
+
+
 def test_format_mistake_post_handles_important_note_string(mistake_topic):
     """String payload (from important_notes) renders under the 💡 heading and
     strips a leading emoji so we don't double it up next to our own."""
@@ -339,11 +536,11 @@ def test_format_mistake_post_handles_important_note_string(mistake_topic):
     assert text.count('⚠️') <= 1
 
 
-def test_queue_upcoming_alternates_evening_kinds(
-    db_session, candidate_word, mistake_topic, configured_channel,
+def test_queue_upcoming_rotates_evening_kinds(
+    db_session, candidate_word, candidate_topic, mistake_topic, quiz_exercise,
+    configured_channel,
 ):
-    """Evening slot alternates between KIND_GRAMMAR (even weekday) and
-    KIND_MISTAKE (odd weekday)."""
+    """Evening slot rotates Grammar → Mistake → Quiz on weekday % 3."""
     from app.admin.site_settings import set_site_setting
     set_site_setting('telegram_channel_morning_utc_hour', '0', db_session=db_session)
     set_site_setting('telegram_channel_morning_utc_minute', '0', db_session=db_session)
@@ -354,9 +551,9 @@ def test_queue_upcoming_alternates_evening_kinds(
     created = queue_upcoming(db_session=db_session, days_ahead=7)
     evening_posts = [p for p in created if p.scheduled_for.hour == 23]
     kinds_by_weekday = {p.scheduled_for.weekday(): p.kind for p in evening_posts}
-    # Verify rotation rule on whatever weekdays were queued.
+    rotation = (KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ)
     for weekday, kind in kinds_by_weekday.items():
-        expected = KIND_MISTAKE if weekday % 2 else KIND_GRAMMAR
+        expected = rotation[weekday % 3]
         assert kind == expected, (weekday, kind, expected)
 
 

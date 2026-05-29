@@ -26,8 +26,9 @@ from app.utils.db import db
 KIND_WORD = 'word_of_day'
 KIND_GRAMMAR = 'grammar_tip'
 KIND_MISTAKE = 'mistake_of_day'
+KIND_QUIZ = 'quiz'
 KIND_MANUAL = 'manual'
-ALLOWED_KINDS = {KIND_WORD, KIND_GRAMMAR, KIND_MISTAKE, KIND_MANUAL}
+ALLOWED_KINDS = {KIND_WORD, KIND_GRAMMAR, KIND_MISTAKE, KIND_QUIZ, KIND_MANUAL}
 
 # Lifecycle states. ``queued`` rows are eligible for publishing once their
 # ``scheduled_for`` arrives; ``published`` is terminal-success; ``failed``
