@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson, LessonCompletionEvent, SliceVocabulary
+from app.srs.constants import CardState, DEFAULT_EASE_FACTOR
 from app.study.models import QuizDeck, QuizDeckWord, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords, word_book_link
@@ -326,11 +327,11 @@ class BookSRSIntegration:
                 direction=direction,
                 source='book_reading',
             )
-            # Set defaults (model has defaults, but set explicitly for clarity)
-            card.ease_factor = 2.5
+            card.ease_factor = DEFAULT_EASE_FACTOR
             card.interval = 0
             card.repetitions = 0
-            card.next_review = datetime.now(timezone.utc)
+            card.state = CardState.NEW.value
+            card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
             db.session.add(card)
             db.session.flush()
 
@@ -351,7 +352,7 @@ class BookSRSIntegration:
 
         Каждая карточка (eng-rus, rus-eng) фильтруется независимо.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC
         due_cards = []
 
         for item in cards_with_context:
@@ -361,14 +362,13 @@ class BookSRSIntegration:
             if direction_filter and card.direction != direction_filter:
                 continue
 
-            # Новые карточки (repetitions = 0) или просроченные
-            if card.repetitions == 0:
+            # New cards (state=NEW) or overdue cards
+            if card.state == CardState.NEW.value:
                 due_cards.append(item)
-            elif card.next_review:
-                # Make timezone-aware comparison safe
+            elif card.next_review is not None:
                 next_review = card.next_review
-                if next_review.tzinfo is None:
-                    next_review = next_review.replace(tzinfo=timezone.utc)
+                if next_review.tzinfo is not None:  # normalize if somehow aware
+                    next_review = next_review.replace(tzinfo=None)
                 if next_review <= now:
                     due_cards.append(item)
 
@@ -579,17 +579,18 @@ class BookSRSIntegration:
     def get_due_cards_count(self, user_id: int) -> int:
         """Получает количество карточек, готовых к повторению"""
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC
 
             count = (UserCardDirection.query
                      .join(UserWord)
-                     .filter(UserWord.user_id == user_id)
                      .filter(
-                db.or_(
-                    UserCardDirection.repetitions == 0,  # Новые карточки
-                    UserCardDirection.next_review <= now  # Просроченные
-                )
-            )
+                         UserWord.user_id == user_id,
+                         UserWord.status.in_(['new', 'learning', 'review']),
+                         db.or_(
+                             UserCardDirection.state == CardState.NEW.value,
+                             UserCardDirection.next_review <= now,
+                         )
+                     )
                      .count())
 
             return count

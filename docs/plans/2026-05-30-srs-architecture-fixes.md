@@ -142,12 +142,12 @@ and is not part of this plan.
 - Modify: `app/curriculum/routes/srs_api.py` (the `/due-count` endpoint also uses the proxy)
 - Modify: `tests/curriculum/`
 
-- [ ] In `_filter_due_cards`: replace `card.repetitions == 0` test with `card.state == CardState.NEW.value`
-- [ ] In `get_cards_for_lesson`: same — replace `d.repetitions == 0` filter with `d.state == CardState.NEW.value`
-- [ ] In `get_due_cards_count`: same fix; also normalise to naive-UTC datetime convention (`datetime.now(timezone.utc).replace(tzinfo=None)`)
-- [ ] In `get_due_cards_count`: add `UserWord.status.in_(['new', 'learning', 'review'])` filter to match canonical counter behaviour
-- [ ] Write tests: card with `state=REVIEW, repetitions=0` (post-lapse) NOT counted as new; card with `state=NEW, repetitions=0` correctly counted as new
-- [ ] Run `pytest tests/curriculum/ -x` — must pass before task 7
+- [x] In `_filter_due_cards`: replace `card.repetitions == 0` test with `card.state == CardState.NEW.value`
+- [x] In `get_cards_for_lesson`: same — replace `d.repetitions == 0` filter with `d.state == CardState.NEW.value`
+- [x] In `get_due_cards_count`: same fix; also normalise to naive-UTC datetime convention (`datetime.now(timezone.utc).replace(tzinfo=None)`)
+- [x] In `get_due_cards_count`: add `UserWord.status.in_(['new', 'learning', 'review'])` filter to match canonical counter behaviour
+- [x] Write tests: card with `state=REVIEW, repetitions=0` (post-lapse) NOT counted as new; card with `state=NEW, repetitions=0` correctly counted as new
+- [x] Run `pytest tests/curriculum/ -x` — must pass before task 7
 
 ### Task 7: Phase 3.a — Fix card_lessons.py to create both directions (M3)
 
