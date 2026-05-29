@@ -169,6 +169,75 @@
             </div>
         </div>
 
+        <!-- Telegram-канал (авто-публикатор) -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fab fa-telegram me-2 text-primary"></i>Telegram-канал (авто-публикатор)</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Очередь и журнал публикаций — на странице
+                        <a href="{{ url_for('telegram_channel_admin.telegram_channel_index') }}">Telegram-канал</a>.
+                        Пустой ID канала полностью выключает публикатор.
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="telegram_channel_id">
+                                Channel ID
+                                <i class="fas fa-circle-info text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   title="{{ setting_meta.get('telegram_channel_id', {}).get('description', '') }}"></i>
+                            </label>
+                            <input type="text" class="form-control" id="telegram_channel_id" name="telegram_channel_id"
+                                   value="{{ settings.get('telegram_channel_id', '') }}"
+                                   placeholder="-1001234567890" maxlength="32">
+                            <div class="form-text">{{ setting_meta.get('telegram_channel_id', {}).get('description', '') }}</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label" for="telegram_channel_username">
+                                Channel username (@handle)
+                                <i class="fas fa-circle-info text-muted ms-1"
+                                   data-bs-toggle="tooltip"
+                                   title="{{ setting_meta.get('telegram_channel_username', {}).get('description', '') }}"></i>
+                            </label>
+                            <input type="text" class="form-control" id="telegram_channel_username" name="telegram_channel_username"
+                                   value="{{ settings.get('telegram_channel_username', '') }}"
+                                   placeholder="my_channel" maxlength="64">
+                            <div class="form-text">{{ setting_meta.get('telegram_channel_username', {}).get('description', '') }}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="telegram_channel_morning_utc_hour">
+                                Утренний час (UTC)
+                            </label>
+                            <input type="number" class="form-control" id="telegram_channel_morning_utc_hour"
+                                   name="telegram_channel_morning_utc_hour"
+                                   value="{{ settings.get('telegram_channel_morning_utc_hour', '6') }}" min="0" max="23">
+                            <div class="form-text">{{ setting_meta.get('telegram_channel_morning_utc_hour', {}).get('description', '') }}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="telegram_channel_evening_utc_hour">
+                                Вечерний час (UTC)
+                            </label>
+                            <input type="number" class="form-control" id="telegram_channel_evening_utc_hour"
+                                   name="telegram_channel_evening_utc_hour"
+                                   value="{{ settings.get('telegram_channel_evening_utc_hour', '15') }}" min="0" max="23">
+                            <div class="form-text">{{ setting_meta.get('telegram_channel_evening_utc_hour', {}).get('description', '') }}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="telegram_channel_dedup_days">
+                                Окно дедупа (дни)
+                            </label>
+                            <input type="number" class="form-control" id="telegram_channel_dedup_days"
+                                   name="telegram_channel_dedup_days"
+                                   value="{{ settings.get('telegram_channel_dedup_days', '90') }}" min="1" max="365">
+                            <div class="form-text">{{ setting_meta.get('telegram_channel_dedup_days', {}).get('description', '') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Save -->
         <div class="col-12">
             <button type="submit" class="btn btn-primary">
