@@ -1,9 +1,12 @@
 {% extends 'base.html' if current_user.is_authenticated else 'public_base.html' %}
 
-{% block title %}{{ topic.title_ru }} ({{ topic.title }}) — правила, примеры, упражнения | Грамматика английского {{ topic.level }}{% endblock %}
+{% set _title_ru = topic.title_ru or topic.title %}
+{% set _title_en = topic.title if topic.title and topic.title != _title_ru else '' %}
+
+{% block title %}{{ _title_ru }}{% if _title_en %} ({{ _title_en }}){% endif %} — правила, примеры, упражнения | Грамматика английского {{ topic.level }}{% endblock %}
 
 {% block og_tags %}
-<meta property="og:title" content="{{ topic.title_ru }} ({{ topic.title }}) — правила, примеры, упражнения | {{ topic.level }}">
+<meta property="og:title" content="{{ _title_ru }}{% if _title_en %} ({{ _title_en }}){% endif %} — правила, примеры, упражнения | {{ topic.level }}">
 <meta property="og:description" content="{{ meta_description | default('') }}">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{{ request.base_url }}">
