@@ -577,13 +577,14 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
     def _handle_new_card(self, rating, learning_steps, easy_interval):
         """Handle rating for a NEW card."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW, CardState
+        from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW, CardState, MAX_EASE_FACTOR, EF_INCREASE_EASY
 
         if rating == RATING_KNOW:
             # Easy: skip learning, go straight to review
             self.state = CardState.REVIEW.value
             self.interval = easy_interval
             self.step_index = 0
+            self.ease_factor = min(MAX_EASE_FACTOR, (self.ease_factor or 2.5) + EF_INCREASE_EASY)
         else:
             # Start learning process
             self.state = CardState.LEARNING.value
@@ -592,7 +593,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
     def _handle_learning_card(self, rating, learning_steps, graduating_interval, easy_interval):
         """Handle rating for a LEARNING card. Returns requeue_minutes or None."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
+        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState, MAX_EASE_FACTOR, EF_INCREASE_EASY
 
         if rating == RATING_DONT_KNOW:
             # Again: reset to step 0
@@ -612,6 +613,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
                 self.state = CardState.REVIEW.value
                 self.interval = graduating_interval
                 self.step_index = 0
+                self.ease_factor = min(MAX_EASE_FACTOR, (self.ease_factor or 2.5) + EF_INCREASE_EASY)
                 return None  # No requeue, scheduled for tomorrow
             else:
                 # Continue learning
