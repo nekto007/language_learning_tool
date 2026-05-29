@@ -1,4 +1,4 @@
-"""Tests for ease_factor increment in legacy UserCardDirection state machine (Task 3)."""
+"""Tests for ease_factor increment and first_reviewed correctness in legacy UserCardDirection state machine (Tasks 3-4)."""
 from __future__ import annotations
 
 import uuid
@@ -162,3 +162,68 @@ class TestLearningCardGraduationEaseFactorIncrement:
         # Hard: repeat the step, no graduation
         assert card.state == CardState.LEARNING.value
         assert abs(card.ease_factor - initial_ef) < 1e-9
+
+
+class TestFirstReviewedLegacyPath:
+    """Regression tests for first_reviewed in legacy update_after_review (Task 4).
+
+    The legacy path sets first_reviewed on the first review only — subsequent
+    reviews must not overwrite the timestamp.
+    """
+
+    def test_new_card_gets_first_reviewed_on_first_grade(self, db_session, test_user):
+        card = _make_card(db_session, test_user.id, CardState.NEW.value)
+        assert card.first_reviewed is None
+
+        before = datetime.now(timezone.utc).replace(tzinfo=None)
+        card.update_after_review(quality=RATING_KNOW)
+        after = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        # first_reviewed must be populated after the first grade
+        assert card.first_reviewed is not None
+        # Strip tzinfo if the legacy path left it tz-aware (column is naive-UTC)
+        fr = card.first_reviewed.replace(tzinfo=None) if card.first_reviewed.tzinfo else card.first_reviewed
+        assert before <= fr <= after
+
+    def test_first_reviewed_not_overwritten_on_second_grade(self, db_session, test_user):
+        card = _make_card(db_session, test_user.id, CardState.NEW.value)
+
+        # First review
+        card.update_after_review(quality=RATING_DONT_KNOW)  # NEW → LEARNING
+        first_ts = card.first_reviewed
+        assert first_ts is not None
+
+        # Second review — must not overwrite first_ts
+        card.update_after_review(quality=RATING_KNOW)
+        second_ts = card.first_reviewed
+
+        # Normalise tzinfo for comparison
+        def naive(ts):
+            return ts.replace(tzinfo=None) if ts and ts.tzinfo else ts
+
+        assert naive(second_ts) == naive(first_ts)
+
+    def test_first_reviewed_not_overwritten_on_review_state_grade(self, db_session, test_user):
+        """Card already in REVIEW state (has first_reviewed) must not overwrite it."""
+        existing_ts = datetime(2025, 1, 1, 12, 0, 0)  # naive-UTC sentinel
+        card = _make_card(db_session, test_user.id, CardState.REVIEW.value)
+        card.first_reviewed = existing_ts
+        card.interval = 1
+        card.next_review = _now_naive()
+        db_session.flush()
+
+        card.update_after_review(quality=RATING_KNOW)
+
+        def naive(ts):
+            return ts.replace(tzinfo=None) if ts and ts.tzinfo else ts
+
+        assert naive(card.first_reviewed) == existing_ts
+
+    def test_new_card_first_reviewed_with_dont_know(self, db_session, test_user):
+        """Even a DONT_KNOW rating on a NEW card must set first_reviewed."""
+        card = _make_card(db_session, test_user.id, CardState.NEW.value)
+        assert card.first_reviewed is None
+
+        card.update_after_review(quality=RATING_DONT_KNOW)
+
+        assert card.first_reviewed is not None
