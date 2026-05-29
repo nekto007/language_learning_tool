@@ -199,6 +199,28 @@ def test_queue_upcoming_is_idempotent(db_session, candidate_word, candidate_topi
     assert second == [] or all(p.id not in {f.id for f in first} for p in second)
 
 
+def test_queue_upcoming_respects_minutes(
+    db_session, candidate_word, candidate_topic, configured_channel,
+):
+    """Configured minute is reflected in scheduled_for, not zeroed out."""
+    set_site_setting('telegram_channel_morning_utc_hour', '9', db_session=db_session)
+    set_site_setting('telegram_channel_morning_utc_minute', '20', db_session=db_session)
+    set_site_setting('telegram_channel_evening_utc_hour', '18', db_session=db_session)
+    set_site_setting('telegram_channel_evening_utc_minute', '45', db_session=db_session)
+    db_session.commit()
+
+    created = queue_upcoming(db_session=db_session, days_ahead=2)
+    minutes = {p.scheduled_for.minute for p in created}
+    # Either 20 or 45 must appear (today's slots may already be in the past).
+    assert minutes.issubset({20, 45})
+    assert minutes  # at least one slot was queued
+
+    # Cleanup so other tests aren't polluted.
+    set_site_setting('telegram_channel_morning_utc_minute', '0', db_session=db_session)
+    set_site_setting('telegram_channel_evening_utc_minute', '0', db_session=db_session)
+    db_session.commit()
+
+
 # ─── Publishing ─────────────────────────────────────────────────────────
 
 

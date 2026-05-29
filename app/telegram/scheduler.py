@@ -63,13 +63,14 @@ def init_scheduler(app) -> None:
         id='telegram_hourly',
         replace_existing=True,
     )
-    # Channel publisher: publish_due runs every 15 minutes so a slot fires
-    # close to its scheduled UTC hour. queue_upcoming refills the next 7
-    # days of slots once a day at 02:00 UTC.
+    # Channel publisher: publish_due runs every 5 minutes so a slot
+    # scheduled at HH:MM fires within ~5 minutes of that time. The query is
+    # cheap (status='queued' AND scheduled_for<=now) so the tighter cadence
+    # is fine. queue_upcoming refills the next 7 days once daily.
     _scheduler.add_job(
         _channel_publish_due,
         'interval',
-        minutes=15,
+        minutes=5,
         args=[app],
         id='telegram_channel_publish',
         replace_existing=True,

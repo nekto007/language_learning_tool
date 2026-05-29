@@ -33,9 +33,9 @@
                 {% else %}—{% endif %}
             </dd>
             <dt class="col-sm-4">Утро (UTC)</dt>
-            <dd class="col-sm-8">{{ '%02d:00'|format(config.morning_hour) }} — Слово дня</dd>
+            <dd class="col-sm-8">{{ '%02d:%02d'|format(config.morning_hour, config.morning_minute) }} — Слово дня</dd>
             <dt class="col-sm-4">Вечер (UTC)</dt>
-            <dd class="col-sm-8">{{ '%02d:00'|format(config.evening_hour) }} — Грамматика</dd>
+            <dd class="col-sm-8">{{ '%02d:%02d'|format(config.evening_hour, config.evening_minute) }} — Грамматика</dd>
             <dt class="col-sm-4">Дедуп окно</dt>
             <dd class="col-sm-8">{{ config.dedup_days }} дней</dd>
         </dl>

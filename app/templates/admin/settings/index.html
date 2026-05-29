@@ -206,25 +206,37 @@
                                    placeholder="my_channel" maxlength="64">
                             <div class="form-text">{{ setting_meta.get('telegram_channel_username', {}).get('description', '') }}</div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label" for="telegram_channel_morning_utc_hour">
-                                Утренний час (UTC)
-                            </label>
-                            <input type="number" class="form-control" id="telegram_channel_morning_utc_hour"
-                                   name="telegram_channel_morning_utc_hour"
-                                   value="{{ settings.get('telegram_channel_morning_utc_hour', '6') }}" min="0" max="23">
-                            <div class="form-text">{{ setting_meta.get('telegram_channel_morning_utc_hour', {}).get('description', '') }}</div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Утро (UTC, HH:MM)</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="number" class="form-control" id="telegram_channel_morning_utc_hour"
+                                       name="telegram_channel_morning_utc_hour"
+                                       value="{{ settings.get('telegram_channel_morning_utc_hour', '6') }}" min="0" max="23"
+                                       aria-label="Утренний час UTC" style="max-width: 110px;">
+                                <span class="text-muted">:</span>
+                                <input type="number" class="form-control" id="telegram_channel_morning_utc_minute"
+                                       name="telegram_channel_morning_utc_minute"
+                                       value="{{ settings.get('telegram_channel_morning_utc_minute', '0') }}" min="0" max="59"
+                                       aria-label="Утренняя минута UTC" style="max-width: 110px;">
+                            </div>
+                            <div class="form-text">Утренний слот «Слово дня». UTC. По умолчанию 06:00 ≈ 09:00 МСК.</div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label" for="telegram_channel_evening_utc_hour">
-                                Вечерний час (UTC)
-                            </label>
-                            <input type="number" class="form-control" id="telegram_channel_evening_utc_hour"
-                                   name="telegram_channel_evening_utc_hour"
-                                   value="{{ settings.get('telegram_channel_evening_utc_hour', '15') }}" min="0" max="23">
-                            <div class="form-text">{{ setting_meta.get('telegram_channel_evening_utc_hour', {}).get('description', '') }}</div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Вечер (UTC, HH:MM)</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="number" class="form-control" id="telegram_channel_evening_utc_hour"
+                                       name="telegram_channel_evening_utc_hour"
+                                       value="{{ settings.get('telegram_channel_evening_utc_hour', '15') }}" min="0" max="23"
+                                       aria-label="Вечерний час UTC" style="max-width: 110px;">
+                                <span class="text-muted">:</span>
+                                <input type="number" class="form-control" id="telegram_channel_evening_utc_minute"
+                                       name="telegram_channel_evening_utc_minute"
+                                       value="{{ settings.get('telegram_channel_evening_utc_minute', '0') }}" min="0" max="59"
+                                       aria-label="Вечерняя минута UTC" style="max-width: 110px;">
+                            </div>
+                            <div class="form-text">Вечерний слот «Грамматика». UTC. По умолчанию 15:00 ≈ 18:00 МСК.</div>
                         </div>
-                        <div class="col-md-4 mb-3">
+                        <div class="col-md-6 mb-3">
                             <label class="form-label" for="telegram_channel_dedup_days">
                                 Окно дедупа (дни)
                             </label>
@@ -232,6 +244,12 @@
                                    name="telegram_channel_dedup_days"
                                    value="{{ settings.get('telegram_channel_dedup_days', '90') }}" min="1" max="365">
                             <div class="form-text">{{ setting_meta.get('telegram_channel_dedup_days', {}).get('description', '') }}</div>
+                        </div>
+                        <div class="col-md-6 mb-3 d-flex align-items-end">
+                            <div class="alert alert-info py-2 px-3 small mb-0">
+                                Точность доставки ≈ 5 минут: публикатор проверяет очередь раз в 5 мин.
+                                Если задать 09:20 — пост уйдёт в 09:20-09:25 UTC.
+                            </div>
                         </div>
                     </div>
                 </div>

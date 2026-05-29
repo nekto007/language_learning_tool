@@ -93,8 +93,14 @@ def get_channel_config(db_session: Session) -> dict:
         'morning_hour': max(0, min(23, _get_int_setting(
             'telegram_channel_morning_utc_hour', _DEFAULT_MORNING_HOUR, db_session,
         ))),
+        'morning_minute': max(0, min(59, _get_int_setting(
+            'telegram_channel_morning_utc_minute', 0, db_session,
+        ))),
         'evening_hour': max(0, min(23, _get_int_setting(
             'telegram_channel_evening_utc_hour', _DEFAULT_EVENING_HOUR, db_session,
+        ))),
+        'evening_minute': max(0, min(59, _get_int_setting(
+            'telegram_channel_evening_utc_minute', 0, db_session,
         ))),
         'dedup_days': max(1, min(365, _get_int_setting(
             'telegram_channel_dedup_days', _DEFAULT_DEDUP_DAYS, db_session,
@@ -251,12 +257,17 @@ def format_grammar_post(topic: GrammarTopic, site_url: str | None = None) -> str
 # ─── Queueing ──────────────────────────────────────────────────────────
 
 
-def _slot_kind_for_hour(hour: int, morning_hour: int) -> str:
-    """Decide which content kind a given UTC hour represents."""
-    # Morning slot → word; evening slot → grammar. The publisher only ever
-    # fills the configured morning + evening hours, so any other value falls
-    # back to KIND_WORD (defensive).
-    return KIND_WORD if hour == morning_hour else KIND_GRAMMAR
+def _slot_kind_for_time(
+    hour: int, minute: int, morning_hour: int, morning_minute: int,
+) -> str:
+    """Decide which content kind a given UTC slot represents.
+
+    Morning slot → word; evening slot → grammar. The publisher only ever
+    fills the two configured slots, so anything else defaults to KIND_WORD
+    defensively.
+    """
+    is_morning = hour == morning_hour and minute == morning_minute
+    return KIND_WORD if is_morning else KIND_GRAMMAR
 
 
 def _existing_slot(scheduled_for: datetime, db_session: Session) -> ChannelPost | None:
@@ -294,10 +305,14 @@ def queue_upcoming(
     created: list[ChannelPost] = []
     site_url = _site_url()
 
+    slots = [
+        (cfg['morning_hour'], cfg['morning_minute']),
+        (cfg['evening_hour'], cfg['evening_minute']),
+    ]
     for offset in range(days_ahead):
         slot_date = today + timedelta(days=offset)
-        for hour in (cfg['morning_hour'], cfg['evening_hour']):
-            scheduled_for = datetime.combine(slot_date, time(hour=hour))  # naive UTC
+        for hour, minute in slots:
+            scheduled_for = datetime.combine(slot_date, time(hour=hour, minute=minute))  # naive UTC
 
             # Skip past slots (only fills forward).
             now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -306,7 +321,9 @@ def queue_upcoming(
             if _existing_slot(scheduled_for, db_session):
                 continue
 
-            kind = _slot_kind_for_hour(hour, cfg['morning_hour'])
+            kind = _slot_kind_for_time(
+                hour, minute, cfg['morning_hour'], cfg['morning_minute'],
+            )
             post = _build_auto_post(
                 kind=kind,
                 scheduled_for=scheduled_for,

@@ -49,8 +49,12 @@ SETTING_DEFAULTS: dict[str, str] = {
     'telegram_channel_username': '',
     # Morning post hour (UTC, 0..23). Default 06:00 UTC ≈ 09:00 MSK.
     'telegram_channel_morning_utc_hour': '6',
+    # Morning post minute (0..59). Combine with morning_hour to set 9:20 etc.
+    'telegram_channel_morning_utc_minute': '0',
     # Evening post hour (UTC, 0..23). Default 15:00 UTC ≈ 18:00 MSK.
     'telegram_channel_evening_utc_hour': '15',
+    # Evening post minute (0..59).
+    'telegram_channel_evening_utc_minute': '0',
     # Picker won't repeat the same word/topic within this many days.
     'telegram_channel_dedup_days': '90',
 }
@@ -138,11 +142,23 @@ SETTING_META: dict[str, dict[str, str]] = {
         'min': '0',
         'max': '23',
     },
+    'telegram_channel_morning_utc_minute': {
+        'type': 'int',
+        'description': 'Минута утреннего поста (0..59). 0 = ровно в начале часа.',
+        'min': '0',
+        'max': '59',
+    },
     'telegram_channel_evening_utc_hour': {
         'type': 'int',
         'description': 'Час вечернего поста в UTC (0..23). По умолчанию 15 (= 18:00 МСК).',
         'min': '0',
         'max': '23',
+    },
+    'telegram_channel_evening_utc_minute': {
+        'type': 'int',
+        'description': 'Минута вечернего поста (0..59).',
+        'min': '0',
+        'max': '59',
     },
     'telegram_channel_dedup_days': {
         'type': 'int',
