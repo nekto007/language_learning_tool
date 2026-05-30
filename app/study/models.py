@@ -288,6 +288,13 @@ class UserWord(db.Model):
             self.status = new_status
             self.updated_at = datetime.now(timezone.utc)
 
+            if new_status == 'review':
+                try:
+                    from app.achievements.services import AchievementService
+                    AchievementService.check_words_learned_achievements(self.user_id)
+                except Exception:
+                    pass
+
     @property
     def min_interval(self):
         """Get minimum interval across all directions (in days)."""
@@ -312,6 +319,13 @@ class UserWord(db.Model):
         self.status = new_status
         self.updated_at = datetime.now(timezone.utc)
         db.session.flush()
+
+        if new_status == 'review':
+            try:
+                from app.achievements.services import AchievementService
+                AchievementService.check_words_learned_achievements(self.user_id)
+            except Exception:
+                pass
 
     @hybrid_property
     def performance_percentage(self):

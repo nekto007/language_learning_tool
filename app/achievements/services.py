@@ -473,6 +473,56 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_words_learned_achievements(user_id: int) -> List[Achievement]:
+        """Check and award word-learning achievements.
+
+        "Learned" means UserWord.status == 'review' (all card directions
+        graduated from the initial learning phase).
+
+        Codes: words_learned_100 (≥100 review words),
+               words_learned_500 (≥500 review words).
+        """
+        from app.study.models import UserWord
+        from sqlalchemy import func
+
+        review_count = db.session.query(func.count(UserWord.id)).filter(
+            UserWord.user_id == user_id,
+            UserWord.status == 'review',
+        ).scalar() or 0
+
+        newly_awarded = []
+
+        words_achievements = [
+            ('words_learned_100', 100),
+            ('words_learned_500', 500),
+        ]
+
+        for achievement_code, required_count in words_achievements:
+            if review_count >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send words-learned achievement notification "
+                            "for user %s: %s", user_id, e,
+                        )
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
     def check_mission_achievements(
         user_id: int,
         mission_type: str,
@@ -743,9 +793,11 @@ class AchievementService:
         book_achievements = AchievementService.check_book_achievements(user_id, stats)
         card_achievements = AchievementService.check_card_achievements(user_id, stats)
         level_achievements = AchievementService.check_level_achievements(user_id, stats)
+        words_achievements = AchievementService.check_words_learned_achievements(user_id)
 
         all_new = (grade_achievements + streak_achievements + lesson_achievements
-                   + book_achievements + card_achievements + level_achievements)
+                   + book_achievements + card_achievements + level_achievements
+                   + words_achievements)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
@@ -753,6 +805,7 @@ class AchievementService:
             'books': book_achievements,
             'cards': card_achievements,
             'levels': level_achievements,
+            'words': words_achievements,
             'all': all_new,
         }
 

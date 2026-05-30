@@ -185,11 +185,11 @@ Target end state:
 - Modify: `app/study/models.py` — `UserWord.update_status` is the natural hook (transition to `learning` / `review` / `mastered`)
 - Modify: `tests/study/test_user_word.py` or `tests/achievements/`
 
-- [ ] Decide the "learned" definition: count of `UserWord` rows with `status='mastered'` or with `status IN ('learning', 'review', 'mastered')` — recommend `mastered` for `words_learned_100/500`
-- [ ] Add `AchievementService.check_words_learned_achievements(user_id, stats)` — query the count and compare to thresholds (no need for a counter if the SQL is cheap)
-- [ ] Wire into `check_all_achievements` and into `UserWord.update_status` (best-effort try/except)
-- [ ] Write tests: 100th / 500th word mastered grants the matching badge; status changes that don't cross the threshold don't fire
-- [ ] Run `pytest tests/study/ tests/achievements/ -x` — must pass before task 9
+- [x] Decide the "learned" definition: count of `UserWord` rows with `status='mastered'` or with `status IN ('learning', 'review', 'mastered')` — recommend `mastered` for `words_learned_100/500`
+- [x] Add `AchievementService.check_words_learned_achievements(user_id, stats)` — query the count and compare to thresholds (no need for a counter if the SQL is cheap)
+- [x] Wire into `check_all_achievements` and into `UserWord.update_status` (best-effort try/except)
+- [x] Write tests: 100th / 500th word mastered grants the matching badge; status changes that don't cross the threshold don't fire
+- [x] Run `pytest tests/study/ tests/achievements/ -x` — must pass before task 9
 
 ### Task 9: Phase 3 — Add check_matching_achievements (3 codes)
 
