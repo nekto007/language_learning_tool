@@ -219,7 +219,7 @@ class AchievementService:
     """Service for checking and awarding achievements based on statistics"""
 
     @staticmethod
-    def check_grade_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_grade_achievements(user_id: int, stats: UserStatistics, dry_run: bool = False) -> List[Achievement]:
         """
         Check and award grade-based achievements
 

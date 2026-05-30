@@ -710,7 +710,9 @@ def complete_session():
                 correct_answers=session.correct_answers or 0,
                 total_answered=(session.correct_answers or 0) + (session.incorrect_answers or 0),
             )
+            db.session.commit()
         except Exception:
+            db.session.rollback()
             logger.warning(
                 'perfect_session: achievement check failed user=%s',
                 current_user.id, exc_info=True,
