@@ -381,15 +381,15 @@ class TestAchievementService:
         assert 'first_perfect' in codes or 'excellent_5' in codes
 
     def test_check_streak_achievements(self, db_session, test_user):
-        """Тест достижений за серии"""
+        """Тест достижений за серии — используем коды из seed.py (daily_streak_*)"""
         # Создаем достижения за серии (get-or-create to avoid UniqueViolation)
-        achievement3 = Achievement.query.filter_by(code='streak_3').first()
+        achievement3 = Achievement.query.filter_by(code='daily_streak_3').first()
         if not achievement3:
-            achievement3 = Achievement(code='streak_3', name='Streak 3', description='3 days', xp_reward=30)
+            achievement3 = Achievement(code='daily_streak_3', name='Streak 3', description='3 days', xp_reward=30)
             db_session.add(achievement3)
-        achievement7 = Achievement.query.filter_by(code='streak_7').first()
+        achievement7 = Achievement.query.filter_by(code='daily_streak_7').first()
         if not achievement7:
-            achievement7 = Achievement(code='streak_7', name='Streak 7', description='7 days', xp_reward=70)
+            achievement7 = Achievement(code='daily_streak_7', name='Streak 7', description='7 days', xp_reward=70)
             db_session.add(achievement7)
         db_session.flush()
 
@@ -405,8 +405,8 @@ class TestAchievementService:
         # Должны присвоиться оба (3 и 7 дней)
         assert len(new_achievements) == 2
         codes = {a.code for a in new_achievements}
-        assert 'streak_3' in codes
-        assert 'streak_7' in codes
+        assert 'daily_streak_3' in codes
+        assert 'daily_streak_7' in codes
 
     @pytest.mark.slow
     def test_check_all_achievements(self, db_session, test_user):
@@ -417,9 +417,9 @@ class TestAchievementService:
             achievement_a = Achievement(code='first_perfect', name='First', description='Test', xp_reward=50)
             db_session.add(achievement_a)
 
-        achievement_streak = Achievement.query.filter_by(code='streak_3').first()
+        achievement_streak = Achievement.query.filter_by(code='daily_streak_3').first()
         if not achievement_streak:
-            achievement_streak = Achievement(code='streak_3', name='Streak 3', description='Test', xp_reward=30)
+            achievement_streak = Achievement(code='daily_streak_3', name='Streak 3', description='Test', xp_reward=30)
             db_session.add(achievement_streak)
 
         db_session.flush()

@@ -283,12 +283,14 @@ class AchievementService:
         """
         newly_awarded = []
 
-        # Define streak-based achievement requirements
+        # Define streak-based achievement requirements — codes must match seed.py
         streak_achievements = [
-            ('streak_3', 3),
-            ('streak_7', 7),
-            ('streak_14', 14),
-            ('streak_30', 30),
+            ('daily_streak_3', 3),
+            ('daily_streak_7', 7),
+            ('daily_streak_14', 14),
+            ('daily_streak_30', 30),
+            ('daily_streak_60', 60),
+            ('daily_streak_100', 100),
         ]
 
         for achievement_code, required_days in streak_achievements:
