@@ -244,8 +244,8 @@ Target end state:
 
 ### Task 13: Update documentation
 
-- [ ] Update `CLAUDE.md` Key Patterns:
+- [x] Update `CLAUDE.md` Key Patterns:
   - Add note: every seeded achievement has a `check_*_achievements` function and is wired into `check_all_achievements`
   - Document the convention: `code` in seed must match `code` in service check list (the streak naming bug is the example)
-- [ ] Update or remove `docs/audit/srs-audit-2026-05-29.md` reference notes if they touch on achievements (they don't directly)
-- [ ] Move this plan to `docs/plans/completed/` after the final verification task is green
+- [x] Update or remove `docs/audit/srs-audit-2026-05-29.md` reference notes if they touch on achievements (file does not exist — only `docs/audit/2026-05-23-audit-findings.md` is present, and it does not reference the achievement naming mismatch, so no update needed)
+- [x] Move this plan to `docs/plans/completed/` after the final verification task is green
