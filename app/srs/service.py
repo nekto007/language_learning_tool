@@ -484,10 +484,9 @@ class UnifiedSRSService:
 
             # Increment total_cards_reviewed in UserStatistics (best-effort)
             try:
-                from app.achievements.models import UserStatistics
-                stats = UserStatistics.query.filter_by(user_id=user_id).first()
-                if stats is not None:
-                    stats.total_cards_reviewed = (stats.total_cards_reviewed or 0) + 1
+                from app.achievements.services import StatisticsService
+                stats = StatisticsService.get_or_create_statistics(user_id)
+                stats.total_cards_reviewed = (stats.total_cards_reviewed or 0) + 1
             except Exception:
                 logger.exception("Failed to increment total_cards_reviewed for user %s", user_id)
 

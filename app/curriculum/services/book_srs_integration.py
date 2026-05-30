@@ -502,7 +502,6 @@ class BookSRSIntegration:
 
         except Exception as e:
             logger.error(f"Error processing card grade: {str(e)}")
-            db.session.rollback()
             return {'success': False, 'error': str(e)}
 
     def _log_card_review(self, card: UserCardDirection, grade: int, session_key: str):
@@ -538,7 +537,6 @@ class BookSRSIntegration:
 
         except Exception as e:
             logger.error(f"Error completing SRS session: {str(e)}")
-            db.session.rollback()
             return False
 
     def auto_create_srs_cards_from_vocabulary_lesson(self, user_id: int,
@@ -764,7 +762,6 @@ class BookSRSIntegration:
 
         except Exception as e:
             logger.error(f"Error adding word {word_id} to SRS: {str(e)}")
-            db.session.rollback()
             return {'success': False, 'error': str(e), 'word_status': 'not_added'}
 
     def get_review_summary(self, user_id: int) -> Dict[str, Any]:

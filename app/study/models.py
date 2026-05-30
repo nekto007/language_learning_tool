@@ -384,7 +384,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     interval = db.Column(db.Integer, default=0)
     last_reviewed = db.Column(db.DateTime, nullable=True)
     first_reviewed = db.Column(db.DateTime, nullable=True)  # When card was first studied (for new card limit tracking)
-    next_review = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    next_review = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     session_attempts = db.Column(db.Integer, default=0)
 
     # Stats
@@ -558,12 +558,11 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
         # Increment total_cards_reviewed in UserStatistics (best-effort)
         try:
-            from app.achievements.models import UserStatistics
+            from app.achievements.services import StatisticsService
             _uid = self.user_word.user_id if self.user_word else None
             if _uid is not None:
-                _stats = UserStatistics.query.filter_by(user_id=_uid).first()
-                if _stats is not None:
-                    _stats.total_cards_reviewed = (_stats.total_cards_reviewed or 0) + 1
+                _stats = StatisticsService.get_or_create_statistics(_uid)
+                _stats.total_cards_reviewed = (_stats.total_cards_reviewed or 0) + 1
         except Exception:
             pass
 

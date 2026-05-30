@@ -591,6 +591,14 @@ def update_study_item():
 
     db.session.commit()
 
+    # Card achievements — best-effort, fired after commit.
+    try:
+        from app.achievements.services import AchievementService, StatisticsService
+        _stats = StatisticsService.get_or_create_statistics(current_user.id)
+        AchievementService.check_card_achievements(current_user.id, _stats)
+    except Exception:
+        logger.exception("Card achievement check failed for user %s", current_user.id)
+
     from app.srs.service import UnifiedSRSService
     from app.srs.constants import MAX_SESSION_ATTEMPTS, LEARNING_STEPS, RELEARNING_STEPS
 

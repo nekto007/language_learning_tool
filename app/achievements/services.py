@@ -612,6 +612,116 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_quiz_achievements(
+        user_id: int,
+        score: Optional[float] = None,
+        total_questions: Optional[int] = None,
+        time_taken: Optional[int] = None,
+        has_streak: bool = False,
+    ) -> List[Achievement]:
+        """Award quiz-family achievements.
+
+        Codes: first_quiz, quiz_master_10, quiz_master_50, high_score_90,
+        speed_demon, quiz_streak_5, early_bird, night_owl, perfect_score.
+
+        Per-game parameters (score, total_questions, time_taken, has_streak)
+        are used when called from the quiz submit handler.  When called
+        without context (e.g. from check_all_achievements) the method falls
+        back to querying historical GameScore / QuizResult rows.
+        """
+        from app.study.models import GameScore, QuizResult
+
+        codes_to_award: set[str] = set()
+
+        total_quizzes = (
+            db.session.query(func.count(GameScore.id))
+            .filter(GameScore.user_id == user_id, GameScore.game_type == 'quiz')
+            .scalar() or 0
+        )
+
+        if total_quizzes >= 1:
+            codes_to_award.add('first_quiz')
+        if total_quizzes >= 10:
+            codes_to_award.add('quiz_master_10')
+        if total_quizzes >= 50:
+            codes_to_award.add('quiz_master_50')
+
+        # high_score_90: current game OR historical
+        current_high90 = (
+            score is not None
+            and (total_questions or 0) >= 10
+            and score >= 90.0
+        )
+        historical_high90 = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            GameScore.total_questions >= 10,
+            (GameScore.correct_answers * 100.0 / GameScore.total_questions) >= 90,
+        ).first() is not None
+        if current_high90 or historical_high90:
+            codes_to_award.add('high_score_90')
+
+        # perfect_score: 100% in any lesson or quiz game
+        current_perfect = score is not None and score >= 100.0
+        historical_perfect = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.total_questions > 0,
+            GameScore.correct_answers == GameScore.total_questions,
+        ).first() is not None
+        if current_perfect or historical_perfect:
+            codes_to_award.add('perfect_score')
+
+        # speed_demon: quiz of 10+ questions in ≤2 minutes
+        current_speed = (
+            (total_questions or 0) >= 10 and (time_taken or 9999) <= 120
+        )
+        historical_speed = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            GameScore.total_questions >= 10,
+            GameScore.time_taken > 0,
+            GameScore.time_taken <= 120,
+        ).first() is not None
+        if current_speed or historical_speed:
+            codes_to_award.add('speed_demon')
+
+        # quiz_streak_5: 5+ consecutive correct in a quiz
+        # Per-game: has_streak flag; historical: any quiz with correct_answers >= 5
+        historical_streak5 = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            GameScore.correct_answers >= 5,
+        ).first() is not None
+        if has_streak or historical_streak5:
+            codes_to_award.add('quiz_streak_5')
+
+        # early_bird / night_owl: time of earliest/latest quiz session
+        now = datetime.now(timezone.utc)
+        early_row = db.session.query(GameScore.date_achieved).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            func.extract('hour', GameScore.date_achieved) < 8,
+        ).first()
+        if early_row:
+            codes_to_award.add('early_bird')
+
+        night_row = db.session.query(GameScore.date_achieved).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            func.extract('hour', GameScore.date_achieved) >= 23,
+        ).first()
+        if night_row:
+            codes_to_award.add('night_owl')
+
+        # Also check current invocation time for first-quiz context
+        if not early_row and time_taken is not None and now.hour < 8:
+            codes_to_award.add('early_bird')
+        if not night_row and time_taken is not None and now.hour >= 23:
+            codes_to_award.add('night_owl')
+
+        return AchievementService._award_badges(user_id, codes_to_award)
+
+    @staticmethod
     def check_perfect_quiz_achievements(
         user_id: int,
         score: Optional[float] = None,
@@ -947,13 +1057,15 @@ class AchievementService:
         level_achievements = AchievementService.check_level_achievements(user_id, stats)
         words_achievements = AchievementService.check_words_learned_achievements(user_id)
         matching_achievements = AchievementService.check_matching_achievements(user_id)
+        quiz_achievements = AchievementService.check_quiz_achievements(user_id)
         perfect_quiz_achievements = AchievementService.check_perfect_quiz_achievements(user_id)
         perfect_session_achievements = AchievementService.check_perfect_session_achievements(user_id)
 
         all_new = (grade_achievements + streak_achievements + lesson_achievements
                    + book_achievements + card_achievements + level_achievements
                    + words_achievements + matching_achievements
-                   + perfect_quiz_achievements + perfect_session_achievements)
+                   + quiz_achievements + perfect_quiz_achievements
+                   + perfect_session_achievements)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
@@ -963,6 +1075,7 @@ class AchievementService:
             'levels': level_achievements,
             'words': words_achievements,
             'matching': matching_achievements,
+            'quiz': quiz_achievements,
             'perfect_quiz': perfect_quiz_achievements,
             'perfect_session': perfect_session_achievements,
             'all': all_new,
