@@ -394,10 +394,10 @@ class BookSRSIntegration:
                 front = word.russian_word
                 back = word.english_word
 
-            # Определяем фазу обучения
-            if card.repetitions == 0:
+            # Determine phase from state (not repetitions — a lapsed card has repetitions=0 but state=REVIEW)
+            if card.state == CardState.NEW.value:
                 phase = 'new'
-            elif card.repetitions < 3:
+            elif card.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
                 phase = 'learning'
             else:
                 phase = 'review'
@@ -412,7 +412,7 @@ class BookSRSIntegration:
                 'front': front,
                 'back': back,
                 'phase': phase,
-                'new': card.repetitions == 0,
+                'new': card.state == CardState.NEW.value,
                 'direction': card.direction,
                 'ease_factor': card.ease_factor,
                 'interval': card.interval,
@@ -620,9 +620,7 @@ class BookSRSIntegration:
         Возвращает до `limit` карточек, отсортированных по приоритету.
         """
         try:
-            # Use naive datetime for DB comparison (SQLite doesn't handle timezone well)
-            now_utc = datetime.now(timezone.utc)
-            now_naive = datetime.utcnow()
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
 
             # Get due cards with word data
             due_cards = (UserCardDirection.query
@@ -631,7 +629,7 @@ class BookSRSIntegration:
                          .filter(UserWord.user_id == user_id)
                          .filter(
                 db.or_(
-                    UserCardDirection.repetitions == 0,  # New cards
+                    UserCardDirection.state == CardState.NEW.value,  # New cards
                     UserCardDirection.next_review <= now_naive  # Overdue
                 )
             )

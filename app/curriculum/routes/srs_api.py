@@ -6,7 +6,7 @@ Supports both new 1-2-3 rating scale and legacy 0-5 scale for backward compatibi
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
@@ -226,7 +226,7 @@ def get_next_session_time():
 
         return jsonify({
             'next_session_time': next_time.isoformat() if next_time else None,
-            'has_session_due': next_time <= datetime.now() if next_time else False
+            'has_session_due': next_time <= datetime.now(timezone.utc).replace(tzinfo=None) if next_time else False
         })
 
     except Exception as e:
