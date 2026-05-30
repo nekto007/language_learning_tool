@@ -394,6 +394,43 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_card_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award SRS card-review achievements.
+
+        Codes must match seed.py: cards_100, cards_500, cards_1000.
+        """
+        newly_awarded = []
+
+        card_achievements = [
+            ('cards_100', 100),
+            ('cards_500', 500),
+            ('cards_1000', 1000),
+        ]
+
+        reviewed = stats.total_cards_reviewed or 0
+        for achievement_code, required_count in card_achievements:
+            if reviewed >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send card achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
     def check_mission_achievements(
         user_id: int,
         mission_type: str,
@@ -662,13 +699,16 @@ class AchievementService:
         streak_achievements = AchievementService.check_streak_achievements(user_id, stats)
         lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats)
         book_achievements = AchievementService.check_book_achievements(user_id, stats)
+        card_achievements = AchievementService.check_card_achievements(user_id, stats)
 
-        all_new = grade_achievements + streak_achievements + lesson_achievements + book_achievements
+        all_new = (grade_achievements + streak_achievements + lesson_achievements
+                   + book_achievements + card_achievements)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
             'lessons': lesson_achievements,
             'books': book_achievements,
+            'cards': card_achievements,
             'all': all_new,
         }
 

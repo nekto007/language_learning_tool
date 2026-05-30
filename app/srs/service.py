@@ -482,6 +482,15 @@ class UnifiedSRSService:
             # Increment session_attempts
             card.session_attempts = (card.session_attempts or 0) + 1
 
+            # Increment total_cards_reviewed in UserStatistics (best-effort)
+            try:
+                from app.achievements.models import UserStatistics
+                stats = UserStatistics.query.filter_by(user_id=user_id).first()
+                if stats is not None:
+                    stats.total_cards_reviewed = (stats.total_cards_reviewed or 0) + 1
+            except Exception:
+                logger.exception("Failed to increment total_cards_reviewed for user %s", user_id)
+
             # Calculate next_review based on state
             requeue_minutes = update_result['requeue_minutes']
             days_until_review = update_result['days_until_review']

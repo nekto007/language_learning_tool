@@ -157,13 +157,13 @@ Target end state:
 - Modify: `app/srs/service.py` (`grade_card`) AND `app/study/models.py` (`UserCardDirection.update_after_review`) — increment counter and call check
 - Modify: `tests/srs/`, `tests/study/`
 
-- [ ] Verify whether `UserStatistics` already counts card reviews; if not, add `total_cards_reviewed INTEGER DEFAULT 0` (migration)
-- [ ] Add `AchievementService.check_card_achievements(user_id, stats)` for `cards_100`, `cards_500`, `cards_1000` against the counter
-- [ ] Increment counter inside both grading paths (canonical + legacy)
-- [ ] Wire into `check_all_achievements`
-- [ ] Migration: `20260530_user_stats_total_cards_reviewed.py`
-- [ ] Write tests: 100/500/1000 review threshold each grants exactly one achievement; idempotent on subsequent reviews
-- [ ] Run `pytest tests/srs/ tests/study/ tests/achievements/ -x` — must pass before task 7
+- [x] Verify whether `UserStatistics` already counts card reviews; if not, add `total_cards_reviewed INTEGER DEFAULT 0` (migration)
+- [x] Add `AchievementService.check_card_achievements(user_id, stats)` for `cards_100`, `cards_500`, `cards_1000` against the counter
+- [x] Increment counter inside both grading paths (canonical + legacy)
+- [x] Wire into `check_all_achievements`
+- [x] Migration: `20260530_user_stats_total_cards_reviewed.py`
+- [x] Write tests: 100/500/1000 review threshold each grants exactly one achievement; idempotent on subsequent reviews
+- [x] Run `pytest tests/srs/ tests/study/ tests/achievements/ -x` — must pass before task 7
 
 ### Task 7: Phase 3 — Add check_level_achievements (3 codes)
 

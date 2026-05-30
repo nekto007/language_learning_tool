@@ -542,6 +542,17 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         # Update the parent UserWord status if needed
         self.update_user_word_status()
 
+        # Increment total_cards_reviewed in UserStatistics (best-effort)
+        try:
+            from app.achievements.models import UserStatistics
+            _uid = self.user_word.user_id if self.user_word else None
+            if _uid is not None:
+                _stats = UserStatistics.query.filter_by(user_id=_uid).first()
+                if _stats is not None:
+                    _stats.total_cards_reviewed = (_stats.total_cards_reviewed or 0) + 1
+        except Exception:
+            pass
+
         return self.interval
 
     def update_user_word_status(self):
