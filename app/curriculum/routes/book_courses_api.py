@@ -544,6 +544,7 @@ def grade_srs_card():
 
     except Exception as e:
         logger.error(f"Error grading SRS card: {str(e)}")
+        db.session.rollback()
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 

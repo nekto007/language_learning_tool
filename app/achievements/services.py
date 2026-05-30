@@ -1237,9 +1237,6 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
     day_start_local = tz_obj.localize(datetime(target_date.year, target_date.month, target_date.day))
     day_start = day_start_local.astimezone(pytz.utc).replace(tzinfo=None)
     day_end = day_start + timedelta(days=1)
-    day_start_tz = day_start.replace(tzinfo=timezone.utc)
-    day_end_tz = day_end.replace(tzinfo=timezone.utc)
-
     has_listening = (session.query(func.count(ListeningAttempt.id)).filter(
         ListeningAttempt.user_id == user_id,
         ListeningAttempt.created_at >= day_start,
