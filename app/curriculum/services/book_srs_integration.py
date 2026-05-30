@@ -135,14 +135,14 @@ class BookSRSIntegration:
 
             # Считаем сколько слов изучено СЕГОДНЯ в рамках этого урока
             # (карточки с last_reviewed = сегодня, направление eng-rus)
-            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
             studied_today = 0
             for item in cards:
                 card = item['card']
                 if card.direction == 'eng-rus' and card.last_reviewed:
                     last_rev = card.last_reviewed
-                    if last_rev.tzinfo is None:
-                        last_rev = last_rev.replace(tzinfo=timezone.utc)
+                    if last_rev.tzinfo is not None:
+                        last_rev = last_rev.replace(tzinfo=None)
                     if last_rev >= today_start:
                         studied_today += 1
 
@@ -774,26 +774,26 @@ class BookSRSIntegration:
         Получает сводку карточек для повторения.
         """
         try:
-            now = datetime.now(timezone.utc)
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
 
             # Count by category
             new_count = (UserCardDirection.query
                          .join(UserWord)
                          .filter(UserWord.user_id == user_id)
-                         .filter(UserCardDirection.repetitions == 0)
+                         .filter(UserCardDirection.state == CardState.NEW.value)
                          .count())
 
             due_count = (UserCardDirection.query
                          .join(UserWord)
                          .filter(UserWord.user_id == user_id)
-                         .filter(UserCardDirection.repetitions > 0)
-                         .filter(UserCardDirection.next_review <= now)
+                         .filter(UserCardDirection.state != CardState.NEW.value)
+                         .filter(UserCardDirection.next_review <= now_naive)
                          .count())
 
             total_learned = (UserCardDirection.query
                              .join(UserWord)
                              .filter(UserWord.user_id == user_id)
-                             .filter(UserCardDirection.repetitions > 0)
+                             .filter(UserCardDirection.state != CardState.NEW.value)
                              .count())
 
             return {

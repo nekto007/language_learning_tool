@@ -620,15 +620,16 @@ class UnifiedSRSService:
             progress.interval = update_result['interval']
             progress.ease_factor = update_result['ease_factor']
             progress.lapses = update_result['lapses']
-            progress.last_reviewed = datetime.now(timezone.utc)
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+            progress.last_reviewed = now_naive
 
             bury_days = update_result.get('bury_days')
             if bury_days:
-                progress.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
+                progress.buried_until = now_naive + timedelta(days=bury_days)
 
             # Set first_reviewed on first review
             if progress.first_reviewed is None:
-                progress.first_reviewed = datetime.now(timezone.utc)
+                progress.first_reviewed = now_naive
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -640,7 +641,6 @@ class UnifiedSRSService:
             progress.session_attempts = (progress.session_attempts or 0) + 1
 
             # Calculate next_review based on state
-            now = datetime.now(timezone.utc)
             requeue_minutes = update_result['requeue_minutes']
             days_until_review = update_result['days_until_review']
 
@@ -648,12 +648,12 @@ class UnifiedSRSService:
                 # Add ±10% variance to prevent review cliff
                 variance = random.uniform(0.9, 1.1)
                 adjusted_days = max(1, round(days_until_review * variance))
-                progress.next_review = now + timedelta(days=adjusted_days)
+                progress.next_review = now_naive + timedelta(days=adjusted_days)
             elif requeue_minutes:
                 # Learning/Relearning: schedule for minutes from now
-                progress.next_review = now + timedelta(minutes=requeue_minutes)
+                progress.next_review = now_naive + timedelta(minutes=requeue_minutes)
             else:
-                progress.next_review = now
+                progress.next_review = now_naive
 
             db.session.commit()
 
@@ -1045,7 +1045,7 @@ class UnifiedSRSService:
         word_ids: List[int] = None
     ) -> int:
         """Считает количество слов, изученных сегодня."""
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
 
         query = (
             UserCardDirection.query
@@ -1174,7 +1174,7 @@ class UnifiedSRSService:
                 card.ease_factor = DEFAULT_EASE_FACTOR
                 card.interval = 0
                 card.repetitions = 0
-                card.next_review = datetime.now(timezone.utc)
+                card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
                 db.session.add(card)
                 db.session.flush()
 

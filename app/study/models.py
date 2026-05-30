@@ -406,7 +406,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.interval = 0
         self.correct_count = 0
         self.incorrect_count = 0
-        self.next_review = datetime.now(timezone.utc)
+        self.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
         self.buried_until = None
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -418,14 +418,14 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         Args:
             hours: Number of hours to bury the card (default 24 = until tomorrow)
         """
-        self.buried_until = datetime.now(timezone.utc) + timedelta(hours=hours)
+        self.buried_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=hours)
 
     def bury_for_session(self, session_duration_hours: int = 4):
         """
         Bury card for the rest of the study session.
         Default assumes a session is about 4 hours max.
         """
-        self.buried_until = datetime.now(timezone.utc) + timedelta(hours=session_duration_hours)
+        self.buried_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=session_duration_hours)
 
     def unbury(self):
         """Remove bury status from this card."""

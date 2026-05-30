@@ -193,7 +193,7 @@ def test_import_dedupes_existing_pair(
     db_session.add(WordContrast(
         word_a_id=low_id, word_b_id=high_id, note_ru='existing',
     ))
-    db_session.commit()
+    db_session.flush()
     payload = f'{a.english_word};{b.english_word};replacement\n'
     resp = _upload(admin_client, payload)
     assert resp.status_code == 302
