@@ -431,6 +431,48 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_level_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award XP-level-based achievements.
+
+        Codes must match seed.py: level_10, level_25, level_50.
+        Current level is derived from stats.total_xp via get_level_info.
+        """
+        from app.achievements.xp_service import get_level_info
+
+        newly_awarded = []
+
+        level_info = get_level_info(int(stats.total_xp or 0))
+        current_level = level_info.current_level
+
+        level_achievements = [
+            ('level_10', 10),
+            ('level_25', 25),
+            ('level_50', 50),
+        ]
+
+        for achievement_code, required_level in level_achievements:
+            if current_level >= required_level:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send level achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
     def check_mission_achievements(
         user_id: int,
         mission_type: str,
@@ -700,15 +742,17 @@ class AchievementService:
         lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats)
         book_achievements = AchievementService.check_book_achievements(user_id, stats)
         card_achievements = AchievementService.check_card_achievements(user_id, stats)
+        level_achievements = AchievementService.check_level_achievements(user_id, stats)
 
         all_new = (grade_achievements + streak_achievements + lesson_achievements
-                   + book_achievements + card_achievements)
+                   + book_achievements + card_achievements + level_achievements)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
             'lessons': lesson_achievements,
             'books': book_achievements,
             'cards': card_achievements,
+            'levels': level_achievements,
             'all': all_new,
         }
 

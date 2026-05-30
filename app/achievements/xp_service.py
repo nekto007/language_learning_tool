@@ -380,6 +380,11 @@ def award_xp(
             "user %s leveled up to %s (source=%s, xp=%s)",
             user_id, new_info.current_level, source, new_total,
         )
+        try:
+            from app.achievements.services import AchievementService
+            AchievementService.check_level_achievements(user_id, stats)
+        except Exception:
+            logger.exception("check_level_achievements failed for user %s after level-up", user_id)
 
     # Expire the leaderboard TTL cache so the next render shows fresh ranking.
     try:

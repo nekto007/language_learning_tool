@@ -173,10 +173,10 @@ Target end state:
 - Modify: `app/achievements/xp_service.py` — `award_xp` is the natural hook (after `level_up` event)
 - Modify: `tests/achievements/`
 
-- [ ] Add `AchievementService.check_level_achievements(user_id, stats)` for `level_10` (≥10), `level_25` (≥25), `level_50` (≥50) — read current level via `get_level_info(stats.total_xp).current_level`
-- [ ] Wire into `check_all_achievements`; also call from `award_xp` after a `level_up` event so the badge fires immediately at promotion
-- [ ] Write tests: leveling to 10/25/50 grants the matching badge; awarding XP that doesn't cross a threshold doesn't fire anything
-- [ ] Run `pytest tests/achievements/ -x` — must pass before task 8
+- [x] Add `AchievementService.check_level_achievements(user_id, stats)` for `level_10` (≥10), `level_25` (≥25), `level_50` (≥50) — read current level via `get_level_info(stats.total_xp).current_level`
+- [x] Wire into `check_all_achievements`; also call from `award_xp` after a `level_up` event so the badge fires immediately at promotion
+- [x] Write tests: leveling to 10/25/50 grants the matching badge; awarding XP that doesn't cross a threshold doesn't fire anything
+- [x] Run `pytest tests/achievements/ -x` — must pass before task 8
 
 ### Task 8: Phase 3 — Add check_words_learned_achievements (2 codes)
 
