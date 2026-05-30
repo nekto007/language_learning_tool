@@ -211,10 +211,10 @@ Target end state:
 - Modify: `app/study/api_routes.py` or `app/study/game_routes.py` (session/quiz submit paths)
 - Modify: `tests/study/`
 
-- [ ] Add `perfect_session` (e.g. 100% accuracy in a study session) and `perfect_quiz` (100% on a quiz) check functions
-- [ ] Wire into the session-completion and quiz-submission paths respectively
-- [ ] Write tests
-- [ ] Run `pytest tests/study/ tests/achievements/ -x` — must pass before task 11
+- [x] Add `perfect_session` (e.g. 100% accuracy in a study session) and `perfect_quiz` (100% on a quiz) check functions
+- [x] Wire into the session-completion and quiz-submission paths respectively
+- [x] Write tests
+- [x] Run `pytest tests/study/ tests/achievements/ -x` — must pass before task 11
 
 ### Task 11: Phase 4 — Backfill script for existing users
 

@@ -695,6 +695,19 @@ def complete_session():
                 )
                 db.session.rollback()
 
+        try:
+            from app.achievements.services import AchievementService as _AchSvc
+            _AchSvc.check_perfect_session_achievements(
+                current_user.id,
+                correct_answers=session.correct_answers or 0,
+                total_answered=(session.correct_answers or 0) + (session.incorrect_answers or 0),
+            )
+        except Exception:
+            logger.warning(
+                'perfect_session: achievement check failed user=%s',
+                current_user.id, exc_info=True,
+            )
+
         _stats = _UserStats.query.filter_by(user_id=current_user.id).first()
         _total_xp = int(_stats.total_xp or 0) if _stats else 0
         _level = get_level_info(_total_xp).current_level

@@ -612,6 +612,69 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_perfect_quiz_achievements(
+        user_id: int,
+        score: Optional[float] = None,
+    ) -> List[Achievement]:
+        """Award perfect_quiz badge.
+
+        Codes: perfect_quiz ("Пройдите квиз без ошибок").
+
+        score is the current-game percentage (0-100). When called without
+        per-game context (e.g. from check_all_achievements), past GameScore
+        rows are queried for a perfect quiz.
+        """
+        from app.study.models import GameScore
+
+        codes_to_award: set[str] = set()
+
+        perfect_eligible = (score is not None and score >= 100.0) or (
+            db.session.query(GameScore.id).filter(
+                GameScore.user_id == user_id,
+                GameScore.game_type == 'quiz',
+                GameScore.correct_answers == GameScore.total_questions,
+                GameScore.total_questions > 0,
+            ).first() is not None
+        )
+        if perfect_eligible:
+            codes_to_award.add('perfect_quiz')
+
+        return AchievementService._award_badges(user_id, codes_to_award)
+
+    @staticmethod
+    def check_perfect_session_achievements(
+        user_id: int,
+        correct_answers: Optional[int] = None,
+        total_answered: Optional[int] = None,
+    ) -> List[Achievement]:
+        """Award perfect_session badge.
+
+        Codes: perfect_session ("Завершите сессию карточек с 100% правильных ответов").
+
+        correct_answers / total_answered are the current-session values. When
+        called without per-session context (e.g. from check_all_achievements),
+        past StudySession rows are queried for a perfect session.
+        """
+        from app.study.models import StudySession
+
+        codes_to_award: set[str] = set()
+
+        if correct_answers is not None and total_answered is not None:
+            perfect_eligible = total_answered > 0 and correct_answers == total_answered
+        else:
+            perfect_eligible = (
+                db.session.query(StudySession.id).filter(
+                    StudySession.user_id == user_id,
+                    StudySession.correct_answers > 0,
+                    StudySession.incorrect_answers == 0,
+                ).first() is not None
+            )
+        if perfect_eligible:
+            codes_to_award.add('perfect_session')
+
+        return AchievementService._award_badges(user_id, codes_to_award)
+
+    @staticmethod
     def check_mission_achievements(
         user_id: int,
         mission_type: str,
@@ -884,10 +947,13 @@ class AchievementService:
         level_achievements = AchievementService.check_level_achievements(user_id, stats)
         words_achievements = AchievementService.check_words_learned_achievements(user_id)
         matching_achievements = AchievementService.check_matching_achievements(user_id)
+        perfect_quiz_achievements = AchievementService.check_perfect_quiz_achievements(user_id)
+        perfect_session_achievements = AchievementService.check_perfect_session_achievements(user_id)
 
         all_new = (grade_achievements + streak_achievements + lesson_achievements
                    + book_achievements + card_achievements + level_achievements
-                   + words_achievements + matching_achievements)
+                   + words_achievements + matching_achievements
+                   + perfect_quiz_achievements + perfect_session_achievements)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
@@ -897,6 +963,8 @@ class AchievementService:
             'levels': level_achievements,
             'words': words_achievements,
             'matching': matching_achievements,
+            'perfect_quiz': perfect_quiz_achievements,
+            'perfect_session': perfect_session_achievements,
             'all': all_new,
         }
 

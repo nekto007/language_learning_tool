@@ -89,6 +89,9 @@ def _check_quiz_achievements(user_id, quiz_data):
     if 'perfect_score' not in existing_codes and quiz_data.get('score') == 100:
         newly_earned.append(_grant('perfect_score'))
 
+    if 'perfect_quiz' not in existing_codes and quiz_data.get('score') == 100:
+        newly_earned.append(_grant('perfect_quiz'))
+
     if 'speed_demon' not in existing_codes:
         if quiz_data.get('total_questions', 0) >= 10 and quiz_data.get('time_taken', 999) <= 120:
             newly_earned.append(_grant('speed_demon'))
