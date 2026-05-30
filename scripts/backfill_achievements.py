@@ -70,17 +70,10 @@ def run_backfill(db_session, dry_run: bool = False, verbose: bool = False) -> Ba
             stats = StatisticsService.get_or_create_statistics(user.id)
             db_session.flush()
 
-            if dry_run:
-                # Peek at what would be granted without actually committing.
-                # check_all_achievements flushes inside grant_achievement but
-                # we'll roll back after via the caller, so this is safe.
-                result = AchievementService.check_all_achievements(user.id)
-                newly = result.get('all', [])
-            else:
-                result = AchievementService.check_all_achievements(user.id)
-                newly = result.get('all', [])
-                if newly:
-                    db_session.commit()
+            result = AchievementService.check_all_achievements(user.id)
+            newly = result.get('all', [])
+            if newly and not dry_run:
+                db_session.commit()
 
             if newly:
                 codes = [a.code for a in newly]

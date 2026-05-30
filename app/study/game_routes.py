@@ -111,7 +111,7 @@ def _check_quiz_achievements(user_id, quiz_data):
         if QuizResult.query.filter_by(user_id=user_id).count() >= 50:
             newly_earned.append(_grant('quiz_master_50'))
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     if 'early_bird' not in existing_codes and now.hour < 8:
         newly_earned.append(_grant('early_bird'))
 

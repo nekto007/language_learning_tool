@@ -307,10 +307,6 @@ class BookSRSIntegration:
             eng_rus_card = self._get_or_create_card_direction(user_word, 'eng-rus')
             rus_eng_card = self._get_or_create_card_direction(user_word, 'rus-eng')
 
-            # Добавляем связь с book course через метаданные
-            self._link_card_to_book_lesson(eng_rus_card, daily_lesson)
-            self._link_card_to_book_lesson(rus_eng_card, daily_lesson)
-
             # Store cards with context and pedagogical metadata
             cards_with_context.append({'card': eng_rus_card, 'context': context, 'unit_type': unit_type, 'note': note})
             cards_with_context.append({'card': rus_eng_card, 'context': context, 'unit_type': unit_type, 'note': note})
@@ -339,12 +335,6 @@ class BookSRSIntegration:
             db.session.flush()
 
         return card
-
-    def _link_card_to_book_lesson(self, card: UserCardDirection, daily_lesson: DailyLesson):
-        """Связывает карточку с book lesson через метаданные"""
-        # Можно расширить модель UserCardDirection полем metadata: JSONB
-        # Пока используем existing поля для отслеживания источника
-        pass
 
     def _filter_due_cards(self, cards_with_context: List[Dict[str, Any]],
                           direction_filter: str = None) -> List[Dict[str, Any]]:

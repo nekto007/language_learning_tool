@@ -1060,12 +1060,21 @@ class AchievementService:
         quiz_achievements = AchievementService.check_quiz_achievements(user_id)
         perfect_quiz_achievements = AchievementService.check_perfect_quiz_achievements(user_id)
         perfect_session_achievements = AchievementService.check_perfect_session_achievements(user_id)
+        listening_achievements = check_listening_achievements(user_id)
+        writing_achievements = check_writing_achievements(user_id)
+        speaking_achievements = check_speaking_achievements(user_id)
+        challenge_achievements = check_challenge_achievements(user_id)
+        weekly_milestone_achievements = check_weekly_milestone_achievements(
+            user_id, stats.current_streak_days or 0
+        )
 
         all_new = (grade_achievements + streak_achievements + lesson_achievements
                    + book_achievements + card_achievements + level_achievements
                    + words_achievements + matching_achievements
                    + quiz_achievements + perfect_quiz_achievements
-                   + perfect_session_achievements)
+                   + perfect_session_achievements + listening_achievements
+                   + writing_achievements + speaking_achievements
+                   + challenge_achievements + weekly_milestone_achievements)
         if all_new:
             db.session.commit()
             StatisticsService.update_badge_stats(user_id)
@@ -1081,6 +1090,11 @@ class AchievementService:
             'quiz': quiz_achievements,
             'perfect_quiz': perfect_quiz_achievements,
             'perfect_session': perfect_session_achievements,
+            'listening': listening_achievements,
+            'writing': writing_achievements,
+            'speaking': speaking_achievements,
+            'challenge': challenge_achievements,
+            'weekly_milestone': weekly_milestone_achievements,
             'all': all_new,
         }
 
