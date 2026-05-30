@@ -65,7 +65,6 @@ def build_reading_item(
     *,
     section: str = 'required',
     focus: Optional[str] = None,
-    graduated: bool = False,
 ) -> Optional[PlanItem]:
     """Return reading PlanItem for the selected book, or None.
 

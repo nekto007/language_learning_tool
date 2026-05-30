@@ -29,13 +29,9 @@ def build_grammar_review_item(
     section: str = 'optional',
 ) -> Optional[PlanItem]:
     """Return a grammar_review PlanItem or None when no topics exist."""
-    from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
-    from sqlalchemy import func
+    from app.grammar_lab.models import GrammarTopic
 
-    topic = _stalest_practiced_topic(
-        user_id, db,
-        GrammarTopic, GrammarExercise, UserGrammarExercise, func,
-    )
+    topic = _stalest_practiced_topic(user_id, db)
     if topic is None:
         topic = _level_fallback_topic(user_id, db, GrammarTopic)
     if topic is None:
@@ -64,15 +60,11 @@ def build_grammar_review_item(
     )
 
 
-def _stalest_practiced_topic(
-    user_id: int,
-    db: Any,
-    GrammarTopic: Any,
-    GrammarExercise: Any,
-    UserGrammarExercise: Any,
-    func: Any,
-) -> Optional[Any]:
+def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
     """Return the topic whose exercises were reviewed longest ago by this user."""
+    from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
+    from sqlalchemy import func
+
     row = (
         db.session.query(
             GrammarTopic,

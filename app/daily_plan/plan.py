@@ -44,7 +44,7 @@ OPTIONAL_MAX = 10
 # Items that must wait for the curriculum slot to complete — skipping
 # curriculum locks them too. Same set as the linear plan uses (listening
 # is intentionally NOT in this set; it walks the spine independently).
-_CURRICULUM_DEPENDENT_KINDS = frozenset({'curriculum', 'speaking', 'writing'})
+_CURRICULUM_DEPENDENT_KINDS = frozenset({'speaking', 'writing'})
 
 
 def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
@@ -242,32 +242,22 @@ def build_optional(
         {required_curriculum_lesson_id} if required_curriculum_lesson_id is not None else None
     )
 
-    items: list[PlanItem] = []
-    builders_exhausted: dict[str, bool] = {k: False for k in _OPTIONAL_PRIORITY}
-
     # Build candidate items per source. Each source contributes at most one
     # optional item (subsequent extension comes from rebuild after activity).
-    candidates: list[Optional[PlanItem]] = []
+    candidates: list[PlanItem] = []
     for kind in _OPTIONAL_PRIORITY:
         candidate = _build_optional_candidate(
             user_id, db, kind, focus,
             exclude_curriculum_ids=exclude_curriculum_ids,
             graduated=graduated,
         )
-        if candidate is None:
-            builders_exhausted[kind] = True
-        elif candidate.id in seen_ids:
-            # Already required — count as not exhausted but skip.
+        if candidate is None or candidate.id in seen_ids:
             continue
-        else:
-            candidates.append(candidate)
-            seen_ids.add(candidate.id)
+        candidates.append(candidate)
+        seen_ids.add(candidate.id)
 
-    items = [c for c in candidates if c is not None][:max_items]
-    has_more = len(candidates) > max_items or any(
-        not exhausted for kind, exhausted in builders_exhausted.items()
-        if kind != 'challenge'  # challenge always single, never "more"
-    )
+    items = candidates[:max_items]
+    has_more = len(candidates) > max_items
     # ``has_more`` is a soft hint; the dashboard simply re-fetches on demand.
     return items, has_more
 
@@ -294,7 +284,6 @@ def _build_optional_candidate(
         return build_reading_item(
             user_id, db, section='optional',
             focus=focus,
-            graduated=graduated,
         )
     if kind == 'listening':
         return build_listening_item(user_id, db, section='optional')
@@ -407,9 +396,10 @@ def get_daily_plan(
     skipped_kinds = _get_unified_skipped_kinds(user_id, session)
     if skipped_kinds:
         _apply_unified_skip_state(required_dicts, skipped_kinds)
+    from app.utils.time_utils import get_user_local_date
     _annotate_unified_skip_quota(
         required_dicts,
-        get_slot_skips_used_today(user_id, _today_user_local(user_id, session), session),
+        get_slot_skips_used_today(user_id, get_user_local_date(user_id, session), session),
     )
 
     return {
@@ -427,10 +417,6 @@ def get_daily_plan(
         'graduated': graduated,
     }
 
-
-def _today_user_local(user_id: int, db: Any):
-    from app.utils.time_utils import get_user_local_date
-    return get_user_local_date(user_id, db)
 
 
 def _compute_module_progress(user_id: int, db: Any, next_lesson: Any) -> Optional[dict[str, Any]]:

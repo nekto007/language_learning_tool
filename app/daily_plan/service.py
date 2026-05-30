@@ -65,9 +65,11 @@ def compute_day_secured_from_activity(
                 return False
             from datetime import datetime, timezone
             from app.utils.activity_tracker import has_learning_activity
-            now_utc = datetime.now(timezone.utc)
-            start_of_day = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-            return has_learning_activity(user_id, start_of_day, now_utc)
+            from app.utils.time_utils import get_user_local_day_bounds
+            from app.utils.db import db as _db
+            start_of_day, end_of_day = get_user_local_day_bounds(user_id, _db)
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+            return has_learning_activity(user_id, start_of_day, min(end_of_day, now_utc))
         return all(
             plan_completion.get(item.get('id', ''), False) or bool(item.get('completed'))
             for item in required
