@@ -442,14 +442,7 @@ def add_word_to_learning():
         ).first()
 
         if not user_word:
-            # Add to user's learning list
-            user_word = UserWord(
-                user_id=current_user.id,
-                word_id=word_entry.id,
-                status='learning',  # Learning status as string
-                date_added=datetime.now(UTC)
-            )
-            db.session.add(user_word)
+            user_word = UserWord.get_or_create(current_user.id, word_entry.id)
 
         # Add word to "Reading Vocabulary" deck
         from app.study.models import QuizDeck, QuizDeckWord

@@ -56,7 +56,12 @@ def run_backfill(db_session, dry_run: bool = False, verbose: bool = False) -> Ba
     """Backfill achievements for all users.
 
     Caller is responsible for committing or rolling back the session.
-    When dry_run=True this function does NOT commit anything.
+    When dry_run=True this function skips the outer commit.  Note: sub-check
+    functions inside check_all_achievements commit internally when they grant
+    achievements, so in production dry_run does not prevent DB writes — it
+    only skips the final aggregating commit.  In test environments the session
+    is bound to an outer connection transaction that can be rolled back by the
+    caller after this function returns.
     """
     from app.auth.models import User
     from app.achievements.services import AchievementService, StatisticsService

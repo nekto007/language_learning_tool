@@ -554,7 +554,6 @@ class BookSRSIntegration:
 
         except Exception as e:
             logger.error(f"Error auto-creating SRS cards: {str(e)}")
-            db.session.rollback()
             return False
 
     def get_next_srs_session_time(self, user_id: int, course_id: int) -> Optional[datetime]:

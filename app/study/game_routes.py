@@ -716,6 +716,14 @@ def complete_matching_game():
 
         db.session.commit()
 
+        # Card achievements — best-effort, fired after SRS commit.
+        try:
+            from app.achievements.services import AchievementService, StatisticsService
+            _stats = StatisticsService.get_or_create_statistics(current_user.id)
+            AchievementService.check_card_achievements(current_user.id, _stats)
+        except Exception:
+            logger.exception('Card achievement check failed for user %s', current_user.id)
+
     if session_id:
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:

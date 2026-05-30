@@ -175,10 +175,9 @@ class TestGetOrCreateSRSCards:
     """Test _get_or_create_srs_cards method"""
 
     @patch('app.curriculum.services.book_srs_integration.db.session')
-    @patch.object(BookSRSIntegration, '_link_card_to_book_lesson')
     @patch.object(BookSRSIntegration, '_get_or_create_card_direction')
     @patch('app.curriculum.services.book_srs_integration.UserWord')
-    def test_creates_cards_for_both_directions(self, mock_user_word_model, mock_get_card, mock_link, mock_session, integration, daily_lesson, mock_word, mock_user_word):
+    def test_creates_cards_for_both_directions(self, mock_user_word_model, mock_get_card, mock_session, integration, daily_lesson, mock_word, mock_user_word):
         """Test creating cards for both eng-rus and rus-eng"""
         mock_user_word_model.get_or_create.return_value = mock_user_word
 

@@ -219,7 +219,7 @@ class AchievementService:
     """Service for checking and awarding achievements based on statistics"""
 
     @staticmethod
-    def check_grade_achievements(user_id: int, stats: UserStatistics, dry_run: bool = False) -> List[Achievement]:
+    def check_grade_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
         """
         Check and award grade-based achievements
 
@@ -1237,9 +1237,6 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
     day_start_local = tz_obj.localize(datetime(target_date.year, target_date.month, target_date.day))
     day_start = day_start_local.astimezone(pytz.utc).replace(tzinfo=None)
     day_end = day_start + timedelta(days=1)
-    day_start_tz = day_start.replace(tzinfo=timezone.utc)
-    day_end_tz = day_end.replace(tzinfo=timezone.utc)
-
     has_listening = (session.query(func.count(ListeningAttempt.id)).filter(
         ListeningAttempt.user_id == user_id,
         ListeningAttempt.created_at >= day_start,
@@ -1260,8 +1257,8 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
 
     has_reading = (session.query(func.count(UserReadingSession.id)).filter(
         UserReadingSession.user_id == user_id,
-        UserReadingSession.started_at >= day_start_tz,
-        UserReadingSession.started_at < day_end_tz,
+        UserReadingSession.started_at >= day_start,
+        UserReadingSession.started_at < day_end,
     ).scalar() or 0) > 0
 
     if not (has_listening and has_writing and has_speaking and has_reading):
