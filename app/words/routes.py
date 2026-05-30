@@ -2505,6 +2505,21 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
     )
 
     if next_item is None:
+        # Graduated users always get a free-study CTA instead of a dead end.
+        graduated = bool(
+            plan.get('graduated', False)
+            or (plan.get('_plan_meta') or {}).get('graduated', False)
+        )
+        if graduated:
+            return jsonify({
+                'has_next': True,
+                'step_type': 'free_study',
+                'step_title': 'Свободная практика',
+                'step_url': '/study?source=infinite_practice',
+                'step_icon': KIND_ICONS.get('srs', '\U0001f4d6'),
+                'steps_done': steps_done,
+                'steps_total': steps_total,
+            }), 200
         return jsonify({
             'has_next': False,
             'all_done': True,

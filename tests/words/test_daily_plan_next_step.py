@@ -253,3 +253,67 @@ class TestNextStepDispatcher:
         assert data['has_next'] is False
         assert data['all_done'] is True
         assert 'fallback_url' in data
+
+
+# ── Task 4: graduated user next-step always has_next=True ────────────
+
+
+class TestNextStepGraduated:
+    """Graduated user: next-step returns free_study instead of all_done."""
+
+    def _call(self, client, plan, summary) -> dict:
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.telegram.queries.get_daily_summary', return_value=summary):
+            resp = client.get('/api/daily-plan/next-step')
+        assert resp.status_code == 200
+        return resp.get_json()
+
+    def test_graduated_all_done_returns_free_study(self, authenticated_client):
+        """Graduated user with all items completed returns has_next=True with free_study."""
+        plan = {
+            'mode': 'unified',
+            'required': [_make_item('srs:global', kind='srs', completed=True, url='/study')],
+            'optional': [_make_item('grammar_review:topic:1', kind='grammar_review', completed=True, url='/grammar-lab/topic/t1')],
+            'setup': [],
+            'day_secured': True,
+            'graduated': True,
+            '_plan_meta': {'effective_mode': 'unified', 'graduated': True, 'user_id': 1},
+        }
+        data = self._call(authenticated_client, plan, _make_daily_summary())
+
+        assert data['has_next'] is True
+        assert data['step_type'] == 'free_study'
+        assert data['step_url'] == '/study?source=infinite_practice'
+        assert data['step_title'] == 'Свободная практика'
+
+    def test_graduated_empty_plan_returns_free_study(self, authenticated_client):
+        """Graduated user with empty required+optional always gets free_study CTA."""
+        plan = {
+            'mode': 'unified',
+            'required': [],
+            'optional': [],
+            'setup': [],
+            'day_secured': False,
+            'graduated': True,
+            '_plan_meta': {'effective_mode': 'unified', 'graduated': True, 'user_id': 1},
+        }
+        data = self._call(authenticated_client, plan, _make_daily_summary())
+
+        assert data['has_next'] is True
+        assert data['step_type'] == 'free_study'
+
+    def test_non_graduated_all_done_returns_all_done_flag(self, authenticated_client):
+        """Non-graduated user with all items done still gets has_next=False."""
+        plan = {
+            'mode': 'unified',
+            'required': [_make_item('srs:global', kind='srs', completed=True, url='/study')],
+            'optional': [],
+            'setup': [],
+            'day_secured': True,
+            'graduated': False,
+            '_plan_meta': {'effective_mode': 'unified', 'graduated': False, 'user_id': 1},
+        }
+        data = self._call(authenticated_client, plan, _make_daily_summary())
+
+        assert data['has_next'] is False
+        assert data['all_done'] is True

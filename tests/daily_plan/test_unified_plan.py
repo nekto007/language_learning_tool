@@ -793,3 +793,86 @@ class TestSRSIgnoreDailyBudget:
         assert item is None, (
             'Default behaviour: done SRS with no due cards filtered from optional'
         )
+
+
+# ── Task 4: day_secured in graduated state ───────────────────────────
+
+
+class TestGraduatedDaySecured:
+    """compute_day_secured_from_activity for graduated users.
+
+    (a) graduated user with no activity today → day_secured False
+    (b) graduated user with SRS reviews → day_secured True
+    """
+
+    def _graduated_plan(self, user_id: int) -> dict:
+        return {
+            'required': [],
+            'optional': [],
+            'setup': [],
+            'graduated': True,
+            '_plan_meta': {
+                'effective_mode': 'unified',
+                'graduated': True,
+                'user_id': user_id,
+            },
+        }
+
+    def test_graduated_no_activity_day_not_secured(self, db_session):
+        """Graduated user with zero activity today → day_secured=False."""
+        from unittest.mock import patch
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        user = _make_user(db_session, onboarding_level='A1')
+        plan = self._graduated_plan(user.id)
+
+        with patch('app.utils.activity_tracker.has_learning_activity', return_value=False):
+            result = compute_day_secured_from_activity(plan, {})
+
+        assert result is False
+
+    def test_graduated_with_activity_day_secured(self, db_session):
+        """Graduated user who has activity today → day_secured=True."""
+        from unittest.mock import patch
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        user = _make_user(db_session, onboarding_level='A1')
+        plan = self._graduated_plan(user.id)
+
+        with patch('app.utils.activity_tracker.has_learning_activity', return_value=True):
+            result = compute_day_secured_from_activity(plan, {})
+
+        assert result is True
+
+    def test_non_graduated_empty_required_still_returns_false(self):
+        """Non-graduated empty required → day_secured=False (unchanged behaviour)."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'required': [],
+            '_plan_meta': {
+                'effective_mode': 'unified',
+                'graduated': False,
+                'user_id': 999,
+            },
+        }
+        assert compute_day_secured_from_activity(plan, {}) is False
+
+    def test_graduated_flag_stamped_in_plan_meta_by_service(self, db_session):
+        """get_daily_plan_unified stamps graduated=True in _plan_meta for a graduated user."""
+        level = _make_level(db_session, order=20)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson)
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        meta = payload.get('_plan_meta', {})
+        assert meta.get('graduated') is True, (
+            'graduated=True must be stamped in _plan_meta for a graduated user'
+        )
+        assert meta.get('user_id') == user.id, (
+            'user_id must be stamped in _plan_meta'
+        )
