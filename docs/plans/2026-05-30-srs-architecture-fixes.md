@@ -209,10 +209,10 @@ and is not part of this plan.
 - Modify: `app/study/game_routes.py`
 - Modify: `tests/study/`
 
-- [ ] Decide: should matching/word-scramble outside the linear plan SRS slot credit `linear_srs_global`? Audit recommends evaluating, not necessarily implementing.
-- [ ] If yes: gate by minimum-card-count + accuracy threshold, then call `maybe_award_srs_global_xp`; if no, document the intentional gap inline.
-- [ ] Write tests for whichever decision lands
-- [ ] Run `pytest tests/study/ -x` — must pass before task 12
+- [x] Decide: should matching/word-scramble outside the linear plan SRS slot credit `linear_srs_global`? Audit recommends evaluating, not necessarily implementing.
+- [x] If yes: gate by minimum-card-count + accuracy threshold, then call `maybe_award_srs_global_xp`; if no, document the intentional gap inline.
+- [x] Write tests for whichever decision lands
+- [x] Run `pytest tests/study/ -x` — must pass before task 12
 
 ### Task 12: Phase 6 — Unify legacy callers onto canonical grade_card (HIGH, deferred)
 

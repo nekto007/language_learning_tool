@@ -659,6 +659,12 @@ def complete_matching_game():
             get_user_local_date(current_user.id, db),
         )
         db.session.commit()
+    # Intentionally no maybe_award_srs_global_xp() here.
+    # The matching game is a free-play gamified activity; it does not carry
+    # plan_slot/source parameters that would identify it as the daily SRS slot.
+    # Adding SRS-slot XP would double-credit users who play matching AND complete
+    # the dedicated SRS slot (/study?source=linear_plan).  Game XP is handled
+    # exclusively through award_game_xp_idempotent() above.
     _matching_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
     _matching_total_xp = int(_matching_stats.total_xp or 0) if _matching_stats else 0
     _matching_level = get_level_info(_matching_total_xp).current_level

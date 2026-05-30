@@ -352,3 +352,159 @@ class TestDeletedDeckResult:
             user_id=test_user.id, game_type='quiz'
         ).count()
         assert after_count == before_count + 1
+
+
+# ---------------------------------------------------------------------------
+# 5. SRS-slot XP: matching game NEVER awards it; quiz awards only when plan_slot='srs'
+# ---------------------------------------------------------------------------
+
+class TestSrsSlotXpDecision:
+    """
+    Task 11 decision: matching/word-scramble games intentionally do NOT credit
+    linear_srs_global XP.  The matching game has no plan_slot/source signal
+    and already gets award_game_xp_idempotent() XP, so adding SRS-slot XP
+    would double-credit users who play matching AND complete the dedicated SRS
+    slot.  The quiz route gates srs-slot XP on explicit plan_slot='srs' and
+    source='linear_plan_deck_quiz' params.
+    """
+
+    def test_matching_game_does_not_create_srs_slot_streak_event(
+        self, authenticated_client, study_settings, db_session, test_user
+    ):
+        """Completing matching game (even perfect score) creates no xp_linear StreakEvent."""
+        from app.achievements.models import StreakEvent
+        before = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+
+        payload = {
+            'pairs_matched': 10,
+            'total_pairs': 10,
+            'moves': 20,
+            'time_taken': 30,
+            'difficulty': 'hard',
+        }
+        resp = authenticated_client.post(
+            '/study/api/complete-matching-game',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()['success'] is True
+
+        db_session.expire_all()
+        after = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+        assert after == before, (
+            "Matching game must not create xp_linear StreakEvents — "
+            "SRS-slot XP is intentionally excluded (see complete_matching_game docstring)"
+        )
+
+    def test_quiz_without_plan_slot_does_not_award_srs_global_xp(
+        self, authenticated_client, study_settings, db_session, test_user
+    ):
+        """Quiz without plan_slot='srs' does not award SRS-slot XP."""
+        from app.achievements.models import StreakEvent
+        before = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+
+        payload = {
+            'total_questions': 10,
+            'correct_answers': 10,
+            'time_taken': 60,
+            # No source/from/slot — free-play quiz
+        }
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()['success'] is True
+
+        db_session.expire_all()
+        after = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+        assert after == before, "Free-play quiz must not award linear SRS-slot XP"
+
+    def test_quiz_with_srs_plan_slot_awards_srs_global_xp(
+        self, authenticated_client, study_settings, db_session, test_user
+    ):
+        """Quiz submitted with plan_slot='srs' and correct source creates xp_linear StreakEvent."""
+        from app.achievements.models import StreakEvent
+        before = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+
+        payload = {
+            'total_questions': 10,
+            'correct_answers': 8,
+            'time_taken': 60,
+            'source': 'linear_plan_deck_quiz',
+            'from': 'linear_plan',
+            'slot': 'srs',
+        }
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()['success'] is True
+
+        db_session.expire_all()
+        after = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+        assert after > before, "Quiz with plan_slot='srs' must award linear SRS-slot XP"
+
+    def test_quiz_with_srs_plan_slot_idempotent_second_call(
+        self, authenticated_client, study_settings, db_session, test_user
+    ):
+        """Second quiz submission with plan_slot='srs' on same day does not double-award."""
+        from app.achievements.models import StreakEvent
+
+        payload = {
+            'total_questions': 10,
+            'correct_answers': 8,
+            'time_taken': 60,
+            'source': 'linear_plan_deck_quiz',
+            'from': 'linear_plan',
+            'slot': 'srs',
+        }
+        # First submission
+        authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        db_session.expire_all()
+        after_first = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+
+        # Second submission same day
+        authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+        db_session.expire_all()
+        after_second = StreakEvent.query.filter(
+            StreakEvent.user_id == test_user.id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+
+        assert after_second == after_first, (
+            "SRS-slot XP must be idempotent — second same-day quiz must not add StreakEvent"
+        )
