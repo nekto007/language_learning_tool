@@ -89,7 +89,7 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
             {% set earned_in_cat = items|selectattr('earned')|list|length %}
             {% set total_in_cat = items|length %}
             {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
-            <div class="dash-achievements__cat" title="{{ category }}: {{ earned_in_cat }} из {{ total_in_cat }} достижений">
+            <div class="dash-achievements__cat" title="{{ achievements_by_category.category_labels[category] or category }}: {{ earned_in_cat }} из {{ total_in_cat }} достижений">
               <div class="dash-achievements__ring" style="--pct: {{ pct }}">
                 <svg viewBox="0 0 36 36" class="dash-achievements__svg">
                   <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
@@ -97,7 +97,7 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
                 </svg>
                 <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
               </div>
-              <span class="dash-achievements__cat-name">{{ category }}</span>
+              <span class="dash-achievements__cat-name">{{ achievements_by_category.category_labels[category] or category }}</span>
             </div>
           {% endfor %}
         </div>

@@ -18,6 +18,26 @@ from app.study.models import (
 from app.achievements.models import UserStatistics
 from app.auth.models import User
 
+_CATEGORY_LABELS_RU = {
+    'lessons': 'Уроки',
+    'streak': 'Серии',
+    'mission': 'Миссии',
+    'quiz': 'Квизы',
+    'flashcards': 'Карточки',
+    'books': 'Книги',
+    'writing': 'Письмо',
+    'speaking': 'Говорение',
+    'matching': 'Сопоставление',
+    'listening': 'Аудирование',
+    'levels': 'Уровни',
+    'challenge': 'Челленджи',
+    'study': 'Изучение',
+    'special': 'Особые',
+    'immersion': 'Погружение',
+    'score': 'Очки',
+    'general': 'Общее',
+}
+
 
 class StatsService:
     """Service for statistics and leaderboards"""
@@ -534,8 +554,14 @@ class StatsService:
             ach.xp_reward for ach in all_achievements if ach.id in earned_ids
         )
 
+        category_labels = {
+            cat: _CATEGORY_LABELS_RU.get(cat, cat)
+            for cat in achievements_by_category
+        }
+
         return {
             'by_category': achievements_by_category,
+            'category_labels': category_labels,
             'total_achievements': total_achievements,
             'earned_count': earned_count,
             'progress_percentage': round(earned_count / total_achievements * 100) if total_achievements > 0 else 0,
