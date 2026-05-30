@@ -655,7 +655,7 @@ class UnifiedSRSService:
             else:
                 progress.next_review = now_naive
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             # Calculate requeue position for client-side queue management
             requeue_position = self.get_requeue_position(

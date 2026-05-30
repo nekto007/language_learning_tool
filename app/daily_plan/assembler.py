@@ -20,6 +20,7 @@ from app.grammar_lab.models import (
     UserGrammarTopicStatus,
 )
 from app.study.deck_utils import get_daily_plan_mix_word_ids
+from app.utils.db_utils import chunk_ids
 from app.books.models import Book, Chapter, UserChapterProgress
 
 from app.daily_plan.models import (
@@ -243,16 +244,18 @@ def _has_guided_recall_content(user_id: int) -> bool:
     if remaining_new <= 0:
         return False
 
-    words_with_directions_set = {
-        row[0]
-        for row in db.session.query(UserWord.word_id)
-        .join(UserCardDirection, UserWord.id == UserCardDirection.user_word_id)
-        .filter(
-            UserWord.user_id == user_id,
-            UserWord.word_id.in_(mix_word_ids),
+    words_with_directions_set: set[int] = set()
+    for chunk in chunk_ids(mix_word_ids):
+        rows = (
+            db.session.query(UserWord.word_id)
+            .join(UserCardDirection, UserWord.id == UserCardDirection.user_word_id)
+            .filter(
+                UserWord.user_id == user_id,
+                UserWord.word_id.in_(chunk),
+            )
+            .all()
         )
-        .all()
-    }
+        words_with_directions_set.update(row[0] for row in rows)
     new_count = sum(1 for wid in mix_word_ids if wid not in words_with_directions_set)
     return new_count > 0
 
