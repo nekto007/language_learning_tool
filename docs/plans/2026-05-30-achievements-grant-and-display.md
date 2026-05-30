@@ -198,11 +198,11 @@ Target end state:
 - Modify: `app/study/game_routes.py` — matching game submit path
 - Modify: `tests/study/test_game_routes.py`
 
-- [ ] Identify the matching codes: `matching_first` (1 completion), `matching_perfect` (one perfect game), `matching_speed` (e.g. completion in <30s) — confirm against `seed.py` descriptions
-- [ ] Add `AchievementService.check_matching_achievements(user_id, stats, score, duration_sec)` — accepts current-game context for `matching_perfect`/`matching_speed`
-- [ ] Wire into the matching submit handler in `game_routes.py`
-- [ ] Write tests for each: first game; perfect score; under-threshold speed
-- [ ] Run `pytest tests/study/ tests/achievements/ -x` — must pass before task 10
+- [x] Identify the matching codes: `matching_first` (1 completion), `matching_perfect` (one perfect game), `matching_speed` (e.g. completion in <30s) — confirm against `seed.py` descriptions
+- [x] Add `AchievementService.check_matching_achievements(user_id, stats, score, duration_sec)` — accepts current-game context for `matching_perfect`/`matching_speed`
+- [x] Wire into the matching submit handler in `game_routes.py`
+- [x] Write tests for each: first game; perfect score; under-threshold speed
+- [x] Run `pytest tests/study/ tests/achievements/ -x` — must pass before task 10
 
 ### Task 10: Phase 3 — Add remaining tail (perfect_session, perfect_quiz)
 

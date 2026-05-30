@@ -523,6 +523,95 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_matching_achievements(
+        user_id: int,
+        score_percentage: Optional[float] = None,
+        duration_sec: Optional[int] = None,
+    ) -> List[Achievement]:
+        """Check and award matching-game achievements.
+
+        Codes: matching_first (≥1 game completed), matching_perfect (100%
+        accuracy), matching_speed (completed in <60 s).
+
+        score_percentage / duration_sec are the current-game values.  When
+        called without per-game context (e.g. from check_all_achievements),
+        past GameScore rows are queried for backfill eligibility.
+        """
+        from app.study.models import GameScore
+        from sqlalchemy import func
+
+        newly_awarded = []
+
+        game_count = db.session.query(func.count(GameScore.id)).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'matching',
+        ).scalar() or 0
+
+        if game_count >= 1:
+            ach = Achievement.query.filter_by(code='matching_first').first()
+            if ach:
+                _, is_new = grant_achievement(user_id, ach.id)
+                if is_new:
+                    newly_awarded.append(ach)
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, ach.name, ach.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send matching_first notification for user %s: %s", user_id, e
+                        )
+
+        perfect_eligible = (score_percentage is not None and score_percentage >= 100.0) or (
+            db.session.query(GameScore.id).filter(
+                GameScore.user_id == user_id,
+                GameScore.game_type == 'matching',
+                GameScore.pairs_matched == GameScore.total_pairs,
+                GameScore.total_pairs > 0,
+            ).first() is not None
+        )
+        if perfect_eligible:
+            ach = Achievement.query.filter_by(code='matching_perfect').first()
+            if ach:
+                _, is_new = grant_achievement(user_id, ach.id)
+                if is_new:
+                    newly_awarded.append(ach)
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, ach.name, ach.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send matching_perfect notification for user %s: %s", user_id, e
+                        )
+
+        speed_eligible = (duration_sec is not None and 0 < duration_sec < 60) or (
+            db.session.query(GameScore.id).filter(
+                GameScore.user_id == user_id,
+                GameScore.game_type == 'matching',
+                GameScore.time_taken > 0,
+                GameScore.time_taken < 60,
+            ).first() is not None
+        )
+        if speed_eligible:
+            ach = Achievement.query.filter_by(code='matching_speed').first()
+            if ach:
+                _, is_new = grant_achievement(user_id, ach.id)
+                if is_new:
+                    newly_awarded.append(ach)
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, ach.name, ach.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send matching_speed notification for user %s: %s", user_id, e
+                        )
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
     def check_mission_achievements(
         user_id: int,
         mission_type: str,
@@ -794,10 +883,11 @@ class AchievementService:
         card_achievements = AchievementService.check_card_achievements(user_id, stats)
         level_achievements = AchievementService.check_level_achievements(user_id, stats)
         words_achievements = AchievementService.check_words_learned_achievements(user_id)
+        matching_achievements = AchievementService.check_matching_achievements(user_id)
 
         all_new = (grade_achievements + streak_achievements + lesson_achievements
                    + book_achievements + card_achievements + level_achievements
-                   + words_achievements)
+                   + words_achievements + matching_achievements)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
@@ -806,6 +896,7 @@ class AchievementService:
             'cards': card_achievements,
             'levels': level_achievements,
             'words': words_achievements,
+            'matching': matching_achievements,
             'all': all_new,
         }
 

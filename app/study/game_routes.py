@@ -741,6 +741,16 @@ def complete_matching_game():
         db.session.add(game_score)
         db.session.commit()
 
+        try:
+            from app.achievements.services import AchievementService
+            AchievementService.check_matching_achievements(
+                current_user.id,
+                score_percentage=score_percentage,
+                duration_sec=time_taken,
+            )
+        except Exception as _ach_err:
+            logger.exception('Error checking matching achievements for user %s: %s', current_user.id, _ach_err)
+
         rank = game_score.get_rank()
 
         personal_best = db.session.query(func.max(GameScore.score)).filter(
