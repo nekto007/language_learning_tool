@@ -6,12 +6,13 @@ Supports both new 1-2-3 rating scale and legacy 0-5 scale for backward compatibi
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from app.curriculum.book_courses import BookCourseEnrollment
+from app.utils.db import db
 from app.curriculum.daily_lessons import DailyLesson
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.srs import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW
@@ -56,6 +57,7 @@ def get_srs_session():
             daily_lesson=daily_lesson,
             enrollment=enrollment
         )
+        db.session.commit()
 
         if not session_data['session_key']:
             return jsonify({'error': 'No cards available for review'}), 404
@@ -129,10 +131,22 @@ def grade_card():
         if not result['success']:
             return jsonify(result), 400
 
+        # grade_card flushes only; commit here after any downstream ops (XP, plan)
+        db.session.commit()
+
+        # Card achievements — best-effort, fired after the outer commit.
+        try:
+            from app.achievements.services import AchievementService, StatisticsService
+            _stats = StatisticsService.get_or_create_statistics(current_user.id)
+            AchievementService.check_card_achievements(current_user.id, _stats)
+        except Exception:
+            logger.warning("Card achievement check failed for user=%s", current_user.id, exc_info=True)
+
         return jsonify(result)
 
     except Exception as e:
         logger.error(f"Error grading card: {str(e)}")
+        db.session.rollback()
         return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -169,6 +183,7 @@ def complete_srs_session():
         if not success:
             return jsonify({'error': 'Failed to complete session'}), 500
 
+        db.session.commit()
         return jsonify({
             'success': True,
             'message': 'SRS session completed successfully'
@@ -220,7 +235,7 @@ def get_next_session_time():
 
         return jsonify({
             'next_session_time': next_time.isoformat() if next_time else None,
-            'has_session_due': next_time <= datetime.now() if next_time else False
+            'has_session_due': next_time <= datetime.now(timezone.utc).replace(tzinfo=None) if next_time else False
         })
 
     except Exception as e:
@@ -264,6 +279,7 @@ def create_srs_cards_for_lesson():
         if not success:
             return jsonify({'error': 'Failed to create SRS cards'}), 500
 
+        db.session.commit()
         return jsonify({
             'success': True,
             'message': 'SRS cards created successfully'
@@ -292,6 +308,7 @@ def on_lesson_completed(lesson_id):
                 user_id=current_user.id,
                 daily_lesson=daily_lesson
             )
+            db.session.commit()
 
             logger.info(f"Auto-created SRS cards for vocabulary lesson {lesson_id}")
 

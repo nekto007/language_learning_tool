@@ -42,6 +42,36 @@
     </div>
 </div>
 
+<!-- Bulk import -->
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Импорт из файла</h5></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('word_contrast_admin.word_contrast_import') }}"
+              enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label" for="contrast-import-file">Файл (.txt / .csv, UTF-8)</label>
+                    <input type="file" class="form-control" id="contrast-import-file"
+                           name="file" accept=".txt,.csv,text/plain,text/csv" required>
+                </div>
+                <div class="col-md-6">
+                    <button type="submit" class="btn btn-primary">Импортировать</button>
+                    <a class="btn btn-link btn-sm"
+                       href="data:text/plain;charset=utf-8,bus%20stop%3Bbus%20station%3B%3Cb%3Ebus%20stop%3C%2Fb%3E%20%E2%80%94%20%D0%BC%D0%B5%D1%81%D1%82%D0%BE%20%D0%BD%D0%B0%20%D1%83%D0%BB%D0%B8%D1%86%D0%B5.%20%3Cb%3Ebus%20station%3C%2Fb%3E%20%E2%80%94%20%D0%B0%D0%B2%D1%82%D0%BE%D0%B2%D0%BE%D0%BA%D0%B7%D0%B0%D0%BB.%0Ahome%3Bhouse%3B%3Cb%3Ehome%3C%2Fb%3E%20%E2%80%94%20%D0%B4%D0%BE%D0%BC%20%D0%BA%D0%B0%D0%BA%20%D0%BC%D0%B5%D1%81%D1%82%D0%BE.%20%3Cb%3Ehouse%3C%2Fb%3E%20%E2%80%94%20%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5."
+                       download="contrasts_example.txt">Скачать пример</a>
+                </div>
+            </div>
+            <div class="form-text mt-3">
+                Формат: одна пара на непустую строку, поля разделены <code>;</code>.<br>
+                <code>word_a;word_b;объяснение</code> — например<br>
+                <code>bus stop;bus station;&lt;b&gt;bus stop&lt;/b&gt; — место на улице, где останавливается автобус. &lt;b&gt;bus station&lt;/b&gt; — автовокзал.</code><br>
+                Дубликаты и слова, которых нет в словаре, пропускаются — сводка появится после импорта.
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Search -->
 <div class="card mb-3">
     <div class="card-body py-2">

@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson, LessonCompletionEvent, SliceVocabulary
+from app.srs.constants import CardState, DEFAULT_EASE_FACTOR
 from app.study.models import QuizDeck, QuizDeckWord, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords, word_book_link
@@ -104,6 +105,9 @@ class BookSRSIntegration:
         """
         Создает SRS сессию для daily lesson согласно спецификации:
         GET /api/v1/srs/session?lesson_id=:id → { deck:[{card_id,front,back,phase,new}], session_key }
+
+        Flushes newly created UserWord/UserCardDirection rows but does NOT commit.
+        Caller is responsible for committing the transaction.
         """
         try:
             logger.info(f"Creating SRS session for user {user_id}, lesson {daily_lesson.id}")
@@ -118,8 +122,8 @@ class BookSRSIntegration:
             # Создаем или получаем SRS карточки для этих слов
             cards = self._get_or_create_srs_cards(user_id, vocabulary_words, daily_lesson)
 
-            # Commit новые карточки в базу
-            db.session.commit()
+            # Flush новые карточки; caller commits
+            db.session.flush()
 
             # Фильтруем карточки по дате повторения (due today or overdue)
             due_cards = self._filter_due_cards(cards)
@@ -131,14 +135,14 @@ class BookSRSIntegration:
 
             # Считаем сколько слов изучено СЕГОДНЯ в рамках этого урока
             # (карточки с last_reviewed = сегодня, направление eng-rus)
-            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
             studied_today = 0
             for item in cards:
                 card = item['card']
                 if card.direction == 'eng-rus' and card.last_reviewed:
                     last_rev = card.last_reviewed
-                    if last_rev.tzinfo is None:
-                        last_rev = last_rev.replace(tzinfo=timezone.utc)
+                    if last_rev.tzinfo is not None:
+                        last_rev = last_rev.replace(tzinfo=None)
                     if last_rev >= today_start:
                         studied_today += 1
 
@@ -303,10 +307,6 @@ class BookSRSIntegration:
             eng_rus_card = self._get_or_create_card_direction(user_word, 'eng-rus')
             rus_eng_card = self._get_or_create_card_direction(user_word, 'rus-eng')
 
-            # Добавляем связь с book course через метаданные
-            self._link_card_to_book_lesson(eng_rus_card, daily_lesson)
-            self._link_card_to_book_lesson(rus_eng_card, daily_lesson)
-
             # Store cards with context and pedagogical metadata
             cards_with_context.append({'card': eng_rus_card, 'context': context, 'unit_type': unit_type, 'note': note})
             cards_with_context.append({'card': rus_eng_card, 'context': context, 'unit_type': unit_type, 'note': note})
@@ -326,21 +326,15 @@ class BookSRSIntegration:
                 direction=direction,
                 source='book_reading',
             )
-            # Set defaults (model has defaults, but set explicitly for clarity)
-            card.ease_factor = 2.5
+            card.ease_factor = DEFAULT_EASE_FACTOR
             card.interval = 0
             card.repetitions = 0
-            card.next_review = datetime.now(timezone.utc)
+            card.state = CardState.NEW.value
+            card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
             db.session.add(card)
             db.session.flush()
 
         return card
-
-    def _link_card_to_book_lesson(self, card: UserCardDirection, daily_lesson: DailyLesson):
-        """Связывает карточку с book lesson через метаданные"""
-        # Можно расширить модель UserCardDirection полем metadata: JSONB
-        # Пока используем existing поля для отслеживания источника
-        pass
 
     def _filter_due_cards(self, cards_with_context: List[Dict[str, Any]],
                           direction_filter: str = None) -> List[Dict[str, Any]]:
@@ -351,7 +345,7 @@ class BookSRSIntegration:
 
         Каждая карточка (eng-rus, rus-eng) фильтруется независимо.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC
         due_cards = []
 
         for item in cards_with_context:
@@ -361,14 +355,13 @@ class BookSRSIntegration:
             if direction_filter and card.direction != direction_filter:
                 continue
 
-            # Новые карточки (repetitions = 0) или просроченные
-            if card.repetitions == 0:
+            # New cards (state=NEW) or overdue cards
+            if card.state == CardState.NEW.value:
                 due_cards.append(item)
-            elif card.next_review:
-                # Make timezone-aware comparison safe
+            elif card.next_review is not None:
                 next_review = card.next_review
-                if next_review.tzinfo is None:
-                    next_review = next_review.replace(tzinfo=timezone.utc)
+                if next_review.tzinfo is not None:  # normalize if somehow aware
+                    next_review = next_review.replace(tzinfo=None)
                 if next_review <= now:
                     due_cards.append(item)
 
@@ -391,10 +384,10 @@ class BookSRSIntegration:
                 front = word.russian_word
                 back = word.english_word
 
-            # Определяем фазу обучения
-            if card.repetitions == 0:
+            # Determine phase from state (not repetitions — a lapsed card has repetitions=0 but state=REVIEW)
+            if card.state == CardState.NEW.value:
                 phase = 'new'
-            elif card.repetitions < 3:
+            elif card.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
                 phase = 'learning'
             else:
                 phase = 'review'
@@ -409,7 +402,7 @@ class BookSRSIntegration:
                 'front': front,
                 'back': back,
                 'phase': phase,
-                'new': card.repetitions == 0,
+                'new': card.state == CardState.NEW.value,
                 'direction': card.direction,
                 'ease_factor': card.ease_factor,
                 'interval': card.interval,
@@ -453,13 +446,15 @@ class BookSRSIntegration:
         """
         Обрабатывает оценку карточки согласно спецификации:
         POST /api/v1/srs/grade {card_id,grade,session_key}
-        
+
         Система оценок (согласно детальному плану):
         0 (Again): "Не помню" - сброс прогресса
         1-2: Неправильный ответ
-        3 (Hard): Правильно, но сложно  
+        3 (Hard): Правильно, но сложно
         4 (Good): Стандартный правильный ответ
         5 (Easy): Легкий ответ
+
+        Caller commits — this method flushes but does not commit.
         """
         try:
             card = UserCardDirection.query.filter_by(id=card_id).first()
@@ -468,12 +463,22 @@ class BookSRSIntegration:
                 return {'success': False, 'error': 'Card not found or access denied'}
 
             # Обновляем карточку согласно алгоритму SM-2
-            result = card.update_after_review(grade)
+            card.update_after_review(grade)
 
             # Логируем review
             self._log_card_review(card, grade, session_key)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
+
+            # Award book SRS XP once per day (best-effort, does not block grading).
+            try:
+                from app.daily_plan.linear.xp import maybe_award_book_srs_xp
+                maybe_award_book_srs_xp(user_id)
+            except Exception:
+                logger.warning(
+                    'book_srs_integration: XP award failed for user=%s card=%s',
+                    user_id, card_id, exc_info=True,
+                )
 
             # Возвращаем результат с next_due для фронтенда
             return {
@@ -487,7 +492,6 @@ class BookSRSIntegration:
 
         except Exception as e:
             logger.error(f"Error processing card grade: {str(e)}")
-            db.session.rollback()
             return {'success': False, 'error': str(e)}
 
     def _log_card_review(self, card: UserCardDirection, grade: int, session_key: str):
@@ -516,14 +520,13 @@ class BookSRSIntegration:
             )
 
             db.session.add(event)
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             logger.info(f"SRS session completed for user {user_id}, lesson {daily_lesson_id}")
             return True
 
         except Exception as e:
             logger.error(f"Error completing SRS session: {str(e)}")
-            db.session.rollback()
             return False
 
     def auto_create_srs_cards_from_vocabulary_lesson(self, user_id: int,
@@ -544,7 +547,7 @@ class BookSRSIntegration:
             # Создаем SRS карточки для всех слов
             self._get_or_create_srs_cards(user_id, vocabulary_words, daily_lesson)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             logger.info(f"Auto-created SRS cards for {len(vocabulary_words)} words from lesson {daily_lesson.id}")
             return True
@@ -579,17 +582,18 @@ class BookSRSIntegration:
     def get_due_cards_count(self, user_id: int) -> int:
         """Получает количество карточек, готовых к повторению"""
         try:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC
 
             count = (UserCardDirection.query
                      .join(UserWord)
-                     .filter(UserWord.user_id == user_id)
                      .filter(
-                db.or_(
-                    UserCardDirection.repetitions == 0,  # Новые карточки
-                    UserCardDirection.next_review <= now  # Просроченные
-                )
-            )
+                         UserWord.user_id == user_id,
+                         UserWord.status.in_(['new', 'learning', 'review']),
+                         db.or_(
+                             UserCardDirection.state == CardState.NEW.value,
+                             UserCardDirection.next_review <= now,
+                         )
+                     )
                      .count())
 
             return count
@@ -604,9 +608,7 @@ class BookSRSIntegration:
         Возвращает до `limit` карточек, отсортированных по приоритету.
         """
         try:
-            # Use naive datetime for DB comparison (SQLite doesn't handle timezone well)
-            now_utc = datetime.now(timezone.utc)
-            now_naive = datetime.utcnow()
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
 
             # Get due cards with word data
             due_cards = (UserCardDirection.query
@@ -615,7 +617,7 @@ class BookSRSIntegration:
                          .filter(UserWord.user_id == user_id)
                          .filter(
                 db.or_(
-                    UserCardDirection.repetitions == 0,  # New cards
+                    UserCardDirection.state == CardState.NEW.value,  # New cards
                     UserCardDirection.next_review <= now_naive  # Overdue
                 )
             )
@@ -733,7 +735,7 @@ class BookSRSIntegration:
                         deck_word = QuizDeckWord(deck_id=deck.id, word_id=word_id)
                         db.session.add(deck_word)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             logger.info(f"Added word {word_id} to SRS for user {user_id} (source: {source}, course: {course_id})")
 
@@ -750,7 +752,6 @@ class BookSRSIntegration:
 
         except Exception as e:
             logger.error(f"Error adding word {word_id} to SRS: {str(e)}")
-            db.session.rollback()
             return {'success': False, 'error': str(e), 'word_status': 'not_added'}
 
     def get_review_summary(self, user_id: int) -> Dict[str, Any]:
@@ -758,26 +759,26 @@ class BookSRSIntegration:
         Получает сводку карточек для повторения.
         """
         try:
-            now = datetime.now(timezone.utc)
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
 
             # Count by category
             new_count = (UserCardDirection.query
                          .join(UserWord)
                          .filter(UserWord.user_id == user_id)
-                         .filter(UserCardDirection.repetitions == 0)
+                         .filter(UserCardDirection.state == CardState.NEW.value)
                          .count())
 
             due_count = (UserCardDirection.query
                          .join(UserWord)
                          .filter(UserWord.user_id == user_id)
-                         .filter(UserCardDirection.repetitions > 0)
-                         .filter(UserCardDirection.next_review <= now)
+                         .filter(UserCardDirection.state != CardState.NEW.value)
+                         .filter(UserCardDirection.next_review <= now_naive)
                          .count())
 
             total_learned = (UserCardDirection.query
                              .join(UserWord)
                              .filter(UserWord.user_id == user_id)
-                             .filter(UserCardDirection.repetitions > 0)
+                             .filter(UserCardDirection.state != CardState.NEW.value)
                              .count())
 
             return {

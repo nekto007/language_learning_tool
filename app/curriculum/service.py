@@ -277,6 +277,18 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
         except Exception:
             db.session.rollback()
 
+        # Lesson-count achievements — best-effort, must not block completion.
+        try:
+            from app.achievements.services import AchievementService, StatisticsService
+            _stats = StatisticsService.get_or_create_statistics(user_id)
+            AchievementService.check_lesson_achievements(user_id, _stats)
+        except Exception:
+            logger.warning("Lesson achievement check failed for user=%s lesson=%s", user_id, lesson_id, exc_info=True)
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
         return progress
     except SQLAlchemyError as e:
         logger.exception("Lesson completion recording failed for user=%s lesson=%s: %s", user_id, lesson_id, e)

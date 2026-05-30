@@ -300,6 +300,7 @@ class GrammarLabService:
 
         # Reset session attempts
         _get_unified_srs_service().reset_grammar_session_attempts(user_id, topic_id=topic_id)
+        db.session.commit()
 
         now = datetime.now(timezone.utc)
 

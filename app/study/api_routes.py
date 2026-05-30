@@ -591,6 +591,14 @@ def update_study_item():
 
     db.session.commit()
 
+    # Card achievements — best-effort, fired after commit.
+    try:
+        from app.achievements.services import AchievementService, StatisticsService
+        _stats = StatisticsService.get_or_create_statistics(current_user.id)
+        AchievementService.check_card_achievements(current_user.id, _stats)
+    except Exception:
+        logger.exception("Card achievement check failed for user %s", current_user.id)
+
     from app.srs.service import UnifiedSRSService
     from app.srs.constants import MAX_SESSION_ATTEMPTS, LEARNING_STEPS, RELEARNING_STEPS
 
@@ -694,6 +702,21 @@ def complete_session():
                     current_user.id, exc_info=True,
                 )
                 db.session.rollback()
+
+        try:
+            from app.achievements.services import AchievementService as _AchSvc
+            _AchSvc.check_perfect_session_achievements(
+                current_user.id,
+                correct_answers=session.correct_answers or 0,
+                total_answered=(session.correct_answers or 0) + (session.incorrect_answers or 0),
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.warning(
+                'perfect_session: achievement check failed user=%s',
+                current_user.id, exc_info=True,
+            )
 
         _stats = _UserStats.query.filter_by(user_id=current_user.id).first()
         _total_xp = int(_stats.total_xp or 0) if _stats else 0

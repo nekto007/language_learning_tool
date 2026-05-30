@@ -219,7 +219,7 @@ class AchievementService:
     """Service for checking and awarding achievements based on statistics"""
 
     @staticmethod
-    def check_grade_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_grade_achievements(user_id: int, stats: UserStatistics, dry_run: bool = False) -> List[Achievement]:
         """
         Check and award grade-based achievements
 
@@ -283,12 +283,14 @@ class AchievementService:
         """
         newly_awarded = []
 
-        # Define streak-based achievement requirements
+        # Define streak-based achievement requirements — codes must match seed.py
         streak_achievements = [
-            ('streak_3', 3),
-            ('streak_7', 7),
-            ('streak_14', 14),
-            ('streak_30', 30),
+            ('daily_streak_3', 3),
+            ('daily_streak_7', 7),
+            ('daily_streak_14', 14),
+            ('daily_streak_30', 30),
+            ('daily_streak_60', 60),
+            ('daily_streak_100', 100),
         ]
 
         for achievement_code, required_days in streak_achievements:
@@ -312,6 +314,475 @@ class AchievementService:
             StatisticsService.update_badge_stats(user_id)
 
         return newly_awarded
+
+    @staticmethod
+    def check_lesson_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award lesson-count-based achievements.
+
+        Codes must match seed.py: first_lesson, lessons_5, lessons_10,
+        lessons_25, lessons_50, lessons_100.
+        """
+        newly_awarded = []
+
+        lesson_achievements = [
+            ('first_lesson', 1),
+            ('lessons_5', 5),
+            ('lessons_10', 10),
+            ('lessons_25', 25),
+            ('lessons_50', 50),
+            ('lessons_100', 100),
+        ]
+
+        for achievement_code, required_count in lesson_achievements:
+            if stats.total_lessons_completed >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send lesson achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
+    def check_book_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award book-reading achievements.
+
+        Codes must match seed.py: first_book, books_5, books_10, chapter_marathon.
+        chapter_marathon: awarded when total_chapters_read >= 50.
+        """
+        newly_awarded = []
+
+        book_achievements = [
+            ('first_book', stats.total_books_completed, 1),
+            ('books_5', stats.total_books_completed, 5),
+            ('books_10', stats.total_books_completed, 10),
+            ('chapter_marathon', stats.total_chapters_read, 50),
+        ]
+
+        for achievement_code, current_value, required_count in book_achievements:
+            if current_value >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send book achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
+    def check_card_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award SRS card-review achievements.
+
+        Codes must match seed.py: cards_100, cards_500, cards_1000.
+        """
+        newly_awarded = []
+
+        card_achievements = [
+            ('cards_100', 100),
+            ('cards_500', 500),
+            ('cards_1000', 1000),
+        ]
+
+        reviewed = stats.total_cards_reviewed or 0
+        for achievement_code, required_count in card_achievements:
+            if reviewed >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send card achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
+    def check_level_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award XP-level-based achievements.
+
+        Codes must match seed.py: level_10, level_25, level_50.
+        Current level is derived from stats.total_xp via get_level_info.
+        """
+        from app.achievements.xp_service import get_level_info
+
+        newly_awarded = []
+
+        level_info = get_level_info(int(stats.total_xp or 0))
+        current_level = level_info.current_level
+
+        level_achievements = [
+            ('level_10', 10),
+            ('level_25', 25),
+            ('level_50', 50),
+        ]
+
+        for achievement_code, required_level in level_achievements:
+            if current_level >= required_level:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send level achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=False)
+
+        return newly_awarded
+
+    @staticmethod
+    def check_words_learned_achievements(user_id: int) -> List[Achievement]:
+        """Check and award word-learning achievements.
+
+        "Learned" means UserWord.status == 'review' (all card directions
+        graduated from the initial learning phase).
+
+        Codes: words_learned_100 (≥100 review words),
+               words_learned_500 (≥500 review words).
+        """
+        from app.study.models import UserWord
+        from sqlalchemy import func
+
+        review_count = db.session.query(func.count(UserWord.id)).filter(
+            UserWord.user_id == user_id,
+            UserWord.status == 'review',
+        ).scalar() or 0
+
+        newly_awarded = []
+
+        words_achievements = [
+            ('words_learned_100', 100),
+            ('words_learned_500', 500),
+        ]
+
+        for achievement_code, required_count in words_achievements:
+            if review_count >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send words-learned achievement notification "
+                            "for user %s: %s", user_id, e,
+                        )
+
+        if newly_awarded:
+            db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=False)
+
+        return newly_awarded
+
+    @staticmethod
+    def check_matching_achievements(
+        user_id: int,
+        score_percentage: Optional[float] = None,
+        duration_sec: Optional[int] = None,
+    ) -> List[Achievement]:
+        """Check and award matching-game achievements.
+
+        Codes: matching_first (≥1 game completed), matching_perfect (100%
+        accuracy), matching_speed (completed in <60 s).
+
+        score_percentage / duration_sec are the current-game values.  When
+        called without per-game context (e.g. from check_all_achievements),
+        past GameScore rows are queried for backfill eligibility.
+        """
+        from app.study.models import GameScore
+        from sqlalchemy import func
+
+        newly_awarded = []
+
+        game_count = db.session.query(func.count(GameScore.id)).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'matching',
+        ).scalar() or 0
+
+        if game_count >= 1:
+            ach = Achievement.query.filter_by(code='matching_first').first()
+            if ach:
+                _, is_new = grant_achievement(user_id, ach.id)
+                if is_new:
+                    newly_awarded.append(ach)
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, ach.name, ach.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send matching_first notification for user %s: %s", user_id, e
+                        )
+
+        perfect_eligible = (score_percentage is not None and score_percentage >= 100.0) or (
+            db.session.query(GameScore.id).filter(
+                GameScore.user_id == user_id,
+                GameScore.game_type == 'matching',
+                GameScore.pairs_matched == GameScore.total_pairs,
+                GameScore.total_pairs > 0,
+            ).first() is not None
+        )
+        if perfect_eligible:
+            ach = Achievement.query.filter_by(code='matching_perfect').first()
+            if ach:
+                _, is_new = grant_achievement(user_id, ach.id)
+                if is_new:
+                    newly_awarded.append(ach)
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, ach.name, ach.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send matching_perfect notification for user %s: %s", user_id, e
+                        )
+
+        speed_eligible = (duration_sec is not None and 0 < duration_sec < 60) or (
+            db.session.query(GameScore.id).filter(
+                GameScore.user_id == user_id,
+                GameScore.game_type == 'matching',
+                GameScore.time_taken > 0,
+                GameScore.time_taken < 60,
+            ).first() is not None
+        )
+        if speed_eligible:
+            ach = Achievement.query.filter_by(code='matching_speed').first()
+            if ach:
+                _, is_new = grant_achievement(user_id, ach.id)
+                if is_new:
+                    newly_awarded.append(ach)
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, ach.name, ach.icon)
+                    except Exception as e:
+                        logger.exception(
+                            "Failed to send matching_speed notification for user %s: %s", user_id, e
+                        )
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
+    def check_quiz_achievements(
+        user_id: int,
+        score: Optional[float] = None,
+        total_questions: Optional[int] = None,
+        time_taken: Optional[int] = None,
+        has_streak: bool = False,
+    ) -> List[Achievement]:
+        """Award quiz-family achievements.
+
+        Codes: first_quiz, quiz_master_10, quiz_master_50, high_score_90,
+        speed_demon, quiz_streak_5, early_bird, night_owl, perfect_score.
+
+        Per-game parameters (score, total_questions, time_taken, has_streak)
+        are used when called from the quiz submit handler.  When called
+        without context (e.g. from check_all_achievements) the method falls
+        back to querying historical GameScore / QuizResult rows.
+        """
+        from app.study.models import GameScore, QuizResult
+
+        codes_to_award: set[str] = set()
+
+        total_quizzes = (
+            db.session.query(func.count(GameScore.id))
+            .filter(GameScore.user_id == user_id, GameScore.game_type == 'quiz')
+            .scalar() or 0
+        )
+
+        if total_quizzes >= 1:
+            codes_to_award.add('first_quiz')
+        if total_quizzes >= 10:
+            codes_to_award.add('quiz_master_10')
+        if total_quizzes >= 50:
+            codes_to_award.add('quiz_master_50')
+
+        # high_score_90: current game OR historical
+        current_high90 = (
+            score is not None
+            and (total_questions or 0) >= 10
+            and score >= 90.0
+        )
+        historical_high90 = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            GameScore.total_questions >= 10,
+            (GameScore.correct_answers * 100.0 / GameScore.total_questions) >= 90,
+        ).first() is not None
+        if current_high90 or historical_high90:
+            codes_to_award.add('high_score_90')
+
+        # perfect_score: 100% in any lesson or quiz game
+        current_perfect = score is not None and score >= 100.0
+        historical_perfect = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.total_questions > 0,
+            GameScore.correct_answers == GameScore.total_questions,
+        ).first() is not None
+        if current_perfect or historical_perfect:
+            codes_to_award.add('perfect_score')
+
+        # speed_demon: quiz of 10+ questions in ≤2 minutes
+        current_speed = (
+            (total_questions or 0) >= 10 and (time_taken or 9999) <= 120
+        )
+        historical_speed = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            GameScore.total_questions >= 10,
+            GameScore.time_taken > 0,
+            GameScore.time_taken <= 120,
+        ).first() is not None
+        if current_speed or historical_speed:
+            codes_to_award.add('speed_demon')
+
+        # quiz_streak_5: 5+ consecutive correct in a quiz
+        # Per-game: has_streak flag; historical: any quiz with correct_answers >= 5
+        historical_streak5 = db.session.query(GameScore.id).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            GameScore.correct_answers >= 5,
+        ).first() is not None
+        if has_streak or historical_streak5:
+            codes_to_award.add('quiz_streak_5')
+
+        # early_bird / night_owl: time of earliest/latest quiz session
+        now = datetime.now(timezone.utc)
+        early_row = db.session.query(GameScore.date_achieved).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            func.extract('hour', GameScore.date_achieved) < 8,
+        ).first()
+        if early_row:
+            codes_to_award.add('early_bird')
+
+        night_row = db.session.query(GameScore.date_achieved).filter(
+            GameScore.user_id == user_id,
+            GameScore.game_type == 'quiz',
+            func.extract('hour', GameScore.date_achieved) >= 23,
+        ).first()
+        if night_row:
+            codes_to_award.add('night_owl')
+
+        # Also check current invocation time for first-quiz context
+        if not early_row and time_taken is not None and now.hour < 8:
+            codes_to_award.add('early_bird')
+        if not night_row and time_taken is not None and now.hour >= 23:
+            codes_to_award.add('night_owl')
+
+        return AchievementService._award_badges(user_id, codes_to_award)
+
+    @staticmethod
+    def check_perfect_quiz_achievements(
+        user_id: int,
+        score: Optional[float] = None,
+    ) -> List[Achievement]:
+        """Award perfect_quiz badge.
+
+        Codes: perfect_quiz ("Пройдите квиз без ошибок").
+
+        score is the current-game percentage (0-100). When called without
+        per-game context (e.g. from check_all_achievements), past GameScore
+        rows are queried for a perfect quiz.
+        """
+        from app.study.models import GameScore
+
+        codes_to_award: set[str] = set()
+
+        perfect_eligible = (score is not None and score >= 100.0) or (
+            db.session.query(GameScore.id).filter(
+                GameScore.user_id == user_id,
+                GameScore.game_type == 'quiz',
+                GameScore.correct_answers == GameScore.total_questions,
+                GameScore.total_questions > 0,
+            ).first() is not None
+        )
+        if perfect_eligible:
+            codes_to_award.add('perfect_quiz')
+
+        return AchievementService._award_badges(user_id, codes_to_award)
+
+    @staticmethod
+    def check_perfect_session_achievements(
+        user_id: int,
+        correct_answers: Optional[int] = None,
+        total_answered: Optional[int] = None,
+    ) -> List[Achievement]:
+        """Award perfect_session badge.
+
+        Codes: perfect_session ("Завершите сессию карточек с 100% правильных ответов").
+
+        correct_answers / total_answered are the current-session values. When
+        called without per-session context (e.g. from check_all_achievements),
+        past StudySession rows are queried for a perfect session.
+        """
+        from app.study.models import StudySession
+
+        codes_to_award: set[str] = set()
+
+        if correct_answers is not None and total_answered is not None:
+            perfect_eligible = total_answered > 0 and correct_answers == total_answered
+        else:
+            perfect_eligible = (
+                db.session.query(StudySession.id).filter(
+                    StudySession.user_id == user_id,
+                    StudySession.correct_answers > 0,
+                    StudySession.incorrect_answers == 0,
+                ).first() is not None
+            )
+        if perfect_eligible:
+            codes_to_award.add('perfect_session')
+
+        return AchievementService._award_badges(user_id, codes_to_award)
 
     @staticmethod
     def check_mission_achievements(
@@ -580,11 +1051,51 @@ class AchievementService:
 
         grade_achievements = AchievementService.check_grade_achievements(user_id, stats)
         streak_achievements = AchievementService.check_streak_achievements(user_id, stats)
+        lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats)
+        book_achievements = AchievementService.check_book_achievements(user_id, stats)
+        card_achievements = AchievementService.check_card_achievements(user_id, stats)
+        level_achievements = AchievementService.check_level_achievements(user_id, stats)
+        words_achievements = AchievementService.check_words_learned_achievements(user_id)
+        matching_achievements = AchievementService.check_matching_achievements(user_id)
+        quiz_achievements = AchievementService.check_quiz_achievements(user_id)
+        perfect_quiz_achievements = AchievementService.check_perfect_quiz_achievements(user_id)
+        perfect_session_achievements = AchievementService.check_perfect_session_achievements(user_id)
+        listening_achievements = check_listening_achievements(user_id)
+        writing_achievements = check_writing_achievements(user_id)
+        speaking_achievements = check_speaking_achievements(user_id)
+        challenge_achievements = check_challenge_achievements(user_id)
+        weekly_milestone_achievements = check_weekly_milestone_achievements(
+            user_id, stats.current_streak_days or 0
+        )
 
+        all_new = (grade_achievements + streak_achievements + lesson_achievements
+                   + book_achievements + card_achievements + level_achievements
+                   + words_achievements + matching_achievements
+                   + quiz_achievements + perfect_quiz_achievements
+                   + perfect_session_achievements + listening_achievements
+                   + writing_achievements + speaking_achievements
+                   + challenge_achievements + weekly_milestone_achievements)
+        if all_new:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
-            'all': grade_achievements + streak_achievements
+            'lessons': lesson_achievements,
+            'books': book_achievements,
+            'cards': card_achievements,
+            'levels': level_achievements,
+            'words': words_achievements,
+            'matching': matching_achievements,
+            'quiz': quiz_achievements,
+            'perfect_quiz': perfect_quiz_achievements,
+            'perfect_session': perfect_session_achievements,
+            'listening': listening_achievements,
+            'writing': writing_achievements,
+            'speaking': speaking_achievements,
+            'challenge': challenge_achievements,
+            'weekly_milestone': weekly_milestone_achievements,
+            'all': all_new,
         }
 
 

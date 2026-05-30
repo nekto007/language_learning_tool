@@ -67,7 +67,7 @@ LINEAR_XP_EVENT_TYPE = 'xp_linear'
 
 # Minutes credited per slot source when XP is first awarded for the day.
 # Any source starting with 'linear_curriculum_' earns curriculum slot minutes (15).
-_SRS_SOURCES = {'linear_srs_global'}
+_SRS_SOURCES = {'linear_srs_global', 'linear_book_srs'}
 _READING_SOURCES = {'linear_book_reading'}
 _LISTENING_SOURCES = {'linear_listening', 'linear_curriculum_listening_immersion', 'linear_curriculum_dictation', 'linear_curriculum_audio_fill_blank'}
 _WRITING_SOURCES = {'linear_writing', 'linear_curriculum_use'}
@@ -75,6 +75,7 @@ _ERROR_REVIEW_SOURCES = {'linear_error_review'}
 _CURRICULUM_MINUTES = 15
 _SOURCE_MINUTES: dict[str, int] = {
     'linear_srs_global': 10,
+    'linear_book_srs': 10,
     'linear_book_reading': 15,
     'linear_listening': 10,
     'linear_curriculum_listening_immersion': 10,
@@ -262,6 +263,24 @@ def maybe_award_srs_global_xp(
         return None
     return award_linear_slot_xp_idempotent(
         user_id, 'linear_srs_global', for_date, db_session,
+    )
+
+
+def maybe_award_book_srs_xp(
+    user_id: int,
+    for_date: Optional[date_cls] = None,
+    db_session: Any = None,
+) -> Optional[XPAward]:
+    """Award linear XP once per day for grading a book SRS card.
+
+    Uses a separate source key (``linear_book_srs``) so this daily slot
+    does not consume the ``linear_srs_global`` budget from the free-study
+    SRS session. Idempotent per (user, date) via StreakEvent. Caller commits.
+    """
+    if not is_linear_user(user_id):
+        return None
+    return award_linear_slot_xp_idempotent(
+        user_id, 'linear_book_srs', for_date, db_session,
     )
 
 

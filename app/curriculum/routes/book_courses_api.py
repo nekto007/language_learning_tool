@@ -501,6 +501,7 @@ def get_srs_session(lesson_id):
             daily_lesson=daily_lesson,
             enrollment=enrollment
         )
+        db.session.commit()
 
         return jsonify(session_data)
 
@@ -530,6 +531,15 @@ def grade_srs_card():
             session_key=session_key
         )
 
+        if result.get('success'):
+            db.session.commit()
+            # Card achievements — best-effort, fired after the outer commit.
+            try:
+                from app.achievements.services import AchievementService, StatisticsService
+                _stats = StatisticsService.get_or_create_statistics(current_user.id)
+                AchievementService.check_card_achievements(current_user.id, _stats)
+            except Exception:
+                logger.warning("Card achievement check failed for user=%s", current_user.id, exc_info=True)
         return jsonify(result)
 
     except Exception as e:
@@ -559,6 +569,7 @@ def add_word_to_srs():
         )
 
         if result.get('success'):
+            db.session.commit()
             return jsonify(result)
         else:
             return jsonify(result), 400

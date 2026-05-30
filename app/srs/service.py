@@ -406,6 +406,9 @@ class UnifiedSRSService:
         """
         Process card rating and update SM-2 parameters using Anki-like state machine.
 
+        Contract: flushes changes to the session but does NOT commit.
+        Caller is responsible for committing (and rolling back on downstream failure).
+
         Args:
             card_id: Card ID (UserCardDirection)
             rating: Rating (1, 2, 3)
@@ -440,6 +443,9 @@ class UnifiedSRSService:
             current_state = card.state or CardState.NEW.value
             current_step = card.step_index or 0
 
+            # Capture first-review flag before state changes
+            is_first_review = card.first_reviewed is None
+
             # Calculate new parameters using state machine
             update_result = self.calculate_sm2_update(
                 rating=rating,
@@ -458,11 +464,14 @@ class UnifiedSRSService:
             card.interval = update_result['interval']
             card.ease_factor = update_result['ease_factor']
             card.lapses = update_result['lapses']
-            card.last_reviewed = datetime.now(timezone.utc)
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+            card.last_reviewed = now_naive
+            if is_first_review:
+                card.first_reviewed = now_naive
 
             bury_days = update_result.get('bury_days')
             if bury_days:
-                card.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
+                card.buried_until = now_naive + timedelta(days=bury_days)
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -473,8 +482,15 @@ class UnifiedSRSService:
             # Increment session_attempts
             card.session_attempts = (card.session_attempts or 0) + 1
 
+            # Increment total_cards_reviewed in UserStatistics (best-effort)
+            try:
+                from app.achievements.services import StatisticsService
+                stats = StatisticsService.get_or_create_statistics(user_id)
+                stats.total_cards_reviewed = (stats.total_cards_reviewed or 0) + 1
+            except Exception:
+                logger.exception("Failed to increment total_cards_reviewed for user %s", user_id)
+
             # Calculate next_review based on state
-            now = datetime.now(timezone.utc)
             requeue_minutes = update_result['requeue_minutes']
             days_until_review = update_result['days_until_review']
 
@@ -482,17 +498,18 @@ class UnifiedSRSService:
                 # Add ±10% variance to prevent review cliff
                 variance = random.uniform(0.9, 1.1)
                 adjusted_days = max(1, round(days_until_review * variance))
-                card.next_review = now + timedelta(days=adjusted_days)
+                card.next_review = now_naive + timedelta(days=adjusted_days)
             elif requeue_minutes:
                 # Learning/Relearning: schedule for minutes from now
-                card.next_review = now + timedelta(minutes=requeue_minutes)
+                card.next_review = now_naive + timedelta(minutes=requeue_minutes)
             else:
-                card.next_review = now
+                card.next_review = now_naive
 
             # Update parent UserWord status
             self._update_user_word_status(card)
 
-            db.session.commit()
+            # Flush only — caller commits (allows downstream XP/plan ops in same tx)
+            db.session.flush()
 
             # Calculate requeue position for client-side queue management
             requeue_position = self.get_requeue_position(
@@ -535,7 +552,6 @@ class UnifiedSRSService:
 
         except Exception as e:
             logger.error(f"Error grading card {card_id}: {e}", exc_info=True)
-            db.session.rollback()
             return {'success': False, 'error': 'SRS update failed'}
 
     def _update_user_word_status(self, card: UserCardDirection) -> None:
@@ -611,15 +627,16 @@ class UnifiedSRSService:
             progress.interval = update_result['interval']
             progress.ease_factor = update_result['ease_factor']
             progress.lapses = update_result['lapses']
-            progress.last_reviewed = datetime.now(timezone.utc)
+            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+            progress.last_reviewed = now_naive
 
             bury_days = update_result.get('bury_days')
             if bury_days:
-                progress.buried_until = datetime.now(timezone.utc) + timedelta(days=bury_days)
+                progress.buried_until = now_naive + timedelta(days=bury_days)
 
             # Set first_reviewed on first review
             if progress.first_reviewed is None:
-                progress.first_reviewed = datetime.now(timezone.utc)
+                progress.first_reviewed = now_naive
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -631,7 +648,6 @@ class UnifiedSRSService:
             progress.session_attempts = (progress.session_attempts or 0) + 1
 
             # Calculate next_review based on state
-            now = datetime.now(timezone.utc)
             requeue_minutes = update_result['requeue_minutes']
             days_until_review = update_result['days_until_review']
 
@@ -639,14 +655,14 @@ class UnifiedSRSService:
                 # Add ±10% variance to prevent review cliff
                 variance = random.uniform(0.9, 1.1)
                 adjusted_days = max(1, round(days_until_review * variance))
-                progress.next_review = now + timedelta(days=adjusted_days)
+                progress.next_review = now_naive + timedelta(days=adjusted_days)
             elif requeue_minutes:
                 # Learning/Relearning: schedule for minutes from now
-                progress.next_review = now + timedelta(minutes=requeue_minutes)
+                progress.next_review = now_naive + timedelta(minutes=requeue_minutes)
             else:
-                progress.next_review = now
+                progress.next_review = now_naive
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             # Calculate requeue position for client-side queue management
             requeue_position = self.get_requeue_position(
@@ -691,7 +707,6 @@ class UnifiedSRSService:
 
         except Exception as e:
             logger.error(f"Error grading grammar exercise {exercise_id}: {e}", exc_info=True)
-            db.session.rollback()
             return {'success': False, 'error': 'Grammar SRS update failed'}
 
     def get_due_grammar_exercises(
@@ -719,7 +734,7 @@ class UnifiedSRSService:
         Returns:
             List of UserGrammarExercise objects
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         result = []
 
         def base_query():
@@ -854,7 +869,7 @@ class UnifiedSRSService:
         for exercise in exercises:
             exercise.session_attempts = 0
 
-        db.session.commit()
+        db.session.flush()
 
         return len(exercises)
 
@@ -951,7 +966,7 @@ class UnifiedSRSService:
         Args:
             exclude_card_ids: List of card IDs to exclude (for anti-repeat)
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         result = []
 
         # Base query builder with buried filter and anti-repeat
@@ -1036,7 +1051,7 @@ class UnifiedSRSService:
         word_ids: List[int] = None
     ) -> int:
         """Считает количество слов, изученных сегодня."""
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
 
         query = (
             UserCardDirection.query
@@ -1165,7 +1180,7 @@ class UnifiedSRSService:
                 card.ease_factor = DEFAULT_EASE_FACTOR
                 card.interval = 0
                 card.repetitions = 0
-                card.next_review = datetime.now(timezone.utc)
+                card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
                 db.session.add(card)
                 db.session.flush()
 
@@ -1203,7 +1218,7 @@ class UnifiedSRSService:
         for card in cards:
             card.session_attempts = 0
 
-        db.session.commit()
+        db.session.flush()
 
         return len(cards)
 

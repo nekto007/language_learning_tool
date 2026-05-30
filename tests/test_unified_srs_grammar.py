@@ -261,7 +261,7 @@ class TestGradeGrammarExercise:
         assert result['success'] is True
         assert result['exercise_id'] == 456
         assert result['state'] in [CardState.REVIEW.value, CardState.LEARNING.value]
-        mock_db.session.commit.assert_called_once()
+        mock_db.session.flush.assert_called()
 
     @patch('app.srs.service.UserGrammarExercise')
     @patch('app.srs.service.db')

@@ -288,6 +288,13 @@ class UserWord(db.Model):
             self.status = new_status
             self.updated_at = datetime.now(timezone.utc)
 
+            if new_status == 'review':
+                try:
+                    from app.achievements.services import AchievementService
+                    AchievementService.check_words_learned_achievements(self.user_id)
+                except Exception:
+                    pass
+
     @property
     def min_interval(self):
         """Get minimum interval across all directions (in days)."""
@@ -311,7 +318,14 @@ class UserWord(db.Model):
         """Update the status of the user word (legacy method, prefer recalculate_status)"""
         self.status = new_status
         self.updated_at = datetime.now(timezone.utc)
-        db.session.commit()
+        db.session.flush()
+
+        if new_status == 'review':
+            try:
+                from app.achievements.services import AchievementService
+                AchievementService.check_words_learned_achievements(self.user_id)
+            except Exception:
+                pass
 
     @hybrid_property
     def performance_percentage(self):
@@ -370,7 +384,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     interval = db.Column(db.Integer, default=0)
     last_reviewed = db.Column(db.DateTime, nullable=True)
     first_reviewed = db.Column(db.DateTime, nullable=True)  # When card was first studied (for new card limit tracking)
-    next_review = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc))
+    next_review = db.Column(db.DateTime, nullable=True, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     session_attempts = db.Column(db.Integer, default=0)
 
     # Stats
@@ -393,6 +407,8 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         return f"<UserCardDirection {self.id}: word={self.user_word_id} {self.direction} state={self.state}>"
 
     def __init__(self, user_word_id, direction, source=None, **kwargs):
+        from app.srs.constants import DEFAULT_EASE_FACTOR
+
         self.user_word_id = user_word_id
         self.direction = direction
         self.source = source
@@ -400,11 +416,11 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.step_index = 0
         self.lapses = 0
         self.repetitions = 0
-        self.ease_factor = 2.5
+        self.ease_factor = DEFAULT_EASE_FACTOR
         self.interval = 0
         self.correct_count = 0
         self.incorrect_count = 0
-        self.next_review = datetime.now(timezone.utc)
+        self.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
         self.buried_until = None
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -416,14 +432,14 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         Args:
             hours: Number of hours to bury the card (default 24 = until tomorrow)
         """
-        self.buried_until = datetime.now(timezone.utc) + timedelta(hours=hours)
+        self.buried_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=hours)
 
     def bury_for_session(self, session_duration_hours: int = 4):
         """
         Bury card for the rest of the study session.
         Default assumes a session is about 4 hours max.
         """
-        self.buried_until = datetime.now(timezone.utc) + timedelta(hours=session_duration_hours)
+        self.buried_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=session_duration_hours)
 
     def unbury(self):
         """Remove bury status from this card."""
@@ -453,30 +469,22 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         """
         Update SRS parameters after review using Anki-like state machine.
 
-        Unified Rating Scale (1-2-3):
-            1 - Не знаю (Again): Fail - reset to step 0 or trigger lapse
-            2 - Сомневаюсь (Hard): Stay at step or slight progress
-            3 - Знаю (Good/Easy): Advance step or graduate
+        SM-2 math delegated to UnifiedSRSService.calculate_sm2_update so both
+        grading surfaces share one engine. This wrapper additionally updates
+        UserWord aggregate counters (correct/incorrect counts, session_attempts)
+        and first_reviewed/last_reviewed timestamps — fields not managed by
+        the canonical grade_card path.
 
-        State Transitions:
-            NEW → LEARNING (first answer)
-            LEARNING → REVIEW (graduate after all steps)
-            REVIEW → RELEARNING (on fail)
-            RELEARNING → REVIEW (after relearning steps)
+        Caller commits.
 
         Returns:
-            Tuple of (interval_days, requeue_minutes) for scheduling
+            interval_days (int)
         """
         from app.srs.constants import (
             RATING_DONT_KNOW, RATING_DOUBT,
-            LEARNING_STEPS, RELEARNING_STEPS,
-            GRADUATING_INTERVAL, EASY_INTERVAL,
-            MIN_EASE_FACTOR, MAX_EASE_FACTOR,
-            EF_DECREASE_LAPSE, EF_DECREASE_HARD, EF_INCREASE_EASY,
-            INTERVAL_MULTIPLIER_HARD, INTERVAL_MULTIPLIER_EASY,
-            LAPSE_MINIMUM_INTERVAL,
-            CardState
+            CardState, DEFAULT_EASE_FACTOR
         )
+        from app.srs.service import UnifiedSRSService
         import random
 
         # Map to unified 1-2-3 scale for legacy compatibility
@@ -488,7 +496,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             rating = 3  # Legacy: 4-5 → Good
 
         # Update correct/incorrect count
-        if rating >= 2:
+        if rating >= RATING_DOUBT:
             self.correct_count = (self.correct_count or 0) + 1
         else:
             self.incorrect_count = (self.incorrect_count or 0) + 1
@@ -496,73 +504,48 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         # Increment session_attempts
         self.session_attempts = (self.session_attempts or 0) + 1
 
-        now = datetime.now(timezone.utc)
+        # Naive-UTC convention — matches UserCardDirection column type (DateTime, no tz)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         self.last_reviewed = now
 
         # Set first_reviewed only on the first review (for new card limit tracking)
         if self.first_reviewed is None:
             self.first_reviewed = now
 
-        # Initialize state if needed (for existing cards without state)
-        if not self.state or self.state == 'new':
-            self.state = CardState.NEW.value
+        # Delegate SM-2 math to the canonical engine
+        update_result = UnifiedSRSService.calculate_sm2_update(
+            rating=rating,
+            state=self.state or CardState.NEW.value,
+            step_index=self.step_index or 0,
+            repetitions=self.repetitions or 0,
+            interval=self.interval or 0,
+            ease_factor=self.ease_factor or DEFAULT_EASE_FACTOR,
+            lapses=self.lapses or 0,
+        )
 
-        # Get current state
-        current_state = self.state
+        # Apply SM-2 results
+        self.state = update_result['state']
+        self.step_index = update_result['step_index']
+        self.repetitions = update_result['repetitions']
+        self.interval = update_result['interval']
+        self.ease_factor = update_result['ease_factor']
+        self.lapses = update_result['lapses']
 
-        # =========================================================================
-        # STATE MACHINE: Handle rating based on current state
-        # =========================================================================
+        # Apply leech bury if signalled by the engine
+        bury_days = update_result.get('bury_days')
+        if bury_days:
+            self.buried_until = now + timedelta(days=bury_days)
 
-        requeue_minutes = None  # For intra-session scheduling
+        # Calculate next_review based on state
+        requeue_minutes = update_result.get('requeue_minutes')
+        days_until_review = update_result.get('days_until_review', 0)
 
-        if current_state == CardState.NEW.value:
-            # NEW → LEARNING (first interaction)
-            self._handle_new_card(rating, LEARNING_STEPS, EASY_INTERVAL)
-            if self.state == CardState.LEARNING.value:
-                requeue_minutes = LEARNING_STEPS[self.step_index] if self.step_index < len(LEARNING_STEPS) else None
-
-        elif current_state == CardState.LEARNING.value:
-            # LEARNING: progress through steps or graduate
-            requeue_minutes = self._handle_learning_card(
-                rating, LEARNING_STEPS, GRADUATING_INTERVAL, EASY_INTERVAL
-            )
-
-        elif current_state == CardState.REVIEW.value:
-            # REVIEW: standard spaced repetition
-            self._handle_review_card(
-                rating,
-                MIN_EASE_FACTOR, MAX_EASE_FACTOR,
-                EF_DECREASE_LAPSE, EF_DECREASE_HARD, EF_INCREASE_EASY,
-                INTERVAL_MULTIPLIER_HARD, INTERVAL_MULTIPLIER_EASY,
-                RELEARNING_STEPS, LAPSE_MINIMUM_INTERVAL
-            )
-            if self.state == CardState.RELEARNING.value:
-                requeue_minutes = RELEARNING_STEPS[0] if RELEARNING_STEPS else 10
-
-        elif current_state == CardState.RELEARNING.value:
-            # RELEARNING: similar to LEARNING but returns to REVIEW
-            requeue_minutes = self._handle_relearning_card(
-                rating, RELEARNING_STEPS, LAPSE_MINIMUM_INTERVAL
-            )
-
-        # Update repetitions counter
-        if rating >= RATING_DOUBT:
-            self.repetitions = (self.repetitions or 0) + 1
-        elif rating == RATING_DONT_KNOW and current_state in (CardState.REVIEW.value, CardState.RELEARNING.value):
-            # Don't reset repetitions on lapse, just increment lapses
-            pass
-        elif rating == RATING_DONT_KNOW:
-            self.repetitions = 0
-
-        # Calculate next_review based on interval (for REVIEW state)
-        if self.state == CardState.REVIEW.value and self.interval > 0:
+        if self.state == CardState.REVIEW.value and days_until_review > 0:
             # Add ±10% variance to prevent review cliffs
             variance = random.uniform(0.9, 1.1)
-            adjusted_interval = max(1, round(self.interval * variance))
+            adjusted_interval = max(1, round(days_until_review * variance))
             self.next_review = now + timedelta(days=adjusted_interval)
         elif self.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
-            # For learning/relearning, set next_review based on step time
             if requeue_minutes:
                 self.next_review = now + timedelta(minutes=requeue_minutes)
             else:
@@ -573,114 +556,17 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         # Update the parent UserWord status if needed
         self.update_user_word_status()
 
+        # Increment total_cards_reviewed in UserStatistics (best-effort)
+        try:
+            from app.achievements.services import StatisticsService
+            _uid = self.user_word.user_id if self.user_word else None
+            if _uid is not None:
+                _stats = StatisticsService.get_or_create_statistics(_uid)
+                _stats.total_cards_reviewed = (_stats.total_cards_reviewed or 0) + 1
+        except Exception:
+            pass
+
         return self.interval
-
-    def _handle_new_card(self, rating, learning_steps, easy_interval):
-        """Handle rating for a NEW card."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW, CardState
-
-        if rating == RATING_KNOW:
-            # Easy: skip learning, go straight to review
-            self.state = CardState.REVIEW.value
-            self.interval = easy_interval
-            self.step_index = 0
-        else:
-            # Start learning process
-            self.state = CardState.LEARNING.value
-            self.step_index = 0 if rating == RATING_DONT_KNOW else 1
-            self.interval = 0
-
-    def _handle_learning_card(self, rating, learning_steps, graduating_interval, easy_interval):
-        """Handle rating for a LEARNING card. Returns requeue_minutes or None."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
-
-        if rating == RATING_DONT_KNOW:
-            # Again: reset to step 0
-            self.step_index = 0
-            return learning_steps[0] if learning_steps else 1
-
-        elif rating == RATING_DOUBT:
-            # Hard: repeat current step
-            return learning_steps[self.step_index] if self.step_index < len(learning_steps) else 10
-
-        elif rating == RATING_KNOW:
-            # Good: advance to next step or graduate
-            self.step_index += 1
-
-            if self.step_index >= len(learning_steps):
-                # Graduate to REVIEW
-                self.state = CardState.REVIEW.value
-                self.interval = graduating_interval
-                self.step_index = 0
-                return None  # No requeue, scheduled for tomorrow
-            else:
-                # Continue learning
-                return learning_steps[self.step_index]
-
-        return None
-
-    def _handle_review_card(self, rating, min_ef, max_ef, ef_lapse, ef_hard, ef_easy,
-                            mult_hard, mult_easy, relearning_steps, min_interval):
-        """Handle rating for a REVIEW card."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
-
-        old_interval = max(1, self.interval or 1)
-        old_ef = self.ease_factor or 2.5
-
-        if rating == RATING_DONT_KNOW:
-            # Lapse: go to RELEARNING
-            from app.srs.constants import LEECH_THRESHOLD, LEECH_SUSPEND_DAYS
-            previous_lapses = self.lapses or 0
-            self.state = CardState.RELEARNING.value
-            self.lapses = previous_lapses + 1
-            self.step_index = 0
-            self.ease_factor = max(min_ef, old_ef - ef_lapse)
-            # New interval will be set after relearning
-            self.interval = min_interval
-            # Re-bury on every lapse at/above the threshold so already-leeched
-            # cards (bury expired) don't cycle through daily failures.
-            if self.lapses >= LEECH_THRESHOLD:
-                self.buried_until = datetime.now(timezone.utc) + timedelta(days=LEECH_SUSPEND_DAYS)
-
-        elif rating == RATING_DOUBT:
-            # Hard: small interval increase, ease decrease
-            self.ease_factor = max(min_ef, old_ef - ef_hard)
-            new_interval = max(old_interval + 1, round(old_interval * mult_hard))
-            self.interval = new_interval
-
-        elif rating == RATING_KNOW:
-            # Good: normal interval increase with ease bonus
-            self.ease_factor = min(max_ef, old_ef + ef_easy)
-            new_interval = round(old_interval * old_ef * mult_easy)
-            self.interval = max(old_interval + 1, new_interval)
-
-    def _handle_relearning_card(self, rating, relearning_steps, min_interval):
-        """Handle rating for a RELEARNING card. Returns requeue_minutes or None."""
-        from app.srs.constants import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW, CardState
-
-        if rating == RATING_DONT_KNOW:
-            # Again: reset to step 0
-            self.step_index = 0
-            return relearning_steps[0] if relearning_steps else 10
-
-        elif rating == RATING_DOUBT:
-            # Hard: repeat current step
-            return relearning_steps[self.step_index] if self.step_index < len(relearning_steps) else 10
-
-        elif rating == RATING_KNOW:
-            # Good: advance or return to REVIEW
-            self.step_index += 1
-
-            if self.step_index >= len(relearning_steps):
-                # Return to REVIEW with minimum interval
-                self.state = CardState.REVIEW.value
-                self.interval = max(min_interval, 1)
-                self.step_index = 0
-                return None
-            else:
-                return relearning_steps[self.step_index]
-
-        return None
 
     def update_user_word_status(self):
         """Update the parent UserWord status based on card states using recalculate_status()"""
@@ -696,14 +582,9 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         """Check if this direction is due for review"""
         if not self.next_review:
             return True
-            
-        # Ensure next_review is timezone-aware
-        if self.next_review.tzinfo is None:
-            next_review_aware = self.next_review.replace(tzinfo=timezone.utc)
-        else:
-            next_review_aware = self.next_review
-            
-        return datetime.now(timezone.utc) >= next_review_aware
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        next_naive = self.next_review.replace(tzinfo=None) if self.next_review.tzinfo else self.next_review
+        return now_naive >= next_naive
 
     @property
     def days_until_review(self):

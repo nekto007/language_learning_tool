@@ -1,10 +1,11 @@
 # app/curriculum/services/srs_service.py
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timezone
 from typing import Dict
 
 from app.curriculum.models import Lessons
+from app.srs.constants import CardState
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWordLink, CollectionWords
@@ -18,12 +19,15 @@ class SRSService:
     @staticmethod
     def get_cards_for_lesson(lesson: Lessons, user_id: int) -> Dict:
         """
-        Get cards for SRS lesson
-        
+        Get cards for SRS lesson.
+
+        Flushes newly created UserWord/UserCardDirection rows but does NOT commit.
+        Caller is responsible for committing the transaction.
+
         Args:
             lesson: SRS lesson
             user_id: User ID
-            
+
         Returns:
             Dictionary with card statistics and due cards
         """
@@ -75,8 +79,8 @@ class SRSService:
             for d in existing_dirs:
                 dir_map.setdefault(d.user_word_id, {})[d.direction] = d
 
-            # Get due cards
-            now = datetime.now(UTC)
+            # Get due cards; use naive UTC to match column convention
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             due_directions = []
             new_cards = 0
             review_cards = 0
@@ -96,20 +100,20 @@ class SRSService:
                         db.session.add(card_dir)
                         new_cards += 1
                         due_directions.append(card_dir)
-                    elif card_dir.next_review <= now:
+                    elif card_dir.next_review is not None and card_dir.next_review <= now:
                         # Review card
                         review_cards += 1
                         due_directions.append(card_dir)
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             # Get SRS settings from lesson
             srs_settings = lesson.get_srs_settings()
             max_new_cards = srs_settings.get('new_cards_limit', 10)
 
-            # Limit new cards
-            new_card_dirs = [d for d in due_directions if d.repetitions == 0]
-            review_card_dirs = [d for d in due_directions if d.repetitions > 0]
+            # Limit new cards; use state (not repetitions) to detect NEW cards
+            new_card_dirs = [d for d in due_directions if d.state == CardState.NEW.value]
+            review_card_dirs = [d for d in due_directions if d.state != CardState.NEW.value]
 
             # Take limited new cards + all review cards
             selected_cards = review_card_dirs + new_card_dirs[:max_new_cards]
@@ -248,7 +252,7 @@ class SRSService:
 
             # Note: session_attempts is already incremented inside update_after_review()
 
-            db.session.commit()
+            db.session.flush()  # caller commits
 
             # Check if lesson is complete
             cards_data = SRSService.get_cards_for_lesson(

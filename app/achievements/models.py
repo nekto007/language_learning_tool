@@ -122,6 +122,13 @@ class UserStatistics(db.Model):
     # Consecutive perfect days (all required phases done on consecutive dates)
     consecutive_perfect_days = Column(Integer, default=0, nullable=False, server_default='0')
 
+    # Book reading milestones
+    total_books_completed = Column(Integer, default=0, nullable=False, server_default='0')
+    total_chapters_read = Column(Integer, default=0, nullable=False, server_default='0')
+
+    # SRS card review counter
+    total_cards_reviewed = Column(Integer, default=0, nullable=False, server_default='0')
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))

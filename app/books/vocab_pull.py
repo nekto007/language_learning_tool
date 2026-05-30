@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.srs.constants import DEFAULT_EASE_FACTOR
 from app.utils.db import db
 
 STOP_WORDS: frozenset[str] = frozenset({
@@ -128,7 +129,7 @@ def queue_vocab_as_srs(words: list, user_id: int, db_session: Any = db) -> int:
                 user_word_id=user_word.id,
                 direction=direction,
                 source='book_reading',
-                ease_factor=2.5,
+                ease_factor=DEFAULT_EASE_FACTOR,
                 interval=0,
                 repetitions=0,
                 next_review=tomorrow,

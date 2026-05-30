@@ -570,5 +570,26 @@ def _register_cli_commands(app):
         init_email_scheduler(app)
         click.echo('Email scheduler started.')
 
+    @app.cli.command('backfill-achievements')
+    @click.option('--dry-run', is_flag=True, default=False,
+                  help='Compute grants without committing to DB')
+    def backfill_achievements_cmd(dry_run):
+        """Backfill achievements for all existing users. Safe to run multiple times."""
+        from app.utils.db import db
+        from scripts.backfill_achievements import run_backfill
+        mode = 'dry-run' if dry_run else 'live'
+        click.echo(f'Achievement backfill starting ({mode}) ...')
+        report = run_backfill(db.session, dry_run=dry_run, verbose=True)
+        if dry_run:
+            db.session.rollback()
+        click.echo(f'\nDone.')
+        click.echo(f'  Users processed : {report.total_users}')
+        click.echo(f'  Users affected  : {report.users_affected}')
+        click.echo(f'  Achievements    : {report.total_newly_granted}')
+        if report.errors:
+            click.echo(f'\n  Errors ({len(report.errors)}):')
+            for e in report.errors:
+                click.echo(f'    - {e}')
+
     from app.cli.content_commands import register_content_commands
     register_content_commands(app)

@@ -58,6 +58,7 @@ LINEAR_XP: dict[str, int] = {
     'linear_listening': 18,
     'linear_writing': 25,
     'linear_srs_global': 8,
+    'linear_book_srs': 8,
     'linear_book_reading': 15,
     'linear_error_review': 10,
 }
@@ -379,6 +380,11 @@ def award_xp(
             "user %s leveled up to %s (source=%s, xp=%s)",
             user_id, new_info.current_level, source, new_total,
         )
+        try:
+            from app.achievements.services import AchievementService
+            AchievementService.check_level_achievements(user_id, stats)
+        except Exception:
+            logger.exception("check_level_achievements failed for user %s after level-up", user_id)
 
     # Expire the leaderboard TTL cache so the next render shows fresh ranking.
     try:

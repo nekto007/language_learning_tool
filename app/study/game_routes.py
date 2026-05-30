@@ -89,6 +89,9 @@ def _check_quiz_achievements(user_id, quiz_data):
     if 'perfect_score' not in existing_codes and quiz_data.get('score') == 100:
         newly_earned.append(_grant('perfect_score'))
 
+    if 'perfect_quiz' not in existing_codes and quiz_data.get('score') == 100:
+        newly_earned.append(_grant('perfect_quiz'))
+
     if 'speed_demon' not in existing_codes:
         if quiz_data.get('total_questions', 0) >= 10 and quiz_data.get('time_taken', 999) <= 120:
             newly_earned.append(_grant('speed_demon'))
@@ -108,7 +111,7 @@ def _check_quiz_achievements(user_id, quiz_data):
         if QuizResult.query.filter_by(user_id=user_id).count() >= 50:
             newly_earned.append(_grant('quiz_master_50'))
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     if 'early_bird' not in existing_codes and now.hour < 8:
         newly_earned.append(_grant('early_bird'))
 
@@ -659,6 +662,12 @@ def complete_matching_game():
             get_user_local_date(current_user.id, db),
         )
         db.session.commit()
+    # Intentionally no maybe_award_srs_global_xp() here.
+    # The matching game is a free-play gamified activity; it does not carry
+    # plan_slot/source parameters that would identify it as the daily SRS slot.
+    # Adding SRS-slot XP would double-credit users who play matching AND complete
+    # the dedicated SRS slot (/study?source=linear_plan).  Game XP is handled
+    # exclusively through award_game_xp_idempotent() above.
     _matching_stats = _UserStats.query.filter_by(user_id=current_user.id).first()
     _matching_total_xp = int(_matching_stats.total_xp or 0) if _matching_stats else 0
     _matching_level = get_level_info(_matching_total_xp).current_level
@@ -734,6 +743,16 @@ def complete_matching_game():
 
         db.session.add(game_score)
         db.session.commit()
+
+        try:
+            from app.achievements.services import AchievementService
+            AchievementService.check_matching_achievements(
+                current_user.id,
+                score_percentage=score_percentage,
+                duration_sec=time_taken,
+            )
+        except Exception as _ach_err:
+            logger.exception('Error checking matching achievements for user %s: %s', current_user.id, _ach_err)
 
         rank = game_score.get_rank()
 

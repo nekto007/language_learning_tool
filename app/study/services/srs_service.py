@@ -246,42 +246,29 @@ class SRSService:
     @staticmethod
     def get_card_counts(user_id: int, deck_word_ids: List[int] = None) -> Dict:
         """
-        Get card counts for display (due, new, limits)
+        Get card counts for display (due, new, limits).
 
-        Args:
-            user_id: User ID
-            deck_word_ids: Optional list of word IDs to filter by (for deck-specific counts)
+        ``due_count`` delegates to the canonical ``count_due_cards`` function so
+        that this surface and the daily-plan assembler always agree on what "due"
+        means: LEARNING / RELEARNING / REVIEW state, due right now (not end-of-day),
+        not buried, not mastered.
 
         Returns:
             Dict with 'due_count', 'new_count', 'new_today', 'new_limit', 'can_study_new',
             'nothing_to_study', 'limit_reached'
         """
+        from app.srs.counting import count_due_cards, count_new_cards_today
+
         settings = StudySettings.get_settings(user_id)
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        # End of today - show cards due anytime today (matches fetching logic)
-        end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        # Canonical due count: LEARNING/RELEARNING/REVIEW, due now, not buried.
+        # Passing word_ids restricts to the deck when provided; None = all cards.
+        due_count = count_due_cards(user_id, word_ids=deck_word_ids if deck_word_ids else None)
 
         if deck_word_ids:
-            # Deck-specific counts
-            # Filter by status to match the fetching logic (exclude 'mastered')
-            # Use end_of_today to count all cards due today (matches fetching logic)
-            due_count = db.session.query(func.count(UserCardDirection.id)).filter(
-                UserCardDirection.user_word_id.in_(
-                    db.session.query(UserWord.id).filter(
-                        UserWord.user_id == user_id,
-                        UserWord.word_id.in_(deck_word_ids),
-                        UserWord.status.in_(['new', 'learning', 'review'])
-                    )
-                ),
-                or_(
-                    UserCardDirection.next_review.is_(None),
-                    UserCardDirection.next_review <= end_of_today
-                )
-            ).scalar() or 0
-
-            # Count new words: words without UserWord OR words with UserWord but no directions
-            # Get word_ids that have UserCardDirection records
+            # Count unstarted deck words (no UserCardDirection rows yet).
             words_with_directions = db.session.query(UserWord.word_id).join(
                 UserCardDirection, UserWord.id == UserCardDirection.user_word_id
             ).filter(
@@ -289,26 +276,9 @@ class SRSService:
                 UserWord.word_id.in_(deck_word_ids)
             ).all()
             words_with_directions_set = {row[0] for row in words_with_directions}
-
-            # New = deck words that don't have directions yet
             new_count = len([wid for wid in deck_word_ids if wid not in words_with_directions_set])
         else:
-            # Auto mode - all cards
-            # Include 'new' status to match fetching logic
-            # Use end_of_today to count all cards due today (or NULL for new cards)
-            due_count = UserCardDirection.query.join(
-                UserWord, UserCardDirection.user_word_id == UserWord.id
-            ).filter(
-                UserWord.user_id == user_id,
-                UserWord.status.in_(['new', 'learning', 'review']),
-                or_(
-                    UserCardDirection.next_review.is_(None),
-                    UserCardDirection.next_review <= end_of_today
-                )
-            ).count()
-
-            # Count all available new words (no UserWord OR UserWord exists but no directions)
-            # Get word_ids that have directions
+            # Count all available new words (no UserWord OR UserWord exists but no directions).
             words_with_directions_subquery = db.session.query(UserWord.word_id).join(
                 UserCardDirection, UserWord.id == UserCardDirection.user_word_id
             ).filter(
@@ -327,14 +297,8 @@ class SRSService:
                 CollectionWords.russian_word != ''
             ).count()
 
-        # New cards: first_reviewed is today (card was studied for the first time today)
-        new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
-            UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter_by(user_id=user_id)
-            ),
-            UserCardDirection.first_reviewed >= today_start,
-            UserCardDirection.first_reviewed.isnot(None)
-        ).scalar() or 0
+        # New cards today: first_reviewed is today (card was studied for the first time today).
+        new_cards_today = count_new_cards_today(user_id)
 
         can_study_new = new_cards_today < settings.new_words_per_day
         nothing_to_study = due_count == 0 and (new_count == 0 or not can_study_new)
@@ -368,7 +332,7 @@ class SRSService:
             forward = UserCardDirection(
                 user_word_id=user_word_id,
                 direction='eng-rus',
-                next_review=datetime.now(timezone.utc)
+                next_review=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.session.add(forward)
 
@@ -382,7 +346,7 @@ class SRSService:
             backward = UserCardDirection(
                 user_word_id=user_word_id,
                 direction='rus-eng',
-                next_review=datetime.now(timezone.utc)
+                next_review=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.session.add(backward)
 
@@ -616,7 +580,7 @@ class SRSService:
                         'word': word
                     })
 
-        db.session.commit()
+        db.session.flush()
         return items
 
     @staticmethod

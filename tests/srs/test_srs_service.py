@@ -374,3 +374,184 @@ class TestEaseFactorFloor:
 
         db_session.refresh(card)
         assert card.ease_factor >= MIN_EASE_FACTOR
+
+
+def _make_new_card(db_session, user: User) -> UserCardDirection:
+    """Create a NEW-state card with no review history."""
+    from app.srs.constants import DEFAULT_EASE_FACTOR
+    suffix = uuid.uuid4().hex[:8]
+    word = CollectionWords(
+        english_word=f'newcard_{suffix}',
+        russian_word=f'новое_{suffix}',
+        level='A1',
+    )
+    db_session.add(word)
+    db_session.commit()
+    uw = UserWord(user_id=user.id, word_id=word.id)
+    uw.status = 'new'
+    db_session.add(uw)
+    db_session.commit()
+    card = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+    card.state = CardState.NEW.value
+    card.repetitions = 0
+    card.interval = 0
+    card.ease_factor = DEFAULT_EASE_FACTOR
+    card.step_index = 0
+    card.lapses = 0
+    card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
+    card.first_reviewed = None
+    card.last_reviewed = None
+    db_session.add(card)
+    db_session.commit()
+    return card
+
+
+class TestFirstReviewedCanonicalPath:
+    """grade_card must set first_reviewed on first grade (Task 1 fix, H2)."""
+
+    def test_new_card_graded_sets_first_reviewed(self, db_session):
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+        assert card.first_reviewed is None
+
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_KNOW, user_id=user.id,
+        )
+        assert result['success'] is True
+
+        db_session.refresh(card)
+        assert card.first_reviewed is not None
+        # Must be naive UTC
+        assert card.first_reviewed.tzinfo is None
+
+    def test_subsequent_grade_does_not_overwrite_first_reviewed(self, db_session):
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        db_session.refresh(card)
+        first = card.first_reviewed
+
+        # Make card due again then grade again
+        card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
+        db_session.commit()
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        db_session.refresh(card)
+        assert card.first_reviewed == first
+
+    def test_last_reviewed_is_naive_utc(self, db_session):
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        db_session.refresh(card)
+        assert card.last_reviewed is not None
+        assert card.last_reviewed.tzinfo is None
+
+    def test_count_new_cards_today_sees_canonical_graded_card(self, db_session):
+        from app.srs.counting import count_new_cards_today
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        before = count_new_cards_today(user.id)
+        UnifiedSRSService().grade_card(card_id=card.id, rating=RATING_KNOW, user_id=user.id)
+        after = count_new_cards_today(user.id)
+        assert after == before + 1
+
+
+class TestGradeCardCallerCommits:
+    """grade_card flushes only; caller must commit (Task 2, M1)."""
+
+    def test_grade_changes_visible_in_same_session_before_commit(self, db_session):
+        """Changes flushed by grade_card are visible within the same session."""
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_KNOW, user_id=user.id,
+        )
+        assert result['success'] is True
+
+        # Flush makes changes visible to same-session queries
+        db_session.refresh(card)
+        assert card.state != CardState.NEW.value
+        assert card.first_reviewed is not None
+
+    def test_caller_rollback_undoes_grade(self, db_session):
+        """If caller rolls back before committing, grade changes are undone."""
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_KNOW, user_id=user.id,
+        )
+        assert result['success'] is True
+
+        # Caller decides to roll back (e.g. downstream operation failed)
+        db_session.rollback()
+
+        db_session.refresh(card)
+        assert card.state == CardState.NEW.value
+        assert card.first_reviewed is None
+
+    def test_exception_after_grade_rolled_back(self, db_session):
+        """Simulated downstream exception causes grade to be rolled back."""
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        try:
+            result = UnifiedSRSService().grade_card(
+                card_id=card.id, rating=RATING_KNOW, user_id=user.id,
+            )
+            assert result['success'] is True
+            # Simulate a downstream failure (e.g. XP write, plan recalc)
+            raise ValueError("downstream failure after grade")
+        except ValueError:
+            db_session.rollback()
+
+        db_session.refresh(card)
+        assert card.state == CardState.NEW.value, (
+            "Grade state change must not persist when caller rolls back"
+        )
+        assert card.first_reviewed is None
+
+    def test_commit_after_grade_persists_changes(self, db_session):
+        """When caller commits, all graded fields are persisted."""
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_KNOW, user_id=user.id,
+        )
+        assert result['success'] is True
+
+        # Caller commits
+        db_session.commit()
+
+        db_session.refresh(card)
+        assert card.state != CardState.NEW.value
+        assert card.first_reviewed is not None
+        assert card.last_reviewed is not None
+
+    def test_grading_and_additional_write_in_same_transaction(self, db_session):
+        """grade_card + additional writes share one transaction and commit together."""
+        user = _make_user(db_session)
+        card = _make_new_card(db_session, user)
+
+        # Simulate what a route would do: grade + additional write in one tx
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_KNOW, user_id=user.id,
+        )
+        assert result['success'] is True
+
+        # Additional write in the same session (simulating XP award, etc.)
+        user.about = "xp_awarded"
+        db_session.flush()
+
+        # Commit everything together
+        db_session.commit()
+
+        db_session.refresh(card)
+        db_session.refresh(user)
+        assert card.state != CardState.NEW.value
+        assert user.about == "xp_awarded"

@@ -814,3 +814,106 @@ class TestGetSpeakingStreak:
 
         db_session.refresh(streak_user)
         assert streak_user.streak_shield_active is False
+
+
+# ---------------------------------------------------------------------------
+# 10. check_streak_achievements — naming and threshold tests
+# ---------------------------------------------------------------------------
+
+
+def _seed_streak_achievements(db_session):
+    """Ensure all daily_streak_* achievements exist in the DB."""
+    from app.study.models import Achievement
+
+    specs = [
+        ('daily_streak_3', 'Серия 3 дня', 3, 30),
+        ('daily_streak_7', 'Серия 7 дней', 7, 70),
+        ('daily_streak_14', 'Серия 14 дней', 14, 140),
+        ('daily_streak_30', 'Серия 30 дней', 30, 300),
+        ('daily_streak_60', 'Серия 60 дней', 60, 600),
+        ('daily_streak_100', 'Серия 100 дней', 100, 1000),
+    ]
+    created = {}
+    for code, name, _days, xp in specs:
+        ach = Achievement.query.filter_by(code=code).first()
+        if not ach:
+            ach = Achievement(code=code, name=name, description=name, xp_reward=xp, category='streak')
+            db_session.add(ach)
+        created[code] = ach
+    db_session.flush()
+    return created
+
+
+class TestCheckStreakAchievements:
+    """AchievementService.check_streak_achievements — threshold and idempotency tests."""
+
+    def test_streak_2_grants_nothing(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import AchievementService
+
+        _seed_streak_achievements(db_session)
+        stats = UserStatistics(user_id=streak_user.id, current_streak_days=2)
+        db_session.add(stats)
+        db_session.flush()
+
+        result = AchievementService.check_streak_achievements(streak_user.id, stats)
+        assert result == []
+
+    def test_streak_7_grants_daily_streak_3_and_7(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import AchievementService
+
+        _seed_streak_achievements(db_session)
+        stats = UserStatistics(user_id=streak_user.id, current_streak_days=7)
+        db_session.add(stats)
+        db_session.flush()
+
+        result = AchievementService.check_streak_achievements(streak_user.id, stats)
+        codes = {a.code for a in result}
+        assert 'daily_streak_3' in codes
+        assert 'daily_streak_7' in codes
+        assert 'daily_streak_14' not in codes
+
+    def test_streak_100_grants_all_six(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import AchievementService
+
+        _seed_streak_achievements(db_session)
+        stats = UserStatistics(user_id=streak_user.id, current_streak_days=100)
+        db_session.add(stats)
+        db_session.flush()
+
+        result = AchievementService.check_streak_achievements(streak_user.id, stats)
+        codes = {a.code for a in result}
+        for code in ('daily_streak_3', 'daily_streak_7', 'daily_streak_14',
+                     'daily_streak_30', 'daily_streak_60', 'daily_streak_100'):
+            assert code in codes, f"Expected {code} to be granted for 100-day streak"
+
+    def test_second_call_grants_nothing_new(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import AchievementService
+
+        _seed_streak_achievements(db_session)
+        stats = UserStatistics(user_id=streak_user.id, current_streak_days=7)
+        db_session.add(stats)
+        db_session.flush()
+
+        first = AchievementService.check_streak_achievements(streak_user.id, stats)
+        assert len(first) == 2
+
+        second = AchievementService.check_streak_achievements(streak_user.id, stats)
+        assert second == [], "Second call must be idempotent — no new grants"
+
+    def test_streak_60_grants_up_to_60_not_100(self, db_session, streak_user):
+        from app.achievements.models import UserStatistics
+        from app.achievements.services import AchievementService
+
+        _seed_streak_achievements(db_session)
+        stats = UserStatistics(user_id=streak_user.id, current_streak_days=60)
+        db_session.add(stats)
+        db_session.flush()
+
+        result = AchievementService.check_streak_achievements(streak_user.id, stats)
+        codes = {a.code for a in result}
+        assert 'daily_streak_60' in codes
+        assert 'daily_streak_100' not in codes

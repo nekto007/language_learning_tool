@@ -135,3 +135,127 @@ def test_delete(admin_client, db_session, public_word_pair):
     )
     assert response.status_code == 302
     assert WordContrast.query.get(pair_id) is None
+
+
+# ---------------------------------------------------------------------------
+# Bulk import: file upload with a;b;note lines, semicolon-separated.
+# ---------------------------------------------------------------------------
+
+def _upload(admin_client, payload: str):
+    from io import BytesIO
+    return admin_client.post(
+        '/admin/word-contrasts/import',
+        data={'file': (BytesIO(payload.encode('utf-8')), 'contrasts.txt')},
+        content_type='multipart/form-data',
+        follow_redirects=False,
+    )
+
+
+def test_import_creates_rows_from_txt(admin_client, db_session, public_word_pair):
+    a, b = public_word_pair
+    payload = (
+        f'{a.english_word};{b.english_word};<b>{a.english_word}</b> — A. '
+        f'<b>{b.english_word}</b> — B.\n'
+    )
+    resp = _upload(admin_client, payload)
+    assert resp.status_code == 302
+    low_id, high_id = sorted((a.id, b.id))
+    row = WordContrast.query.filter_by(
+        word_a_id=low_id, word_b_id=high_id,
+    ).first()
+    assert row is not None
+    assert '<b>' in row.note_ru
+
+
+def test_import_skips_blank_and_malformed_lines(
+    admin_client, db_session, public_word_pair,
+):
+    a, b = public_word_pair
+    payload = (
+        '\n'
+        '   \n'
+        'malformed line without semicolons\n'
+        f'{a.english_word};{b.english_word};note ok\n'
+    )
+    resp = _upload(admin_client, payload)
+    assert resp.status_code == 302
+    low_id, high_id = sorted((a.id, b.id))
+    assert WordContrast.query.filter_by(
+        word_a_id=low_id, word_b_id=high_id,
+    ).first() is not None
+
+
+def test_import_dedupes_existing_pair(
+    admin_client, db_session, public_word_pair,
+):
+    a, b = public_word_pair
+    low_id, high_id = sorted((a.id, b.id))
+    db_session.add(WordContrast(
+        word_a_id=low_id, word_b_id=high_id, note_ru='existing',
+    ))
+    db_session.flush()
+    payload = f'{a.english_word};{b.english_word};replacement\n'
+    resp = _upload(admin_client, payload)
+    assert resp.status_code == 302
+    row = WordContrast.query.filter_by(
+        word_a_id=low_id, word_b_id=high_id,
+    ).first()
+    assert row.note_ru == 'existing'  # untouched
+
+
+def test_import_reports_missing_words(admin_client, db_session, public_word_pair):
+    a, _b = public_word_pair
+    payload = f'{a.english_word};nonexistent_word_xyz;some note\n'
+    resp = _upload(admin_client, payload)
+    assert resp.status_code == 302
+    # No row created because one side is missing.
+    assert WordContrast.query.filter_by(word_a_id=a.id).count() == 0
+
+
+def test_import_handles_note_with_internal_semicolons(
+    admin_client, db_session, public_word_pair,
+):
+    """The note (column 3) may itself contain ``;`` — the parser splits
+    only on the first two delimiters, so the rest stays in the note.
+    """
+    a, b = public_word_pair
+    payload = f'{a.english_word};{b.english_word};part1; part2; part3\n'
+    resp = _upload(admin_client, payload)
+    assert resp.status_code == 302
+    low_id, high_id = sorted((a.id, b.id))
+    row = WordContrast.query.filter_by(
+        word_a_id=low_id, word_b_id=high_id,
+    ).first()
+    assert row is not None
+    assert row.note_ru == 'part1; part2; part3'
+
+
+def test_import_rejects_oversized_file(admin_client, db_session):
+    huge = 'a;b;c\n' * 200_000  # > 1 MB
+    resp = _upload(admin_client, huge)
+    assert resp.status_code == 302
+    assert WordContrast.query.count() == 0
+
+
+def test_import_rejects_non_utf8(admin_client, db_session):
+    from io import BytesIO
+    bad_bytes = b'word1;word2;not utf8 \xff\xfe payload\n'
+    resp = admin_client.post(
+        '/admin/word-contrasts/import',
+        data={'file': (BytesIO(bad_bytes), 'contrasts.txt')},
+        content_type='multipart/form-data',
+        follow_redirects=False,
+    )
+    assert resp.status_code == 302
+    assert WordContrast.query.count() == 0
+
+
+def test_import_requires_admin(client):
+    from io import BytesIO
+    resp = client.post(
+        '/admin/word-contrasts/import',
+        data={'file': (BytesIO(b'a;b;c'), 'contrasts.txt')},
+        content_type='multipart/form-data',
+        follow_redirects=False,
+    )
+    assert resp.status_code in (302, 401, 403)

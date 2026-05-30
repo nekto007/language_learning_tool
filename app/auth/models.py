@@ -146,6 +146,7 @@ class User(db.Model, UserMixin):
         from datetime import datetime, timezone, timedelta
         from app.study.models import UserWord, UserCardDirection
         from app.utils.db import db
+        from app.srs.constants import DEFAULT_EASE_FACTOR
 
         # Маппинг числовых статусов в строковые
         # status=3 теперь ставит 'review' вместо 'mastered'
@@ -193,7 +194,7 @@ class User(db.Model, UserMixin):
                 if is_already_known:
                     direction.state = 'review'
                     direction.interval = UserWord.MASTERED_THRESHOLD_DAYS  # 180 дней
-                    direction.ease_factor = 2.5
+                    direction.ease_factor = DEFAULT_EASE_FACTOR
                     direction.repetitions = 10  # Имитируем много успешных повторов
                     direction.next_review = now + timedelta(days=UserWord.MASTERED_THRESHOLD_DAYS)
                     direction.first_reviewed = now
@@ -209,7 +210,7 @@ class User(db.Model, UserMixin):
                 for direction in directions:
                     direction.state = 'review'
                     direction.interval = UserWord.MASTERED_THRESHOLD_DAYS
-                    direction.ease_factor = max(direction.ease_factor, 2.5)
+                    direction.ease_factor = max(direction.ease_factor, DEFAULT_EASE_FACTOR)
                     direction.repetitions = max(direction.repetitions, 10)
                     direction.next_review = now + timedelta(days=UserWord.MASTERED_THRESHOLD_DAYS)
                     if not direction.first_reviewed:

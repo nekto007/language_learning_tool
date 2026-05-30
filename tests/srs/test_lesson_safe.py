@@ -447,8 +447,8 @@ class TestActivateSrsFalseDisplayOnlyCards:
         assert budget_before == budget_after
 
     def test_activate_srs_true_creates_direction_and_consumes_budget(self, db_session):
-        """activate_srs=True for a new word creates a UserCardDirection and
-        will appear in count_new_cards_today once first_reviewed is set."""
+        """activate_srs=True for a new word creates both eng-rus AND rus-eng
+        UserCardDirection rows and returns 2 cards (one per direction)."""
         from app.curriculum.routes.card_lessons import _build_cards_for_words
 
         user = _make_user(db_session)
@@ -457,16 +457,24 @@ class TestActivateSrsFalseDisplayOnlyCards:
 
         cards = _build_cards_for_words([word], user.id, activate_srs=True)
 
-        assert len(cards) == 1
-        assert cards[0]["direction_id"] is not None
-        assert cards[0]["is_new"] is True
+        # Both directions are created and returned
+        assert len(cards) == 2
+        assert all(c["direction_id"] is not None for c in cards)
+        assert all(c["is_new"] is True for c in cards)
+        directions = {c["direction"] for c in cards}
+        assert "eng-rus" in directions
+        assert "rus-eng" in directions
 
         uw = UserWord.query.filter_by(user_id=user.id, word_id=word.id).first()
         assert uw is not None
-        card = UserCardDirection.query.filter_by(
+        card_er = UserCardDirection.query.filter_by(
             user_word_id=uw.id, direction="eng-rus"
         ).first()
-        assert card is not None
+        card_re = UserCardDirection.query.filter_by(
+            user_word_id=uw.id, direction="rus-eng"
+        ).first()
+        assert card_er is not None
+        assert card_re is not None
 
     def test_activate_srs_false_existing_word_still_shows_card(self, db_session):
         """If a UserCardDirection already exists, activate_srs=False still

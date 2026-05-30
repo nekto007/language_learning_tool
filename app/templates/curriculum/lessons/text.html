@@ -526,11 +526,13 @@
 
     <div class="completion-hint" id="completion-hint" style="display: none;">
       <i class="fas fa-info-circle"></i>
+      <span id="completion-hint-text">
       {% if text_content and text_content.is_listening_immersion %}
         {{ _('Завершите чекпоинты выше, чтобы отметить урок как завершённый') }}
       {% else %}
         {{ _('Прокрутите до конца текста, чтобы отметить урок как прочитанный') }}
       {% endif %}
+      </span>
     </div>
 
     <form method="POST" action="{{ url_for('curriculum_lessons.update_lesson_progress', lesson_id=lesson.id) }}" id="text-completion-form">
@@ -1203,21 +1205,55 @@ function initReadingProgress() {
     listeningCheckbox.addEventListener('change', checkCompletionStatus);
   }
 
+  // Минимальная доля правильных ответов, чтобы засчитать чтение.
+  // 60% — стандартный пасс «понял в целом»: 5/7 (71%) проходит,
+  // 4/7 (57%) — нет. Без этого порога юзер с одной-двумя ошибками
+  // в комплектах из 7+ вопросов застревает на 100%-гейте и не
+  // может закрыть урок, хотя реально прочёл и осмыслил текст.
+  const READING_PASS_THRESHOLD = 0.6;
+
   function checkCompletionStatus() {
-    const hasQuestions = document.querySelectorAll('.question-block').length > 0;
-    const totalQuestions = document.querySelectorAll('.question-block').length;
-    // Считаем правильные ответы - вопросы с классом answered-correct
+    const questionBlocks = document.querySelectorAll('.question-block');
+    const hasQuestions = questionBlocks.length > 0;
+    const totalQuestions = questionBlocks.length;
+    // ``_readingAnswers`` is keyed by questionIndex and populated by
+    // _recordReadingAnswer after every check_* call (text/true_false/
+    // fill_blank/ordering). Wrong answers do NOT add the
+    // ``answered-correct`` CSS class, so counting via that class would
+    // under-report the "answered" count — we use the answer record
+    // instead, which captures both correct and incorrect attempts.
+    const answeredQuestions = (typeof _readingAnswers === 'object' && _readingAnswers)
+      ? Object.keys(_readingAnswers).length
+      : 0;
     const correctQuestions = document.querySelectorAll('.question-block.answered-correct').length;
-    const allQuestionsAnswered = hasQuestions && (correctQuestions === totalQuestions);
+    const allAnswered = hasQuestions && (answeredQuestions >= totalQuestions);
+    const passesAccuracyGate = hasQuestions && allAnswered
+      && (correctQuestions / totalQuestions) >= READING_PASS_THRESHOLD;
 
     let canComplete;
     if (isListeningImmersion) {
       const checked = listeningCheckbox && listeningCheckbox.checked;
       canComplete = listeningPlayed && listeningProgressOk && checked &&
-        (!hasQuestions || allQuestionsAnswered);
+        (!hasQuestions || passesAccuracyGate);
     } else {
-      // Если есть вопросы — требуем ответить на все; если нет — достаточно прокрутки
-      canComplete = hasQuestions ? allQuestionsAnswered : hasScrolledToBottom;
+      // Есть вопросы → нужен accuracy-гейт; нет → достаточно дочитать.
+      canComplete = hasQuestions ? passesAccuracyGate : hasScrolledToBottom;
+    }
+
+    // Динамический hint показывает что именно нужно сделать сейчас,
+    // вместо общего «прокрутите до конца» (который часто врёт).
+    const hintText = document.getElementById('completion-hint-text');
+    if (hintText && hasQuestions && !canComplete && !isListeningImmersion) {
+      if (!allAnswered) {
+        const remaining = totalQuestions - answeredQuestions;
+        hintText.textContent = 'Ответьте на оставшиеся вопросы (' + remaining + ' из ' + totalQuestions + ')';
+      } else {
+        const needCorrect = Math.ceil(READING_PASS_THRESHOLD * totalQuestions);
+        hintText.textContent = 'Нужно ' + needCorrect + ' из ' + totalQuestions
+          + ' правильных ответов. Сейчас: ' + correctQuestions
+          + '. Попробуйте перепройти вопросы.';
+      }
+      completionHint.style.display = 'block';
     }
 
     if (canComplete) {
