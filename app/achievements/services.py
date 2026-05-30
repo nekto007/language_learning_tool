@@ -1260,8 +1260,8 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
 
     has_reading = (session.query(func.count(UserReadingSession.id)).filter(
         UserReadingSession.user_id == user_id,
-        UserReadingSession.started_at >= day_start_tz,
-        UserReadingSession.started_at < day_end_tz,
+        UserReadingSession.started_at >= day_start,
+        UserReadingSession.started_at < day_end,
     ).scalar() or 0) > 0
 
     if not (has_listening and has_writing and has_speaking and has_reading):
