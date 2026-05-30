@@ -213,8 +213,32 @@ def build_optional(
 
     Items already in required (matched by ``id``) are excluded. ``has_more``
     is True if a builder still had pending work when the cap was reached.
+
+    The required curriculum lesson id is forwarded to the optional curriculum
+    builder as ``exclude_lesson_ids`` so the optional slot always returns the
+    NEXT lesson on the spine, never the same one already shown in required.
+    Without this, when ``done_today=False`` both builders resolve to the same
+    lesson, the candidate is silently dropped, and the optional block appears
+    empty even though more content exists.
     """
     seen_ids = {it.id for it in required_items}
+
+    # Extract the required curriculum lesson id so the optional builder skips
+    # it and offers the NEXT lesson on the spine instead.
+    required_curriculum_lesson_id: Optional[int] = None
+    for it in required_items:
+        if it.kind == 'curriculum':
+            lesson_id_raw = (it.data or {}).get('lesson_id')
+            if lesson_id_raw is not None:
+                try:
+                    required_curriculum_lesson_id = int(lesson_id_raw)
+                except (TypeError, ValueError):
+                    pass
+            break
+    exclude_curriculum_ids: Optional[set[int]] = (
+        {required_curriculum_lesson_id} if required_curriculum_lesson_id is not None else None
+    )
+
     items: list[PlanItem] = []
     builders_exhausted: dict[str, bool] = {k: False for k in _OPTIONAL_PRIORITY}
 
@@ -222,7 +246,10 @@ def build_optional(
     # optional item (subsequent extension comes from rebuild after activity).
     candidates: list[Optional[PlanItem]] = []
     for kind in _OPTIONAL_PRIORITY:
-        candidate = _build_optional_candidate(user_id, db, kind, focus)
+        candidate = _build_optional_candidate(
+            user_id, db, kind, focus,
+            exclude_curriculum_ids=exclude_curriculum_ids,
+        )
         if candidate is None:
             builders_exhausted[kind] = True
         elif candidate.id in seen_ids:
@@ -242,10 +269,17 @@ def build_optional(
 
 
 def _build_optional_candidate(
-    user_id: int, db: Any, kind: str, focus: Optional[str],
+    user_id: int,
+    db: Any,
+    kind: str,
+    focus: Optional[str],
+    exclude_curriculum_ids: Optional[set[int]] = None,
 ) -> Optional[PlanItem]:
     if kind == 'curriculum':
-        return build_curriculum_item(user_id, db, section='optional')
+        return build_curriculum_item(
+            user_id, db, section='optional',
+            exclude_lesson_ids=exclude_curriculum_ids,
+        )
     if kind == 'srs':
         return build_srs_item(user_id, db, section='optional')
     if kind == 'reading':

@@ -251,6 +251,118 @@ class TestOptional:
         assert isinstance(plan.get('has_more_optional'), bool)
 
 
+class TestOptionalCurriculumStability:
+    """Tests for the optional curriculum item not duplicating or disappearing.
+
+    Bug: when done_today=False, both required and optional builders call
+    find_next_lesson_linear() and get the same lesson id. The optional
+    candidate collides with required and is silently dropped. Fix: pass
+    exclude_lesson_ids={required_lesson_id} to the optional builder.
+    """
+
+    def test_optional_curriculum_differs_from_required_not_done_today(
+        self, db_session,
+    ):
+        """With two pending lessons, optional curriculum returns L2, not L1.
+
+        Before the fix, both builders resolved to L1 and the optional item
+        was dropped by the de-dup check. After the fix, optional uses
+        exclude_lesson_ids to skip L1 and find L2.
+        """
+        level = _make_level(db_session, order=5)
+        module = _make_module(db_session, level)
+        lesson1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        lesson2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        required_curriculum = [it for it in plan['required'] if it['kind'] == 'curriculum']
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == lesson1.id, (
+            'Required curriculum should be the first pending lesson'
+        )
+        assert len(optional_curriculum) == 1, (
+            'Optional curriculum item should exist (second lesson available)'
+        )
+        assert optional_curriculum[0]['data']['lesson_id'] == lesson2.id, (
+            'Optional curriculum should be the second lesson, not a duplicate of required'
+        )
+
+    def test_optional_curriculum_after_done_today_returns_next(self, db_session):
+        """When L1 is done today, optional curriculum should offer L2.
+
+        Required shows L1 as done_today (id=curriculum:lesson:L1).
+        Optional should resolve to L2 (next on the spine) with exclude_lesson_ids
+        ensuring L1 is skipped even though done_today path already filters it out
+        via LessonProgress. This test verifies the happy path remains correct.
+        """
+        level = _make_level(db_session, order=6)
+        module = _make_module(db_session, level)
+        lesson1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        lesson2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson1)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        required_curriculum = [it for it in plan['required'] if it['kind'] == 'curriculum']
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == lesson1.id
+        assert required_curriculum[0]['completed'] is True
+        assert len(optional_curriculum) == 1, (
+            'Optional curriculum should offer the next lesson after the one done today'
+        )
+        assert optional_curriculum[0]['data']['lesson_id'] == lesson2.id
+
+    def test_single_remaining_lesson_no_phantom_optional_curriculum(
+        self, db_session,
+    ):
+        """When only one lesson exists and it is done, optional has no curriculum.
+
+        Required shows the done lesson; optional curriculum builder finds no next
+        lesson after it (find_next_lesson_linear returns None) and returns None.
+        No phantom item should appear.
+        """
+        level = _make_level(db_session, order=7)
+        module = _make_module(db_session, level)
+        lesson1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson1)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        assert optional_curriculum == [], (
+            'No optional curriculum when only one lesson exists and it is done'
+        )
+
+    def test_optional_curriculum_ids_distinct_from_required(self, db_session):
+        """General invariant: no curriculum id appears in both required and optional."""
+        level = _make_level(db_session, order=8)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        _make_lesson(db_session, module, number=3, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        required_curriculum_ids = {
+            it['id'] for it in plan['required'] if it['kind'] == 'curriculum'
+        }
+        optional_curriculum_ids = {
+            it['id'] for it in plan['optional'] if it['kind'] == 'curriculum'
+        }
+        assert required_curriculum_ids.isdisjoint(optional_curriculum_ids), (
+            'Curriculum item id must not appear in both required and optional'
+        )
+
+
 # ── Payload contract ─────────────────────────────────────────────────
 
 
