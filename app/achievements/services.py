@@ -356,6 +356,44 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_book_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award book-reading achievements.
+
+        Codes must match seed.py: first_book, books_5, books_10, chapter_marathon.
+        chapter_marathon: awarded when total_chapters_read >= 50.
+        """
+        newly_awarded = []
+
+        book_achievements = [
+            ('first_book', stats.total_books_completed, 1),
+            ('books_5', stats.total_books_completed, 5),
+            ('books_10', stats.total_books_completed, 10),
+            ('chapter_marathon', stats.total_chapters_read, 50),
+        ]
+
+        for achievement_code, current_value, required_count in book_achievements:
+            if current_value >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send book achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
     def check_mission_achievements(
         user_id: int,
         mission_type: str,
@@ -623,12 +661,14 @@ class AchievementService:
         grade_achievements = AchievementService.check_grade_achievements(user_id, stats)
         streak_achievements = AchievementService.check_streak_achievements(user_id, stats)
         lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats)
+        book_achievements = AchievementService.check_book_achievements(user_id, stats)
 
-        all_new = grade_achievements + streak_achievements + lesson_achievements
+        all_new = grade_achievements + streak_achievements + lesson_achievements + book_achievements
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
             'lessons': lesson_achievements,
+            'books': book_achievements,
             'all': all_new,
         }
 

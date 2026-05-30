@@ -1026,6 +1026,39 @@ def save_reading_position():
                 current_user.id, book_id, exc_info=True,
             )
 
+    # Update book reading counters on UserStatistics (flush only — committed below).
+    if chapter_completed:
+        try:
+            from app.achievements.services import StatisticsService
+            from app.books.models import UserChapterProgress as _UCP
+            _stats = StatisticsService.get_or_create_statistics(current_user.id)
+            _stats.total_chapters_read = (_stats.total_chapters_read or 0) + 1
+
+            # Detect full book completion: all chapters must have offset_pct == 1.0.
+            total_chs = (
+                db.session.query(func.count(Chapter.id))
+                .filter(Chapter.book_id == book_id)
+                .scalar() or 0
+            )
+            completed_chs = (
+                db.session.query(func.count(_UCP.chapter_id))
+                .join(Chapter, Chapter.id == _UCP.chapter_id)
+                .filter(
+                    _UCP.user_id == current_user.id,
+                    Chapter.book_id == book_id,
+                    _UCP.offset_pct >= 1.0,
+                )
+                .scalar() or 0
+            )
+            if total_chs > 0 and completed_chs >= total_chs:
+                _stats.total_books_completed = (_stats.total_books_completed or 0) + 1
+            db.session.flush()
+        except Exception:
+            logger.warning(
+                "book stats update failed user=%s book=%s",
+                current_user.id, book_id, exc_info=True,
+            )
+
     db.session.commit()
 
     if chapter_completed:
@@ -1042,6 +1075,18 @@ def save_reading_position():
             'total_xp': total_xp,
             'level': level_info.current_level,
         })
+
+    # Book achievements — best-effort, fired after the outer commit.
+    if chapter_completed:
+        try:
+            from app.achievements.services import AchievementService, StatisticsService
+            _stats = StatisticsService.get_or_create_statistics(current_user.id)
+            AchievementService.check_book_achievements(current_user.id, _stats)
+        except Exception:
+            logger.warning(
+                "book achievement check failed user=%s book=%s",
+                current_user.id, book_id, exc_info=True,
+            )
 
     return jsonify(response_data)
 
