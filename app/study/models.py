@@ -582,14 +582,9 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         """Check if this direction is due for review"""
         if not self.next_review:
             return True
-            
-        # Ensure next_review is timezone-aware
-        if self.next_review.tzinfo is None:
-            next_review_aware = self.next_review.replace(tzinfo=timezone.utc)
-        else:
-            next_review_aware = self.next_review
-            
-        return datetime.now(timezone.utc) >= next_review_aware
+        now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+        next_naive = self.next_review.replace(tzinfo=None) if self.next_review.tzinfo else self.next_review
+        return now_naive >= next_naive
 
     @property
     def days_until_review(self):

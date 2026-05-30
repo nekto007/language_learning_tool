@@ -332,7 +332,7 @@ class SRSService:
             forward = UserCardDirection(
                 user_word_id=user_word_id,
                 direction='eng-rus',
-                next_review=datetime.now(timezone.utc)
+                next_review=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.session.add(forward)
 
@@ -346,7 +346,7 @@ class SRSService:
             backward = UserCardDirection(
                 user_word_id=user_word_id,
                 direction='rus-eng',
-                next_review=datetime.now(timezone.utc)
+                next_review=datetime.now(timezone.utc).replace(tzinfo=None)
             )
             db.session.add(backward)
 

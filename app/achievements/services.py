@@ -467,8 +467,8 @@ class AchievementService:
                         logger.exception("Failed to send level achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=False)
 
         return newly_awarded
 
@@ -517,8 +517,8 @@ class AchievementService:
                         )
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=False)
 
         return newly_awarded
 
@@ -1066,6 +1066,9 @@ class AchievementService:
                    + words_achievements + matching_achievements
                    + quiz_achievements + perfect_quiz_achievements
                    + perfect_session_achievements)
+        if all_new:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
