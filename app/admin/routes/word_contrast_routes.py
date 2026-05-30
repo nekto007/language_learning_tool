@@ -21,6 +21,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 
 from app.admin.utils.decorators import admin_audit_required, admin_required
+from app.admin.utils.request_validators import escape_like
 from app.utils.db import db
 from app.words.models import CollectionWords, WordContrast
 
@@ -64,7 +65,7 @@ def word_contrast_index():
     if search:
         # Filter by either side of the pair: an admin searching "much" wants
         # the much/many row whether much sits in word_a or word_b.
-        like = f'%{search.lower()}%'
+        like = f'%{escape_like(search.lower())}%'
         word_ids = [
             row[0] for row in db.session.query(CollectionWords.id).filter(
                 func.lower(CollectionWords.english_word).like(like),

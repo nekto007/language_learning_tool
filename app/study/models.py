@@ -311,7 +311,7 @@ class UserWord(db.Model):
         """Update the status of the user word (legacy method, prefer recalculate_status)"""
         self.status = new_status
         self.updated_at = datetime.now(timezone.utc)
-        db.session.commit()
+        db.session.flush()
 
     @hybrid_property
     def performance_percentage(self):

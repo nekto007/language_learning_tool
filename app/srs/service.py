@@ -544,7 +544,6 @@ class UnifiedSRSService:
 
         except Exception as e:
             logger.error(f"Error grading card {card_id}: {e}", exc_info=True)
-            db.session.rollback()
             return {'success': False, 'error': 'SRS update failed'}
 
     def _update_user_word_status(self, card: UserCardDirection) -> None:
@@ -700,7 +699,6 @@ class UnifiedSRSService:
 
         except Exception as e:
             logger.error(f"Error grading grammar exercise {exercise_id}: {e}", exc_info=True)
-            db.session.rollback()
             return {'success': False, 'error': 'Grammar SRS update failed'}
 
     def get_due_grammar_exercises(
@@ -728,7 +726,7 @@ class UnifiedSRSService:
         Returns:
             List of UserGrammarExercise objects
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         result = []
 
         def base_query():
@@ -863,7 +861,7 @@ class UnifiedSRSService:
         for exercise in exercises:
             exercise.session_attempts = 0
 
-        db.session.commit()
+        db.session.flush()
 
         return len(exercises)
 
@@ -960,7 +958,7 @@ class UnifiedSRSService:
         Args:
             exclude_card_ids: List of card IDs to exclude (for anti-repeat)
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         result = []
 
         # Base query builder with buried filter and anti-repeat
@@ -1212,7 +1210,7 @@ class UnifiedSRSService:
         for card in cards:
             card.session_attempts = 0
 
-        db.session.commit()
+        db.session.flush()
 
         return len(cards)
 

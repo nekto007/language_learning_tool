@@ -580,7 +580,7 @@ class SRSService:
                         'word': word
                     })
 
-        db.session.commit()
+        db.session.flush()
         return items
 
     @staticmethod
