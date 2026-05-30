@@ -2413,8 +2413,8 @@ def daily_plan_next_step() -> tuple:
 
     if daily_plan.get('phases'):
         return _next_step_from_mission(daily_plan, daily_summary)
-    if daily_plan.get('mode') == 'linear':
-        return _next_step_from_linear(daily_plan, daily_summary)
+    if daily_plan.get('mode') == 'unified':
+        return _next_step_from_unified(daily_plan, daily_summary)
 
     return _next_step_from_legacy(daily_plan, daily_summary)
 
@@ -2459,102 +2459,68 @@ def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
     }), 200
 
 
-def _next_step_from_linear(plan: dict, daily_summary: dict) -> tuple:
-    """Deprecated: linear plan has been removed. Kept as no-op shim for callers."""
+def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
+    """Return next incomplete step from the unified daily plan.
+
+    Iterates required then optional in order; the first item whose id is not
+    marked done by plan_completion or item.completed is returned as the next
+    step.  When everything is done returns has_next=False with fallback_url so
+    the frontend can redirect to the dashboard.
+    """
     from app.achievements.streak_service import compute_plan_steps
 
     plan_completion, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
-    # Iterate the full chain (baseline + extensions). Baseline slots can be
-    # marked done via summary activity (e.g. SRS reviews recorded by the
-    # /study path that doesn't fire ``linear_srs_global`` XP) even when
-    # ``slot.completed`` is False — merge plan_completion for the baseline
-    # portion so the dashboard CTA does not bounce the user back to a slot
-    # the rest of the linear-plan flow already treats as complete. Extension
-    # slots are kind-deduped per chain build, so ``slot.completed`` is
-    # authoritative there.
-    baseline_slots = plan.get('baseline_slots') or []
-    chain_slots = plan.get('slots') or baseline_slots
-    chain_meta = plan.get('chain_meta') or {}
-    baseline_count = int(chain_meta.get('baseline_count') or len(baseline_slots))
-    slot_icons = {
+
+    KIND_ICONS: dict[str, str] = {
         'curriculum': '\U0001f3af',
         'srs': '\U0001f4d6',
         'reading': '\U0001f4d5',
+        'listening': '\U0001f3a7',
+        'speaking': '\U0001f399',
+        'writing': '\u270d',
         'error_review': '\U0001f50d',
+        'challenge': '\U0001f3c6',
+        'grammar_review': '\U0001f9e0',
     }
-    def _slot_effectively_done(idx: int, slot: dict) -> bool:
+
+    required = plan.get('required') or []
+    optional = plan.get('optional') or []
+
+    def _is_done(item: dict) -> bool:
+        item_id = item.get('id', '')
         return (
-            slot.get('completed', False)
-            or (idx < baseline_count and plan_completion.get(slot.get('kind', ''), False))
+            plan_completion.get(item_id, False)
+            or bool(item.get('completed', False))
+            or bool(item.get('skipped', False))
         )
-    next_slot = next(
+
+    next_item = next(
         (
-            slot for idx, slot in enumerate(chain_slots)
-            if not _slot_effectively_done(idx, slot)
-            and not slot.get('skipped')
-            and not slot.get('blocked')
+            item for item in (required + optional)
+            if not _is_done(item)
+            and not item.get('blocked', False)
+            and item.get('url')
         ),
         None,
     )
-    if next_slot is None:
-        next_slot = next(
-            (
-                slot for idx, slot in enumerate(chain_slots)
-                if not _slot_effectively_done(idx, slot)
-                and slot.get('skipped')
-                and not slot.get('blocked')
-            ),
-            None,
-        )
-    if next_slot and next_slot.get('url'):
-        kind = next_slot.get('kind', '')
-        return jsonify({
-            'has_next': True,
-            'step_type': kind,
-            'step_title': next_slot.get('title') or 'Следующий слот',
-            'step_url': next_slot['url'],
-            'step_icon': slot_icons.get(kind, '\U0001f4cc'),
-            'steps_done': steps_done,
-            'steps_total': steps_total,
-        }), 200
 
-    if any(
-        not _slot_effectively_done(idx, slot)
-        and (slot.get('skipped') or slot.get('blocked'))
-        for idx, slot in enumerate(chain_slots)
-    ):
+    if next_item is None:
         return jsonify({
             'has_next': False,
+            'all_done': True,
             'steps_done': steps_done,
             'steps_total': steps_total,
+            'fallback_url': url_for('words.dashboard'),
+            'continue_study_url': '/study?source=free_practice',
         }), 200
 
-    continuation = plan.get('continuation') or {}
-    next_lessons = continuation.get('next_lessons') or []
-    if next_lessons:
-        next_lesson = next_lessons[0] or {}
-        if next_lesson.get('lesson_id'):
-            module_number = next_lesson.get('module_number')
-            lesson_number = next_lesson.get('lesson_number')
-            title = 'Следующий урок'
-            if module_number and lesson_number:
-                title = f'Модуль {module_number} · Урок {lesson_number}'
-            return jsonify({
-                'has_next': True,
-                'step_type': 'curriculum',
-                'step_title': title,
-                'step_url': (
-                    url_for('curriculum_lessons.lesson_detail', lesson_id=next_lesson['lesson_id'])
-                    + '?from=linear_plan_continuation'
-                ),
-                'step_icon': slot_icons['curriculum'],
-                'steps_done': steps_done,
-                'steps_total': steps_total,
-            }), 200
-
+    kind = next_item.get('kind', '')
     return jsonify({
-        'has_next': False,
-        'all_done': True,
+        'has_next': True,
+        'step_type': kind,
+        'step_title': next_item.get('title') or 'Следующий шаг',
+        'step_url': next_item['url'],
+        'step_icon': KIND_ICONS.get(kind, '\U0001f4cc'),
         'steps_done': steps_done,
         'steps_total': steps_total,
     }), 200
@@ -2678,91 +2644,18 @@ def _phase_url(phase: dict, plan: dict) -> str:
 
 
 def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:
-    """Return next incomplete step from legacy flat plan."""
-    plan_completion = {
-        'lesson': daily_summary['lessons_count'] > 0,
-        'grammar': daily_summary['grammar_exercises'] > 0,
-        'words': (daily_summary.get('words_reviewed', 0) > 0
-                  or daily_summary.get('srs_words_reviewed', 0) > 0),
-        'books': len(daily_summary.get('books_read', [])) > 0,
-    }
+    """No-op shim: mission and linear modes have been removed.
 
-    steps: list[dict] = []
-
-    if daily_plan.get('next_lesson'):
-        lesson = daily_plan['next_lesson']
-        steps.append({
-            'type': 'lesson',
-            'title': f"\u041c\u043e\u0434\u0443\u043b\u044c {lesson['module_number']} \u2014 {lesson['title']}",
-            'url': url_for('curriculum_lessons.lesson_detail',
-                           lesson_id=lesson['lesson_id']) + '?from=daily_plan',
-            'icon': '\U0001f3af',
-            'done': plan_completion['lesson'],
-        })
-
-    if daily_plan.get('grammar_topic'):
-        gt = daily_plan['grammar_topic']
-        # topic_detail is slug-based; fall back to the legacy id-based
-        # endpoint when slug isn't on the plan payload — it 301-redirects.
-        gt_slug = gt.get('slug')
-        if gt_slug:
-            grammar_url = url_for('grammar_lab.topic_detail', slug=gt_slug)
-        else:
-            grammar_url = url_for('grammar_lab.topic_detail_legacy', topic_id=gt['topic_id'])
-        steps.append({
-            'type': 'grammar',
-            'title': f"Grammar Lab \u2014 {gt['title']}",
-            'url': grammar_url + '?from=daily_plan',
-            'icon': '\U0001f9e0',
-            'done': plan_completion['grammar'],
-        })
-
-    if daily_plan.get('words_due', 0) > 0 or daily_plan.get('has_any_words'):
-        cards_url = url_for('study.cards')
-        if current_user.default_study_deck_id:
-            cards_url = url_for('study.cards_deck',
-                                deck_id=current_user.default_study_deck_id)
-        steps.append({
-            'type': 'words',
-            'title': f"{daily_plan.get('words_due', 0)} \u0441\u043b\u043e\u0432 \u043d\u0430 \u043f\u043e\u0432\u0442\u043e\u0440",
-            'url': cards_url + '?from=daily_plan',
-            'icon': '\U0001f4d6',
-            'done': plan_completion['words'],
-        })
-
-    if daily_plan.get('book_to_read'):
-        book = daily_plan['book_to_read']
-        steps.append({
-            'type': 'books',
-            'title': book['title'],
-            'url': url_for('books.read_book_chapters',
-                           book_id=book['id']) + '?from=daily_plan',
-            'icon': '\U0001f4d5',
-            'done': plan_completion['books'],
-        })
-
-    steps_done = sum(1 for s in steps if s['done'])
-    steps_total = len(steps)
-
-    next_step = next((s for s in steps if not s['done']), None)
-
-    if not next_step:
-        return jsonify({
-            'has_next': False,
-            'all_done': True,
-            'steps_done': steps_done,
-            'steps_total': steps_total,
-        })
-
+    The dispatcher only reaches this branch for unrecognised plan modes.
+    Return all_done so the frontend always gets a valid response shape.
+    """
     return jsonify({
-        'has_next': True,
-        'step_type': next_step['type'],
-        'step_title': next_step['title'],
-        'step_url': next_step['url'],
-        'step_icon': next_step['icon'],
-        'steps_done': steps_done,
-        'steps_total': steps_total,
-    })
+        'has_next': False,
+        'all_done': True,
+        'steps_done': 0,
+        'steps_total': 0,
+        'fallback_url': url_for('words.dashboard'),
+    }), 200
 
 
 @words.route('/api/weekly-report/dismiss', methods=['POST'])
