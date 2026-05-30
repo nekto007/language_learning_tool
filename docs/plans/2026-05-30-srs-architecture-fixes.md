@@ -224,10 +224,10 @@ and is not part of this plan.
 - Modify: `app/curriculum/services/book_srs_integration.py` (~line 471)
 - Modify: `tests/` — broad coverage
 
-- [ ] Treat as a high-risk migration. Recommendation: do NOT replace `update_after_review` calls outright. Instead refactor `update_after_review` to delegate to `UnifiedSRSService.calculate_sm2_update` internally so both surfaces share one SM-2 engine
-- [ ] Keep `update_after_review` as a thin wrapper that also updates `UserWord` aggregate counters (those are not part of canonical `grade_card`)
-- [ ] Write tests: parameterised grading scenarios (NEW+KNOW, LEARNING+DONT_KNOW, REVIEW+KNOW, RELEARNING+DONT_KNOW, leech threshold) — verify legacy and canonical produce identical SM-2 fields
-- [ ] Run full `pytest` — must pass before task 13
+- [x] Treat as a high-risk migration. Recommendation: do NOT replace `update_after_review` calls outright. Instead refactor `update_after_review` to delegate to `UnifiedSRSService.calculate_sm2_update` internally so both surfaces share one SM-2 engine
+- [x] Keep `update_after_review` as a thin wrapper that also updates `UserWord` aggregate counters (those are not part of canonical `grade_card`)
+- [x] Write tests: parameterised grading scenarios (NEW+KNOW, LEARNING+DONT_KNOW, REVIEW+KNOW, RELEARNING+DONT_KNOW, leech threshold) — verify legacy and canonical produce identical SM-2 fields
+- [x] Run full `pytest` — must pass before task 13
 
 ### Task 13: Verify acceptance criteria
 
