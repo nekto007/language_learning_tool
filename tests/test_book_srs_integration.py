@@ -344,7 +344,10 @@ class TestProcessCardGrade:
         assert result['success'] is True
         assert result['card_id'] == 1
         mock_card.update_after_review.assert_called_once_with(4)
-        mock_session.commit.assert_called_once()
+        # Per Task 9 (remove internal commits, callers commit) the
+        # helper flushes only — caller is responsible for committing.
+        mock_session.flush.assert_called()
+        mock_session.commit.assert_not_called()
 
     @patch('app.curriculum.services.book_srs_integration.UserCardDirection')
     def test_rejects_unauthorized_access(self, mock_card_model, integration):
@@ -397,7 +400,9 @@ class TestCompleteSRSSession:
 
         assert result is True
         mock_session.add.assert_called_once()
-        mock_session.commit.assert_called_once()
+        # Per Task 9 the helper flushes only — caller commits.
+        mock_session.flush.assert_called()
+        mock_session.commit.assert_not_called()
 
     @patch('app.curriculum.services.book_srs_integration.db.session')
     @patch('app.curriculum.services.book_srs_integration.LessonCompletionEvent')
@@ -426,7 +431,9 @@ class TestAutoCreateSRSCards:
         result = integration.auto_create_srs_cards_from_vocabulary_lesson(1, daily_lesson)
 
         assert result is True
-        mock_session.commit.assert_called_once()
+        # Per Task 9 the helper flushes only — caller commits.
+        mock_session.flush.assert_called()
+        mock_session.commit.assert_not_called()
 
     def test_skips_non_vocabulary_lessons(self, integration, daily_lesson):
         """Test skipping non-vocabulary lessons"""
