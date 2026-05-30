@@ -316,6 +316,46 @@ class AchievementService:
         return newly_awarded
 
     @staticmethod
+    def check_lesson_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+        """Check and award lesson-count-based achievements.
+
+        Codes must match seed.py: first_lesson, lessons_5, lessons_10,
+        lessons_25, lessons_50, lessons_100.
+        """
+        newly_awarded = []
+
+        lesson_achievements = [
+            ('first_lesson', 1),
+            ('lessons_5', 5),
+            ('lessons_10', 10),
+            ('lessons_25', 25),
+            ('lessons_50', 50),
+            ('lessons_100', 100),
+        ]
+
+        for achievement_code, required_count in lesson_achievements:
+            if stats.total_lessons_completed >= required_count:
+                achievement = Achievement.query.filter_by(code=achievement_code).first()
+                if not achievement:
+                    continue
+
+                _, is_new = grant_achievement(user_id, achievement.id)
+                if is_new:
+                    newly_awarded.append(achievement)
+
+                    try:
+                        from app.notifications.services import notify_achievement
+                        notify_achievement(user_id, achievement.name, achievement.icon)
+                    except Exception as e:
+                        logger.exception("Failed to send lesson achievement notification for user %s: %s", user_id, e)
+
+        if newly_awarded:
+            db.session.commit()
+            StatisticsService.update_badge_stats(user_id)
+
+        return newly_awarded
+
+    @staticmethod
     def check_mission_achievements(
         user_id: int,
         mission_type: str,
@@ -582,11 +622,14 @@ class AchievementService:
 
         grade_achievements = AchievementService.check_grade_achievements(user_id, stats)
         streak_achievements = AchievementService.check_streak_achievements(user_id, stats)
+        lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats)
 
+        all_new = grade_achievements + streak_achievements + lesson_achievements
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
-            'all': grade_achievements + streak_achievements
+            'lessons': lesson_achievements,
+            'all': all_new,
         }
 
 
