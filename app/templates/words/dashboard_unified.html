@@ -101,16 +101,10 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
             </div>
           {% endfor %}
         </div>
-        {% set next_achievements = [] %}
-        {% for category, items in achievements_by_category.by_category.items() %}
-          {% for item in items if not item.earned %}
-            {% if next_achievements.append(item) %}{% endif %}
-          {% endfor %}
-        {% endfor %}
-        {% if next_achievements %}
+        {% if achievements_by_category.next_goals %}
         <div class="dash-achievements__next">
           <h4 class="dash-achievements__next-title">Следующие цели</h4>
-          {% for item in next_achievements[:4] %}
+          {% for item in achievements_by_category.next_goals[:4] %}
             {% set ach = item.achievement %}
             {% set ach_desc = ach.description or 'Описание пока не добавлено' %}
             <div class="dash-achievements__goal"

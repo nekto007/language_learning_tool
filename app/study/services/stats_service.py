@@ -559,9 +559,19 @@ class StatsService:
             for cat in achievements_by_category
         }
 
+        next_goals = sorted(
+            [
+                {'achievement': ach, 'earned': False, 'earned_at': None}
+                for ach in all_achievements
+                if ach.id not in earned_ids
+            ],
+            key=lambda x: (x['achievement'].xp_reward or 0, x['achievement'].code),
+        )
+
         return {
             'by_category': achievements_by_category,
             'category_labels': category_labels,
+            'next_goals': next_goals,
             'total_achievements': total_achievements,
             'earned_count': earned_count,
             'progress_percentage': round(earned_count / total_achievements * 100) if total_achievements > 0 else 0,

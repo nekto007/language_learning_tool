@@ -83,3 +83,56 @@ class TestGetAchievementsByCategoryLabels:
         result = StatsService.get_achievements_by_category(user.id)
         assert 'category_labels' in result
         assert result['category_labels'].get('streak') == 'Серии'
+
+
+class TestNextGoals:
+    def test_next_goals_key_present(self, db_session):
+        user = _make_user(db_session)
+        _make_achievement(db_session, f"ng_{uuid.uuid4().hex[:6]}", "streak", xp=10)
+        result = StatsService.get_achievements_by_category(user.id)
+        assert 'next_goals' in result
+
+    def test_earned_achievements_excluded_from_next_goals(self, db_session):
+        user = _make_user(db_session)
+        earned = _make_achievement(db_session, f"ng_e_{uuid.uuid4().hex[:6]}", "streak", xp=10)
+        unearned = _make_achievement(db_session, f"ng_u_{uuid.uuid4().hex[:6]}", "lessons", xp=20)
+        ua = UserAchievement(user_id=user.id, achievement_id=earned.id)
+        db_session.add(ua)
+        db_session.flush()
+        result = StatsService.get_achievements_by_category(user.id)
+        goal_codes = [g['achievement'].code for g in result['next_goals']]
+        assert earned.code not in goal_codes
+        assert unearned.code in goal_codes
+
+    def test_next_goals_sorted_by_xp_reward_ascending(self, db_session):
+        user = _make_user(db_session)
+        ach_high = _make_achievement(db_session, f"ng_h_{uuid.uuid4().hex[:6]}", "lessons", xp=100)
+        ach_low = _make_achievement(db_session, f"ng_l_{uuid.uuid4().hex[:6]}", "streak", xp=10)
+        ach_mid = _make_achievement(db_session, f"ng_m_{uuid.uuid4().hex[:6]}", "quiz", xp=50)
+        result = StatsService.get_achievements_by_category(user.id)
+        # Filter to just the ones we created (other tests may have created achievements)
+        our_codes = {ach_high.code, ach_low.code, ach_mid.code}
+        our_goals = [g for g in result['next_goals'] if g['achievement'].code in our_codes]
+        xp_values = [g['achievement'].xp_reward for g in our_goals]
+        assert xp_values == sorted(xp_values)
+
+    def test_next_goals_deterministic_within_same_xp(self, db_session):
+        user = _make_user(db_session)
+        ach_z = _make_achievement(db_session, f"zzz_{uuid.uuid4().hex[:6]}", "streak", xp=10)
+        ach_a = _make_achievement(db_session, f"aaa_{uuid.uuid4().hex[:6]}", "streak", xp=10)
+        result = StatsService.get_achievements_by_category(user.id)
+        our_codes = {ach_z.code, ach_a.code}
+        our_goals = [g for g in result['next_goals'] if g['achievement'].code in our_codes]
+        codes = [g['achievement'].code for g in our_goals]
+        assert codes == sorted(codes)
+
+    def test_all_earned_returns_empty_next_goals(self, db_session):
+        user = _make_user(db_session)
+        ach = _make_achievement(db_session, f"ng_all_{uuid.uuid4().hex[:6]}", "streak", xp=10)
+        ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
+        db_session.add(ua)
+        db_session.flush()
+        result = StatsService.get_achievements_by_category(user.id)
+        # next_goals should not contain the earned one; may contain others from the DB
+        goal_codes = [g['achievement'].code for g in result['next_goals']]
+        assert ach.code not in goal_codes
