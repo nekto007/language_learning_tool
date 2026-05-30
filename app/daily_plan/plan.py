@@ -23,6 +23,7 @@ from app.daily_plan.items import PlanItem
 from app.daily_plan.items.challenge import build_challenge_item
 from app.daily_plan.items.curriculum import build_curriculum_item, has_completed_history
 from app.daily_plan.items.error_review import build_error_review_item, determine_section
+from app.daily_plan.items.grammar_review import build_grammar_review_item
 from app.daily_plan.items.reading import build_reading_item, get_user_reading_preference
 from app.daily_plan.items.setup import (
     book_selected_today,
@@ -118,6 +119,7 @@ _OPTIONAL_PRIORITY = (
     'speaking',
     'writing',
     'error_review',
+    'grammar_review',
     'challenge',
 )
 
@@ -207,6 +209,7 @@ def build_optional(
     *,
     required_items: list[PlanItem],
     focus: Optional[str],
+    graduated: bool = False,
     max_items: int = OPTIONAL_MAX,
 ) -> tuple[list[PlanItem], bool]:
     """Return (optional_items, has_more) capped at ``max_items``.
@@ -249,6 +252,7 @@ def build_optional(
         candidate = _build_optional_candidate(
             user_id, db, kind, focus,
             exclude_curriculum_ids=exclude_curriculum_ids,
+            graduated=graduated,
         )
         if candidate is None:
             builders_exhausted[kind] = True
@@ -274,6 +278,7 @@ def _build_optional_candidate(
     kind: str,
     focus: Optional[str],
     exclude_curriculum_ids: Optional[set[int]] = None,
+    graduated: bool = False,
 ) -> Optional[PlanItem]:
     if kind == 'curriculum':
         return build_curriculum_item(
@@ -281,9 +286,16 @@ def _build_optional_candidate(
             exclude_lesson_ids=exclude_curriculum_ids,
         )
     if kind == 'srs':
-        return build_srs_item(user_id, db, section='optional')
+        return build_srs_item(
+            user_id, db, section='optional',
+            ignore_daily_budget=graduated,
+        )
     if kind == 'reading':
-        return build_reading_item(user_id, db, section='optional', focus=focus)
+        return build_reading_item(
+            user_id, db, section='optional',
+            focus=focus,
+            graduated=graduated,
+        )
     if kind == 'listening':
         return build_listening_item(user_id, db, section='optional')
     if kind == 'speaking':
@@ -295,6 +307,8 @@ def _build_optional_candidate(
         if section != 'optional':
             return None
         return build_error_review_item(user_id, db, section='optional')
+    if kind == 'grammar_review':
+        return build_grammar_review_item(user_id, db, section='optional')
     if kind == 'challenge':
         return build_challenge_item(user_id, db)
     return None
@@ -354,9 +368,13 @@ def get_daily_plan(
     difficulty = _get_plan_difficulty(user_id, session)
     module_progress = _compute_module_progress(user_id, session, next_lesson)
 
+    # Graduated state: no more curriculum lessons but user has completed history.
+    # Force optional to include SRS/reading/grammar_review even if daily caps reached.
+    graduated = next_lesson is None and has_completed_history(user_id, session)
+
     required = build_required(user_id, session, difficulty=difficulty, focus=focus)
     optional, has_more_optional = build_optional(
-        user_id, session, required_items=required, focus=focus
+        user_id, session, required_items=required, focus=focus, graduated=graduated,
     )
     setup = build_setup(user_id, session)
 
@@ -406,6 +424,7 @@ def get_daily_plan(
         'total_estimated_minutes': total_estimated_minutes,
         'plan_intensity': get_plan_intensity(total_estimated_minutes),
         'has_more_optional': has_more_optional,
+        'graduated': graduated,
     }
 
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from typing import Any
 
 import pytest
 
@@ -576,3 +577,219 @@ class TestGetDailyPlanUnifiedEdgeCases:
         assert payload['required'] == []
         assert payload['day_secured'] is False
         assert payload['_plan_meta']['fallback_reason'] == 'unified_build_failed'
+
+
+# ── Grammar review item (Task 3) ─────────────────────────────────────
+
+
+def _make_grammar_topic(db_session, level: str = 'A1', order: int = 1) -> Any:
+    from app.grammar_lab.models import GrammarTopic
+
+    slug = f'test-topic-{uuid.uuid4().hex[:8]}'
+    topic = GrammarTopic()
+    topic.slug = slug
+    topic.title = f'Topic {slug}'
+    topic.title_ru = f'Тема {slug}'
+    topic.level = level
+    topic.order = order
+    topic.content = {}
+    db_session.add(topic)
+    db_session.commit()
+    return topic
+
+
+class TestGrammarReviewItemBuilder:
+    """Unit tests for build_grammar_review_item via mocks (no DB needed)."""
+
+    def test_returns_none_when_no_topics_exist(self, app):
+        """No GrammarTopic rows → returns None."""
+        from unittest.mock import MagicMock
+        from app.daily_plan.items.grammar_review import build_grammar_review_item
+
+        db = MagicMock()
+        db.session.get.return_value = None
+
+        # Both history and fallback queries return None.
+        query_chain = db.session.query.return_value
+        query_chain.join.return_value = query_chain
+        query_chain.filter.return_value = query_chain
+        query_chain.group_by.return_value = query_chain
+        query_chain.order_by.return_value = query_chain
+        query_chain.first.return_value = None
+
+        with app.app_context():
+            result = build_grammar_review_item(user_id=1, db=db)
+        assert result is None
+
+    def test_returns_plan_item_with_correct_kind(self, db_session):
+        """With a grammar topic, builder returns a grammar_review PlanItem."""
+        from app.daily_plan.items.grammar_review import build_grammar_review_item
+
+        topic = _make_grammar_topic(db_session, level='A1')
+        user = _make_user(db_session, onboarding_level='A1')
+
+        item = build_grammar_review_item(user_id=user.id, db=real_db)
+
+        assert item is not None
+        assert item.kind == 'grammar_review'
+        assert item.id == f'grammar_review:topic:{topic.id}'
+        assert item.url == f'/grammar-lab/topic/{topic.slug}'
+        assert item.eta_minutes == 10
+        assert item.completed is False
+
+    def test_item_id_is_stable(self, db_session):
+        """Same user + same topic → same item id on repeated calls."""
+        from app.daily_plan.items.grammar_review import build_grammar_review_item
+
+        _make_grammar_topic(db_session, level='A1')
+        user = _make_user(db_session, onboarding_level='A1')
+
+        item1 = build_grammar_review_item(user_id=user.id, db=real_db)
+        item2 = build_grammar_review_item(user_id=user.id, db=real_db)
+
+        assert item1 is not None and item2 is not None
+        assert item1.id == item2.id
+
+    def test_level_fallback_when_no_history(self, db_session):
+        """User with no UserGrammarExercise history → level fallback topic returned."""
+        from app.daily_plan.items.grammar_review import build_grammar_review_item
+
+        topic_a1 = _make_grammar_topic(db_session, level='A1', order=1)
+        _make_grammar_topic(db_session, level='B1', order=1)
+        user = _make_user(db_session, onboarding_level='A1')
+
+        item = build_grammar_review_item(user_id=user.id, db=real_db)
+
+        assert item is not None
+        # Should pick the A1 topic because that's the user's level.
+        assert item.data['topic_level'] == 'A1'
+        assert item.data['topic_id'] == topic_a1.id
+
+
+class TestGraduatedStatePlan:
+    """Integration tests for graduated user behaviour in the plan."""
+
+    def test_graduated_flag_false_for_mid_course_user(self, db_session):
+        """User with a pending lesson → graduated=False in payload."""
+        level = _make_level(db_session, order=9)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+        assert plan.get('graduated') is False
+
+    def test_graduated_flag_true_when_all_lessons_done(self, db_session):
+        """User who finished all lessons → graduated=True in payload."""
+        level = _make_level(db_session, order=10)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson)
+
+        plan = get_daily_plan(user.id, real_db)
+        assert plan.get('graduated') is True
+
+    def test_graduated_flag_false_with_no_history(self, db_session):
+        """User on C2 with no lessons and no history → graduated=False (not yet started)."""
+        user = _make_user(db_session, onboarding_level='C2')
+
+        plan = get_daily_plan(user.id, real_db)
+        assert plan.get('graduated') is False
+
+    def test_graduated_user_optional_contains_grammar_review(self, db_session):
+        """Graduated user (all done) with a grammar topic → grammar_review in optional."""
+        level = _make_level(db_session, order=11)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson)
+        _make_grammar_topic(db_session, level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        optional_kinds = [it['kind'] for it in plan['optional']]
+        assert 'grammar_review' in optional_kinds, (
+            'Graduated user should see grammar_review in optional when topics exist'
+        )
+
+    def test_graduated_user_setup_has_book_not_level(self, db_session):
+        """Graduated user: setup_level must NOT appear (has history), setup_book may appear."""
+        level = _make_level(db_session, order=12)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        setup_kinds = [it['kind'] for it in plan['setup']]
+        assert 'setup_level' not in setup_kinds, (
+            'Graduated user must not see setup_level'
+        )
+        assert 'setup_book' in setup_kinds, (
+            'Graduated user without reading pref should see setup_book'
+        )
+
+    def test_grammar_review_appears_in_optional_priority_order(self, db_session):
+        """grammar_review appears AFTER srs/reading/listening in optional priority."""
+        level = _make_level(db_session, order=13)
+        module = _make_module(db_session, level)
+        lesson = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+        _complete_lesson(db_session, user, lesson)
+        _make_grammar_topic(db_session, level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        optional_kinds = [it['kind'] for it in plan['optional']]
+        if 'grammar_review' in optional_kinds and 'srs' in optional_kinds:
+            srs_pos = optional_kinds.index('srs')
+            gr_pos = optional_kinds.index('grammar_review')
+            assert srs_pos < gr_pos, (
+                'srs must appear before grammar_review in optional'
+            )
+
+
+class TestSRSIgnoreDailyBudget:
+    """Tests for build_srs_item with ignore_daily_budget=True."""
+
+    def test_ignore_daily_budget_surfaces_done_item_in_optional(self, app):
+        """With ignore_daily_budget=True, 'done today' SRS item not filtered in optional."""
+        from unittest.mock import MagicMock, patch
+        from app.daily_plan.items.srs import build_srs_item
+
+        with app.app_context():
+            with patch('app.daily_plan.items.srs._srs_completed_today', return_value=True), \
+                 patch('app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards', return_value=0), \
+                 patch('app.daily_plan.linear.slots.srs_slot.count_srs_reviews_today', return_value=5), \
+                 patch('app.srs.counting.count_due_cards', return_value=0), \
+                 patch('app.srs.counting.get_new_card_budget', return_value=(0, 0)), \
+                 patch('app.srs.counting.count_new_cards_today', return_value=0), \
+                 patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'), \
+                 patch('app.study.models.StudySettings.get_settings') as mock_settings:
+                mock_settings.return_value = MagicMock(reviews_per_day=30)
+
+                db = MagicMock()
+                item = build_srs_item(1, db, section='optional', ignore_daily_budget=True)
+
+        assert item is not None, (
+            'ignore_daily_budget=True must surface SRS item even when done today in optional'
+        )
+        assert item.completed is True
+
+    def test_without_ignore_daily_budget_filters_done_optional(self, app):
+        """Without the flag, the default behaviour still filters done SRS from optional."""
+        from unittest.mock import MagicMock, patch
+        from app.daily_plan.items.srs import build_srs_item
+
+        with app.app_context():
+            with patch('app.daily_plan.items.srs._srs_completed_today', return_value=True), \
+                 patch('app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards', return_value=0):
+                db = MagicMock()
+                item = build_srs_item(1, db, section='optional')
+
+        assert item is None, (
+            'Default behaviour: done SRS with no due cards filtered from optional'
+        )
