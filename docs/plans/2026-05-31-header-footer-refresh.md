@@ -105,16 +105,16 @@
 - Modify: `app/templates/base.html` (markup шапки: реорганизация секций, улучшение dropdown'ов на touch, нормальный mobile-collapse).
 - Modify: `app/static/css/design-system.css` (классы `.cabinet-nav`, медиа-запросы для tablet 768–1023 — гибрид: компактные иконки вместо текста; mobile <768 — Bootstrap collapse уже работает, доработать стилизацию).
 
-- [ ] Сохранить структуру разделов (Слова, Карточки, Курсы, Грамматика, Книги — с условием has_module), но проверить, что все актуальные endpoints представлены: добавить недостающие пункты (например, Achievements, Race — если активны как модули; либо оставить только в user dropdown).
-- [ ] Quick-actions, notification bell, user dropdown — оставить, но навести порядок (иконки + tooltip-aria, не отсутствует).
-- [ ] Tablet (768–1023): сократить текстовые лейблы до иконок (CSS-only через `.d-none .d-md-inline`).
-- [ ] Mobile (<768): Bootstrap navbar collapse работает; добавить корректный фокус-стейт для hamburger.
-- [ ] Active-state для всех разделов (унифицировать через `request.endpoint` matching).
-- [ ] XP-bar — сохранить, но проверить, что не ломается на узких экранах (текущие `xp-bar__text-short`/`xp-bar__text-full` — оставить).
-- [ ] bottom-nav (mobile-only) — добавить недостающие разделы, согласовать с верхней навигацией; убедиться, что dropdown «Ещё» не перекрывает контент.
-- [ ] Footer кабинета (внутри base.html) — синхронизировать визуально с публичным footer'ом, оставить более компактным.
-- [ ] Тесты: новый `tests/smoke/test_cabinet_layout.py::test_cabinet_nav_renders_for_auth_user` — авторизованный юзер видит navbar-expand-lg и bottom-nav на dashboard.
-- [ ] `pytest -m smoke`.
+- [x] Сохранить структуру разделов (Слова, Карточки, Курсы, Грамматика, Книги — с условием has_module), но проверить, что все актуальные endpoints представлены: добавить недостающие пункты (например, Achievements, Race — если активны как модули; либо оставить только в user dropdown).
+- [x] Quick-actions, notification bell, user dropdown — оставить, но навести порядок (иконки + tooltip-aria, не отсутствует).
+- [x] Tablet (768–1023): сократить текстовые лейблы до иконок (CSS-only через `.d-none .d-md-inline`).
+- [x] Mobile (<768): Bootstrap navbar collapse работает; добавить корректный фокус-стейт для hamburger.
+- [x] Active-state для всех разделов (унифицировать через `request.endpoint` matching).
+- [x] XP-bar — сохранить, но проверить, что не ломается на узких экранах (текущие `xp-bar__text-short`/`xp-bar__text-full` — оставить).
+- [x] bottom-nav (mobile-only) — добавить недостающие разделы, согласовать с верхней навигацией; убедиться, что dropdown «Ещё» не перекрывает контент.
+- [x] Footer кабинета (внутри base.html) — синхронизировать визуально с публичным footer'ом, оставить более компактным.
+- [x] Тесты: новый `tests/smoke/test_cabinet_layout.py::test_cabinet_nav_renders_for_auth_user` — авторизованный юзер видит navbar-expand-lg и bottom-nav на dashboard.
+- [x] `pytest -m smoke`.
 
 ### Task 7: Финальная проверка приёмочных критериев
 

@@ -18492,3 +18492,109 @@ body.feedback-modal-open { overflow: hidden; }
         text-align: center;
     }
 }
+
+/* === Cabinet layout (base.html) — visual sync with public layout ===
+   Cabinet header still relies on Bootstrap navbar-expand-lg; these rules
+   tighten tablet rendering (icons-only between lg and xl breakpoints) and
+   give the cabinet footer the same 3-column grid as the public footer. */
+.cabinet-nav__label {
+    margin-left: 0.25rem;
+}
+.navbar-toggler:focus,
+.navbar-toggler:focus-visible {
+    outline: 2px solid var(--public-primary, #2563eb);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    /* Tablet/small-desktop: collapse nav text to icons only. */
+    .navbar-expand-lg .navbar-nav .cabinet-nav__label {
+        display: none;
+    }
+    .navbar-expand-lg .navbar-nav .nav-link i {
+        margin-right: 0 !important;
+        font-size: 1.05rem;
+    }
+}
+.cabinet-footer {
+    flex-shrink: 0;
+    background: var(--public-surface, #ffffff);
+    border-top: 1px solid var(--public-border, #e2e8f0);
+    color: var(--public-muted, #475569);
+    padding: 1.75rem 1rem 1rem;
+    font-size: 0.9rem;
+}
+.cabinet-footer a {
+    color: var(--public-muted, #475569);
+    text-decoration: none;
+}
+.cabinet-footer a:hover,
+.cabinet-footer a:focus-visible {
+    color: var(--public-primary-dark, #1d4ed8);
+    text-decoration: underline;
+}
+.cabinet-footer__grid {
+    width: min(1060px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem 2rem;
+}
+.cabinet-footer__col {
+    min-width: 0;
+}
+.cabinet-footer__heading {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--public-text, #0f172a);
+}
+.cabinet-footer__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.3rem;
+}
+.cabinet-footer__link {
+    color: var(--public-muted, #475569);
+    text-decoration: none;
+    font-size: 0.88rem;
+}
+.cabinet-footer__bottom {
+    width: min(1060px, 100%);
+    margin: 1.25rem auto 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--public-border, #e2e8f0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--public-muted, #475569);
+}
+.cabinet-footer__brand {
+    color: var(--public-text, #0f172a);
+    font-weight: 800;
+}
+@media (max-width: 699px) {
+    .cabinet-footer {
+        padding: 1.25rem 1rem 0.75rem;
+        text-align: center;
+    }
+    .cabinet-footer__grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .cabinet-footer__list {
+        justify-items: center;
+    }
+    .cabinet-footer__bottom {
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}
