@@ -475,6 +475,58 @@ class TestUnifiedDaySecured:
         }
         assert compute_day_secured_from_activity(plan, {}) is True
 
+    def test_unified_day_not_secured_when_required_item_skipped(self):
+        """Skipped required slots remove navigation but do not satisfy the minimum."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'required': [
+                {
+                    'id': 'curriculum:lesson:1',
+                    'kind': 'curriculum',
+                    'completed': False,
+                    'skipped': True,
+                },
+            ],
+            '_plan_meta': {'effective_mode': 'unified'},
+        }
+        assert compute_day_secured_from_activity(plan, {}) is False
+
+    def test_unified_day_not_secured_when_required_item_blocked(self):
+        """Blocked dependent required slots do not count as completed work."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'required': [
+                {
+                    'id': 'listening:lesson:2',
+                    'kind': 'listening',
+                    'completed': False,
+                    'blocked': True,
+                },
+            ],
+            '_plan_meta': {'effective_mode': 'unified'},
+        }
+        assert compute_day_secured_from_activity(plan, {}) is False
+
+    def test_unified_day_not_secured_when_only_completed_required_plus_blocked_dependency(self):
+        """A blocked required dependency still keeps the day unsecured."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'required': [
+                {'id': 'curriculum:lesson:1', 'kind': 'curriculum', 'completed': True},
+                {
+                    'id': 'listening:lesson:2',
+                    'kind': 'listening',
+                    'completed': False,
+                    'blocked': True,
+                },
+            ],
+            '_plan_meta': {'effective_mode': 'unified'},
+        }
+        assert compute_day_secured_from_activity(plan, {}) is False
+
 
 # ── get_daily_plan_unified edge cases ────────────────────────────────
 

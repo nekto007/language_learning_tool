@@ -37,6 +37,10 @@ def compute_day_secured_from_activity(
     Graduated users (all curriculum exhausted, has history): required is []
     and _plan_meta.graduated=True. Day secured only when the user has
     logged any learning activity today — keeps the streak meaningful.
+
+    Skipped or blocked required items only affect navigation. They do not
+    represent learning activity and must not satisfy the daily minimum for
+    streak/rank purposes.
     """
     plan_meta = plan.get('_plan_meta') or {}
     effective_mode = plan_meta.get('effective_mode')
@@ -60,8 +64,6 @@ def compute_day_secured_from_activity(
         return all(
             plan_completion.get(item.get('id', ''), False)
             or bool(item.get('completed'))
-            or bool(item.get('skipped'))
-            or bool(item.get('blocked'))
             for item in required
         )
     return bool(plan.get('day_secured', False))
