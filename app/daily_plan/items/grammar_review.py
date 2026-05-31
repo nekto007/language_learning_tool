@@ -66,22 +66,25 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
     from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
     from sqlalchemy import func
 
+    # Group by a scalar column only to avoid PostgreSQL full-GROUP-BY requirement.
     row = (
         db.session.query(
-            GrammarTopic,
+            GrammarExercise.topic_id,
             func.max(UserGrammarExercise.last_reviewed).label('latest_review'),
         )
-        .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
         .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
+        .join(GrammarTopic, GrammarTopic.id == GrammarExercise.topic_id)
         .filter(
             UserGrammarExercise.user_id == user_id,
             GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
         )
-        .group_by(GrammarTopic.id)
+        .group_by(GrammarExercise.topic_id)
         .order_by(func.max(UserGrammarExercise.last_reviewed).asc().nullsfirst())
         .first()
     )
-    return row[0] if row is not None else None
+    if row is None:
+        return None
+    return db.session.get(GrammarTopic, row.topic_id)
 
 
 def _level_fallback_topic(user_id: int, db: Any, GrammarTopic: Any) -> Optional[Any]:

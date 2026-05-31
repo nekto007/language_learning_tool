@@ -2477,7 +2477,6 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
             plan_completion.get(item_id, False)
             or bool(item.get('completed', False))
             or bool(item.get('skipped', False))
-            or item.get('completion_signal') == 'none'
         )
 
     next_item = next(
