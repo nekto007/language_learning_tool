@@ -2558,60 +2558,10 @@ def _resolve_hero_cta(user, mission_plan: dict | None, plan_completion: dict, da
             'url': url_for('onboarding.wizard'),
         }
 
-    if not mission_plan:
-        return {
-            'kind': 'fallback',
-            'title': 'Открыть план \u2192',
-            'url': '#dash-plan',
-        }
-
-    from app.daily_plan.service import has_extra_review_capacity
-
-    phases = mission_plan.get('phases') or []
-    required = [p for p in phases if p.get('required', True)]
-    any_done = any(plan_completion.get(p.get('id', ''), False) for p in required)
-    all_done = bool(required) and all(
-        plan_completion.get(p.get('id', ''), False) for p in required
-    )
-
-    if all_done:
-        default_deck_id = getattr(user, 'default_study_deck_id', None)
-        if has_extra_review_capacity(user.id, deck_id=default_deck_id):
-            if default_deck_id:
-                extra_url = url_for('study.cards_deck', deck_id=default_deck_id)
-            else:
-                extra_url = url_for('study.cards')
-            return {
-                'kind': 'extra',
-                'title': 'Ещё тренировка: Карточки \u2192',
-                'url': extra_url + '?from=daily_plan',
-            }
-        return {
-            'kind': 'done',
-            'title': '\U0001F3C1 План готов \u2014 до завтра!',
-            'url': None,
-        }
-
-    next_phase = resolve_next_phase(mission_plan, plan_completion)
-    if next_phase is None:
-        return {
-            'kind': 'done',
-            'title': '\U0001F3C1 План готов \u2014 до завтра!',
-            'url': None,
-        }
-
-    phase_title = next_phase.get('title') or 'Следующий этап'
-    url = _phase_url(next_phase, daily_plan)
-    if any_done:
-        return {
-            'kind': 'continue',
-            'title': f'Продолжить: {phase_title}',
-            'url': url,
-        }
     return {
-        'kind': 'start',
-        'title': f'Начать: {phase_title}',
-        'url': url,
+        'kind': 'fallback',
+        'title': 'Открыть план \u2192',
+        'url': '#dash-plan',
     }
 
 
