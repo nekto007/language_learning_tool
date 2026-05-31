@@ -452,12 +452,14 @@ class TestReadingSessionEndpoints:
         ).count()
         assert events == 0
 
-    def test_end_session_forged_delta_without_progress_no_xp(
+    def test_end_session_forged_delta_does_not_widen_session_offset(
         self, authenticated_client, db_session, test_user, test_chapter, test_book,
     ):
-        """Bypass guard: a 60s+ session whose underlying chapter progress
-        did NOT advance during the visit must not credit the slot, even if
-        the client posts a large ``offset_delta``.
+        """A client-posted ``offset_delta`` in the request body is ignored:
+        the session row's ``offset_delta`` is computed server-side from
+        ``UserChapterProgress`` snapshots. Even though a 5min session at a
+        sufficient absolute position now closes the slot on time alone,
+        the row's ``offset_delta`` field must stay at 0 (no real progress).
         """
         from app.books.models import UserChapterProgress
 
@@ -479,13 +481,9 @@ class TestReadingSessionEndpoints:
             json={'session_id': s.id, 'offset_delta': 0.2},
         )
         assert r.status_code == 200
-        assert r.get_json()['reading_slot_completed'] is False
-        events = StreakEvent.query.filter(
-            StreakEvent.user_id == test_user.id,
-            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
-            StreakEvent.details['source'].astext == 'linear_book_reading',
-        ).count()
-        assert events == 0
+        # offset_delta field on the row stays 0 — anti-forgery.
+        refetched = db.session.get(UserReadingSession, s.id)
+        assert refetched.offset_delta == pytest.approx(0.0)
 
     def test_end_session_replay_does_not_widen_offset_delta(
         self, authenticated_client, db_session, test_user, test_chapter, test_book,
@@ -493,10 +491,8 @@ class TestReadingSessionEndpoints:
         """A closed session is locked: replaying /end with the same
         ``session_id`` must NOT mutate the session's ``offset_delta`` field
         on the row itself, even when ``UserChapterProgress`` advanced after
-        the original close. (The unified daily target uses an aggregated
-        check across all sessions of the day, so once progress crosses the
-        2%-advance threshold the slot does fire — but the individual
-        session row remains locked, which is what this test guards.)
+        the original close. The slot completing on time alone is fine —
+        the row immutability guard is what this test exists to enforce.
         """
         from app.books.models import UserChapterProgress
 
@@ -508,7 +504,7 @@ class TestReadingSessionEndpoints:
         db_session.add(progress)
         db_session.commit()
 
-        # Visit A: 300s+, no scroll. Closes with offset_delta=0.
+        # Visit A: 300s+, no scroll. Closes with offset_delta=0 on the row.
         s_a = start_session(test_user.id, test_chapter.id, db)
         s_a.started_at = datetime.now(timezone.utc) - timedelta(seconds=MIN_READING_SECONDS + 30)
         db_session.commit()
@@ -517,14 +513,10 @@ class TestReadingSessionEndpoints:
             json={'session_id': s_a.id},
         )
         assert r1.status_code == 200
-        # At this point UserChapterProgress.offset_pct is still 0, so the
-        # aggregated daily-target check (offset_advance < 2%) cannot fire
-        # the slot yet.
-        assert r1.get_json()['reading_slot_completed'] is False
         s_a_refetched = db.session.get(UserReadingSession, s_a.id)
         assert s_a_refetched.offset_delta == pytest.approx(0.0)
 
-        # Progress advances past 2% (e.g. a new visit that wrote progress).
+        # Progress advances later (e.g. a new visit that wrote progress).
         progress.offset_pct = 0.5
         db_session.commit()
 
@@ -536,8 +528,7 @@ class TestReadingSessionEndpoints:
         assert r2.status_code == 200
         s_a_after = db.session.get(UserReadingSession, s_a.id)
         # The closed session's own offset_delta field stays at 0 — the
-        # replay is idempotent on the row even if the aggregated target
-        # has since been met by other progress.
+        # replay is idempotent on the row even after later progress.
         assert s_a_after.offset_delta == pytest.approx(0.0)
 
     def test_end_session_uses_client_offset_hint_when_progress_lags(
@@ -939,12 +930,15 @@ class TestDailyReadingTarget:
             ))
         db_session.commit()
 
-    def test_target_met_requires_both_time_and_offset(
+    def test_target_met_by_time_alone_without_scroll(
         self, db_session, test_user, test_chapter,
     ):
-        """Both 5min time AND 2% advance are required; meeting only one
-        is insufficient."""
-        # 5min+ time but 0% advance — not met
+        """5min of active reading time closes the slot even when the user
+        did not scroll. Common for short / one-screen chapters and for
+        readers who finish a chapter without moving past it. Engagement is
+        gated upstream by the 60s idle-pause + heartbeat, not by per-chapter
+        offset advance.
+        """
         self._set_chapter_progress(db_session, test_user, test_chapter, 0.0)
         s = start_session(test_user.id, test_chapter.id, db)
         _close_session_with_duration(s, DAILY_READING_TARGET_SECONDS + 10)
@@ -952,18 +946,12 @@ class TestDailyReadingTarget:
         state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
         assert state['active_seconds'] >= DAILY_READING_TARGET_SECONDS
         assert state['offset_advance'] == pytest.approx(0.0)
-        assert state['daily_target_met'] is False
-
-        # Now advance progress to 5% — both conditions met
-        self._set_chapter_progress(db_session, test_user, test_chapter, 0.05)
-        state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
-        assert state['offset_advance'] == pytest.approx(0.05)
         assert state['daily_target_met'] is True
 
     def test_target_only_offset_no_time(self, db_session, test_user, test_chapter):
-        """2% advance with under-5min time — not met."""
-        # Start session at offset 0, advance during session to 10%, but
-        # only 30s elapsed — time gate fails.
+        """10% advance with under-5min time — not met. Time is the
+        authoritative gate; offset advance is informational only.
+        """
         self._set_chapter_progress(db_session, test_user, test_chapter, 0.0)
         s = start_session(test_user.id, test_chapter.id, db)
         _close_session_with_duration(s, 30)

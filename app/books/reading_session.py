@@ -37,7 +37,12 @@ MIN_READING_SECONDS = 300
 # pause/resume cycles (which split a long read into many short sessions) are
 # summed honestly.
 DAILY_READING_TARGET_SECONDS = 300
-DAILY_CHAPTER_ADVANCE_MIN = 0.02
+# Per-chapter offset-advance gate for the daily reading target. Set to 0 so
+# the slot completes on time alone: idle-pause (60s no activity → no time
+# accrued) + 60s heartbeat + ``OPEN_SESSION_GRACE_SECONDS`` cap already
+# guarantee 5min means active engagement, and a chapter that fits in one
+# viewport (short chapter / large reader) needs no scrolling to be read.
+DAILY_CHAPTER_ADVANCE_MIN = 0.0
 CHAPTER_COMPLETION_THRESHOLD = 0.99
 
 # Max seconds we credit to an in-progress (still-open) session. Matches the
@@ -454,7 +459,9 @@ def compute_chapter_daily_target_state(
     - ``offset_advance`` — ``max(0, current - earliest_start)``
     - ``chapter_completed_today`` — earliest_start < threshold AND current >= threshold
     - ``daily_target_met`` — ``active_seconds >= DAILY_READING_TARGET_SECONDS``
-      AND ``offset_advance >= DAILY_CHAPTER_ADVANCE_MIN``
+      (and ``offset_advance >= DAILY_CHAPTER_ADVANCE_MIN``, which defaults
+      to 0 so time alone closes the slot; raise the constant to re-enable
+      a scroll-engagement gate)
 
     Aggregation across sessions (rather than per-session) is intentional:
     pause/resume cycles split a continuous read into many short sessions
