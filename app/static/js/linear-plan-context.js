@@ -25,7 +25,17 @@
 
   var STORAGE_KEY = 'linear_plan_context';
   var PLAN_SOURCE = 'linear_plan';
-  var VALID_SLOTS = ['curriculum', 'srs', 'book', 'error_review', 'listening', 'speaking', 'writing'];
+  // ``reading`` is the canonical slot kind (matches ``PlanItem.kind`` on the
+  // unified plan). ``book`` is the legacy alias accepted for backward compat
+  // — stored sessions and bookmarked URLs from before the rename may still
+  // carry it. See ``_LEGACY_SLOT_ALIASES`` in ``app/daily_plan/linear/lesson_context.py``.
+  var VALID_SLOTS = ['curriculum', 'srs', 'reading', 'book', 'error_review', 'listening', 'speaking', 'writing'];
+  var LEGACY_SLOT_ALIASES = { 'book': 'reading' };
+
+  function _normalizeSlotKind(kind) {
+    if (typeof kind !== 'string') return kind;
+    return LEGACY_SLOT_ALIASES[kind] || kind;
+  }
 
   function _todayIsoDate() {
     var d = new Date();
@@ -75,7 +85,7 @@
       return null;
     }
     if (params.get('from') !== PLAN_SOURCE) return null;
-    var slotKind = params.get('slot');
+    var slotKind = _normalizeSlotKind(params.get('slot'));
     if (!_isValidSlot(slotKind)) return null;
     return {
       date: _todayIsoDate(),
@@ -91,9 +101,13 @@
       _safeStorageRemove();
       return null;
     }
-    if (!_isValidSlot(stored.slot_kind)) {
+    var normalized = _normalizeSlotKind(stored.slot_kind);
+    if (!_isValidSlot(normalized)) {
       _safeStorageRemove();
       return null;
+    }
+    if (normalized !== stored.slot_kind) {
+      stored.slot_kind = normalized;
     }
     return stored;
   }
@@ -301,9 +315,10 @@
    * repeat calls the existing toast is re-used (not duplicated).
    *
    * Behaviour:
-   *   - Requires active plan context with slot ``'book'`` — otherwise resolves
-   *     to ``'standalone'`` without touching the DOM.
-   *   - Fetches ``/api/daily-plan/next-slot?current=book`` to get the next
+   *   - Requires active plan context with slot ``'reading'`` (or the legacy
+   *     ``'book'`` alias) — otherwise resolves to ``'standalone'`` without
+   *     touching the DOM.
+   *   - Fetches ``/api/daily-plan/next-slot?current=reading`` to get the next
    *     slot URL / title and the ``day_secured`` flag.
    *   - ``day_secured=true`` → primary CTA goes to ``/dashboard?day_secured=1``
    *     and the context is cleared.
@@ -317,7 +332,11 @@
    * ``'standalone'`` when no-op. Never throws.
    */
   function applyBookReadingPlanAwareToast() {
-    if (!isActive() || getSlotKind() !== 'book') {
+    if (!isActive()) {
+      return Promise.resolve('standalone');
+    }
+    var slotKind = _normalizeSlotKind(getSlotKind());
+    if (slotKind !== 'reading') {
       return Promise.resolve('standalone');
     }
 
