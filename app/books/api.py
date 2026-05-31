@@ -1082,6 +1082,45 @@ def reading_session_start():
     book_seconds_today = get_book_reading_seconds_today(
         current_user.id, chapter.book_id, db,
     )
+
+    # Corrective slot-award on start: if today already has ≥5min of reading
+    # time on the user's selected book but no XP StreakEvent exists yet
+    # (e.g. /reading-session/end never fired during a previous tab close),
+    # award the slot now so the dashboard does not stay stuck at "incomplete"
+    # for a user who already met the daily target.
+    try:
+        from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
+        from app.daily_plan.linear.xp import (
+            maybe_award_book_reading_xp,
+            maybe_award_linear_perfect_day,
+        )
+        from app.books.reading_session import is_daily_reading_target_met_today
+
+        pref = get_user_reading_preference(current_user.id, db)
+        if pref is not None and pref.book_id == chapter.book_id:
+            if is_daily_reading_target_met_today(current_user.id, chapter.book_id, db):
+                award_result = maybe_award_book_reading_xp(
+                    current_user.id, db_session=db,
+                )
+                if award_result is not None:
+                    maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                    db.session.commit()
+                    logger.info(
+                        "reading-session/start user=%s book=%s corrective slot award "
+                        "(time >= target, no prior StreakEvent)",
+                        current_user.id, chapter.book_id,
+                    )
+    except Exception:
+        logger.warning(
+            "linear_xp: reading-session-start corrective award failed user=%s",
+            current_user.id, exc_info=True,
+        )
+        db.session.rollback()
+
+    logger.info(
+        "reading-session/start user=%s chapter=%s book=%s session=%s book_seconds_today=%s",
+        current_user.id, chapter_id, chapter.book_id, session.id, book_seconds_today,
+    )
     return jsonify({
         'success': True,
         'session_id': session.id,
@@ -1219,20 +1258,38 @@ def reading_session_end():
         from app.books.reading_session import is_daily_reading_target_met_today
 
         chapter = Chapter.query.get(session.chapter_id)
-        # Daily target = 5min active reading + 2% offset advance in any
-        # chapter of the user's selected book today, aggregated across
-        # pause-cycled sessions. The reader debounces progress saves by 3s,
-        # so on page-leave the persisted offset may still trail the
-        # session's own snapshot+hint; we already applied the hint above,
-        # so the aggregated check sees the current authoritative state.
-        if chapter is not None:
+        if chapter is None:
+            logger.info(
+                "reading-session/end user=%s session=%s chapter=None — skip slot award",
+                current_user.id, session.id,
+            )
+        else:
             pref = get_user_reading_preference(current_user.id, db)
-            if pref is not None and pref.book_id == chapter.book_id:
-                if is_daily_reading_target_met_today(current_user.id, chapter.book_id, db):
-                    if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
-                        maybe_award_linear_perfect_day(current_user.id, db_session=db)
-                        db.session.commit()
-                        reading_slot_completed = True
+            pref_book_id = pref.book_id if pref is not None else None
+            pref_matches = pref is not None and pref.book_id == chapter.book_id
+            target_met = False
+            if pref_matches:
+                target_met = is_daily_reading_target_met_today(
+                    current_user.id, chapter.book_id, db,
+                )
+            award_result = None
+            if pref_matches and target_met:
+                award_result = maybe_award_book_reading_xp(
+                    current_user.id, db_session=db,
+                )
+                if award_result is not None:
+                    maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                    db.session.commit()
+                    reading_slot_completed = True
+            logger.info(
+                "reading-session/end user=%s session=%s chapter=%s "
+                "chapter_book=%s pref_book=%s pref_matches=%s target_met=%s "
+                "award=%s slot_completed=%s",
+                current_user.id, session.id, chapter.id, chapter.book_id,
+                pref_book_id, pref_matches, target_met,
+                'awarded' if award_result is not None else 'no-op',
+                reading_slot_completed,
+            )
     except Exception:
         logger.warning(
             "linear_xp: reading-session-end award failed user=%s",
