@@ -50,12 +50,12 @@
 - Modify: `app/static/css/design-system.css` (добавить новую секцию `/* === Public layout (header/footer/nav) === */`).
 - Modify: `app/templates/public_base.html` (удалить `<style>` блок, подключить design-system.css; сохранить кастомный CSS-нончу там, где CSP требует).
 
-- [ ] Перенести существующие `.public-*` классы в design-system.css.
-- [ ] Подключить design-system.css в `<head>` public_base.html (с тем же `?v=` версионированием).
-- [ ] Удалить inline `<style>` блок из public_base.html.
-- [ ] Проверить визуально через `flask run` (test_client), что текущие public-страницы рендерятся без регрессий.
-- [ ] Smoke-test: добавить/обновить тест `tests/smoke/test_public_layout.py::test_public_pages_render` — рендерит landing, courses.catalog, grammar_lab.index, words.public_dictionary анонимом, проверяет 200 + содержит `class="public-header"`.
-- [ ] `pytest -m smoke` — обязан проходить.
+- [x] Перенести существующие `.public-*` классы в design-system.css.
+- [x] Подключить design-system.css в `<head>` public_base.html (с тем же `?v=` версионированием).
+- [x] Удалить inline `<style>` блок из public_base.html.
+- [x] Проверить визуально через `flask run` (test_client), что текущие public-страницы рендерятся без регрессий.
+- [x] Smoke-test: добавить/обновить тест `tests/smoke/test_public_layout.py::test_public_pages_render` — рендерит landing, courses.catalog, grammar_lab.index, words.public_dictionary анонимом, проверяет 200 + содержит `class="public-header"`.
+- [x] `pytest -m smoke` — обязан проходить.
 
 ### Task 3: Новый адаптивный публичный header (с hamburger, новой структурой) + актуализированные ссылки
 
