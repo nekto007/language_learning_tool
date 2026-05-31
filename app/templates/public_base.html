@@ -50,24 +50,37 @@
 <body class="{% block body_class %}{% endblock %} public-body">
     <a href="#main-content" class="skip-to-content">Перейти к основному контенту</a>
 
+    {% set _endpoint = request.endpoint or '' %}
+    {% set _is_courses = _endpoint.startswith('courses.') %}
+    {% set _is_grammar = _endpoint.startswith('grammar_lab.') %}
+    {% set _is_words = _endpoint in ('words.public_dictionary', 'words.public_word', 'words.public_contrast') %}
     <header class="public-header">
         <nav class="public-nav" aria-label="Основная навигация">
             <a class="public-brand" href="{{ url_for('landing.index') }}">
                 <img src="{{ url_for('static', filename='media/logo_mini.png') }}" class="public-brand__logo" alt="" width="32" height="32" aria-hidden="true">
                 <span>LLT English</span>
             </a>
-            <div class="public-nav__links navbar-nav">
-                <a class="public-nav__link" href="{{ url_for('courses.catalog') }}">Курсы</a>
-                <a class="public-nav__link" href="{{ url_for('grammar_lab.index') }}">Грамматика</a>
-                <a class="public-nav__link" href="{{ url_for('words.public_dictionary') }}">Словарь</a>
-                <a class="public-nav__link" href="{{ url_for('book_courses.list_book_courses') }}">Книги</a>
-                {% if current_user.is_authenticated %}
-                <a class="public-nav__link public-nav__link--primary" href="{{ url_for('words.dashboard') }}">Открыть кабинет</a>
-                {% else %}
-                <a class="public-nav__link" href="{{ url_for('auth.login') }}">Вход</a>
-                <a class="public-nav__link public-nav__link--primary" href="{{ url_for('auth.register') }}">Регистрация</a>
-                {% endif %}
-            </div>
+            <details class="public-nav-collapse">
+                <summary class="public-nav-toggle" aria-label="Открыть меню навигации">
+                    <span class="public-nav-toggle__icon" aria-hidden="true"></span>
+                    <span class="public-nav-toggle__label">Меню</span>
+                </summary>
+                <div class="public-nav__panel">
+                    <div class="public-nav__links" role="list">
+                        <a class="public-nav__link{% if _is_courses %} public-nav__link--active{% endif %}" href="{{ url_for('courses.catalog') }}"{% if _is_courses %} aria-current="page"{% endif %}>Курсы</a>
+                        <a class="public-nav__link{% if _is_grammar %} public-nav__link--active{% endif %}" href="{{ url_for('grammar_lab.index') }}"{% if _is_grammar %} aria-current="page"{% endif %}>Грамматика</a>
+                        <a class="public-nav__link{% if _is_words %} public-nav__link--active{% endif %}" href="{{ url_for('words.public_dictionary') }}"{% if _is_words %} aria-current="page"{% endif %}>Словарь</a>
+                    </div>
+                    <div class="public-nav__cta">
+                        {% if current_user.is_authenticated %}
+                        <a class="public-nav__link public-nav__link--primary" href="{{ url_for('words.dashboard') }}">Открыть кабинет</a>
+                        {% else %}
+                        <a class="public-nav__link" href="{{ url_for('auth.login') }}">Вход</a>
+                        <a class="public-nav__link public-nav__link--primary" href="{{ url_for('auth.register') }}">Регистрация</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </details>
         </nav>
     </header>
 

@@ -63,14 +63,14 @@
 - Modify: `app/templates/public_base.html` (header markup + поведение).
 - Modify: `app/static/css/design-system.css` (responsive rules для public header: desktop ≥1024, tablet 700–1023, mobile <700; hamburger toggle через details/summary без JS либо короткий CSP-safe inline JS с nonce).
 
-- [ ] Разделить навигацию на две группы: контентная (Курсы, Грамматика, Словарь) и CTA (Вход / Регистрация для anon; «Открыть кабинет» для auth).
-- [ ] Убрать сломанную ссылку «Книги» (book_courses public требует login) — заменить на нет-линка либо оставить только при наличии будущего public/list (сейчас удаляем).
-- [ ] Добавить hamburger-меню для tablet/mobile (<1024px): кнопка в правом верхнем углу, раскрывающаяся панель с теми же ссылками. Реализация — `<details><summary>` (zero-JS, accessible) или короткий nonce-скрипт-toggle, если нужна анимация.
-- [ ] Sticky-header (`position: sticky; top: 0; z-index`) с тонкой shadow при скролле (CSS-only через `position: sticky`).
-- [ ] Active-state подсветка текущего раздела (по `request.endpoint`).
-- [ ] A11Y: `aria-expanded` на hamburger-кнопке, `aria-current` на активной ссылке, `role="navigation"` уже есть на nav.
-- [ ] Тесты: расширить `test_public_layout.py` — проверить присутствие hamburger-кнопки, проверить, что «Книги» не ведёт на /book-courses (или вообще отсутствует), проверить active-class на текущем endpoint.
-- [ ] `pytest -m smoke` — обязан проходить.
+- [x] Разделить навигацию на две группы: контентная (Курсы, Грамматика, Словарь) и CTA (Вход / Регистрация для anon; «Открыть кабинет» для auth).
+- [x] Убрать сломанную ссылку «Книги» (book_courses public требует login) — заменить на нет-линка либо оставить только при наличии будущего public/list (сейчас удаляем).
+- [x] Добавить hamburger-меню для tablet/mobile (<1024px): кнопка в правом верхнем углу, раскрывающаяся панель с теми же ссылками. Реализация — `<details><summary>` (zero-JS, accessible) или короткий nonce-скрипт-toggle, если нужна анимация.
+- [x] Sticky-header (`position: sticky; top: 0; z-index`) с тонкой shadow при скролле (CSS-only через `position: sticky`).
+- [x] Active-state подсветка текущего раздела (по `request.endpoint`).
+- [x] A11Y: `aria-expanded` на hamburger-кнопке, `aria-current` на активной ссылке, `role="navigation"` уже есть на nav.
+- [x] Тесты: расширить `test_public_layout.py` — проверить присутствие hamburger-кнопки, проверить, что «Книги» не ведёт на /book-courses (или вообще отсутствует), проверить active-class на текущем endpoint.
+- [x] `pytest -m smoke` — обязан проходить.
 
 ### Task 4: Новый адаптивный публичный footer
 
