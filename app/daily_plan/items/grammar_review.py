@@ -13,6 +13,7 @@ Returns None only when no GrammarTopic rows exist at all.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from app.daily_plan.items import PlanItem
@@ -22,6 +23,22 @@ logger = logging.getLogger(__name__)
 _GRAMMAR_REVIEW_ETA_MINUTES = 10
 
 
+def _grammar_reviewed_today(user_id: int, db: Any) -> bool:
+    """Return True when the user completed any grammar exercise today."""
+    from app.daily_plan.linear.xp import get_linear_event_local_date
+    from app.grammar_lab.models import UserGrammarExercise
+
+    today = get_linear_event_local_date(user_id, db)
+    today_start = datetime.combine(today, datetime.min.time())
+    today_end = today_start + timedelta(days=1)
+    query = db.session.query(UserGrammarExercise).filter(
+        UserGrammarExercise.user_id == user_id,
+        UserGrammarExercise.last_reviewed >= today_start,
+        UserGrammarExercise.last_reviewed < today_end,
+    )
+    return db.session.query(query.exists()).scalar() or False
+
+
 def build_grammar_review_item(
     user_id: int,
     db: Any,
@@ -29,15 +46,14 @@ def build_grammar_review_item(
     section: str = 'optional',
 ) -> Optional[PlanItem]:
     """Return a grammar_review PlanItem or None when no topics exist."""
-    from app.grammar_lab.models import GrammarTopic
-
     topic = _stalest_practiced_topic(user_id, db)
     if topic is None:
-        topic = _level_fallback_topic(user_id, db, GrammarTopic)
+        topic = _level_fallback_topic(user_id, db)
     if topic is None:
         return None
 
     url = f'/grammar-lab/topic/{topic.slug}'
+    completed = _grammar_reviewed_today(user_id, db)
 
     return PlanItem(
         id=f'grammar_review:topic:{topic.id}',
@@ -46,10 +62,10 @@ def build_grammar_review_item(
         title=topic.title,
         subtitle=f'{topic.level} · повторение грамматики',
         lesson_type=None,
-        eta_minutes=_GRAMMAR_REVIEW_ETA_MINUTES,
+        eta_minutes=0 if completed else _GRAMMAR_REVIEW_ETA_MINUTES,
         url=url,
-        completed=False,
-        completion_signal='none',
+        completed=completed,
+        completion_signal='grammar_exercises',
         data={
             'topic_id': topic.id,
             'topic_slug': topic.slug,
@@ -87,10 +103,11 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
     return db.session.get(GrammarTopic, row.topic_id)
 
 
-def _level_fallback_topic(user_id: int, db: Any, GrammarTopic: Any) -> Optional[Any]:
+def _level_fallback_topic(user_id: int, db: Any) -> Optional[Any]:
     """Return the first topic at the user's CEFR level, or any public topic globally."""
     from app.auth.models import User
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.grammar_lab.models import GrammarTopic
 
     user = db.session.get(User, user_id)
     level_code = getattr(user, 'onboarding_level', None) if user is not None else None

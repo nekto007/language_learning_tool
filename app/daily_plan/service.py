@@ -61,6 +61,7 @@ def compute_day_secured_from_activity(
             plan_completion.get(item.get('id', ''), False)
             or bool(item.get('completed'))
             or bool(item.get('skipped'))
+            or bool(item.get('blocked'))
             for item in required
         )
     return bool(plan.get('day_secured', False))
