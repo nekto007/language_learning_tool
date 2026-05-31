@@ -18240,12 +18240,6 @@ body.feedback-modal-open { overflow: hidden; }
 }
 .public-nav-toggle__icon::before { top: 0; }
 .public-nav-toggle__icon::after { bottom: 0; }
-.public-nav-toggle__icon {
-    border-top: 2px solid var(--public-text);
-    border-bottom: 2px solid var(--public-text);
-    height: 14px;
-    box-sizing: content-box;
-}
 .public-nav-collapse > .public-nav__panel {
     display: flex;
     align-items: center;
