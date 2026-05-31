@@ -167,4 +167,6 @@ class TestNotificationDropdownDOMSafety:
 
         # Pattern: innerHTML = `...${n.title}...` or innerHTML = "..." + n.title + "..."
         # would be an XSS risk — these should not appear in notification rendering code
-        assert "innerHTML = `" not in html or "n.title" not in html.split("innerHTML = `")[1].split("`")[0] if "innerHTML = `" in html else True
+        assert "${n.title}" not in html, "n.title must not be interpolated into a template literal"
+        assert "n.title +" not in html, "n.title must not be concatenated with HTML strings"
+        assert "+ n.title" not in html, "n.title must not be concatenated with HTML strings"

@@ -102,7 +102,7 @@
                     {% if has_module('words') or has_module('study') %}
                     <li class="nav-item dropdown">
                         {% set _words_due = get_words_due_count() %}
-                        <a class="nav-link dropdown-toggle {% if request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics') %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown" aria-label="Слова">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics')) %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown" aria-label="Слова">
                             <i class="fas fa-spell-check"></i><span class="cabinet-nav__label">Слова</span>{% if _words_due %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ _words_due }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="wordsDropdown">
@@ -130,7 +130,7 @@
                     <!-- Курсы -->
                     {% if has_module('curriculum') %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') or request.endpoint.startswith('book_courses.') %}active{% endif %}" href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown" aria-label="Курсы">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') or request.endpoint.startswith('book_courses.')) %}active{% endif %}" href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown" aria-label="Курсы">
                             <i class="fas fa-book-open"></i><span class="cabinet-nav__label">Курсы</span>
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="coursesDropdown">
@@ -160,7 +160,7 @@
                     <!-- Книги -->
                     {% if has_module('books') %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-label="Книги">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-label="Книги">
                             <i class="fas fa-book"></i><span class="cabinet-nav__label">Книги</span>
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="booksDropdown">
