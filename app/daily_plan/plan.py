@@ -257,15 +257,13 @@ def build_optional(
         {required_curriculum_lesson_id} if required_curriculum_lesson_id is not None else None
     )
 
-    candidates: list[PlanItem] = []
-
-    # Surface curriculum lessons completed today *via the optional section* so
-    # they accumulate visibly under the required-curriculum card instead of
-    # being replaced by the next pending lesson on every completion. Only
-    # surface them when the required-curriculum card itself is present (we
-    # need an anchor) — otherwise the graduated path would leak the only
-    # done lesson into optional and the dashboard would show the same card
-    # twice in different sections / no required curriculum at all.
+    # Collect completed-curriculum cards first so we can apply seen-id dedup,
+    # but defer their insertion into the final list until after we know how
+    # many active candidates need slots. Otherwise enough completions in a
+    # single day (≥ ``max_items``) would push the next actionable lesson —
+    # and other actionable kinds (SRS, reading, …) — past the cap, leaving
+    # the user stuck with a wall of done cards on reload.
+    completed_curriculum_items: list[PlanItem] = []
     if required_curriculum_lesson_id is not None:
         for completed_lesson in get_curriculum_lessons_completed_today(
             user_id, db, exclude_lesson_ids=exclude_curriculum_ids,
@@ -273,11 +271,12 @@ def build_optional(
             completed_item = build_curriculum_completed_item(completed_lesson, section='optional')
             if completed_item.id in seen_ids:
                 continue
-            candidates.append(completed_item)
+            completed_curriculum_items.append(completed_item)
             seen_ids.add(completed_item.id)
 
     # Build candidate items per source. Each source contributes at most one
     # optional item (subsequent extension comes from rebuild after activity).
+    active_candidates: list[PlanItem] = []
     for kind in _OPTIONAL_PRIORITY:
         candidate = _build_optional_candidate(
             user_id, db, kind, focus,
@@ -286,11 +285,19 @@ def build_optional(
         )
         if candidate is None or candidate.id in seen_ids:
             continue
-        candidates.append(candidate)
+        active_candidates.append(candidate)
         seen_ids.add(candidate.id)
 
-    items = candidates[:max_items]
-    has_more = len(candidates) > max_items
+    # Active candidates take priority over completed cards — drop accumulated
+    # completions first if the section would otherwise overflow.
+    active_subset = active_candidates[:max_items]
+    completed_slots = max(0, max_items - len(active_subset))
+    completed_subset = completed_curriculum_items[:completed_slots]
+    items = completed_subset + active_subset
+    has_more = (
+        len(completed_curriculum_items) > len(completed_subset)
+        or len(active_candidates) > len(active_subset)
+    )
     # ``has_more`` is a soft hint; the dashboard simply re-fetches on demand.
     return items, has_more
 

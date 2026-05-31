@@ -405,10 +405,6 @@ def build_curriculum_item(
     # Guard for optional section: if done_today and the resolved next_lesson
     # is the same as today's completed lesson (stale-state edge case), return
     # None to prevent a phantom duplicate in the optional block.
-
-    # Guard for optional section: if done_today and the resolved next_lesson
-    # is the same as today's completed lesson (stale-state edge case), return
-    # None to prevent a phantom duplicate in the optional block.
     if done_today and section == 'optional':
         completed_lesson = _get_lesson_completed_today(user_id, db)
         if completed_lesson is not None and next_lesson.id == completed_lesson.id:

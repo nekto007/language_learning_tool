@@ -492,9 +492,18 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
     )
 
     if plan.get('mode') == 'unified':
+        from app.achievements.streak_service import compute_plan_steps
+        plan_completion, _avail, _done, _total = compute_plan_steps(plan, daily_summary)
         all_items = list(plan.get('required') or []) + list(plan.get('optional') or [])
         for item in all_items:
-            if item.get('completed') or item.get('skipped') or item.get('blocked'):
+            item_id = item.get('id', '')
+            summary_done = plan_completion.get(item_id, False)
+            if (
+                item.get('completed')
+                or item.get('skipped')
+                or item.get('blocked')
+                or summary_done
+            ):
                 continue
             item_url = item.get('url')
             if item_url:

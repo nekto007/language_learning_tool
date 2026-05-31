@@ -1358,8 +1358,9 @@ function saveProgress(offsetPct) {
             document.dispatchEvent(new Event('dailyPlanStepComplete'));
         }
         // Linear plan: when the server flags the reading slot as just
-        // completed AND the user entered via ?from=linear_plan&slot=book,
-        // surface a floating toast with "Продолжить план · <next slot>".
+        // completed AND the user entered via ?from=linear_plan&slot=reading
+        // (or legacy slot=book), surface a floating toast with
+        // "Продолжить план · <next slot>".
         if (
             data && data.reading_slot_completed &&
             window.linearPlanContext &&

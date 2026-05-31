@@ -73,7 +73,7 @@
                     </div>
                     <div class="public-nav__cta">
                         {% if current_user.is_authenticated %}
-                        <a class="public-nav__link public-nav__link--primary" href="{{ url_for('words.dashboard') }}">Открыть кабинет</a>
+                        <a class="public-nav__link public-nav__link--primary" href="{{ url_for('words.dashboard') if has_module('words') else url_for('auth.profile') }}">Открыть кабинет</a>
                         {% else %}
                         <a class="public-nav__link" href="{{ url_for('auth.login') }}">Вход</a>
                         <a class="public-nav__link public-nav__link--primary" href="{{ url_for('auth.register') }}">Регистрация</a>

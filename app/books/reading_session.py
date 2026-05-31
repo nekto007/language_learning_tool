@@ -193,7 +193,20 @@ def start_session(user_id: int, chapter_id: int, db_session: Any = db) -> UserRe
         if open_sessions:
             current = _current_chapter_offset(user_id, chapter_id, db_session)
             for prior in open_sessions:
-                prior.ended_at = now
+                # Cap auto-close duration to one heartbeat window. Without this,
+                # a tab abandoned hours ago (whose /reading-session/end never
+                # fired) would, on the next /start, be closed with the full
+                # wall-clock gap as ``ended_at - started_at`` and credited as
+                # active reading — enough to trip the daily target and award
+                # the slot/XP immediately. Matches the in-progress grace cap
+                # in ``_session_credit_seconds`` so closed and still-open
+                # stale sessions are treated symmetrically.
+                if prior.started_at is not None:
+                    elapsed = int((now - prior.started_at).total_seconds())
+                    capped = max(0, min(elapsed, OPEN_SESSION_GRACE_SECONDS))
+                    prior.ended_at = prior.started_at + timedelta(seconds=capped)
+                else:
+                    prior.ended_at = now
                 prior.offset_delta = max(
                     0.0, current - float(prior.start_offset_pct or 0.0)
                 )
