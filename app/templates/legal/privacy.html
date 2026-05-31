@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'public_base.html' %}
 
 {% block title %}Политика конфиденциальности | LLT English{% endblock %}
 
@@ -9,10 +9,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-8">
-    <h1 class="mb-4">Политика конфиденциальности</h1>
-    <p class="text-muted mb-4">Дата последнего обновления: 8 апреля 2026 г.</p>
+<article class="legal-page">
+    <h1 class="legal-page__title">Политика конфиденциальности</h1>
+    <p class="legal-page__meta">Дата последнего обновления: 8 апреля 2026 г.</p>
 
     <h2>1. Общие положения</h2>
     <p>Настоящая Политика конфиденциальности описывает, как платформа LLT English (далее — «Платформа», «мы») собирает, использует и защищает персональные данные пользователей (далее — «вы»).</p>
@@ -56,6 +55,5 @@
 
     <h2>10. Контакты</h2>
     <p>По вопросам, связанным с конфиденциальностью, вы можете связаться с нами через Telegram-бота <strong>@llt_englishbot</strong>.</p>
-  </div>
-</div>
+</article>
 {% endblock %}

@@ -91,7 +91,7 @@ class TestNotificationBell:
     """Test that notification bell appears in navbar."""
 
     def test_bell_in_authenticated_page(self, notif_auth_client):
-        response = notif_auth_client.get('/grammar-lab/')
+        response = notif_auth_client.get('/profile')
         html = response.data.decode()
         assert 'notif-bell' in html
 
@@ -102,7 +102,7 @@ class TestNotificationBell:
 
     def test_bell_does_not_use_innerhtml(self, notif_auth_client):
         """Notification dropdown must use safe DOM API, not innerHTML for user data."""
-        response = notif_auth_client.get('/grammar-lab/')
+        response = notif_auth_client.get('/profile')
         html = response.data.decode()
         assert 'list.textContent' in html or 'document.createElement' in html
         assert "n.title + '</div>'" not in html

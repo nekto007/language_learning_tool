@@ -149,7 +149,7 @@ class TestNotificationDropdownDOMSafety:
     ):
         """The JS that renders notification items must not use innerHTML with user data."""
         auth_client = self._get_authenticated_client(app, svc_user)
-        response = auth_client.get('/grammar-lab/')
+        response = auth_client.get('/profile')
         html = response.data.decode('utf-8')
 
         # The notification list rendering JS should use safe DOM API
@@ -162,7 +162,7 @@ class TestNotificationDropdownDOMSafety:
     ):
         """User-supplied notification title must not be injected via innerHTML string concat."""
         auth_client = self._get_authenticated_client(app, svc_user)
-        response = auth_client.get('/grammar-lab/')
+        response = auth_client.get('/profile')
         html = response.data.decode('utf-8')
 
         # Pattern: innerHTML = `...${n.title}...` or innerHTML = "..." + n.title + "..."

@@ -27,6 +27,19 @@ from typing import Any, Optional
 
 PLAN_FROM_VALUE = 'linear_plan'
 
+# Legacy URLs used ``slot=book`` for the reading slot before the unified
+# plan renamed PlanItem.kind to ``'reading'``. New URLs use ``slot=reading``,
+# but the browser may still send the old value via Referer for a short
+# window. Normalise inbound values so the matcher works either way.
+_LEGACY_SLOT_ALIASES = {'book': 'reading'}
+
+
+def _normalize_slot_param(slot_param: Optional[str]) -> Optional[str]:
+    """Map legacy slot tokens to their canonical PlanItem.kind value."""
+    if not slot_param:
+        return slot_param
+    return _LEGACY_SLOT_ALIASES.get(slot_param, slot_param)
+
 
 def _parse_referer_args() -> tuple[str, Optional[str]]:
     """Extract (from, slot) from the request Referer URL, if any.
@@ -45,7 +58,7 @@ def _parse_referer_args() -> tuple[str, Optional[str]]:
         q = parse_qs(parts.query or '')
         from_val = (q.get('from', [''])[0] or '').strip()
         slot_val = (q.get('slot', [''])[0] or '').strip() or None
-        return from_val, slot_val
+        return from_val, _normalize_slot_param(slot_val)
     except Exception:
         return '', None
 
@@ -226,6 +239,7 @@ def build_lesson_context(
         if not slot_param:
             _, slot_from_referer = _parse_referer_args()
             slot_param = slot_from_referer
+    slot_param = _normalize_slot_param(slot_param)
 
     if from_param != PLAN_FROM_VALUE:
         return DailyPlanLessonContext(

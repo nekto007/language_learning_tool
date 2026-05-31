@@ -1,4 +1,4 @@
-{% extends 'base.html' if current_user.is_authenticated else 'public_base.html' %}
+{% extends 'public_base.html' %}
 
 {% set _letter_upper = selected_letter|upper if selected_letter else '' %}
 {% set _page_title = 'Английские слова на букву ' ~ _letter_upper ~ ' — переводы и примеры' if selected_letter

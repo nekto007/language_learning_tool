@@ -18123,3 +18123,509 @@ body.feedback-modal-open { overflow: hidden; }
 .cm-speak-btn {
     touch-action: manipulation;
 }
+
+/* === Public layout (header/footer/nav) ===
+   Used by app/templates/public_base.html for SEO/public pages
+   (landing, courses catalog, grammar lab public, dictionary, legal, auth).
+   Cabinet layout (base.html) uses its own .cabinet-* and Bootstrap navbar classes. */
+:root {
+    --public-text: #0f172a;
+    --public-muted: #475569;
+    --public-border: #e2e8f0;
+    --public-surface: #ffffff;
+    --public-soft: #f8fafc;
+    --public-primary: #2563eb;
+    --public-primary-dark: #1d4ed8;
+}
+.public-body {
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--public-soft);
+    color: var(--public-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+}
+.public-body a {
+    color: var(--public-primary);
+}
+.public-body a:hover {
+    color: var(--public-primary-dark);
+}
+.public-body .skip-to-content {
+    position: absolute;
+    left: 1rem;
+    top: -48px;
+    z-index: 1000;
+    padding: 0.6rem 0.9rem;
+    background: var(--public-text);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: top 0.15s ease;
+}
+.public-body .skip-to-content:focus {
+    top: 1rem;
+    color: #fff;
+}
+.public-header {
+    background: var(--public-surface);
+    border-bottom: 1px solid var(--public-border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+}
+.landing-page .public-header {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+.public-nav {
+    width: min(1060px, calc(100% - 2rem));
+    min-height: 64px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+}
+.public-nav-collapse {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.public-nav-collapse > summary {
+    list-style: none;
+}
+.public-nav-collapse > summary::-webkit-details-marker {
+    display: none;
+}
+.public-nav-toggle {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    color: var(--public-text);
+    font-weight: 700;
+    font-size: 0.95rem;
+    user-select: none;
+}
+.public-nav-toggle:hover {
+    background: #eef2ff;
+}
+.public-nav-toggle:focus-visible {
+    outline: 2px solid var(--public-primary);
+    outline-offset: 2px;
+}
+.public-nav-toggle__icon {
+    display: inline-block;
+    width: 22px;
+    height: 16px;
+    position: relative;
+}
+.public-nav-toggle__icon::before,
+.public-nav-toggle__icon::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--public-text);
+    border-radius: 1px;
+}
+.public-nav-toggle__icon::before { top: 0; }
+.public-nav-toggle__icon::after { bottom: 0; }
+.public-nav-collapse > .public-nav__panel {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    gap: 1rem;
+}
+.public-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--public-text);
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.public-brand:hover {
+    color: var(--public-text);
+}
+.public-brand__logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+.public-nav__links,
+.public-nav__cta {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+.public-nav__links {
+    flex: 1 1 auto;
+    justify-content: center;
+}
+.public-nav__cta {
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+.public-nav__link {
+    color: var(--public-muted);
+    font-size: 0.9rem;
+    font-weight: 650;
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+.public-nav__link:hover {
+    background: #eef2ff;
+    color: var(--public-primary-dark);
+}
+.public-nav__link:focus-visible {
+    outline: 2px solid var(--public-primary);
+    outline-offset: 2px;
+}
+.public-nav__link--active {
+    color: var(--public-primary-dark);
+    background: #eef2ff;
+}
+.public-nav__link--primary {
+    background: var(--public-primary);
+    color: #fff;
+}
+.public-nav__link--primary:hover {
+    background: var(--public-primary-dark);
+    color: #fff;
+}
+.public-nav__link--primary.public-nav__link--active {
+    background: var(--public-primary-dark);
+    color: #fff;
+}
+.public-main {
+    flex: 1 0 auto;
+    width: 100%;
+    padding: 1.25rem 0 0;
+}
+.legal-page {
+    width: min(720px, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 0.5rem 0 2rem;
+    color: var(--public-text);
+    line-height: 1.6;
+}
+.legal-page__title {
+    margin: 0 0 1.5rem;
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: var(--public-text);
+}
+.legal-page__meta {
+    margin: 0 0 1.5rem;
+    color: var(--public-muted);
+    font-size: 0.92rem;
+}
+.legal-page h2 {
+    margin: 1.5rem 0 0.75rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--public-text);
+}
+.legal-page p,
+.legal-page ul {
+    margin: 0 0 1rem;
+}
+.legal-page ul {
+    padding-left: 1.25rem;
+}
+.legal-page li {
+    margin-bottom: 0.35rem;
+}
+.legal-page a {
+    color: var(--public-primary, #2563eb);
+}
+.public-flashes {
+    width: min(980px, calc(100% - 2rem));
+    margin: 1rem auto 0;
+    display: grid;
+    gap: 0.5rem;
+}
+.public-alert {
+    border: 1px solid var(--public-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--public-text);
+    padding: 0.75rem 1rem;
+    font-size: 0.92rem;
+}
+.public-alert--success {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+.public-alert--danger,
+.public-alert--error {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+.public-alert--warning {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+.public-footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--public-border);
+    color: var(--public-muted);
+    padding: 2rem 1rem 1.25rem;
+    font-size: 0.9rem;
+    background: var(--public-surface);
+}
+.public-footer a {
+    color: var(--public-muted);
+    text-decoration: none;
+}
+.public-footer a:hover {
+    color: var(--public-primary-dark);
+}
+.public-footer__grid {
+    width: min(1060px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem 2rem;
+}
+.public-footer__col {
+    min-width: 0;
+}
+.public-footer__heading {
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--public-text);
+}
+.public-footer__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.35rem;
+}
+.public-footer__link {
+    color: var(--public-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.public-footer__link:hover,
+.public-footer__link:focus-visible {
+    color: var(--public-primary-dark);
+    text-decoration: underline;
+}
+.public-footer__text {
+    color: var(--public-muted);
+    font-size: 0.9rem;
+}
+.public-footer__bottom {
+    width: min(1060px, 100%);
+    margin: 1.5rem auto 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--public-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--public-muted);
+}
+.public-footer__brand {
+    color: var(--public-text);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+.public-footer__copyright {
+    color: var(--public-muted);
+}
+@media (max-width: 699px) {
+    .public-footer {
+        padding: 1.5rem 1rem 1.25rem;
+        text-align: center;
+    }
+    .public-footer__grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    .public-footer__list {
+        justify-items: center;
+    }
+    .public-footer__bottom {
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}
+@media (max-width: 1023px) {
+    .public-nav {
+        position: relative;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .public-nav-collapse {
+        flex: 0 0 auto;
+        margin-left: auto;
+    }
+    .public-nav-toggle {
+        display: inline-flex;
+    }
+    .public-nav-collapse:not([open]) > .public-nav__panel {
+        display: none;
+    }
+    .public-nav-collapse[open] > .public-nav__panel {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 0.75rem 1rem 1rem;
+        background: var(--public-surface);
+        border-top: 1px solid var(--public-border);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        z-index: 60;
+    }
+    .public-nav-collapse[open] .public-nav__links,
+    .public-nav-collapse[open] .public-nav__cta {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 0.25rem;
+    }
+    .public-nav-collapse[open] .public-nav__cta {
+        border-top: 1px solid var(--public-border);
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+    }
+    .public-nav-collapse[open] .public-nav__link {
+        padding: 0.7rem 0.75rem;
+    }
+    .public-nav-collapse[open] .public-nav__link--primary {
+        text-align: center;
+    }
+}
+
+/* === Cabinet layout (base.html) — visual sync with public layout ===
+   Cabinet header still relies on Bootstrap navbar-expand-lg; these rules
+   tighten tablet rendering (icons-only between lg and xl breakpoints) and
+   give the cabinet footer the same 3-column grid as the public footer. */
+.cabinet-nav__label {
+    margin-left: 0.25rem;
+}
+.navbar-toggler:focus,
+.navbar-toggler:focus-visible {
+    outline: 2px solid var(--public-primary, #2563eb);
+    outline-offset: 2px;
+    box-shadow: none;
+}
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    /* Tablet/small-desktop: collapse nav text to icons only. */
+    .navbar-expand-lg .navbar-nav .cabinet-nav__label {
+        display: none;
+    }
+    .navbar-expand-lg .navbar-nav .nav-link i {
+        margin-right: 0 !important;
+        font-size: 1.05rem;
+    }
+}
+.cabinet-footer {
+    flex-shrink: 0;
+    background: var(--public-surface, #ffffff);
+    border-top: 1px solid var(--public-border, #e2e8f0);
+    color: var(--public-muted, #475569);
+    padding: 1.75rem 1rem 1rem;
+    font-size: 0.9rem;
+}
+.cabinet-footer a {
+    color: var(--public-muted, #475569);
+    text-decoration: none;
+}
+.cabinet-footer a:hover,
+.cabinet-footer a:focus-visible {
+    color: var(--public-primary-dark, #1d4ed8);
+    text-decoration: underline;
+}
+.cabinet-footer__grid {
+    width: min(1060px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem 2rem;
+}
+.cabinet-footer__col {
+    min-width: 0;
+}
+.cabinet-footer__heading {
+    margin: 0 0 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--public-text, #0f172a);
+}
+.cabinet-footer__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.3rem;
+}
+.cabinet-footer__link {
+    color: var(--public-muted, #475569);
+    text-decoration: none;
+    font-size: 0.88rem;
+}
+.cabinet-footer__bottom {
+    width: min(1060px, 100%);
+    margin: 1.25rem auto 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--public-border, #e2e8f0);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--public-muted, #475569);
+}
+.cabinet-footer__brand {
+    color: var(--public-text, #0f172a);
+    font-weight: 800;
+}
+@media (max-width: 699px) {
+    .cabinet-footer {
+        padding: 1.25rem 1rem 0.75rem;
+        text-align: center;
+    }
+    .cabinet-footer__grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    .cabinet-footer__list {
+        justify-items: center;
+    }
+    .cabinet-footer__bottom {
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+}

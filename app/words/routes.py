@@ -1075,7 +1075,7 @@ def _build_day_secured_banner(linear_plan, plan_completion, streak):
             elif top.kind == 'srs':
                 url = '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
             elif top.kind == 'reading' and data.get('book_id'):
-                url = f"/read/{int(data['book_id'])}?from=linear_plan&slot=book"
+                url = f"/read/{int(data['book_id'])}?from=linear_plan&slot=reading"
             elif top.kind == 'grammar' and data.get('topic_id'):
                 url = f"/grammar-lab/practice/topic/{int(data['topic_id'])}"
             elif top.kind == 'vocab':

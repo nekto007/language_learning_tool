@@ -20,7 +20,7 @@
     <!-- Font Awesome (local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/fontawesome.min.css') }}">
     <!-- Design System (unified CSS) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20260522e">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20260531c">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- OG defaults (override og_tags block in child templates) -->
     {% block og_tags %}
@@ -102,8 +102,8 @@
                     {% if has_module('words') or has_module('study') %}
                     <li class="nav-item dropdown">
                         {% set _words_due = get_words_due_count() %}
-                        <a class="nav-link dropdown-toggle {% if request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics') %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-spell-check me-1"></i>Слова{% if _words_due %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ _words_due }}</span>{% endif %}
+                        <a class="nav-link dropdown-toggle {% if request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics') %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown" aria-label="Слова">
+                            <i class="fas fa-spell-check"></i><span class="cabinet-nav__label">Слова</span>{% if _words_due %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ _words_due }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="wordsDropdown">
                             {% if has_module('words') %}
@@ -121,8 +121,8 @@
                     <!-- Карточки (Study) -->
                     {% if has_module('study') %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'study.index' %}active{% endif %}" href="{{ url_for('study.index') }}">
-                            <i class="fas fa-clone me-1"></i>Карточки
+                        <a class="nav-link {% if request.endpoint == 'study.index' %}active{% endif %}" href="{{ url_for('study.index') }}" aria-label="Карточки">
+                            <i class="fas fa-clone"></i><span class="cabinet-nav__label">Карточки</span>
                         </a>
                     </li>
                     {% endif %}
@@ -130,8 +130,8 @@
                     <!-- Курсы -->
                     {% if has_module('curriculum') %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') %}active{% endif %}" href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-book-open me-1"></i>Курсы
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('curriculum.') or request.endpoint.startswith('learn.') or request.endpoint.startswith('book_courses.') %}active{% endif %}" href="#" id="coursesDropdown" role="button" data-bs-toggle="dropdown" aria-label="Курсы">
+                            <i class="fas fa-book-open"></i><span class="cabinet-nav__label">Курсы</span>
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="coursesDropdown">
                             {% set active_cl = get_active_curriculum_lesson() %}
@@ -160,8 +160,8 @@
                     <!-- Книги -->
                     {% if has_module('books') %}
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-book me-1"></i>Книги
+                        <a class="nav-link dropdown-toggle {% if request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-label="Книги">
+                            <i class="fas fa-book"></i><span class="cabinet-nav__label">Книги</span>
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="booksDropdown">
                             {% set last_chapter = current_user.chapter_progress | sort(attribute='updated_at', reverse=true) | first %}
@@ -179,15 +179,15 @@
 
                     <!-- Курсы (→ login) -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">
-                            <i class="fas fa-book-open me-1"></i>Курсы
+                        <a class="nav-link" href="{{ url_for('auth.login') }}" aria-label="Курсы">
+                            <i class="fas fa-book-open"></i><span class="cabinet-nav__label">Курсы</span>
                         </a>
                     </li>
 
                     <!-- Карточки (→ login) -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.login') }}">
-                            <i class="fas fa-clone me-1"></i>Карточки
+                        <a class="nav-link" href="{{ url_for('auth.login') }}" aria-label="Карточки">
+                            <i class="fas fa-clone"></i><span class="cabinet-nav__label">Карточки</span>
                         </a>
                     </li>
 
@@ -198,8 +198,8 @@
                         {% if current_user.is_authenticated %}
                         {% set _grammar_due = get_grammar_due_count() %}
                         {% endif %}
-                        <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('grammar_lab.') %}active{% endif %}" href="#" id="grammarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-flask me-1"></i>Грамматика{% if current_user.is_authenticated and _grammar_due %} <span class="badge bg-success rounded-pill ms-1" style="font-size:0.65rem;">{{ _grammar_due }}</span>{% endif %}
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('grammar_lab.') %}active{% endif %}" href="#" id="grammarDropdown" role="button" data-bs-toggle="dropdown" aria-label="Грамматика">
+                            <i class="fas fa-flask"></i><span class="cabinet-nav__label">Грамматика</span>{% if current_user.is_authenticated and _grammar_due %} <span class="badge bg-success rounded-pill ms-1" style="font-size:0.65rem;">{{ _grammar_due }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="grammarDropdown">
                             {% if current_user.is_authenticated %}
@@ -224,7 +224,7 @@
                     {% if current_user.is_authenticated %}
                     <!-- Notification Bell -->
                     <li class="nav-item" style="position: relative;">
-                        <a class="nav-link" href="#" id="notif-bell" style="position: relative;">
+                        <a class="nav-link" href="#" id="notif-bell" style="position: relative;" aria-label="Уведомления" title="Уведомления">
                             <i class="fas fa-bell"></i>
                             <span id="notif-badge" style="display:none; position:absolute; top:4px; right:2px; background:#ef4444; color:#fff; font-size:0.65rem; font-weight:700; border-radius:50%; min-width:16px; height:16px; line-height:16px; text-align:center; padding:0 3px;">0</span>
                         </a>
@@ -240,7 +240,7 @@
                     </li>
                     <!-- Quick Actions -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="quickActionsDropdown" role="button" data-bs-toggle="dropdown" title="Быстрые действия">
+                        <a class="nav-link dropdown-toggle" href="#" id="quickActionsDropdown" role="button" data-bs-toggle="dropdown" title="Быстрые действия" aria-label="Быстрые действия">
                             <i class="fas fa-bolt"></i>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quickActionsDropdown">
@@ -323,27 +323,46 @@
     {% include 'components/_feedback_widget.html' %}
     {% endif %}
 
-    <!-- Modern Clean Footer -->
-    <footer class="mt-auto py-4 footer-styled">
-        <div class="container">
-            <div class="text-center">
-                <span class="fw-bold navbar-brand-custom footer-brand">LLT English</span>
-                <span class="text-muted mx-2">•</span>
-                <span class="text-muted">Платформа для изучения английского</span>
-                <div class="mt-2">
-                    <a href="{{ url_for('legal.privacy') }}" class="text-muted footer-link" style="font-size: 0.8125rem; text-decoration: none;">Политика конфиденциальности</a>
+    <!-- Cabinet Footer (visually synced with public footer) -->
+    <footer class="cabinet-footer mt-auto" role="contentinfo">
+        <div class="cabinet-footer__grid">
+            <section class="cabinet-footer__col" aria-labelledby="cabinet-footer-product-heading">
+                <h2 id="cabinet-footer-product-heading" class="cabinet-footer__heading">Продукт</h2>
+                <ul class="cabinet-footer__list">
+                    {% if current_user.is_authenticated and has_module('curriculum') %}
+                    <li><a class="cabinet-footer__link" href="/learn/">Курсы</a></li>
+                    {% else %}
+                    <li><a class="cabinet-footer__link" href="{{ url_for('courses.catalog') }}">Курсы</a></li>
+                    {% endif %}
+                    <li><a class="cabinet-footer__link" href="{{ url_for('grammar_lab.index') }}">Грамматика</a></li>
+                    {% if current_user.is_authenticated and has_module('study') %}
+                    <li><a class="cabinet-footer__link" href="{{ url_for('study.index') }}">Карточки</a></li>
+                    {% endif %}
+                </ul>
+            </section>
+            {% if site_settings.support_email or site_settings.support_phone %}
+            <section class="cabinet-footer__col" aria-labelledby="cabinet-footer-contact-heading">
+                <h2 id="cabinet-footer-contact-heading" class="cabinet-footer__heading">Полезное</h2>
+                <ul class="cabinet-footer__list">
                     {% if site_settings.support_email %}
-                    <span class="text-muted mx-2">&middot;</span>
-                    <a href="mailto:{{ site_settings.support_email }}" class="text-muted footer-link" style="font-size: 0.8125rem; text-decoration: none;">{{ site_settings.support_email }}</a>
+                    <li><a class="cabinet-footer__link" href="mailto:{{ site_settings.support_email }}">{{ site_settings.support_email }}</a></li>
                     {% endif %}
                     {% if site_settings.support_phone %}
-                    <span class="text-muted mx-2">&middot;</span>
-                    <span class="text-muted" style="font-size: 0.8125rem;">{{ site_settings.support_phone }}</span>
+                    <li><span class="cabinet-footer__link">{{ site_settings.support_phone }}</span></li>
                     {% endif %}
-                    <span class="text-muted mx-2">&middot;</span>
-                    <span class="text-muted footer-copyright">&copy; 2025</span>
-                </div>
-            </div>
+                </ul>
+            </section>
+            {% endif %}
+            <section class="cabinet-footer__col" aria-labelledby="cabinet-footer-legal-heading">
+                <h2 id="cabinet-footer-legal-heading" class="cabinet-footer__heading">Юридическое</h2>
+                <ul class="cabinet-footer__list">
+                    <li><a class="cabinet-footer__link" href="{{ url_for('legal.privacy') }}">Политика конфиденциальности</a></li>
+                </ul>
+            </section>
+        </div>
+        <div class="cabinet-footer__bottom">
+            <strong class="cabinet-footer__brand">LLT English</strong>
+            <span>&copy; {{ current_year }}</span>
         </div>
     </footer>
 
