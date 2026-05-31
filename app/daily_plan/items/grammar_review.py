@@ -13,7 +13,7 @@ Returns None only when no GrammarTopic rows exist at all.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from app.daily_plan.items import PlanItem
@@ -24,17 +24,37 @@ _GRAMMAR_REVIEW_ETA_MINUTES = 10
 
 
 def _grammar_reviewed_today(user_id: int, db: Any) -> bool:
-    """Return True when the user completed any grammar exercise today."""
-    from app.daily_plan.linear.xp import get_linear_event_local_date
-    from app.grammar_lab.models import UserGrammarExercise
+    """Return True when the user completed any grammar exercise today.
 
-    today = get_linear_event_local_date(user_id, db)
-    today_start = datetime.combine(today, datetime.min.time())
-    today_end = today_start + timedelta(days=1)
+    ``UserGrammarExercise.last_reviewed`` is a naive UTC column, so the
+    user-local day must be translated to a UTC window before comparison —
+    otherwise a non-UTC user practising near local midnight is either
+    missed (review fell into yesterday-UTC) or credited on the wrong day.
+    """
+    from app.daily_plan.linear.xp import _get_user_timezone
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.utils.time_utils import get_user_local_date
+
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:  # pragma: no cover
+        from backports.zoneinfo import ZoneInfo  # type: ignore
+
+    today = get_user_local_date(user_id, db)
+    tz_name = _get_user_timezone(user_id, db)
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:  # noqa: BLE001
+        tz = timezone.utc
+    start_local = datetime(today.year, today.month, today.day, tzinfo=tz)
+    end_local = start_local + timedelta(days=1)
+    # Compare against the naive UTC column in its native form.
+    start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
     query = db.session.query(UserGrammarExercise).filter(
         UserGrammarExercise.user_id == user_id,
-        UserGrammarExercise.last_reviewed >= today_start,
-        UserGrammarExercise.last_reviewed < today_end,
+        UserGrammarExercise.last_reviewed >= start_utc,
+        UserGrammarExercise.last_reviewed < end_utc,
     )
     return db.session.query(query.exists()).scalar() or False
 
