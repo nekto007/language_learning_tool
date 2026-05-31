@@ -25,18 +25,6 @@ def is_plan_paused(user: Any) -> bool:
     return paused_until > get_user_local_date(getattr(user, 'id', None))
 
 
-def compute_day_secured_at_assembly(phases: list[dict]) -> bool:
-    """Return True when all required items are marked completed.
-
-    Assembly-time evaluator. Use :func:`compute_day_secured_from_activity`
-    for real-time status derived from actual user activity.
-    """
-    required = [p for p in phases if p.get('required', True)]
-    if not required:
-        return False
-    return all(p.get('completed', False) for p in required)
-
-
 def compute_day_secured_from_activity(
     plan: dict[str, Any],
     plan_completion: dict[str, bool],
@@ -45,16 +33,37 @@ def compute_day_secured_from_activity(
 
     Only ``unified`` and ``paused`` modes are supported now. Other shapes
     fall through to the plan payload's own ``day_secured``.
+
+    Graduated users (all curriculum exhausted, has history): required is []
+    and _plan_meta.graduated=True. Day secured only when the user has
+    logged any learning activity today — keeps the streak meaningful.
+
+    Skipped or blocked required items only affect navigation. They do not
+    represent learning activity and must not satisfy the daily minimum for
+    streak/rank purposes.
     """
-    effective_mode = (plan.get('_plan_meta') or {}).get('effective_mode')
+    plan_meta = plan.get('_plan_meta') or {}
+    effective_mode = plan_meta.get('effective_mode')
     if effective_mode == 'paused':
         return bool(plan.get('day_secured', False))
     if effective_mode == 'unified':
         required = plan.get('required') or []
         if not required:
-            return False
+            graduated = plan_meta.get('graduated', False)
+            if not graduated:
+                return False
+            user_id = plan_meta.get('user_id')
+            if not user_id:
+                return False
+            from app.utils.activity_tracker import has_learning_activity
+            from app.utils.time_utils import get_user_local_day_bounds
+            from app.utils.db import db as _db
+            start_of_day, end_of_day = get_user_local_day_bounds(user_id, _db)
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+            return has_learning_activity(user_id, start_of_day, min(end_of_day, now_utc))
         return all(
-            plan_completion.get(item.get('id', ''), False) or bool(item.get('completed'))
+            plan_completion.get(item.get('id', ''), False)
+            or bool(item.get('completed'))
             for item in required
         )
     return bool(plan.get('day_secured', False))
@@ -110,12 +119,16 @@ def _with_plan_meta(
     *,
     effective_mode: str,
     fallback_reason: Optional[str] = None,
+    graduated: bool = False,
+    user_id: Optional[int] = None,
 ) -> dict[str, Any]:
     enriched = dict(payload)
     enriched['_plan_meta'] = {
         'mission_plan_enabled': False,
         'effective_mode': effective_mode,
         'fallback_reason': fallback_reason,
+        'graduated': graduated,
+        'user_id': user_id,
     }
     return enriched
 
@@ -154,8 +167,11 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
     from app.daily_plan.plan import get_daily_plan
     try:
         payload = get_daily_plan(user_id)
-        logger.info("daily_plan_unified user=%s mode=unified", user_id)
-        return _with_plan_meta(payload, effective_mode='unified')
+        graduated = bool(payload.get('graduated', False))
+        logger.info("daily_plan_unified user=%s mode=unified graduated=%s", user_id, graduated)
+        return _with_plan_meta(
+            payload, effective_mode='unified', graduated=graduated, user_id=user_id,
+        )
     except Exception:
         logger.exception(
             "unified plan assembly failed for user_id=%s — returning empty payload",

@@ -23,6 +23,7 @@ from app.daily_plan.items import PlanItem
 from app.daily_plan.items.challenge import build_challenge_item
 from app.daily_plan.items.curriculum import build_curriculum_item, has_completed_history
 from app.daily_plan.items.error_review import build_error_review_item, determine_section
+from app.daily_plan.items.grammar_review import build_grammar_review_item
 from app.daily_plan.items.reading import build_reading_item, get_user_reading_preference
 from app.daily_plan.items.setup import (
     book_selected_today,
@@ -41,9 +42,10 @@ logger = logging.getLogger(__name__)
 OPTIONAL_MAX = 10
 
 # Items that must wait for the curriculum slot to complete — skipping
-# curriculum locks them too. Same set as the linear plan uses (listening
-# is intentionally NOT in this set; it walks the spine independently).
-_CURRICULUM_DEPENDENT_KINDS = frozenset({'curriculum', 'speaking', 'writing'})
+# curriculum locks them too. Listening is intentionally NOT in this set;
+# it walks the spine independently. Optional curriculum is also not blocked
+# so users can still complete a bonus lesson after skipping required.
+_CURRICULUM_DEPENDENT_KINDS = frozenset({'speaking', 'writing'})
 
 
 def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
@@ -118,6 +120,7 @@ _OPTIONAL_PRIORITY = (
     'speaking',
     'writing',
     'error_review',
+    'grammar_review',
     'challenge',
 )
 
@@ -131,6 +134,7 @@ def build_required(
     *,
     difficulty: str,
     focus: Optional[str],
+    graduated: bool = False,
 ) -> list[PlanItem]:
     """Assemble the required-section items in caskade order.
 
@@ -145,7 +149,14 @@ def build_required(
 
     Setup items NEVER appear here. Empty list is valid (orchestrator
     reports day not secured and surfaces setup hints).
+
+    Graduated users (all curriculum exhausted, has history) receive an empty
+    required list — their work lives entirely in optional (SRS, reading,
+    grammar_review with ignore_daily_budget=True).
     """
+    if graduated:
+        return []
+
     items: list[PlanItem] = []
 
     err_section = determine_section(user_id, db)
@@ -207,49 +218,83 @@ def build_optional(
     *,
     required_items: list[PlanItem],
     focus: Optional[str],
+    graduated: bool = False,
     max_items: int = OPTIONAL_MAX,
 ) -> tuple[list[PlanItem], bool]:
     """Return (optional_items, has_more) capped at ``max_items``.
 
     Items already in required (matched by ``id``) are excluded. ``has_more``
-    is True if a builder still had pending work when the cap was reached.
+    is True when the total candidate count exceeded ``max_items`` (soft hint
+    for the dashboard re-fetch affordance; not a per-builder exhaustion signal).
+
+    The required curriculum lesson id is forwarded to the optional curriculum
+    builder as ``exclude_lesson_ids`` so the optional slot always returns the
+    NEXT lesson on the spine, never the same one already shown in required.
+    Without this, when ``done_today=False`` both builders resolve to the same
+    lesson, the candidate is silently dropped, and the optional block appears
+    empty even though more content exists.
     """
     seen_ids = {it.id for it in required_items}
-    items: list[PlanItem] = []
-    builders_exhausted: dict[str, bool] = {k: False for k in _OPTIONAL_PRIORITY}
+
+    # Extract the required curriculum lesson id so the optional builder skips
+    # it and offers the NEXT lesson on the spine instead.
+    required_curriculum_lesson_id: Optional[int] = None
+    for it in required_items:
+        if it.kind == 'curriculum':
+            lesson_id_raw = (it.data or {}).get('lesson_id')
+            if lesson_id_raw is not None:
+                try:
+                    required_curriculum_lesson_id = int(lesson_id_raw)
+                except (TypeError, ValueError):
+                    pass
+            break
+    exclude_curriculum_ids: Optional[set[int]] = (
+        {required_curriculum_lesson_id} if required_curriculum_lesson_id is not None else None
+    )
 
     # Build candidate items per source. Each source contributes at most one
     # optional item (subsequent extension comes from rebuild after activity).
-    candidates: list[Optional[PlanItem]] = []
+    candidates: list[PlanItem] = []
     for kind in _OPTIONAL_PRIORITY:
-        candidate = _build_optional_candidate(user_id, db, kind, focus)
-        if candidate is None:
-            builders_exhausted[kind] = True
-        elif candidate.id in seen_ids:
-            # Already required — count as not exhausted but skip.
+        candidate = _build_optional_candidate(
+            user_id, db, kind, focus,
+            exclude_curriculum_ids=exclude_curriculum_ids,
+            graduated=graduated,
+        )
+        if candidate is None or candidate.id in seen_ids:
             continue
-        else:
-            candidates.append(candidate)
-            seen_ids.add(candidate.id)
+        candidates.append(candidate)
+        seen_ids.add(candidate.id)
 
-    items = [c for c in candidates if c is not None][:max_items]
-    has_more = len(candidates) > max_items or any(
-        not exhausted for kind, exhausted in builders_exhausted.items()
-        if kind != 'challenge'  # challenge always single, never "more"
-    )
+    items = candidates[:max_items]
+    has_more = len(candidates) > max_items
     # ``has_more`` is a soft hint; the dashboard simply re-fetches on demand.
     return items, has_more
 
 
 def _build_optional_candidate(
-    user_id: int, db: Any, kind: str, focus: Optional[str],
+    user_id: int,
+    db: Any,
+    kind: str,
+    focus: Optional[str],
+    exclude_curriculum_ids: Optional[set[int]] = None,
+    graduated: bool = False,
 ) -> Optional[PlanItem]:
     if kind == 'curriculum':
-        return build_curriculum_item(user_id, db, section='optional')
+        return build_curriculum_item(
+            user_id, db, section='optional',
+            exclude_lesson_ids=exclude_curriculum_ids,
+        )
     if kind == 'srs':
-        return build_srs_item(user_id, db, section='optional')
+        return build_srs_item(
+            user_id, db, section='optional',
+            ignore_daily_budget=graduated,
+        )
     if kind == 'reading':
-        return build_reading_item(user_id, db, section='optional', focus=focus)
+        return build_reading_item(
+            user_id, db, section='optional',
+            focus=focus,
+        )
     if kind == 'listening':
         return build_listening_item(user_id, db, section='optional')
     if kind == 'speaking':
@@ -261,6 +306,8 @@ def _build_optional_candidate(
         if section != 'optional':
             return None
         return build_error_review_item(user_id, db, section='optional')
+    if kind == 'grammar_review':
+        return build_grammar_review_item(user_id, db, section='optional')
     if kind == 'challenge':
         return build_challenge_item(user_id, db)
     return None
@@ -320,9 +367,13 @@ def get_daily_plan(
     difficulty = _get_plan_difficulty(user_id, session)
     module_progress = _compute_module_progress(user_id, session, next_lesson)
 
-    required = build_required(user_id, session, difficulty=difficulty, focus=focus)
+    # Graduated state: no more curriculum lessons but user has completed history.
+    # Force optional to include SRS/reading/grammar_review even if daily caps reached.
+    graduated = next_lesson is None and has_completed_history(user_id, session)
+
+    required = build_required(user_id, session, difficulty=difficulty, focus=focus, graduated=graduated)
     optional, has_more_optional = build_optional(
-        user_id, session, required_items=required, focus=focus
+        user_id, session, required_items=required, focus=focus, graduated=graduated,
     )
     setup = build_setup(user_id, session)
 
@@ -355,9 +406,10 @@ def get_daily_plan(
     skipped_kinds = _get_unified_skipped_kinds(user_id, session)
     if skipped_kinds:
         _apply_unified_skip_state(required_dicts, skipped_kinds)
+    from app.utils.time_utils import get_user_local_date
     _annotate_unified_skip_quota(
         required_dicts,
-        get_slot_skips_used_today(user_id, _today_user_local(user_id, session), session),
+        get_slot_skips_used_today(user_id, get_user_local_date(user_id, session), session),
     )
 
     return {
@@ -372,12 +424,9 @@ def get_daily_plan(
         'total_estimated_minutes': total_estimated_minutes,
         'plan_intensity': get_plan_intensity(total_estimated_minutes),
         'has_more_optional': has_more_optional,
+        'graduated': graduated,
     }
 
-
-def _today_user_local(user_id: int, db: Any):
-    from app.utils.time_utils import get_user_local_date
-    return get_user_local_date(user_id, db)
 
 
 def _compute_module_progress(user_id: int, db: Any, next_lesson: Any) -> Optional[dict[str, Any]]:

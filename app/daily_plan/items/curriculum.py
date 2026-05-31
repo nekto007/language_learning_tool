@@ -271,6 +271,7 @@ def build_curriculum_item(
     *,
     section: str = 'required',
     next_lesson: Optional[Lessons] = None,
+    exclude_lesson_ids: Optional[set[int]] = None,
 ) -> Optional[PlanItem]:
     """Return the curriculum PlanItem or None if no eligible lesson exists.
 
@@ -278,9 +279,12 @@ def build_curriculum_item(
     ``next_lesson is None`` the builder returns None — the orchestrator is
     responsible for adding ``setup_level`` (no history) or emitting a
     ``course_completed`` milestone (has history) instead.
+
+    ``exclude_lesson_ids`` is forwarded to ``find_next_lesson_linear`` so the
+    optional builder can skip the lesson already shown in required.
     """
     if next_lesson is None:
-        next_lesson = find_next_lesson_linear(user_id, db)
+        next_lesson = find_next_lesson_linear(user_id, db, exclude_lesson_ids=exclude_lesson_ids)
     if next_lesson is None:
         return None
 
@@ -298,6 +302,11 @@ def build_curriculum_item(
     # offer the next pending lesson so users who finished their plan can
     # keep going. Without the skip, optional would render the same done
     # lesson, get de-duped by id against required, and disappear.
+    #
+    # Edge-case guard: if the optional builder (via exclude_lesson_ids) still
+    # resolves the same lesson id as today's completed lesson — e.g. stale DB
+    # state where the completed lesson is not yet filtered out — return None
+    # so the optional section shows nothing rather than a phantom duplicate.
     done_today = _curriculum_done_today(user_id, db)
     if done_today and section == 'required':
         completed_lesson = _get_lesson_completed_today(user_id, db) or next_lesson
@@ -324,6 +333,14 @@ def build_curriculum_item(
                 'state': 'done_today',
             },
         )
+
+    # Guard for optional section: if done_today and the resolved next_lesson
+    # is the same as today's completed lesson (stale-state edge case), return
+    # None to prevent a phantom duplicate in the optional block.
+    if done_today and section == 'optional':
+        completed_lesson = _get_lesson_completed_today(user_id, db)
+        if completed_lesson is not None and next_lesson.id == completed_lesson.id:
+            return None
 
     module = next_lesson.module
     level = module.level if module is not None else None

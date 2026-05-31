@@ -48,6 +48,7 @@ def build_srs_item(
     db: Any,
     *,
     section: str = 'required',
+    ignore_daily_budget: bool = False,
 ) -> Optional[PlanItem]:
     """Return SRS PlanItem: pending when due>0, done when reviewed today, None otherwise.
 
@@ -71,12 +72,22 @@ def build_srs_item(
     completed_today = _srs_completed_today(user_id, db)
 
     if due_count <= 0 and not completed_today:
-        return None
+        if not ignore_daily_budget:
+            return None
+        # For graduated users (ignore_daily_budget=True): count_linear_plan_srs_due_cards
+        # is capped by the daily review budget, which may be 0 even when real cards are
+        # due. Check the raw backlog to decide whether to surface the item at all.
+        raw_due = count_due_cards(user_id, db)
+        if raw_due <= 0:
+            return None
+        due_count = raw_due
 
     # In optional, don't surface a "done today" placeholder — keep the
     # bonus list focused on actionable items. Required keeps the done
     # card so the user can see progress and the counter reflects it.
-    if section == 'optional' and due_count <= 0 and completed_today:
+    # Exception: when ignore_daily_budget=True (graduated users), keep
+    # the item visible in optional so the user can see their SRS work.
+    if section == 'optional' and due_count <= 0 and completed_today and not ignore_daily_budget:
         return None
 
     backlog = count_due_cards(user_id, db)

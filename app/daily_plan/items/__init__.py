@@ -29,6 +29,7 @@ Kind = Literal[
     'speaking',
     'writing',
     'error_review',
+    'grammar_review',
     'challenge',
     'setup_book',
     'setup_level',

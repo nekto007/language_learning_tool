@@ -383,25 +383,26 @@ class TestNextStepWithMissionPhases:
     def test_legacy_plan_still_works(
         self, mock_unified, mock_summary, app, authenticated_client,
     ):
+        # Legacy payloads (no 'mode' key) fall through to the no-op shim which
+        # returns all_done so the frontend always gets a valid response shape.
         mock_unified.return_value = SAMPLE_LEGACY_PAYLOAD
 
         resp = authenticated_client.get('/api/daily-plan/next-step')
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['has_next'] is True
-        assert data['step_type'] == 'lesson'
+        assert data['has_next'] is False
+        assert data['all_done'] is True
 
     @patch('app.telegram.queries.get_daily_summary', return_value=SAMPLE_SUMMARY)
     @patch(f'{UNIFIED_MODULE}.get_daily_plan_unified')
-    def test_linear_plan_returns_next_slot(
+    def test_linear_plan_falls_through_to_shim(
         self, mock_unified, mock_summary, app, authenticated_client,
     ):
+        # Linear mode has been removed; the no-op shim handles unrecognised modes.
         mock_unified.return_value = SAMPLE_LINEAR_PAYLOAD
 
         resp = authenticated_client.get('/api/daily-plan/next-step')
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['has_next'] is True
-        assert data['step_type'] == 'curriculum'
-        assert data['step_title'] == 'Present Simple'
-        assert data['step_url'] == '/learn/42/?from=linear_plan'
+        assert data['has_next'] is False
+        assert data['all_done'] is True
