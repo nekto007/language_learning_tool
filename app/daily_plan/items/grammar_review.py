@@ -92,6 +92,7 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
         .join(GrammarTopic, GrammarTopic.id == GrammarExercise.topic_id)
         .filter(
             UserGrammarExercise.user_id == user_id,
+            UserGrammarExercise.last_reviewed.isnot(None),
             GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
         )
         .group_by(GrammarExercise.topic_id)

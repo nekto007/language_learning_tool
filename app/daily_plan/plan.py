@@ -134,6 +134,7 @@ def build_required(
     *,
     difficulty: str,
     focus: Optional[str],
+    graduated: bool = False,
 ) -> list[PlanItem]:
     """Assemble the required-section items in caskade order.
 
@@ -148,7 +149,14 @@ def build_required(
 
     Setup items NEVER appear here. Empty list is valid (orchestrator
     reports day not secured and surfaces setup hints).
+
+    Graduated users (all curriculum exhausted, has history) receive an empty
+    required list — their work lives entirely in optional (SRS, reading,
+    grammar_review with ignore_daily_budget=True).
     """
+    if graduated:
+        return []
+
     items: list[PlanItem] = []
 
     err_section = determine_section(user_id, db)
@@ -363,7 +371,7 @@ def get_daily_plan(
     # Force optional to include SRS/reading/grammar_review even if daily caps reached.
     graduated = next_lesson is None and has_completed_history(user_id, session)
 
-    required = build_required(user_id, session, difficulty=difficulty, focus=focus)
+    required = build_required(user_id, session, difficulty=difficulty, focus=focus, graduated=graduated)
     optional, has_more_optional = build_optional(
         user_id, session, required_items=required, focus=focus, graduated=graduated,
     )

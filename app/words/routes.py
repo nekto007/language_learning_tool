@@ -491,6 +491,16 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
         _compute_phase_completion,
     )
 
+    if plan.get('mode') == 'unified':
+        all_items = list(plan.get('required') or []) + list(plan.get('optional') or [])
+        for item in all_items:
+            if item.get('completed') or item.get('skipped') or item.get('blocked'):
+                continue
+            item_url = item.get('url')
+            if item_url:
+                return item.get('title') or 'Следующий шаг', item_url
+        return None, None
+
     phases = plan.get('phases') or []
     if phases:
         completion = _compute_phase_completion(phases, daily_summary)
