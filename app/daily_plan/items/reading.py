@@ -45,8 +45,19 @@ def _latest_chapter_progress(user_id: int, book_id: int, db: Any) -> Optional[Us
     )
 
 
-def _read_today(user_id: int, db: Any) -> bool:
+def _read_today(user_id: int, book_id: Optional[int], db: Any) -> bool:
+    """Return True when today's reading slot is done for ``book_id``.
+
+    Two signals are accepted, either of which closes the slot:
+      1. ``StreakEvent(source='linear_book_reading')`` for today — written
+         by ``maybe_award_book_reading_xp`` after a qualifying session.
+      2. ``is_daily_reading_target_met_today`` for the user's selected book
+         — independent fallback so the dashboard tile flips green as soon
+         as the time gate is met, even if the XP-award path never landed
+         (e.g. sendBeacon close was dropped on tab navigation).
+    """
     from app.achievements.models import StreakEvent
+    from app.books.reading_session import is_daily_reading_target_met_today
     from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
 
     today = get_linear_event_local_date(user_id, db)
@@ -56,7 +67,18 @@ def _read_today(user_id: int, db: Any) -> bool:
         StreakEvent.event_date == today,
         StreakEvent.details['source'].astext == 'linear_book_reading',
     )
-    return db.session.query(query.exists()).scalar() or False
+    if db.session.query(query.exists()).scalar() or False:
+        return True
+    if book_id is None:
+        return False
+    try:
+        return is_daily_reading_target_met_today(user_id, book_id, db)
+    except Exception:
+        logger.warning(
+            "_read_today: is_daily_reading_target_met_today failed user=%s book=%s",
+            user_id, book_id, exc_info=True,
+        )
+        return False
 
 
 def build_reading_item(
@@ -89,7 +111,7 @@ def build_reading_item(
             chapter_num = chapter.chap_num
             chapter_title = chapter.title
 
-    completed = _read_today(user_id, db)
+    completed = _read_today(user_id, book.id, db)
 
     from app.books.reading_session import MIN_READING_SECONDS, get_book_reading_seconds_today
 
