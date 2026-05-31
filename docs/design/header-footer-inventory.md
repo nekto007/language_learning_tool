@@ -7,11 +7,11 @@
 | Раздел | Endpoint | URL | Шаблон | Доступ |
 | --- | --- | --- | --- | --- |
 | Лендинг | `landing.index` | `/` | `landing/index.html` | anon + auth |
-| Каталог курсов | `courses.catalog` | `/learn/` | `curriculum/public_catalog.html` | anon + auth |
-| CEFR-уровень | `courses.level_detail` | `/learn/<level>` | `curriculum/public_level.html` | anon + auth |
-| Grammar Lab | `grammar_lab.index` | `/grammar/` | `grammar_lab/index.html` | anon + auth |
-| Темы грамматики | `grammar_lab.topics` | `/grammar/topics/` | `grammar_lab/topics.html` | anon + auth |
-| Тема грамматики | `grammar_lab.topic_detail` | `/grammar/<slug>/` | `grammar_lab/topic_detail.html` | anon + auth |
+| Каталог курсов | `courses.catalog` | `/courses/` | `curriculum/public_catalog.html` | anon + auth |
+| CEFR-уровень | `courses.level_detail` | `/courses/<level>` | `curriculum/public_level.html` | anon + auth |
+| Grammar Lab | `grammar_lab.index` | `/grammar-lab/` | `grammar_lab/index.html` | anon + auth |
+| Темы грамматики | `grammar_lab.topics` | `/grammar-lab/topics` | `grammar_lab/topics.html` | anon + auth |
+| Тема грамматики | `grammar_lab.topic_detail` | `/grammar-lab/<slug>` | `grammar_lab/topic_detail.html` | anon + auth |
 | Публичный словарь | `words.public_dictionary` | `/dictionary/` | `words/public_dictionary.html` | anon + auth |
 | Слово | `words.public_word` | `/word/<id>/` | `words/public_word.html` | anon + auth |
 | Сравнение слов | `words.public_contrast` | `/word/.../vs/...` | `words/public_contrast.html` | anon + auth |
@@ -33,7 +33,7 @@
 Группа «Карточки»: `study.index` — `/study/`
 
 Группа «Курсы» (dropdown):
-- `courses.catalog` (внутренний линк) — `/learn/`
+- `courses.catalog` (внутренний линк) — `/courses/`
 - `book_courses.list_book_courses` (только auth) — `/book-courses`
 - быстрый «Продолжить» на текущий lesson/course
 

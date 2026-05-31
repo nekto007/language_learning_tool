@@ -18317,6 +18317,43 @@ body.feedback-modal-open { overflow: hidden; }
     width: 100%;
     padding: 1.25rem 0 0;
 }
+.legal-page {
+    width: min(720px, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 0.5rem 0 2rem;
+    color: var(--public-text);
+    line-height: 1.6;
+}
+.legal-page__title {
+    margin: 0 0 1.5rem;
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: var(--public-text);
+}
+.legal-page__meta {
+    margin: 0 0 1.5rem;
+    color: var(--public-muted);
+    font-size: 0.92rem;
+}
+.legal-page h2 {
+    margin: 1.5rem 0 0.75rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--public-text);
+}
+.legal-page p,
+.legal-page ul {
+    margin: 0 0 1rem;
+}
+.legal-page ul {
+    padding-left: 1.25rem;
+}
+.legal-page li {
+    margin-bottom: 0.35rem;
+}
+.legal-page a {
+    color: var(--public-primary, #2563eb);
+}
 .public-flashes {
     width: min(980px, calc(100% - 2rem));
     margin: 1rem auto 0;
