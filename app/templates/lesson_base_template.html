@@ -682,20 +682,25 @@ window.showLessonCompletion = function(opts) {
   var ctx = window.linearPlanContext;
   var inPlanContext = !!(ctx && typeof ctx.isActive === 'function' && ctx.isActive());
 
-  if (!inPlanContext) {
-    // Standalone path — optionally honour an inline daily_plan_ctx override
-    // (legacy callers pass it from the submit response).
-    if (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) {
-      var dp = opts.daily_plan_ctx;
-      if (dp.day_secured && !dp.next_slot_url) {
-        try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
-        window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
-        return;
-      }
-      _renderPlanCtas(dp.next_slot_url, dp.next_slot_title, dp.dashboard_url);
-      _revealCompletion('plan');
+  // Prefer the refreshed daily_plan_ctx from the submit response when the
+  // caller hands one over — it's already keyed to the just-completed lesson
+  // and saves an extra HTTP round-trip versus fetchNextSlot(). This also
+  // covers the in-plan path where the page-load CTA still points at the
+  // about-to-be-completed lesson (which would otherwise be the fallback
+  // for a fetchNextSlot failure).
+  if (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) {
+    var dp = opts.daily_plan_ctx;
+    if (dp.day_secured && !dp.next_slot_url) {
+      try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
+      window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
       return;
     }
+    _renderPlanCtas(dp.next_slot_url, dp.next_slot_title, dp.dashboard_url);
+    _revealCompletion('plan');
+    return;
+  }
+
+  if (!inPlanContext) {
     _revealCompletion('standalone');
     return;
   }

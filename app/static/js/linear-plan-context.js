@@ -172,10 +172,24 @@
    */
   function fetchNextSlot() {
     if (!isActive()) return Promise.resolve(null);
-    var url = '/api/daily-plan/next-slot';
+    var params = [];
     var kind = getSlotKind();
     if (kind) {
-      url += '?current=' + encodeURIComponent(kind);
+      params.push('current=' + encodeURIComponent(kind));
+    }
+    // Pull lesson_id from the URL when present so the server can
+    // disambiguate which curriculum slot the user is currently inside —
+    // important when required and optional both carry curriculum items.
+    try {
+      var path = window.location.pathname || '';
+      var match = path.match(/\/learn\/(\d+)\/?/);
+      if (match) {
+        params.push('lesson_id=' + encodeURIComponent(match[1]));
+      }
+    } catch (e) { /* lesson_id is best-effort */ }
+    var url = '/api/daily-plan/next-slot';
+    if (params.length) {
+      url += '?' + params.join('&');
     }
     return fetch(url, {
       credentials: 'same-origin',
