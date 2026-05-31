@@ -2565,7 +2565,7 @@ def _resolve_hero_cta(user, mission_plan: dict | None, plan_completion: dict, da
             'url': '#dash-plan',
         }
 
-    from app.daily_plan.service import has_extra_review_capacity, resolve_next_phase
+    from app.daily_plan.service import has_extra_review_capacity
 
     phases = mission_plan.get('phases') or []
     required = [p for p in phases if p.get('required', True)]

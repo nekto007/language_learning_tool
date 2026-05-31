@@ -90,7 +90,7 @@ class TestNextStepFromUnified:
         assert data['step_type'] == 'curriculum'
         assert data['step_title'] == 'Lesson 1'
         assert data['step_url'] == '/lesson/1'
-        assert '🎯' in data['step_icon'] or '\U0001f3af' in data['step_icon']
+        assert data['step_icon'] == '\U0001f3af'
 
     def test_skips_completed_required_returns_next(self, authenticated_client):
         """Skips the first required item if it's completed, returns second."""
@@ -217,6 +217,7 @@ class TestNextStepFromUnified:
 class TestNextStepDispatcher:
     """Tests for the dispatcher routing in daily_plan_next_step."""
 
+    @pytest.mark.smoke
     def test_unified_mode_calls_unified_handler(self, authenticated_client):
         """unified mode plan routes through _next_step_from_unified, not legacy."""
         plan = _make_unified_plan(required=[
@@ -268,6 +269,7 @@ class TestNextStepGraduated:
         assert resp.status_code == 200
         return resp.get_json()
 
+    @pytest.mark.smoke
     def test_graduated_all_done_returns_free_study(self, authenticated_client):
         """Graduated user with all items completed returns has_next=True with free_study."""
         plan = {

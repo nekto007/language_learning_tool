@@ -733,23 +733,14 @@ class TestGraduatedStatePlan:
         )
 
     def test_grammar_review_appears_in_optional_priority_order(self, db_session):
-        """grammar_review appears AFTER srs/reading/listening in optional priority."""
-        level = _make_level(db_session, order=13)
-        module = _make_module(db_session, level)
-        lesson = _make_lesson(db_session, module, number=1, type_='vocabulary')
-        user = _make_user(db_session, onboarding_level=level.code)
-        _complete_lesson(db_session, user, lesson)
-        _make_grammar_topic(db_session, level=level.code)
-
-        plan = get_daily_plan(user.id, real_db)
-
-        optional_kinds = [it['kind'] for it in plan['optional']]
-        if 'grammar_review' in optional_kinds and 'srs' in optional_kinds:
-            srs_pos = optional_kinds.index('srs')
-            gr_pos = optional_kinds.index('grammar_review')
-            assert srs_pos < gr_pos, (
-                'srs must appear before grammar_review in optional'
-            )
+        """grammar_review appears AFTER srs in _OPTIONAL_PRIORITY."""
+        from app.daily_plan.plan import _OPTIONAL_PRIORITY
+        priority = list(_OPTIONAL_PRIORITY)
+        assert 'grammar_review' in priority
+        assert 'srs' in priority
+        srs_pos = priority.index('srs')
+        gr_pos = priority.index('grammar_review')
+        assert srs_pos < gr_pos, 'srs must appear before grammar_review in _OPTIONAL_PRIORITY'
 
 
 class TestSRSIgnoreDailyBudget:
