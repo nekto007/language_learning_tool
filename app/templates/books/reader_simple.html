@@ -383,6 +383,15 @@ body.dark-theme .rdr-timer-bar__pause {
 .text-size-20 { font-size: 20px; }
 .text-size-22 { font-size: 22px; }
 
+/* End-of-chapter spacer: forces real scrolling past the last text line
+   before the bottom nav (and 100% read flag) appears. Without this,
+   scrolling to the scroll-max stops with the last 20-30 lines still
+   visible at the bottom of the viewport — they were not actually read. */
+.rdr-end-spacer {
+  min-height: 70vh;
+  pointer-events: none;
+}
+
 /* ── Bottom Navigation ── */
 .rdr-bottom-nav {
   display: flex;
@@ -1091,6 +1100,8 @@ body.dark-theme .rdr-timer-bar__pause {
         {{ current_chapter.text_raw | format_chapter_text }}
       </div>
 
+      <div class="rdr-end-spacer" aria-hidden="true"></div>
+
       <!-- Chapter navigation at bottom -->
       <div class="rdr-bottom-nav">
         {% if current_chapter.chap_num > 1 %}
@@ -1268,10 +1279,28 @@ const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('readingProgress');
 let saveTimeout = null;
 
+// Compute reading progress relative to the chapter text only — not the
+// whole scroll container. 100% is reached when the BOTTOM of
+// ``chapterContent`` scrolls above the viewport top, i.e. the user has
+// actually scrolled past the last text line. The bottom spacer
+// (``.rdr-end-spacer``) provides the extra scroll room needed for the
+// top of the viewport to pass the chapter end before the nav appears.
+function computeReadingProgress() {
+    const chapter = document.getElementById('chapterContent');
+    if (!chapter) {
+        const sh = readerBody.scrollHeight - readerBody.clientHeight;
+        if (sh <= 0) return 1;
+        return Math.min(readerBody.scrollTop / sh, 1);
+    }
+    const chapterTop = chapter.offsetTop;
+    const chapterHeight = chapter.offsetHeight;
+    if (chapterHeight <= 0) return 1;
+    const scrolled = Math.max(0, readerBody.scrollTop - chapterTop);
+    return Math.min(scrolled / chapterHeight, 1);
+}
+
 function updateProgress() {
-    const scrollTop = readerBody.scrollTop;
-    const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
-    const progress = Math.min((scrollTop / scrollHeight) || 0, 1);
+    const progress = computeReadingProgress();
 
     progressBar.style.width = (progress * 100) + '%';
     progressText.textContent = Math.round(progress * 100);
@@ -1344,13 +1373,23 @@ function saveProgress(offsetPct) {
     });
 }
 
-// Restore scroll position
+// Restore scroll position. ``offset_pct`` is now relative to the
+// chapter text (matches ``computeReadingProgress``), so the scroll
+// target is ``chapterTop + savedProgress * chapterHeight`` — not a
+// fraction of the whole scroll container.
 {% if chapter_progress and chapter_progress.offset_pct %}
 window.addEventListener('load', () => {
     setTimeout(() => {
         const savedProgress = {{ chapter_progress.offset_pct }};
-        const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
-        readerBody.scrollTop = savedProgress * scrollHeight;
+        const chapter = document.getElementById('chapterContent');
+        if (chapter) {
+            const target = chapter.offsetTop + savedProgress * chapter.offsetHeight;
+            const maxScroll = readerBody.scrollHeight - readerBody.clientHeight;
+            readerBody.scrollTop = Math.min(target, Math.max(0, maxScroll));
+        } else {
+            const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
+            readerBody.scrollTop = savedProgress * scrollHeight;
+        }
         updateProgress();
     }, 100);
 });
@@ -1395,7 +1434,16 @@ setTimeout(updateProgress, 100);
     let targetReached = false;                   // true once elapsed >= DAILY_TARGET_SECONDS; freezes display
 
     function _currentOffsetPct() {
+        // Must match ``computeReadingProgress`` — the offset_pct hint sent
+        // to /reading-session/end becomes the persisted UserChapterProgress
+        // value, so any divergence here would cause the dashboard reading
+        // tile and the bar at the top of this page to drift.
         try {
+            const chapter = document.getElementById('chapterContent');
+            if (chapter && chapter.offsetHeight > 0) {
+                const scrolled = Math.max(0, readerBody.scrollTop - chapter.offsetTop);
+                return Math.min(scrolled / chapter.offsetHeight, 1);
+            }
             const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
             if (scrollHeight > 0) {
                 return Math.min(readerBody.scrollTop / scrollHeight, 1);
@@ -1823,8 +1871,7 @@ function toggleSidebar() {
     const modal = document.getElementById('sidebarModal');
     overlay.classList.add('active');
     modal.classList.add('active');
-    const currentProgress = (readerBody.scrollTop / (readerBody.scrollHeight - readerBody.clientHeight)) || 0;
-    updateSidebarProgress(currentProgress);
+    updateSidebarProgress(computeReadingProgress());
 }
 
 function closeSidebar() {

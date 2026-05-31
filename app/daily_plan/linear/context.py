@@ -25,7 +25,12 @@ class LinearSlotKind(str, Enum):
 
     CURRICULUM = 'curriculum'
     SRS = 'srs'
-    BOOK = 'book'
+    # NOTE: value must match ``PlanItem.kind`` for the reading slot
+    # (``'reading'``) so ``_is_current_slot`` in ``lesson_context.py`` can
+    # match by kind when the user navigates from the dashboard reading tile
+    # carrying ``?slot=reading``. Legacy URLs with ``slot=book`` are mapped
+    # to ``reading`` in ``_normalize_slot_param`` for backward compat.
+    BOOK = 'reading'
     LISTENING = 'listening'
     SPEAKING = 'speaking'
     WRITING = 'writing'
