@@ -1,19 +1,30 @@
 """Smoke tests for the public layout (public_base.html).
 
-Covers Task 2 of the header/footer refresh: verifies that anonymous visitors
+Covers Tasks 2–5 of the header/footer refresh: verifies that anonymous visitors
 get rendered public pages and that the shared layout markup is present.
 """
 import pytest
 
 
-# Pages currently rendered through public_base.html for anonymous visitors.
-# (Auth/legal templates migrate to public_base.html in Task 5; not yet covered here.)
+# Pages rendered through public_base.html for anonymous visitors. After Task 5
+# this also includes legal/auth/SEO pages migrated off base.html.
 PUBLIC_URLS = [
     '/',                # landing.index
     '/courses/',        # courses.catalog
     '/grammar-lab/',    # grammar_lab.index
+    '/grammar-lab/topics',  # grammar_lab.topics
     '/dictionary',      # words.public_dictionary
+    '/privacy',         # legal.privacy
+    '/login',           # auth.login
+    '/register',        # auth.register
+    '/reset_password',  # auth.reset_request
 ]
+
+
+# Endpoints that, after Task 5, must NOT extend base.html (the cabinet layout).
+# Verified via response markers: cabinet layout exposes `xp-bar` + `bottom-nav`;
+# public layout exposes `public-header`. Pages must show the latter only.
+NON_CABINET_URLS = PUBLIC_URLS
 
 
 @pytest.mark.smoke
@@ -86,6 +97,20 @@ def test_public_header_marks_active_section(client, url, expected_active_label):
     html = response.data.decode('utf-8', errors='replace')
     assert 'public-nav__link--active' in html, f'{url}: no active link rendered'
     assert 'aria-current="page"' in html, f'{url}: missing aria-current="page"'
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize('url', NON_CABINET_URLS)
+def test_migrated_pages_use_public_layout(client, url):
+    """SEO/auth/legal pages render via public_base.html — no cabinet markers."""
+    response = client.get(url)
+    assert response.status_code == 200, f'{url} returned {response.status_code}'
+    html = response.data.decode('utf-8', errors='replace')
+    assert 'public-header' in html, f'{url} missing public-header marker'
+    # base.html exposes the cabinet bottom-nav and xp-bar widgets — must be absent.
+    assert 'class="bottom-nav"' not in html, f'{url} leaks cabinet bottom-nav'
+    assert 'class="xp-bar"' not in html, f'{url} leaks cabinet xp-bar'
+    assert 'navbar-expand-lg' not in html, f'{url} leaks Bootstrap cabinet navbar'
 
 
 @pytest.mark.smoke

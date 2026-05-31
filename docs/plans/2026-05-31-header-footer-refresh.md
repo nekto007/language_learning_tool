@@ -93,11 +93,11 @@
 - Modify: `app/templates/auth/public_profile.html`, `app/templates/achievements/public_streak.html` (extends public_base.html — SEO, открыты для anon).
 - Modify: `app/templates/curriculum/public_catalog.html`, `app/templates/curriculum/public_level.html`, `app/templates/grammar_lab/index.html`, `app/templates/grammar_lab/topics.html`, `app/templates/grammar_lab/topic_detail.html`, `app/templates/words/public_dictionary.html`, `app/templates/landing/index.html` (убрать `if current_user.is_authenticated else` — всегда `extends 'public_base.html'`; в public_base header пункт «Открыть кабинет» для авторизованных уже есть).
 
-- [ ] Для каждого шаблона: поправить extends, проверить, что используются только блоки `content`/`title`/`meta_description`/`og_*`/`styles`/`extra_css`/`extra_js`/`scripts`/`canonical`/`robots`/`head_extra`/`body_class` (все объявлены в public_base.html).
-- [ ] Если шаблон использовал блок, отсутствующий в public_base.html (например, `og_image`), убедиться что он есть; добавить недостающие в public_base.html.
-- [ ] Удалить из этих шаблонов любые предположения о наличии `xp-bar`, `bottom-nav`, `feedback-widget` (их в public_base.html нет — должно быть и не было).
-- [ ] Smoke-тесты: расширить `test_public_layout.py` — рендер каждого мигрированного endpoint'а анонимом, проверка `public-header` присутствует, `navbar-expand-lg` (Bootstrap) отсутствует.
-- [ ] `pytest` полный — обязан проходить.
+- [x] Для каждого шаблона: поправить extends, проверить, что используются только блоки `content`/`title`/`meta_description`/`og_*`/`styles`/`extra_css`/`extra_js`/`scripts`/`canonical`/`robots`/`head_extra`/`body_class` (все объявлены в public_base.html).
+- [x] Если шаблон использовал блок, отсутствующий в public_base.html (например, `og_image`), убедиться что он есть; добавить недостающие в public_base.html.
+- [x] Удалить из этих шаблонов любые предположения о наличии `xp-bar`, `bottom-nav`, `feedback-widget` (их в public_base.html нет — должно быть и не было).
+- [x] Smoke-тесты: расширить `test_public_layout.py` — рендер каждого мигрированного endpoint'а анонимом, проверка `public-header` присутствует, `navbar-expand-lg` (Bootstrap) отсутствует.
+- [x] `pytest` полный — обязан проходить.
 
 ### Task 6: Переосмысление кабинетной шапки (base.html) — адаптивность, актуализация
 

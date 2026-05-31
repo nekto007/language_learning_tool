@@ -183,26 +183,26 @@ class TestLevelUpModalInBase:
 
     def test_base_has_levelup_modal(self, auth_client):
         """Authenticated page should contain level-up modal."""
-        response = auth_client.get('/grammar-lab/')
+        response = auth_client.get('/profile')
         html = response.data.decode()
         assert 'levelup-modal' in html
 
     def test_base_has_celebration_script(self, auth_client):
         """Authenticated page should contain celebration check script."""
-        response = auth_client.get('/grammar-lab/')
+        response = auth_client.get('/profile')
         html = response.data.decode()
         assert 'api/celebrations' in html
 
     def test_base_uses_localstorage_for_one_time_display(self, auth_client):
         """Modal should use localStorage to prevent repeated display."""
-        response = auth_client.get('/grammar-lab/')
+        response = auth_client.get('/profile')
         html = response.data.decode()
         assert 'llt_celeb_seen' in html
         assert 'llt_level' in html
 
     def test_base_celebration_script_uses_after_param(self, auth_client):
         """Script should pass 'after' param to filter already-seen celebrations."""
-        response = auth_client.get('/grammar-lab/')
+        response = auth_client.get('/profile')
         html = response.data.decode()
         assert '?after=' in html or 'after' in html
 
