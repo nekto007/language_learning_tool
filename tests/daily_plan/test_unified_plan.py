@@ -705,7 +705,8 @@ class TestGraduatedStatePlan:
         lesson = _make_lesson(db_session, module, number=1, type_='vocabulary')
         user = _make_user(db_session, onboarding_level=level.code)
         _complete_lesson(db_session, user, lesson)
-        _make_grammar_topic(db_session, level=level.code)
+        # Grammar topic must use a public CEFR code so topic_detail never 404s.
+        _make_grammar_topic(db_session, level='A1')
 
         plan = get_daily_plan(user.id, real_db)
 

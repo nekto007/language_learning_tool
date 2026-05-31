@@ -62,6 +62,7 @@ def build_grammar_review_item(
 
 def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
     """Return the topic whose exercises were reviewed longest ago by this user."""
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
     from sqlalchemy import func
 
@@ -72,7 +73,10 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
         )
         .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
         .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
-        .filter(UserGrammarExercise.user_id == user_id)
+        .filter(
+            UserGrammarExercise.user_id == user_id,
+            GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+        )
         .group_by(GrammarTopic.id)
         .order_by(func.max(UserGrammarExercise.last_reviewed).asc().nullsfirst())
         .first()
@@ -81,13 +85,14 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
 
 
 def _level_fallback_topic(user_id: int, db: Any, GrammarTopic: Any) -> Optional[Any]:
-    """Return the first topic at the user's CEFR level, or any topic globally."""
+    """Return the first topic at the user's CEFR level, or any public topic globally."""
     from app.auth.models import User
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 
     user = db.session.get(User, user_id)
     level_code = getattr(user, 'onboarding_level', None) if user is not None else None
 
-    if level_code:
+    if level_code and level_code in PUBLIC_CEFR_CODES:
         topic = (
             db.session.query(GrammarTopic)
             .filter(GrammarTopic.level == level_code)
@@ -97,4 +102,9 @@ def _level_fallback_topic(user_id: int, db: Any, GrammarTopic: Any) -> Optional[
         if topic is not None:
             return topic
 
-    return db.session.query(GrammarTopic).order_by(GrammarTopic.id.asc()).first()
+    return (
+        db.session.query(GrammarTopic)
+        .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
+        .order_by(GrammarTopic.id.asc())
+        .first()
+    )
