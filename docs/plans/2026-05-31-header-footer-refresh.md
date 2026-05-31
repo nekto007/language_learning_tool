@@ -127,6 +127,6 @@
 
 ### Task 8: Обновить документацию
 
-- [ ] Обновить CLAUDE.md в секции «Project Overview» — зафиксировать новое правило: «SEO/публичные страницы → public_base.html; кабинетные → base.html; никаких conditional extends».
-- [ ] Добавить в CLAUDE.md описание правил адаптации (breakpoints: ≥1024 desktop, 768–1023 tablet, <768 mobile) и где живут публичные стили (design-system.css секция «Public layout»).
-- [ ] Решить судьбу `docs/design/header-footer-inventory.md` из Task 1 — оставить как историческую справку либо удалить.
+- [x] Обновить CLAUDE.md в секции «Project Overview» — зафиксировать новое правило: «SEO/публичные страницы → public_base.html; кабинетные → base.html; никаких conditional extends».
+- [x] Добавить в CLAUDE.md описание правил адаптации (breakpoints: ≥1024 desktop, 768–1023 tablet, <768 mobile) и где живут публичные стили (design-system.css секция «Public layout»).
+- [x] Решить судьбу `docs/design/header-footer-inventory.md` из Task 1 — оставить как историческую справку либо удалить. (Оставляем как историческую справку — ссылка добавлена в CLAUDE.md.)
