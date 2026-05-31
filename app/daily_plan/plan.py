@@ -21,7 +21,12 @@ from typing import Any, Optional
 
 from app.daily_plan.items import PlanItem
 from app.daily_plan.items.challenge import build_challenge_item
-from app.daily_plan.items.curriculum import build_curriculum_item, has_completed_history
+from app.daily_plan.items.curriculum import (
+    build_curriculum_completed_item,
+    build_curriculum_item,
+    get_curriculum_lessons_completed_today,
+    has_completed_history,
+)
 from app.daily_plan.items.error_review import build_error_review_item, determine_section
 from app.daily_plan.items.grammar_review import build_grammar_review_item
 from app.daily_plan.items.reading import build_reading_item, get_user_reading_preference
@@ -252,9 +257,27 @@ def build_optional(
         {required_curriculum_lesson_id} if required_curriculum_lesson_id is not None else None
     )
 
+    candidates: list[PlanItem] = []
+
+    # Surface curriculum lessons completed today *via the optional section* so
+    # they accumulate visibly under the required-curriculum card instead of
+    # being replaced by the next pending lesson on every completion. Only
+    # surface them when the required-curriculum card itself is present (we
+    # need an anchor) — otherwise the graduated path would leak the only
+    # done lesson into optional and the dashboard would show the same card
+    # twice in different sections / no required curriculum at all.
+    if required_curriculum_lesson_id is not None:
+        for completed_lesson in get_curriculum_lessons_completed_today(
+            user_id, db, exclude_lesson_ids=exclude_curriculum_ids,
+        ):
+            completed_item = build_curriculum_completed_item(completed_lesson, section='optional')
+            if completed_item.id in seen_ids:
+                continue
+            candidates.append(completed_item)
+            seen_ids.add(completed_item.id)
+
     # Build candidate items per source. Each source contributes at most one
     # optional item (subsequent extension comes from rebuild after activity).
-    candidates: list[PlanItem] = []
     for kind in _OPTIONAL_PRIORITY:
         candidate = _build_optional_candidate(
             user_id, db, kind, focus,

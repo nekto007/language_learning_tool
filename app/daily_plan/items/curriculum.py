@@ -112,15 +112,48 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
 
 
 def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
-    """Return the most recent curriculum lesson finished today.
+    """Return the FIRST curriculum lesson finished today.
 
-    Primary signal: today's ``StreakEvent.details['lesson_id']`` written
-    by ``maybe_award_curriculum_xp``. Fallback: ``LessonProgress``.
+    Anchoring on the *first* completion (not the most recent) keeps the
+    required-curriculum card stable as the user goes on to complete more
+    lessons via the optional section. Without this anchor, the required
+    card would jump to whichever lesson was completed last, and previously
+    completed lessons would silently disappear from the plan.
+
+    Primary signal: today's earliest ``StreakEvent.details['lesson_id']``
+    from ``maybe_award_curriculum_xp``. Fallback: ``LessonProgress``.
+    """
+    lessons = get_curriculum_lessons_completed_today(user_id, db)
+    return lessons[0] if lessons else None
+
+
+def get_curriculum_lessons_completed_today(
+    user_id: int,
+    db: Any,
+    exclude_lesson_ids: Optional[set[int]] = None,
+) -> list[Lessons]:
+    """Return curriculum lessons completed today, in completion order.
+
+    Used by the optional-section orchestrator to surface accumulated
+    completed cards under the required-curriculum card — so a user who
+    finishes the required lesson and keeps going through optional lessons
+    sees each completed lesson stay visible instead of being replaced by
+    the next pending lesson.
+
+    Combines ``StreakEvent`` (primary, carries ``lesson_id``) with
+    ``LessonProgress`` (fallback). ``exclude_lesson_ids`` lets the caller
+    skip a lesson already rendered elsewhere (e.g. the one anchored in
+    required) so it does not appear twice.
     """
     from app.achievements.models import StreakEvent
 
+    excluded: set[int] = set(exclude_lesson_ids or ())
+
     today = get_linear_event_local_date(user_id, db)
-    event = (
+    ordered_ids: list[int] = []
+    seen_ids: set[int] = set()
+
+    events = (
         db.session.query(StreakEvent)
         .filter(
             StreakEvent.user_id == user_id,
@@ -128,24 +161,25 @@ def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
             StreakEvent.event_date == today,
             StreakEvent.details['source'].astext.in_(list(_CURRICULUM_XP_SOURCES)),
         )
-        .order_by(StreakEvent.id.desc())
-        .first()
+        .order_by(StreakEvent.id.asc())
+        .all()
     )
-    if event is not None:
+    for event in events:
         lesson_id_raw = (event.details or {}).get('lesson_id')
-        if lesson_id_raw is not None:
-            try:
-                lesson_id = int(lesson_id_raw)
-            except (TypeError, ValueError):
-                lesson_id = None
-            if lesson_id is not None:
-                lesson = db.session.get(Lessons, lesson_id)
-                if lesson is not None:
-                    return lesson
+        if lesson_id_raw is None:
+            continue
+        try:
+            lesson_id = int(lesson_id_raw)
+        except (TypeError, ValueError):
+            continue
+        if lesson_id in excluded or lesson_id in seen_ids:
+            continue
+        seen_ids.add(lesson_id)
+        ordered_ids.append(lesson_id)
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
-    progress = (
-        db.session.query(LessonProgress)
+    fallback_rows = (
+        db.session.query(LessonProgress.lesson_id)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -155,12 +189,56 @@ def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
         )
-        .order_by(LessonProgress.completed_at.desc())
-        .first()
+        .order_by(LessonProgress.completed_at.asc())
+        .all()
     )
-    if progress is None:
-        return None
-    return db.session.get(Lessons, progress.lesson_id)
+    for (lesson_id,) in fallback_rows:
+        if lesson_id in excluded or lesson_id in seen_ids:
+            continue
+        seen_ids.add(lesson_id)
+        ordered_ids.append(lesson_id)
+
+    if not ordered_ids:
+        return []
+
+    rows = (
+        db.session.query(Lessons)
+        .filter(Lessons.id.in_(ordered_ids))
+        .all()
+    )
+    by_id = {row.id: row for row in rows}
+    return [by_id[lid] for lid in ordered_ids if lid in by_id]
+
+
+def build_curriculum_completed_item(
+    lesson: Lessons,
+    *,
+    section: str = 'optional',
+) -> PlanItem:
+    """Build a PlanItem for a curriculum lesson already completed today."""
+    module = lesson.module
+    level = module.level if module is not None else None
+    return PlanItem(
+        id=f'curriculum:lesson:{lesson.id}',
+        section=section,  # type: ignore[arg-type]
+        kind='curriculum',
+        title=lesson.title,
+        subtitle=_lesson_subtitle(lesson),
+        lesson_type=lesson.type,
+        eta_minutes=0,
+        url=None,
+        completed=True,
+        completion_signal='lesson_completed',
+        data={
+            'lesson_id': lesson.id,
+            'lesson_number': lesson.number,
+            'module_id': lesson.module_id,
+            'module_number': module.number if module is not None else None,
+            'module_title': module.title if module is not None else None,
+            'level_code': level.code if level is not None else None,
+            'state': 'done_today',
+        },
+    )
 
 
 def _lesson_url(lesson: Lessons) -> str:
@@ -285,31 +363,18 @@ def build_curriculum_item(
     """
     if next_lesson is None:
         next_lesson = find_next_lesson_linear(user_id, db, exclude_lesson_ids=exclude_lesson_ids)
-    if next_lesson is None:
-        return None
 
-    # When the user has already completed a curriculum lesson today, surface
-    # THAT lesson as a done card so the daily plan reflects what the user
-    # actually did. Without this short-circuit the item silently advances to
-    # the next pending lesson (e.g. L4 after finishing L3), the card looks
-    # unchanged, and ``plan_completion[item.id]`` can never flip True —
-    # ``_compute_unified_item_completion`` keys on ``item.id`` and only ever
-    # sees the freshly-built L4 card whose ``completed`` is False. Re-render
-    # tomorrow will naturally advance the spine.
-    #
-    # For the OPTIONAL section we skip this short-circuit: the required card
-    # is already showing today's done lesson, and the optional slot should
-    # offer the next pending lesson so users who finished their plan can
-    # keep going. Without the skip, optional would render the same done
-    # lesson, get de-duped by id against required, and disappear.
-    #
-    # Edge-case guard: if the optional builder (via exclude_lesson_ids) still
-    # resolves the same lesson id as today's completed lesson — e.g. stale DB
-    # state where the completed lesson is not yet filtered out — return None
-    # so the optional section shows nothing rather than a phantom duplicate.
+    # Required slot anchors on the FIRST lesson completed today even when no
+    # pending lesson remains (e.g. user has finished every available lesson).
+    # Without this, the required curriculum card would silently disappear and
+    # the completed-today lesson would land in the optional section instead,
+    # confusing the day-summary («что я сегодня прошёл?»).
     done_today = _curriculum_done_today(user_id, db)
     if done_today and section == 'required':
         completed_lesson = _get_lesson_completed_today(user_id, db) or next_lesson
+        if completed_lesson is None:
+            # Defensive: done_today should imply a completed lesson exists.
+            return None
         c_module = completed_lesson.module
         c_level = c_module.level if c_module is not None else None
         return PlanItem(
@@ -333,6 +398,13 @@ def build_curriculum_item(
                 'state': 'done_today',
             },
         )
+
+    if next_lesson is None:
+        return None
+
+    # Guard for optional section: if done_today and the resolved next_lesson
+    # is the same as today's completed lesson (stale-state edge case), return
+    # None to prevent a phantom duplicate in the optional block.
 
     # Guard for optional section: if done_today and the resolved next_lesson
     # is the same as today's completed lesson (stale-state edge case), return

@@ -577,6 +577,60 @@ def daily_race_status():
     return jsonify({'success': True, 'race': standings})
 
 
+@api_daily_plan.route('/daily-plan/next-slot')
+@api_auth_required
+def daily_plan_next_slot():
+    """Return the next plan slot relative to the caller's current slot.
+
+    Consumed by the in-lesson completion celebration (and the SRS / book /
+    error-review completion screens) via ``linearPlanContext.fetchNextSlot``.
+    Expected response shape:
+        {success, day_secured, next: {kind, url, title} | null}
+
+    ``current`` query param identifies the slot the caller is currently
+    inside (e.g. ``curriculum``, ``srs``, ``reading``); ``lesson_id`` (only
+    for curriculum) disambiguates the active lesson when the optional
+    section carries a sibling curriculum slot.
+    """
+    from app.daily_plan.linear.lesson_context import build_lesson_context
+
+    current_kind_raw = (request.args.get('current') or '').strip() or None
+    lesson_id_raw = request.args.get('lesson_id')
+    try:
+        current_lesson_id = int(lesson_id_raw) if lesson_id_raw else None
+    except (TypeError, ValueError):
+        current_lesson_id = None
+
+    try:
+        ctx = build_lesson_context(
+            current_user.id,
+            db,
+            current_lesson_id=current_lesson_id,
+            # Force the plan-aware branch — the API URL itself has no
+            # ?from=linear_plan so we pass the canonical value explicitly
+            # rather than relying on the Referer header.
+            from_param='linear_plan',
+            slot_param=current_kind_raw,
+        )
+    except Exception:
+        logger.exception("next-slot: build_lesson_context failed user=%s", current_user.id)
+        return jsonify({'success': False, 'day_secured': False, 'next': None}), 200
+
+    next_payload = None
+    if ctx.next_slot_url:
+        next_payload = {
+            'kind': ctx.next_slot_kind,
+            'url': ctx.next_slot_url,
+            'title': ctx.next_slot_title or '',
+        }
+
+    return jsonify({
+        'success': True,
+        'day_secured': bool(ctx.day_secured),
+        'next': next_payload,
+    })
+
+
 @api_daily_plan.route('/daily-plan/continuation')
 @api_auth_required
 def daily_plan_continuation():
