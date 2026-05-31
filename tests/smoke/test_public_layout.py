@@ -86,3 +86,20 @@ def test_public_header_marks_active_section(client, url, expected_active_label):
     html = response.data.decode('utf-8', errors='replace')
     assert 'public-nav__link--active' in html, f'{url}: no active link rendered'
     assert 'aria-current="page"' in html, f'{url}: missing aria-current="page"'
+
+
+@pytest.mark.smoke
+def test_public_footer_has_legal_link_and_copyright(client):
+    """The redesigned public footer exposes the privacy link and a dynamic copyright year."""
+    from datetime import datetime, timezone
+
+    response = client.get('/')
+    assert response.status_code == 200
+    html = response.data.decode('utf-8', errors='replace')
+    assert 'public-footer__grid' in html, 'public footer missing 3-column grid wrapper'
+    assert 'public-footer__col' in html, 'public footer columns missing'
+    assert '/privacy' in html, 'public footer must link to /privacy'
+    assert 'Политика конфиденциальности' in html, 'privacy link label missing'
+    current_year = str(datetime.now(timezone.utc).year)
+    assert current_year in html, f'public footer must render the current year ({current_year})'
+    assert 'public-footer__brand' in html, 'public footer brand block missing'

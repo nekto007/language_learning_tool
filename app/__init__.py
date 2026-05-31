@@ -459,6 +459,11 @@ def create_app(config_class=Config):
         return {'daily_plan_ctx': ctx}
 
     @app.context_processor
+    def _inject_current_year():
+        from datetime import datetime, timezone
+        return {'current_year': datetime.now(timezone.utc).year}
+
+    @app.context_processor
     def _inject_site_settings():
         from flask import g
 

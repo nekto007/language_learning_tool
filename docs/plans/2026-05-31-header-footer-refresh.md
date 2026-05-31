@@ -78,12 +78,12 @@
 - Modify: `app/templates/public_base.html` (footer markup).
 - Modify: `app/static/css/design-system.css` (классы `.public-footer__grid`, `.public-footer__col`, mobile-stack).
 
-- [ ] Реструктурировать footer как 3-колоночный grid: «Продукт» (Курсы, Грамматика, Словарь), «Полезное» (Контакты/email — из site_settings, Помощь — пока нет, скрываем), «Юридическое» (Политика конфиденциальности; поддержка дополнительных легал-страниц — структура готова на будущее, но не добавляем заглушек).
-- [ ] Внизу — copyright + brand (год динамический через `now().year`).
-- [ ] Mobile (<700): стек в одну колонку, центрирование.
-- [ ] Использовать `site_settings.support_email`, `site_settings.support_phone` при наличии; ничего не показывать, если поле пустое.
-- [ ] Тесты: `test_public_layout.py::test_public_footer_has_legal_link` — проверяет наличие ссылки на `/privacy` и copyright в render'е landing-страницы.
-- [ ] `pytest -m smoke`.
+- [x] Реструктурировать footer как 3-колоночный grid: «Продукт» (Курсы, Грамматика, Словарь), «Полезное» (Контакты/email — из site_settings, Помощь — пока нет, скрываем), «Юридическое» (Политика конфиденциальности; поддержка дополнительных легал-страниц — структура готова на будущее, но не добавляем заглушек).
+- [x] Внизу — copyright + brand (год динамический через `now().year`).
+- [x] Mobile (<700): стек в одну колонку, центрирование.
+- [x] Использовать `site_settings.support_email`, `site_settings.support_phone` при наличии; ничего не показывать, если поле пустое.
+- [x] Тесты: `test_public_layout.py::test_public_footer_has_legal_link` — проверяет наличие ссылки на `/privacy` и copyright в render'е landing-страницы.
+- [x] `pytest -m smoke`.
 
 ### Task 5: Миграция SEO/публичных страниц на public_base.html
 
