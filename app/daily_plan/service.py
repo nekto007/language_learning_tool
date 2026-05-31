@@ -25,18 +25,6 @@ def is_plan_paused(user: Any) -> bool:
     return paused_until > get_user_local_date(getattr(user, 'id', None))
 
 
-def compute_day_secured_at_assembly(phases: list[dict]) -> bool:
-    """Return True when all required items are marked completed.
-
-    Assembly-time evaluator. Use :func:`compute_day_secured_from_activity`
-    for real-time status derived from actual user activity.
-    """
-    required = [p for p in phases if p.get('required', True)]
-    if not required:
-        return False
-    return all(p.get('completed', False) for p in required)
-
-
 def compute_day_secured_from_activity(
     plan: dict[str, Any],
     plan_completion: dict[str, bool],
@@ -63,7 +51,6 @@ def compute_day_secured_from_activity(
             user_id = plan_meta.get('user_id')
             if not user_id:
                 return False
-            from datetime import datetime, timezone
             from app.utils.activity_tracker import has_learning_activity
             from app.utils.time_utils import get_user_local_day_bounds
             from app.utils.db import db as _db
@@ -71,7 +58,9 @@ def compute_day_secured_from_activity(
             now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
             return has_learning_activity(user_id, start_of_day, min(end_of_day, now_utc))
         return all(
-            plan_completion.get(item.get('id', ''), False) or bool(item.get('completed'))
+            plan_completion.get(item.get('id', ''), False)
+            or bool(item.get('completed'))
+            or bool(item.get('skipped'))
             for item in required
         )
     return bool(plan.get('day_secured', False))

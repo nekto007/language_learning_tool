@@ -284,7 +284,7 @@ def build_curriculum_item(
     optional builder can skip the lesson already shown in required.
     """
     if next_lesson is None:
-        next_lesson = find_next_lesson_linear(user_id, db, exclude_lesson_ids=exclude_lesson_ids or None)
+        next_lesson = find_next_lesson_linear(user_id, db, exclude_lesson_ids=exclude_lesson_ids)
     if next_lesson is None:
         return None
 

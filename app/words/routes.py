@@ -45,21 +45,6 @@ _LINEAR_SLOT_POINTS = {
 }
 
 
-def _build_route_metadata(phases: list[dict], plan_completion: dict) -> dict:
-    """Compute route board metadata for the mission plan dashboard display."""
-    total = len(phases)
-    current_idx = total  # past-end means all done
-    for i, phase in enumerate(phases):
-        if not plan_completion.get(phase.get('id', ''), False):
-            current_idx = i
-            break
-    finish_state = 'done' if current_idx == total and total > 0 else 'in_progress'
-    return {
-        'total_checkpoints': total,
-        'current_checkpoint_index': current_idx,
-        'finish_state': finish_state,
-    }
-
 words = Blueprint('words', __name__)
 PUBLIC_DICTIONARY_ALPHABET = tuple('abcdefghijklmnopqrstuvwxyz')
 
@@ -1785,7 +1770,7 @@ def dashboard():
     hero_cta = _safe_widget_call(
         'hero_cta',
         _resolve_hero_cta,
-        current_user, mission_plan, plan_completion, daily_plan,
+        current_user,
         default=None,
     )
 
@@ -2541,12 +2526,11 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
     }), 200
 
 
-def _resolve_hero_cta(user, mission_plan: dict | None, plan_completion: dict, daily_plan: dict) -> dict | None:
+def _resolve_hero_cta(user) -> dict | None:
     """Resolve the single hero CTA for the dashboard.
 
     Returns a dict ``{kind, title, url}`` where ``kind`` is one of
-    ``start|continue|extra|done|fallback|onboarding``. Returns ``None`` when no
-    user is available (caller should skip rendering).
+    ``fallback|onboarding``. Returns ``None`` when no user is available.
     """
     if user is None:
         return None

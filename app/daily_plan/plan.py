@@ -42,8 +42,9 @@ logger = logging.getLogger(__name__)
 OPTIONAL_MAX = 10
 
 # Items that must wait for the curriculum slot to complete — skipping
-# curriculum locks them too. Same set as the linear plan uses (listening
-# is intentionally NOT in this set; it walks the spine independently).
+# curriculum locks them too. Listening is intentionally NOT in this set;
+# it walks the spine independently. Optional curriculum is also not blocked
+# so users can still complete a bonus lesson after skipping required.
 _CURRICULUM_DEPENDENT_KINDS = frozenset({'speaking', 'writing'})
 
 
@@ -215,7 +216,8 @@ def build_optional(
     """Return (optional_items, has_more) capped at ``max_items``.
 
     Items already in required (matched by ``id``) are excluded. ``has_more``
-    is True if a builder still had pending work when the cap was reached.
+    is True when the total candidate count exceeded ``max_items`` (soft hint
+    for the dashboard re-fetch affordance; not a per-builder exhaustion signal).
 
     The required curriculum lesson id is forwarded to the optional curriculum
     builder as ``exclude_lesson_ids`` so the optional slot always returns the
