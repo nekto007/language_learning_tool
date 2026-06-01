@@ -253,31 +253,23 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        # Check if input is email or username
         login_input = form.username_or_email.data.strip()
 
         if '@' in login_input:
-            # It's an email
             user = User.query.filter_by(email=login_input).first()
         else:
-            # It's a username
             user = User.query.filter_by(username=login_input).first()
 
         if user and user.check_password(form.password.data):
-            # Check if user is active
             if not user.is_active:
                 flash('Ваша учетная запись неактивна. Пожалуйста, обратитесь к администратору.', 'danger')
                 return render_template('auth/login.html', form=form)
 
-            # Log in the user
             login_user(user, remember=form.remember_me.data)
 
-            # Update last login timestamp
             user.last_login = datetime.now(timezone.utc)
             db.session.commit()
 
-            # Redirect to requested page or dashboard
-            # Check both GET args and POST form data for next parameter
             next_page = request.args.get('next') or request.form.get('next')
 
             # Redirect to onboarding if not completed, preserving next param
@@ -322,7 +314,6 @@ def register():
 
     form = RegistrationForm()
 
-    # Capture query params
     level_param = request.args.get('level', '')
     ref_param = request.args.get('ref', '')
 
@@ -550,7 +541,10 @@ def profile():
     # Account age in days
     account_age_days = 0
     if current_user.created_at:
-        delta = datetime.now(timezone.utc) - current_user.created_at.replace(tzinfo=timezone.utc) if current_user.created_at.tzinfo is None else datetime.now(timezone.utc) - current_user.created_at
+        created = current_user.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        delta = datetime.now(timezone.utc) - created
         account_age_days = delta.days
 
     from app.admin.site_settings import get_referral_bonus_xp

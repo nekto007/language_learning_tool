@@ -153,7 +153,9 @@ def export_users_csv():
     return Response(
         generate(),
         mimetype='text/csv',
-        headers={'Content-Disposition': f'attachment; filename=users_export_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv'},
+        headers={
+            'Content-Disposition': f'attachment; filename=users_export_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv',
+        },
     )
 
 

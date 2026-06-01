@@ -33,11 +33,7 @@ from app.admin.utils.decorators import admin_required
 def curriculum():
     """Управление структурой курсов"""
     levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
-
-    # Получаем список последних уроков для быстрого доступа
     recent_lessons = Lessons.query.order_by(Lessons.created_at.desc()).limit(10).all()
-
-    # Получаем количество уникальных пользователей с прогрессом
     user_progress_count = db.session.query(func.count(distinct(LessonProgress.user_id))).scalar() or 0
 
     return render_template(
@@ -249,7 +245,10 @@ def import_curriculum():
                     target_id=result.get('lesson_id'),
                 )
                 db.session.commit()
-                flash(f'Материал успешно импортирован! Создан урок ID: {result["lesson_id"]}', 'success')
+                flash(
+                    f'Материал успешно импортирован! Создан урок ID: {result["lesson_id"]}',
+                    'success',
+                )
 
                 # Перенаправляем на страницу списка уроков модуля
                 module = Module.query.get(result["module_id"])
@@ -266,16 +265,7 @@ def import_curriculum():
 
 
 # Вспомогательные функции
-def import_curriculum_data(data):
-    """
-    Импортирует данные курса из JSON
-
-    Args:
-        data (dict): JSON-структура курса
-
-    Returns:
-        dict: Информация о созданных объектах
-    """
+def import_curriculum_data(data) -> dict:
     logger.info("Начинаем импорт данных курса из JSON")
 
     # Нормализация формата JSON (поддержка двух форматов)
@@ -437,8 +427,7 @@ def import_curriculum_data(data):
     return result
 
 
-def process_vocabulary(vocabulary_data, collection, level_code):
-    """Обрабатывает словарь без тегов (поддержка двух форматов)"""
+def process_vocabulary(vocabulary_data, collection, level_code) -> None:
     for word_data in vocabulary_data:
         # Поддержка обоих форматов: {word, translation} и {english, russian}
         english_word = (word_data.get('word') or word_data.get('english', '')).lower()
@@ -467,8 +456,7 @@ def process_vocabulary(vocabulary_data, collection, level_code):
             db.session.add(link)
 
 
-def process_grammar(grammar_data):
-    """Преобразует грамматические данные в формат для хранения"""
+def process_grammar(grammar_data) -> dict:
     exercises = []
 
     if 'exercises' in grammar_data:
@@ -514,8 +502,7 @@ def process_grammar(grammar_data):
     }
 
 
-def get_level_name(level_code):
-    """Возвращает название для кода уровня CEFR"""
+def get_level_name(level_code) -> str:
     level_names = {
         'A1': 'Beginner',
         'A2': 'Elementary',
@@ -526,8 +513,7 @@ def get_level_name(level_code):
     return level_names.get(level_code, f'Level {level_code}')
 
 
-def get_level_order(level_code):
-    """Возвращает порядок для уровня CEFR"""
+def get_level_order(level_code) -> int:
     level_orders = {
         'A1': 1,
         'A2': 2,

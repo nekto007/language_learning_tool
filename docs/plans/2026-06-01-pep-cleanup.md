@@ -95,10 +95,10 @@ Systematic production-readiness cleanup: remove confirmed dead code (mission/*, 
 **Files:**
 - Modify: `app/__init__.py`, `app/auth/routes.py`, `app/api/*.py`, `app/admin/main_routes.py`, `app/admin/routes/*.py`
 
-- [ ] добавить return type к nested helper-функциям в app/__init__.py
-- [ ] удалить устаревшие inline-объяснения поведения (перенесённые в CLAUDE.md)
-- [ ] исправить нарушения PEP 8 в admin routes (строки, импорты)
-- [ ] run pytest -m smoke
+- [x] добавить return type к nested helper-функциям в app/__init__.py
+- [x] удалить устаревшие inline-объяснения поведения (перенесённые в CLAUDE.md)
+- [x] исправить нарушения PEP 8 в admin routes (строки, импорты)
+- [x] run pytest -m smoke
 
 ### Task 8: Финальная верификация
 

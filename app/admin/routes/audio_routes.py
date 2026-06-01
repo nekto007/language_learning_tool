@@ -270,7 +270,9 @@ def fix_all_audio():
     # 4. Заполнить пустые поля listening
     try:
         success, fixed_count, message = AudioManagementService.fill_empty_listening_fields()
-        results.append({'step': 'Заполнение пустых listening', 'success': success, 'count': fixed_count if success else 0})
+        results.append({
+            'step': 'Заполнение пустых listening', 'success': success, 'count': fixed_count if success else 0,
+        })
         if success:
             logger.info(f"Empty listening fields filled by {current_user.username}: {fixed_count} records")
     except Exception as e:

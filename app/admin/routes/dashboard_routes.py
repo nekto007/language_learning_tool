@@ -736,7 +736,10 @@ def get_content_quality_detail() -> dict:
     for lesson in all_lessons:
         lt = lesson.type or 'other'
         if lt not in by_type:
-            by_type[lt] = {'total': 0, 'with_audio': 0, 'with_ipa': 0, 'with_examples': 0, 'completed': 0, 'rating_sum': 0.0, 'rating_count': 0}
+            by_type[lt] = {
+                'total': 0, 'with_audio': 0, 'with_ipa': 0, 'with_examples': 0,
+                'completed': 0, 'rating_sum': 0.0, 'rating_count': 0,
+            }
         entry = by_type[lt]
         entry['total'] += 1
         if lesson.id in avg_rating_by_lesson:
@@ -751,7 +754,9 @@ def get_content_quality_detail() -> dict:
         if has_audio:
             entry['with_audio'] += 1
         elif lt in AUDIO_EXPECTED:
-            missing_audio.append({'lesson_id': lesson.id, 'title': lesson.title, 'type': lt, 'module_id': lesson.module_id})
+            missing_audio.append({
+                'lesson_id': lesson.id, 'title': lesson.title, 'type': lt, 'module_id': lesson.module_id,
+            })
 
         if lt == 'vocabulary':
             cid = lesson.collection_id

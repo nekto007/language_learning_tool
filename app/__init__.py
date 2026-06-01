@@ -5,8 +5,6 @@ import time
 
 from flask import Flask
 from flask_compress import Compress
-
-logger = logging.getLogger(__name__)
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_login import LoginManager
@@ -17,6 +15,8 @@ from app.utils.db import db
 from app.utils.i18n import init_babel
 from app.utils.rate_limit_helpers import get_remote_address_key
 from config.settings import Config
+
+logger = logging.getLogger(__name__)
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
@@ -48,18 +48,14 @@ csrf = CSRFProtect()
 _site_settings_cache: dict = {'data': None, 'expires': 0.0, 'lock': threading.Lock()}
 _SITE_SETTINGS_TTL = 60  # seconds
 
-# JWT Manager for API authentication
 jwt = JWTManager()
 
-# Initialize rate limiter with enhanced configuration
 limiter = Limiter(
     key_func=get_remote_address_key,
-    default_limits=["10000 per hour", "100 per second"],  # More generous limits
+    default_limits=["10000 per hour", "100 per second"],
     storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
-    # Customizable error messages
-    headers_enabled=True,  # Enable X-RateLimit headers
-    swallow_errors=not os.environ.get('FLASK_DEBUG', ''),  # Raise in debug, degrade gracefully in prod
-    # Strategy for rate limit windows
+    headers_enabled=True,
+    swallow_errors=not os.environ.get('FLASK_DEBUG', ''),  # raise in debug, degrade gracefully in prod
     strategy="fixed-window"
 )
 
@@ -99,7 +95,6 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     init_babel(app)
 
-    # Enable gzip compression for HTTP responses
     app.config.setdefault('COMPRESS_MIMETYPES', [
         'text/html', 'text/css', 'text/xml', 'text/javascript',
         'application/json', 'application/javascript',
@@ -135,27 +130,21 @@ def create_app(config_class=Config):
         with app.app_context():
             db.create_all()
 
-    # Initialize template utilities
     from app.utils.template_utils import init_template_utils
     init_template_utils(app)
 
-    # Initialize security middleware
     from app.middleware.security import add_security_headers
     add_security_headers(app)
 
-    # Initialize request ID middleware
     from app.middleware.request_id import add_request_id
     add_request_id(app)
 
-    # Initialize acquisition (UTM) capture middleware
     from app.middleware.acquisition import add_acquisition_capture
     add_acquisition_capture(app)
 
-    # Ensure directories exist
     os.makedirs(app.config['AUDIO_UPLOAD_FOLDER'], exist_ok=True)
 
-    # Register blueprints
-    # Landing page (public, must be first for root route)
+    # Landing page must be first — owns the root route
     from app.landing import landing_bp
     app.register_blueprint(landing_bp)
 
@@ -205,61 +194,47 @@ def create_app(config_class=Config):
     from app.curriculum import curriculum_bp, init_curriculum_module
     app.register_blueprint(curriculum_bp, url_prefix='/curriculum')
 
-    # Initialize curriculum module with all components
     init_curriculum_module(app)
 
-    # Register modules blueprint
     from app.modules import modules_bp
     app.register_blueprint(modules_bp)
 
-    # Register Grammar Lab blueprint
     from app.grammar_lab import grammar_lab_bp
     app.register_blueprint(grammar_lab_bp)
 
-    # Register Onboarding blueprint
     from app.onboarding import onboarding_bp
     app.register_blueprint(onboarding_bp)
 
-    # Register Feedback blueprint (POST /api/feedback)
     from app.feedback import feedback_bp
     app.register_blueprint(feedback_bp)
 
-    # Register SEO blueprint (sitemap.xml, robots.txt)
     from app.seo import seo_bp
     app.register_blueprint(seo_bp)
 
-    # Register Legal blueprint (privacy policy)
     from app.legal import legal_bp
     app.register_blueprint(legal_bp)
 
-    # Register Daily Race blueprint (/race page)
     from app.race import race_bp
     app.register_blueprint(race_bp)
 
-    # Register Telegram bot blueprint
     from app.telegram import telegram_bp
     app.register_blueprint(telegram_bp)
 
-    # Register notifications blueprint
     from app.notifications import notifications_bp
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 
-    # Register uploads blueprint for secure file serving
     from app.uploads.routes import uploads as uploads_blueprint
     app.register_blueprint(uploads_blueprint, url_prefix='/uploads')
 
-    # Add module utilities to Jinja globals
     from app.modules.service import ModuleService
 
-    def has_module(module_code):
-        """Check if current user has access to a module"""
+    def has_module(module_code) -> bool:
         from flask_login import current_user
         if not current_user.is_authenticated:
             return False
         return ModuleService.is_module_enabled_for_user(current_user.id, module_code)
 
-    def get_user_modules():
-        """Get all enabled modules for current user"""
+    def get_user_modules() -> list:
         from flask_login import current_user
         if not current_user.is_authenticated:
             return []
@@ -298,7 +273,9 @@ def create_app(config_class=Config):
         accepts_json = 'application/json' in request.headers.get('Accept', '')
 
         if is_ajax or is_api or accepts_json:
-            return jsonify({'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True}), 400
+            return jsonify({
+                'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True,
+            }), 400
         return e.description, 400
 
     def _wants_json():
@@ -344,7 +321,9 @@ def create_app(config_class=Config):
             logger.exception("Failed to rollback session in 500 handler")
         increment_5xx_counter()
         if _wants_json():
-            return jsonify({'success': False, 'error': 'internal_error', 'message': 'Internal server error', 'status': 500}), 500
+            return jsonify({
+                'success': False, 'error': 'internal_error', 'message': 'Internal server error', 'status': 500,
+            }), 500
         if is_admin_request():
             return render_admin_500()
         return render_template('errors/500.html'), 500
@@ -400,12 +379,6 @@ def create_app(config_class=Config):
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
 
-    # Per-request daily-plan lesson context.  When the user opens a lesson page
-    # with ?from=linear_plan&slot=<kind>, this context processor injects
-    # `daily_plan_ctx` into every jinja render — the unified completion partial
-    # uses it to render plan-aware CTAs (next-slot + dashboard) instead of the
-    # catalog defaults (next-lesson + module list).  Gated on a small set of
-    # lesson-rendering endpoints so it doesn't query the plan on every request.
     _LESSON_ENDPOINT_PREFIXES = (
         'curriculum_lessons.',
         'learn.',

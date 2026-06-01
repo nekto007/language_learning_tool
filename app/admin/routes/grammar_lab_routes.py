@@ -355,7 +355,10 @@ def delete_exercise(exercise_id):
 
     try:
         db.session.delete(exercise)
-        log_admin_action(current_user.id, 'grammar_exercise.delete', target_type='grammar_exercise', target_id=exercise_id)
+        log_admin_action(
+            current_user.id, 'grammar_exercise.delete',
+            target_type='grammar_exercise', target_id=exercise_id,
+        )
         db.session.commit()
         flash('Exercise deleted successfully!', 'success')
     except Exception as e:
@@ -587,7 +590,11 @@ def import_from_modules():
                 )
             db.session.commit()
             sync_msg = f', синхронизировано прогрессов: {total_synced}' if total_synced else ''
-            flash(f'Создано: {imported} тем, обновлено: {skipped} тем, упражнений: {exercises_imported}{sync_msg}', 'success')
+            flash(
+                f'Создано: {imported} тем, обновлено: {skipped} тем, '
+                f'упражнений: {exercises_imported}{sync_msg}',
+                'success',
+            )
 
         except Exception as e:
             db.session.rollback()
