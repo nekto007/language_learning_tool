@@ -109,4 +109,4 @@ Systematic production-readiness cleanup: remove confirmed dead code (mission/*, 
 
 ### Task 9: Обновить CLAUDE.md
 
-- [ ] обновить секцию Code Style если выработали новые конвенции в ходе чистки
+- [x] обновить секцию Code Style если выработали новые конвенции в ходе чистки
