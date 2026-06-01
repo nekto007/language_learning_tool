@@ -31,7 +31,6 @@ from app.srs.constants import CardState
 from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
 from app.words.models import CollectionWords
 
-
 _SRS_SLOT_ETA_MINUTES = 8
 _CARD_LESSON_TYPES = frozenset({'card', 'flashcards'})
 _DECK_QUIZ_LIMIT = 30

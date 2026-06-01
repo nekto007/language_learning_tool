@@ -1,20 +1,19 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_, and_, case
+from sqlalchemy import and_, case, func, or_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.study.blueprint import study, is_auto_deck
+from app.modules.decorators import module_required
+from app.study.blueprint import is_auto_deck, study
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.forms import StudySettingsForm
 from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
+from app.study.services import DeckService, SessionService, SRSService, StatsService
 from app.utils.db import db
-from app.modules.decorators import module_required
-from app.study.services import DeckService, SRSService, SessionService, StatsService
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +213,8 @@ def index():
         if best_due <= 0:
             most_urgent_deck = None
 
-    from app.study.insights_service import get_writing_stats as _get_writing_stats, get_weak_areas as _get_weak_areas
+    from app.study.insights_service import get_weak_areas as _get_weak_areas
+    from app.study.insights_service import get_writing_stats as _get_writing_stats
     try:
         writing_stats = _get_writing_stats(current_user.id)
     except Exception:
@@ -651,12 +651,14 @@ def stats():
         logger.exception("srs_by_source failed for user %s", current_user.id)
         srs_by_source = []
 
+    from app.daily_plan.route_progress import (
+        PHASE_STEP_WEIGHTS,
+        add_route_steps_idempotent,
+        get_phase_step_weight,
+        get_route_state,
+    )
     from app.study.insights_service import get_best_study_time
     from app.study.services.session_service import SessionService
-    from app.daily_plan.route_progress import (
-        add_route_steps_idempotent, get_phase_step_weight, get_route_state,
-        PHASE_STEP_WEIGHTS,
-    )
     from config.settings import DEFAULT_TIMEZONE
 
     tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
@@ -679,10 +681,11 @@ def stats():
         # Sync route_progress from today's completed phases before reading state,
         # matching the dashboard path. If the sync fails, still fall back to the
         # persisted long-term route state instead of hiding the widget entirely.
-        from app.daily_plan.service import get_daily_plan_unified
-        from app.achievements.streak_service import compute_plan_steps
-        from app.telegram.queries import get_daily_summary
         import pytz as _pytz_stats
+
+        from app.achievements.streak_service import compute_plan_steps
+        from app.daily_plan.service import get_daily_plan_unified
+        from app.telegram.queries import get_daily_summary
 
         plan = get_daily_plan_unified(current_user.id, tz=tz)
         if plan.get('mission'):
@@ -746,14 +749,22 @@ def stats():
 @login_required
 @module_required('study')
 def insights():
-    from app.study.insights_service import (
-        get_activity_heatmap, get_best_study_time, get_words_at_risk,
-        get_grammar_weaknesses, get_reading_speed_trend, get_learning_summary,
-        get_skills_balance, get_grammar_mastery_by_topic, get_level_eta,
-        get_accuracy_trend, get_comprehension_by_type, get_study_time_distribution,
-        get_personal_bests,
-    )
     from app.achievements.streak_service import get_milestone_history
+    from app.study.insights_service import (
+        get_accuracy_trend,
+        get_activity_heatmap,
+        get_best_study_time,
+        get_comprehension_by_type,
+        get_grammar_mastery_by_topic,
+        get_grammar_weaknesses,
+        get_learning_summary,
+        get_level_eta,
+        get_personal_bests,
+        get_reading_speed_trend,
+        get_skills_balance,
+        get_study_time_distribution,
+        get_words_at_risk,
+    )
 
     try:
         heatmap = get_activity_heatmap(current_user.id)
@@ -919,6 +930,7 @@ def writing_history():
 def plan_calendar():
     """Plan completion heatmap: last 90 days from DailyPlanLog."""
     from datetime import timedelta
+
     from app.daily_plan.models import DailyPlanLog
     from app.utils.time_utils import get_user_local_date
 
@@ -994,8 +1006,9 @@ def plan_calendar():
 def weekly_plan():
     """Weekly plan overview: current week Mon-Sun with today's actual plan and projections."""
     from datetime import timedelta
-    from app.daily_plan.models import DailyPlanLog
+
     from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES
+    from app.daily_plan.models import DailyPlanLog
     from app.utils.time_utils import get_user_local_date
 
     today = get_user_local_date(current_user.id, db)
@@ -1082,8 +1095,9 @@ def weekly_plan():
 def plan_stats():
     """Plan performance analytics: last 30 days from DailyPlanLog + StreakEvent."""
     from datetime import timedelta
-    from app.daily_plan.models import DailyPlanLog
+
     from app.achievements.models import StreakEvent
+    from app.daily_plan.models import DailyPlanLog
     from app.utils.time_utils import get_user_local_date
 
     today = get_user_local_date(current_user.id, db)
@@ -1283,9 +1297,10 @@ def custom_list_study(list_id):
     CollectionWords, then redirects to the standard cards session filtered
     to those word IDs.
     """
+    from flask import abort
+
     from app.study.models import CustomWordList
     from app.words.models import CollectionWords
-    from flask import abort
 
     word_list = CustomWordList.query.get_or_404(list_id)
     if word_list.user_id != current_user.id:
@@ -1323,5 +1338,5 @@ def custom_list_study(list_id):
 
 # Import sub-modules to register their routes on the blueprint
 from app.study import api_routes  # noqa: E402, F401
-from app.study import game_routes  # noqa: E402, F401
 from app.study import deck_routes  # noqa: E402, F401
+from app.study import game_routes  # noqa: E402, F401

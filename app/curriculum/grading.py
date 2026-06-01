@@ -4,7 +4,8 @@
 import json
 import logging
 import re
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+from typing import Optional
 
 from app.utils.normalization import normalize_text
 
@@ -15,9 +16,13 @@ FINAL_TEST_MAX_ATTEMPTS_PER_DAY = 3
 FINAL_TEST_ATTEMPT_WINDOW_HOURS = 24
 
 
-def check_final_test_attempts_exhausted(user_id, lesson_id, db_session=None,
-                                        max_attempts=FINAL_TEST_MAX_ATTEMPTS_PER_DAY,
-                                        window_hours=FINAL_TEST_ATTEMPT_WINDOW_HOURS):
+def check_final_test_attempts_exhausted(
+    user_id: int,
+    lesson_id: int,
+    db_session=None,
+    max_attempts: int = FINAL_TEST_MAX_ATTEMPTS_PER_DAY,
+    window_hours: int = FINAL_TEST_ATTEMPT_WINDOW_HOURS,
+) -> Optional[dict]:
     """Return rate-limit dict if user has met or exceeded the final-test attempt cap
     within the rolling window. Admins are exempt. Returns None when allowed.
 
@@ -25,8 +30,8 @@ def check_final_test_attempts_exhausted(user_id, lesson_id, db_session=None,
         {"passed": False, "error": "attempts_exhausted",
          "retry_after": <ISO8601 UTC>, "max_attempts": N, "window_hours": H}
     """
-    from app.curriculum.models import LessonAttempt
     from app.auth.models import User
+    from app.curriculum.models import LessonAttempt
     from app.utils.db import db as default_db
 
     session = db_session if db_session is not None else default_db.session
@@ -566,17 +571,7 @@ def grade_pronunciation_match(recognized_text: str, target_word: str) -> dict:
     }
 
 
-def process_grammar_submission(exercises, answers):
-    """
-    Обрабатывает ответы на грамматические упражнения
-
-    Args:
-        exercises (list): Список грамматических упражнений
-        answers (dict): Словарь с ответами пользователя
-
-    Returns:
-        dict: Результаты проверки ответов
-    """
+def process_grammar_submission(exercises: list, answers: dict) -> dict:
     correct_count = 0
     total_count = len(exercises)
     feedback = {}
@@ -585,12 +580,9 @@ def process_grammar_submission(exercises, answers):
         # Преобразуем строковые ключи в числовые для совместимости
         str_i = str(i)
 
-        # Обработка упражнения типа 'sentence_builder'
         if exercise.get('type') == 'sentence_builder':
             user_answer = answers.get(i, answers.get(str_i, []))
             correct_order = exercise.get('correct_order', [])
-
-            # Сравниваем порядок слов
             is_correct = user_answer == correct_order
 
             if is_correct:
@@ -610,12 +602,9 @@ def process_grammar_submission(exercises, answers):
                 }
             continue
 
-        # Обработка упражнения типа 'error_correction'
         if exercise.get('type') == 'error_correction':
             user_answer = answers.get(i, answers.get(str_i, ''))
             correct_answer = exercise.get('correct_sentence', exercise.get('answer', ''))
-
-            # Нормализуем и сравниваем
             user_normalized = normalize_text(user_answer)
             correct_normalized = normalize_text(correct_answer)
 
@@ -638,41 +627,23 @@ def process_grammar_submission(exercises, answers):
                 }
             continue
 
-        # Обработка упражнения типа 'reorder'
         if exercise.get('type') == 'reorder':
             user_answer = answers.get(i, answers.get(str_i, ''))
             correct_answer = exercise.get('answer', '')
 
-            # Улучшенная нормализация предложений для сравнения
             def normalize_sentence(sentence):
-                """Нормализует предложение для сравнения"""
                 if not sentence:
                     return ""
-
-                # Убираем лишние пробелы в начале и конце
                 normalized = sentence.strip()
-
-                # Убираем множественные пробелы между словами
                 normalized = re.sub(r'\s+', ' ', normalized)
-
-                # Убираем пробелы перед знаками препинания
                 normalized = re.sub(r'\s+([.,!?;:])', r'\1', normalized)
-
-                # Убираем пробелы после открывающих скобок и перед закрывающими
                 normalized = re.sub(r'(\()\s+', r'\1', normalized)
                 normalized = re.sub(r'\s+(\))', r'\1', normalized)
-
-                # Для сравнения приводим к нижнему регистру, но сохраняем оригинал для проверки
                 return normalized
 
-            # Нормализуем оба ответа
             user_normalized = normalize_sentence(user_answer)
             correct_normalized = normalize_sentence(correct_answer)
-
-            # Сначала проверяем точное совпадение (с учетом регистра)
             is_correct = user_normalized == correct_normalized
-
-            # Если не совпадает, проверяем без учета регистра
             if not is_correct:
                 is_correct = user_normalized.lower() == correct_normalized.lower()
 
@@ -693,12 +664,10 @@ def process_grammar_submission(exercises, answers):
                 }
             continue
 
-        # Обработка упражнения типа 'match'
         elif exercise.get('type') == 'match':
             pairs = exercise.get('pairs', [])
             user_matches_raw = answers.get(i, answers.get(str_i, '{}'))
 
-            # Преобразуем JSON строку в словарь если нужно
             if isinstance(user_matches_raw, str):
                 try:
                     user_matches = json.loads(user_matches_raw)
@@ -707,21 +676,15 @@ def process_grammar_submission(exercises, answers):
             else:
                 user_matches = user_matches_raw
 
-
-            # Проверяем ответы пользователя
             is_correct = True
             user_match_display = {}
             correct_match_display = {}
-
-            # Создаем словарь правильных соответствий
             for idx, pair in enumerate(pairs):
                 correct_match_display[pair['left']] = pair['right']
 
-            # Проверяем, что все пары заполнены
             if len(user_matches) != len(pairs):
                 is_correct = False
             else:
-                # Проверяем каждое сопоставление
                 for left_idx_str, right_idx_str in user_matches.items():
                     try:
                         left_idx = int(left_idx_str)
@@ -736,11 +699,9 @@ def process_grammar_submission(exercises, answers):
                         correct_right_value = pairs[left_idx]['right']
 
                         user_match_display[left_value] = user_right_value
-
-                        # Проверяем соответствие
                         if user_right_value != correct_right_value:
                             is_correct = False
-                    except (ValueError, IndexError, KeyError) as e:
+                    except (ValueError, IndexError, KeyError):
                         is_correct = False
                         break
 
@@ -753,7 +714,6 @@ def process_grammar_submission(exercises, answers):
                     'correct_matches': correct_match_display
                 }
             else:
-                # Показываем правильные соответствия для обучения
                 feedback[str_i] = {
                     'status': 'incorrect',
                     'message': 'Неправильно. Проверьте соответствия.',
@@ -762,14 +722,11 @@ def process_grammar_submission(exercises, answers):
                 }
             continue
 
-        # Обработка для остальных типов упражнений
         user_answer = str(answers.get(i, answers.get(str_i, '')))
         if isinstance(user_answer, str):
             user_answer = user_answer.strip()
 
-        # Получаем правильный ответ из упражнения
         correct_answer = None
-        # Проверяем все возможные поля для правильного ответа
         if 'answer' in exercise:
             correct_answer = exercise['answer']
         elif 'correct_answer' in exercise:
@@ -781,12 +738,9 @@ def process_grammar_submission(exercises, answers):
         else:
             correct_answer = None
 
-        # Специальная обработка для разных типов упражнений
         exercise_type = exercise.get('type', '')
 
-        # Обработка true_false
         if exercise_type == 'true_false':
-            # Проверяем, что у нас есть правильный ответ
             if correct_answer is None:
                 feedback[str_i] = {
                     'status': 'incorrect',
@@ -796,9 +750,7 @@ def process_grammar_submission(exercises, answers):
                 }
                 continue
 
-            # Преобразуем ответ пользователя в булево значение
             user_bool = user_answer.lower() == 'true' if isinstance(user_answer, str) else bool(user_answer)
-            # Убеждаемся, что правильный ответ - булево значение
             correct_bool = correct_answer if isinstance(correct_answer, bool) else (
                     str(correct_answer).lower() == 'true')
 
@@ -850,16 +802,6 @@ def process_grammar_submission(exercises, answers):
             # Для fill-in-blank упражнений с массивом ответов
             if exercise_type in ['fill-blank', 'fill_in_blank']:
                 # Проверяем, если это начало предложения
-                prompt_text = exercise.get('prompt', exercise.get('text', ''))
-                is_sentence_start = prompt_text.strip().startswith('___') or prompt_text.strip().startswith('_')
-
-                # if is_sentence_start:
-                #     # Для начала предложения - точное сравнение с учетом регистра
-                #     is_correct = user_answer.lower() in correct_answer.lower
-                #     print(
-                #         f"Checking against array with case sensitivity: '{user_answer}' in {correct_answer} = {is_correct}")
-                # else:
-                #     # Нормализуем для сравнения
                 user_norm = user_answer.lower().strip()
                 is_correct = any(user_norm == ans.lower().strip() for ans in correct_answer)
 
@@ -880,49 +822,32 @@ def process_grammar_submission(exercises, answers):
                     }
                 continue
             else:
-                # Для других типов берем первый элемент
                 correct_answer = correct_answer[0] if correct_answer else "UNKNOWN"
 
-        # Преобразуем все типы к строке для сравнения
         if not isinstance(correct_answer, str):
             correct_answer = str(correct_answer)
 
-
-        # Используем улучшенную нормализацию для всех типов упражнений
         def normalize_answer(answer):
-            """Нормализует ответ для корректного сравнения"""
             if not answer:
                 return ""
-
-            # Убираем лишние пробелы
             normalized = answer.strip()
             normalized = re.sub(r'\s+', ' ', normalized)
-
-            # Нормализуем пробелы вокруг знаков препинания
-            normalized = re.sub(r'\s*,\s*', ', ', normalized)  # "are,are" -> "are, are"
+            normalized = re.sub(r'\s*,\s*', ', ', normalized)
             normalized = re.sub(r'\s*\.\s*', '. ', normalized)
             normalized = re.sub(r'\s*!\s*', '! ', normalized)
             normalized = re.sub(r'\s*\?\s*', '? ', normalized)
-
-            # Убираем скобки и кавычки
             for char in ["'", '"', "[", "]"]:
                 normalized = normalized.replace(char, "")
-
             return normalized.strip()
 
-        # Нормализуем оба ответа
         user_normalized = normalize_answer(user_answer)
         correct_normalized = normalize_answer(correct_answer)
-
-        # Сначала проверяем с нормализацией без учета регистра
         is_correct = user_normalized.lower() == correct_normalized.lower()
 
-        # Специальная проверка для упражнений, где важен регистр первой буквы
+        # Sentence-start fill-blank: capitalization matters for the first word
         if not is_correct and exercise_type in ['fill-blank', 'fill_in_blank']:
-            # Проверяем, если это начало предложения
             prompt_text = exercise.get('prompt', exercise.get('text', ''))
             if prompt_text.strip().startswith('___') or prompt_text.strip().startswith('_'):
-                # Для начала предложения проверяем точное совпадение нормализованных версий
                 is_correct = user_normalized == correct_normalized
 
 
@@ -942,7 +867,6 @@ def process_grammar_submission(exercises, answers):
                 'correct_answer': correct_answer
             }
 
-    # Вычисляем оценку
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
 
     return {
@@ -956,31 +880,16 @@ def process_grammar_submission(exercises, answers):
     }
 
 
-def process_quiz_submission(questions, answers):
-    """
-    Обрабатывает ответы на вопросы квиза для интерактивной версии
-
-    Args:
-        questions (list): Список вопросов квиза
-        answers (dict): Словарь с ответами пользователя
-
-    Returns:
-        dict: Результаты проверки ответов
-    """
-
+def process_quiz_submission(questions: list, answers: dict) -> dict:
     correct_count = 0
     total_count = len(questions)
     feedback = {}
 
-
     for i, question in enumerate(questions):
-
         # Support both integer and string keys (frontend may send '0', '1', etc.)
         user_answer = answers.get(str(i), answers.get(i, ''))
         question_type = question.get('type', 'multiple_choice')
 
-
-        # Получаем правильный ответ используя hasOwnProperty equivalent
         correct_answer = None
         if 'answer' in question:
             correct_answer = question['answer']
@@ -990,9 +899,6 @@ def process_quiz_submission(questions, answers):
             correct_answer = question['correct']
         elif 'correct_index' in question:
             correct_answer = question['correct_index']
-
-
-        # Проверяем правильность ответа в зависимости от типа вопроса
         is_correct = False
 
         # Special handling: fill_blank with options should be treated as multiple_choice
@@ -1033,15 +939,19 @@ def process_quiz_submission(questions, answers):
                 else:
                     # correct_answer is the actual text, find its index in options
                     if 'options' in question:
-                        # Try exact match first (with strip to remove spaces)
-                        correct_answer_stripped = correct_answer.strip() if isinstance(correct_answer, str) else correct_answer
                         options_stripped = [opt.strip() if isinstance(opt, str) else opt for opt in question['options']]
+                        correct_answer_stripped = (
+                            correct_answer.strip() if isinstance(correct_answer, str) else correct_answer
+                        )
 
                         if correct_answer_stripped in options_stripped:
                             correct_idx = options_stripped.index(correct_answer_stripped)
                         else:
-                            # Try case-insensitive match
-                            correct_answer_lower = correct_answer_stripped.lower() if isinstance(correct_answer_stripped, str) else str(correct_answer_stripped).lower()
+                            correct_answer_lower = (
+                                correct_answer_stripped.lower()
+                                if isinstance(correct_answer_stripped, str)
+                                else str(correct_answer_stripped).lower()
+                            )
                             for idx, option in enumerate(options_stripped):
                                 option_lower = option.lower() if isinstance(option, str) else str(option).lower()
                                 if option_lower == correct_answer_lower:
@@ -1054,7 +964,7 @@ def process_quiz_submission(questions, answers):
 
                 is_correct = user_idx == correct_idx
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 is_correct = False
 
         elif question_type == 'true_false':
@@ -1066,7 +976,7 @@ def process_quiz_submission(questions, answers):
 
                 is_correct = user_bool == correct_answer
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 is_correct = False
 
         elif question_type in ['fill_in_blank', 'fill-in-blank', 'fill_blank', 'translation', 'transformation']:
@@ -1075,7 +985,7 @@ def process_quiz_submission(questions, answers):
             # they previously credited substantively wrong answers.
 
             if correct_answer is None:
-                is_correct = True
+                is_correct = False
             else:
                 if isinstance(correct_answer, list):
                     candidates = list(correct_answer)
@@ -1088,33 +998,22 @@ def process_quiz_submission(questions, answers):
 
 
         elif question_type in ['reorder', 'ordering']:
-            # For reorder/ordering questions, normalize and compare
             if correct_answer is None:
                 is_correct = False
             else:
                 def normalize_sentence(sentence):
-                    """Normalize sentence for comparison"""
                     if not sentence:
                         return ""
-                    import re
-                    # Remove extra spaces
                     normalized = sentence.strip()
                     normalized = re.sub(r'\s+', ' ', normalized)
-                    # Remove spaces before punctuation
                     normalized = re.sub(r'\s+([.,!?;:])', r'\1', normalized)
-                    # Remove spaces after opening and before closing brackets
                     normalized = re.sub(r'(\()\s+', r'\1', normalized)
                     normalized = re.sub(r'\s+(\))', r'\1', normalized)
                     return normalized
 
-                # Normalize both answers
                 user_normalized = normalize_sentence(user_answer)
                 correct_normalized = normalize_sentence(str(correct_answer))
-
-                # First check exact match (case sensitive)
                 is_correct = user_normalized == correct_normalized
-
-                # If no match, check case insensitive
                 if not is_correct:
                     is_correct = user_normalized.lower() == correct_normalized.lower()
 
@@ -1156,19 +1055,12 @@ def process_quiz_submission(questions, answers):
                 is_correct = _grade_matching_pairs(user_pairs, correct_pairs)
 
         else:
-            # Если нет правильного ответа и неизвестный тип - засчитываем как правильный
-            if correct_answer is None:
-                is_correct = True
-            else:
-                is_correct = False
+            is_correct = correct_answer is None
 
-
-        # Конвертируем индексы в текст для отображения (общая логика для correct/incorrect)
         display_user = user_answer
         display_correct = correct_answer
         if question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice') and 'options' in question:
             opts = question['options']
-            # correct_answer -> text
             if isinstance(correct_answer, int) and 0 <= correct_answer < len(opts):
                 display_correct = opts[correct_answer]
             elif isinstance(correct_answer, str) and correct_answer.isdigit():
@@ -1177,7 +1069,6 @@ def process_quiz_submission(questions, answers):
                     display_correct = opts[idx]
                 elif 1 <= idx <= len(opts):
                     display_correct = opts[idx - 1]
-            # user_answer -> text
             if isinstance(user_answer, str) and user_answer.isdigit():
                 uidx = int(user_answer)
                 if 0 <= uidx < len(opts):
@@ -1196,8 +1087,10 @@ def process_quiz_submission(questions, answers):
             }
         else:
             # Определяем текст правильного ответа для отображения
-            if question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice') and 'options' in question:
-                # Уже сконвертировано выше в display_correct / display_user
+            if (
+                question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice')
+                and 'options' in question
+            ):
                 correct_text = str(display_correct)
                 user_text = str(display_user)
 
@@ -1207,17 +1100,14 @@ def process_quiz_submission(questions, answers):
                 user_text = 'Правда' if user_bool else 'Ложь'
 
             elif question_type in ['fill_in_blank', 'fill-in-blank', 'translation']:
-                # Для текстовых вопросов
                 user_text = str(user_answer)
 
                 if isinstance(correct_answer, list):
-                    # Если несколько вариантов ответа
                     if len(correct_answer) == 1:
                         correct_text = correct_answer[0]
                     else:
                         correct_text = f"Возможные ответы: {', '.join(correct_answer)}"
                 elif question_type == 'translation' and 'alternative_answers' in question:
-                    # Для вопросов перевода с альтернативными ответами
                     all_answers = [str(correct_answer)]
                     if question['alternative_answers']:
                         all_answers.extend(question['alternative_answers'])
@@ -1226,7 +1116,6 @@ def process_quiz_submission(questions, answers):
                     correct_text = str(correct_answer) if correct_answer is not None else 'Не указан'
 
             elif question_type == 'reorder':
-                # For reorder questions
                 correct_text = str(correct_answer) if correct_answer is not None else 'Не указан'
                 user_text = str(user_answer)
 
@@ -1277,57 +1166,38 @@ def process_quiz_submission(questions, answers):
                 'correct_answer': correct_text
             }
 
-    # Вычисляем оценку
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
-
 
     return {
         'correct_answers': correct_count,
         'total_questions': total_count,
         'score': score,
         'feedback': feedback,
-        'answers': answers,  # Сохраняем ответы пользователя
+        'answers': answers,
         'timestamp': datetime.now(UTC).isoformat()
     }
 
 
-def process_matching_submission(pairs, user_matches):
-    """
-    Обрабатывает ответы на упражнение по сопоставлению
-
-    Args:
-        pairs (list): Список пар для сопоставления
-        user_matches (dict): Словарь с ответами пользователя
-
-    Returns:
-        dict: Результаты проверки ответов
-    """
+def process_matching_submission(pairs: list, user_matches: dict) -> dict:
     correct_count = 0
     total_count = len(pairs)
     feedback = {}
     incorrect_matches = {}
 
-    # Проверяем ответы пользователя
     for i, pair in enumerate(pairs):
         left = pair['left']
         right = pair['right']
 
-        # Support two formats:
-        # 1. Index-based: {'0': 1, '1': 0} - user_matches[left_index] = right_index
-        # 2. Value-based: {'hello': 'привет'} - user_matches[left_value] = right_value
-
-        # Try index-based first (check by index)
+        # Two formats accepted: index-based {'0': 1} or value-based {'hello': 'привет'}
         user_match_index = user_matches.get(str(i)) or user_matches.get(i)
 
         if user_match_index is not None:
-            # Index-based format
             try:
                 user_match_index = int(user_match_index)
                 user_matched_right = pairs[user_match_index]['right'] if 0 <= user_match_index < len(pairs) else None
             except (ValueError, IndexError):
                 user_matched_right = None
         else:
-            # Try value-based format (check by left value)
             user_matched_right = user_matches.get(left)
 
         is_correct = user_matched_right == right
@@ -1347,13 +1217,11 @@ def process_matching_submission(pairs, user_matches):
                 'user_match': user_matched_right,
                 'correct_match': right
             }
-            # Добавляем в список неправильных
             incorrect_matches[str(i)] = {
                 'user': user_matched_right,
                 'correct': right
             }
 
-    # Вычисляем оценку
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
 
     return {
@@ -1369,19 +1237,7 @@ def process_matching_submission(pairs, user_matches):
     }
 
 
-def process_final_test_submission(questions, user_answers):
-    """
-    Обрабатывает отправку контрольной точки и возвращает результаты
-
-    Args:
-        questions: список вопросов с правильными ответами
-        user_answers: словарь ответов пользователя {question_index: answer}
-
-    Returns:
-        dict: результат с оценкой и обратной связью
-    """
-    # Support payloads with either 'questions' or 'exercises'
-    # (For compatibility with changes in routes.py)
+def process_final_test_submission(questions: list, user_answers: dict) -> dict:
     correct_count = 0
     total_count = len(questions)
     feedback = {}
@@ -1391,21 +1247,18 @@ def process_final_test_submission(questions, user_answers):
         # Получаем ответ пользователя - поддержка обоих форматов (string and int keys)
         user_answer = user_answers.get(str(i), user_answers.get(i))
 
-        # Получаем правильный ответ из вопроса
         correct_answer = question.get('answer')
         if correct_answer is None:
             correct_answer = question.get('correct_answer')
         if correct_answer is None:
             correct_answer = question.get('correct_index')
         if correct_answer is None:
-            correct_answer = question.get('correct')  # Also check 'correct' field
-
+            correct_answer = question.get('correct')
 
         is_correct = False
 
         qtype = question.get('type', '')
         if qtype == 'multiple_choice':
-            # Для multiple choice сравниваем индексы
             if user_answer is not None:
                 try:
                     user_idx = int(user_answer)
@@ -1414,17 +1267,14 @@ def process_final_test_submission(questions, user_answers):
                     is_correct = False
 
         elif qtype == 'true_false':
-            # Для true/false сравниваем булевые значения
             if user_answer in ['true', 'false']:
                 user_bool = user_answer == 'true'
                 is_correct = user_bool == correct_answer
 
         elif qtype in ['fill_in_blank', 'translation']:
-            # Для текстовых ответов нормализуем и сравниваем
             if user_answer:
                 user_normalized = normalize_text(user_answer)
 
-                # Проверяем множественные варианты ответов
                 if isinstance(correct_answer, list):
                     for ans in correct_answer:
                         ans_normalized = normalize_text(ans)
@@ -1436,19 +1286,16 @@ def process_final_test_submission(questions, user_answers):
                     is_correct = user_normalized == correct_normalized
 
         elif qtype == 'matching':
-            # Для matching проверяем все пары
             if isinstance(user_answer, dict):
                 correct_pairs = {pair['left']: pair['right'] for pair in question.get('pairs', [])}
                 matches_correct = all(
                     user_answer.get(left) == right
                     for left, right in correct_pairs.items()
                 )
-                # Проверяем что все пары были сопоставлены
                 all_answered = len(user_answer) == len(correct_pairs)
                 is_correct = matches_correct and all_answered
 
         elif qtype == 'reorder':
-            # Для reorder сравниваем составленное предложение
             if user_answer:
                 user_normalized = normalize_text(user_answer)
                 correct_normalized = normalize_text(correct_answer)
@@ -1457,17 +1304,14 @@ def process_final_test_submission(questions, user_answers):
         if is_correct:
             correct_count += 1
 
-        # Сохраняем обратную связь
         feedback[str(i)] = {
             'is_correct': is_correct,
             'user_answer': user_answer,
             'correct_answer': correct_answer
         }
 
-    # Вычисляем процент
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
-    passed = score >= 70  # 70% is passing score
-
+    passed = score >= 70
 
     return {
         'score': round(score, 1),

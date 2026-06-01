@@ -1,23 +1,22 @@
 import logging
 import os
-import time
 import threading
+import time
 
 from flask import Flask
 from flask_compress import Compress
-
-logger = logging.getLogger(__name__)
-from flask_limiter import Limiter
-
-from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 
 from app.utils.db import db
 from app.utils.i18n import init_babel
 from app.utils.rate_limit_helpers import get_remote_address_key
 from config.settings import Config
+
+logger = logging.getLogger(__name__)
 
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
@@ -49,18 +48,14 @@ csrf = CSRFProtect()
 _site_settings_cache: dict = {'data': None, 'expires': 0.0, 'lock': threading.Lock()}
 _SITE_SETTINGS_TTL = 60  # seconds
 
-# JWT Manager for API authentication
 jwt = JWTManager()
 
-# Initialize rate limiter with enhanced configuration
 limiter = Limiter(
     key_func=get_remote_address_key,
-    default_limits=["10000 per hour", "100 per second"],  # More generous limits
+    default_limits=["10000 per hour", "100 per second"],
     storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
-    # Customizable error messages
-    headers_enabled=True,  # Enable X-RateLimit headers
-    swallow_errors=not os.environ.get('FLASK_DEBUG', ''),  # Raise in debug, degrade gracefully in prod
-    # Strategy for rate limit windows
+    headers_enabled=True,
+    swallow_errors=not os.environ.get('FLASK_DEBUG', ''),  # raise in debug, degrade gracefully in prod
     strategy="fixed-window"
 )
 
@@ -87,7 +82,7 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     # Initialize extensions
     db.init_app(app)
-    migrate = Migrate(app, db)
+    Migrate(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
 
@@ -100,7 +95,6 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     init_babel(app)
 
-    # Enable gzip compression for HTTP responses
     app.config.setdefault('COMPRESS_MIMETYPES', [
         'text/html', 'text/css', 'text/xml', 'text/javascript',
         'application/json', 'application/javascript',
@@ -110,25 +104,25 @@ def create_app(config_class=Config):
     Compress(app)
 
     # Import all models in dependency order - MUST happen before any blueprint that uses models
+    from app.achievements import daily_race as achievements_daily_race  # noqa: F401
+    from app.achievements import models as achievements_models  # noqa: F401
+    from app.admin import audit as admin_audit  # noqa: F401
     from app.auth import models as auth_models  # noqa: F401
     from app.books import models as books_models  # noqa: F401
     from app.books import reading_session as books_reading_session  # noqa: F401
-    from app.words import models as words_models  # noqa: F401  # Also defines word_book_link table
-    from app.study import models as study_models  # noqa: F401
-    from app.curriculum import models as curriculum_models  # noqa: F401
     from app.curriculum import book_courses as book_courses_models  # noqa: F401
     from app.curriculum import daily_lessons as daily_lessons_models  # noqa: F401
-    from app.modules import models as modules_models  # noqa: F401
-    from app.grammar_lab import models as grammar_models  # noqa: F401
-    from app.reminders import models as reminders_models  # noqa: F401
-    from app.telegram import models as telegram_models  # noqa: F401
-    from app.telegram import channel_models as telegram_channel_models  # noqa: F401
-    from app.achievements import models as achievements_models  # noqa: F401
-    from app.achievements import daily_race as achievements_daily_race  # noqa: F401
-    from app.notifications import models as notifications_models  # noqa: F401
-    from app.admin import audit as admin_audit  # noqa: F401
+    from app.curriculum import models as curriculum_models  # noqa: F401
     from app.daily_plan import models as daily_plan_models  # noqa: F401
     from app.daily_plan.linear import models as daily_plan_linear_models  # noqa: F401
+    from app.grammar_lab import models as grammar_models  # noqa: F401
+    from app.modules import models as modules_models  # noqa: F401
+    from app.notifications import models as notifications_models  # noqa: F401
+    from app.reminders import models as reminders_models  # noqa: F401
+    from app.study import models as study_models  # noqa: F401
+    from app.telegram import channel_models as telegram_channel_models  # noqa: F401
+    from app.telegram import models as telegram_models  # noqa: F401
+    from app.words import models as words_models  # noqa: F401  # Also defines word_book_link table
 
     # In production, schema is managed by Alembic (`flask db upgrade head`).
     # In testing, create tables directly so tests don't need migrations.
@@ -136,27 +130,21 @@ def create_app(config_class=Config):
         with app.app_context():
             db.create_all()
 
-    # Initialize template utilities
     from app.utils.template_utils import init_template_utils
     init_template_utils(app)
 
-    # Initialize security middleware
     from app.middleware.security import add_security_headers
     add_security_headers(app)
 
-    # Initialize request ID middleware
     from app.middleware.request_id import add_request_id
     add_request_id(app)
 
-    # Initialize acquisition (UTM) capture middleware
     from app.middleware.acquisition import add_acquisition_capture
     add_acquisition_capture(app)
 
-    # Ensure directories exist
     os.makedirs(app.config['AUDIO_UPLOAD_FOLDER'], exist_ok=True)
 
-    # Register blueprints
-    # Landing page (public, must be first for root route)
+    # Landing page must be first — owns the root route
     from app.landing import landing_bp
     app.register_blueprint(landing_bp)
 
@@ -206,61 +194,47 @@ def create_app(config_class=Config):
     from app.curriculum import curriculum_bp, init_curriculum_module
     app.register_blueprint(curriculum_bp, url_prefix='/curriculum')
 
-    # Initialize curriculum module with all components
     init_curriculum_module(app)
 
-    # Register modules blueprint
     from app.modules import modules_bp
     app.register_blueprint(modules_bp)
 
-    # Register Grammar Lab blueprint
     from app.grammar_lab import grammar_lab_bp
     app.register_blueprint(grammar_lab_bp)
 
-    # Register Onboarding blueprint
     from app.onboarding import onboarding_bp
     app.register_blueprint(onboarding_bp)
 
-    # Register Feedback blueprint (POST /api/feedback)
     from app.feedback import feedback_bp
     app.register_blueprint(feedback_bp)
 
-    # Register SEO blueprint (sitemap.xml, robots.txt)
     from app.seo import seo_bp
     app.register_blueprint(seo_bp)
 
-    # Register Legal blueprint (privacy policy)
     from app.legal import legal_bp
     app.register_blueprint(legal_bp)
 
-    # Register Daily Race blueprint (/race page)
     from app.race import race_bp
     app.register_blueprint(race_bp)
 
-    # Register Telegram bot blueprint
     from app.telegram import telegram_bp
     app.register_blueprint(telegram_bp)
 
-    # Register notifications blueprint
     from app.notifications import notifications_bp
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 
-    # Register uploads blueprint for secure file serving
     from app.uploads.routes import uploads as uploads_blueprint
     app.register_blueprint(uploads_blueprint, url_prefix='/uploads')
 
-    # Add module utilities to Jinja globals
     from app.modules.service import ModuleService
 
-    def has_module(module_code):
-        """Check if current user has access to a module"""
+    def has_module(module_code) -> bool:
         from flask_login import current_user
         if not current_user.is_authenticated:
             return False
         return ModuleService.is_module_enabled_for_user(current_user.id, module_code)
 
-    def get_user_modules():
-        """Get all enabled modules for current user"""
+    def get_user_modules() -> list:
         from flask_login import current_user
         if not current_user.is_authenticated:
             return []
@@ -272,8 +246,8 @@ def create_app(config_class=Config):
     app.jinja_env.globals.update(get_user_modules=get_user_modules)
 
     # CSRF token refresh endpoint (for long-lived pages like quizzes)
-    from flask_login import login_required as _login_required
     from flask import jsonify as _jsonify
+    from flask_login import login_required as _login_required
 
     @app.route('/csrf-token', methods=['GET'])
     @_login_required
@@ -291,14 +265,17 @@ def create_app(config_class=Config):
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        from flask import request, jsonify
+        from flask import jsonify, request
+
         # Return JSON for AJAX requests and API endpoints
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         is_api = request.path.startswith('/api/')
         accepts_json = 'application/json' in request.headers.get('Accept', '')
 
         if is_ajax or is_api or accepts_json:
-            return jsonify({'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True}), 400
+            return jsonify({
+                'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True,
+            }), 400
         return e.description, 400
 
     def _wants_json():
@@ -313,6 +290,7 @@ def create_app(config_class=Config):
     @app.errorhandler(403)
     def handle_403_error(e):
         from flask import jsonify, render_template
+
         from app.admin.error_handlers import is_admin_request, render_admin_403
         if _wants_json():
             return jsonify({'success': False, 'error': 'forbidden', 'message': 'Forbidden', 'status': 403}), 403
@@ -323,6 +301,7 @@ def create_app(config_class=Config):
     @app.errorhandler(404)
     def handle_404_error(e):
         from flask import jsonify, render_template
+
         from app.admin.error_handlers import is_admin_request, render_admin_404
         if _wants_json():
             return jsonify({'success': False, 'error': 'not_found', 'message': 'Not found', 'status': 404}), 404
@@ -333,15 +312,18 @@ def create_app(config_class=Config):
     @app.errorhandler(500)
     def handle_500_error(e):
         from flask import jsonify, render_template
-        from app.admin.routes.dashboard_routes import increment_5xx_counter
+
         from app.admin.error_handlers import is_admin_request, render_admin_500
+        from app.admin.routes.dashboard_routes import increment_5xx_counter
         try:
             db.session.rollback()
         except Exception:
             logger.exception("Failed to rollback session in 500 handler")
         increment_5xx_counter()
         if _wants_json():
-            return jsonify({'success': False, 'error': 'internal_error', 'message': 'Internal server error', 'status': 500}), 500
+            return jsonify({
+                'success': False, 'error': 'internal_error', 'message': 'Internal server error', 'status': 500,
+            }), 500
         if is_admin_request():
             return render_admin_500()
         return render_template('errors/500.html'), 500
@@ -359,9 +341,10 @@ def create_app(config_class=Config):
     @app.before_request
     def update_last_active():
         """Update user's last_login every 12 hours on activity"""
+        from datetime import datetime, timedelta, timezone
+
         from flask import redirect, request, url_for
         from flask_login import current_user
-        from datetime import datetime, timezone, timedelta
 
         try:
             is_auth = current_user.is_authenticated
@@ -387,7 +370,7 @@ def create_app(config_class=Config):
     @login_manager.unauthorized_handler
     def unauthorized():
         """Custom unauthorized handler that preserves the original URL"""
-        from flask import request, url_for, redirect, jsonify
+        from flask import jsonify, redirect, request, url_for
 
         # For AJAX requests, return JSON
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -396,12 +379,6 @@ def create_app(config_class=Config):
         # For regular requests, redirect to login with next parameter
         return redirect(url_for('auth.login', next=request.url))
 
-    # Per-request daily-plan lesson context.  When the user opens a lesson page
-    # with ?from=linear_plan&slot=<kind>, this context processor injects
-    # `daily_plan_ctx` into every jinja render — the unified completion partial
-    # uses it to render plan-aware CTAs (next-slot + dashboard) instead of the
-    # catalog defaults (next-lesson + module list).  Gated on a small set of
-    # lesson-rendering endpoints so it doesn't query the plan on every request.
     _LESSON_ENDPOINT_PREFIXES = (
         'curriculum_lessons.',
         'learn.',
@@ -523,8 +500,8 @@ def _register_cli_commands(app):
     @app.cli.command('seed')
     def seed_cmd():
         """Seed initial data (modules and achievements). Safe to run multiple times."""
-        from app.modules.migrations import seed_initial_modules
         from app.achievements.seed import seed_achievements
+        from app.modules.migrations import seed_initial_modules
         seed_initial_modules()
         seed_achievements()
         click.echo('Seeding complete.')

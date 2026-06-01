@@ -338,46 +338,6 @@ class TestComputePlanStepsWithMissionPhases:
 
 
 class TestNextStepWithMissionPhases:
-    @patch(f'{UNIFIED_MODULE}.get_daily_plan_unified')
-    def test_returns_next_incomplete_phase(
-        self, mock_unified, app, authenticated_client,
-    ):
-        payload = dict(SAMPLE_MISSION_PAYLOAD)
-        payload['phases'] = [
-            {'id': 'p1', 'phase': 'recall', 'title': 'Вспоминаем', 'completed': True},
-            {'id': 'p2', 'phase': 'learn', 'title': 'Новый урок', 'completed': False},
-            {'id': 'p3', 'phase': 'use', 'title': 'Практика', 'completed': False},
-        ]
-        mock_unified.return_value = payload
-
-        resp = authenticated_client.get('/api/daily-plan/next-step')
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data['has_next'] is True
-        assert data['step_type'] == 'learn'
-        assert data['step_title'] == 'Новый урок'
-        assert data['steps_done'] == 1
-        assert data['steps_total'] == 3
-
-    @patch(f'{UNIFIED_MODULE}.get_daily_plan_unified')
-    def test_all_phases_done(
-        self, mock_unified, app, authenticated_client,
-    ):
-        payload = dict(SAMPLE_MISSION_PAYLOAD)
-        payload['phases'] = [
-            {'id': 'p1', 'phase': 'recall', 'title': 'R', 'completed': True},
-            {'id': 'p2', 'phase': 'learn', 'title': 'L', 'completed': True},
-            {'id': 'p3', 'phase': 'use', 'title': 'U', 'completed': True},
-        ]
-        mock_unified.return_value = payload
-
-        resp = authenticated_client.get('/api/daily-plan/next-step')
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data['has_next'] is False
-        assert data['all_done'] is True
-        assert data['steps_done'] == 3
-
     @patch('app.telegram.queries.get_daily_summary', return_value=SAMPLE_SUMMARY)
     @patch(f'{UNIFIED_MODULE}.get_daily_plan_unified')
     def test_legacy_plan_still_works(

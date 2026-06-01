@@ -14,9 +14,9 @@ from sqlalchemy import distinct, func
 from app.admin.audit import log_admin_action
 from app.admin.services.curriculum_import_service import CurriculumImportService
 from app.admin.utils.decorators import admin_required
+from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.utils.db import db
-from app.auth.models import User
 
 # Создаем blueprint для curriculum routes
 # Note: Using 'admin_curriculum' to avoid conflict with 'curriculum_admin' in app/curriculum

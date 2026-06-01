@@ -17,10 +17,7 @@ from collections import Counter
 from typing import Dict, List, Optional, Set, Tuple
 
 from app.books.models import Block, BlockVocab
-from app.curriculum.services.word_scorer import (
-    WordScorer,
-    DEFAULT_LEVEL
-)
+from app.curriculum.services.word_scorer import DEFAULT_LEVEL, WordScorer
 from app.utils.db import db
 from app.words.models import CollectionWords
 

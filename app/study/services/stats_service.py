@@ -6,17 +6,23 @@ Responsibilities:
 - Leaderboard generation
 - Achievement tracking
 """
-from typing import List, Dict, Optional
-from datetime import datetime, timezone, timedelta
-from sqlalchemy import func, desc
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional
 
-from app.utils.db import db
-from app.study.models import (
-    UserWord, GameScore, QuizResult, Achievement, UserAchievement, StudySession,
-    UserCardDirection
-)
+from sqlalchemy import desc, func
+
 from app.achievements.models import UserStatistics
 from app.auth.models import User
+from app.study.models import (
+    Achievement,
+    GameScore,
+    QuizResult,
+    StudySession,
+    UserAchievement,
+    UserCardDirection,
+    UserWord,
+)
+from app.utils.db import db
 
 _CATEGORY_LABELS_RU = {
     'lessons': 'Уроки',

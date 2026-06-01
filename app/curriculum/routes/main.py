@@ -47,8 +47,8 @@ def search():
     GET /curriculum/search?q=<query>
     Empty query redirects to /learn/.
     """
-    from app.words.models import CollectionWords
     from app.grammar_lab.models import GrammarTopic
+    from app.words.models import CollectionWords
 
     q = request.args.get('q', '').strip()[:200]
     if not q:
@@ -341,9 +341,8 @@ def error_review_session():
 @login_required
 def learn_by_level(level_code):
     """Страница уровня: /learn/a1/, /learn/a2/ и т.д."""
-    from app.curriculum.services.curriculum_cache_service import CurriculumCacheService
-
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.curriculum.services.curriculum_cache_service import CurriculumCacheService
 
     # Валидация и нормализация кода уровня
     level_code_upper = level_code.upper()
@@ -474,13 +473,17 @@ def learn_by_module(level_code, module_number):
 @require_lesson_access
 def lesson_by_id(lesson_id):
     """Прямой рендер урока: /learn/{lesson_id}/"""
-    from app.curriculum.routes.vocabulary_lessons import (
-        render_vocabulary_lesson, render_matching_lesson, render_text_lesson,
-    )
-    from app.curriculum.routes.grammar_quiz_lessons import (
-        render_grammar_lesson, render_quiz_lesson, render_final_test_lesson,
-    )
     from app.curriculum.routes.card_lessons import render_card_lesson
+    from app.curriculum.routes.grammar_quiz_lessons import (
+        render_final_test_lesson,
+        render_grammar_lesson,
+        render_quiz_lesson,
+    )
+    from app.curriculum.routes.vocabulary_lessons import (
+        render_matching_lesson,
+        render_text_lesson,
+        render_vocabulary_lesson,
+    )
 
     lesson = Lessons.query.get_or_404(lesson_id)
     if lesson.type in _CANONICAL_LESSON_ROUTE_TYPES:

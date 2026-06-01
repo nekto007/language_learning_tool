@@ -28,7 +28,6 @@ from datetime import date, datetime, time, timedelta, timezone
 from html import escape
 from typing import Any
 
-
 # Match every <br> / <br/> / <br /> variant case-insensitively.
 _BR_RE = re.compile(r'<\s*br\s*/?\s*>', flags=re.IGNORECASE)
 # Strip any remaining HTML tags so we don't leak markup into the channel
@@ -38,20 +37,25 @@ _TAG_RE = re.compile(r'<[^>]+>')
 
 import requests
 from flask import current_app
-from sqlalchemy import and_, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.admin.site_settings import get_site_setting
 from app.curriculum.routes.public import PUBLIC_CEFR_CODES
-from app.grammar_lab.models import GrammarTopic
-from app.grammar_lab.models import GrammarExercise
+from app.grammar_lab.models import GrammarExercise, GrammarTopic
 from app.telegram.channel_models import (
-    ALLOWED_KINDS, ChannelPost,
-    KIND_CONTRAST, KIND_GRAMMAR, KIND_MANUAL, KIND_MISTAKE, KIND_QUIZ, KIND_WORD,
-    STATUS_FAILED, STATUS_PUBLISHED, STATUS_QUEUED, STATUS_SKIPPED,
+    KIND_CONTRAST,
+    KIND_GRAMMAR,
+    KIND_MISTAKE,
+    KIND_QUIZ,
+    KIND_WORD,
+    STATUS_FAILED,
+    STATUS_PUBLISHED,
+    STATUS_QUEUED,
+    STATUS_SKIPPED,
+    ChannelPost,
 )
 from app.words.models import WordContrast
-
 
 # Within a KIND_MISTAKE post, content_ref_id encodes (topic_id, mistake_index)
 # as topic_id * _MISTAKE_INDEX_STRIDE + mistake_index. This keeps the dedup

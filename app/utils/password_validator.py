@@ -2,8 +2,7 @@
 Утилиты для валидации стойкости паролей
 """
 import re
-from typing import Tuple, List
-
+from typing import List, Tuple
 
 # Список наиболее распространенных слабых паролей
 COMMON_PASSWORDS = {

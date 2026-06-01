@@ -14,14 +14,14 @@ This ensures 100% book coverage over ~100-200+ days instead of just 7.5%.
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import pytz
 
 from app.books.models import Block, BlockVocab, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
-from app.curriculum.services.comprehension_generator import ComprehensionMCQGenerator, ClozePracticeGenerator
+from app.curriculum.services.comprehension_generator import ClozePracticeGenerator, ComprehensionMCQGenerator
 from app.curriculum.services.vocabulary_extractor import STOP_WORDS
 from app.nlp.processor import HP_EXCLUSIONS
 from app.utils.db import db

@@ -7,11 +7,12 @@ Responsibilities:
 - Chapter and content management
 - Vocabulary extraction
 """
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
 from sqlalchemy.orm import joinedload
 
+from app.books.models import Book, Bookmark, Chapter
 from app.utils.db import db
-from app.books.models import Book, Chapter, Bookmark
 from app.words.models import CollectionWords
 
 

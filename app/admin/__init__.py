@@ -11,10 +11,9 @@ def register_admin_routes(flask_app):
 
     # Import the main admin blueprint (this creates the blueprint object)
     # Note: Renamed from routes.py to main_routes.py to avoid conflict with routes/ package
-    from app.admin.main_routes import admin
-
     # Import and register book course routes BEFORE registering the blueprint
     from app.admin.book_courses import register_book_course_routes
+    from app.admin.main_routes import admin
     register_book_course_routes(admin)
 
     # Import and register module management routes
@@ -22,10 +21,9 @@ def register_admin_routes(flask_app):
     register_module_admin_routes(admin)
 
     # Import quiz decks routes (they are already added via @admin.route decorators)
-    import app.admin.quiz_decks  # noqa: F401
-
     # Import curriculum routes (cultural notes and other @admin.route decorators)
     import app.admin.curriculum  # noqa: F401
+    import app.admin.quiz_decks  # noqa: F401
 
     # Import and register book routes blueprint
     from app.admin.routes.book_routes import book_bp

@@ -352,7 +352,7 @@ def get_sibling_exercise(
     error: QuizErrorLog,
     db: Any,
     exclude_exercise_ids: Optional[Iterable[int]] = None,
-):
+) -> Optional[Any]:
     """Find a related ``GrammarExercise`` for an error's lesson topic.
 
     Returns ``None`` when the error's lesson has no ``grammar_topic_id``

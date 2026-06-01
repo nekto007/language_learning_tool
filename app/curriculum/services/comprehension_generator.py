@@ -6,9 +6,9 @@ Generates comprehension questions and cloze exercises from text.
 Used for comprehension_mcq and phrase_cloze lesson types.
 """
 
-import re
 import random
-from typing import Dict, List, Any, Optional
+import re
+from typing import Any, Dict, List, Optional
 
 
 class ComprehensionMCQGenerator:

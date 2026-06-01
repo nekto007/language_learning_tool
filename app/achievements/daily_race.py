@@ -15,7 +15,10 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass, field
-from datetime import date as date_cls, datetime, time as time_cls, timezone
+from datetime import date as date_cls
+from datetime import datetime
+from datetime import time as time_cls
+from datetime import timezone
 from typing import Iterable, List, Mapping, Optional
 
 logger = logging.getLogger(__name__)
@@ -541,6 +544,7 @@ def compute_ghost_points(
     Returns 0 for past/future dates outside the race window.
     """
     import pytz
+
     from config.settings import DEFAULT_TIMEZONE
 
     tz_name = tz or DEFAULT_TIMEZONE

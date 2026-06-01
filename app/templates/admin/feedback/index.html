@@ -9,15 +9,17 @@
 
 {% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'} %}
 {% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info'} %}
-{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'resolved': 'Закрыто'} %}
-{% set status_badges = {'new': 'primary', 'seen': 'warning', 'resolved': 'secondary'} %}
+{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
+{% set status_badges = {'new': 'primary', 'seen': 'warning', 'in_progress': 'info', 'resolved': 'secondary', 'reopened': 'danger'} %}
+{% set priority_labels = {'low': 'Низкий', 'normal': 'Обычный', 'high': 'Высокий', 'critical': 'Критичный'} %}
+{% set priority_badges = {'low': 'secondary', 'normal': 'light text-dark', 'high': 'warning', 'critical': 'danger'} %}
 
 {% block content %}
 {{ page_header('Обратная связь', 'Сообщения пользователей: баги, идеи, вопросы') }}
 
 <div class="row g-3 mb-4">
     {% for st in statuses %}
-    <div class="col-sm-4">
+    <div class="col-sm-4 col-lg-2">
         <div class="card">
             <div class="card-body py-3">
                 <div class="d-flex justify-content-between align-items-center">
@@ -37,6 +39,10 @@
     <div class="card-body">
         <form method="GET" action="{{ url_for('feedback_admin.feedback_index') }}" class="row g-3 align-items-end">
             <div class="col-md-3">
+                <label class="form-label">Поиск</label>
+                <input type="search" name="q" class="form-control" value="{{ filter_q }}" placeholder="текст, email, URL">
+            </div>
+            <div class="col-md-2">
                 <label class="form-label">Категория</label>
                 <select name="category" class="form-select">
                     <option value="">Все</option>
@@ -45,12 +51,31 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Статус</label>
                 <select name="status" class="form-select">
                     <option value="">Все</option>
                     {% for st in statuses %}
                     <option value="{{ st }}" {% if filter_status == st %}selected{% endif %}>{{ status_labels[st] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Приоритет</label>
+                <select name="priority" class="form-select">
+                    <option value="">Все</option>
+                    {% for pr in priorities %}
+                    <option value="{{ pr }}" {% if filter_priority == pr %}selected{% endif %}>{{ priority_labels[pr] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Ответственный</label>
+                <select name="assignee" class="form-select">
+                    <option value="">Все</option>
+                    <option value="unassigned" {% if filter_assignee == 'unassigned' %}selected{% endif %}>Не назначен</option>
+                    {% for admin in admins %}
+                    <option value="{{ admin.id }}" {% if filter_assignee == admin.id|string %}selected{% endif %}>{{ admin.username }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -90,8 +115,9 @@
                         <th style="width: 130px;">Время</th>
                         <th style="width: 90px;">Тип</th>
                         <th style="width: 110px;">Статус</th>
+                        <th style="width: 110px;">Приоритет</th>
                         <th>Сообщение</th>
-                        <th style="width: 200px;">Пользователь / URL</th>
+                        <th style="width: 220px;">Пользователь / URL</th>
                         <th style="width: 240px;">Действия</th>
                     </tr>
                 </thead>
@@ -111,7 +137,23 @@
                                 {{ status_labels.get(entry.status, entry.status) }}
                             </span>
                         </td>
-                        <td class="small" style="white-space: pre-wrap; word-break: break-word;">{{ entry.message }}</td>
+                        <td>
+                            <span class="badge bg-{{ priority_badges.get(entry.priority, 'light text-dark') }}">
+                                {{ priority_labels.get(entry.priority, entry.priority) }}
+                            </span>
+                        </td>
+                        <td class="small" style="white-space: pre-wrap; word-break: break-word;">
+                            <a href="{{ url_for('feedback_admin.feedback_detail', feedback_id=entry.id) }}"
+                               class="text-decoration-none text-body">
+                                {{ entry.message[:240] }}{% if entry.message|length > 240 %}…{% endif %}
+                            </a>
+                            <div class="text-muted small mt-1">
+                                {% if entry.has_screenshot %}<i class="fas fa-image me-1"></i>скриншот{% endif %}
+                                {% if entry.reply_count %}
+                                    <i class="fas fa-comments ms-2 me-1"></i>{{ entry.reply_count }} ответ(а)
+                                {% endif %}
+                            </div>
+                        </td>
                         <td class="small">
                             {% if entry.user_email %}
                                 <div title="user_id={{ entry.user_id }}">{{ entry.user_username or entry.user_email }}</div>
@@ -123,23 +165,15 @@
                                     <i class="fas fa-link me-1"></i>{{ entry.url }}
                                 </div>
                             {% endif %}
+                            <div class="text-muted mt-1">
+                                <i class="fas fa-user-check me-1"></i>{{ entry.assignee_username or 'не назначен' }}
+                            </div>
                         </td>
                         <td>
-                            <div class="d-flex gap-1 flex-wrap">
-                                {% for st in statuses %}
-                                    {% if st != entry.status %}
-                                    <form method="POST"
-                                          action="{{ url_for('feedback_admin.feedback_set_status', feedback_id=entry.id, page=page, category=filter_category, status=filter_status) }}"
-                                          class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="status" value="{{ st }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-{{ status_badges[st] }}">
-                                            → {{ status_labels[st] }}
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                            <a href="{{ url_for('feedback_admin.feedback_detail', feedback_id=entry.id) }}"
+                               class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye me-1"></i>Открыть
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -160,7 +194,7 @@
             <ul class="pagination mb-0 justify-content-center">
                 {% if page > 1 %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('feedback_admin.feedback_index', page=page-1, category=filter_category, status=filter_status, date_from=filter_date_from, date_to=filter_date_to) }}">
+                    <a class="page-link" href="{{ url_for('feedback_admin.feedback_index', page=page-1, category=filter_category, status=filter_status, priority=filter_priority, assignee=filter_assignee, q=filter_q, date_from=filter_date_from, date_to=filter_date_to) }}">
                         <i class="fas fa-chevron-left"></i> Назад
                     </a>
                 </li>
@@ -170,7 +204,7 @@
                 </li>
                 {% if has_more %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('feedback_admin.feedback_index', page=page+1, category=filter_category, status=filter_status, date_from=filter_date_from, date_to=filter_date_to) }}">
+                    <a class="page-link" href="{{ url_for('feedback_admin.feedback_index', page=page+1, category=filter_category, status=filter_status, priority=filter_priority, assignee=filter_assignee, q=filter_q, date_from=filter_date_from, date_to=filter_date_to) }}">
                         Вперёд <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>

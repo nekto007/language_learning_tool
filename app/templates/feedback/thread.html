@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Обращение #{{ feedback.id }}{% endblock %}
+
+{% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос'} %}
+{% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 760px;">
+    <a href="{{ url_for('feedback.my_feedback_list') }}" class="btn btn-link btn-sm mb-3 ps-0">
+        ← Все обращения
+    </a>
+
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <strong>{{ category_labels.get(feedback.category, feedback.category) }}</strong>
+                <span class="badge bg-light text-dark ms-2">{{ status_labels.get(feedback.status, feedback.status) }}</span>
+            </div>
+            <small class="text-muted">{{ feedback.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+        </div>
+        <div class="card-body">
+            <div style="white-space: pre-wrap; word-break: break-word;">{{ feedback.message }}</div>
+            {% if feedback.screenshot_path %}
+            <div class="mt-3">
+                <a href="{{ url_for('feedback.serve_screenshot', rel_path=feedback.screenshot_path|replace('feedback/', '')) }}" target="_blank" rel="noopener">
+                    <img src="{{ url_for('feedback.serve_screenshot', rel_path=feedback.screenshot_path|replace('feedback/', '')) }}"
+                         alt="Скриншот"
+                         style="max-width: 100%; max-height: 360px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: zoom-in;">
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if replies %}
+        {% for reply in replies %}
+        <div class="card mb-2 {% if reply.is_admin %}border-primary{% endif %}">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong class="small">
+                        {% if reply.is_admin %}
+                            <span class="badge bg-primary me-1">Команда</span>
+                        {% else %}
+                            Вы
+                        {% endif %}
+                    </strong>
+                    <small class="text-muted">{{ reply.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                </div>
+                <div style="white-space: pre-wrap; word-break: break-word;">{{ reply.body }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card mt-3">
+        <div class="card-body">
+            <form id="user-reply-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="form-label small text-muted">Ваш ответ</label>
+                <textarea name="body"
+                          id="user-reply-body"
+                          class="form-control mb-2"
+                          rows="3"
+                          maxlength="4000"
+                          required
+                          placeholder="{% if feedback.status == 'resolved' %}Если проблема осталась, напишите сюда — обращение переоткроется.{% else %}Дополнительная информация, уточнение или ответ команде…{% endif %}"></textarea>
+                <div class="d-flex justify-content-end">
+                    <button type="submit" id="user-reply-submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-1"></i>Отправить
+                    </button>
+                </div>
+                <div id="user-reply-error" class="text-danger small mt-2" hidden></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var form = document.getElementById('user-reply-form');
+    if (!form) return;
+    var submit = document.getElementById('user-reply-submit');
+    var errorBox = document.getElementById('user-reply-error');
+    var body = document.getElementById('user-reply-body');
+    var inFlight = false;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (inFlight) return;
+        var text = (body.value || '').trim();
+        if (!text) {
+            errorBox.textContent = 'Опишите свой ответ.';
+            errorBox.hidden = false;
+            return;
+        }
+        errorBox.hidden = true;
+        inFlight = true;
+        submit.disabled = true;
+        var metaTag = document.querySelector('meta[name="csrf-token"]');
+        var csrf = metaTag ? metaTag.getAttribute('content') : '';
+        fetch({{ url_for('feedback.submit_user_reply', feedback_id=feedback.id) | tojson }}, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({body: text}),
+        }).then(function(r) {
+            if (r.ok) {
+                window.location.reload();
+                return;
+            }
+            return r.json().catch(function() { return {}; }).then(function(j) {
+                errorBox.textContent = (j && j.message) ? j.message : 'Не удалось отправить ответ.';
+                errorBox.hidden = false;
+                inFlight = false;
+                submit.disabled = false;
+            });
+        }).catch(function() {
+            errorBox.textContent = 'Сеть недоступна.';
+            errorBox.hidden = false;
+            inFlight = false;
+            submit.disabled = false;
+        });
+    });
+})();
+</script>
+{% endblock %}

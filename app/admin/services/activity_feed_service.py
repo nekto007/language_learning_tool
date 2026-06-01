@@ -3,7 +3,7 @@
 """Activity feed service — aggregates events from multiple sources for the admin activity view."""
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List, Optional
 

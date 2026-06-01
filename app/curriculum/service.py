@@ -1,6 +1,6 @@
 # app/curriculum/service.py
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func
@@ -13,21 +13,22 @@ from app.utils.normalization import normalize_text  # noqa: F401 — re-export
 
 logger = logging.getLogger(__name__)
 
+from app.curriculum.card_service import (  # noqa: E402, F401
+    calculate_card_intervals,
+    get_audio_filename,
+    get_card_session_for_lesson,
+    get_cards_for_lesson,
+    process_card_review_for_lesson,
+    smart_shuffle_cards,
+    sync_lesson_cards_to_words,
+)
+
 # Re-exports for backward compatibility
 from app.curriculum.grading import (  # noqa: E402, F401
-    process_grammar_submission,
-    process_quiz_submission,
-    process_matching_submission,
     process_final_test_submission,
-)
-from app.curriculum.card_service import (  # noqa: E402, F401
-    get_audio_filename,
-    get_cards_for_lesson,
-    smart_shuffle_cards,
-    process_card_review_for_lesson,
-    get_card_session_for_lesson,
-    calculate_card_intervals,
-    sync_lesson_cards_to_words,
+    process_grammar_submission,
+    process_matching_submission,
+    process_quiz_submission,
 )
 
 

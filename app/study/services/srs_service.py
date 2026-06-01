@@ -7,17 +7,16 @@ Responsibilities:
 - Card updates after reviews
 - Daily limits tracking
 """
-from typing import List, Dict, Tuple, Set
 from datetime import datetime, timezone
-from sqlalchemy import func, and_, or_, case
+from typing import Dict, List, Set, Tuple
+
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import joinedload
 
-from app.utils.db import db
-from app.study.models import (
-    UserWord, UserCardDirection, StudySettings, QuizDeckWord
-)
-from app.words.models import CollectionWords
 from app.srs.constants import CardState
+from app.study.models import QuizDeckWord, StudySettings, UserCardDirection, UserWord
+from app.utils.db import db
+from app.words.models import CollectionWords
 
 
 def get_user_word_ids(user_id: int, word_ids: List[int] = None) -> Set[int]:
@@ -378,7 +377,7 @@ class SRSService:
 
         # Calculate average performance
         avg_repetitions = (forward.repetitions + backward.repetitions) / 2
-        avg_interval = (forward.interval + backward.interval) / 2
+        (forward.interval + backward.interval) / 2
 
         # Update status based on performance
         # Note: 'mastered' is no longer a status - it's a threshold within 'review'

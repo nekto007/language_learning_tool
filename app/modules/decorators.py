@@ -1,5 +1,6 @@
 from functools import wraps
-from flask import abort, redirect, url_for, flash, request
+
+from flask import abort, flash, redirect, request, url_for
 from flask_login import current_user
 
 from app.modules.service import ModuleService

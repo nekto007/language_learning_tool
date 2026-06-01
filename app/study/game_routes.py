@@ -7,14 +7,12 @@ from flask_login import current_user, login_required
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app.study.blueprint import study, get_audio_url_for_word
+from app.modules.decorators import module_required
+from app.study.blueprint import get_audio_url_for_word, study
 from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
+from app.study.services import DeckService, QuizService, SessionService, StatsService
 from app.utils.db import db
 from app.words.models import CollectionWords
-from app.modules.decorators import module_required
-from app.study.services import (
-    DeckService, SessionService, QuizService, StatsService
-)
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +54,9 @@ def _calculate_matching_xp(score, total_pairs):
 
 def _check_quiz_achievements(user_id, quiz_data):
     """Check and grant quiz-related achievements. Returns list of newly earned Achievement rows."""
-    from app.study.models import Achievement, UserAchievement, QuizResult
     from app.achievements.services import grant_achievement
     from app.achievements.xp_service import award_xp as _award_xp_unified
+    from app.study.models import Achievement, QuizResult, UserAchievement
 
     newly_earned = []
 
@@ -228,6 +226,7 @@ def quiz_deck(deck_id):
 @study.route('/quiz/shared/<code>')
 def quiz_deck_shared(code):
     from flask import abort
+
     from app.study.models import QuizDeck, QuizDeckWord
     from app.words.models import CollectionWords
 
@@ -630,8 +629,8 @@ def complete_matching_game():
                 'error': 'Invalid game data detected'
             }), 200
 
-    from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
+    from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     score_percentage = min(100.0, (pairs_matched / total_pairs * 100) if total_pairs > 0 else 0)
     xp_breakdown = _calculate_matching_xp(
         score=score_percentage,
@@ -862,8 +861,8 @@ def complete_quiz():
         has_streak=has_streak,
     )
 
-    from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     from app.achievements.models import UserStatistics as _UserStats
+    from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     verified_session_id = None
     if session_id:
         try:

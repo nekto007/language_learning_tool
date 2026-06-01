@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import User
 
-
 # Buckets for "no attribution" — keeps the dashboard readable instead of
 # rendering thousands of empty rows.
 _UNKNOWN_LABEL = '(direct / unknown)'

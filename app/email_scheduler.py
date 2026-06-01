@@ -7,8 +7,8 @@ Runs daily via APScheduler. Sends emails to inactive users:
 """
 import logging
 import secrets
-from datetime import datetime, timezone, timedelta
-from zoneinfo import ZoneInfoNotFoundError, ZoneInfo
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apscheduler.schedulers.background import BackgroundScheduler
 

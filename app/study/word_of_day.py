@@ -9,10 +9,10 @@ from app.utils.db import db
 
 def get_word_of_day(user_id: int) -> dict | None:
     """Pick today's word for a user. Deterministic per user+date (same word all day)."""
-    from app.study.models import UserWord, UserCardDirection
-    from app.words.models import CollectionWords
-    from app.curriculum.daily_lessons import SliceVocabulary, DailyLesson
     from app.curriculum.book_courses import BookCourseEnrollment, BookCourseModule
+    from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
+    from app.study.models import UserCardDirection, UserWord
+    from app.words.models import CollectionWords
 
     # Seed random with user_id + today's date for deterministic pick
     seed = user_id * 10000 + date.today().toordinal()

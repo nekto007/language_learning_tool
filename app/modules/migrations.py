@@ -7,8 +7,8 @@ This file contains only seed data and user-migration helpers.
 import logging
 import warnings
 
-from app.utils.db import db
 from app.modules.models import SystemModule, UserModule
+from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 

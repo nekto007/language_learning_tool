@@ -11,7 +11,6 @@ from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
-from app.utils.types import JSONBCompat
 
 logger = logging.getLogger(__name__)
 
@@ -225,8 +224,6 @@ class MissionPlan:
                 seen_categories[cat] = i
 
 
-# ── Lesson skip ─────────────────────────────────────────────────────────────
-
 class LessonSkip(db.Model):
     """Records a user deferring a curriculum lesson to the next calendar day.
 
@@ -248,8 +245,6 @@ class LessonSkip(db.Model):
         Index('idx_lesson_skips_user_defer', 'user_id', 'defer_until_date'),
     )
 
-
-# ── Daily challenge ──────────────────────────────────────────────────────────
 
 CHALLENGE_CATEGORIES = ('speed_run', 'accuracy_focus', 'listening_deep')
 

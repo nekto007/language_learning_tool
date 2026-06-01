@@ -3,7 +3,7 @@
 import logging
 import random
 import re
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -11,15 +11,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 
 from app import limiter
-from app.utils.rate_limit_helpers import get_authenticated_user_key
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
 from app.curriculum.service import (
-    process_final_test_submission, process_grammar_submission,
-    process_matching_submission, process_quiz_submission,
+    process_final_test_submission,
+    process_grammar_submission,
+    process_matching_submission,
+    process_quiz_submission,
 )
 from app.curriculum.validators import ProgressUpdateSchema, validate_request_data
 from app.utils.db import db
+from app.utils.rate_limit_helpers import get_authenticated_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +31,8 @@ WRITING_DAILY_LIMIT = 70
 
 def _count_pronunciation_attempts_today(user_id: int) -> int:
     from app.curriculum.models import PronunciationAttempt
-    from app.utils.time_utils import get_user_local_day_bounds
     from app.utils.db import db as _db
+    from app.utils.time_utils import get_user_local_day_bounds
     today_start, _ = get_user_local_day_bounds(user_id, _db)
     return PronunciationAttempt.query.filter(
         PronunciationAttempt.user_id == user_id,
@@ -40,8 +42,8 @@ def _count_pronunciation_attempts_today(user_id: int) -> int:
 
 def _count_writing_attempts_today(user_id: int) -> int:
     from app.curriculum.models import UserWritingAttempt
-    from app.utils.time_utils import get_user_local_day_bounds
     from app.utils.db import db as _db
+    from app.utils.time_utils import get_user_local_day_bounds
     today_start, _ = get_user_local_day_bounds(user_id, _db)
     return UserWritingAttempt.query.filter(
         UserWritingAttempt.user_id == user_id,
@@ -282,7 +284,7 @@ def update_lesson_progress(lesson_id):
         if progress.status == 'completed' and progress.score is not None and not _is_score_strip_type:
             try:
                 from app.achievements.services import process_lesson_completion
-                lesson = Lessons.query.get(lesson_id)
+                Lessons.query.get(lesson_id)
                 completion_result = process_lesson_completion(
                     user_id=current_user.id,
                     lesson_id=lesson_id,
@@ -694,8 +696,8 @@ def dictation_lesson(lesson_id: int):
 def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade a dictation submission, update progress, award XP, and return result."""
     from app.curriculum.grading import grade_dictation
-    from app.curriculum.services.progress_service import ProgressService
     from app.curriculum.listening_service import log_listening_attempt
+    from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
     transcript = content.get('transcript', '')
@@ -825,8 +827,8 @@ def audio_fill_blank_lesson(lesson_id: int):
 def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Grade an audio fill-in-blank submission, update progress, award XP, return result."""
     from app.curriculum.grading import grade_audio_fill_blank
-    from app.curriculum.services.progress_service import ProgressService
     from app.curriculum.listening_service import log_listening_attempt
+    from app.curriculum.services.progress_service import ProgressService
 
     content = lesson.content or {}
     items = content.get('items', [])
@@ -2090,7 +2092,7 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
 def lesson_feedback(lesson_id):
     """Save or update user thumbs-up/down feedback for a completed lesson."""
     from app.api.errors import api_error
-    from app.curriculum.models import LessonFeedback, save_lesson_feedback
+    from app.curriculum.models import save_lesson_feedback
 
     lesson = Lessons.query.get_or_404(lesson_id)
     data = request.get_json(silent=True) or {}
@@ -2114,7 +2116,8 @@ def lesson_feedback(lesson_id):
     return jsonify({'success': True, 'lesson_id': lesson_id, 'rating': rating})
 
 
+import app.curriculum.routes.card_lessons  # noqa: E402, F401
+import app.curriculum.routes.grammar_quiz_lessons  # noqa: E402, F401
+
 # Import route modules to register their routes on lessons_bp
 import app.curriculum.routes.vocabulary_lessons  # noqa: E402, F401
-import app.curriculum.routes.grammar_quiz_lessons  # noqa: E402, F401
-import app.curriculum.routes.card_lessons  # noqa: E402, F401

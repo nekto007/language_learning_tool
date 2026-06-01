@@ -8,13 +8,14 @@ Provides consistent SRS behavior across all entry points:
 """
 
 from app.srs.constants import (
+    MAX_SESSION_ATTEMPTS,
     RATING_DONT_KNOW,
     RATING_DOUBT,
     RATING_KNOW,
-    MAX_SESSION_ATTEMPTS,
     REQUEUE_RANGE_DONT_KNOW,
     REQUEUE_RANGE_DOUBT,
 )
+
 __all__ = [
     'RATING_DONT_KNOW',
     'RATING_DOUBT',

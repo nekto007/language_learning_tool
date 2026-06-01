@@ -11,8 +11,8 @@ from flask_login import current_user
 
 from app.admin.audit import log_admin_action
 from app.admin.services.system_service import SystemService
-from app.admin.utils.decorators import admin_required
 from app.admin.utils.cache import clear_admin_cache, clear_cache_by_prefix, get_cache_stats
+from app.admin.utils.decorators import admin_required
 from app.curriculum.rate_limiter import rate_limit
 from app.utils.db import db
 

@@ -9,7 +9,6 @@ import logging
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_babel import gettext as _
 from flask_login import current_user
-from sqlalchemy.orm import contains_eager
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required

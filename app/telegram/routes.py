@@ -4,8 +4,9 @@ import logging
 import threading
 from collections import deque
 
-from flask import request, jsonify, current_app
-from flask_login import login_required, current_user
+from flask import current_app, jsonify, request
+from flask_login import current_user, login_required
+
 from app import csrf, limiter
 from app.telegram import telegram_bp
 from app.telegram.models import TelegramLinkCode, TelegramUser

@@ -7,13 +7,14 @@ Responsibilities:
 - User progress tracking
 - Efficient bulk queries to avoid N+1
 """
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from sqlalchemy import func, or_
 
-from app.utils.db import db
 from app.study.models import UserWord
-from app.words.models import CollectionWords, Collection, CollectionWordLink, Topic, TopicWord
 from app.study.services.srs_service import get_user_word_ids
+from app.utils.db import db
+from app.words.models import Collection, CollectionWordLink, CollectionWords, Topic, TopicWord
 
 
 class CollectionTopicService:

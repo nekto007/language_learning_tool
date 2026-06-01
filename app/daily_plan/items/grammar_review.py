@@ -98,9 +98,10 @@ def build_grammar_review_item(
 
 def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
     """Return the topic whose exercises were reviewed longest ago by this user."""
+    from sqlalchemy import func
+
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
-    from sqlalchemy import func
 
     # Group by a scalar column only to avoid PostgreSQL full-GROUP-BY requirement.
     row = (

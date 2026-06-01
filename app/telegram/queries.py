@@ -1,18 +1,18 @@
 """Database queries for Telegram bot notifications."""
-from datetime import datetime, timezone, timedelta, date
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import pytz
 from sqlalchemy import func
 
-from app.utils.db import db
-from app.curriculum.models import LessonProgress, Lessons, Module
+from app.books.models import Book, UserChapterProgress
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
-from app.grammar_lab.models import UserGrammarExercise, UserGrammarTopicStatus, GrammarTopic
-from app.study.models import UserWord, UserCardDirection
-from app.books.models import UserChapterProgress, Book
+from app.curriculum.models import LessonProgress, Lessons, Module
+from app.grammar_lab.models import GrammarTopic, UserGrammarExercise, UserGrammarTopicStatus
+from app.study.models import UserCardDirection, UserWord
 from app.telegram.notifications import LESSON_TIME
+from app.utils.db import db
 from config.settings import DEFAULT_TIMEZONE
 
 DEFAULT_TZ = DEFAULT_TIMEZONE
@@ -276,6 +276,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
 
     # Find books user has started reading (has chapter progress)
     from sqlalchemy import distinct
+
     from app.books.models import Chapter
     started_book_ids = db.session.query(distinct(Chapter.book_id)).join(
         UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
@@ -485,9 +486,11 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     today_start, today_end = _user_day_boundaries(tz)
 
     # ── helpers ──
-    from app.study.models import StudySettings
+    from sqlalchemy import case as sa_case
+    from sqlalchemy import distinct
+
     from app.books.models import Chapter
-    from sqlalchemy import distinct, case as sa_case
+    from app.study.models import StudySettings
 
     CEFR_ORDER = sa_case(
         (Book.level == 'A1', 1), (Book.level == 'A2', 2),

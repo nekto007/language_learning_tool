@@ -58,13 +58,13 @@ def has_learning_activity(user_id: int, start_utc: datetime,
     Returns:
         True on first activity match; False if no source matches.
     """
-    from app.utils.db import db
-    from app.curriculum.models import LessonProgress, ListeningAttempt
-    from app.curriculum.daily_lessons import UserLessonProgress
-    from app.grammar_lab.models import UserGrammarExercise
-    from app.study.models import UserWord, UserCardDirection, StudySession
-    from app.books.models import UserChapterProgress
     from app.achievements.models import StreakEvent
+    from app.books.models import UserChapterProgress
+    from app.curriculum.daily_lessons import UserLessonProgress
+    from app.curriculum.models import LessonProgress, ListeningAttempt
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.study.models import StudySession, UserCardDirection, UserWord
+    from app.utils.db import db
 
     session = db_session if db_session is not None else db.session
 

@@ -12,8 +12,8 @@ from flask_login import current_user
 from app import limiter
 from app.admin.audit import log_admin_action
 from app.admin.services.audio_management_service import AudioManagementService
-from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.cache import clear_admin_cache
+from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.export_helpers import export_audio_list_csv, export_audio_list_json, export_audio_list_txt
 from app.utils.db import db
 
@@ -57,7 +57,7 @@ def audio_management():
 def update_audio_download_status():
     """Обновление статуса загрузки аудио файлов"""
     try:
-        from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE, PHRASAL_VERB_TABLE
+        from config.settings import COLLECTIONS_TABLE, MEDIA_FOLDER, PHRASAL_VERB_TABLE
 
         _ALLOWED_AUDIO_TABLES = frozenset({COLLECTIONS_TABLE, PHRASAL_VERB_TABLE})
 
@@ -236,7 +236,7 @@ def fix_all_audio():
 
     # 1. Обновить статус загрузки
     try:
-        from config.settings import MEDIA_FOLDER, COLLECTIONS_TABLE
+        from config.settings import COLLECTIONS_TABLE, MEDIA_FOLDER
         column_name = "english_word"
         updated_count = AudioManagementService.update_download_status(
             COLLECTIONS_TABLE, column_name, MEDIA_FOLDER
@@ -270,7 +270,9 @@ def fix_all_audio():
     # 4. Заполнить пустые поля listening
     try:
         success, fixed_count, message = AudioManagementService.fill_empty_listening_fields()
-        results.append({'step': 'Заполнение пустых listening', 'success': success, 'count': fixed_count if success else 0})
+        results.append({
+            'step': 'Заполнение пустых listening', 'success': success, 'count': fixed_count if success else 0,
+        })
         if success:
             logger.info(f"Empty listening fields filled by {current_user.username}: {fixed_count} records")
     except Exception as e:

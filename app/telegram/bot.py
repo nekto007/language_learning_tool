@@ -6,7 +6,7 @@ import requests
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
 
-from app.telegram.models import TelegramUser, TelegramLinkCode, PendingTelegramLink
+from app.telegram.models import PendingTelegramLink, TelegramLinkCode, TelegramUser
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -351,7 +351,8 @@ def _handle_streak_repair_callback(chat_id: int, telegram_id: int,
                                     message_id: int | None = None) -> None:
     """Handle streak_repair callback — apply paid repair."""
     from app.achievements.streak_service import (
-        find_missed_date, apply_paid_repair,
+        apply_paid_repair,
+        find_missed_date,
     )
 
     tg_user = TelegramUser.query.filter_by(telegram_id=telegram_id).first()
@@ -515,11 +516,13 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
         _send_message(chat_id, 'Сначала привяжи аккаунт: /link XXXXXX')
         return
 
-    from app.telegram.queries import (
-        get_daily_summary, get_current_streak, get_cards_url,
-        get_daily_plan_for_telegram,
-    )
     from app.achievements.streak_service import get_or_create_coins
+    from app.telegram.queries import (
+        get_cards_url,
+        get_current_streak,
+        get_daily_plan_for_telegram,
+        get_daily_summary,
+    )
 
     user_id = tg_user.user_id
     user_tz = tg_user.timezone
@@ -582,7 +585,7 @@ def _handle_plan(chat_id: int, telegram_id: int) -> None:
         steps.append((done, label, url))
 
     # 3. Words
-    words_due = plan.get('words_due', 0)
+    plan.get('words_due', 0)
     words_new = plan.get('words_new', 0)
     words_review = plan.get('words_review', 0)
     words_done = summary.get('words_reviewed', 0) > 0
@@ -645,7 +648,7 @@ def _handle_stats(chat_id: int, telegram_id: int) -> None:
         _send_message(chat_id, 'Сначала привяжи аккаунт: /link XXXXXX')
         return
 
-    from app.telegram.queries import get_quick_stats, get_cards_url
+    from app.telegram.queries import get_cards_url, get_quick_stats
     stats = get_quick_stats(tg_user.user_id, tz=tg_user.timezone)
 
     lines = ['📊 Статистика\n']

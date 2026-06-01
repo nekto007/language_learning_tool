@@ -145,6 +145,18 @@ class TestDictationTemplate:
         tpl = _read_dictation_template()
         assert "hint_chars" in tpl
 
+    def test_hints_hidden_behind_button(self):
+        tpl = _read_dictation_template()
+        assert 'id="dictation-show-hints"' in tpl
+        assert "Показать подсказки" in tpl
+        assert "showDictationHints" in tpl
+        assert "data-hint" in tpl
+
+    def test_hint_limit_explained(self):
+        tpl = _read_dictation_template()
+        assert "Подсказки скрыты" in tpl
+        assert "Их число ограничено" in tpl
+
     def test_results_div_present(self):
         tpl = _read_dictation_template()
         assert 'id="dictation-results"' in tpl

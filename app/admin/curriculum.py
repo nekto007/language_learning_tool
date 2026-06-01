@@ -9,7 +9,8 @@ import logging
 from datetime import UTC, datetime
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
-from flask_babel import gettext as _, lazy_gettext as _l
+from flask_babel import gettext as _
+from flask_babel import lazy_gettext as _l
 from flask_login import current_user
 from flask_wtf import FlaskForm
 from marshmallow import ValidationError

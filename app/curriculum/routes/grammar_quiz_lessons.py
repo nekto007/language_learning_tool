@@ -7,13 +7,12 @@ from datetime import UTC, datetime
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
-
 from sqlalchemy.orm import joinedload
 
+from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
-from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
@@ -146,7 +145,9 @@ def render_grammar_lesson(lesson):
     next_lesson = get_next_lesson(lesson.id)
 
     grammar_rule = cleaned_content.get('title') or cleaned_content.get('rule') or lesson.title
-    grammar_description = cleaned_content.get('content') or cleaned_content.get('description') or cleaned_content.get('text', '')
+    grammar_description = (
+        cleaned_content.get('content') or cleaned_content.get('description') or cleaned_content.get('text', '')
+    )
     examples = cleaned_content.get('examples', [])
     exercises = cleaned_content.get('exercises', [])
     grammar_explanation = cleaned_content.get('grammar_explanation')
@@ -331,7 +332,12 @@ def _sanitize_quiz_questions(cleaned_content: dict) -> None:
             random.shuffle(shuffled_words)
             question['shuffled_words'] = shuffled_words
 
-        if question.get('type') in ['multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion'] and 'options' in question and len(question['options']) > 0:
+        if (
+            question.get('type') in [
+                'multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion'
+            ]
+            and 'options' in question and len(question['options']) > 0
+        ):
             correct_answer = question.get('correct') or question.get('correct_answer') or question.get('answer')
             original_correct_index = None
             if isinstance(correct_answer, str):
@@ -1182,7 +1188,7 @@ def final_test_results(lesson_id):
         is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
             'final_test', lesson.content
         )
-    except ValidationError as e:
+    except ValidationError:
         flash('Ошибка в содержимом теста', 'error')
         return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
 

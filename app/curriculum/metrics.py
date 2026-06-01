@@ -324,7 +324,7 @@ def track_request_metrics(f):
             result = f(*args, **kwargs)
             status_code = getattr(result, 'status_code', 200)
 
-        except Exception as e:
+        except Exception:
             status_code = 500
             raise
 

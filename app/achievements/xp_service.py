@@ -1,8 +1,7 @@
-"""XP (experience points) system for daily mission plan progression.
+"""XP (experience points) system for user progression and level tracking.
 
-XP is awarded for completing mission phases, finishing all phases in a day,
-and maintaining streaks. XP accumulates into an independent level separate
-from the rank system.
+XP is awarded for completing daily plan slots, lessons, and maintaining streaks.
+XP accumulates into an independent level separate from the rank system.
 
 Level formula: to reach level N from level N-1 requires (N-1)*100 XP.
 Total XP needed to reach level N: 100 * (N-1)*N / 2
@@ -16,9 +15,6 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# XP award amounts per phase kind (used in Task 25 for integration)
-# ---------------------------------------------------------------------------
 PHASE_XP: dict[str, int] = {
     'recall': 15,
     'learn': 40,
@@ -37,9 +33,6 @@ PERFECT_DAY_BONUS_XP = 50
 PERFECT_DAY_BONUS_XP_LINEAR = 25
 FIRST_OF_DAY_BONUS_XP = 10
 
-# ---------------------------------------------------------------------------
-# Linear daily plan XP award amounts per source key
-# ---------------------------------------------------------------------------
 LINEAR_XP: dict[str, int] = {
     'linear_curriculum_card': 20,
     'linear_curriculum_vocabulary': 18,
@@ -78,10 +71,6 @@ PERFECT_DAY_MULTIPLIERS: list[tuple[int, float]] = [
     (1, 1.0),
 ]
 
-
-# ---------------------------------------------------------------------------
-# Level thresholds
-# ---------------------------------------------------------------------------
 
 def xp_for_level(level: int) -> int:
     """Total XP required to reach `level` (from level 1).
@@ -266,7 +255,7 @@ def award_perfect_day_xp_idempotent(
     Returns XPAward if awarded, None if already awarded today.
     Caller must commit the session.
     """
-    from app.achievements.models import UserStatistics, StreakEvent
+    from app.achievements.models import StreakEvent, UserStatistics
     from app.utils.db import db
 
     already = StreakEvent.query.filter_by(
@@ -614,8 +603,9 @@ def award_linear_xp(
 
 def get_today_xp(user_id: int, for_date: date) -> int:
     """Sum all XP awarded to a user on a given date from StreakEvents."""
-    from app.achievements.models import StreakEvent
     from sqlalchemy import Integer, func
+
+    from app.achievements.models import StreakEvent
 
     total = (
         StreakEvent.query

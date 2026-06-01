@@ -7,12 +7,13 @@ Responsibilities:
 - Deck statistics
 """
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
+
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from app.utils.db import db
 from app.study.models import QuizDeck, QuizDeckWord, UserWord
+from app.utils.db import db
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)

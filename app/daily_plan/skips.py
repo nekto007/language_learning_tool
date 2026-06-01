@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-
 # One "not now" action per user-local day across all baseline slots.
 DAILY_SLOT_SKIP_QUOTA = 1
 

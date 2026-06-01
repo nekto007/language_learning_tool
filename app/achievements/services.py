@@ -482,8 +482,9 @@ class AchievementService:
         Codes: words_learned_100 (≥100 review words),
                words_learned_500 (≥500 review words).
         """
-        from app.study.models import UserWord
         from sqlalchemy import func
+
+        from app.study.models import UserWord
 
         review_count = db.session.query(func.count(UserWord.id)).filter(
             UserWord.user_id == user_id,
@@ -537,8 +538,9 @@ class AchievementService:
         called without per-game context (e.g. from check_all_achievements),
         past GameScore rows are queried for backfill eligibility.
         """
-        from app.study.models import GameScore
         from sqlalchemy import func
+
+        from app.study.models import GameScore
 
         newly_awarded = []
 
@@ -629,7 +631,7 @@ class AchievementService:
         without context (e.g. from check_all_achievements) the method falls
         back to querying historical GameScore / QuizResult rows.
         """
-        from app.study.models import GameScore, QuizResult
+        from app.study.models import GameScore
 
         codes_to_award: set[str] = set()
 
@@ -808,14 +810,6 @@ class AchievementService:
         constraint on user_id + achievement_id is respected).
         """
         import pytz
-
-        from app.achievements.models import StreakEvent
-        from app.daily_plan.models import MissionType
-
-        if isinstance(mission_type, MissionType):
-            mission_type_value = mission_type.value
-        else:
-            mission_type_value = str(mission_type)
 
         if completion_time is None:
             completion_time = datetime.now(timezone.utc)
@@ -1107,9 +1101,10 @@ def check_listening_achievements(user_id: int, db_session=None) -> List[Achievem
     - listening_week: 7-day consecutive listening streak
     - listening_master: avg score >= 90 over last 10 ListeningAttempt rows
     """
-    from app.curriculum.models import ListeningAttempt
-    from app.achievements.streak_service import get_listening_streak
     from sqlalchemy import func
+
+    from app.achievements.streak_service import get_listening_streak
+    from app.curriculum.models import ListeningAttempt
 
     session = db_session if db_session is not None else db.session
 
@@ -1150,9 +1145,10 @@ def check_writing_achievements(user_id: int, db_session=None) -> List[Achievemen
     - writing_streak_3: 3 consecutive days with writing attempts
     - writing_fluent: any attempt with word_count >= 100
     """
-    from app.curriculum.models import UserWritingAttempt
-    from app.achievements.streak_service import get_writing_streak
     from sqlalchemy import func
+
+    from app.achievements.streak_service import get_writing_streak
+    from app.curriculum.models import UserWritingAttempt
 
     session = db_session if db_session is not None else db.session
 
@@ -1187,9 +1183,10 @@ def check_speaking_achievements(user_id: int, db_session=None) -> List[Achieveme
     - speaking_streak_3: 3 consecutive days with pronunciation attempts
     - speaking_clear: 10 matched pronunciations total
     """
-    from app.curriculum.models import PronunciationAttempt
-    from app.achievements.streak_service import get_speaking_streak
     from sqlalchemy import func
+
+    from app.achievements.streak_service import get_speaking_streak
+    from app.curriculum.models import PronunciationAttempt
 
     session = db_session if db_session is not None else db.session
 
@@ -1223,10 +1220,12 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
     so that the UTC query window aligns correctly with the user's day.
     """
     from datetime import timedelta
+
     import pytz
-    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
-    from app.books.reading_session import UserReadingSession
     from sqlalchemy import func
+
+    from app.books.reading_session import UserReadingSession
+    from app.curriculum.models import ListeningAttempt, PronunciationAttempt, UserWritingAttempt
 
     session = db_session if db_session is not None else db.session
 
@@ -1345,9 +1344,11 @@ def check_challenge_achievements(user_id: int, db_session=None) -> List[Achievem
     - challenge_streak_7: 7-day consecutive challenge completion streak
     - challenger: 30 total challenge completions
     """
-    from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
-    from sqlalchemy import func
     import datetime as _dt
+
+    from sqlalchemy import func
+
+    from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
 
     session = db_session if db_session is not None else db.session
 

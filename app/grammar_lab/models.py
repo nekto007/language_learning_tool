@@ -9,11 +9,15 @@ Models:
 - GrammarAttempt: Individual exercise attempt
 """
 
-from datetime import datetime, timezone, timedelta
-from sqlalchemy import Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, UniqueConstraint, Index
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import backref, relationship
-from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS, DEFAULT_EASE_FACTOR, MIN_EASE_FACTOR
+
+from app.srs.constants import DEFAULT_EASE_FACTOR
+from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS
+from app.srs.constants import MIN_EASE_FACTOR
 from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
 from app.utils.types import JSONBCompat

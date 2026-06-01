@@ -17,11 +17,12 @@ def index():
             return redirect(url_for('words.dashboard'))
 
     # Get platform statistics for social proof
+    from sqlalchemy import func
+
     from app.auth.models import User
-    from app.words.models import CollectionWords
     from app.curriculum.models import LessonProgress
     from app.grammar_lab.models import GrammarTopic
-    from sqlalchemy import func
+    from app.words.models import CollectionWords
 
     stats = {
         'users': User.query.filter_by(active=True).count(),
@@ -34,8 +35,8 @@ def index():
     }
 
     # Word of the Day (deterministic based on date)
-    from datetime import date
     import hashlib
+    from datetime import date
     today_seed = int(hashlib.md5(str(date.today()).encode()).hexdigest(), 16)
     _wotd_filter = [
         CollectionWords.frequency_rank > 0,

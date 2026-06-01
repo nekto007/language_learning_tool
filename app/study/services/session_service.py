@@ -6,11 +6,11 @@ Responsibilities:
 - XP tracking
 - Session statistics
 """
-from typing import Dict, Optional
 from datetime import datetime, timezone
+from typing import Dict, Optional
 
-from app.utils.db import db
 from app.study.models import StudySession
+from app.utils.db import db
 
 
 class SessionService:
@@ -71,8 +71,8 @@ class SessionService:
         write-path (which writes to ``UserStatistics.total_xp``). Returns the
         user's total XP after the award.
         """
-        from app.achievements.xp_service import award_xp as _unified_award_xp
         from app.achievements.models import UserStatistics
+        from app.achievements.xp_service import award_xp as _unified_award_xp
 
         if amount and amount > 0:
             _unified_award_xp(user_id, amount, source or 'session_service')

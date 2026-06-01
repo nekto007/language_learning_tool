@@ -1,8 +1,8 @@
 """Telegram bot models: user linking and temporary codes."""
 import secrets
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Column, Integer, SmallInteger, BigInteger, String, Boolean, DateTime, ForeignKey, Index
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Index, Integer, SmallInteger, String
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db

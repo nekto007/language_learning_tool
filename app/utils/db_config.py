@@ -8,6 +8,7 @@ of concerns and prevents race conditions.
 import logging
 import os
 import time
+
 from sqlalchemy import event
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,9 @@
 from datetime import date as _date
+from xml.etree.ElementTree import Element, SubElement, tostring
+
 from flask import Response, abort, current_app
 from sqlalchemy import func
-from xml.etree.ElementTree import Element, SubElement, tostring
+
 from . import seo_bp
 
 
@@ -24,7 +26,7 @@ def sitemap() -> Response:
     from app.grammar_lab.models import GrammarTopic
 
     site_urls = _site_urls()
-    site_url = site_urls[0]
+    site_urls[0]
 
     urlset = Element('urlset')
     urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
@@ -183,10 +185,10 @@ def llms_txt() -> Response:
 @seo_bp.route('/og/word/<word_slug>.png')
 def og_word(word_slug: str) -> Response:
     """Branded OG image for a public word page."""
-    from app.words.models import CollectionWords
-    from app.words.routes import decode_word_slug
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.seo.og_image import render_og_image
+    from app.words.models import CollectionWords
+    from app.words.routes import decode_word_slug
 
     name = decode_word_slug(word_slug)
     word = (
@@ -215,10 +217,10 @@ def og_word(word_slug: str) -> Response:
 @seo_bp.route('/og/contrast/<a_slug>/<b_slug>.png')
 def og_contrast(a_slug: str, b_slug: str) -> Response:
     """Branded OG image for a contrast pair page."""
-    from app.words.models import CollectionWords, WordContrast
-    from app.words.routes import decode_word_slug
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.seo.og_image import render_og_image
+    from app.words.models import CollectionWords, WordContrast
+    from app.words.routes import decode_word_slug
 
     a_name = decode_word_slug(a_slug)
     b_name = decode_word_slug(b_slug)
@@ -257,8 +259,8 @@ def og_contrast(a_slug: str, b_slug: str) -> Response:
 @seo_bp.route('/og/grammar/<slug>.png')
 def og_grammar(slug: str) -> Response:
     """Branded OG image for a grammar topic page."""
-    from app.grammar_lab.models import GrammarTopic
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.grammar_lab.models import GrammarTopic
     from app.seo.og_image import render_og_image
 
     topic = GrammarTopic.query.filter_by(slug=slug).first()

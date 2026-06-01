@@ -11,11 +11,16 @@ from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access
 from app.curriculum.service import (
-    get_card_session_for_lesson, process_card_review_for_lesson, sync_lesson_cards_to_words,
+    get_card_session_for_lesson,
+    process_card_review_for_lesson,
+    sync_lesson_cards_to_words,
 )
 from app.curriculum.validators import SRSReviewSchema, validate_request_data
 from app.srs.constants import (
-    CardState, DEFAULT_EASE_FACTOR, DIRECTION_ENG_RUS, DIRECTION_RUS_ENG,
+    DEFAULT_EASE_FACTOR,
+    DIRECTION_ENG_RUS,
+    DIRECTION_RUS_ENG,
+    CardState,
 )
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
@@ -859,7 +864,7 @@ def rate_card_api():
 def get_next_review_time(lesson_id):
     """Get next review time for lesson"""
     try:
-        lesson = Lessons.query.get_or_404(lesson_id)
+        Lessons.query.get_or_404(lesson_id)
 
         session_data = get_card_session_for_lesson(lesson_id, current_user.id)
 

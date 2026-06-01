@@ -12,11 +12,11 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from app.curriculum.book_courses import BookCourseEnrollment
-from app.utils.db import db
 from app.curriculum.daily_lessons import DailyLesson
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.srs import RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW
 from app.srs.service import unified_srs_service
+from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 

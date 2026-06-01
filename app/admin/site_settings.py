@@ -3,7 +3,7 @@
 """SiteSettings: key-value store for admin-configurable site parameters."""
 
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from sqlalchemy.exc import IntegrityError

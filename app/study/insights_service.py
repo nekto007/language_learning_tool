@@ -9,11 +9,10 @@ All functions accept user_id and return dicts/lists safe for JSON serialization.
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Date, cast, func, extract
+from sqlalchemy import Date, cast, extract, func
 
 from app.utils.db import db
 from config.settings import DEFAULT_TIMEZONE
-
 
 # ---------------------------------------------------------------------------
 # 1. Activity heatmap
@@ -32,11 +31,11 @@ def get_activity_heatmap(user_id: int, days: int = 90,
       - book chapter reading           (UserChapterProgress.updated_at)
       - daily-lesson completion        (UserLessonProgress.completed_at)
     """
+    from app.books.models import UserChapterProgress
+    from app.curriculum.daily_lessons import UserLessonProgress
     from app.curriculum.models import LessonProgress
     from app.grammar_lab.models import UserGrammarExercise
     from app.study.models import UserCardDirection
-    from app.books.models import UserChapterProgress
-    from app.curriculum.daily_lessons import UserLessonProgress
 
     # Add +1 day buffer so timezone-ahead users don't lose boundary-day data.
     start_date = datetime.now(timezone.utc) - timedelta(days=days + 1)
@@ -262,7 +261,7 @@ def get_grammar_weaknesses(user_id: int, limit: int = 5) -> list[dict[str, Any]]
     all ``UserGrammarExercise`` rows for the topic.  Only topics with at
     least 3 attempts are included.
     """
-    from app.grammar_lab.models import UserGrammarExercise, GrammarExercise, GrammarTopic
+    from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 
     total_expr = func.sum(UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count)
     accuracy_expr = (
@@ -310,8 +309,9 @@ def get_grammar_mastery_by_topic(user_id: int) -> list[dict[str, Any]]:
     Topics with 0 attempts are excluded.
     Results sorted by accuracy ascending (worst topics first).
     """
-    from sqlalchemy import Integer, cast, case
-    from app.grammar_lab.models import UserGrammarExercise, GrammarExercise, GrammarTopic
+    from sqlalchemy import Integer, case, cast
+
+    from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 
     MASTERED_THRESHOLD = 30
 
@@ -438,11 +438,11 @@ def get_learning_summary(user_id: int) -> dict[str, Any]:
       - grammar_topics_practiced (UserGrammarTopicStatus with status != 'new')
       - current_streak_days
     """
-    from app.curriculum.models import LessonProgress, LessonAttempt
-    from app.study.models import UserWord
-    from app.grammar_lab.models import UserGrammarTopicStatus
-    from app.curriculum.daily_lessons import UserLessonProgress
     from app.curriculum.book_courses import BookCourseEnrollment
+    from app.curriculum.daily_lessons import UserLessonProgress
+    from app.curriculum.models import LessonAttempt, LessonProgress
+    from app.grammar_lab.models import UserGrammarTopicStatus
+    from app.study.models import UserWord
 
     # --- words ---
     word_stats = (
@@ -537,8 +537,8 @@ def _compute_current_streak(user_id: int) -> int:
     had at least one completed activity.  Uses LessonProgress.completed_at
     and UserLessonProgress.completed_at as activity sources.
     """
-    from app.curriculum.models import LessonProgress
     from app.curriculum.daily_lessons import UserLessonProgress
+    from app.curriculum.models import LessonProgress
 
     # Collect distinct dates from both tables.
     q1 = (
@@ -678,7 +678,7 @@ def get_vocabulary_growth(user_id: int, days: int = 30) -> dict[str, Any]:
       - total_active: total UserCardDirection rows with state != 'new'
       - words_this_week: sum of counts over the last 7 entries
     """
-    from app.study.models import UserWord, UserCardDirection
+    from app.study.models import UserCardDirection, UserWord
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -742,8 +742,8 @@ def get_learning_velocity(user_id: int, weeks: int = 4) -> dict[str, Any]:
       - words_last_week: int
       - lessons_last_week: int
     """
-    from app.study.models import UserWord
     from app.curriculum.models import LessonProgress
+    from app.study.models import UserWord
 
     today = datetime.now(timezone.utc).date()
     # Anchor on Monday of the current week.
@@ -840,8 +840,8 @@ def get_weekly_summary(user_id: int) -> dict[str, Any]:
 
     Returns words_reviewed, lessons_completed, time_minutes, accuracy.
     """
+    from app.curriculum.models import LessonAttempt, LessonProgress
     from app.study.models import StudySession
-    from app.curriculum.models import LessonProgress, LessonAttempt
 
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
@@ -880,7 +880,10 @@ def get_weekly_summary(user_id: int) -> dict[str, Any]:
     study_time = (
         db.session.query(
             func.coalesce(
-                func.sum(func.extract('epoch', StudySession.end_time) - func.extract('epoch', StudySession.start_time)),
+                func.sum(
+                    func.extract('epoch', StudySession.end_time)
+                    - func.extract('epoch', StudySession.start_time)
+                ),
                 0,
             )
         )
@@ -914,9 +917,10 @@ def get_last_week_summary(user_id: int, tz: str = DEFAULT_TIMEZONE) -> dict[str,
         (positive = better than two weeks ago)
     """
     import pytz as _pytz
-    from app.study.models import StudySession
-    from app.curriculum.models import LessonProgress, LessonAttempt
+
+    from app.curriculum.models import LessonAttempt, LessonProgress
     from app.daily_plan.models import DailyPlanLog
+    from app.study.models import StudySession
 
     try:
         _tz_obj = _pytz.timezone(tz)
@@ -1118,9 +1122,9 @@ def get_weak_areas(user_id: int, top_n: int = 3) -> list[dict[str, Any]]:
     listening attempts (all-time) before flagging that skill as weak, so cold-
     start users don't see spurious alerts.
     """
-    from app.study.models import UserWord, UserCardDirection
-    from app.grammar_lab.models import UserGrammarExercise, GrammarExercise, GrammarTopic
     from app.curriculum.models import ListeningAttempt, UserWritingAttempt
+    from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
+    from app.study.models import UserCardDirection, UserWord
 
     areas: list[dict[str, Any]] = []
 
@@ -1235,10 +1239,10 @@ def get_skills_balance(user_id: int) -> dict[str, int]:
     Scores scale from 0 (no activity / poor accuracy) to 100 (excellent).
     Returns 0 for a skill when the user has insufficient data.
     """
-    from app.study.models import UserWord, UserCardDirection
-    from app.grammar_lab.models import UserGrammarExercise
     from app.books.reading_session import UserReadingSession
-    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+    from app.curriculum.models import ListeningAttempt, PronunciationAttempt, UserWritingAttempt
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.study.models import UserCardDirection, UserWord
 
     now = datetime.now(timezone.utc)
     seven_days_ago = now - timedelta(days=7)
@@ -1348,7 +1352,8 @@ def get_level_eta(user_id: int) -> dict[str, Any]:
       - confidence: 'low' | 'medium' | 'high'
     """
     import math
-    from app.curriculum.models import CEFRLevel, Module, Lessons, LessonProgress
+
+    from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
     from app.daily_plan.level_utils import get_user_current_cefr_level
 
     current_code = get_user_current_cefr_level(user_id, db)
@@ -1564,7 +1569,8 @@ def get_pronunciation_weaknesses(user_id: int, min_attempts: int = 3) -> list[st
     Only includes words with at least *min_attempts* total attempts.
     Returns a sorted list of word strings.
     """
-    from sqlalchemy import Integer, cast, case
+    from sqlalchemy import Integer, case, cast
+
     from app.curriculum.models import PronunciationAttempt
 
     rows = (
@@ -1615,8 +1621,8 @@ def get_accuracy_trend(user_id: int, days: int = 30) -> dict[str, Any]:
 
     Missing weeks produce ``null`` entries (not 0) so Chart.js skips the gap.
     """
-    from app.study.models import StudySession
     from app.curriculum.models import LessonAttempt, Lessons
+    from app.study.models import StudySession
 
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     start_dt = now_utc - timedelta(days=days)

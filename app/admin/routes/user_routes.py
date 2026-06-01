@@ -121,7 +121,7 @@ def user_detail(user_id):
 @admin_required
 def export_users_csv():
     """Export users as CSV with key metrics. Sanitized, limited, audit-logged."""
-    from app.admin.utils.export_helpers import _sanitize_csv_cell, MAX_EXPORT_ROWS
+    from app.admin.utils.export_helpers import MAX_EXPORT_ROWS, _sanitize_csv_cell
 
     search = request.args.get('search', '')
     rows = UserManagementService.export_users_csv(search=search)
@@ -153,7 +153,9 @@ def export_users_csv():
     return Response(
         generate(),
         mimetype='text/csv',
-        headers={'Content-Disposition': f'attachment; filename=users_export_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv'},
+        headers={
+            'Content-Disposition': f'attachment; filename=users_export_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv',
+        },
     )
 
 

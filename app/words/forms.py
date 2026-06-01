@@ -1,4 +1,5 @@
 import logging
+
 from flask_babel import lazy_gettext as _l
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, HiddenField, SelectField, StringField, SubmitField, TextAreaField
@@ -56,6 +57,7 @@ class WordFilterForm(FlaskForm):
         books = [(0, _l('Все книги'))]
         try:
             from app.utils.db import db
+
             # Получаем книги отсортированные по названию
             all_books = db.session.execute(
                 db.select(Book).order_by(Book.title.asc())
@@ -102,6 +104,7 @@ class CollectionFilterForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super(CollectionFilterForm, self).__init__(*args, **kwargs)
         from app.words.models import Topic
+
         # Динамическое заполнение списка тем
         choices = [('', _l('All Topics'))]
         try:

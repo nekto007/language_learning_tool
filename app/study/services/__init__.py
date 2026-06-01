@@ -11,13 +11,13 @@ Architecture:
 - collection_topic_service.py: Collection and topic management
 """
 
-from .deck_service import DeckService
-from .srs_service import SRSService, get_user_word_ids
-from .quiz_service import QuizService
-from .game_service import GameService
-from .stats_service import StatsService
-from .session_service import SessionService
 from .collection_topic_service import CollectionTopicService
+from .deck_service import DeckService
+from .game_service import GameService
+from .quiz_service import QuizService
+from .session_service import SessionService
+from .srs_service import SRSService, get_user_word_ids
+from .stats_service import StatsService
 
 __all__ = [
     'DeckService',

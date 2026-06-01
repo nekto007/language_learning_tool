@@ -1,9 +1,8 @@
 """
 Seed initial achievements data
 """
-from app.utils.db import db
 from app.study.models import Achievement
-
+from app.utils.db import db
 
 INITIAL_ACHIEVEMENTS = [
     # First steps

@@ -5,11 +5,10 @@ from datetime import UTC, datetime, timedelta
 
 from flask import Blueprint, jsonify
 from flask_login import current_user, login_required
-
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.security import check_lesson_access, check_module_access, require_lesson_access
+from app.curriculum.security import check_module_access, require_lesson_access
 from app.curriculum.service import get_card_session_for_lesson, get_cards_for_lesson
 from app.utils.db import db
 

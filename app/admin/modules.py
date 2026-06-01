@@ -1,13 +1,13 @@
 """
 Admin routes for module management
 """
-from flask import render_template, request, jsonify, flash, redirect, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
-from app.modules.service import ModuleService
 from app.auth.models import User
+from app.modules.service import ModuleService
 from app.utils.db import db
 
 

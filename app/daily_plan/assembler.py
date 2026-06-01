@@ -7,22 +7,13 @@ from typing import Any, Optional
 
 from sqlalchemy import func
 
-from app.utils.db import db
-from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.navigation import find_next_lesson
-from app.daily_plan.level_utils import get_user_current_cefr_level, _cefr_code_to_order
-from app.daily_plan.mission_selector import detect_primary_track
+from app.books.models import Book, Chapter, UserChapterProgress
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
-from app.grammar_lab.models import (
-    GrammarTopic,
-    UserGrammarExercise,
-    UserGrammarTopicStatus,
-)
-from app.study.deck_utils import get_daily_plan_mix_word_ids
-from app.utils.db_utils import chunk_ids
-from app.books.models import Book, Chapter, UserChapterProgress
-
+from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.curriculum.navigation import find_next_lesson
+from app.daily_plan.level_utils import get_user_current_cefr_level
+from app.daily_plan.repair_pressure import RepairBreakdown
 from app.daily_plan.models import (
     MODE_CATEGORY_MAP,
     Mission,
@@ -35,7 +26,14 @@ from app.daily_plan.models import (
     PrimarySource,
     SourceKind,
 )
-from app.daily_plan.repair_pressure import RepairBreakdown
+from app.grammar_lab.models import (
+    GrammarTopic,
+    UserGrammarExercise,
+    UserGrammarTopicStatus,
+)
+from app.study.deck_utils import get_daily_plan_mix_word_ids
+from app.utils.db import db
+from app.utils.db_utils import chunk_ids
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +185,6 @@ def _count_grammar_due(user_id: int) -> int:
         )
         .scalar()
     ) or 0
-
 
 
 def _get_remaining_card_budget(user_id: int) -> tuple[int, int]:
@@ -606,33 +603,13 @@ def assemble_repair_mission(
     has_srs_recall = recall_count > 0
 
     if srs_due == 0 and grammar_due == 0:
-        track = detect_primary_track(user_id)
         logger.warning(
-            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to %s mission",
+            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to progress mission",
             user_id,
-            "reading" if track == SourceKind.books else "progress",
-        )
-        if track == SourceKind.books:
-            reading_plan = assemble_reading_mission(
-                user_id,
-                reason_code="progress_next_step",
-                reason_text="Всё повторено — продолжаем чтение",
-                tz=tz,
-            )
-            if reading_plan is not None:
-                return reading_plan
-            logger.warning(
-                "assemble_repair_mission: reading mission returned None for user_id=%s, degrading to progress",
-                user_id,
-            )
-            track = SourceKind.normal_course
-        primary_source = (
-            track if track in (SourceKind.normal_course, SourceKind.book_course)
-            else SourceKind.normal_course
         )
         return assemble_progress_mission(
             user_id,
-            primary_source,
+            SourceKind.normal_course,
             reason_code="progress_next_step",
             reason_text="Всё повторено — двигаемся дальше по курсу",
             tz=tz,

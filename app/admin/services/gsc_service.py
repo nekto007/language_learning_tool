@@ -12,8 +12,8 @@ SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly']
 # Module-level imports guarded so the module loads even without google packages.
 # Tests mock these names at app.admin.services.gsc_service.Flow / .Credentials / .build.
 try:
-    from google_auth_oauthlib.flow import Flow
     from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import Flow
     from googleapiclient.discovery import build
 except ImportError:  # pragma: no cover
     Flow = None  # type: ignore[assignment,misc]

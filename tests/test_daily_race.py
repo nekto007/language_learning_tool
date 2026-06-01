@@ -1,10 +1,9 @@
-"""Tests for Task 27: Daily Race — matchmaking и ghost participants.
+"""Tests for Daily Race — matchmaking and ghost participants.
 
 Covers:
 - get_or_create_race does not create duplicate participants under concurrent-style inserts
 - Ghost points are computed in memory, never stored in the DB
 - Adult-gate: birth_year=None is treated as adult (no blocking)
-- route_position values stay within [0, 100]
 """
 from __future__ import annotations
 
@@ -28,14 +27,6 @@ from app.achievements.daily_race import (
     get_race_standings,
 )
 from app.auth.models import User
-from app.daily_plan.rivals import (
-    GhostRival,
-    _ghost_target_position,
-    _RIVAL_TARGET_MIN_FRACTION,
-    _RIVAL_TARGET_MAX_FRACTION,
-    get_ghost_rival,
-    is_adult_user,
-)
 
 
 def _make_user(db_session, *, suffix: str | None = None) -> User:
@@ -178,36 +169,10 @@ class TestGhostPointsNotPersisted:
 
 
 # ---------------------------------------------------------------------------
-# Adult-gate: birth_year=None treated as adult
+# Adult-gate: API endpoint behaviour
 # ---------------------------------------------------------------------------
 
 class TestAdultGate:
-    def test_none_birth_year_is_adult(self):
-        """is_adult_user(None) must return True for backward compatibility."""
-        assert is_adult_user(None) is True
-
-    def test_none_birth_year_not_adult_gate(self):
-        """is_adult_user(None) must not block any user."""
-        assert is_adult_user(None, reference_year=2026) is True
-
-    def test_young_birth_year_is_not_adult(self):
-        assert is_adult_user(2015, reference_year=2026) is False
-
-    def test_borderline_adult(self):
-        assert is_adult_user(2008, reference_year=2026) is True
-        assert is_adult_user(2009, reference_year=2026) is False
-
-    def test_get_ghost_rival_not_blocked_by_none_birth_year(self, db_session):
-        """get_ghost_rival must work normally — caller is responsible for the
-        adult check. None birth_year should not cause an error inside the
-        function (no birth_year param in get_ghost_rival)."""
-        rival = get_ghost_rival(
-            user_id=1,
-            race_date=date(2026, 5, 27),
-            now=datetime(2026, 5, 27, 12, 0, tzinfo=timezone.utc),
-        )
-        assert isinstance(rival, GhostRival)
-
     def test_api_adult_gate_allows_none_birth_year(self, authenticated_client, db_session):
         """The /api/daily-race endpoint must not return 403 when birth_year is None."""
         from unittest.mock import patch as mock_patch
@@ -244,74 +209,9 @@ class TestAdultGate:
         assert resp.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# route_position bounds [0, 100]
-# ---------------------------------------------------------------------------
-
-class TestRoutePositionBounds:
-    def test_ghost_target_position_within_0_100(self):
-        """_ghost_target_position must always return a value in [0, 100]."""
-        for seed in range(0, 100_000, 1009):
-            pos = _ghost_target_position(seed)
-            assert 0 <= pos <= 100, (
-                f'seed={seed} gave out-of-bounds target={pos}'
-            )
-
-    def test_ghost_target_position_in_expected_band(self):
-        """Target positions must fall in the slightly-behind band."""
-        min_expected = int(_RIVAL_TARGET_MIN_FRACTION * 100)
-        max_expected = int(round(_RIVAL_TARGET_MAX_FRACTION * 100))
-        for seed in range(0, 100_000, 997):
-            pos = _ghost_target_position(seed)
-            assert min_expected <= pos <= max_expected, (
-                f'seed={seed} gave pos={pos} outside [{min_expected}, {max_expected}]'
-            )
-
-    def test_get_ghost_rival_position_within_0_100(self):
-        """get_ghost_rival must produce route_position in [0, 100] for any time."""
-        test_cases = [
-            datetime(2026, 5, 27, 0, 0, tzinfo=timezone.utc),   # midnight
-            datetime(2026, 5, 27, 8, 0, tzinfo=timezone.utc),   # start hour
-            datetime(2026, 5, 27, 14, 30, tzinfo=timezone.utc), # midday
-            datetime(2026, 5, 27, 22, 0, tzinfo=timezone.utc),  # end hour
-            datetime(2026, 5, 27, 23, 59, tzinfo=timezone.utc), # near midnight
-        ]
-        for now in test_cases:
-            rival = get_ghost_rival(
-                user_id=42,
-                race_date=date(2026, 5, 27),
-                now=now,
-            )
-            assert 0 <= rival.route_position <= 100, (
-                f'now={now} gave out-of-bounds position={rival.route_position}'
-            )
-
-    def test_get_ghost_rival_past_date_returns_full_target(self):
-        """Past race dates should return the ghost's full target position."""
-        now = datetime(2026, 5, 28, 12, 0, tzinfo=timezone.utc)  # day after
-        rival = get_ghost_rival(
-            user_id=1,
-            race_date=date(2026, 5, 27),
-            now=now,
-        )
-        # Should be the full target (> 0) and within bounds
-        assert rival.route_position > 0
-        assert rival.route_position <= 100
-
-    def test_get_ghost_rival_future_date_returns_zero(self):
-        """Future race dates should return position 0."""
-        now = datetime(2026, 5, 26, 12, 0, tzinfo=timezone.utc)  # day before
-        rival = get_ghost_rival(
-            user_id=1,
-            race_date=date(2026, 5, 27),
-            now=now,
-        )
-        assert rival.route_position == 0
-
     def test_compute_ghost_points_within_target_bounds(self):
         """compute_ghost_points (for DailyRace ghosts) must not exceed target."""
         ghost = GhostParticipant(name='Сириус', seed=7777)
-        # At end of day the ghost should reach its full target
         now = datetime(2026, 5, 27, 23, 0, tzinfo=timezone.utc)
         pts = compute_ghost_points(ghost, date(2026, 5, 27), now=now, tz='UTC')
         assert pts >= 0

@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson, LessonCompletionEvent, SliceVocabulary
-from app.srs.constants import CardState, DEFAULT_EASE_FACTOR
+from app.srs.constants import DEFAULT_EASE_FACTOR, CardState
 from app.study.models import QuizDeck, QuizDeckWord, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords, word_book_link

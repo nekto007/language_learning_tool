@@ -8,12 +8,12 @@ Maps grammar topics to their explanations, examples, and exercises.
 Used by DailySliceGenerator for language_focus lessons.
 """
 
+import glob
 import json
 import logging
 import os
-import glob
 import random
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

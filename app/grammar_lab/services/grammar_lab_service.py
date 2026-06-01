@@ -9,10 +9,10 @@ All SRS logic is at exercise level (UserGrammarExercise).
 Topic status (theory, XP) is in UserGrammarTopicStatus.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
-import uuid
 import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from app.utils.db import db
 
@@ -25,12 +25,15 @@ def _make_aware(dt):
         return dt.replace(tzinfo=timezone.utc)
     return dt
 from app.grammar_lab.models import (
-    GrammarTopic, GrammarExercise,
-    GrammarAttempt, UserGrammarExercise, UserGrammarTopicStatus
+    GrammarAttempt,
+    GrammarExercise,
+    GrammarTopic,
+    UserGrammarExercise,
+    UserGrammarTopicStatus,
 )
-from app.grammar_lab.services.grammar_srs import GrammarSRS
 from app.grammar_lab.services.grader import GrammarExerciseGrader
-from app.srs.constants import CardState, RATING_DONT_KNOW, RATING_KNOW
+from app.grammar_lab.services.grammar_srs import GrammarSRS
+from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW, CardState
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +71,7 @@ class GrammarLabService:
         but has no UserGrammarTopicStatus, create one with theory_completed.
         Runs once per missing status — after record exists, this is a no-op.
         """
-        from app.curriculum.models import Lessons, LessonProgress
+        from app.curriculum.models import LessonProgress, Lessons
 
         # Find topics that have no status record for this user
         existing = db.session.query(UserGrammarTopicStatus.topic_id).filter(

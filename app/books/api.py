@@ -5,12 +5,10 @@ import collections
 import inspect
 import logging
 import os
+import re as _re
 import sys
-
 from datetime import UTC, datetime
 from typing import Optional
-
-import re as _re
 
 from flask import Blueprint, Response, jsonify, request, send_file, url_for
 from flask_login import current_user, login_required
@@ -881,7 +879,7 @@ def save_reading_position():
     """
     Save user's reading position and award XP for chapter completion
     """
-    from app.books.models import UserChapterProgress, Chapter
+    from app.books.models import Chapter, UserChapterProgress
 
     data = request.json
     book_id = data.get('book_id')
@@ -983,6 +981,7 @@ def save_reading_position():
             maybe_award_book_reading_xp,
             maybe_award_linear_perfect_day,
         )
+
         # The reader auto-saves every ~3 seconds, so each save's delta is
         # tiny — gating on per-save delta would never fire for users reading
         # incrementally. Use the aggregated daily-target check (5min active
@@ -1055,8 +1054,8 @@ def save_reading_position():
     db.session.commit()
 
     if chapter_completed:
-        from app.achievements.xp_service import get_level_info
         from app.achievements.models import UserStatistics
+        from app.achievements.xp_service import get_level_info
 
         stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
         total_xp = stats.total_xp if stats else 0
@@ -1127,12 +1126,12 @@ def reading_session_start():
     # award the slot now so the dashboard does not stay stuck at "incomplete"
     # for a user who already met the daily target.
     try:
+        from app.books.reading_session import is_daily_reading_target_met_today
         from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
         from app.daily_plan.linear.xp import (
             maybe_award_book_reading_xp,
             maybe_award_linear_perfect_day,
         )
-        from app.books.reading_session import is_daily_reading_target_met_today
 
         pref = get_user_reading_preference(current_user.id, db)
         if pref is not None and pref.book_id == chapter.book_id:
@@ -1280,12 +1279,12 @@ def reading_session_end():
     # reading slot without waiting for the next progress save.
     reading_slot_completed = False
     try:
+        from app.books.reading_session import is_daily_reading_target_met_today
         from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
         from app.daily_plan.linear.xp import (
             maybe_award_book_reading_xp,
             maybe_award_linear_perfect_day,
         )
-        from app.books.reading_session import is_daily_reading_target_met_today
 
         chapter = Chapter.query.get(session.chapter_id)
         if chapter is None:
@@ -1426,6 +1425,7 @@ def reading_session_end():
     dashboard_url = None
     try:
         from flask import url_for as _url_for
+
         from app.daily_plan.linear.lesson_context import build_lesson_context
         ctx = build_lesson_context(current_user.id, db)
         dashboard_url = ctx.dashboard_url

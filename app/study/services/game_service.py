@@ -6,8 +6,8 @@ Responsibilities:
 - Score calculation
 - Difficulty management
 """
-from typing import List, Dict
 import random
+from typing import Dict, List
 
 from app.words.models import CollectionWords
 

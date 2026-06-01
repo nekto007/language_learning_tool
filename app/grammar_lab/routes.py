@@ -6,14 +6,15 @@ Provides both HTML pages and JSON API endpoints.
 Uses UnifiedSRSService for Anki-like spaced repetition.
 """
 
-from flask import abort, render_template, jsonify, request, redirect, url_for
-from flask_login import login_required, current_user
-from sqlalchemy.exc import IntegrityError
 import logging
 
-from app.grammar_lab import grammar_lab_bp
-from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise
+from flask import abort, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
+
 from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+from app.grammar_lab import grammar_lab_bp
+from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 from app.grammar_lab.services import GrammarLabService
 from app.utils.db import db
 

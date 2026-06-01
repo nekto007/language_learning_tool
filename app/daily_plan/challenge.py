@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,6 @@ def _seed_today_challenge(challenge_date: date, db) -> 'DailyChallenge':
     Caller must commit.
     """
     from app.daily_plan.models import DailyChallenge
-    from app.curriculum.models import Lessons
 
     day_idx = challenge_date.toordinal() % len(CHALLENGE_CATEGORIES)
     category = CHALLENGE_CATEGORIES[day_idx]

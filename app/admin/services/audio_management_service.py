@@ -8,10 +8,10 @@ import logging
 import os
 import re
 
-from app.words.models import CollectionWords
+from app.admin.utils.request_validators import escape_like
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
-from app.admin.utils.request_validators import escape_like
+from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
 
@@ -138,8 +138,9 @@ class AudioManagementService:
         Returns:
             int: Количество обновленных записей
         """
-        from config.settings import COLLECTIONS_TABLE
         from sqlalchemy import or_
+
+        from config.settings import COLLECTIONS_TABLE
 
         try:
             if table_name == COLLECTIONS_TABLE and column_name == 'english_word':
@@ -390,8 +391,8 @@ class AudioManagementService:
             list: Список английских слов без аудио
         """
         try:
-            from config.settings import COLLECTIONS_TABLE
             from app.repository import DatabaseRepository
+            from config.settings import COLLECTIONS_TABLE
 
             # Формируем запрос
             repo = DatabaseRepository()
@@ -430,8 +431,8 @@ class AudioManagementService:
                   форматам listening и уровням
         """
         try:
-            from config.settings import COLLECTIONS_TABLE
             from app.repository import DatabaseRepository
+            from config.settings import COLLECTIONS_TABLE
 
             repo = DatabaseRepository()
 

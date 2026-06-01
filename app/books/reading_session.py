@@ -26,7 +26,6 @@ from sqlalchemy.exc import IntegrityError
 
 from app.utils.db import db
 
-
 # Legacy per-session thresholds (still used by /save_reading_position and the
 # linear XP path for the older one-session-must-qualify rule).
 MIN_READING_SECONDS = 300
@@ -79,7 +78,7 @@ def _session_credit_seconds(
     return min(elapsed, OPEN_SESSION_GRACE_SECONDS)
 
 
-def _sessions_in_local_day_filter(start_utc: datetime, end_utc: datetime):
+def _sessions_in_local_day_filter(start_utc: datetime, end_utc: datetime) -> Any:
     """SQLAlchemy predicate matching closed sessions by ``ended_at`` AND
     open sessions by ``started_at`` within the user's local-day window.
 
@@ -308,8 +307,8 @@ def end_session(
 
 def _user_local_day_window_utc(user_id: int, db_session: Any) -> tuple[datetime, datetime]:
     """Return (start_utc, end_utc) bracketing the user's local day."""
-    from app.utils.time_utils import get_user_local_date
     from app.daily_plan.linear.xp import _get_user_timezone
+    from app.utils.time_utils import get_user_local_date
 
     try:
         from zoneinfo import ZoneInfo

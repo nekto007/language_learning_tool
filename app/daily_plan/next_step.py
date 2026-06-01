@@ -65,14 +65,14 @@ def _apply_queue_filters(candidates: list[NextStep], max_steps: int) -> list[Nex
     return queue
 
 
-# ── Priority 0: yesterday's missed plan recovery ───────────────────────────
-
 def _check_recovery(user_id: int, db) -> Optional[NextStep]:
     """Suggest recovery when yesterday's plan was not secured."""
-    from datetime import date, timedelta
+    from datetime import timedelta
+
+    import pytz
+
     from app.auth.models import User
     from app.daily_plan.models import DailyPlanLog
-    import pytz
 
     try:
         user = User.query.get(user_id)
@@ -96,8 +96,6 @@ def _check_recovery(user_id: int, db) -> Optional[NextStep]:
         estimated_minutes=10,
     )
 
-
-# ── Priority 1: unfinished lesson ──────────────────────────────────────────
 
 def _check_unfinished_lesson(user_id: int, db) -> Optional[NextStep]:
     from app.curriculum.models import LessonProgress, Lessons, Module
@@ -206,11 +204,9 @@ def _check_unfinished_lesson(user_id: int, db) -> Optional[NextStep]:
     return None
 
 
-# ── Priority 2: SRS due ─────────────────────────────────────────────────────
-
 def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
-    from app.study.models import UserWord, UserCardDirection, StudySettings, QuizDeckWord
     from app.auth.models import User
+    from app.study.models import QuizDeckWord, StudySettings, UserCardDirection, UserWord
 
     user = User.query.get(user_id)
     default_deck_id = user.default_study_deck_id if user else None
@@ -252,8 +248,6 @@ def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
         estimated_minutes=estimated,
     )
 
-
-# ── Priority 3: writing suggestion ─────────────────────────────────────────
 
 def _check_writing_suggestion(user_id: int, db) -> Optional[NextStep]:
     """Suggest writing practice when the user hasn't written in over 2 days."""
@@ -302,14 +296,12 @@ def _check_writing_suggestion(user_id: int, db) -> Optional[NextStep]:
     )
 
 
-# ── Priority 4: grammar weak ────────────────────────────────────────────────
-
 def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
     from app.grammar_lab.models import (
-        GrammarTopic,
-        UserGrammarTopicStatus,
-        UserGrammarExercise,
         GrammarExercise,
+        GrammarTopic,
+        UserGrammarExercise,
+        UserGrammarTopicStatus,
     )
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
@@ -360,8 +352,6 @@ def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
     return None
 
 
-# ── Priority 5: reading progress ────────────────────────────────────────────
-
 def _check_reading_progress(user_id: int, db) -> Optional[NextStep]:
     from app.books.models import Book, Chapter, UserChapterProgress
 
@@ -394,8 +384,6 @@ def _check_reading_progress(user_id: int, db) -> Optional[NextStep]:
     )
 
 
-# ── Priority 6: vocab ───────────────────────────────────────────────────────
-
 def _check_vocab(user_id: int, db) -> Optional[NextStep]:
     from app.study.models import UserWord
 
@@ -411,8 +399,6 @@ def _check_vocab(user_id: int, db) -> Optional[NextStep]:
         estimated_minutes=5,
     )
 
-
-# ── Helpers ─────────────────────────────────────────────────────────────────
 
 _LESSON_TIMES = {
     'grammar': 12,

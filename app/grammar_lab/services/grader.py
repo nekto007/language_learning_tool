@@ -5,9 +5,9 @@ Exercise grader for Grammar Lab.
 Grades different types of grammar exercises.
 """
 
-from typing import Dict, Any
-import re
 import logging
+import re
+from typing import Any, Dict
 
 from app.grammar_lab.models import GrammarExercise
 

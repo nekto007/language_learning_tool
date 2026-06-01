@@ -3,7 +3,7 @@
 
 import logging
 import random
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from sqlalchemy import Date, cast, func
 

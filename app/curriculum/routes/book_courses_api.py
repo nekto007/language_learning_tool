@@ -8,7 +8,10 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.curriculum.book_courses import (
-    BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress,
+    BookCourse,
+    BookCourseEnrollment,
+    BookCourseModule,
+    BookModuleProgress,
 )
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.routes.book_courses import book_courses_bp
@@ -233,7 +236,7 @@ def lesson_progress_api(lesson_id):
 def complete_lesson_api_v1(lesson_id):
     """Complete lesson according to specification"""
     try:
-        from app.curriculum.daily_lessons import UserLessonProgress, LessonCompletionEvent
+        from app.curriculum.daily_lessons import LessonCompletionEvent, UserLessonProgress
 
         daily_lesson = DailyLesson.query.get(lesson_id)
         if not daily_lesson:

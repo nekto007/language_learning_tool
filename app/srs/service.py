@@ -14,39 +14,39 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from app.grammar_lab.models import GrammarExercise, UserGrammarExercise
 from app.srs.constants import (
-    CardState,
+    DEFAULT_EASE_FACTOR,
+    DIRECTION_ENG_RUS,
+    DIRECTION_RUS_ENG,
+    EASY_INTERVAL,
+    EF_DECREASE_HARD,
+    EF_DECREASE_LAPSE,
+    EF_INCREASE_EASY,
+    GRADUATING_INTERVAL,
+    INTERVAL_MULTIPLIER_EASY,
+    INTERVAL_MULTIPLIER_HARD,
+    LAPSE_MINIMUM_INTERVAL,
+    LEARNING_STEPS,
+    LEECH_SUSPEND_DAYS,
+    LEECH_THRESHOLD,
+    MAX_EASE_FACTOR,
+    MAX_SESSION_ATTEMPTS,
+    MIN_EASE_FACTOR,
     RATING_DONT_KNOW,
     RATING_DOUBT,
     RATING_KNOW,
-    MAX_SESSION_ATTEMPTS,
-    REQUEUE_RANGE_STEP_0,
-    REQUEUE_RANGE_STEP_1,
-    REQUEUE_RANGE_HARD,
+    RELEARNING_STEPS,
     REQUEUE_RANGE_DONT_KNOW,
     REQUEUE_RANGE_DOUBT,
-    LEARNING_STEPS,
-    RELEARNING_STEPS,
-    GRADUATING_INTERVAL,
-    EASY_INTERVAL,
-    DEFAULT_EASE_FACTOR,
-    MIN_EASE_FACTOR,
-    MAX_EASE_FACTOR,
-    EF_DECREASE_LAPSE,
-    EF_DECREASE_HARD,
-    EF_INCREASE_EASY,
-    INTERVAL_MULTIPLIER_HARD,
-    INTERVAL_MULTIPLIER_EASY,
-    LAPSE_MINIMUM_INTERVAL,
-    LEECH_THRESHOLD,
-    LEECH_SUSPEND_DAYS,
-    DIRECTION_ENG_RUS,
-    DIRECTION_RUS_ENG,
+    REQUEUE_RANGE_HARD,
+    REQUEUE_RANGE_STEP_0,
+    REQUEUE_RANGE_STEP_1,
+    CardState,
 )
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
-from app.grammar_lab.models import UserGrammarExercise, GrammarExercise
 
 logger = logging.getLogger(__name__)
 
@@ -165,10 +165,6 @@ class UnifiedSRSService:
         # Initialize state if missing
         if not state or state == 'new':
             state = CardState.NEW.value
-
-        # =========================================================================
-        # Handle based on current state
-        # =========================================================================
 
         if state == CardState.NEW.value:
             result = UnifiedSRSService._handle_new(rating, ease_factor)

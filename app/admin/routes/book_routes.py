@@ -9,15 +9,13 @@ import os
 import re
 from datetime import UTC, datetime
 
-from flask import (Blueprint, flash, jsonify, redirect, render_template,
-                   request, url_for, current_app)
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from app.admin.audit import log_admin_action
 from app.admin.services.book_processing_service import (
-    ALLOWED_BOOK_EXTENSIONS,
     BOOK_TEMP_DIR,
     BookProcessingService,
     BookUploadError,
@@ -105,7 +103,7 @@ def scrape_website():
 
         # Импортируем и используем web scraper
         from app.web.scraper import WebScraper
-        from config.settings import USER_AGENT, REQUEST_TIMEOUT, MAX_RETRIES
+        from config.settings import MAX_RETRIES, REQUEST_TIMEOUT, USER_AGENT
 
         scraper = WebScraper(
             user_agent=USER_AGENT,
@@ -224,6 +222,7 @@ def update_book_statistics():
 def process_phrasal_verbs():
     """Обработка файла с фразовыми глаголами"""
     from flask_login import current_user
+
     from app.utils.file_security import validate_text_file_upload
 
     try:
@@ -302,14 +301,20 @@ def process_phrasal_verbs():
         result = {
             'success': True,
             'processed_count': processed_count,
-            'total_lines': len([line for line in phrasal_verbs_data if line.strip() and not line.strip().startswith('#')])
+            'total_lines': len([
+                line for line in phrasal_verbs_data
+                if line.strip() and not line.strip().startswith('#')
+            ])
         }
 
         if errors:
             result['errors'] = errors[:10]
             result['total_errors'] = len(errors)
 
-        logger.info(f"Phrasal verbs processed by {current_user.username}: {processed_count} processed, {len(errors)} errors")
+        logger.info(
+            "Phrasal verbs processed by %s: %d processed, %d errors",
+            current_user.username, processed_count, len(errors),
+        )
         return jsonify(result)
 
     except Exception as e:
@@ -569,7 +574,10 @@ def add_book():
                     'id': existing_book.id,
                     'title': existing_book.title,
                     'author': existing_book.author,
-                    'created_at': existing_book.created_at.strftime('%Y-%m-%d %H:%M') if existing_book.created_at else 'Неизвестно'
+                    'created_at': (
+                        existing_book.created_at.strftime('%Y-%m-%d %H:%M')
+                        if existing_book.created_at else 'Неизвестно'
+                    )
                 },
                 'message': 'Книга с таким названием и автором уже существует!'
             })
@@ -642,7 +650,8 @@ def add_book():
                         new_book.id, temp_file_path, file_ext
                     )
 
-                    message_text = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! {message}'
+                    action = "перезаписана" if existing_book and overwrite else "добавлена"
+                    message_text = f'Книга успешно {action}! {message}'
 
                     if success:
                         app = current_app._get_current_object()
@@ -652,7 +661,7 @@ def add_book():
                             return jsonify({'success': True, 'message': message_text})
                         flash(message_text, 'success')
                     else:
-                        error_text = f'Книга {"перезаписана" if existing_book and overwrite else "добавлена"}, но ошибка при обработке глав: {message}'
+                        error_text = f'Книга {action}, но ошибка при обработке глав: {message}'
                         if request.is_json or request.headers.get('Content-Type') == 'application/json':
                             return jsonify({'success': False, 'message': error_text})
                         flash(error_text, 'warning')
@@ -720,9 +729,11 @@ def add_book():
                     app, new_book.id, new_book.content
                 )
 
-                success_message = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}! Обработка слов запущена в фоновом режиме.'
+                book_action = "перезаписана" if existing_book and overwrite else "добавлена"
+                success_message = f'Книга успешно {book_action}! Обработка слов запущена в фоновом режиме.'
             else:
-                success_message = f'Книга успешно {"перезаписана" if existing_book and overwrite else "добавлена"}!'
+                book_action = "перезаписана" if existing_book and overwrite else "добавлена"
+                success_message = f'Книга успешно {book_action}!'
 
             if request.is_json or request.headers.get('Content-Type') == 'application/json':
                 return jsonify({'success': True, 'message': success_message})

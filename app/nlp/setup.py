@@ -5,7 +5,8 @@ import logging
 import ssl
 
 import nltk
-from nltk.corpus import brown, stopwords, words as nltk_words
+from nltk.corpus import brown, stopwords
+from nltk.corpus import words as nltk_words
 
 logger = logging.getLogger(__name__)
 
