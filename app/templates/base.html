@@ -374,13 +374,6 @@
                 <h2 id="cabinet-footer-actions-heading" class="cabinet-footer__heading">Быстрые действия</h2>
                 <ul class="cabinet-footer__list">
                     <li><a class="cabinet-footer__link js-open-notifications" href="#">Уведомления</a></li>
-                    {% if has_module('study') %}
-                    <li><a class="cabinet-footer__link" href="{{ url_for('study.index') }}">Начать повторение</a></li>
-                    {% endif %}
-                    {% set _footer_continue_lesson = get_active_curriculum_lesson() %}
-                    {% if _footer_continue_lesson %}
-                    <li><a class="cabinet-footer__link" href="{{ _footer_continue_lesson.url }}">Продолжить урок</a></li>
-                    {% endif %}
                     <li><a class="cabinet-footer__link" href="{{ url_for('grammar_lab.practice') }}">Практика грамматики</a></li>
                     <li><a class="cabinet-footer__link" href="{{ url_for('feedback.my_feedback_list') }}">Мои обращения</a></li>
                 </ul>

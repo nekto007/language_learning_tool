@@ -1,6 +1,7 @@
 # app/curriculum/routes/lessons.py
 
 import logging
+import math
 import random
 import re
 from datetime import UTC, datetime
@@ -417,6 +418,14 @@ def submit_lesson(lesson_id):
 
 _DICTATION_MAX_REPLAYS = 3
 _DICTATION_MAX_WORD_ATTEMPTS = 3
+_DICTATION_HINT_RATIOS = {
+    'A1': 1.0,
+    'A2': 0.75,
+    'B1': 0.5,
+    'B2': 0.33,
+    'C1': 0.25,
+    'C2': 0.15,
+}
 
 
 def _get_next_lesson_for_completion(lesson: 'Lessons') -> 'Lessons | None':
@@ -427,6 +436,20 @@ def _get_next_lesson_for_completion(lesson: 'Lessons') -> 'Lessons | None':
 
 def _lesson_completion_url(lesson: 'Lessons') -> str:
     return url_for('learn.lesson_by_id', lesson_id=lesson.id)
+
+
+def _dictation_level_code(lesson: 'Lessons') -> str:
+    """Return the lesson CEFR code if the module/level relationship is available."""
+    level = getattr(getattr(lesson, 'module', None), 'level', None)
+    return str(getattr(level, 'code', '') or '').upper()
+
+
+def _dictation_hint_budget(level_code: str, gap_count: int, hint_chars: int) -> int:
+    """Return how many word-level hints are available for a dictation lesson."""
+    if gap_count <= 0 or hint_chars <= 0:
+        return 0
+    ratio = _DICTATION_HINT_RATIOS.get(str(level_code or '').upper(), 0.5)
+    return max(1, min(gap_count, math.ceil(gap_count * ratio)))
 
 
 def _normalize_dictation_token(value: str) -> str:
@@ -631,6 +654,8 @@ def dictation_lesson(lesson_id: int):
     word_items = _dictation_items_from_content(content, hint_chars)
     gap_segments = _dictation_gap_segments(content, word_items)
     hint_text = _build_hint_text(transcript, hint_chars) if hint_chars > 0 else ""
+    level_code = _dictation_level_code(lesson)
+    hint_budget = _dictation_hint_budget(level_code, len(word_items), hint_chars)
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -681,6 +706,8 @@ def dictation_lesson(lesson_id: int):
         audio_url=audio_url,
         transcript=transcript,
         hint_chars=hint_chars,
+        hint_budget=hint_budget,
+        level_code=level_code,
         hint_text=hint_text,
         word_items=word_items,
         gap_segments=gap_segments,
