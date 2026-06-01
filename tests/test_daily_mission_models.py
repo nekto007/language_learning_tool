@@ -118,11 +118,11 @@ class TestModeCategoryMap:
         bc_modes = [m for m, c in MODE_CATEGORY_MAP.items() if c == 'book_course']
         assert set(bc_modes) == {'book_course_lesson', 'book_course_practice'}
 
-    def test_routes_imports_registry(self):
-        """routes module should import MODE_CATEGORY_MAP (verified via module attribute)."""
-        import app.words.routes as routes_mod
-        assert hasattr(routes_mod, 'MODE_CATEGORY_MAP')
-        assert routes_mod.MODE_CATEGORY_MAP is MODE_CATEGORY_MAP
+    def test_assembler_imports_registry(self):
+        """assembler module should import MODE_CATEGORY_MAP."""
+        import app.daily_plan.assembler as assembler_mod
+        assert hasattr(assembler_mod, 'MODE_CATEGORY_MAP')
+        assert assembler_mod.MODE_CATEGORY_MAP is MODE_CATEGORY_MAP
 
 
 class TestEnums:

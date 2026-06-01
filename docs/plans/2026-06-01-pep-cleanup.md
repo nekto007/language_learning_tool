@@ -102,10 +102,10 @@ Systematic production-readiness cleanup: remove confirmed dead code (mission/*, 
 
 ### Task 8: Финальная верификация
 
-- [ ] запустить полный `pytest` (все тесты, не только smoke)
-- [ ] запустить `flake8 app/ --max-line-length=120 --extend-ignore=E203,W503` — 0 критических ошибок
-- [ ] проверить что `python -c "from app import create_app"` работает чисто
-- [ ] убедиться что pytest -m smoke < 30 секунд
+- [x] запустить полный `pytest` (все тесты, не только smoke)
+- [x] запустить `flake8 app/ --max-line-length=120 --extend-ignore=E203,W503` — 0 критических ошибок
+- [x] проверить что `python -c "from app import create_app"` работает чисто
+- [x] убедиться что pytest -m smoke < 30 секунд
 
 ### Task 9: Обновить CLAUDE.md
 

@@ -87,10 +87,11 @@ class TestRepairCost:
         assert get_repair_cost(user_id) == 5
 
     def test_third_repair_costs_10(self, db_session, user_id):
+        month_start = date.today().replace(day=1)
         for i in range(2):
             db_session.add(StreakEvent(
                 user_id=user_id, event_type='spent_repair',
-                coins_delta=-3, event_date=date.today() - timedelta(days=i),
+                coins_delta=-3, event_date=month_start + timedelta(days=i),
             ))
         db_session.flush()
         assert get_repair_cost(user_id) == 10
