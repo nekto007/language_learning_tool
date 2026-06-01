@@ -413,15 +413,12 @@ def view_lesson(lesson_id):
     """View lesson details with full content display"""
     lesson = Lessons.query.get_or_404(lesson_id)
     
-    # Get lesson progress statistics
     all_progress = LessonProgress.query.filter_by(lesson_id=lesson_id).all()
-    
-    # Calculate statistics manually
     total_attempts = len(all_progress)
     completed = len([p for p in all_progress if p.status == 'completed'])
-    avg_score = sum(p.score for p in all_progress if p.score) / len([p for p in all_progress if p.score]) if any(p.score for p in all_progress) else 0
-    
-    # Create a stats object similar to the query result
+    scored = [p for p in all_progress if p.score]
+    avg_score = sum(p.score for p in scored) / len(scored) if scored else 0
+
     class ProgressStats:
         def __init__(self, total, completed, avg):
             self.total_attempts = total

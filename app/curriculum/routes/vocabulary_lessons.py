@@ -99,7 +99,9 @@ def render_vocabulary_lesson(lesson):
         return redirect('/learn/')
 
     if isinstance(cleaned_content, dict):
-        word_list = cleaned_content.get('words', cleaned_content.get('items', cleaned_content.get('cards', cleaned_content.get('vocabulary', []))))
+        word_list = cleaned_content.get(
+            'words', cleaned_content.get('items', cleaned_content.get('cards', cleaned_content.get('vocabulary', [])))
+        )
     else:
         word_list = cleaned_content
 
@@ -129,7 +131,9 @@ def render_vocabulary_lesson(lesson):
     collocations_by_word: dict[int, list] = {}
     cultural_notes_by_word: dict[int, list] = {}
     if db_word_ids:
-        for row in WordCollocation.query.filter(WordCollocation.word_id.in_(db_word_ids)).order_by(WordCollocation.id).all():
+        for row in WordCollocation.query.filter(
+            WordCollocation.word_id.in_(db_word_ids)
+        ).order_by(WordCollocation.id).all():
             collocations_by_word.setdefault(row.word_id, []).append(row)
         from app.curriculum.models import CulturalNote as _CulturalNote
         for row in _CulturalNote.query.filter(_CulturalNote.word_id.in_(db_word_ids)).order_by(_CulturalNote.id).all():
@@ -142,7 +146,10 @@ def render_vocabulary_lesson(lesson):
 
             if word:
                 user_word = user_words_dict.get(word.id)
-                audio_url = word.listening if hasattr(word, 'listening') and word.listening else word_data.get('audio', '')
+                audio_url = (
+                    word.listening if hasattr(word, 'listening') and word.listening
+                    else word_data.get('audio', '')
+                )
                 collocations = collocations_by_word.get(word.id, [])
                 cultural_notes = cultural_notes_by_word.get(word.id, [])
                 word_dict = {
@@ -425,7 +432,9 @@ def vocabulary_lesson(lesson_id):
         logger.info(f"Lesson {lesson_id} cleaned_content keys: {list(cleaned_content.keys())}")
 
     if isinstance(cleaned_content, dict):
-        word_list = cleaned_content.get('words', cleaned_content.get('items', cleaned_content.get('cards', cleaned_content.get('vocabulary', []))))
+        word_list = cleaned_content.get(
+            'words', cleaned_content.get('items', cleaned_content.get('cards', cleaned_content.get('vocabulary', [])))
+        )
     else:
         word_list = cleaned_content
 
@@ -457,10 +466,14 @@ def vocabulary_lesson(lesson_id):
     collocations_by_word_r: dict[int, list] = {}
     cultural_notes_by_word_r: dict[int, list] = {}
     if db_word_ids_route:
-        for row in WordCollocation.query.filter(WordCollocation.word_id.in_(db_word_ids_route)).order_by(WordCollocation.id).all():
+        for row in WordCollocation.query.filter(
+            WordCollocation.word_id.in_(db_word_ids_route)
+        ).order_by(WordCollocation.id).all():
             collocations_by_word_r.setdefault(row.word_id, []).append(row)
         from app.curriculum.models import CulturalNote as _CulturalNote2
-        for row in _CulturalNote2.query.filter(_CulturalNote2.word_id.in_(db_word_ids_route)).order_by(_CulturalNote2.id).all():
+        for row in _CulturalNote2.query.filter(
+            _CulturalNote2.word_id.in_(db_word_ids_route)
+        ).order_by(_CulturalNote2.id).all():
             cultural_notes_by_word_r.setdefault(row.word_id, []).append(row)
 
     for idx, word_data in enumerate(word_list):

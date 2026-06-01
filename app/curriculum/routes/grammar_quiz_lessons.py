@@ -145,7 +145,9 @@ def render_grammar_lesson(lesson):
     next_lesson = get_next_lesson(lesson.id)
 
     grammar_rule = cleaned_content.get('title') or cleaned_content.get('rule') or lesson.title
-    grammar_description = cleaned_content.get('content') or cleaned_content.get('description') or cleaned_content.get('text', '')
+    grammar_description = (
+        cleaned_content.get('content') or cleaned_content.get('description') or cleaned_content.get('text', '')
+    )
     examples = cleaned_content.get('examples', [])
     exercises = cleaned_content.get('exercises', [])
     grammar_explanation = cleaned_content.get('grammar_explanation')
@@ -330,7 +332,12 @@ def _sanitize_quiz_questions(cleaned_content: dict) -> None:
             random.shuffle(shuffled_words)
             question['shuffled_words'] = shuffled_words
 
-        if question.get('type') in ['multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion'] and 'options' in question and len(question['options']) > 0:
+        if (
+            question.get('type') in [
+                'multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion'
+            ]
+            and 'options' in question and len(question['options']) > 0
+        ):
             correct_answer = question.get('correct') or question.get('correct_answer') or question.get('answer')
             original_correct_index = None
             if isinstance(correct_answer, str):

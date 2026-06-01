@@ -75,10 +75,10 @@ Systematic production-readiness cleanup: remove confirmed dead code (mission/*, 
 **Files:**
 - Modify: `app/curriculum/routes/lessons.py`, `app/curriculum/routes/vocabulary_lessons.py`, `app/curriculum/routes/grammar_quiz_lessons.py`, `app/curriculum/routes/admin.py`, `app/curriculum/navigation.py`, `app/curriculum/grading.py`
 
-- [ ] удалить неактуальные inline-комментарии объясняющие WHAT (а не WHY)
-- [ ] добавить return type hints к публичным функциям в navigation.py, grading.py
-- [ ] исправить строки >120 символов
-- [ ] run pytest -m smoke
+- [x] удалить неактуальные inline-комментарии объясняющие WHAT (а не WHY)
+- [x] добавить return type hints к публичным функциям в navigation.py, grading.py
+- [x] исправить строки >120 символов
+- [x] run pytest -m smoke
 
 ### Task 6: Чистка — app/achievements/, app/srs/, app/books/
 
