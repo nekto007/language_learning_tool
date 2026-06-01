@@ -880,7 +880,10 @@ def get_weekly_summary(user_id: int) -> dict[str, Any]:
     study_time = (
         db.session.query(
             func.coalesce(
-                func.sum(func.extract('epoch', StudySession.end_time) - func.extract('epoch', StudySession.start_time)),
+                func.sum(
+                    func.extract('epoch', StudySession.end_time)
+                    - func.extract('epoch', StudySession.start_time)
+                ),
                 0,
             )
         )

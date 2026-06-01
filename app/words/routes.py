@@ -2,11 +2,13 @@ import logging
 import threading
 import time
 from datetime import datetime
+from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
+from sqlalchemy.orm import Query
 
 from app.modules.decorators import module_required
 from app.study.models import GameScore
@@ -63,7 +65,7 @@ def _word_slug_filter(value: str) -> str:
     return encode_word_slug(value)
 
 
-def _public_dictionary_query():
+def _public_dictionary_query() -> Query:
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 
     return CollectionWords.query.filter(
@@ -296,9 +298,10 @@ def public_contrast(a_slug: str, b_slug: str):
             code=301,
         )
 
-    canonical_url = (
-        f'{_public_site_url()}'
-        f'{url_for("words.public_contrast", a_slug=encode_word_slug(canonical_a.english_word), b_slug=encode_word_slug(canonical_b.english_word))}'
+    canonical_url = _public_site_url() + url_for(
+        "words.public_contrast",
+        a_slug=encode_word_slug(canonical_a.english_word),
+        b_slug=encode_word_slug(canonical_b.english_word),
     )
     meta_description = (
         f'{canonical_a.english_word} vs {canonical_b.english_word} — '
@@ -375,7 +378,7 @@ def _process_referral_reward_on_first_visit(user) -> None:
         db.session.rollback()
 
 
-def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
+def _safe_widget_call(name: str, fn, *args, default=None, **kwargs) -> Any:
     """Call a widget data function safely, returning default on failure.
 
     Uses a savepoint so that a widget failure only rolls back its own
@@ -391,7 +394,7 @@ def _safe_widget_call(name: str, fn, *args, default=None, **kwargs):
         return default
 
 
-def _get_cached_leaderboard(stats_service_cls, limit: int = 5):
+def _get_cached_leaderboard(stats_service_cls, limit: int = 5) -> list:
     """Return leaderboard data with 5-minute TTL cache."""
     cache = _leaderboard_cache
     now = time.time()
@@ -1480,7 +1483,6 @@ def dashboard():
     from app.telegram.notifications import _lesson_minutes, _words_minutes
     from app.telegram.queries import get_current_streak, get_daily_summary
 
-    # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id, tz=tz)
     daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
@@ -1515,7 +1517,6 @@ def dashboard():
     yesterday_summary = _safe_widget_call(
         'yesterday_summary', get_yesterday_summary, current_user.id, tz=tz, default={})
 
-    # === PLAN COMPLETION & STREAK ===
     from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
     plan_completion, steps_available, steps_done, steps_total = compute_plan_steps(daily_plan, daily_summary)
@@ -1542,7 +1543,6 @@ def dashboard():
 
     words_minutes = _words_minutes(daily_plan.get('words_due', 0))
 
-    # === ACTIVITY HEATMAP & STREAK CALENDAR ===
     activity_heatmap = _safe_widget_call(
         'activity_heatmap', get_activity_heatmap, current_user.id, days=30, tz=tz, default=[])
     # Show empty state if user has no activity (all counts zero)
@@ -1562,39 +1562,37 @@ def dashboard():
     streak_calendar = _safe_widget_call(
         'streak_calendar', get_streak_calendar, current_user.id, days=30, tz=tz, default={})
 
-    # === WORDS AT RISK & GRAMMAR WEAKNESSES ===
     words_at_risk = _safe_widget_call(
         'words_at_risk', get_words_at_risk, current_user.id, limit=5, default=[])
     grammar_weaknesses = _safe_widget_call(
         'grammar_weaknesses', get_grammar_weaknesses, current_user.id, limit=5, default=[])
 
-    # === LEADERBOARD & XP RANK (leaderboard cached for 5 min) ===
     xp_leaderboard = _safe_widget_call(
         'xp_leaderboard', _get_cached_leaderboard, StatsService, limit=5, default=[])
     user_xp_rank = _safe_widget_call(
         'user_xp_rank', StatsService.get_user_xp_rank, current_user.id, default=None)
 
-    # === ACHIEVEMENTS BY CATEGORY ===
     achievements_by_category = _safe_widget_call(
         'achievements_by_category', StatsService.get_achievements_by_category, current_user.id, default={})
     badges_showcase = _safe_widget_call(
         'badges_showcase', StatsService.get_badges_showcase, current_user.id,
         default={'recent': [], 'teasers': [], 'earned_count': 0, 'total_count': 0})
 
-    # === WORDS STATS ===
     from app.srs.stats_service import srs_stats_service
     _wstats = srs_stats_service.get_words_stats(current_user.id)
     words_total = _wstats['total']
     words_in_progress = _wstats['learning_count'] + _wstats['review_count']
 
-    # === BOOKS STATS ===
-    books_reading = current_user.get_reading_progress_count() if hasattr(current_user, 'get_reading_progress_count') else 0
+    books_reading = (
+        current_user.get_reading_progress_count()
+        if hasattr(current_user, 'get_reading_progress_count')
+        else 0
+    )
     recent_book = None
     if hasattr(current_user, 'get_recent_reading_progress'):
         recent_books = current_user.get_recent_reading_progress(1)
         recent_book = recent_books[0] if recent_books else None
 
-    # === GRAMMAR LAB STATS (single query: total + studied) ===
     grammar_counts = db.session.query(
         func.count(GrammarTopic.id),
         func.count(case(
@@ -1609,14 +1607,12 @@ def dashboard():
     grammar_studied = grammar_counts[1]
     grammar_mastered = grammar_studied
 
-    # === BOOK COURSES STATS (single query: count + most recent) ===
     active_courses = BookCourseEnrollment.query.filter_by(
         user_id=current_user.id, status='active'
     ).order_by(BookCourseEnrollment.last_activity.desc()).all()
     courses_enrolled = len(active_courses)
     active_course = active_courses[0] if active_courses else None
 
-    # === ACHIEVEMENTS (single query: total + earned) ===
     achievement_counts = db.session.query(
         func.count(Achievement.id),
         func.count(case(
@@ -1630,7 +1626,6 @@ def dashboard():
     total_achievements = achievement_counts[0]
     earned_achievements = achievement_counts[1]
 
-    # === DAILY XP (estimated from today's activity) ===
     daily_xp_goal = 100
     today_xp = (
         daily_summary.get('lessons_count', 0) * 30
@@ -1639,7 +1634,6 @@ def dashboard():
         + daily_summary.get('book_course_lessons_today', 0) * 30
     )
 
-    # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
     from app.study.insights_service import (
         get_learning_velocity,
         get_listening_stats,
@@ -1652,31 +1646,24 @@ def dashboard():
     weekly_analytics = _safe_widget_call(
         'weekly_analytics', get_weekly_summary, current_user.id, default={})
 
-    # === LISTENING STATS (last 7 days dictation/audio_fill_blank) ===
     listening_stats = _safe_widget_call(
         'listening_stats', get_listening_stats, current_user.id, default=None)
 
-    # === WRITING STATS (all-time attempts, avg word count) ===
     writing_stats = _safe_widget_call(
         'writing_stats', get_writing_stats, current_user.id, default=None)
 
-    # === VOCABULARY GROWTH (new words per day, last 30 days) ===
     vocab_growth = _safe_widget_call(
         'vocab_growth', get_vocabulary_growth, current_user.id, default=None)
 
-    # === PRONUNCIATION STATS (total words, match rate last 7 days) ===
     pronunciation_stats = _safe_widget_call(
         'pronunciation_stats', get_pronunciation_stats, current_user.id, default=None)
 
-    # === WEAK AREAS (cross-skill analysis) ===
     weak_areas = _safe_widget_call(
         'weak_areas', get_weak_areas, current_user.id, default=[])
 
-    # === LEARNING VELOCITY (task 75) ===
     learning_velocity = _safe_widget_call(
         'learning_velocity', get_learning_velocity, current_user.id, default=None)
 
-    # === STUDY MINUTES TODAY (task 76) ===
     from app.curriculum.models import get_minutes_today
     _study_tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
     try:
@@ -1691,7 +1678,6 @@ def dashboard():
     minutes_studied_today = _safe_widget_call(
         'study_minutes', get_minutes_today, current_user.id, _study_today, db, default=0)
 
-    # === WEEKLY REPORT (task 78) — Monday-only recap of last week ===
     weekly_report = None
     try:
         import pytz as _pytz_wr
@@ -1722,7 +1708,6 @@ def dashboard():
         logger.warning('weekly_report build failed', exc_info=True)
         weekly_report = None
 
-    # === DAILY CHALLENGE (task 84) ===
     today_challenge = None
     try:
         from app.daily_plan.challenge import get_today_challenge
@@ -1730,14 +1715,11 @@ def dashboard():
     except Exception:
         logger.warning('today_challenge build failed', exc_info=True)
 
-    # === WEEKLY CHALLENGE ===
     from app.achievements.weekly_challenge import get_weekly_challenge, get_weekly_digest
     weekly_challenge = get_weekly_challenge(current_user.id)
 
-    # === WEEKLY DIGEST (task 30) ===
     weekly_digest = _safe_widget_call('weekly_digest', get_weekly_digest, current_user.id, default=None)
 
-    # === GAME SCORES (single query via union: best matching + best quiz) ===
     q_matching = GameScore.query.filter_by(
         user_id=current_user.id, game_type='matching'
     ).order_by(GameScore.score.desc()).limit(1)
@@ -1753,22 +1735,18 @@ def dashboard():
         elif score.game_type == 'quiz':
             best_quiz = score
 
-    # === TELEGRAM (exists check, no full row load) ===
     telegram_linked = db.session.query(
         TelegramUser.query.filter_by(
             user_id=current_user.id, is_active=True
         ).exists()
     ).scalar()
 
-    # === RANK / TITLE (daily plan cumulative) ===
     rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
 
-    # === MISSION XP / LEVEL (task 26) ===
     mission_level_info = _safe_widget_call(
         'mission_level_info', _build_mission_level_info, current_user.id, default=None)
     xp_level_up = streak_result.get('xp_level_up')
 
-    # === UNSEEN BADGES POPUP ===
     # Collect every badge earned since the last dashboard visit, then mark them
     # seen so the popup fires exactly once per awarding.
     from app.achievements.services import AchievementService
@@ -1784,7 +1762,6 @@ def dashboard():
             db.session.rollback()
             logger.exception("Failed to mark unseen badges as seen for user %s: %s", current_user.id, e)
 
-    # === COMPLETION SUMMARY (task 29) ===
     completion_summary = _safe_widget_call(
         'completion_summary',
         _build_completion_summary,
@@ -1793,7 +1770,6 @@ def dashboard():
         default=None,
     )
 
-    # === PERFORMANCE LOGGING ===
     t_elapsed = time.time() - t_start
     logger.info("Dashboard data loaded in %.3fs for user_id=%s", t_elapsed, current_user.id)
 
@@ -1819,7 +1795,6 @@ def dashboard():
         default=None,
     )
 
-    # === DAY SECURED BANNER (linear plan) ===
     # Shown on return from lesson/slot completion when all baseline slots
     # finished today. Gate on query-param + DailyPlanLog.secured_at.
     day_secured_banner = _build_day_secured_banner(linear_plan, plan_completion, streak)
