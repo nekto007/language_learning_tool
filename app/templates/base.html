@@ -330,7 +330,7 @@
                 <h2 id="cabinet-footer-product-heading" class="cabinet-footer__heading">Продукт</h2>
                 <ul class="cabinet-footer__list">
                     {% if current_user.is_authenticated and has_module('curriculum') %}
-                    <li><a class="cabinet-footer__link" href="/learn/">Курсы</a></li>
+                    <li><a class="cabinet-footer__link" href="{{ url_for('learn.learn_index') }}">Курсы</a></li>
                     {% else %}
                     <li><a class="cabinet-footer__link" href="{{ url_for('courses.catalog') }}">Курсы</a></li>
                     {% endif %}
