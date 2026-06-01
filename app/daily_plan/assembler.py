@@ -11,7 +11,6 @@ from app.utils.db import db
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.navigation import find_next_lesson
 from app.daily_plan.level_utils import get_user_current_cefr_level, _cefr_code_to_order
-from app.daily_plan.mission_selector import detect_primary_track
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.grammar_lab.models import (
@@ -35,8 +34,6 @@ from app.daily_plan.models import (
     PrimarySource,
     SourceKind,
 )
-from app.daily_plan.repair_pressure import RepairBreakdown
-
 logger = logging.getLogger(__name__)
 
 
@@ -593,7 +590,7 @@ def assemble_progress_mission(
 
 def assemble_repair_mission(
     user_id: int,
-    repair_breakdown: RepairBreakdown,
+    repair_breakdown: Any,
     reason_code: str = "repair_pressure_high",
     reason_text: str = "У тебя накопились слабые места — давай укрепим основу",
     tz: Optional[str] = None,
@@ -606,11 +603,10 @@ def assemble_repair_mission(
     has_srs_recall = recall_count > 0
 
     if srs_due == 0 and grammar_due == 0:
-        track = detect_primary_track(user_id)
+        track: Optional[SourceKind] = None
         logger.warning(
-            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to %s mission",
+            "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to progress mission",
             user_id,
-            "reading" if track == SourceKind.books else "progress",
         )
         if track == SourceKind.books:
             reading_plan = assemble_reading_mission(

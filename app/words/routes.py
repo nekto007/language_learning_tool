@@ -486,10 +486,7 @@ def _next_phase_points(plan: dict, plan_completion: dict) -> tuple[str | None, i
 
 
 def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, str | None]:
-    from app.achievements.streak_service import (
-        _compute_linear_slot_completion,
-        _compute_phase_completion,
-    )
+    from app.achievements.streak_service import _compute_linear_slot_completion
 
     if plan.get('mode') == 'unified':
         from app.achievements.streak_service import compute_plan_steps
@@ -509,13 +506,6 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
             if item_url:
                 return item.get('title') or 'Следующий шаг', item_url
         return None, None
-
-    phases = plan.get('phases') or []
-    if phases:
-        completion = _compute_phase_completion(phases, daily_summary)
-        next_phase = next((p for p in phases if not completion.get(p['id'])), None)
-        if next_phase:
-            return next_phase.get('title'), _phase_url(next_phase, plan)
 
     if plan.get('mode') == 'linear':
         # Iterate the full chain (baseline + extensions) so that, after the
@@ -2412,72 +2402,10 @@ def daily_plan_next_step() -> tuple:
     daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
 
-    # Write route steps for completed mission phases at completion time so
-    # progress is not lost if the user never returns to the dashboard that day.
-    if daily_plan.get('mission'):
-        try:
-            from datetime import datetime as _dt
-            import pytz as _pytz
-            from app.achievements.streak_service import _compute_phase_completion
-            from app.daily_plan.route_progress import add_route_steps_idempotent, PHASE_STEP_WEIGHTS
-            _tz_obj = _pytz.timezone(tz)
-            _route_today = _dt.now(_tz_obj).date()
-            _completion = _compute_phase_completion(daily_plan.get('phases', []), daily_summary)
-            for _p in daily_plan.get('phases', []):
-                if _completion.get(_p.get('id', ''), False):
-                    _pk = _p.get('phase', '')
-                    if PHASE_STEP_WEIGHTS.get(_pk, 0) > 0:
-                        add_route_steps_idempotent(current_user.id, _pk, _route_today, db.session)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-    if daily_plan.get('phases'):
-        return _next_step_from_mission(daily_plan, daily_summary)
     if daily_plan.get('mode') == 'unified':
         return _next_step_from_unified(daily_plan, daily_summary)
 
     return _next_step_from_legacy(daily_plan, daily_summary)
-
-
-def _next_step_from_mission(plan: dict, daily_summary: dict) -> tuple:
-    """Return next incomplete phase from mission plan."""
-    from app.achievements.streak_service import _compute_phase_completion, compute_plan_steps
-
-    phases = plan['phases']
-    completion = _compute_phase_completion(phases, daily_summary)
-    _, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
-    phases_done = steps_done
-    phases_total = steps_total
-
-    next_phase = next((p for p in phases if not completion.get(p['id'])), None)
-
-    if not next_phase:
-        return jsonify({
-            'has_next': False,
-            'all_done': True,
-            'steps_done': phases_done,
-            'steps_total': phases_total,
-        }), 200
-
-    PHASE_ICONS = {
-        'recall': '\U0001f504',
-        'learn': '\U0001f3af',
-        'use': '\U0001f9e0',
-        'read': '\U0001f4d5',
-        'check': '\u2705',
-        'close': '\U0001f3c1',
-    }
-
-    return jsonify({
-        'has_next': True,
-        'step_type': next_phase['phase'],
-        'step_title': next_phase['title'],
-        'step_url': _phase_url(next_phase, plan),
-        'step_icon': PHASE_ICONS.get(next_phase['phase'], '\U0001f4cc'),
-        'steps_done': phases_done,
-        'steps_total': phases_total,
-    }), 200
 
 
 def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
@@ -2583,49 +2511,6 @@ def _resolve_hero_cta(user) -> dict | None:
         'title': 'Открыть план \u2192',
         'url': '#dash-plan',
     }
-
-
-def _phase_url(phase: dict, plan: dict) -> str:
-    """Build URL for a mission phase based on its mode and legacy data."""
-    mode = phase.get('mode', '')
-    category = MODE_CATEGORY_MAP.get(mode)
-
-    # reading_vocab_extract is categorised as 'words' for completion checks,
-    # but the user navigates to a book page to do the activity.
-    if mode == 'reading_vocab_extract':
-        category = 'books'
-
-    if category == 'words':
-        return url_for('study.cards', source='daily_plan_mix') + '&from=daily_plan'
-
-    if category == 'lesson':
-        nl = plan.get('next_lesson')
-        if nl and nl.get('lesson_id'):
-            return url_for('curriculum_lessons.lesson_detail',
-                           lesson_id=nl['lesson_id']) + '?from=daily_plan'
-
-    if category == 'book_course':
-        bc = plan.get('book_course_lesson')
-        if bc and bc.get('course_id') and bc.get('module_id') and bc.get('lesson_id'):
-            return url_for('book_courses.view_lesson_by_id',
-                           course_id=bc['course_id'],
-                           module_id=bc['module_id'],
-                           lesson_id=bc['lesson_id']) + '?from=daily_plan'
-
-    if category == 'grammar':
-        gt = plan.get('grammar_topic')
-        if gt and gt.get('topic_id'):
-            return url_for('grammar_lab.practice',
-                           topic_id=gt['topic_id']) + '?from=daily_plan'
-        return url_for('grammar_lab.practice') + '?from=daily_plan'
-
-    if category == 'books':
-        book = plan.get('book_to_read')
-        if book and book.get('id'):
-            return url_for('books.read_book_chapters',
-                           book_id=book['id']) + '?from=daily_plan'
-
-    return url_for('words.dashboard')
 
 
 def _next_step_from_legacy(daily_plan: dict, daily_summary: dict) -> tuple:
