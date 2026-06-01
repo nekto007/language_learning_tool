@@ -21,9 +21,8 @@ serialisable to a dict for JSON responses via ``to_dict()``.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Optional
-
 
 PLAN_FROM_VALUE = 'linear_plan'
 
@@ -49,8 +48,9 @@ def _parse_referer_args() -> tuple[str, Optional[str]]:
     ``?from=linear_plan&slot=<kind>`` and the browser sends it as Referer.
     """
     try:
-        from flask import request
         from urllib.parse import parse_qs, urlsplit
+
+        from flask import request
         ref = request.headers.get('Referer') or ''
         if not ref:
             return '', None

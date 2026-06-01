@@ -9,16 +9,14 @@ Single source of truth for SRS statistics across all modules:
 Uses count_srs_states() utility for all state counting.
 """
 
-from typing import Dict, List, Any
 import logging
+from typing import Any, Dict, List
 
-from app.utils.db import db
-from app.study.models import UserWord, UserCardDirection, QuizDeckWord
-from app.grammar_lab.models import (
-    UserGrammarExercise, GrammarExercise, GrammarTopic, UserGrammarTopicStatus
-)
-from app.srs.utils import count_srs_states, count_srs_states_with_accuracy
+from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise, UserGrammarTopicStatus
 from app.srs.mixins import SRSFieldsMixin
+from app.srs.utils import count_srs_states, count_srs_states_with_accuracy
+from app.study.models import QuizDeckWord, UserCardDirection, UserWord
+from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 

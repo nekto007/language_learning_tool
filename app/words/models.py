@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, SmallInteger, String, Text, func, select
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text, func, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 

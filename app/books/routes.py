@@ -4,7 +4,6 @@ import logging
 import os
 import re
 import threading
-
 from datetime import datetime
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
@@ -15,15 +14,15 @@ from wtforms.fields.choices import SelectField
 from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional
 
+from app.admin.utils.decorators import admin_required
 from app.books.forms import BookContentForm
 from app.books.models import Book, Chapter
 from app.books.parsers import process_uploaded_book
 from app.books.processors import enqueue_book_processing
+from app.modules.decorators import module_required
 from app.study.models import UserWord
 from app.utils.db import db
-from app.admin.utils.decorators import admin_required
 from app.words.models import CollectionWords, word_book_link
-from app.modules.decorators import module_required
 
 books = Blueprint('books', __name__)
 
@@ -586,7 +585,7 @@ def book_details(book_id):
     else:
         word_progress = 0
 
-    from app.books.models import UserChapterProgress, Chapter
+    from app.books.models import Chapter, UserChapterProgress
     from app.books.progress import compute_book_progress_percent
 
     total_chapters = Chapter.query.filter_by(book_id=book_id).count()
@@ -725,7 +724,7 @@ def book_words(book_id):
     book_words = pagination.items
 
     word_ids = [item[0].id for item in book_words]
-    from app.utils.db_utils import chunk_ids, query_by_ids
+    from app.utils.db_utils import query_by_ids
     user_words = query_by_ids(
         UserWord.query.filter(UserWord.user_id == current_user.id),
         UserWord.word_id,

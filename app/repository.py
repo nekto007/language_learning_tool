@@ -2,15 +2,16 @@
 Repository for working with PostgreSQL database.
 """
 import logging
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
 import psycopg2
 from psycopg2.extras import DictCursor
-from typing import Any, Dict, List, Optional, Tuple
-import os
 
-from config.settings import DB_CONFIG
+from app.books.models import Book
 from app.utils.audio import get_clean_audio_filename
 from app.words.models import CollectionWords as Word
-from app.books.models import Book
+from config.settings import DB_CONFIG
 
 logger = logging.getLogger(__name__)
 

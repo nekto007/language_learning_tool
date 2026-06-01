@@ -65,9 +65,10 @@ class SystemService:
             dict: Информация о системе, памяти, диске, БД и приложении
         """
         try:
-            import platform
-            import psutil
             import os
+            import platform
+
+            import psutil
             from flask import current_app
 
             # Get system information
@@ -130,8 +131,8 @@ class SystemService:
             dict: Статус подключения, версия, количество таблиц, размер БД
         """
         try:
-            from config.settings import DB_CONFIG
             from app.repository import DatabaseRepository
+            from config.settings import DB_CONFIG
 
             repo = DatabaseRepository(DB_CONFIG)
             with repo.get_connection() as conn:

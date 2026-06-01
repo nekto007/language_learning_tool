@@ -8,7 +8,9 @@ from sqlalchemy import case
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.book_courses import (
-    BookCourse, BookCourseEnrollment, BookCourseModule,
+    BookCourse,
+    BookCourseEnrollment,
+    BookCourseModule,
 )
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
@@ -129,7 +131,7 @@ def get_pretty_lesson_url(course, module, lesson_index):
 
 
 def _build_linked_topics_and_return_url(lf: dict, course, module, next_lesson_url: str, has_next_lesson: bool):
-    from app.grammar_lab.models import GrammarTopic, GrammarExercise
+    from app.grammar_lab.models import GrammarExercise, GrammarTopic
 
     linked_topics = []
     for tid in lf.get('linked_grammar_topic_ids', []):

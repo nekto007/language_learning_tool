@@ -9,11 +9,11 @@ from sqlalchemy import func
 
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
-from app.books.models import Book, Chapter, UserChapterProgress, Task, Block
+from app.books.models import Block, Book, Chapter, Task, UserChapterProgress
 from app.curriculum.cache import cached
+from app.study.models import QuizDeck, QuizDeckWord
 from app.utils.db import db
 from app.words.models import CollectionWords
-from app.study.models import QuizDeck, QuizDeckWord
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,8 @@ def get_book(book_id):
     book = Book.query.get_or_404(book_id)
 
     # Get word stats for this book using the new UserWord model
-    from app.words.models import CollectionWords, word_book_link
     from app.study.models import UserWord
+    from app.words.models import CollectionWords, word_book_link
 
     # Получаем статистику слов по статусам
     word_stats_query = db.select(
@@ -136,7 +136,7 @@ def get_book_chapters(book_id):
     Get all chapters for a book
     Returns: [{"id": 12, "num": 1, "title": "The Boy...", "words": 4526, "audio_url": null}, ...]
     """
-    book = Book.query.get_or_404(book_id)
+    Book.query.get_or_404(book_id)
 
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
@@ -260,6 +260,7 @@ def update_chapter_progress():
                 maybe_award_book_reading_xp,
                 maybe_award_linear_perfect_day,
             )
+
             # See note in app/books/api.py — auto-save deltas are tiny so
             # the per-save delta check would never fire. Gate on a closed
             # session today that itself met both 60s and 5%-offset
@@ -301,7 +302,7 @@ def get_book_chapter_progress(book_id):
     Get user's reading progress for a book
     Returns current chapter and offset
     """
-    book = Book.query.get_or_404(book_id)
+    Book.query.get_or_404(book_id)
 
     # Get all progress for this book's chapters
     progress_records = db.session.query(
@@ -620,7 +621,7 @@ def get_block_tasks(block_id):
 
     try:
         # First verify block exists
-        block = Block.query.get_or_404(block_id)
+        Block.query.get_or_404(block_id)
 
         tasks = Task.query.filter_by(block_id=block_id).all()
 

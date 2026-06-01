@@ -88,9 +88,9 @@ _SOURCE_MINUTES: dict[str, int] = {
 
 
 def _get_user_timezone(user_id: int, db_session: Any = None) -> str:
-    from config.settings import DEFAULT_TIMEZONE
     from app.auth.models import User
     from app.utils.db import db
+    from config.settings import DEFAULT_TIMEZONE
 
     db_obj = db_session if db_session is not None else db
     user = db_obj.session.get(User, user_id)
@@ -299,9 +299,9 @@ def maybe_award_book_reading_xp(
     if not is_linear_user(user_id):
         return None
 
-    from app.utils.db import db
     from app.books.reading_session import has_min_reading_time_today
     from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
+    from app.utils.db import db
 
     db_obj = db_session if db_session is not None else db
 

@@ -9,6 +9,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from flask_login import current_user
+from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -20,7 +21,6 @@ from app.utils.audio import normalize_listening
 from app.utils.db import db
 from app.utils.db_utils import chunk_ids
 from app.words.models import Collection, CollectionWordLink, CollectionWords
-from marshmallow import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -768,8 +768,8 @@ class CurriculumImportService:
     def test_database_connection():
         """Тестирует подключение к базе данных"""
         try:
-            from config.settings import DB_CONFIG
             from app.repository import DatabaseRepository
+            from config.settings import DB_CONFIG
 
             repo = DatabaseRepository(DB_CONFIG)
             with repo.get_connection() as conn:

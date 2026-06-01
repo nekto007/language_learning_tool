@@ -26,7 +26,7 @@ def format_linear_plan_text(plan: dict[str, Any]) -> str:
     slots = plan.get('slots') or plan.get('baseline_slots') or []
     progress = plan.get('progress') or {}
     continuation = plan.get('continuation') or {}
-    next_lessons = continuation.get('next_lessons') or []
+    continuation.get('next_lessons') or []
 
     done_count = sum(1 for slot in slots if slot.get('completed'))
     total_count = len(slots)
@@ -412,8 +412,9 @@ def format_evening_summary(user_name: str, summary: dict[str, Any],
     # Streak coin earned today
     if user_id:
         try:
-            from app.achievements.models import StreakEvent
             from datetime import date
+
+            from app.achievements.models import StreakEvent
             coin_earned = StreakEvent.query.filter_by(
                 user_id=user_id, event_type='earned_daily', event_date=date.today()
             ).first()

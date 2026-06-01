@@ -306,7 +306,7 @@ class RateLimitMiddleware:
 
 def init_rate_limiting(app):
     """Initialize rate limiting for the application"""
-    middleware = RateLimitMiddleware(app)
+    RateLimitMiddleware(app)
 
     # Add rate limit status endpoint
     @app.route('/curriculum/rate-limit-status')

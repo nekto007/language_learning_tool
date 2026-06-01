@@ -27,8 +27,8 @@ def ensure_word_in_default_deck(user_id: int, word_id: int, user_word_id: int = 
 
     Creates a default deck ('Мои слова') if the user doesn't have one yet.
     """
-    from app.study.models import QuizDeck, QuizDeckWord
     from app.auth.models import User
+    from app.study.models import QuizDeck, QuizDeckWord
 
     existing = QuizDeckWord.query.join(QuizDeck).filter(
         QuizDeck.user_id == user_id,

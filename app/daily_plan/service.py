@@ -56,8 +56,8 @@ def compute_day_secured_from_activity(
             if not user_id:
                 return False
             from app.utils.activity_tracker import has_learning_activity
-            from app.utils.time_utils import get_user_local_day_bounds
             from app.utils.db import db as _db
+            from app.utils.time_utils import get_user_local_day_bounds
             start_of_day, end_of_day = get_user_local_day_bounds(user_id, _db)
             now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
             return has_learning_activity(user_id, start_of_day, min(end_of_day, now_utc))

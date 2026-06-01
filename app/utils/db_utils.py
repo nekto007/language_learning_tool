@@ -1,5 +1,5 @@
 """Database utility helpers for common query patterns."""
-from typing import Generator, List, TypeVar
+from typing import Generator, TypeVar
 
 T = TypeVar('T')
 

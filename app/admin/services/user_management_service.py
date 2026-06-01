@@ -6,17 +6,18 @@ Responsibilities:
 - User statistics
 - Module access management
 """
-from typing import List, Dict, Optional
 from datetime import UTC, datetime, timedelta
+from typing import Dict, List, Optional
+
 from sqlalchemy import func
 
-from app.utils.db import db
-from app.auth.models import User, ReferralLog
-from app.study.models import UserWord
-from app.curriculum.models import LessonProgress
-from app.modules.models import UserModule
 from app.admin.audit import log_admin_action
 from app.admin.utils.request_validators import escape_like
+from app.auth.models import ReferralLog, User
+from app.curriculum.models import LessonProgress
+from app.modules.models import UserModule
+from app.study.models import UserWord
+from app.utils.db import db
 
 
 class UserManagementService:
@@ -104,7 +105,7 @@ class UserManagementService:
         if not user:
             return None
 
-        from app.achievements.models import UserStatistics, StreakCoins, LessonGrade
+        from app.achievements.models import LessonGrade, StreakCoins, UserStatistics
         from app.grammar_lab.models import UserGrammarTopicStatus
 
         # Basic stats from get_user_statistics
@@ -211,7 +212,7 @@ class UserManagementService:
     @classmethod
     def export_users_csv(cls, search: str = '') -> List[Dict]:
         """Export users with key metrics for CSV download."""
-        from app.achievements.models import UserStatistics, StreakCoins
+        from app.achievements.models import StreakCoins, UserStatistics
 
         query = db.session.query(
             User.id,

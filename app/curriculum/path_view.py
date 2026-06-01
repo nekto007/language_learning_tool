@@ -25,7 +25,6 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.daily_plan.linear.progression import find_next_lesson_linear
 
 logger = logging.getLogger(__name__)
 

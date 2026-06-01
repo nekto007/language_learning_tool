@@ -16,12 +16,12 @@ from flask import Blueprint, make_response, render_template
 from sqlalchemy import case, desc, distinct, func
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.admin.utils.decorators import admin_required, cache_result
 from app.auth.models import User
 from app.books.models import Book
 from app.curriculum.models import CEFRLevel, LessonAttempt, LessonProgress, Lessons, Module
 from app.utils.db import db
 from app.words.models import CollectionWords
-from app.admin.utils.decorators import admin_required, cache_result
 
 dashboard_bp = Blueprint('dashboard_admin', __name__)
 
@@ -43,11 +43,11 @@ def _active_user_ids_for_date(target_date):
     DAU/WAU/MAU and the daily activity chart use ``get_active_user_dates``
     instead so they pay for one materialised UNION rather than 1 per date.
     """
-    from app.study.models import StudySession
-    from app.grammar_lab.models import UserGrammarExercise
     from app.books.models import UserChapterProgress
     from app.curriculum.book_courses import BookCourseEnrollment
     from app.curriculum.daily_lessons import UserLessonProgress
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.study.models import StudySession
 
     q1 = db.session.query(LessonProgress.user_id).filter(
         _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at) == target_date,
@@ -83,11 +83,11 @@ def _build_active_user_date_pairs_query(start_date, end_date):
     Single round trip materialises the full window. Use ``get_active_user_dates``
     to materialise into a ``{date: set(user_id)}`` dict.
     """
-    from app.study.models import StudySession
-    from app.grammar_lab.models import UserGrammarExercise
     from app.books.models import UserChapterProgress
     from app.curriculum.book_courses import BookCourseEnrollment
     from app.curriculum.daily_lessons import UserLessonProgress
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.study.models import StudySession
 
     date1 = _activity_date_expr(LessonProgress.last_activity, LessonProgress.completed_at)
     q1 = db.session.query(
@@ -391,8 +391,8 @@ def get_content_metrics() -> dict:
 @cache_result('srs_health_metrics', timeout=300)
 def get_srs_health_metrics() -> dict:
     """SRS distribution: new/learning/review/mastered for words and grammar."""
-    from app.study.models import UserCardDirection
     from app.grammar_lab.models import UserGrammarExercise
+    from app.study.models import UserCardDirection
 
     word_states = db.session.query(
         UserCardDirection.state,
@@ -688,9 +688,9 @@ def get_content_quality() -> dict:
 
 def get_content_quality_detail() -> dict:
     """Per-lesson-type content coverage: audio, IPA, examples, completion rate. Used by /admin/content-quality."""
-    from app.words.models import CollectionWordLink, CollectionWords
-    from app.utils.db_utils import chunk_ids
     from app.curriculum.models import LessonFeedback
+    from app.utils.db_utils import chunk_ids
+    from app.words.models import CollectionWordLink, CollectionWords
 
     AUDIO_EXPECTED = frozenset({'dictation', 'listening_immersion', 'shadow_reading', 'audio_fill_blank'})
 
@@ -938,6 +938,7 @@ def content_quality_export():
     """Export per-lesson-type content quality metrics as CSV."""
     import csv
     import io
+
     from app.admin.utils.export_helpers import MAX_EXPORT_ROWS, _sanitize_csv_cell
 
     detail = get_content_quality_detail()

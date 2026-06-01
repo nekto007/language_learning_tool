@@ -342,7 +342,7 @@ class FinalTestGenerator:
     def _generate_vocab_options(self, card: Dict[str, Any]) -> List[str]:
         """Generate multiple choice options for vocabulary"""
         correct_definition = card['back'].get('definition', '')
-        translation = card['back'].get('translation', '')
+        card['back'].get('translation', '')
 
         options = [correct_definition]  # Correct answer first
 

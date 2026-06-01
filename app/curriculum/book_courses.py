@@ -2,8 +2,11 @@
 
 import re
 from datetime import datetime, timezone
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, Boolean
-from sqlalchemy.orm import relationship, backref as sa_backref
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import backref as sa_backref
+from sqlalchemy.orm import relationship
+
 from app.utils.db import db
 
 

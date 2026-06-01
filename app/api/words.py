@@ -120,8 +120,8 @@ def get_word(word_id):
     word = CollectionWords.query.get_or_404(word_id)
 
     # Get books containing this word
-    from app.words.models import word_book_link
     from app.books.models import Book
+    from app.words.models import word_book_link
 
     books_query = db.select(Book, word_book_link.c.frequency) \
         .join(word_book_link, Book.id == word_book_link.c.book_id) \

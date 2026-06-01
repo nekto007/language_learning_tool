@@ -8,8 +8,8 @@ import functools
 import logging
 
 from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from flask_login import current_user, login_user
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 
 logger = logging.getLogger(__name__)
 

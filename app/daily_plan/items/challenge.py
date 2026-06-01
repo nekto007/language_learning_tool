@@ -65,7 +65,8 @@ def build_challenge_item(user_id: int, db: Any) -> Optional[PlanItem]:
             next_lesson = find_next_lesson_linear(user_id, db)
             if category == 'listening_deep':
                 from app.daily_plan.items.skills import (
-                    _LISTENING_LESSON_TYPES, _find_next_skill_lesson,
+                    _LISTENING_LESSON_TYPES,
+                    _find_next_skill_lesson,
                 )
                 skill_lesson = _find_next_skill_lesson(user_id, db, _LISTENING_LESSON_TYPES)
                 lesson_id = skill_lesson.id if skill_lesson is not None else (

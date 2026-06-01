@@ -14,12 +14,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import (
-    BigInteger, Boolean, Column, DateTime, Index, Integer, String, Text
-)
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Index, Integer, String, Text
 
 from app.utils.db import db
-
 
 # Kinds of channel posts. Constants live alongside the model to keep the
 # allowed values self-documenting; the publisher tests against the same set.

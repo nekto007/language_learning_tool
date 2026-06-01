@@ -13,7 +13,8 @@ then UTC) and return ``datetime.now(tz).date()``.
 """
 from __future__ import annotations
 
-from datetime import date as date_cls, datetime, time, timedelta, timezone
+from datetime import date as date_cls
+from datetime import datetime, time, timedelta, timezone
 from typing import Any, Optional
 
 from app.utils.request_cache import request_memoize

@@ -1,8 +1,10 @@
 # app/curriculum/models/daily_lessons.py
 
-from datetime import datetime, timezone, timedelta
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, Boolean, UniqueConstraint
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
+
 from app.utils.db import db
 from app.utils.types import JSONBCompat
 
@@ -266,7 +268,7 @@ class UserLessonProgress(db.Model):
 
         if self.completed_at and self.started_at:
             # Calculate days since first start
-            first_attempt = self.review_intervals[0] if self.review_intervals else 0
+            self.review_intervals[0] if self.review_intervals else 0
             if len(self.review_intervals) > 0 and self.attempts > 1:
                 # Calculate interval since last review
                 # For simplicity, track attempt number as interval placeholder

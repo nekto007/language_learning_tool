@@ -259,8 +259,9 @@ def add_topic_to_study(topic_id):
 
     # Create or find deck for this topic
     if added_count > 0:
-        from app.study.models import QuizDeck, QuizDeckWord
         from sqlalchemy import func
+
+        from app.study.models import QuizDeck, QuizDeckWord
 
         deck_title = f"Топик: {topic.name}"
         topic_deck = QuizDeck.query.filter_by(
@@ -579,8 +580,9 @@ def add_collection_to_study(collection_id):
 
     # Create or find deck for this collection
     if added_count > 0:
-        from app.study.models import QuizDeck, QuizDeckWord
         from sqlalchemy import func
+
+        from app.study.models import QuizDeck, QuizDeckWord
 
         deck_title = f"Коллекция: {collection.name}"
         collection_deck = QuizDeck.query.filter_by(

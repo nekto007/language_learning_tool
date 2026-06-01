@@ -1,6 +1,6 @@
 import logging
 import random
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
 
 from flask import jsonify, request
@@ -10,15 +10,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from app import limiter
-from app.utils.rate_limit_helpers import get_authenticated_user_key
-from app.study.blueprint import study, get_audio_url_for_word
+from app.api.errors import api_error
+from app.srs.stats_service import srs_stats_service
+from app.study.blueprint import get_audio_url_for_word, study
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.models import QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord
-from app.utils.db import db
-from app.words.models import CollectionWords
 from app.study.services import DeckService, SRSService
-from app.srs.stats_service import srs_stats_service
-from app.api.errors import api_error
+from app.utils.db import db
+from app.utils.rate_limit_helpers import get_authenticated_user_key
+from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,9 @@ def _count_leech_suspended(user_id: int, now: datetime) -> int:
     Counts distinct user_word_id rather than UserCardDirection rows so a word
     leeched in both directions surfaces as a single suspended card in the UI.
     """
-    from app.srs.constants import LEECH_THRESHOLD
     from sqlalchemy import distinct
+
+    from app.srs.constants import LEECH_THRESHOLD
 
     return (
         db.session.query(func.count(distinct(UserCardDirection.user_word_id)))
@@ -513,7 +514,7 @@ def update_study_item():
     except (ValueError, TypeError):
         return jsonify({'success': False, 'error': 'Invalid quality value'}), 400
     session_id = data.get('session_id')
-    is_new = data.get('is_new', False)
+    data.get('is_new', False)
     deck_id = data.get('deck_id')
 
     extra_study = request.args.get('extra_study') == 'true' or data.get('extra_study', False)
@@ -599,8 +600,8 @@ def update_study_item():
     except Exception:
         logger.exception("Card achievement check failed for user %s", current_user.id)
 
+    from app.srs.constants import LEARNING_STEPS, MAX_SESSION_ATTEMPTS, RELEARNING_STEPS
     from app.srs.service import UnifiedSRSService
-    from app.srs.constants import MAX_SESSION_ATTEMPTS, LEARNING_STEPS, RELEARNING_STEPS
 
     if quality == 1:
         rating = 1
@@ -670,8 +671,9 @@ def complete_session():
             cards_reviewed=session.words_studied or 0,
             correct_answers=session.correct_answers or 0,
         )
-        from app.achievements.xp_service import award_xp as _award_xp_unified, get_level_info
         from app.achievements.models import UserStatistics as _UserStats
+        from app.achievements.xp_service import award_xp as _award_xp_unified
+        from app.achievements.xp_service import get_level_info
         xp_award = None
         if xp_breakdown['total_xp'] > 0 and not was_already_completed:
             xp_award = _award_xp_unified(current_user.id, xp_breakdown['total_xp'], 'study_cards_session')
@@ -681,8 +683,8 @@ def complete_session():
             try:
                 from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
                 from app.daily_plan.linear.xp import (
-                    maybe_award_srs_global_xp,
                     maybe_award_linear_perfect_day,
+                    maybe_award_srs_global_xp,
                 )
 
                 remaining_due = count_linear_plan_srs_due_cards(current_user.id, db)
@@ -780,9 +782,9 @@ def api_search_words():
 @study.route('/api/celebrations')
 @login_required
 def check_celebrations():
-    from app.study.models import UserAchievement, Achievement
     from app.achievements.models import UserStatistics
     from app.achievements.xp_service import get_level_info
+    from app.study.models import Achievement, UserAchievement
 
     celebrations = []
 

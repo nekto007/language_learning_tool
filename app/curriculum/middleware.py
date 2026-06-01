@@ -235,7 +235,7 @@ class CurriculumMiddleware:
 
 def init_curriculum_monitoring(app):
     """Initialize curriculum monitoring"""
-    middleware = CurriculumMiddleware(app)
+    CurriculumMiddleware(app)
 
     # Add metrics endpoint
     @app.route('/curriculum/metrics')

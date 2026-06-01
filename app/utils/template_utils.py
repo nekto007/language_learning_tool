@@ -86,6 +86,7 @@ def init_template_utils(app):
     @app.context_processor
     def utility_processor():
         from datetime import datetime
+
         from app.utils.gtag_events import consume_gtag_events
         return {
             'url_params': url_params_with_updated_args,
@@ -108,8 +109,9 @@ def init_template_utils(app):
             )
 
         def get_user_lessons():
-            from app.curriculum.models import Lessons, LessonProgress
             from flask_login import current_user
+
+            from app.curriculum.models import LessonProgress, Lessons
 
             if not current_user.is_authenticated:
                 return []
@@ -128,8 +130,9 @@ def init_template_utils(app):
 
         def get_curriculum_progress():
             """Получает прогресс пользователя по курсам для дашборда"""
-            from app.curriculum.models import CEFRLevel, Lessons, Module, LessonProgress
             from flask_login import current_user
+
+            from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 
             if not current_user.is_authenticated:
                 return []
@@ -258,7 +261,7 @@ def init_template_utils(app):
             if not current_user.is_authenticated:
                 return None
             try:
-                from app.grammar_lab.models import UserGrammarTopicStatus, GrammarTopic
+                from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
                 status = UserGrammarTopicStatus.query.filter(
                     UserGrammarTopicStatus.user_id == current_user.id,
                     UserGrammarTopicStatus.status.in_(['theory_completed', 'practicing'])
@@ -277,10 +280,12 @@ def init_template_utils(app):
             if not current_user.is_authenticated:
                 return 0
             try:
+                from datetime import datetime, timezone
+
+                from sqlalchemy import func, or_
+
                 from app.study.models import UserCardDirection, UserWord
                 from app.utils.db import db
-                from sqlalchemy import func, or_
-                from datetime import datetime, timezone
                 now = datetime.now(timezone.utc)
                 end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
                 count = db.session.query(func.count(UserCardDirection.id)).join(
@@ -305,10 +310,12 @@ def init_template_utils(app):
             if not current_user.is_authenticated:
                 return 0
             try:
+                from datetime import datetime, timezone
+
+                from sqlalchemy import func, or_
+
                 from app.grammar_lab.models import UserGrammarExercise
                 from app.utils.db import db
-                from sqlalchemy import func, or_
-                from datetime import datetime, timezone
                 now = datetime.now(timezone.utc)
                 end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
                 count = db.session.query(func.count(UserGrammarExercise.id)).filter(
@@ -341,6 +348,7 @@ def init_template_utils(app):
     def inject_xp_data():
         """Inject user XP and level data into templates (cached for 60 seconds)"""
         from flask_login import current_user
+
         from app.achievements.models import UserStatistics
         from app.achievements.xp_service import get_level_info
         from app.curriculum.cache import cache

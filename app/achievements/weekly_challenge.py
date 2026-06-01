@@ -41,6 +41,7 @@ def _notify_challenge_completed(user_id: int, challenge: dict, week_start: date)
     """Send notification for weekly challenge completion (once per week)."""
     try:
         from app.notifications.models import Notification
+
         # Check if already notified this week
         week_start_utc = datetime(week_start.year, week_start.month, week_start.day, tzinfo=timezone.utc)
         already = Notification.query.filter(
@@ -75,9 +76,9 @@ def get_weekly_digest(user_id: int) -> dict[str, Any]:
         xp_diff: week_xp - prev_week_xp
         mission_counts: dict {progress: N, repair: N, reading: N}
     """
-    from app.achievements.models import StreakEvent
-    from app.achievements.xp_service import get_today_xp
     from sqlalchemy import Integer, func
+
+    from app.achievements.models import StreakEvent
 
     today = date.today()
     week_start = today - timedelta(days=today.weekday())  # Monday
@@ -177,10 +178,11 @@ def get_weekly_digest(user_id: int) -> dict[str, Any]:
 
 def _count_progress(user_id: int, challenge_type: str, week_start: date) -> int:
     """Count progress towards *challenge_type* since *week_start*."""
-    from app.curriculum.models import LessonProgress
-    from app.study.models import UserCardDirection, UserWord
-    from app.grammar_lab.models import UserGrammarExercise
     from sqlalchemy import func
+
+    from app.curriculum.models import LessonProgress
+    from app.grammar_lab.models import UserGrammarExercise
+    from app.study.models import UserCardDirection, UserWord
 
     week_start_utc = datetime(
         week_start.year, week_start.month, week_start.day,

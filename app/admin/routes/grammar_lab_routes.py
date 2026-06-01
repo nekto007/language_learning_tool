@@ -24,10 +24,10 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, request,
 from flask_login import current_user
 from sqlalchemy.exc import IntegrityError
 
-from app.admin.utils.decorators import admin_required
 from app.admin.audit import log_admin_action
+from app.admin.utils.decorators import admin_required
+from app.grammar_lab.models import GrammarExercise, GrammarTopic
 from app.utils.db import db
-from app.grammar_lab.models import GrammarTopic, GrammarExercise
 
 grammar_lab_bp = Blueprint('grammar_lab_admin', __name__)
 logger = logging.getLogger(__name__)
@@ -377,7 +377,7 @@ def delete_exercise(exercise_id):
 @admin_required
 def import_from_modules():
     """Import grammar topics from curriculum modules (from database)"""
-    from app.curriculum.models import Module, Lessons, CEFRLevel
+    from app.curriculum.models import CEFRLevel, Lessons, Module
 
     if request.method == 'POST':
         imported = 0

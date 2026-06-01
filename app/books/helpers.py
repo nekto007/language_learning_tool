@@ -1,8 +1,10 @@
 # app/books/helpers.py
 
 from sqlalchemy import desc
+
 from app.books.models import Book, Chapter, UserChapterProgress
 from app.utils.db import db
+
 
 def get_user_reading_progress(user_id):
     """Get user's current reading progress across all books"""

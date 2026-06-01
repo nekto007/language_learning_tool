@@ -26,17 +26,17 @@ from app.daily_plan.linear.slots.curriculum_slot import (
 )
 from app.daily_plan.linear.slots.error_review_slot import build_error_review_slot
 from app.daily_plan.linear.slots.listening_slot import build_listening_slot
-from app.daily_plan.linear.slots.speaking_slot import build_speaking_slot
-from app.daily_plan.linear.slots.writing_slot import build_writing_slot
 from app.daily_plan.linear.slots.reading_slot import (
     build_reading_slot,
     get_user_reading_preference,
 )
+from app.daily_plan.linear.slots.speaking_slot import build_speaking_slot
 from app.daily_plan.linear.slots.srs_slot import (
     build_srs_slot,
     count_linear_plan_srs_due_cards,
     get_srs_budget_remaining,
 )
+from app.daily_plan.linear.slots.writing_slot import build_writing_slot
 
 logger = logging.getLogger(__name__)
 

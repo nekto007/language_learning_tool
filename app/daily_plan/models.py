@@ -11,7 +11,6 @@ from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
-from app.utils.types import JSONBCompat
 
 logger = logging.getLogger(__name__)
 

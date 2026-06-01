@@ -9,17 +9,25 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.telegram.models import TelegramUser
-from app.telegram.queries import (
-    has_activity_today, get_current_streak,
-    get_daily_summary, get_weekly_report,
-    get_tomorrow_preview, get_quickest_action, get_cards_url,
-    get_daily_plan_for_telegram,
-)
 from app.telegram.notifications import (
-    format_morning_reminder, format_evening_summary,
-    format_nudge, format_streak_alert, format_streak_repair_alert,
-    format_weekly_report, format_word_of_day,
+    format_evening_summary,
     format_mission_morning_reminder,
+    format_morning_reminder,
+    format_nudge,
+    format_streak_alert,
+    format_streak_repair_alert,
+    format_weekly_report,
+    format_word_of_day,
+)
+from app.telegram.queries import (
+    get_cards_url,
+    get_current_streak,
+    get_daily_plan_for_telegram,
+    get_daily_summary,
+    get_quickest_action,
+    get_tomorrow_preview,
+    get_weekly_report,
+    has_activity_today,
 )
 from config.settings import DEFAULT_TIMEZONE
 
@@ -149,8 +157,8 @@ def _hourly_check(app) -> None:
 def _process_user(tg_user: TelegramUser, local_hour: int,
                   is_sunday: bool, site_url: str) -> None:
     """Send appropriate notification based on user's local hour and preferences."""
-    from app.telegram.bot import send_message
     from app.auth.models import User
+    from app.telegram.bot import send_message
 
     user_id = tg_user.user_id
     chat_id = tg_user.telegram_id
@@ -222,7 +230,9 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
             else:
                 # Streak is 0 — check if there's a repairable missed date
                 from app.achievements.streak_service import (
-                    find_missed_date, get_repair_cost, get_or_create_coins,
+                    find_missed_date,
+                    get_or_create_coins,
+                    get_repair_cost,
                 )
                 missed = find_missed_date(user_id, tz=user_tz)
                 if missed:
@@ -231,9 +241,11 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
                     # Estimate what streak was before the break
                     prev_streak = get_current_streak(user_id, tz=user_tz)
                     # Walk back from missed date to count streak before break
-                    from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
+                    from datetime import datetime, timedelta
+                    from datetime import timezone as tz_mod
+
                     from app.achievements.models import StreakEvent
-                    from datetime import timedelta, datetime, timezone as tz_mod
+                    from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
                     old_streak = 0
                     missed_offset = (datetime.now(tz_mod.utc).date() - missed).days
                     for offset in range(missed_offset + 1, 366):

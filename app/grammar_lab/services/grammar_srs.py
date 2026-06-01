@@ -7,13 +7,13 @@ All SRS logic is at exercise level (UserGrammarExercise).
 Topic-level data (theory, XP) is in UserGrammarTopicStatus.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, Any
 import logging
+from datetime import datetime, timezone
+from typing import Any, Dict
 
-from app.utils.db import db
 from app.grammar_lab.models import UserGrammarTopicStatus
 from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW
+from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 

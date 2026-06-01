@@ -1,7 +1,7 @@
 from typing import List, Optional
 
-from app.utils.db import db
 from app.modules.models import SystemModule, UserModule
+from app.utils.db import db
 
 
 class ModuleService:

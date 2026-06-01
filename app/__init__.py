@@ -1,18 +1,17 @@
 import logging
 import os
-import time
 import threading
+import time
 
 from flask import Flask
 from flask_compress import Compress
 
 logger = logging.getLogger(__name__)
-from flask_limiter import Limiter
-
-from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 
 from app.utils.db import db
 from app.utils.i18n import init_babel
@@ -87,7 +86,7 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     # Initialize extensions
     db.init_app(app)
-    migrate = Migrate(app, db)
+    Migrate(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
 
@@ -110,25 +109,25 @@ def create_app(config_class=Config):
     Compress(app)
 
     # Import all models in dependency order - MUST happen before any blueprint that uses models
+    from app.achievements import daily_race as achievements_daily_race  # noqa: F401
+    from app.achievements import models as achievements_models  # noqa: F401
+    from app.admin import audit as admin_audit  # noqa: F401
     from app.auth import models as auth_models  # noqa: F401
     from app.books import models as books_models  # noqa: F401
     from app.books import reading_session as books_reading_session  # noqa: F401
-    from app.words import models as words_models  # noqa: F401  # Also defines word_book_link table
-    from app.study import models as study_models  # noqa: F401
-    from app.curriculum import models as curriculum_models  # noqa: F401
     from app.curriculum import book_courses as book_courses_models  # noqa: F401
     from app.curriculum import daily_lessons as daily_lessons_models  # noqa: F401
-    from app.modules import models as modules_models  # noqa: F401
-    from app.grammar_lab import models as grammar_models  # noqa: F401
-    from app.reminders import models as reminders_models  # noqa: F401
-    from app.telegram import models as telegram_models  # noqa: F401
-    from app.telegram import channel_models as telegram_channel_models  # noqa: F401
-    from app.achievements import models as achievements_models  # noqa: F401
-    from app.achievements import daily_race as achievements_daily_race  # noqa: F401
-    from app.notifications import models as notifications_models  # noqa: F401
-    from app.admin import audit as admin_audit  # noqa: F401
+    from app.curriculum import models as curriculum_models  # noqa: F401
     from app.daily_plan import models as daily_plan_models  # noqa: F401
     from app.daily_plan.linear import models as daily_plan_linear_models  # noqa: F401
+    from app.grammar_lab import models as grammar_models  # noqa: F401
+    from app.modules import models as modules_models  # noqa: F401
+    from app.notifications import models as notifications_models  # noqa: F401
+    from app.reminders import models as reminders_models  # noqa: F401
+    from app.study import models as study_models  # noqa: F401
+    from app.telegram import channel_models as telegram_channel_models  # noqa: F401
+    from app.telegram import models as telegram_models  # noqa: F401
+    from app.words import models as words_models  # noqa: F401  # Also defines word_book_link table
 
     # In production, schema is managed by Alembic (`flask db upgrade head`).
     # In testing, create tables directly so tests don't need migrations.
@@ -272,8 +271,8 @@ def create_app(config_class=Config):
     app.jinja_env.globals.update(get_user_modules=get_user_modules)
 
     # CSRF token refresh endpoint (for long-lived pages like quizzes)
-    from flask_login import login_required as _login_required
     from flask import jsonify as _jsonify
+    from flask_login import login_required as _login_required
 
     @app.route('/csrf-token', methods=['GET'])
     @_login_required
@@ -291,7 +290,8 @@ def create_app(config_class=Config):
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        from flask import request, jsonify
+        from flask import jsonify, request
+
         # Return JSON for AJAX requests and API endpoints
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         is_api = request.path.startswith('/api/')
@@ -313,6 +313,7 @@ def create_app(config_class=Config):
     @app.errorhandler(403)
     def handle_403_error(e):
         from flask import jsonify, render_template
+
         from app.admin.error_handlers import is_admin_request, render_admin_403
         if _wants_json():
             return jsonify({'success': False, 'error': 'forbidden', 'message': 'Forbidden', 'status': 403}), 403
@@ -323,6 +324,7 @@ def create_app(config_class=Config):
     @app.errorhandler(404)
     def handle_404_error(e):
         from flask import jsonify, render_template
+
         from app.admin.error_handlers import is_admin_request, render_admin_404
         if _wants_json():
             return jsonify({'success': False, 'error': 'not_found', 'message': 'Not found', 'status': 404}), 404
@@ -333,8 +335,9 @@ def create_app(config_class=Config):
     @app.errorhandler(500)
     def handle_500_error(e):
         from flask import jsonify, render_template
-        from app.admin.routes.dashboard_routes import increment_5xx_counter
+
         from app.admin.error_handlers import is_admin_request, render_admin_500
+        from app.admin.routes.dashboard_routes import increment_5xx_counter
         try:
             db.session.rollback()
         except Exception:
@@ -359,9 +362,10 @@ def create_app(config_class=Config):
     @app.before_request
     def update_last_active():
         """Update user's last_login every 12 hours on activity"""
+        from datetime import datetime, timedelta, timezone
+
         from flask import redirect, request, url_for
         from flask_login import current_user
-        from datetime import datetime, timezone, timedelta
 
         try:
             is_auth = current_user.is_authenticated
@@ -387,7 +391,7 @@ def create_app(config_class=Config):
     @login_manager.unauthorized_handler
     def unauthorized():
         """Custom unauthorized handler that preserves the original URL"""
-        from flask import request, url_for, redirect, jsonify
+        from flask import jsonify, redirect, request, url_for
 
         # For AJAX requests, return JSON
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -523,8 +527,8 @@ def _register_cli_commands(app):
     @app.cli.command('seed')
     def seed_cmd():
         """Seed initial data (modules and achievements). Safe to run multiple times."""
-        from app.modules.migrations import seed_initial_modules
         from app.achievements.seed import seed_achievements
+        from app.modules.migrations import seed_initial_modules
         seed_initial_modules()
         seed_achievements()
         click.echo('Seeding complete.')

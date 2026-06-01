@@ -11,13 +11,13 @@ from flask_login import current_user
 
 from app.admin.audit import log_admin_action
 from app.admin.services.word_management_service import WordManagementService
-from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.cache import clear_admin_cache
-from app.utils.db import db
+from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.export_helpers import export_words_csv, export_words_json, export_words_txt
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.admin.utils.request_validators import get_choice_arg, get_enum_arg, get_int_arg
 from app.auth.models import User
+from app.utils.db import db
 from app.utils.validators import WordStatus
 
 # Создаем blueprint для word routes
@@ -332,8 +332,8 @@ def bulk_delete_words():
 @admin_required
 def add_collocation(word_id: int):
     """Add a collocation phrase to a word."""
-    from app.words.models import CollectionWords as _CW
     from app.curriculum.models import WordCollocation
+    from app.words.models import CollectionWords as _CW
 
     word = _CW.query.get(word_id)
     if word is None:

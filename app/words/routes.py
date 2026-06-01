@@ -1,6 +1,6 @@
 import logging
-import time
 import threading
+import time
 from datetime import datetime
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
@@ -8,13 +8,12 @@ from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
 
+from app.modules.decorators import module_required
 from app.study.models import GameScore
 from app.utils.db import db
 from app.words.detail_service import build_word_profile, build_word_study_summary, get_related_words
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
-from app.modules.decorators import module_required
-from app.daily_plan.models import MODE_CATEGORY_MAP
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
@@ -349,6 +348,7 @@ def _process_referral_reward_on_first_visit(user) -> None:
         return
 
     from app.notifications.models import Notification
+
     # Check if reward already delivered (notification to referrer about this user)
     already = Notification.query.filter_by(
         user_id=user.referred_by_id,
@@ -614,7 +614,7 @@ def _build_rank_info(current_user_id: int) -> dict | None:
 def _build_mission_level_info(user_id: int) -> dict | None:
     """Return XP level info for the dash-xp widget."""
     from app.achievements.models import UserStatistics
-    from app.achievements.xp_service import get_level_info, get_streak_multiplier, PHASE_XP
+    from app.achievements.xp_service import PHASE_XP, get_level_info, get_streak_multiplier
 
     stats = UserStatistics.query.filter_by(user_id=user_id).first()
     total_xp = int(stats.total_xp or 0) if stats else 0
@@ -671,12 +671,14 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from datetime import datetime as _dt_age
-    from app.auth.models import User
+
+    import pytz
+
     from app.achievements.daily_race import get_race_standings
     from app.admin.site_settings import get_site_setting
+    from app.auth.models import User
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
-    import pytz
 
     def _is_adult(birth_year):
         if birth_year is None:
@@ -889,7 +891,6 @@ _MISSION_CLOSING_MESSAGES: dict[str, list[str]] = {
 
 
 def _get_closing_message(mission_type: str | None, plans_completed: int) -> str:
-    import random
     messages = _MISSION_CLOSING_MESSAGES.get(
         mission_type or 'default',
         _MISSION_CLOSING_MESSAGES['default'],
@@ -910,6 +911,7 @@ def _build_completion_summary(
 ) -> dict:
     """Compile rich completion summary for the mission plan completion screen."""
     from datetime import date as date_cls
+
     from app.achievements.xp_service import get_today_xp
 
     try:
@@ -984,8 +986,10 @@ def _build_week_rhythm(user_id: int, tz: str) -> dict:
     six learning sources) and projects the last 7 calendar days. ``today``
     is the user's local today; ``active`` is heatmap.count > 0.
     """
-    from datetime import date, datetime, timedelta
+    from datetime import datetime, timedelta
+
     import pytz
+
     from app.study.insights_service import get_activity_heatmap
     try:
         heatmap = get_activity_heatmap(user_id, days=14, tz=tz)
@@ -1034,9 +1038,10 @@ def _build_day_secured_banner(linear_plan, plan_completion, streak):
     if not bool(getattr(current_user, 'use_linear_plan', False)):
         return None
     try:
-        from app.daily_plan.models import DailyPlanLog
-        from app.achievements.xp_service import get_today_xp
         import pytz as _pytz_banner
+
+        from app.achievements.xp_service import get_today_xp
+        from app.daily_plan.models import DailyPlanLog
         _tz_banner_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
         try:
             _tz_banner = _pytz_banner.timezone(_tz_banner_name)
@@ -1107,13 +1112,14 @@ def _render_unified_dashboard(tz: str):
     / challenge) so visual context stays consistent across plan modes, but
     swaps the path partial for partials/unified_daily_plan.html.
     """
-    from app.daily_plan.service import get_daily_plan_unified
+    from app.achievements.models import UserStatistics
     from app.achievements.streak_service import (
-        compute_plan_steps, process_streak_on_activity,
+        compute_plan_steps,
+        process_streak_on_activity,
     )
     from app.achievements.xp_service import get_level_info, get_today_xp
+    from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
-    from app.achievements.models import UserStatistics
 
     streak = get_current_streak(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
@@ -1148,6 +1154,7 @@ def _render_unified_dashboard(tz: str):
     if _day_secured:
         try:
             from datetime import datetime as _dt_sec
+
             import pytz as _pytz_sec
             try:
                 _tz_sec = _pytz_sec.timezone(tz)
@@ -1187,6 +1194,7 @@ def _render_unified_dashboard(tz: str):
         # get_today_xp требует date — без него падал в TypeError, и из-за
         # silent except шло «0 XP сегодня» даже после выполненных заданий.
         from datetime import datetime
+
         import pytz as _pytz_xp
         try:
             _tz = _pytz_xp.timezone(tz)
@@ -1294,14 +1302,15 @@ def _render_path_dashboard(tz: str):
     (7-day calendar), challenge card. Heavy analytics live at /study/insights.
     Mission-plan users get the legacy dashboard.html.
     """
-    from app.curriculum.path_view import build_dashboard_path
-    from app.daily_plan.service import get_daily_plan_unified
+    from app.achievements.models import UserStatistics
     from app.achievements.streak_service import (
-        compute_plan_steps, process_streak_on_activity,
+        compute_plan_steps,
+        process_streak_on_activity,
     )
     from app.achievements.xp_service import get_level_info, get_today_xp
+    from app.curriculum.path_view import build_dashboard_path
+    from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
-    from app.achievements.models import UserStatistics
     from app.utils.time_utils import get_user_local_date
 
     streak = get_current_streak(current_user.id, tz=tz)
@@ -1460,16 +1469,16 @@ def dashboard():
         except Exception:
             logger.exception('path_dashboard render failed, falling back to legacy')
 
-    from app.study.models import Achievement, UserAchievement
-    from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
-    from app.curriculum.book_courses import BookCourseEnrollment
-    from app.telegram.models import TelegramUser
-    from app.daily_plan.service import get_daily_plan_unified
-    from app.telegram.queries import get_current_streak, get_daily_summary
-    from app.telegram.notifications import _lesson_minutes, _words_minutes
-    from app.study.insights_service import get_activity_heatmap, get_words_at_risk, get_grammar_weaknesses
-    from app.study.services.stats_service import StatsService
     from app.achievements.streak_service import get_streak_calendar
+    from app.curriculum.book_courses import BookCourseEnrollment
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.grammar_lab.models import GrammarTopic, UserGrammarTopicStatus
+    from app.study.insights_service import get_activity_heatmap, get_grammar_weaknesses, get_words_at_risk
+    from app.study.models import Achievement, UserAchievement
+    from app.study.services.stats_service import StatsService
+    from app.telegram.models import TelegramUser
+    from app.telegram.notifications import _lesson_minutes, _words_minutes
+    from app.telegram.queries import get_current_streak, get_daily_summary
 
     # === DAILY PLAN & STREAK ===
     streak = get_current_streak(current_user.id, tz=tz)
@@ -1485,6 +1494,7 @@ def dashboard():
 
     # Time-based greeting
     from datetime import datetime as dt
+
     import pytz
     try:
         local_hour = dt.now(pytz.timezone(DEFAULT_TIMEZONE)).hour
@@ -1630,7 +1640,15 @@ def dashboard():
     )
 
     # === WEEKLY ANALYTICS (via insights_service — week-to-date, not lifetime) ===
-    from app.study.insights_service import get_weekly_summary, get_listening_stats, get_writing_stats, get_vocabulary_growth, get_pronunciation_stats, get_weak_areas, get_learning_velocity
+    from app.study.insights_service import (
+        get_learning_velocity,
+        get_listening_stats,
+        get_pronunciation_stats,
+        get_vocabulary_growth,
+        get_weak_areas,
+        get_weekly_summary,
+        get_writing_stats,
+    )
     weekly_analytics = _safe_widget_call(
         'weekly_analytics', get_weekly_summary, current_user.id, default={})
 
@@ -1665,8 +1683,9 @@ def dashboard():
         import pytz as _pytz_sm
         _tz_sm = _pytz_sm.timezone(_study_tz)
     except Exception:
-        from config.settings import DEFAULT_TIMEZONE as _DEF_TZ
         import pytz as _pytz_sm
+
+        from config.settings import DEFAULT_TIMEZONE as _DEF_TZ
         _tz_sm = _pytz_sm.timezone(_DEF_TZ)
     _study_today = datetime.now(_tz_sm).date()
     minutes_studied_today = _safe_widget_call(
@@ -2209,9 +2228,10 @@ def word_list():
     # Используем set_committed_value, чтобы пометить атрибут как уже загруженный
     # и не дать SQLAlchemy запустить lazy-load при обращении из шаблона.
     if word_list:
+        from sqlalchemy.orm import attributes as _sa_attrs
+
         from app.books.models import Book
         from app.words.models import word_book_link as _wbl
-        from sqlalchemy.orm import attributes as _sa_attrs
         _page_word_ids = [w.id for w in word_list]
         _book_rows = db.session.query(Book, _wbl.c.word_id).join(
             _wbl, Book.id == _wbl.c.book_id
@@ -2292,8 +2312,8 @@ def word_list():
 @login_required
 @module_required('words')
 def word_detail(word_id):
-    from app.study.models import UserWord
     from app.books.models import Book
+    from app.study.models import UserWord
     from app.words.models import word_book_link
 
     word = CollectionWords.query.get_or_404(word_id)
@@ -2543,7 +2563,7 @@ def weekly_report_dismiss():
 @login_required
 def streak_repair_web():
     """Session-based streak repair for web dashboard."""
-    from app.achievements.streak_service import find_missed_date, apply_paid_repair
+    from app.achievements.streak_service import apply_paid_repair, find_missed_date
     from app.telegram.queries import get_current_streak
 
     tz = request.json.get('tz', DEFAULT_TIMEZONE) if request.is_json else DEFAULT_TIMEZONE

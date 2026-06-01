@@ -9,15 +9,13 @@ import os
 import re
 from datetime import UTC, datetime
 
-from flask import (Blueprint, flash, jsonify, redirect, render_template,
-                   request, url_for, current_app)
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from app.admin.audit import log_admin_action
 from app.admin.services.book_processing_service import (
-    ALLOWED_BOOK_EXTENSIONS,
     BOOK_TEMP_DIR,
     BookProcessingService,
     BookUploadError,
@@ -105,7 +103,7 @@ def scrape_website():
 
         # Импортируем и используем web scraper
         from app.web.scraper import WebScraper
-        from config.settings import USER_AGENT, REQUEST_TIMEOUT, MAX_RETRIES
+        from config.settings import MAX_RETRIES, REQUEST_TIMEOUT, USER_AGENT
 
         scraper = WebScraper(
             user_agent=USER_AGENT,
@@ -224,6 +222,7 @@ def update_book_statistics():
 def process_phrasal_verbs():
     """Обработка файла с фразовыми глаголами"""
     from flask_login import current_user
+
     from app.utils.file_security import validate_text_file_upload
 
     try:

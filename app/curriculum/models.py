@@ -2,7 +2,21 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, Integer, JSON, SmallInteger, String, Text, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import joinedload, relationship
 
 from app.utils.db import db
@@ -222,8 +236,9 @@ class Lessons(db.Model):
         Returns:
             tuple: (is_valid, error_message)
         """
-        from app.curriculum.validators import LessonContentValidator
         from marshmallow import ValidationError
+
+        from app.curriculum.validators import LessonContentValidator
 
         try:
             return LessonContentValidator.validate(self.type, self.content)

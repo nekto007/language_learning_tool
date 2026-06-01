@@ -167,7 +167,7 @@ def quiz_deck_delete(deck_id):
 @admin_required
 def quiz_deck_add_word(deck_id):
     """Add word to quiz deck - supports both existing words and custom translations"""
-    deck = QuizDeck.query.get_or_404(deck_id)
+    QuizDeck.query.get_or_404(deck_id)
 
     word_id = request.form.get('word_id', type=int)
     custom_english = request.form.get('custom_english', '').strip()
@@ -353,7 +353,7 @@ def quiz_deck_remove_word(deck_id, word_id):
 @admin_required
 def quiz_deck_reorder_words(deck_id):
     """Reorder words in deck"""
-    deck = QuizDeck.query.get_or_404(deck_id)
+    QuizDeck.query.get_or_404(deck_id)
     word_ids = request.json.get('word_ids', [])
 
     for index, word_id in enumerate(word_ids):

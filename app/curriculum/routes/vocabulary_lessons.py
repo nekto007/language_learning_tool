@@ -6,13 +6,15 @@ import bleach
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
-
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.models import (
-    LessonProgress, Lessons, Module, WordCollocation,
-    get_collocations_for_word, VocabAnnotation, save_annotation,
-    CulturalNote, get_cultural_notes_for_word,
+    LessonProgress,
+    Lessons,
+    Module,
+    VocabAnnotation,
+    WordCollocation,
+    save_annotation,
 )
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html

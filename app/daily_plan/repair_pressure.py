@@ -6,11 +6,10 @@ from typing import Optional
 
 from sqlalchemy import func
 
-from app.utils.db import db
-from app.study.deck_utils import get_daily_plan_mix_word_ids
-from app.study.models import UserWord, UserCardDirection
 from app.grammar_lab.models import GrammarAttempt, UserGrammarExercise
-
+from app.study.deck_utils import get_daily_plan_mix_word_ids
+from app.study.models import UserCardDirection, UserWord
+from app.utils.db import db
 
 REPAIR_THRESHOLD = 0.6
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-
 _REQUIRED_KEYS: dict[str, tuple[str, ...]] = {
     'fill_blank': ('correct_answer',),
     'multiple_choice': ('correct_answer', 'options'),

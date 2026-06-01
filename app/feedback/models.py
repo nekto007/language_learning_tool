@@ -4,7 +4,6 @@ from datetime import datetime
 
 from app.utils.db import db
 
-
 FEEDBACK_CATEGORIES = ('bug', 'idea', 'question')
 FEEDBACK_STATUSES = ('new', 'seen', 'resolved')
 

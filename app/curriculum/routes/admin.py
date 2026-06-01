@@ -10,10 +10,10 @@ from sqlalchemy import or_
 
 from app.admin.audit import log_admin_action
 from app.admin.services.curriculum_import_service import CurriculumImportService
-from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.security import (safe_int, sanitize_json_content, validate_file_upload)
-from app.utils.db import db
 from app.admin.utils.decorators import admin_required
+from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.curriculum.security import safe_int, sanitize_json_content, validate_file_upload
+from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
@@ -574,8 +574,10 @@ def _iter_lesson_audio_refs(content: object):
 def audio_stats():
     """Show audio file statistics per module — all sources."""
     import os
+
     from flask import current_app
-    from app.words.models import CollectionWords, CollectionWordLink
+
+    from app.words.models import CollectionWordLink, CollectionWords
 
     audio_dir = os.path.join(current_app.static_folder, 'audio')
 

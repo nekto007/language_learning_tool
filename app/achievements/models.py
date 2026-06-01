@@ -4,7 +4,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, CHAR
+from sqlalchemy import CHAR, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import backref, relationship
 
 from app.utils.db import db

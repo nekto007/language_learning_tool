@@ -266,7 +266,7 @@ def award_perfect_day_xp_idempotent(
     Returns XPAward if awarded, None if already awarded today.
     Caller must commit the session.
     """
-    from app.achievements.models import UserStatistics, StreakEvent
+    from app.achievements.models import StreakEvent, UserStatistics
     from app.utils.db import db
 
     already = StreakEvent.query.filter_by(
@@ -614,8 +614,9 @@ def award_linear_xp(
 
 def get_today_xp(user_id: int, for_date: date) -> int:
     """Sum all XP awarded to a user on a given date from StreakEvents."""
-    from app.achievements.models import StreakEvent
     from sqlalchemy import Integer, func
+
+    from app.achievements.models import StreakEvent
 
     total = (
         StreakEvent.query

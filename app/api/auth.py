@@ -48,8 +48,8 @@ def api_login():
         }
     """
     from app import limiter
-    from app.utils.rate_limit_helpers import get_username_key
     from app.utils.jwt_auth import create_tokens_for_user
+    from app.utils.rate_limit_helpers import get_username_key
 
     # Apply rate limiting decorators
     @limiter.limit("15 per minute", key_func=lambda: get_username_key())
@@ -108,6 +108,7 @@ def refresh():
         New access token with 15-minute expiration
     """
     from flask_jwt_extended import verify_jwt_in_request
+
     from app.utils.jwt_auth import refresh_access_token
 
     try:

@@ -4,7 +4,7 @@
 import json
 import logging
 import re
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 from app.utils.normalization import normalize_text
 
@@ -25,8 +25,8 @@ def check_final_test_attempts_exhausted(user_id, lesson_id, db_session=None,
         {"passed": False, "error": "attempts_exhausted",
          "retry_after": <ISO8601 UTC>, "max_attempts": N, "window_hours": H}
     """
-    from app.curriculum.models import LessonAttempt
     from app.auth.models import User
+    from app.curriculum.models import LessonAttempt
     from app.utils.db import db as default_db
 
     session = db_session if db_session is not None else default_db.session
@@ -740,7 +740,7 @@ def process_grammar_submission(exercises, answers):
                         # Проверяем соответствие
                         if user_right_value != correct_right_value:
                             is_correct = False
-                    except (ValueError, IndexError, KeyError) as e:
+                    except (ValueError, IndexError, KeyError):
                         is_correct = False
                         break
 
@@ -851,7 +851,7 @@ def process_grammar_submission(exercises, answers):
             if exercise_type in ['fill-blank', 'fill_in_blank']:
                 # Проверяем, если это начало предложения
                 prompt_text = exercise.get('prompt', exercise.get('text', ''))
-                is_sentence_start = prompt_text.strip().startswith('___') or prompt_text.strip().startswith('_')
+                prompt_text.strip().startswith('___') or prompt_text.strip().startswith('_')
 
                 # if is_sentence_start:
                 #     # Для начала предложения - точное сравнение с учетом регистра
@@ -1054,7 +1054,7 @@ def process_quiz_submission(questions, answers):
 
                 is_correct = user_idx == correct_idx
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 is_correct = False
 
         elif question_type == 'true_false':
@@ -1066,7 +1066,7 @@ def process_quiz_submission(questions, answers):
 
                 is_correct = user_bool == correct_answer
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 is_correct = False
 
         elif question_type in ['fill_in_blank', 'fill-in-blank', 'fill_blank', 'translation', 'transformation']:
@@ -1097,6 +1097,7 @@ def process_quiz_submission(questions, answers):
                     if not sentence:
                         return ""
                     import re
+
                     # Remove extra spaces
                     normalized = sentence.strip()
                     normalized = re.sub(r'\s+', ' ', normalized)

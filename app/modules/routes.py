@@ -1,7 +1,7 @@
 import logging
 
-from flask import render_template, jsonify
-from flask_login import login_required, current_user
+from flask import jsonify, render_template
+from flask_login import current_user, login_required
 
 from app.modules import modules_bp
 from app.modules.service import ModuleService

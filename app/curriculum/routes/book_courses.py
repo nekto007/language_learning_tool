@@ -7,14 +7,25 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from app.curriculum.book_courses import (
-    BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress,
+    BookCourse,
+    BookCourseEnrollment,
+    BookCourseModule,
+    BookModuleProgress,
 )
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
 from app.curriculum.routes.book_courses_service import (
-    LESSON_ORDER, _build_linked_topics_and_return_url, _build_vocabulary_fc_vars,
-    _parse_lesson_scaffold, build_daily_lesson_dict, ensure_words_in_book_deck,
-    find_next_lesson_url, get_course_by_slug_or_id, get_lesson_type_display,
-    get_ui_lang, load_vocabulary_data, truncate_context,
+    LESSON_ORDER,
+    _build_linked_topics_and_return_url,
+    _build_vocabulary_fc_vars,
+    _parse_lesson_scaffold,
+    build_daily_lesson_dict,
+    ensure_words_in_book_deck,
+    find_next_lesson_url,
+    get_course_by_slug_or_id,
+    get_lesson_type_display,
+    get_ui_lang,
+    load_vocabulary_data,
+    truncate_context,
 )
 from app.curriculum.services.book_srs_integration import BookSRSIntegration
 from app.curriculum.services.comprehension_generator import ClozePracticeGenerator, ComprehensionMCQGenerator
@@ -433,7 +444,7 @@ def _render_lesson_by_type(ctx):
         )
 
     if lesson_type in ['grammar', 'language_focus']:
-        from app.grammar_lab.models import GrammarTopic, GrammarExercise
+        from app.grammar_lab.models import GrammarExercise, GrammarTopic
 
         task = daily_lesson.task if daily_lesson else None
         if task and task.payload and isinstance(task.payload, dict) and 'title' in task.payload:

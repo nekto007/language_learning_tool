@@ -1,12 +1,12 @@
 from app.daily_plan.models import (
+    Mission,
+    MissionPhase,
+    MissionPlan,
     MissionType,
     PhaseKind,
-    SourceKind,
-    MissionPhase,
-    Mission,
     PrimaryGoal,
     PrimarySource,
-    MissionPlan,
+    SourceKind,
 )
 
 __all__ = [

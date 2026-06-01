@@ -7,21 +7,12 @@ from typing import Any, Optional
 
 from sqlalchemy import func
 
-from app.utils.db import db
-from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.navigation import find_next_lesson
-from app.daily_plan.level_utils import get_user_current_cefr_level, _cefr_code_to_order
+from app.books.models import Book, Chapter, UserChapterProgress
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
-from app.grammar_lab.models import (
-    GrammarTopic,
-    UserGrammarExercise,
-    UserGrammarTopicStatus,
-)
-from app.study.deck_utils import get_daily_plan_mix_word_ids
-from app.utils.db_utils import chunk_ids
-from app.books.models import Book, Chapter, UserChapterProgress
-
+from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
+from app.curriculum.navigation import find_next_lesson
+from app.daily_plan.level_utils import get_user_current_cefr_level
 from app.daily_plan.models import (
     MODE_CATEGORY_MAP,
     Mission,
@@ -34,6 +25,15 @@ from app.daily_plan.models import (
     PrimarySource,
     SourceKind,
 )
+from app.grammar_lab.models import (
+    GrammarTopic,
+    UserGrammarExercise,
+    UserGrammarTopicStatus,
+)
+from app.study.deck_utils import get_daily_plan_mix_word_ids
+from app.utils.db import db
+from app.utils.db_utils import chunk_ids
+
 logger = logging.getLogger(__name__)
 
 

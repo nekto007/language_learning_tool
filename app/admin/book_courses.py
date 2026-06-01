@@ -13,17 +13,23 @@ from flask_login import current_user
 from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
 
-from app.utils.db import db
-from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.audit import log_admin_action
-from app.books.models import Book, Chapter, Task, TaskType
-from app.curriculum.book_courses import BookCourse, BookCourseModule, BookCourseEnrollment, BookModuleProgress
-from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
 from app.admin.form import (
-    DailyLessonForm, VocabularyTaskForm, ReadingMCQTaskForm,
-    MatchHeadingsTaskForm, OpenClozeTaskForm, WordFormationTaskForm,
-    KeywordTransformTaskForm, GrammarSheetTaskForm, FinalTestTaskForm
+    DailyLessonForm,
+    FinalTestTaskForm,
+    GrammarSheetTaskForm,
+    KeywordTransformTaskForm,
+    MatchHeadingsTaskForm,
+    OpenClozeTaskForm,
+    ReadingMCQTaskForm,
+    VocabularyTaskForm,
+    WordFormationTaskForm,
 )
+from app.admin.utils.decorators import admin_required, handle_admin_errors
+from app.books.models import Book, Chapter, Task, TaskType
+from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress
+from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
+from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 
@@ -1051,6 +1057,7 @@ def register_book_course_routes(admin_bp):
         vocabulary = []
         if lesson.lesson_type in ['vocabulary', 'context_review']:
             from sqlalchemy.orm import joinedload
+
             from app.curriculum.daily_lessons import SliceVocabulary
             vocabulary = SliceVocabulary.query.filter_by(
                 daily_lesson_id=lesson_id
@@ -1073,7 +1080,7 @@ def register_book_course_routes(admin_bp):
     @handle_admin_errors(return_json=True)
     def edit_daily_lesson_post(course_id, module_id, lesson_id):
         """Save daily lesson changes"""
-        course = BookCourse.query.get_or_404(course_id)
+        BookCourse.query.get_or_404(course_id)
         module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
         lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
 
@@ -1197,7 +1204,7 @@ def register_book_course_routes(admin_bp):
     @handle_admin_errors(return_json=True)
     def delete_daily_lesson(course_id, module_id, lesson_id):
         """Delete daily lesson"""
-        course = BookCourse.query.get_or_404(course_id)
+        BookCourse.query.get_or_404(course_id)
         module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
         lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
 
@@ -1313,7 +1320,7 @@ def register_book_course_routes(admin_bp):
     @handle_admin_errors(return_json=True)
     def edit_lesson_task_post(course_id, module_id, lesson_id):
         """Save task changes"""
-        course = BookCourse.query.get_or_404(course_id)
+        BookCourse.query.get_or_404(course_id)
         module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
         lesson = DailyLesson.query.filter_by(id=lesson_id, book_course_module_id=module_id).first_or_404()
 
@@ -1393,6 +1400,7 @@ def register_book_course_routes(admin_bp):
 
         # Get vocabulary words with eager loading
         from sqlalchemy.orm import joinedload
+
         from app.curriculum.daily_lessons import SliceVocabulary
         vocabulary = SliceVocabulary.query.filter_by(
             daily_lesson_id=lesson_id
@@ -1611,7 +1619,7 @@ def register_book_course_routes(admin_bp):
         """Save module lessons_data changes"""
         from sqlalchemy.orm.attributes import flag_modified
 
-        course = BookCourse.query.get_or_404(course_id)
+        BookCourse.query.get_or_404(course_id)
         module = BookCourseModule.query.filter_by(id=module_id, course_id=course_id).first_or_404()
 
         try:

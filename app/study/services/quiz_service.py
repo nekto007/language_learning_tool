@@ -6,8 +6,8 @@ Responsibilities:
 - Quiz scoring
 - Quiz result tracking
 """
-from typing import List, Dict, Optional, Callable
 import random
+from typing import Callable, Dict, List, Optional
 
 from app.words.models import CollectionWords
 

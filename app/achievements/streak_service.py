@@ -6,8 +6,8 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 
-from app.utils.db import db
 from app.achievements.models import StreakCoins, StreakEvent
+from app.utils.db import db
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
@@ -289,6 +289,7 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     stay in sync with completed phases without a separate round trip.
     """
     import pytz
+
     from app.telegram.queries import get_current_streak, has_activity_today
 
     # Compute the user's local "today" so that earned_daily rows are keyed
@@ -329,8 +330,8 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
 
             try:
                 from app.achievements.xp_service import (
-                    award_phase_xp_idempotent,
                     award_perfect_day_xp_idempotent,
+                    award_phase_xp_idempotent,
                     get_perfect_day_info,
                 )
                 last_level_up: dict | None = None
@@ -403,7 +404,8 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
         if steps_total > 0 and steps_done >= steps_total:
             try:
                 from app.achievements.ranks import (
-                    _has_plan_completion_marker, record_plan_completion,
+                    _has_plan_completion_marker,
+                    record_plan_completion,
                 )
 
                 was_already_completed = _has_plan_completion_marker(
@@ -551,9 +553,9 @@ def _grant_streak_shield(user_id: int) -> bool:
 
     Returns True if shield was granted, False if disabled or already active.
     """
-    from app.auth.models import User
-    from app.admin.site_settings import get_site_setting
     from app import db
+    from app.admin.site_settings import get_site_setting
+    from app.auth.models import User
     if get_site_setting('streak_shield_enabled', 'true') != 'true':
         return False
     user = db.session.get(User, user_id)
@@ -653,11 +655,11 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
     import pytz
     from sqlalchemy import Date, cast, func
 
+    from app.books.models import UserChapterProgress
+    from app.curriculum.daily_lessons import UserLessonProgress
     from app.curriculum.models import LessonProgress
     from app.grammar_lab.models import UserGrammarExercise
     from app.study.models import UserCardDirection, UserWord
-    from app.books.models import UserChapterProgress
-    from app.curriculum.daily_lessons import UserLessonProgress
 
     try:
         tz_obj = pytz.timezone(tz)
@@ -946,8 +948,9 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
     isolated gap that isn't connected to any streak is pointless (streak
     would remain 1), so we return None in that case.
     """
-    from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
     import pytz
+
+    from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
 
     local_now = datetime.now(pytz.timezone(tz))
 
@@ -999,8 +1002,9 @@ def find_auto_heal_date(
     Only looks within ``max_days`` from today.  Spent-repair rows are
     treated as gaps so they can be upgraded to free repairs with a refund.
     """
-    from app.telegram.queries import _user_day_boundaries, _has_activity_in_range
     import pytz
+
+    from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
 
     local_now = datetime.now(pytz.timezone(tz))
     local_today = local_now.date()
@@ -1169,7 +1173,8 @@ def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     listening activity the chain is checked from yesterday (today isn't over).
     """
     import pytz
-    from sqlalchemy import cast, Date, func
+    from sqlalchemy import Date, cast, func
+
     from app.curriculum.models import ListeningAttempt
 
     session = db_session if db_session is not None else db.session
@@ -1220,7 +1225,8 @@ def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE
     Same walk-backward logic as get_listening_streak.
     """
     import pytz
-    from sqlalchemy import cast, Date, func
+    from sqlalchemy import Date, cast, func
+
     from app.curriculum.models import UserWritingAttempt
 
     session = db_session if db_session is not None else db.session
@@ -1270,7 +1276,8 @@ def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZON
     Same walk-backward logic as get_listening_streak.
     """
     import pytz
-    from sqlalchemy import cast, Date, func
+    from sqlalchemy import Date, cast, func
+
     from app.curriculum.models import PronunciationAttempt
 
     session = db_session if db_session is not None else db.session
@@ -1324,9 +1331,10 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     activity, the chain is checked from yesterday (today isn't over).
     """
     import pytz
-    from sqlalchemy import cast, Date, func
-    from app.curriculum.models import ListeningAttempt, UserWritingAttempt, PronunciationAttempt
+    from sqlalchemy import Date, cast, func
+
     from app.books.reading_session import UserReadingSession
+    from app.curriculum.models import ListeningAttempt, PronunciationAttempt, UserWritingAttempt
 
     session = db_session if db_session is not None else db.session
 
@@ -1400,8 +1408,8 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
 def get_streak_status(user_id: int, tz: str = DEFAULT_TIMEZONE,
                       steps_total: int = 4) -> dict:
     """Get full streak status for dashboard display."""
-    from app.telegram.queries import get_current_streak, has_activity_today
     from app.auth.models import User
+    from app.telegram.queries import get_current_streak, has_activity_today
 
     streak = get_current_streak(user_id, tz=tz)
     coins = get_or_create_coins(user_id)

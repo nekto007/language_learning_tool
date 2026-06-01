@@ -59,13 +59,13 @@ def build_srs_item(
     None when due=0 AND no activity today (e.g. brand-new user with no
     cards yet).
     """
-    from app.srs.counting import count_due_cards, count_new_cards_today, get_new_card_budget
-    from app.study.services import SRSService
-    from app.study.models import StudySettings
     from app.daily_plan.linear.slots.srs_slot import (
         count_linear_plan_srs_due_cards,
         count_srs_reviews_today,
     )
+    from app.srs.counting import count_due_cards, count_new_cards_today, get_new_card_budget
+    from app.study.models import StudySettings
+    from app.study.services import SRSService
 
     due_count = count_linear_plan_srs_due_cards(user_id, db)
     reviews_today = count_srs_reviews_today(user_id, db)

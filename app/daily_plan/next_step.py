@@ -69,10 +69,12 @@ def _apply_queue_filters(candidates: list[NextStep], max_steps: int) -> list[Nex
 
 def _check_recovery(user_id: int, db) -> Optional[NextStep]:
     """Suggest recovery when yesterday's plan was not secured."""
-    from datetime import date, timedelta
+    from datetime import timedelta
+
+    import pytz
+
     from app.auth.models import User
     from app.daily_plan.models import DailyPlanLog
-    import pytz
 
     try:
         user = User.query.get(user_id)
@@ -209,8 +211,8 @@ def _check_unfinished_lesson(user_id: int, db) -> Optional[NextStep]:
 # ── Priority 2: SRS due ─────────────────────────────────────────────────────
 
 def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
-    from app.study.models import UserWord, UserCardDirection, StudySettings, QuizDeckWord
     from app.auth.models import User
+    from app.study.models import QuizDeckWord, StudySettings, UserCardDirection, UserWord
 
     user = User.query.get(user_id)
     default_deck_id = user.default_study_deck_id if user else None
@@ -306,10 +308,10 @@ def _check_writing_suggestion(user_id: int, db) -> Optional[NextStep]:
 
 def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
     from app.grammar_lab.models import (
-        GrammarTopic,
-        UserGrammarTopicStatus,
-        UserGrammarExercise,
         GrammarExercise,
+        GrammarTopic,
+        UserGrammarExercise,
+        UserGrammarTopicStatus,
     )
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 

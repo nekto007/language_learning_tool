@@ -1,6 +1,7 @@
 """Notification creation service."""
 import logging
 from datetime import datetime
+
 from app.notifications.models import Notification
 from app.utils.db import db
 

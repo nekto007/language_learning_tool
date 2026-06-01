@@ -25,11 +25,10 @@ import hashlib
 import io
 import logging
 import os
-from pathlib import Path
 from typing import Iterable
 
-from PIL import Image, ImageDraw, ImageFont
 from flask import current_app
+from PIL import Image, ImageDraw, ImageFont
 
 logger = logging.getLogger(__name__)
 

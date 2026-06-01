@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import Index, func
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from app.srs.constants import MASTERED_THRESHOLD_DAYS as _MASTERED_DAYS, MATURE_THRESHOLD_DAYS as _MATURE_DAYS
+from app.srs.constants import MASTERED_THRESHOLD_DAYS as _MASTERED_DAYS
+from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS
 from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
 
@@ -480,12 +481,10 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         Returns:
             interval_days (int)
         """
-        from app.srs.constants import (
-            RATING_DONT_KNOW, RATING_DOUBT,
-            CardState, DEFAULT_EASE_FACTOR
-        )
-        from app.srs.service import UnifiedSRSService
         import random
+
+        from app.srs.constants import DEFAULT_EASE_FACTOR, RATING_DOUBT, CardState
+        from app.srs.service import UnifiedSRSService
 
         # Map to unified 1-2-3 scale for legacy compatibility
         if quality in (1, 2, 3):

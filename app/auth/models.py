@@ -143,10 +143,11 @@ class User(db.Model, UserMixin):
             2 = на повторении ('review')
             3 = уже знаю ('review' с высоким интервалом 180+ дней)
         """
-        from datetime import datetime, timezone, timedelta
-        from app.study.models import UserWord, UserCardDirection
-        from app.utils.db import db
+        from datetime import datetime, timedelta, timezone
+
         from app.srs.constants import DEFAULT_EASE_FACTOR
+        from app.study.models import UserCardDirection, UserWord
+        from app.utils.db import db
 
         # Маппинг числовых статусов в строковые
         # status=3 теперь ставит 'review' вместо 'mastered'
@@ -235,7 +236,8 @@ class User(db.Model, UserMixin):
     def get_last_read_book(self):
         """Get last read book from chapter progress"""
         from sqlalchemy.orm import joinedload
-        from app.books.models import UserChapterProgress, Chapter, Book
+
+        from app.books.models import Book, Chapter, UserChapterProgress
         latest_progress = UserChapterProgress.query.filter_by(
             user_id=self.id
         ).join(Chapter).join(Book).options(
@@ -247,7 +249,7 @@ class User(db.Model, UserMixin):
 
     def get_reading_progress_count(self):
         """Get count of books with reading progress"""
-        from app.books.models import UserChapterProgress, Chapter, Book
+        from app.books.models import Book, Chapter, UserChapterProgress
         return db.session.query(Book.id).join(Chapter).join(
             UserChapterProgress
         ).filter(UserChapterProgress.user_id == self.id).distinct().count()

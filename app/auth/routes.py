@@ -1,15 +1,16 @@
 import logging
 import secrets
 from datetime import datetime, timezone
-from flask_babel import lazy_gettext as _l
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 from flask import Blueprint, current_app, flash, make_response, redirect, render_template, request, url_for
+from flask_babel import lazy_gettext as _l
 from flask_login import current_user, login_required, login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app import limiter
 from app.auth.forms import LoginForm, RegistrationForm, RequestResetForm, ResetPasswordForm
-from app.auth.models import User, ReferralLog, PasswordResetToken
+from app.auth.models import PasswordResetToken, ReferralLog, User
 from app.utils.db import db
 from app.utils.email_utils import email_sender
 from config.settings import Config
@@ -21,9 +22,9 @@ auth = Blueprint('auth', __name__)
 
 def _check_referral_achievements(referrer_id: int) -> None:
     """Check and award referral achievements based on referral count."""
-    from app.study.models import Achievement
     from app.achievements.services import grant_achievement
     from app.notifications.services import notify_achievement
+    from app.study.models import Achievement
 
     referral_count = User.query.filter_by(referred_by_id=referrer_id).count()
 
@@ -384,17 +385,14 @@ def register():
 
             # Grant default modules to the new user
             from app.modules.service import ModuleService
-            modules_granted = False
             try:
                 ModuleService.grant_default_modules_to_user(user.id)
-                modules_granted = True
             except SQLAlchemyError:
                 current_app.logger.warning("Module granting failed for user=%s, retrying", user.id, exc_info=True)
                 db.session.rollback()
                 user = db.session.merge(user)
                 try:
                     ModuleService.grant_default_modules_to_user(user.id)
-                    modules_granted = True
                 except SQLAlchemyError:
                     current_app.logger.error("Module granting failed on retry for user=%s", user.id, exc_info=True)
                     db.session.rollback()
@@ -474,10 +472,10 @@ def logout():
 
 def _get_profile_stats(user_id: int) -> dict:
     """Gather learning stats for profile page."""
-    from app.study.models import UserWord
-    from app.curriculum.models import LessonProgress
     from app.achievements.models import UserStatistics
     from app.achievements.xp_service import get_level_info
+    from app.curriculum.models import LessonProgress
+    from app.study.models import UserWord
     from app.telegram.queries import get_current_streak
 
     # Words learned (any status means user is studying it)
@@ -691,11 +689,12 @@ def referrals():
 def public_profile(username: str):
     """Public user achievement showcase — no login required."""
     from flask import abort
-    from app.study.models import UserAchievement, Achievement
+
     from app.achievements.models import UserStatistics
     from app.achievements.xp_service import get_level_info
-    from app.telegram.queries import get_current_streak
     from app.curriculum.models import LessonProgress
+    from app.study.models import Achievement, UserAchievement
+    from app.telegram.queries import get_current_streak
 
     user = User.query.filter_by(username=username, active=True).first()
     if not user:
@@ -745,6 +744,7 @@ def public_profile(username: str):
 def public_streak(username: str):
     """Public streak page with activity calendar."""
     from flask import abort
+
     from app.achievements.streak_service import get_streak_calendar
 
     user = User.query.filter_by(username=username, active=True).first()

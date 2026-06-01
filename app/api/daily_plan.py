@@ -1,16 +1,15 @@
 """API endpoints for daily plan and summary."""
 
 import logging
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
-from zoneinfo import ZoneInfo
 
 from app import csrf
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.utils.db import db
-
 from config.settings import DEFAULT_TIMEZONE
 
 api_daily_plan = Blueprint('api_daily_plan', __name__)
@@ -26,9 +25,11 @@ def _count_leech_suspended(user_id: int) -> int:
     leeched in both directions counts as one suspended item for the UI toast.
     """
     from datetime import datetime, timezone
-    from sqlalchemy import func, distinct
-    from app.study.models import UserCardDirection, UserWord
+
+    from sqlalchemy import distinct, func
+
     from app.srs.constants import LEECH_THRESHOLD
+    from app.study.models import UserCardDirection, UserWord
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     try:
@@ -91,7 +92,9 @@ def _sync_unified_route_steps(
     flaky route-progress write never breaks the daily-status response.
     """
     from datetime import datetime
+
     import pytz as _pytz
+
     from app.daily_plan.route_progress import (
         PHASE_STEP_WEIGHTS,
         add_route_steps_idempotent,
@@ -121,9 +124,10 @@ def _sync_unified_route_steps(
 
 def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
     """Return recovery suggestion when yesterday's plan was not secured, else None."""
-    import pytz
     from datetime import datetime, timedelta
-    from app.auth.models import User
+
+    import pytz
+
     from app.daily_plan.models import DailyPlanLog
 
     try:
@@ -149,9 +153,11 @@ def _compute_listening_goal(user, tz: str) -> dict:
     Returns dict with listening_goal_minutes, listening_minutes_today,
     listening_goal_reached.
     """
-    import pytz
     from datetime import datetime
-    from app.curriculum.models import ListeningAttempt, Lessons
+
+    import pytz
+
+    from app.curriculum.models import Lessons, ListeningAttempt
 
     goal = (user.listening_goal_minutes or 0) if user.listening_goal_minutes is not None else 10
 
@@ -212,8 +218,10 @@ def _compute_listening_goal(user, tz: str) -> dict:
 
 def _compute_study_minutes(user, tz: str) -> int:
     """Return minutes_studied_today from DailyStudyMinutes for the user's local date."""
-    import pytz
     from datetime import datetime
+
+    import pytz
+
     from app.curriculum.models import get_minutes_today
     from app.utils.db import db
 
@@ -236,10 +244,12 @@ def _compute_goal_progress(user, tz: str) -> dict:
     Returns dict with goal_progress containing daily_words and weekly_lessons
     sub-dicts, each with goal, actual, and reached fields.
     """
-    import pytz
     from datetime import datetime, timedelta
-    from app.srs.counting import count_new_cards_today
+
+    import pytz
+
     from app.curriculum.models import LessonProgress
+    from app.srs.counting import count_new_cards_today
 
     daily_word_goal = user.daily_word_goal if user.daily_word_goal is not None else 10
     weekly_lesson_goal = user.weekly_lesson_goal if user.weekly_lesson_goal is not None else 5
@@ -282,9 +292,9 @@ def _compute_goal_progress(user, tz: str) -> dict:
 @api_auth_required
 def daily_status():
     """Unified daily status: plan + summary + streak + yesterday — one request."""
+    from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_daily_summary, get_yesterday_summary
-    from app.achievements.streak_service import compute_plan_steps, process_streak_on_activity
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
 
@@ -315,7 +325,9 @@ def daily_status():
 
     if day_secured:
         from datetime import datetime
+
         import pytz
+
         from app.daily_plan.service import write_secured_at
         try:
             tz_obj = pytz.timezone(tz)
@@ -362,7 +374,12 @@ def daily_status():
     goal_progress_data = _compute_goal_progress(current_user, tz)
     minutes_studied_today = _compute_study_minutes(current_user, tz)
 
-    from app.achievements.streak_service import get_listening_streak, get_writing_streak, get_speaking_streak, get_immersion_streak
+    from app.achievements.streak_service import (
+        get_immersion_streak,
+        get_listening_streak,
+        get_speaking_streak,
+        get_writing_streak,
+    )
     listening_streak_days = get_listening_streak(user_id, tz=tz)
     writing_streak_days = get_writing_streak(user_id, tz=tz)
     speaking_streak_days = get_speaking_streak(user_id, tz=tz)
@@ -433,10 +450,10 @@ def daily_plan():
         bonus: Extra tasks available
         route_state: Current route progress state
     """
-    from app.daily_plan.service import get_daily_plan_unified
-    from app.daily_plan.route_progress import get_route_state
-    from app.telegram.queries import get_daily_summary
     from app.achievements.streak_service import compute_plan_steps
+    from app.daily_plan.route_progress import get_route_state
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.telegram.queries import get_daily_summary
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
@@ -530,13 +547,15 @@ def daily_race_status():
     sorted leaderboard with ghost fillers included.
     """
     from datetime import datetime
+
     import pytz
-    from app.auth.models import User
+
     from app.achievements.daily_race import (
         CHALLENGE_BONUS_POINTS,
         get_race_standings,
         is_daily_race_enabled,
     )
+    from app.auth.models import User
     from app.daily_plan.challenge import get_today_challenge
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
@@ -698,7 +717,10 @@ def record_daily_plan_event():
         reason_text (str, optional): human-readable reason string for next_step_shown
         plan_date (str, optional): ISO date string; defaults to today in user tz
     """
-    from datetime import date as date_cls, datetime as datetime_cls, timezone, timedelta
+    from datetime import date as date_cls
+    from datetime import datetime as datetime_cls
+    from datetime import timedelta
+
     from app.daily_plan.models import DailyPlanEvent
 
     if not request.is_json:
@@ -764,12 +786,12 @@ def record_daily_plan_event():
                 f'reason must be one of: {", ".join(sorted(_SKIP_REASONS))}',
                 400,
             )
+        from app.daily_plan.plan import get_daily_plan as get_unified_plan
         from app.daily_plan.skips import (
             DAILY_SLOT_SKIP_QUOTA,
             get_slot_skip_key,
             get_slot_skips_used_today,
         )
-        from app.daily_plan.plan import get_daily_plan as get_unified_plan
 
         skips_used = get_slot_skips_used_today(current_user.id, plan_date, db)
         if skips_used >= DAILY_SLOT_SKIP_QUOTA:
@@ -843,6 +865,7 @@ def emit_minimum_completed(user_id: int, mission_type: str | None, plan_date) ->
     Uses savepoint so concurrent requests don't corrupt the outer transaction.
     """
     from sqlalchemy.exc import IntegrityError
+
     from app.daily_plan.models import DailyPlanEvent
 
     existing = DailyPlanEvent.query.filter_by(
@@ -990,9 +1013,10 @@ def plan_pause():
     Inserts StreakEvent(event_type='plan_pause') for each paused day so streak
     calculation treats those days as neutral (not a gap).
     """
-    from datetime import date, timedelta
-    from app.auth.models import User
+    from datetime import timedelta
+
     from app.achievements.models import StreakEvent
+    from app.auth.models import User
 
     body = request.get_json(silent=True) or {}
     days = body.get('days')
@@ -1042,9 +1066,8 @@ def plan_resume():
 
     Deletes future plan_pause StreakEvents so streak resumes normally.
     """
-    from datetime import date
-    from app.auth.models import User
     from app.achievements.models import StreakEvent
+    from app.auth.models import User
 
     user = db.session.get(User, current_user.id)
     if user is None:
@@ -1073,7 +1096,7 @@ def plan_resume():
 @api_auth_required
 def streak_repair():
     """Pay streak coins to repair a broken streak."""
-    from app.achievements.streak_service import find_missed_date, apply_paid_repair
+    from app.achievements.streak_service import apply_paid_repair, find_missed_date
     from app.telegram.queries import get_current_streak
 
     user_id = current_user.id
@@ -1106,8 +1129,8 @@ def challenge_complete():
 
     Returns completion status. Idempotent — repeated calls return already_completed=True.
     """
-    from app.daily_plan.challenge import complete_challenge
     from app.achievements.xp_service import award_xp
+    from app.daily_plan.challenge import complete_challenge
 
     body = request.get_json(silent=True) or {}
     challenge_id = body.get('challenge_id')
@@ -1205,6 +1228,7 @@ def skip_lesson():
         429 skip_quota_exhausted — daily lesson-skip quota (1) already used
     """
     from datetime import timedelta
+
     from sqlalchemy.exc import IntegrityError
 
     from app.curriculum.models import Lessons

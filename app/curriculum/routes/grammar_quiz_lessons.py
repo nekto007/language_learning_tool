@@ -7,13 +7,12 @@ from datetime import UTC, datetime
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from marshmallow import ValidationError
-
 from sqlalchemy.orm import joinedload
 
+from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
-from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
 from app.curriculum.validators import LessonContentValidator
@@ -1182,7 +1181,7 @@ def final_test_results(lesson_id):
         is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
             'final_test', lesson.content
         )
-    except ValidationError as e:
+    except ValidationError:
         flash('Ошибка в содержимом теста', 'error')
         return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
 

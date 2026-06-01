@@ -2,7 +2,7 @@ import logging
 import os
 import tempfile
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, request, send_file
 from flask_login import current_user
 
 from app.api.decorators import api_auth_required

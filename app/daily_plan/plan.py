@@ -400,17 +400,17 @@ def get_daily_plan(
     db_session: Any = None,
 ) -> dict[str, Any]:
     """Assemble the unified daily plan payload for the user."""
+    from app.daily_plan.linear.chain import _get_plan_difficulty
     from app.daily_plan.linear.plan import (
+        _get_user_focus,
         _level_progress_to_dict,
         _position_from_lesson,
-        _get_user_focus,
         get_plan_intensity,
     )
     from app.daily_plan.linear.progression import (
         find_next_lesson_linear,
         get_user_level_progress,
     )
-    from app.daily_plan.linear.chain import _get_plan_difficulty
     from app.utils.db import db
 
     session = db_session if db_session is not None else db

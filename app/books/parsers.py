@@ -145,7 +145,7 @@ def extract_fb2_cover(root, namespace):
     """Извлекает обложку из FB2 файла"""
     try:
         import base64
-        
+
         # Ищем coverpage
         coverpage = root.find('.//' + namespace + 'coverpage')
         if coverpage is None:
