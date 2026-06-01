@@ -10,6 +10,7 @@ from sqlalchemy import desc, func, or_
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.request_validators import escape_like
 from app.api.errors import api_error
 from app.auth.models import User
 from app.feedback.models import (
@@ -64,14 +65,14 @@ def feedback_index():
     elif assignee.isdigit():
         query = query.filter(Feedback.assignee_admin_id == int(assignee))
     if q:
-        like = f'%{q}%'
+        like = f'%{escape_like(q)}%'
         query = query.filter(
             or_(
-                Feedback.message.ilike(like),
-                Feedback.url.ilike(like),
-                Feedback.user_agent.ilike(like),
-                User.email.ilike(like),
-                User.username.ilike(like),
+                Feedback.message.ilike(like, escape='\\'),
+                Feedback.url.ilike(like, escape='\\'),
+                Feedback.user_agent.ilike(like, escape='\\'),
+                User.email.ilike(like, escape='\\'),
+                User.username.ilike(like, escape='\\'),
             )
         )
     if date_from:
@@ -158,10 +159,27 @@ def feedback_index():
 def feedback_detail(feedback_id: int):
     """Full thread view for admins: meta + screenshot + reply form."""
     row = Feedback.query.get_or_404(feedback_id)
-    # Auto-mark seen on first admin open so the unread badge clears.
     if row.status == 'new':
         row.status = 'seen'
-        db.session.commit()
+    try:
+        from app.notifications.models import Notification
+
+        admin_link = url_for('feedback_admin.feedback_detail', feedback_id=feedback_id)
+        updated = (
+            Notification.query
+            .filter(
+                Notification.user_id == current_user.id,
+                Notification.type == 'feedback',
+                Notification.link == admin_link,
+                Notification.read.is_(False),
+            )
+            .update({'read': True}, synchronize_session=False)
+        )
+        if row.status == 'seen' or updated:
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.warning('feedback_admin_mark_read_failed id=%s', feedback_id, exc_info=True)
     return render_template(
         'admin/feedback/detail.html',
         feedback=row,

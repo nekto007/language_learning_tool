@@ -388,7 +388,7 @@ def _notify_admins_of_feedback(feedback_row) -> None:
     if len(feedback_row.message) > 120:
         preview += '…'
 
-    admins = User.query.filter_by(is_admin=True).all()
+    admins = User.query.filter(User.is_admin.is_(True), User.active.is_(True)).all()
     detail_path = url_for('feedback_admin.feedback_detail', feedback_id=feedback_row.id)
     for admin in admins:
         create_notification(
@@ -418,7 +418,7 @@ def _notify_admins_of_reply(feedback_row, reply) -> None:
     if len(reply.body) > 120:
         preview += '…'
 
-    admins = User.query.filter_by(is_admin=True).all()
+    admins = User.query.filter(User.is_admin.is_(True), User.active.is_(True)).all()
     detail_path = url_for('feedback_admin.feedback_detail', feedback_id=feedback_row.id)
     for admin in admins:
         create_notification(
