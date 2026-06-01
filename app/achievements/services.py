@@ -811,13 +811,6 @@ class AchievementService:
         """
         import pytz
 
-        from app.daily_plan.models import MissionType
-
-        if isinstance(mission_type, MissionType):
-            mission_type.value
-        else:
-            str(mission_type)
-
         if completion_time is None:
             completion_time = datetime.now(timezone.utc)
         elif completion_time.tzinfo is None:

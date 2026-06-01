@@ -85,10 +85,10 @@ Systematic production-readiness cleanup: remove confirmed dead code (mission/*, 
 **Files:**
 - Modify: `app/achievements/xp_service.py`, `app/achievements/services.py`, `app/achievements/streak_service.py`, `app/srs/service.py`, `app/srs/counting.py`, `app/books/vocab_pull.py`, `app/books/reading_session.py`
 
-- [ ] удалить TODO-комментарии которые уже реализованы
-- [ ] добавить отсутствующие return type hints к публичным функциям
-- [ ] убрать мёртвые ветки (закомментированный старый код)
-- [ ] run pytest -m smoke
+- [x] удалить TODO-комментарии которые уже реализованы
+- [x] добавить отсутствующие return type hints к публичным функциям
+- [x] убрать мёртвые ветки (закомментированный старый код)
+- [x] run pytest -m smoke
 
 ### Task 7: Чистка — app/admin/, app/api/, app/auth/, app/__init__.py
 

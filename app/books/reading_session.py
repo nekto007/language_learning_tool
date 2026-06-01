@@ -78,7 +78,7 @@ def _session_credit_seconds(
     return min(elapsed, OPEN_SESSION_GRACE_SECONDS)
 
 
-def _sessions_in_local_day_filter(start_utc: datetime, end_utc: datetime):
+def _sessions_in_local_day_filter(start_utc: datetime, end_utc: datetime) -> Any:
     """SQLAlchemy predicate matching closed sessions by ``ended_at`` AND
     open sessions by ``started_at`` within the user's local-day window.
 

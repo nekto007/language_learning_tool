@@ -166,10 +166,6 @@ class UnifiedSRSService:
         if not state or state == 'new':
             state = CardState.NEW.value
 
-        # =========================================================================
-        # Handle based on current state
-        # =========================================================================
-
         if state == CardState.NEW.value:
             result = UnifiedSRSService._handle_new(rating, ease_factor)
 
