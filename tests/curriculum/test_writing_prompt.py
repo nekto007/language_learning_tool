@@ -460,8 +460,9 @@ class TestWritingPromptTask28:
         _login(client, test_user)
         resp = client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
         html = resp.get_data(as_text=True)
-        # Count <input type="checkbox"> elements rendered from checklist loop
-        assert html.count('type="checkbox"') == 4
+        # Count checklist inputs only; the global feedback widget can also
+        # render checkboxes on authenticated pages.
+        assert html.count('class="writing-prompt-checkbox"') == 4
 
     # --- Checklist threshold gating in JS ---
 
