@@ -186,7 +186,6 @@ def _count_grammar_due(user_id: int) -> int:
     ) or 0
 
 
-
 def _get_remaining_card_budget(user_id: int) -> tuple[int, int]:
     """Return (remaining_new, remaining_reviews) the user can still study today.
 
@@ -603,32 +602,13 @@ def assemble_repair_mission(
     has_srs_recall = recall_count > 0
 
     if srs_due == 0 and grammar_due == 0:
-        track: Optional[SourceKind] = None
         logger.warning(
             "assemble_repair_mission: no SRS or grammar due for user_id=%s, degrading to progress mission",
             user_id,
         )
-        if track == SourceKind.books:
-            reading_plan = assemble_reading_mission(
-                user_id,
-                reason_code="progress_next_step",
-                reason_text="Всё повторено — продолжаем чтение",
-                tz=tz,
-            )
-            if reading_plan is not None:
-                return reading_plan
-            logger.warning(
-                "assemble_repair_mission: reading mission returned None for user_id=%s, degrading to progress",
-                user_id,
-            )
-            track = SourceKind.normal_course
-        primary_source = (
-            track if track in (SourceKind.normal_course, SourceKind.book_course)
-            else SourceKind.normal_course
-        )
         return assemble_progress_mission(
             user_id,
-            primary_source,
+            SourceKind.normal_course,
             reason_code="progress_next_step",
             reason_text="Всё повторено — двигаемся дальше по курсу",
             tz=tz,

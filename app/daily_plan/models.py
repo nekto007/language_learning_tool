@@ -224,8 +224,6 @@ class MissionPlan:
                 seen_categories[cat] = i
 
 
-# ── Lesson skip ─────────────────────────────────────────────────────────────
-
 class LessonSkip(db.Model):
     """Records a user deferring a curriculum lesson to the next calendar day.
 
@@ -247,8 +245,6 @@ class LessonSkip(db.Model):
         Index('idx_lesson_skips_user_defer', 'user_id', 'defer_until_date'),
     )
 
-
-# ── Daily challenge ──────────────────────────────────────────────────────────
 
 CHALLENGE_CATEGORIES = ('speed_run', 'accuracy_focus', 'listening_deep')
 

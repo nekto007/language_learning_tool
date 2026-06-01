@@ -30,11 +30,9 @@ from app.achievements.xp_service import (
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
 # Mapping: curriculum lesson.type → LINEAR_XP source key.
 # Legacy aliases ("matching", "text", "flashcards") collapse onto the
 # closest canonical source so older content still earns XP.
-# ---------------------------------------------------------------------------
 LESSON_TYPE_TO_SOURCE: dict[str, str] = {
     'card': 'linear_curriculum_card',
     'flashcards': 'linear_curriculum_card',

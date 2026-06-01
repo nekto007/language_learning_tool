@@ -484,7 +484,6 @@ def get_daily_plan(
     }
 
 
-
 def _compute_module_progress(user_id: int, db: Any, next_lesson: Any) -> Optional[dict[str, Any]]:
     """Return module title + remaining-lessons count, or None if no module.
 
