@@ -985,7 +985,7 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
             # they previously credited substantively wrong answers.
 
             if correct_answer is None:
-                is_correct = True
+                is_correct = False
             else:
                 if isinstance(correct_answer, list):
                     candidates = list(correct_answer)

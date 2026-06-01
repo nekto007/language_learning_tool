@@ -91,9 +91,7 @@ def submit_feedback():
             400,
         )
 
-    priority = (source.get('priority') or 'normal').strip().lower()
-    if priority not in FEEDBACK_PRIORITIES:
-        priority = 'normal'
+    priority = 'normal'
 
     message = (source.get('message') or '').strip()
     if not message:

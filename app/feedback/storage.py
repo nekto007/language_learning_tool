@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 FEEDBACK_UPLOAD_FOLDER = os.path.join(UPLOAD_BASE_FOLDER, 'feedback')
 MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024  # 5 MiB — matches cover limit
-ALLOWED_SCREENSHOT_FORMATS = frozenset({'PNG', 'JPEG', 'GIF', 'WEBP'})
+ALLOWED_SCREENSHOT_FORMATS = frozenset({'PNG', 'JPEG', 'WEBP'})
 MAX_SCREENSHOT_DIMENSION = 2400  # downscale runaway hi-DPI captures
 
 
