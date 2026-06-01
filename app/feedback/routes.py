@@ -212,16 +212,130 @@ def my_feedback_list():
 @feedback_bp.route('/feedback/<int:feedback_id>', methods=['GET'])
 @login_required
 def thread_view(feedback_id: int):
-    """Single-thread page — owner or admin only."""
+    """Single-thread page — owner or admin only.
+
+    Marks all unread ``feedback`` notifications linked to this thread as
+    read on open, so the FAB / bell badge counters clear immediately.
+    """
     row = Feedback.query.get_or_404(feedback_id)
     if row.user_id != current_user.id and not current_user.is_admin:
         abort(403)
+
+    try:
+        from app.notifications.models import Notification
+
+        thread_link = url_for('feedback.thread_view', feedback_id=row.id)
+        updated = (
+            Notification.query
+            .filter(
+                Notification.user_id == current_user.id,
+                Notification.type == 'feedback',
+                Notification.link == thread_link,
+                Notification.read.is_(False),
+            )
+            .update({'read': True}, synchronize_session=False)
+        )
+        if updated:
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.warning('feedback_mark_read_failed thread=%s', feedback_id, exc_info=True)
+
     return render_template(
         'feedback/thread.html',
         feedback=row,
         replies=row.replies,
         is_admin_view=False,
     )
+
+
+@feedback_bp.route('/api/feedback/threads', methods=['GET'])
+@login_required
+def thread_list_api():
+    """Recent threads for the FAB popup. Owner-only (excludes admin view)."""
+    from app.notifications.models import Notification
+
+    limit = max(1, min(int(request.args.get('limit', 5) or 5), 20))
+    rows = (
+        Feedback.query
+        .filter(Feedback.user_id == current_user.id)
+        .order_by(Feedback.updated_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    if not rows:
+        return jsonify({'success': True, 'threads': []})
+
+    # Unread badge per thread = unread feedback notifications matching the
+    # thread URL. Batch the lookup so we don't N+1 the notifications table.
+    links = {
+        row.id: url_for('feedback.thread_view', feedback_id=row.id)
+        for row in rows
+    }
+    unread_rows = (
+        db.session.query(Notification.link, db.func.count(Notification.id))
+        .filter(
+            Notification.user_id == current_user.id,
+            Notification.type == 'feedback',
+            Notification.read.is_(False),
+            Notification.link.in_(list(links.values())),
+        )
+        .group_by(Notification.link)
+        .all()
+    )
+    unread_by_link = {link: int(cnt) for link, cnt in unread_rows}
+
+    threads = []
+    for row in rows:
+        # Last reply preview — quick scan of the thread's tail.
+        last_reply = row.replies[-1] if row.replies else None
+        if last_reply is not None:
+            preview = last_reply.body
+            last_is_admin = bool(last_reply.is_admin)
+            last_at = last_reply.created_at
+        else:
+            preview = row.message
+            last_is_admin = False
+            last_at = row.created_at
+        if preview and len(preview) > 140:
+            preview = preview[:140] + '…'
+        threads.append({
+            'id': row.id,
+            'url': links[row.id],
+            'category': row.category,
+            'status': row.status,
+            'preview': preview,
+            'last_at': last_at.isoformat() if last_at else None,
+            'last_is_admin': last_is_admin,
+            'unread': unread_by_link.get(links[row.id], 0),
+        })
+    return jsonify({'success': True, 'threads': threads})
+
+
+@feedback_bp.route('/api/feedback/unread-count', methods=['GET'])
+@login_required
+def unread_count():
+    """Number of unread admin-reply notifications for the FAB badge.
+
+    Counts in-app ``Notification(type='feedback', read=False)`` rows for
+    the current user. Admins also see a count of incoming feedback
+    submissions / replies from users via the same notification fan-out,
+    so the FAB badge mirrors what's in the bell dropdown — one signal,
+    one source of truth.
+    """
+    from app.notifications.models import Notification
+
+    count = (
+        Notification.query
+        .filter(
+            Notification.user_id == current_user.id,
+            Notification.type == 'feedback',
+            Notification.read.is_(False),
+        )
+        .count()
+    )
+    return jsonify({'success': True, 'count': int(count)})
 
 
 @feedback_bp.route('/feedback/screenshots/<path:rel_path>', methods=['GET'])
@@ -252,7 +366,7 @@ _CATEGORY_ICONS = {'bug': '🐞', 'idea': '💡', 'question': '❓'}
 
 
 def _notify_admins_of_feedback(feedback_row) -> None:
-    """Fan out an in-app notification to every admin user."""
+    """Fan out an in-app notification + Telegram ping to every admin user."""
     from app.auth.models import User
     from app.notifications.services import create_notification
 
@@ -262,23 +376,29 @@ def _notify_admins_of_feedback(feedback_row) -> None:
     if len(feedback_row.message) > 120:
         preview += '…'
 
-    admin_ids = [
-        r[0] for r in
-        User.query.filter_by(is_admin=True).with_entities(User.id).all()
-    ]
-    for admin_id in admin_ids:
+    admins = User.query.filter_by(is_admin=True).all()
+    detail_path = url_for('feedback_admin.feedback_detail', feedback_id=feedback_row.id)
+    for admin in admins:
         create_notification(
-            user_id=admin_id,
+            user_id=admin.id,
             type='feedback',
             title=f'Новая обратная связь: {label}',
             message=preview,
-            link=url_for('feedback_admin.feedback_detail', feedback_id=feedback_row.id),
+            link=detail_path,
             icon=icon,
         )
 
+    _send_admin_telegram(
+        admins,
+        title=f'{icon} <b>Новая обратная связь</b>: {label}',
+        body=feedback_row.message,
+        author=feedback_row.user,
+        detail_path=detail_path,
+    )
+
 
 def _notify_admins_of_reply(feedback_row, reply) -> None:
-    """Fan out a notification on a user reply so admins see the bump."""
+    """Fan out an in-app notification + Telegram ping on a user reply."""
     from app.auth.models import User
     from app.notifications.services import create_notification
 
@@ -286,19 +406,98 @@ def _notify_admins_of_reply(feedback_row, reply) -> None:
     if len(reply.body) > 120:
         preview += '…'
 
-    admin_ids = [
-        r[0] for r in
-        User.query.filter_by(is_admin=True).with_entities(User.id).all()
-    ]
-    for admin_id in admin_ids:
+    admins = User.query.filter_by(is_admin=True).all()
+    detail_path = url_for('feedback_admin.feedback_detail', feedback_id=feedback_row.id)
+    for admin in admins:
         create_notification(
-            user_id=admin_id,
+            user_id=admin.id,
             type='feedback',
             title=f'Ответ в обратной связи #{feedback_row.id}',
             message=preview,
-            link=url_for('feedback_admin.feedback_detail', feedback_id=feedback_row.id),
+            link=detail_path,
             icon='💬',
         )
+
+    _send_admin_telegram(
+        admins,
+        title=f'💬 <b>Ответ в обращении #{feedback_row.id}</b>',
+        body=reply.body,
+        author=reply.author,
+        detail_path=detail_path,
+    )
+
+
+def _send_admin_telegram(admins, *, title: str, body: str, author, detail_path: str) -> None:
+    """Best-effort Telegram fan-out to admins linked to the bot.
+
+    Quiet on missing bot token, missing TelegramUser link, or HTTP errors —
+    the in-app notification path is the authoritative channel; Telegram is
+    a convenience push so the operator notices new tickets without sitting
+    on the dashboard. Failures here MUST NOT block the feedback save.
+    """
+    try:
+        from flask import current_app, has_request_context, request
+
+        from app.telegram.bot import send_message
+        from app.telegram.models import TelegramUser
+
+        admin_ids = [a.id for a in admins if a is not None]
+        if not admin_ids:
+            return
+
+        links = (
+            TelegramUser.query
+            .filter(
+                TelegramUser.user_id.in_(admin_ids),
+                TelegramUser.is_active.is_(True),
+                TelegramUser.telegram_id.isnot(None),
+            )
+            .all()
+        )
+        if not links:
+            return
+
+        # Build an absolute URL when possible — Telegram opens links in
+        # external browser; relative paths render unclickable.
+        absolute_url = detail_path
+        try:
+            if has_request_context():
+                absolute_url = request.url_root.rstrip('/') + detail_path
+            else:
+                site_url = current_app.config.get('SITE_URL')
+                if site_url:
+                    absolute_url = site_url.rstrip('/') + detail_path
+        except Exception:
+            pass
+
+        author_label = (
+            f'{getattr(author, "username", None) or "—"} '
+            f'(id={getattr(author, "id", None) or "—"})'
+        )
+        preview = (body or '').strip()
+        if len(preview) > 600:
+            preview = preview[:600] + '…'
+        # Escape HTML special chars in user-provided text to keep parse_mode=HTML safe.
+        import html as _html
+        preview = _html.escape(preview)
+        author_label = _html.escape(author_label)
+
+        text = (
+            f'{title}\n'
+            f'От: {author_label}\n\n'
+            f'{preview}\n\n'
+            f'<a href="{_html.escape(absolute_url)}">Открыть в админке →</a>'
+        )
+
+        for link in links:
+            try:
+                send_message(int(link.telegram_id), text, parse_mode='HTML')
+            except Exception:
+                logger.warning(
+                    'feedback_telegram_send_failed user_id=%s', link.user_id, exc_info=True,
+                )
+    except Exception:
+        logger.warning('feedback_telegram_fanout_failed', exc_info=True)
 
 
 def notify_user_of_admin_reply(feedback_row, reply) -> None:

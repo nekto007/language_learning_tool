@@ -1,14 +1,32 @@
-{# In-app feedback widget: floating launcher + modal.
-   Posts multipart to /api/feedback (login_required, rate-limited).
-   Captures optional screenshot + page-info meta. #}
+{# In-app feedback widget: floating launcher → popup with threads + "new"
+   button → modal for new submission. Tracks unread admin replies on the
+   FAB itself (badge), so the user sees activity without opening the bell. #}
 <button type="button"
         id="feedback-fab"
         class="feedback-fab"
-        aria-label="Сообщить о баге или предложить идею"
+        aria-label="Обратная связь"
         title="Обратная связь">
     <i class="fas fa-comment-dots" aria-hidden="true"></i>
+    <span id="feedback-fab-badge" class="feedback-fab__badge" hidden>0</span>
 </button>
 
+{# Popup menu — list of recent threads + "new" launcher. #}
+<div id="feedback-popup" class="feedback-popup" hidden role="dialog" aria-label="Обратная связь">
+    <div class="feedback-popup__header">
+        <span class="feedback-popup__title">Обратная связь</span>
+        <button type="button" class="feedback-popup__close" data-feedback-popup-close="true" aria-label="Закрыть">&times;</button>
+    </div>
+    <button type="button" id="feedback-popup-new" class="feedback-popup__new">
+        <i class="fas fa-plus" aria-hidden="true"></i>
+        <span>Новое обращение</span>
+    </button>
+    <div id="feedback-popup-list" class="feedback-popup__list">
+        <div class="feedback-popup__empty" id="feedback-popup-loading">Загрузка…</div>
+    </div>
+    <a href="/feedback" class="feedback-popup__footer-link">Все мои обращения →</a>
+</div>
+
+{# Modal for new submission. #}
 <div id="feedback-modal" class="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title" hidden>
     <div class="feedback-modal__backdrop" data-feedback-close="true"></div>
     <div class="feedback-modal__panel" role="document">
@@ -80,6 +98,11 @@
 <script nonce="{{ csp_nonce }}">
 (function() {
     var fab = document.getElementById('feedback-fab');
+    var fabBadge = document.getElementById('feedback-fab-badge');
+    var popup = document.getElementById('feedback-popup');
+    var popupList = document.getElementById('feedback-popup-list');
+    var popupLoading = document.getElementById('feedback-popup-loading');
+    var popupNewBtn = document.getElementById('feedback-popup-new');
     var modal = document.getElementById('feedback-modal');
     var form = document.getElementById('feedback-form');
     var submitBtn = document.getElementById('feedback-submit');
@@ -90,12 +113,100 @@
     var preview = document.getElementById('feedback-screenshot-preview');
     var previewImg = document.getElementById('feedback-screenshot-img');
     var previewClear = document.getElementById('feedback-screenshot-clear');
-    if (!fab || !modal || !form) return;
+    if (!fab || !modal || !form || !popup) return;
 
     var MAX_BYTES = 5 * 1024 * 1024;
     var inFlight = false;
 
-    function open() {
+    function escapeHtml(text) {
+        var d = document.createElement('div');
+        d.textContent = String(text == null ? '' : text);
+        return d.innerHTML;
+    }
+
+    var CATEGORY_BADGE = {bug: '🐞 Баг', idea: '💡 Идея', question: '❓ Вопрос'};
+    var STATUS_LABEL = {new: 'Новое', seen: 'Просмотрено', in_progress: 'В работе', resolved: 'Закрыто'};
+
+    function renderThreads(threads) {
+        popupList.textContent = '';
+        if (!threads || !threads.length) {
+            var empty = document.createElement('div');
+            empty.className = 'feedback-popup__empty';
+            empty.textContent = 'У вас пока нет обращений.';
+            popupList.appendChild(empty);
+            return;
+        }
+        threads.forEach(function(t) {
+            var a = document.createElement('a');
+            a.className = 'feedback-popup__item';
+            if (t.unread) a.classList.add('feedback-popup__item--unread');
+            a.href = t.url;
+            var head = document.createElement('div');
+            head.className = 'feedback-popup__item-head';
+            head.innerHTML =
+                '<span class="feedback-popup__item-cat">' + escapeHtml(CATEGORY_BADGE[t.category] || t.category) + '</span>' +
+                '<span class="feedback-popup__item-status">' + escapeHtml(STATUS_LABEL[t.status] || t.status) + '</span>';
+            if (t.unread) {
+                head.innerHTML += '<span class="feedback-popup__item-unread" aria-label="Непрочитано">' + escapeHtml(t.unread) + '</span>';
+            }
+            a.appendChild(head);
+            var body = document.createElement('div');
+            body.className = 'feedback-popup__item-body';
+            var prefix = t.last_is_admin ? '<span class="feedback-popup__item-prefix">Команда:</span> ' : '';
+            body.innerHTML = prefix + escapeHtml(t.preview || '');
+            a.appendChild(body);
+            popupList.appendChild(a);
+        });
+    }
+
+    function loadThreads() {
+        if (popupLoading) popupLoading.hidden = false;
+        fetch('/api/feedback/threads?limit=5', {
+            credentials: 'same-origin',
+            headers: {'Accept': 'application/json'},
+        })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (data && data.success) {
+                    renderThreads(data.threads || []);
+                } else {
+                    renderThreads([]);
+                }
+            })
+            .catch(function() { renderThreads([]); });
+    }
+
+    function loadUnreadCount() {
+        fetch('/api/feedback/unread-count', {
+            credentials: 'same-origin',
+            headers: {'Accept': 'application/json'},
+        })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (!data || !data.success) return;
+                var n = parseInt(data.count, 10) || 0;
+                if (n > 0) {
+                    fabBadge.textContent = n > 99 ? '99+' : String(n);
+                    fabBadge.hidden = false;
+                    fab.classList.add('feedback-fab--has-unread');
+                } else {
+                    fabBadge.hidden = true;
+                    fab.classList.remove('feedback-fab--has-unread');
+                }
+            })
+            .catch(function() {});
+    }
+
+    function openPopup() {
+        if (modal && !modal.hidden) return;
+        popup.hidden = false;
+        loadThreads();
+    }
+    function closePopup() {
+        popup.hidden = true;
+    }
+    function openModal() {
+        closePopup();
         modal.hidden = false;
         document.body.classList.add('feedback-modal-open');
         setTimeout(function() {
@@ -103,7 +214,7 @@
             if (firstRadio) firstRadio.focus();
         }, 0);
     }
-    function close() {
+    function closeModal() {
         modal.hidden = true;
         document.body.classList.remove('feedback-modal-open');
         successBox.hidden = true;
@@ -119,12 +230,26 @@
         inFlight = false;
     }
 
-    fab.addEventListener('click', open);
+    fab.addEventListener('click', function() {
+        if (popup.hidden) openPopup(); else closePopup();
+    });
+    popup.querySelectorAll('[data-feedback-popup-close="true"]').forEach(function(el) {
+        el.addEventListener('click', closePopup);
+    });
+    if (popupNewBtn) popupNewBtn.addEventListener('click', openModal);
     modal.querySelectorAll('[data-feedback-close="true"]').forEach(function(el) {
-        el.addEventListener('click', close);
+        el.addEventListener('click', closeModal);
     });
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && !modal.hidden) close();
+        if (e.key !== 'Escape') return;
+        if (!modal.hidden) closeModal();
+        else if (!popup.hidden) closePopup();
+    });
+    // Click outside popup → close.
+    document.addEventListener('click', function(ev) {
+        if (popup.hidden) return;
+        if (popup.contains(ev.target) || fab.contains(ev.target)) return;
+        closePopup();
     });
 
     if (screenshotInput) {
@@ -262,5 +387,145 @@
             submit();
         }
     });
+
+    // Initial badge load + soft polling.
+    loadUnreadCount();
+    setInterval(loadUnreadCount, 60000);
 })();
 </script>
+
+<style nonce="{{ csp_nonce }}">
+.feedback-fab__badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+}
+.feedback-fab--has-unread {
+    animation: feedback-fab-pulse 2s ease-in-out infinite;
+}
+@keyframes feedback-fab-pulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+    50% { box-shadow: 0 4px 18px rgba(239,68,68,0.55); }
+}
+.feedback-popup {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    max-height: 60vh;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(15,23,42,0.18);
+    z-index: 1090;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: inherit;
+}
+.feedback-popup[hidden] { display: none; }
+.feedback-popup__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+.feedback-popup__title { font-weight: 600; color: #0f172a; }
+.feedback-popup__close {
+    background: none;
+    border: 0;
+    font-size: 1.4rem;
+    line-height: 1;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+.feedback-popup__close:hover { color: #475569; }
+.feedback-popup__new {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, #5046e5 0%, #7c3aed 100%);
+    color: #fff;
+    border: 0;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: filter 0.15s;
+}
+.feedback-popup__new:hover { filter: brightness(1.05); }
+.feedback-popup__list { overflow-y: auto; }
+.feedback-popup__empty {
+    padding: 1.25rem 1rem;
+    color: #94a3b8;
+    text-align: center;
+    font-size: 0.85rem;
+}
+.feedback-popup__item {
+    display: block;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid #f1f5f9;
+}
+.feedback-popup__item:hover { background: #f8fafc; }
+.feedback-popup__item--unread { background: #eef2ff; }
+.feedback-popup__item--unread:hover { background: #e0e7ff; }
+.feedback-popup__item-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.78rem;
+}
+.feedback-popup__item-cat { font-weight: 600; color: #0f172a; }
+.feedback-popup__item-status { color: #64748b; }
+.feedback-popup__item-unread {
+    margin-left: auto;
+    background: #ef4444;
+    color: #fff;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.7rem;
+}
+.feedback-popup__item-body {
+    font-size: 0.82rem;
+    color: #475569;
+    line-height: 1.35;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.feedback-popup__item-prefix { font-weight: 600; color: #4338ca; }
+.feedback-popup__footer-link {
+    display: block;
+    text-align: center;
+    padding: 0.6rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    color: #5046e5;
+    font-size: 0.8rem;
+    text-decoration: none;
+    font-weight: 500;
+}
+.feedback-popup__footer-link:hover { background: #f8fafc; }
+</style>
