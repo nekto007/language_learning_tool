@@ -103,7 +103,7 @@
                     <li class="nav-item dropdown">
                         {% set _words_due = get_words_due_count() %}
                         <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics')) %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown" aria-label="Слова">
-                            <i class="fas fa-spell-check"></i><span class="cabinet-nav__label">Слова</span>{% if _words_due %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ _words_due }}</span>{% endif %}
+                            <i class="fas fa-spell-check"></i><span class="cabinet-nav__label">Слова</span>{% if _words_due %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ _words_due if _words_due < 100 else '99+' }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="wordsDropdown">
                             {% if has_module('words') %}
@@ -199,7 +199,7 @@
                         {% set _grammar_due = get_grammar_due_count() %}
                         {% endif %}
                         <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('grammar_lab.') %}active{% endif %}" href="#" id="grammarDropdown" role="button" data-bs-toggle="dropdown" aria-label="Грамматика">
-                            <i class="fas fa-flask"></i><span class="cabinet-nav__label">Грамматика</span>{% if current_user.is_authenticated and _grammar_due %} <span class="badge bg-success rounded-pill ms-1" style="font-size:0.65rem;">{{ _grammar_due }}</span>{% endif %}
+                            <i class="fas fa-flask"></i><span class="cabinet-nav__label">Грамматика</span>{% if current_user.is_authenticated and _grammar_due %} <span class="badge bg-success rounded-pill ms-1" style="font-size:0.65rem;">{{ _grammar_due if _grammar_due < 100 else '99+' }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="grammarDropdown">
                             {% if current_user.is_authenticated %}
@@ -224,11 +224,26 @@
                     {% if current_user.is_authenticated %}
                     <!-- Notification Bell -->
                     <li class="nav-item" style="position: relative;">
-                        <a class="nav-link" href="#" id="notif-bell" style="position: relative;" aria-label="Уведомления" title="Уведомления">
-                            <i class="fas fa-bell"></i>
-                            <span id="notif-badge" style="display:none; position:absolute; top:4px; right:2px; background:#ef4444; color:#fff; font-size:0.65rem; font-weight:700; border-radius:50%; min-width:16px; height:16px; line-height:16px; text-align:center; padding:0 3px;">0</span>
+                        <a class="nav-link" href="#" id="notif-bell" aria-label="Уведомления" title="Уведомления">
+                            {# Wrap icon in a relatively-positioned span so the badge
+                               anchors to the bell itself, not to the full-width
+                               <a> (in the mobile hamburger sidebar the link spans
+                               the whole row and the absolute-positioned badge
+                               drifted to the right viewport edge). #}
+                            <span class="cabinet-nav__icon-wrap" style="position: relative; display: inline-flex;">
+                                <i class="fas fa-bell"></i>
+                                <span id="notif-badge" style="display:none; position:absolute; top:-6px; right:-10px; background:#ef4444; color:#fff; font-size:0.65rem; font-weight:700; border-radius:50%; min-width:16px; height:16px; line-height:16px; text-align:center; padding:0 3px;">0</span>
+                            </span>
+                            <span class="cabinet-nav__label">Уведомления</span>
                         </a>
-                        <div id="notif-panel" style="display:none; position:absolute; right:0; top:100%; width:320px; max-height:400px; overflow-y:auto; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); z-index:1050; padding:0.5rem 0;">
+                        {# Notification dropdown.
+                           ``max-width: calc(100vw - 1.5rem)`` keeps the panel
+                           inside the viewport on tablet/mobile widths — the
+                           default 320px width used to overflow the right edge
+                           and overlap the right-rail widgets when the bell sat
+                           in the hamburger sidebar. z-index lifts above the
+                           dashboard cards (which sit on z-index 1000 default). #}
+                        <div id="notif-panel" class="cabinet-notif-panel" style="display:none; position:absolute; right:0; top:100%; width:320px; max-width: calc(100vw - 1.5rem); max-height:60vh; overflow-y:auto; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); z-index:1080; padding:0.5rem 0;">
                             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 1rem; border-bottom:1px solid #e2e8f0;">
                                 <span style="font-weight:600; font-size:0.9rem;">Уведомления</span>
                                 <a href="#" id="notif-mark-all-read" style="font-size:0.75rem; color:#2563eb; text-decoration:none;">Прочитать все</a>
@@ -241,7 +256,7 @@
                     <!-- Quick Actions -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="quickActionsDropdown" role="button" data-bs-toggle="dropdown" title="Быстрые действия" aria-label="Быстрые действия">
-                            <i class="fas fa-bolt"></i>
+                            <i class="fas fa-bolt"></i><span class="cabinet-nav__label">Быстрые действия</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="quickActionsDropdown">
                             {% if has_module('study') %}
@@ -504,19 +519,23 @@ function loadNotifications() {
             data.notifications.forEach(function(n) {
                 var a = document.createElement('a');
                 a.href = n.link || '#';
-                a.style.cssText = 'display:flex;gap:0.625rem;padding:0.625rem 1rem;text-decoration:none;' + (n.read ? '' : 'background:#f0f7ff;');
+                // align-items:flex-start so the icon sits at the top of a
+                // wrapping title (was center → icon floated mid-line when
+                // the title spanned two lines on iPad/tablet).
+                a.style.cssText = 'display:flex;gap:0.625rem;padding:0.75rem 1rem;text-decoration:none;align-items:flex-start;' + (n.read ? '' : 'background:#f0f7ff;');
                 var icon = document.createElement('span');
-                icon.style.cssText = 'font-size:1.25rem;flex-shrink:0;';
+                icon.style.cssText = 'font-size:1.25rem;flex-shrink:0;line-height:1.2;';
                 icon.textContent = n.icon;
                 a.appendChild(icon);
                 var body = document.createElement('div');
+                body.style.cssText = 'min-width:0;flex:1;';
                 var title = document.createElement('div');
-                title.style.cssText = 'font-size:0.85rem;font-weight:' + (n.read ? '400' : '600') + ';color:#0f172a;';
+                title.style.cssText = 'font-size:0.85rem;font-weight:' + (n.read ? '400' : '600') + ';color:#0f172a;line-height:1.35;word-break:break-word;';
                 title.textContent = n.title;
                 body.appendChild(title);
                 if (n.message) {
                     var msg = document.createElement('div');
-                    msg.style.cssText = 'font-size:0.75rem;color:#64748b;';
+                    msg.style.cssText = 'font-size:0.75rem;color:#64748b;line-height:1.4;word-break:break-word;margin-top:0.125rem;';
                     msg.textContent = n.message;
                     body.appendChild(msg);
                 }
