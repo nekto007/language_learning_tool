@@ -11,7 +11,11 @@ from pathlib import Path
 import pytest
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.routes.lessons import _build_hint_text, _DICTATION_MAX_REPLAYS
+from app.curriculum.routes.lessons import (
+    _build_hint_text,
+    _dictation_hint_budget,
+    _DICTATION_MAX_REPLAYS,
+)
 from app.curriculum.grading import grade_dictation
 from tests.conftest import unique_level_code
 
@@ -21,8 +25,14 @@ from tests.conftest import unique_level_code
 # ---------------------------------------------------------------------------
 
 
-def _make_dictation_lesson(db_session, *, transcript: str = "Hello world", hint_chars: int = 0) -> Lessons:
-    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
+def _make_dictation_lesson(
+    db_session,
+    *,
+    transcript: str = "Hello world",
+    hint_chars: int = 0,
+    level_code: str | None = None,
+) -> Lessons:
+    level = CEFRLevel(code=level_code or unique_level_code(), name="Level", description="d", order=1)
     db_session.add(level)
     db_session.commit()
     module = Module(
@@ -94,6 +104,24 @@ def test_max_replays_is_3():
     assert _DICTATION_MAX_REPLAYS == 3
 
 
+class TestDictationHintBudget:
+    def test_a1_allows_one_hint_per_gap(self):
+        assert _dictation_hint_budget("A1", 6, 1) == 6
+
+    def test_budget_shrinks_by_cefr_level(self):
+        assert _dictation_hint_budget("A2", 8, 1) == 6
+        assert _dictation_hint_budget("B1", 8, 1) == 4
+        assert _dictation_hint_budget("B2", 9, 1) == 3
+        assert _dictation_hint_budget("C1", 8, 1) == 2
+        assert _dictation_hint_budget("C2", 10, 1) == 2
+
+    def test_no_hint_chars_disables_hints(self):
+        assert _dictation_hint_budget("A1", 6, 0) == 0
+
+    def test_unknown_level_uses_middle_budget(self):
+        assert _dictation_hint_budget("X1", 6, 1) == 3
+
+
 # ---------------------------------------------------------------------------
 # Template tests
 # ---------------------------------------------------------------------------
@@ -151,11 +179,14 @@ class TestDictationTemplate:
         assert "Показать подсказки" in tpl
         assert "showDictationHints" in tpl
         assert "data-hint" in tpl
+        assert "dictation-gap-hint-btn" in tpl
 
     def test_hint_limit_explained(self):
         tpl = _read_dictation_template()
         assert "Подсказки скрыты" in tpl
         assert "Их число ограничено" in tpl
+        assert "не снижают оценку" in tpl
+        assert "Доступно подсказок" in tpl
 
     def test_results_div_present(self):
         tpl = _read_dictation_template()

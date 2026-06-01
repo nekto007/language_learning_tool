@@ -116,6 +116,41 @@
   opacity: 0.72;
   cursor: default;
 }
+.dictation-hint-budget {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  font-weight: 700;
+  color: #92400e;
+}
+.dictation-gap-hint-btn {
+  display: none;
+  flex: 0 0 auto;
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-left: 0.2rem;
+  border: 1px solid #f59e0b;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+.dictation-hints-enabled .dictation-gap-hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dictation-gap-hint-btn:hover:not(:disabled) {
+  background: #ffedd5;
+}
+.dictation-gap-hint-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .dictation-gap-panel {
   margin: 0.75rem 0 1rem;
   padding: 1rem 1.05rem;
@@ -250,11 +285,15 @@
     <div class="dictation-input-label">
       <i class="fas fa-pen"></i> {{ _('Запишите услышанное') }}
     </div>
-    {% if hint_chars > 0 %}
+    {% if hint_budget > 0 %}
     <div class="dictation-hint-panel">
       <div class="dictation-hint-panel__text">
         <strong><i class="fas fa-info-circle"></i> {{ _('Подсказки скрыты') }}</strong>
-        {{ _('Можно один раз показать подсказки: откроются первые буквы слов. Их число ограничено, поэтому используйте их только если застряли.') }}
+        {{ _('Подсказки не снижают оценку. Их число ограничено: одна подсказка открывает первые буквы одного выбранного слова.') }}
+        <span class="dictation-hint-budget">
+          {{ _('Доступно подсказок:') }}
+          <span id="dictation-hints-left">{{ hint_budget }}</span> / {{ hint_budget }}
+        </span>
       </div>
       <button class="dictation-hint-toggle" id="dictation-show-hints" type="button">
         <i class="fas fa-lightbulb"></i> {{ _('Показать подсказки') }}
@@ -290,6 +329,15 @@
             onkeydown="handleDictationGapKey(event, {{ segment.index }})"
             onblur="checkDictationWord({{ segment.index }})"
           >
+          {% if hint_budget > 0 %}
+          <button
+            class="dictation-gap-hint-btn"
+            type="button"
+            data-index="{{ segment.index }}"
+            aria-label="{{ _('Показать подсказку для слова') }}"
+            title="{{ _('Показать подсказку для слова') }}"
+          >?</button>
+          {% endif %}
           <span
             class="dictation-gap-feedback{% if completed_value %} dictation-gap-feedback--correct{% endif %}"
             data-index="{{ segment.index }}"
@@ -322,6 +370,7 @@
 const lessonId = {{ lesson.id }};
 const maxReplays = {{ max_replays }};
 const hintChars = {{ hint_chars }};
+const hintBudget = {{ hint_budget }};
 const maxWordAttempts = {{ max_word_attempts }};
 const wordCount = {{ word_items|length }};
 const initialDictationResult = {{ completed_result|tojson if completed_result else 'null' }};
@@ -329,6 +378,7 @@ let replayCount = 0;
 let failedByAttemptLimit = false;
 let submissionStarted = Boolean(initialDictationResult);
 let dictationHintsShown = false;
+let dictationHintsLeft = hintBudget;
 
 function replayAudio() {
   if (replayCount >= maxReplays) return;
@@ -393,6 +443,7 @@ function updateDictationInputState() {
   const lockedCount = document.querySelectorAll('.dictation-gap[data-status="correct"], .dictation-gap[data-status="failed"]').length;
   const counter = document.getElementById('dictation-word-count');
   if (counter) counter.textContent = lockedCount;
+  updateHintButtons();
   if (wordCount > 0 && lockedCount === wordCount && !submissionStarted) {
     submitDictation();
   }
@@ -407,19 +458,38 @@ function syncGapWidth(input) {
 function showDictationHints() {
   if (dictationHintsShown) return;
   dictationHintsShown = true;
-  document.querySelectorAll('.dictation-gap-input').forEach(input => {
-    if (input.disabled || input.value.trim()) return;
-    const hint = input.dataset.hint || '';
-    if (!hint) return;
-    input.value = hint;
-    syncGapWidth(input);
-  });
+  const gapList = document.getElementById('dictation-gap-list');
+  if (gapList) gapList.classList.add('dictation-hints-enabled');
   const btn = document.getElementById('dictation-show-hints');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-check"></i> {{ _("Подсказки показаны") }}';
+    btn.innerHTML = '<i class="fas fa-check"></i> {{ _("Выберите слово") }}';
   }
+  updateHintButtons();
+}
+
+function updateHintButtons() {
+  const leftEl = document.getElementById('dictation-hints-left');
+  if (leftEl) leftEl.textContent = String(Math.max(0, dictationHintsLeft));
+  document.querySelectorAll('.dictation-gap-hint-btn').forEach(btn => {
+    const input = getGapInput(btn.dataset.index);
+    const disabled = dictationHintsLeft <= 0 || !input || input.disabled || Boolean(input.value.trim());
+    btn.disabled = disabled;
+  });
+}
+
+function useDictationHint(index) {
+  if (!dictationHintsShown || dictationHintsLeft <= 0) return;
+  const input = getGapInput(index);
+  if (!input || input.disabled || input.value.trim()) return;
+  const hint = input.dataset.hint || '';
+  if (!hint) return;
+  input.value = hint;
+  dictationHintsLeft = Math.max(0, dictationHintsLeft - 1);
+  syncGapWidth(input);
+  updateHintButtons();
   updateDictationInputState();
+  input.focus();
 }
 
 function handleDictationGapKey(event, index) {
@@ -464,6 +534,7 @@ async function checkDictationWord(index) {
       card.classList.add('dictation-gap--correct');
       input.disabled = true;
       setGapFeedback(index, '✓', 'correct');
+      updateHintButtons();
     } else if (data.exhausted) {
       failedByAttemptLimit = true;
       card.dataset.status = 'failed';
@@ -472,6 +543,7 @@ async function checkDictationWord(index) {
       syncGapWidth(input);
       input.disabled = true;
       setGapFeedback(index, '×', 'failed');
+      updateHintButtons();
     } else {
       card.dataset.status = 'pending';
       setGapAttemptsPips(index, Number(data.attempts_left));
@@ -613,6 +685,15 @@ document.addEventListener('DOMContentLoaded', function() {
   updateDictationInputState();
   const hintsBtn = document.getElementById('dictation-show-hints');
   if (hintsBtn) hintsBtn.addEventListener('click', showDictationHints);
+  document.querySelectorAll('.dictation-gap-hint-btn').forEach(btn => {
+    btn.addEventListener('mousedown', function(event) {
+      event.preventDefault();
+    });
+    btn.addEventListener('click', function() {
+      useDictationHint(Number(btn.dataset.index));
+    });
+  });
+  updateHintButtons();
   if (initialDictationResult) {
     // Restore on reload: silent=true чтобы не дёргать страницу авто-скроллом
     // в случае уже пройденного урока.
