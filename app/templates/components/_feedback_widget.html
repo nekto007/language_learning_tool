@@ -1,5 +1,6 @@
-{# In-app feedback widget: floating launcher + simple modal.
-   Posts to /api/feedback (login_required, rate-limited). #}
+{# In-app feedback widget: floating launcher + modal.
+   Posts multipart to /api/feedback (login_required, rate-limited).
+   Captures optional screenshot + page-info meta. #}
 <button type="button"
         id="feedback-fab"
         class="feedback-fab"
@@ -17,7 +18,7 @@
                 &times;
             </button>
         </div>
-        <form id="feedback-form" class="feedback-modal__body">
+        <form id="feedback-form" class="feedback-modal__body" enctype="multipart/form-data">
             <fieldset class="feedback-modal__categories">
                 <legend class="feedback-modal__label">Что хочется сказать?</legend>
                 <label class="feedback-cat">
@@ -42,8 +43,22 @@
                       class="feedback-modal__textarea"
                       rows="5"
                       maxlength="4000"
-                      placeholder="Опишите, что произошло или что предлагаете."
+                      placeholder="Опишите, что произошло или что предлагаете. Если это баг — какие шаги привели к ошибке."
                       required></textarea>
+
+            <label class="feedback-modal__label feedback-modal__label--attach" for="feedback-screenshot">
+                Скриншот <span class="feedback-modal__hint-inline">(необязательно, PNG/JPG/WEBP до 5 МБ)</span>
+            </label>
+            <input type="file"
+                   id="feedback-screenshot"
+                   name="screenshot"
+                   accept="image/png,image/jpeg,image/gif,image/webp"
+                   class="feedback-modal__file">
+            <div id="feedback-screenshot-preview" class="feedback-modal__preview" hidden>
+                <img id="feedback-screenshot-img" alt="Превью скриншота">
+                <button type="button" id="feedback-screenshot-clear" class="feedback-modal__preview-clear" aria-label="Удалить скриншот">&times;</button>
+            </div>
+
             <p id="feedback-error" class="feedback-modal__error" role="alert" hidden></p>
             <div class="feedback-modal__actions">
                 <button type="button" class="feedback-modal__btn feedback-modal__btn--ghost" data-feedback-close="true">
@@ -57,6 +72,7 @@
         <div id="feedback-success" class="feedback-modal__success" hidden>
             <i class="fas fa-check-circle"></i>
             <p>Спасибо! Передали команде.</p>
+            <a id="feedback-success-link" href="#" class="feedback-modal__success-link">Открыть переписку →</a>
         </div>
     </div>
 </div>
@@ -69,8 +85,14 @@
     var submitBtn = document.getElementById('feedback-submit');
     var errorBox = document.getElementById('feedback-error');
     var successBox = document.getElementById('feedback-success');
+    var successLink = document.getElementById('feedback-success-link');
+    var screenshotInput = document.getElementById('feedback-screenshot');
+    var preview = document.getElementById('feedback-screenshot-preview');
+    var previewImg = document.getElementById('feedback-screenshot-img');
+    var previewClear = document.getElementById('feedback-screenshot-clear');
     if (!fab || !modal || !form) return;
 
+    var MAX_BYTES = 5 * 1024 * 1024;
     var inFlight = false;
 
     function open() {
@@ -84,7 +106,6 @@
     function close() {
         modal.hidden = true;
         document.body.classList.remove('feedback-modal-open');
-        // Reset state so a second open() shows the form again, not the success card.
         successBox.hidden = true;
         form.hidden = false;
         form.reset();
@@ -92,6 +113,9 @@
         errorBox.textContent = '';
         submitBtn.disabled = false;
         submitBtn.textContent = 'Отправить';
+        preview.hidden = true;
+        previewImg.removeAttribute('src');
+        if (successLink) successLink.removeAttribute('href');
         inFlight = false;
     }
 
@@ -102,6 +126,54 @@
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && !modal.hidden) close();
     });
+
+    if (screenshotInput) {
+        screenshotInput.addEventListener('change', function() {
+            errorBox.hidden = true;
+            errorBox.textContent = '';
+            var file = screenshotInput.files && screenshotInput.files[0];
+            if (!file) {
+                preview.hidden = true;
+                previewImg.removeAttribute('src');
+                return;
+            }
+            if (file.size > MAX_BYTES) {
+                errorBox.textContent = 'Скриншот больше 5 МБ. Сожмите или сделайте меньшую область.';
+                errorBox.hidden = false;
+                screenshotInput.value = '';
+                preview.hidden = true;
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                previewImg.src = ev.target.result;
+                preview.hidden = false;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    if (previewClear) {
+        previewClear.addEventListener('click', function() {
+            screenshotInput.value = '';
+            preview.hidden = true;
+            previewImg.removeAttribute('src');
+        });
+    }
+
+    function collectMeta() {
+        var meta = {};
+        try { meta.viewport_width = String(window.innerWidth || ''); } catch (e) {}
+        try { meta.viewport_height = String(window.innerHeight || ''); } catch (e) {}
+        try { meta.screen_width = String((screen && screen.width) || ''); } catch (e) {}
+        try { meta.screen_height = String((screen && screen.height) || ''); } catch (e) {}
+        try { meta.device_pixel_ratio = String(window.devicePixelRatio || ''); } catch (e) {}
+        try { meta.locale = navigator.language || ''; } catch (e) {}
+        try {
+            meta.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        } catch (e) {}
+        try { meta.platform = navigator.platform || ''; } catch (e) {}
+        return meta;
+    }
 
     function submit() {
         if (inFlight) return;
@@ -125,29 +197,40 @@
         submitBtn.disabled = true;
         submitBtn.textContent = 'Отправляю…';
 
-        var meta = document.querySelector('meta[name="csrf-token"]');
-        var csrf = meta ? meta.getAttribute('content') : '';
+        var metaTag = document.querySelector('meta[name="csrf-token"]');
+        var csrf = metaTag ? metaTag.getAttribute('content') : '';
+        var meta = collectMeta();
+
+        var fd = new FormData();
+        fd.append('category', category);
+        fd.append('message', message);
+        fd.append('url', window.location.href);
+        Object.keys(meta).forEach(function(k) {
+            if (meta[k]) fd.append(k, meta[k]);
+        });
+        var file = screenshotInput && screenshotInput.files && screenshotInput.files[0];
+        if (file) fd.append('screenshot', file, file.name || 'screenshot.png');
 
         fetch('/api/feedback', {
             method: 'POST',
             credentials: 'same-origin',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRFToken': csrf,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({
-                category: category,
-                message: message,
-                url: window.location.href,
-            }),
+            body: fd,
         }).then(function(r) {
             if (r.ok) {
-                form.hidden = true;
-                successBox.hidden = false;
-                inFlight = false;
-                setTimeout(close, 1800);
-                return;
+                return r.json().catch(function() { return {}; }).then(function(body) {
+                    form.hidden = true;
+                    successBox.hidden = false;
+                    if (successLink && body.thread_url) {
+                        successLink.href = body.thread_url;
+                    } else if (successLink) {
+                        successLink.style.display = 'none';
+                    }
+                    inFlight = false;
+                });
             }
             return r.json().catch(function() { return {}; }).then(function(body) {
                 var msg = (body && body.message) ? body.message :
@@ -173,7 +256,6 @@
         submit();
     });
 
-    // Ctrl+Enter (or Cmd+Enter on macOS) inside the textarea sends the form.
     form.querySelector('#feedback-message').addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();

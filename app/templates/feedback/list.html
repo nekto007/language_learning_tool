@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Мои обращения{% endblock %}
+
+{% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос'} %}
+{% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто'} %}
+{% set status_classes = {'new': 'fb-status-new', 'seen': 'fb-status-seen', 'in_progress': 'fb-status-progress', 'resolved': 'fb-status-resolved'} %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 760px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h4 mb-0">Мои обращения</h1>
+        <button type="button" id="feedback-fab-mirror" class="btn btn-primary btn-sm"
+                onclick="document.getElementById('feedback-fab').click();">
+            <i class="fas fa-plus me-1"></i>Новое
+        </button>
+    </div>
+
+    {% if not feedbacks %}
+        <div class="alert alert-light text-center py-5">
+            <div class="mb-3" style="font-size: 2.5rem;">💬</div>
+            <p class="mb-1">Вы ещё не отправляли обращений.</p>
+            <p class="text-muted small mb-0">Нажмите на плавающую кнопку справа снизу, чтобы сообщить о баге, поделиться идеей или задать вопрос.</p>
+        </div>
+    {% else %}
+        <div class="list-group">
+            {% for fb in feedbacks %}
+            <a href="{{ url_for('feedback.thread_view', feedback_id=fb.id) }}"
+               class="list-group-item list-group-item-action">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="fw-semibold">{{ category_labels.get(fb.category, fb.category) }}</span>
+                    <small class="badge bg-light text-dark {{ status_classes.get(fb.status, '') }}">
+                        {{ status_labels.get(fb.status, fb.status) }}
+                    </small>
+                </div>
+                <div class="text-body small" style="word-break: break-word;">
+                    {{ fb.message[:160] }}{% if fb.message|length > 160 %}…{% endif %}
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2 text-muted small">
+                    <span>{{ fb.updated_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    {% if fb.replies %}
+                        <span><i class="fas fa-comments me-1"></i>{{ fb.replies|length }} ответ(а)</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

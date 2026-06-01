@@ -9,8 +9,8 @@
 
 {% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'} %}
 {% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info'} %}
-{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'resolved': 'Закрыто'} %}
-{% set status_badges = {'new': 'primary', 'seen': 'warning', 'resolved': 'secondary'} %}
+{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто'} %}
+{% set status_badges = {'new': 'primary', 'seen': 'warning', 'in_progress': 'info', 'resolved': 'secondary'} %}
 
 {% block content %}
 {{ page_header('Обратная связь', 'Сообщения пользователей: баги, идеи, вопросы') }}
@@ -111,7 +111,18 @@
                                 {{ status_labels.get(entry.status, entry.status) }}
                             </span>
                         </td>
-                        <td class="small" style="white-space: pre-wrap; word-break: break-word;">{{ entry.message }}</td>
+                        <td class="small" style="white-space: pre-wrap; word-break: break-word;">
+                            <a href="{{ url_for('feedback_admin.feedback_detail', feedback_id=entry.id) }}"
+                               class="text-decoration-none text-body">
+                                {{ entry.message[:240] }}{% if entry.message|length > 240 %}…{% endif %}
+                            </a>
+                            <div class="text-muted small mt-1">
+                                {% if entry.has_screenshot %}<i class="fas fa-image me-1"></i>скриншот{% endif %}
+                                {% if entry.reply_count %}
+                                    <i class="fas fa-comments ms-2 me-1"></i>{{ entry.reply_count }} ответ(а)
+                                {% endif %}
+                            </div>
+                        </td>
                         <td class="small">
                             {% if entry.user_email %}
                                 <div title="user_id={{ entry.user_id }}">{{ entry.user_username or entry.user_email }}</div>
@@ -125,21 +136,10 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div class="d-flex gap-1 flex-wrap">
-                                {% for st in statuses %}
-                                    {% if st != entry.status %}
-                                    <form method="POST"
-                                          action="{{ url_for('feedback_admin.feedback_set_status', feedback_id=entry.id, page=page, category=filter_category, status=filter_status) }}"
-                                          class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="status" value="{{ st }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-{{ status_badges[st] }}">
-                                            → {{ status_labels[st] }}
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                            <a href="{{ url_for('feedback_admin.feedback_detail', feedback_id=entry.id) }}"
+                               class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye me-1"></i>Открыть
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}

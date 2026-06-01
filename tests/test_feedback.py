@@ -86,13 +86,14 @@ class TestFeedbackApi:
             json={'category': 'bug', 'message': 'админам должно прийти'},
         )
         assert resp.status_code == 201
+        fid = resp.get_json()['id']
 
         for admin in (admin_a, admin_b):
             n = Notification.query.filter_by(
                 user_id=admin.id, type='feedback'
             ).order_by(Notification.id.desc()).first()
             assert n is not None
-            assert n.link == '/admin/feedback'
+            assert n.link == f'/admin/feedback/{fid}'
             assert 'админам' in n.message
 
 

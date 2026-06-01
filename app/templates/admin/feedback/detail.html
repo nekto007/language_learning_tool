@@ -1,0 +1,203 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Обращение #{{ feedback.id }}{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Главная', url_for('dashboard_admin.dashboard')),
+    ('Обратная связь', url_for('feedback_admin.feedback_index')),
+    ('#' ~ feedback.id, ''),
+]) }}
+{% endblock %}
+
+{% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'} %}
+{% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info'} %}
+{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто'} %}
+{% set status_badges = {'new': 'primary', 'seen': 'warning', 'in_progress': 'info', 'resolved': 'secondary'} %}
+
+{% block content %}
+{{ page_header('Обращение #' ~ feedback.id, 'Полная информация и переписка с пользователем') }}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        {# Initial message #}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="badge bg-{{ category_badges.get(feedback.category, 'secondary') }} me-2">
+                        {{ category_labels.get(feedback.category, feedback.category) }}
+                    </span>
+                    <span class="badge bg-{{ status_badges.get(feedback.status, 'secondary') }}">
+                        {{ status_labels.get(feedback.status, feedback.status) }}
+                    </span>
+                </div>
+                <small class="text-muted">{{ feedback.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <strong>{{ author.username if author else 'Пользователь удалён' }}</strong>
+                        {% if author and author.email %}
+                            <div class="text-muted small">{{ author.email }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="white-space: pre-wrap; word-break: break-word;">{{ feedback.message }}</div>
+
+                {% if feedback.screenshot_path %}
+                <div class="mt-4">
+                    <h6 class="text-muted small mb-2"><i class="fas fa-image me-1"></i>Скриншот</h6>
+                    <a href="{{ url_for('feedback.serve_screenshot', rel_path=feedback.screenshot_path|replace('feedback/', '')) }}"
+                       target="_blank" rel="noopener">
+                        <img src="{{ url_for('feedback.serve_screenshot', rel_path=feedback.screenshot_path|replace('feedback/', '')) }}"
+                             alt="Скриншот пользователя"
+                             style="max-width: 100%; max-height: 480px; border: 1px solid #e2e8f0; border-radius: 8px; cursor: zoom-in;">
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Replies thread #}
+        {% if replies %}
+        <div class="mb-3">
+            <h6 class="text-muted mb-3"><i class="fas fa-comments me-1"></i>Переписка ({{ replies|length }})</h6>
+            {% for reply in replies %}
+            <div class="card mb-2 {% if reply.is_admin %}border-info{% else %}border-light{% endif %}">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            {% if reply.is_admin %}
+                                <span class="badge bg-info text-white me-2">Админ</span>
+                            {% else %}
+                                <span class="badge bg-secondary me-2">Пользователь</span>
+                            {% endif %}
+                            <strong class="small">{{ reply.author.username if reply.author else 'удалён' }}</strong>
+                        </div>
+                        <small class="text-muted">{{ reply.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                    </div>
+                    <div style="white-space: pre-wrap; word-break: break-word;">{{ reply.body }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Reply form #}
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-reply me-1"></i>Ответить пользователю
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('feedback_admin.feedback_reply', feedback_id=feedback.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <textarea name="body"
+                                  class="form-control"
+                                  rows="4"
+                                  maxlength="4000"
+                                  required
+                                  placeholder="Ответ пользователю. Будет отправлен как уведомление с ссылкой на ветку."></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Первый ответ автоматически переведёт статус в «В работе».</small>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i>Отправить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {# Status actions #}
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-tasks me-1"></i>Статус</div>
+            <div class="card-body">
+                <div class="d-flex gap-1 flex-wrap">
+                    {% for st in statuses %}
+                        {% if st != feedback.status %}
+                        <form method="POST"
+                              action="{{ url_for('feedback_admin.feedback_set_status', feedback_id=feedback.id) }}"
+                              class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="status" value="{{ st }}">
+                            <button type="submit" class="btn btn-sm btn-outline-{{ status_badges[st] }}">
+                                → {{ status_labels[st] }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Context / page info #}
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-info-circle me-1"></i>Контекст</div>
+            <div class="card-body small">
+                <dl class="mb-0">
+                    {% if feedback.url %}
+                    <dt class="text-muted fw-normal">URL страницы</dt>
+                    <dd class="text-break"><a href="{{ feedback.url }}" target="_blank" rel="noopener">{{ feedback.url }}</a></dd>
+                    {% endif %}
+                    {% if feedback.viewport_width and feedback.viewport_height %}
+                    <dt class="text-muted fw-normal">Viewport</dt>
+                    <dd>{{ feedback.viewport_width }}×{{ feedback.viewport_height }}{% if feedback.device_pixel_ratio %} (DPR {{ '%.1f'|format(feedback.device_pixel_ratio) }}){% endif %}</dd>
+                    {% endif %}
+                    {% if feedback.screen_width and feedback.screen_height %}
+                    <dt class="text-muted fw-normal">Экран</dt>
+                    <dd>{{ feedback.screen_width }}×{{ feedback.screen_height }}</dd>
+                    {% endif %}
+                    {% if feedback.locale %}
+                    <dt class="text-muted fw-normal">Locale</dt>
+                    <dd>{{ feedback.locale }}</dd>
+                    {% endif %}
+                    {% if feedback.timezone %}
+                    <dt class="text-muted fw-normal">Часовой пояс</dt>
+                    <dd>{{ feedback.timezone }}</dd>
+                    {% endif %}
+                    {% if feedback.platform %}
+                    <dt class="text-muted fw-normal">Платформа</dt>
+                    <dd>{{ feedback.platform }}</dd>
+                    {% endif %}
+                    {% if feedback.user_agent %}
+                    <dt class="text-muted fw-normal">User-Agent</dt>
+                    <dd class="text-break" style="font-size: 0.75rem;">{{ feedback.user_agent }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        {% if author %}
+        <div class="card">
+            <div class="card-header"><i class="fas fa-user me-1"></i>Пользователь</div>
+            <div class="card-body small">
+                <dl class="mb-0">
+                    <dt class="text-muted fw-normal">ID</dt>
+                    <dd>{{ author.id }}</dd>
+                    <dt class="text-muted fw-normal">Имя</dt>
+                    <dd>{{ author.username }}</dd>
+                    {% if author.email %}
+                    <dt class="text-muted fw-normal">Email</dt>
+                    <dd>{{ author.email }}</dd>
+                    {% endif %}
+                    {% if author.created_at %}
+                    <dt class="text-muted fw-normal">Регистрация</dt>
+                    <dd>{{ author.created_at.strftime('%d.%m.%Y') }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('feedback_admin.feedback_index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>К списку
+    </a>
+</div>
+{% endblock %}

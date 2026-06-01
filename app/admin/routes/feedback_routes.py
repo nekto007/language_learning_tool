@@ -1,16 +1,23 @@
-"""Admin feedback inbox — paginated, filterable view over Feedback submissions."""
+"""Admin feedback inbox + thread detail view."""
 
 import logging
 from datetime import datetime, timedelta
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from sqlalchemy import desc
+from flask_login import current_user
+from sqlalchemy import desc, func
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.api.errors import api_error
 from app.auth.models import User
-from app.feedback.models import FEEDBACK_CATEGORIES, FEEDBACK_STATUSES, Feedback
+from app.feedback.models import (
+    FEEDBACK_CATEGORIES,
+    FEEDBACK_STATUSES,
+    Feedback,
+    FeedbackReply,
+    create_reply,
+)
 from app.utils.db import db
 
 feedback_admin_bp = Blueprint('feedback_admin', __name__)
@@ -37,7 +44,7 @@ def feedback_index():
     query = (
         db.session.query(Feedback, User)
         .outerjoin(User, Feedback.user_id == User.id)
-        .order_by(desc(Feedback.created_at))
+        .order_by(desc(Feedback.updated_at))
     )
     if category:
         query = query.filter(Feedback.category == category)
@@ -53,24 +60,36 @@ def feedback_index():
     has_more = len(rows) > _PER_PAGE
     rows = rows[:_PER_PAGE]
 
+    fb_ids = [fb.id for fb, _ in rows]
+    reply_counts = {}
+    if fb_ids:
+        reply_counts = dict(
+            db.session.query(FeedbackReply.feedback_id, func.count(FeedbackReply.id))
+            .filter(FeedbackReply.feedback_id.in_(fb_ids))
+            .group_by(FeedbackReply.feedback_id)
+            .all()
+        )
+
     entries = [
         {
             'id': fb.id,
             'created_at': fb.created_at,
+            'updated_at': fb.updated_at,
             'category': fb.category,
             'status': fb.status,
             'message': fb.message,
             'url': fb.url,
-            'user_agent': fb.user_agent,
+            'has_screenshot': bool(fb.screenshot_path),
             'user_id': fb.user_id,
             'user_email': user.email if user else None,
             'user_username': user.username if user else None,
+            'reply_count': reply_counts.get(fb.id, 0),
         }
         for fb, user in rows
     ]
 
     counts_by_status = dict(
-        db.session.query(Feedback.status, db.func.count(Feedback.id))
+        db.session.query(Feedback.status, func.count(Feedback.id))
         .group_by(Feedback.status)
         .all()
     )
@@ -91,6 +110,65 @@ def feedback_index():
     )
 
 
+@feedback_admin_bp.route('/feedback/<int:feedback_id>')
+@admin_required
+def feedback_detail(feedback_id: int):
+    """Full thread view for admins: meta + screenshot + reply form."""
+    row = Feedback.query.get_or_404(feedback_id)
+    # Auto-mark seen on first admin open so the unread badge clears.
+    if row.status == 'new':
+        row.status = 'seen'
+        db.session.commit()
+    return render_template(
+        'admin/feedback/detail.html',
+        feedback=row,
+        replies=row.replies,
+        author=row.user,
+        statuses=FEEDBACK_STATUSES,
+    )
+
+
+@feedback_admin_bp.route('/feedback/<int:feedback_id>/reply', methods=['POST'])
+@admin_required
+def feedback_reply(feedback_id: int):
+    row = Feedback.query.get_or_404(feedback_id)
+    body = (request.form.get('body') or '').strip()
+    if not body:
+        flash('Пустой ответ', 'warning')
+        return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
+
+    try:
+        reply = create_reply(
+            feedback_id=row.id,
+            author_user_id=current_user.id,
+            body=body,
+            is_admin=True,
+        )
+        # Notify the submitter (best-effort, do not block the commit).
+        try:
+            from app.feedback.routes import notify_user_of_admin_reply
+            notify_user_of_admin_reply(row, reply)
+        except Exception:
+            logger.exception('feedback_admin_reply_notify_failed id=%s', row.id)
+        log_admin_action(
+            current_user.id,
+            'feedback.reply',
+            target_type='feedback',
+            target_id=row.id,
+        )
+        db.session.commit()
+        flash('Ответ отправлен', 'success')
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), 'warning')
+    except Exception:
+        db.session.rollback()
+        logger.exception('feedback_admin_reply_failed id=%s', row.id)
+        flash('Не удалось сохранить ответ', 'danger')
+
+    return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
+
+
 @feedback_admin_bp.route('/feedback/<int:feedback_id>/status', methods=['POST'])
 @admin_required
 def feedback_set_status(feedback_id: int):
@@ -102,7 +180,6 @@ def feedback_set_status(feedback_id: int):
     if row is None:
         return api_error('not_found', 'feedback not found', 404)
 
-    from flask_login import current_user
     previous = row.status
     row.status = new_status
     log_admin_action(
@@ -115,6 +192,9 @@ def feedback_set_status(feedback_id: int):
     logger.info('feedback_status_changed id=%s %s -> %s by admin=%s',
                 feedback_id, previous, new_status, current_user.id)
     flash(f'Статус обновлён: {new_status}', 'success')
+    # Redirect back to detail if the request originated there, else inbox.
+    if request.referrer and f'/feedback/{feedback_id}' in request.referrer:
+        return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
     return redirect(url_for('feedback_admin.feedback_index',
                             page=request.args.get('page', 1),
                             category=request.args.get('category', ''),
