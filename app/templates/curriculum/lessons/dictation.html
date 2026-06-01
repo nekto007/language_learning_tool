@@ -77,6 +77,45 @@
   color: var(--lsn-text-muted, #64748b);
   margin-bottom: 0.75rem;
 }
+.dictation-hint-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #fde68a;
+  border-radius: var(--lsn-radius-sm, 10px);
+  background: #fffbeb;
+  color: #78350f;
+}
+.dictation-hint-panel__text {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.dictation-hint-panel__text strong {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: #92400e;
+}
+.dictation-hint-toggle {
+  flex: 0 0 auto;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  background: #fff7ed;
+  color: #92400e;
+  padding: 0.45rem 0.7rem;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.dictation-hint-toggle:hover:not(:disabled) {
+  background: #ffedd5;
+}
+.dictation-hint-toggle:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
 .dictation-gap-panel {
   margin: 0.75rem 0 1rem;
   padding: 1rem 1.05rem;
@@ -180,6 +219,9 @@
     flex-direction: column;
     align-items: flex-start;
   }
+  .dictation-hint-panel {
+    flex-direction: column;
+  }
 }
 </style>
 {% endblock %}
@@ -209,10 +251,15 @@
       <i class="fas fa-pen"></i> {{ _('Запишите услышанное') }}
     </div>
     {% if hint_chars > 0 %}
-    <p class="dictation-hint-note">
-      <i class="fas fa-info-circle"></i>
-      {{ _('Слушайте аудио и заполняйте пропуски. На каждое слово — 3 попытки (точки под полем показывают, сколько осталось). Если слово откроется как подсказка, урок не будет засчитан как пройденный — но можно попробовать ещё раз.') }}
-    </p>
+    <div class="dictation-hint-panel">
+      <div class="dictation-hint-panel__text">
+        <strong><i class="fas fa-info-circle"></i> {{ _('Подсказки скрыты') }}</strong>
+        {{ _('Можно один раз показать подсказки: откроются первые буквы слов. Их число ограничено, и если пользоваться подсказками, урок может не засчитаться как пройденный.') }}
+      </div>
+      <button class="dictation-hint-toggle" id="dictation-show-hints" type="button">
+        <i class="fas fa-lightbulb"></i> {{ _('Показать подсказки') }}
+      </button>
+    </div>
     {% endif %}
     <div class="dictation-gap-panel" aria-label="{{ _('Пропуски диктанта') }}">
       <div class="dictation-gap-list" id="dictation-gap-list">
@@ -231,6 +278,7 @@
             class="dictation-gap-input"
             data-index="{{ segment.index }}"
             type="text"
+            data-hint="{{ segment.hint }}"
             autocomplete="off"
             autocapitalize="none"
             spellcheck="false"
@@ -280,6 +328,7 @@ const initialDictationResult = {{ completed_result|tojson if completed_result el
 let replayCount = 0;
 let failedByAttemptLimit = false;
 let submissionStarted = Boolean(initialDictationResult);
+let dictationHintsShown = false;
 
 function replayAudio() {
   if (replayCount >= maxReplays) return;
@@ -353,6 +402,24 @@ function syncGapWidth(input) {
   if (!input) return;
   const len = Math.max(input.value.length, input.placeholder.length, 3);
   input.style.width = Math.min(Math.max(len + 1, 4), 16) + 'ch';
+}
+
+function showDictationHints() {
+  if (dictationHintsShown) return;
+  dictationHintsShown = true;
+  document.querySelectorAll('.dictation-gap-input').forEach(input => {
+    if (input.disabled || input.value.trim()) return;
+    const hint = input.dataset.hint || '';
+    if (!hint) return;
+    input.value = hint;
+    syncGapWidth(input);
+  });
+  const btn = document.getElementById('dictation-show-hints');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-check"></i> {{ _("Подсказки показаны") }}';
+  }
+  updateDictationInputState();
 }
 
 function handleDictationGapKey(event, index) {
@@ -544,6 +611,8 @@ function escapeHtml(str) {
 
 document.addEventListener('DOMContentLoaded', function() {
   updateDictationInputState();
+  const hintsBtn = document.getElementById('dictation-show-hints');
+  if (hintsBtn) hintsBtn.addEventListener('click', showDictationHints);
   if (initialDictationResult) {
     // Restore on reload: silent=true чтобы не дёргать страницу авто-скроллом
     // в случае уже пройденного урока.
