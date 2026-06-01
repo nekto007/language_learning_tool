@@ -20,7 +20,7 @@
     <!-- Font Awesome (local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/fontawesome.min.css') }}">
     <!-- Design System (unified CSS) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20260531c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20260602a">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- OG defaults (override og_tags block in child templates) -->
     {% block og_tags %}
@@ -369,6 +369,23 @@
                 </ul>
             </section>
             {% endif %}
+            {% if current_user.is_authenticated %}
+            <section class="cabinet-footer__col" aria-labelledby="cabinet-footer-actions-heading">
+                <h2 id="cabinet-footer-actions-heading" class="cabinet-footer__heading">Быстрые действия</h2>
+                <ul class="cabinet-footer__list">
+                    <li><a class="cabinet-footer__link js-open-notifications" href="#">Уведомления</a></li>
+                    {% if has_module('study') %}
+                    <li><a class="cabinet-footer__link" href="{{ url_for('study.index') }}">Начать повторение</a></li>
+                    {% endif %}
+                    {% set _footer_continue_lesson = get_active_curriculum_lesson() %}
+                    {% if _footer_continue_lesson %}
+                    <li><a class="cabinet-footer__link" href="{{ _footer_continue_lesson.url }}">Продолжить урок</a></li>
+                    {% endif %}
+                    <li><a class="cabinet-footer__link" href="{{ url_for('grammar_lab.practice') }}">Практика грамматики</a></li>
+                    <li><a class="cabinet-footer__link" href="{{ url_for('feedback.my_feedback_list') }}">Мои обращения</a></li>
+                </ul>
+            </section>
+            {% endif %}
             <section class="cabinet-footer__col" aria-labelledby="cabinet-footer-legal-heading">
                 <h2 id="cabinet-footer-legal-heading" class="cabinet-footer__heading">Юридическое</h2>
                 <ul class="cabinet-footer__list">
@@ -496,8 +513,16 @@
 <!-- Notification center JS -->
 <script nonce="{{ csp_nonce }}">
 var notifPanelOpen = false;
+function openNotifPanel() {
+    var panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    notifPanelOpen = true;
+    panel.style.display = 'block';
+    loadNotifications();
+}
 function toggleNotifPanel() {
     var panel = document.getElementById('notif-panel');
+    if (!panel) return;
     notifPanelOpen = !notifPanelOpen;
     panel.style.display = notifPanelOpen ? 'block' : 'none';
     if (notifPanelOpen) loadNotifications();
@@ -644,6 +669,16 @@ document.addEventListener('click', function(e) {
         if (bell) bell.addEventListener('click', function(e) {
             e.preventDefault();
             if (typeof toggleNotifPanel === 'function') toggleNotifPanel();
+        });
+        document.querySelectorAll('.js-open-notifications').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                var navbar = document.querySelector('nav.navbar');
+                if (navbar) navbar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                window.setTimeout(function() {
+                    if (typeof openNotifPanel === 'function') openNotifPanel();
+                }, 120);
+            });
         });
         var markAll = document.getElementById('notif-mark-all-read');
         if (markAll) markAll.addEventListener('click', function(e) {
