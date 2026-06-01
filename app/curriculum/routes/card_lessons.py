@@ -13,7 +13,6 @@ from app.curriculum.security import require_lesson_access
 from app.curriculum.service import (
     get_card_session_for_lesson,
     process_card_review_for_lesson,
-    sync_lesson_cards_to_words,
 )
 from app.curriculum.validators import SRSReviewSchema, validate_request_data
 from app.srs.constants import (
@@ -27,6 +26,57 @@ from app.utils.db import db
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
+
+
+def _build_display_cards_from_content(content: dict) -> list[dict]:
+    """Build non-SRS flashcards directly from lesson JSON.
+
+    This keeps card lesson GET requests read-only when imported content has not
+    been synced into ``CollectionWords`` yet. Cards with a real ``word_id`` are
+    still handled through the normal SRS path.
+    """
+    if not isinstance(content, dict):
+        return []
+
+    cards = content.get('cards') or []
+    if not isinstance(cards, list):
+        return []
+
+    result = []
+    for idx, card in enumerate(cards):
+        if not isinstance(card, dict):
+            continue
+        front = (card.get('front') or card.get('english') or '').strip()
+        back = (card.get('back') or card.get('russian') or '').strip()
+        if not front or not back:
+            continue
+
+        audio = card.get('audio') or card.get('audio_url')
+        audio_url = None
+        if isinstance(audio, str) and audio:
+            from app.utils.audio import parse_audio_filename
+            audio_file = parse_audio_filename(audio) or audio
+            audio_url = audio if audio.startswith('/static/') else f"/static/audio/{audio_file}"
+
+        result.append({
+            'id': card.get('id') or f"lesson-card-{idx}",
+            'word_id': None,
+            'direction_id': None,
+            'direction': 'eng-rus',
+            'front': front,
+            'back': back,
+            'word': front,
+            'translation': back,
+            'english': card.get('english') or front,
+            'russian': card.get('russian') or back,
+            'example': card.get('example') or '',
+            'example_en': card.get('example') or '',
+            'example_ru': card.get('example_translation') or '',
+            'audio_url': audio_url,
+            'is_new': True,
+            'status': 'new',
+        })
+    return result
 
 
 def _extract_word_example(word) -> tuple[str, str]:
@@ -248,26 +298,6 @@ def _build_cards_for_words(
     return cards_list
 
 
-# =============================================================================
-# RENDER FUNCTION - called from main.py without redirects
-# =============================================================================
-
-LINEAR_PLAN_CARD_SOURCE = 'linear_plan_card'
-
-
-def _is_linear_plan_card_source() -> bool:
-    """Detect whether the current card-lesson request came from the linear
-    daily plan's card slot. Accepts either explicit ``source=linear_plan_card``
-    or ``from=linear_plan`` for robustness (the slot URL may use ``from``).
-    """
-    try:
-        source = request.args.get('source', '') or ''
-        from_param = request.args.get('from', '') or ''
-    except RuntimeError:
-        return False
-    return source == LINEAR_PLAN_CARD_SOURCE or from_param == 'linear_plan'
-
-
 def render_card_lesson(lesson):
     """Рендер card урока"""
     from app.words.models import CollectionWordLink
@@ -275,11 +305,6 @@ def render_card_lesson(lesson):
     if lesson.type not in ['card', 'flashcards']:
         from flask import abort
         abort(400, "This is not a card lesson")
-
-    success, message, updated, created = sync_lesson_cards_to_words(lesson)
-    if success and (created > 0 or updated > 0):
-        logger.info(f"Synced lesson {lesson.id} cards: {message}")
-        db.session.refresh(lesson)
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -308,6 +333,7 @@ def render_card_lesson(lesson):
         ).order_by(Lessons.number).first()
 
     word_ids = []
+    content = {}
 
     if lesson.collection_id:
         word_links = CollectionWordLink.query.filter_by(
@@ -351,17 +377,13 @@ def render_card_lesson(lesson):
         word_ids = list(set(word_ids))
 
     cards_list = []
-    linear_plan_card = _is_linear_plan_card_source()
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
-        if linear_plan_card:
-            from app.daily_plan.linear.slots.srs_slot import get_srs_budget_remaining
-            activate_srs = get_srs_budget_remaining(current_user.id, db) > 0
-        else:
-            activate_srs = True
         cards_list = _build_cards_for_words(
-            word_objects, current_user.id, activate_srs=activate_srs,
+            word_objects, current_user.id, activate_srs=True,
         )
+    elif isinstance(content, dict):
+        cards_list = _build_display_cards_from_content(content)
 
     next_review_time = None
     if len(cards_list) == 0:
@@ -499,11 +521,6 @@ def card_lesson(lesson_id):
         from flask import abort
         abort(400, "This is not a card lesson")
 
-    success, message, updated, created = sync_lesson_cards_to_words(lesson)
-    if success and (created > 0 or updated > 0):
-        logger.info(f"Synced lesson {lesson_id} cards: {message}")
-        db.session.refresh(lesson)
-
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
@@ -517,6 +534,7 @@ def card_lesson(lesson_id):
         ).order_by(Lessons.number).first()
 
     word_ids = []
+    content = {}
 
     if lesson.collection_id:
         word_links = CollectionWordLink.query.filter_by(
@@ -560,17 +578,13 @@ def card_lesson(lesson_id):
         word_ids = list(set(word_ids))
 
     cards_list = []
-    linear_plan_card = _is_linear_plan_card_source()
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
-        if linear_plan_card:
-            from app.daily_plan.linear.slots.srs_slot import get_srs_budget_remaining
-            activate_srs = get_srs_budget_remaining(current_user.id, db) > 0
-        else:
-            activate_srs = True
         cards_list = _build_cards_for_words(
-            word_objects, current_user.id, activate_srs=activate_srs,
+            word_objects, current_user.id, activate_srs=True,
         )
+    elif isinstance(content, dict):
+        cards_list = _build_display_cards_from_content(content)
 
     next_review_time = None
     if len(cards_list) == 0:
