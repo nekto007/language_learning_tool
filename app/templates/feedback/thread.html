@@ -2,7 +2,7 @@
 {% block title %}Обращение #{{ feedback.id }}{% endblock %}
 
 {% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос'} %}
-{% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто'} %}
+{% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
 
 {% block content %}
 <div class="container py-4" style="max-width: 760px;">
@@ -52,7 +52,6 @@
         {% endfor %}
     {% endif %}
 
-    {% if feedback.status != 'resolved' %}
     <div class="card mt-3">
         <div class="card-body">
             <form id="user-reply-form">
@@ -64,7 +63,7 @@
                           rows="3"
                           maxlength="4000"
                           required
-                          placeholder="Дополнительная информация, уточнение или ответ команде…"></textarea>
+                          placeholder="{% if feedback.status == 'resolved' %}Если проблема осталась, напишите сюда — обращение переоткроется.{% else %}Дополнительная информация, уточнение или ответ команде…{% endif %}"></textarea>
                 <div class="d-flex justify-content-end">
                     <button type="submit" id="user-reply-submit" class="btn btn-primary">
                         <i class="fas fa-paper-plane me-1"></i>Отправить
@@ -74,11 +73,6 @@
             </form>
         </div>
     </div>
-    {% else %}
-    <div class="alert alert-light text-center mt-3">
-        Это обращение закрыто. Если есть новый вопрос — создайте отдельный.
-    </div>
-    {% endif %}
 </div>
 
 <script nonce="{{ csp_nonce }}">

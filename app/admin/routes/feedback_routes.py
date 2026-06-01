@@ -1,11 +1,12 @@
 """Admin feedback inbox + thread detail view."""
 
 import logging
-from datetime import datetime, timedelta
+import re
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
@@ -13,6 +14,7 @@ from app.api.errors import api_error
 from app.auth.models import User
 from app.feedback.models import (
     FEEDBACK_CATEGORIES,
+    FEEDBACK_PRIORITIES,
     FEEDBACK_STATUSES,
     Feedback,
     FeedbackReply,
@@ -33,6 +35,9 @@ def feedback_index():
     page = max(1, request.args.get('page', 1, type=int))
     category = (request.args.get('category') or '').strip().lower()
     status = (request.args.get('status') or '').strip().lower()
+    priority = (request.args.get('priority') or '').strip().lower()
+    assignee = request.args.get('assignee', '', type=str).strip()
+    q = (request.args.get('q') or '').strip()
     date_from = _parse_date(request.args.get('date_from', ''))
     date_to = _parse_date(request.args.get('date_to', ''))
 
@@ -40,6 +45,8 @@ def feedback_index():
         category = ''
     if status and status not in FEEDBACK_STATUSES:
         status = ''
+    if priority and priority not in FEEDBACK_PRIORITIES:
+        priority = ''
 
     query = (
         db.session.query(Feedback, User)
@@ -50,6 +57,23 @@ def feedback_index():
         query = query.filter(Feedback.category == category)
     if status:
         query = query.filter(Feedback.status == status)
+    if priority:
+        query = query.filter(Feedback.priority == priority)
+    if assignee == 'unassigned':
+        query = query.filter(Feedback.assignee_admin_id.is_(None))
+    elif assignee.isdigit():
+        query = query.filter(Feedback.assignee_admin_id == int(assignee))
+    if q:
+        like = f'%{q}%'
+        query = query.filter(
+            or_(
+                Feedback.message.ilike(like),
+                Feedback.url.ilike(like),
+                Feedback.user_agent.ilike(like),
+                User.email.ilike(like),
+                User.username.ilike(like),
+            )
+        )
     if date_from:
         query = query.filter(Feedback.created_at >= date_from)
     if date_to:
@@ -77,12 +101,14 @@ def feedback_index():
             'updated_at': fb.updated_at,
             'category': fb.category,
             'status': fb.status,
+            'priority': fb.priority,
             'message': fb.message,
             'url': fb.url,
             'has_screenshot': bool(fb.screenshot_path),
             'user_id': fb.user_id,
             'user_email': user.email if user else None,
             'user_username': user.username if user else None,
+            'assignee_username': fb.assignee.username if fb.assignee else None,
             'reply_count': reply_counts.get(fb.id, 0),
         }
         for fb, user in rows
@@ -91,6 +117,17 @@ def feedback_index():
     counts_by_status = dict(
         db.session.query(Feedback.status, func.count(Feedback.id))
         .group_by(Feedback.status)
+        .all()
+    )
+    counts_by_priority = dict(
+        db.session.query(Feedback.priority, func.count(Feedback.id))
+        .group_by(Feedback.priority)
+        .all()
+    )
+    admins = (
+        User.query
+        .filter(User.is_admin.is_(True), User.active.is_(True))
+        .order_by(User.username.asc())
         .all()
     )
 
@@ -102,11 +139,17 @@ def feedback_index():
         per_page=_PER_PAGE,
         categories=FEEDBACK_CATEGORIES,
         statuses=FEEDBACK_STATUSES,
+        priorities=FEEDBACK_PRIORITIES,
+        admins=admins,
         filter_category=category,
         filter_status=status,
+        filter_priority=priority,
+        filter_assignee=assignee,
+        filter_q=q,
         filter_date_from=request.args.get('date_from', ''),
         filter_date_to=request.args.get('date_to', ''),
         counts_by_status=counts_by_status,
+        counts_by_priority=counts_by_priority,
     )
 
 
@@ -125,6 +168,13 @@ def feedback_detail(feedback_id: int):
         replies=row.replies,
         author=row.user,
         statuses=FEEDBACK_STATUSES,
+        priorities=FEEDBACK_PRIORITIES,
+        admins=(
+            User.query
+            .filter(User.is_admin.is_(True), User.active.is_(True))
+            .order_by(User.username.asc())
+            .all()
+        ),
     )
 
 
@@ -182,6 +232,7 @@ def feedback_set_status(feedback_id: int):
 
     previous = row.status
     row.status = new_status
+    row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     log_admin_action(
         current_user.id,
         f'feedback.status.{new_status}',
@@ -193,12 +244,54 @@ def feedback_set_status(feedback_id: int):
                 feedback_id, previous, new_status, current_user.id)
     flash(f'Статус обновлён: {new_status}', 'success')
     # Redirect back to detail if the request originated there, else inbox.
-    if request.referrer and f'/feedback/{feedback_id}' in request.referrer:
+    if request.referrer and re.search(rf'/feedback/{feedback_id}(?:/|$|\?)', request.referrer):
         return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
     return redirect(url_for('feedback_admin.feedback_index',
                             page=request.args.get('page', 1),
                             category=request.args.get('category', ''),
                             status=request.args.get('status', '')))
+
+
+@feedback_admin_bp.route('/feedback/<int:feedback_id>/triage', methods=['POST'])
+@admin_required
+def feedback_triage(feedback_id: int):
+    priority = (request.form.get('priority') or '').strip().lower()
+    assignee_raw = (request.form.get('assignee_admin_id') or '').strip()
+
+    if priority not in FEEDBACK_PRIORITIES:
+        return api_error('invalid_priority', 'unknown priority', 400)
+
+    row = Feedback.query.get(feedback_id)
+    if row is None:
+        return api_error('not_found', 'feedback not found', 404)
+
+    assignee_admin_id = None
+    if assignee_raw:
+        try:
+            assignee_admin_id = int(assignee_raw)
+        except ValueError:
+            return api_error('invalid_assignee', 'unknown assignee', 400)
+        assignee_user = User.query.filter_by(id=assignee_admin_id, is_admin=True).first()
+        if assignee_user is None:
+            return api_error('invalid_assignee', 'unknown assignee', 400)
+
+    previous = (row.priority, row.assignee_admin_id)
+    row.priority = priority
+    row.assignee_admin_id = assignee_admin_id
+    row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    log_admin_action(
+        current_user.id,
+        'feedback.triage',
+        target_type='feedback',
+        target_id=feedback_id,
+    )
+    db.session.commit()
+    logger.info(
+        'feedback_triage_changed id=%s priority=%s->%s assignee=%s->%s by admin=%s',
+        feedback_id, previous[0], priority, previous[1], assignee_admin_id, current_user.id,
+    )
+    flash('Триаж обновлён', 'success')
+    return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
 
 
 def _parse_date(value: str) -> datetime | None:

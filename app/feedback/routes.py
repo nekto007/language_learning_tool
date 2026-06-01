@@ -28,6 +28,7 @@ from app.feedback.models import (
     URL_MAX_LENGTH,
     USER_AGENT_MAX_LENGTH,
     Feedback,
+    FEEDBACK_PRIORITIES,
     create_feedback,
     create_reply,
 )
@@ -90,6 +91,10 @@ def submit_feedback():
             400,
         )
 
+    priority = (source.get('priority') or 'normal').strip().lower()
+    if priority not in FEEDBACK_PRIORITIES:
+        priority = 'normal'
+
     message = (source.get('message') or '').strip()
     if not message:
         return api_error('empty_message', 'message is required', 400)
@@ -118,6 +123,7 @@ def submit_feedback():
             message=message,
             url=url_value,
             user_agent=user_agent,
+            priority=priority,
             screenshot_path=screenshot_rel,
             viewport_width=_coerce_int(source.get('viewport_width')),
             viewport_height=_coerce_int(source.get('viewport_height')),
@@ -255,7 +261,11 @@ def thread_list_api():
     """Recent threads for the FAB popup. Owner-only (excludes admin view)."""
     from app.notifications.models import Notification
 
-    limit = max(1, min(int(request.args.get('limit', 5) or 5), 20))
+    try:
+        requested_limit = int(request.args.get('limit', 5) or 5)
+    except (TypeError, ValueError):
+        requested_limit = 5
+    limit = max(1, min(requested_limit, 20))
     rows = (
         Feedback.query
         .filter(Feedback.user_id == current_user.id)
@@ -305,6 +315,7 @@ def thread_list_api():
             'url': links[row.id],
             'category': row.category,
             'status': row.status,
+            'priority': row.priority,
             'preview': preview,
             'last_at': last_at.isoformat() if last_at else None,
             'last_is_admin': last_is_admin,
@@ -358,7 +369,10 @@ def serve_screenshot(rel_path: str):
     abs_path = feedback_screenshot_abs_path(stored)
     if abs_path is None:
         abort(404)
-    return send_file(abs_path, conditional=True, max_age=3600)
+    response = send_file(abs_path, conditional=True)
+    response.cache_control.private = True
+    response.cache_control.max_age = 3600
+    return response
 
 
 _CATEGORY_LABELS = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'}

@@ -2,8 +2,8 @@
 {% block title %}Мои обращения{% endblock %}
 
 {% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос'} %}
-{% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто'} %}
-{% set status_classes = {'new': 'fb-status-new', 'seen': 'fb-status-seen', 'in_progress': 'fb-status-progress', 'resolved': 'fb-status-resolved'} %}
+{% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
+{% set status_classes = {'new': 'fb-status-new', 'seen': 'fb-status-seen', 'in_progress': 'fb-status-progress', 'resolved': 'fb-status-resolved', 'reopened': 'fb-status-new'} %}
 
 {% block content %}
 <div class="container py-4" style="max-width: 760px;">

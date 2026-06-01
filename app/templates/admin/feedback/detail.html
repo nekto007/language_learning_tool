@@ -13,8 +13,10 @@
 
 {% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'} %}
 {% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info'} %}
-{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто'} %}
-{% set status_badges = {'new': 'primary', 'seen': 'warning', 'in_progress': 'info', 'resolved': 'secondary'} %}
+{% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
+{% set status_badges = {'new': 'primary', 'seen': 'warning', 'in_progress': 'info', 'resolved': 'secondary', 'reopened': 'danger'} %}
+{% set priority_labels = {'low': 'Низкий', 'normal': 'Обычный', 'high': 'Высокий', 'critical': 'Критичный'} %}
+{% set priority_badges = {'low': 'secondary', 'normal': 'light text-dark', 'high': 'warning', 'critical': 'danger'} %}
 
 {% block content %}
 {{ page_header('Обращение #' ~ feedback.id, 'Полная информация и переписка с пользователем') }}
@@ -30,6 +32,9 @@
                     </span>
                     <span class="badge bg-{{ status_badges.get(feedback.status, 'secondary') }}">
                         {{ status_labels.get(feedback.status, feedback.status) }}
+                    </span>
+                    <span class="badge bg-{{ priority_badges.get(feedback.priority, 'secondary') }} ms-2">
+                        {{ priority_labels.get(feedback.priority, feedback.priority) }}
                     </span>
                 </div>
                 <small class="text-muted">{{ feedback.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
@@ -134,6 +139,35 @@
             </div>
         </div>
 
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-user-check me-1"></i>Триаж</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('feedback_admin.feedback_triage', feedback_id=feedback.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Приоритет</label>
+                        <select name="priority" class="form-select">
+                            {% for pr in priorities %}
+                            <option value="{{ pr }}" {% if feedback.priority == pr %}selected{% endif %}>{{ priority_labels[pr] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Ответственный</label>
+                        <select name="assignee_admin_id" class="form-select">
+                            <option value="">Не назначен</option>
+                            {% for admin in admins %}
+                            <option value="{{ admin.id }}" {% if feedback.assignee_admin_id == admin.id %}selected{% endif %}>{{ admin.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                        Сохранить триаж
+                    </button>
+                </form>
+            </div>
+        </div>
+
         {# Context / page info #}
         <div class="card mb-3">
             <div class="card-header"><i class="fas fa-info-circle me-1"></i>Контекст</div>
@@ -166,6 +200,10 @@
                     {% if feedback.user_agent %}
                     <dt class="text-muted fw-normal">User-Agent</dt>
                     <dd class="text-break" style="font-size: 0.75rem;">{{ feedback.user_agent }}</dd>
+                    {% endif %}
+                    {% if feedback.reopened_at %}
+                    <dt class="text-muted fw-normal">Переоткрыто</dt>
+                    <dd>{{ feedback.reopened_at.strftime('%d.%m.%Y %H:%M') }}</dd>
                     {% endif %}
                 </dl>
             </div>

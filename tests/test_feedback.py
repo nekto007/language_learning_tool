@@ -51,6 +51,15 @@ class TestFeedbackApi:
         row = Feedback.query.get(resp.get_json()['id'])
         assert len(row.message) == 4000
 
+    def test_post_defaults_priority_to_normal(self, authenticated_client, db_session):
+        resp = authenticated_client.post(
+            '/api/feedback',
+            json={'category': 'question', 'message': 'как работает повторение?'},
+        )
+        assert resp.status_code == 201
+        row = Feedback.query.get(resp.get_json()['id'])
+        assert row.priority == 'normal'
+
     def test_post_requires_login(self, client, db_session):
         resp = client.post(
             '/api/feedback',
@@ -143,3 +152,68 @@ class TestFeedbackAdmin:
             data={'status': 'spam'},
         )
         assert resp.status_code == 400
+
+    def test_admin_triage_sets_priority_and_assignee(self, client, admin_user, db_session):
+        row = Feedback(
+            user_id=admin_user.id, category='bug', message='critical issue', status='new',
+        )
+        db_session.add(row)
+        db_session.commit()
+
+        resp = client.post(
+            f'/admin/feedback/{row.id}/triage',
+            data={'priority': 'critical', 'assignee_admin_id': str(admin_user.id)},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 302
+
+        db_session.expire_all()
+        updated = Feedback.query.get(row.id)
+        assert updated.priority == 'critical'
+        assert updated.assignee_admin_id == admin_user.id
+
+    def test_admin_filter_search_finds_feedback_by_url(self, client, admin_user, db_session):
+        db_session.add(Feedback(
+            user_id=admin_user.id,
+            category='bug',
+            message='visible text',
+            url='https://example.test/special-lesson',
+            status='new',
+        ))
+        db_session.add(Feedback(
+            user_id=admin_user.id,
+            category='idea',
+            message='other text',
+            url='https://example.test/other',
+            status='new',
+        ))
+        db_session.commit()
+
+        resp = client.get('/admin/feedback?q=special-lesson')
+        assert resp.status_code == 200
+        body = resp.data.decode('utf-8')
+        assert 'visible text' in body
+        assert 'other text' not in body
+
+
+class TestFeedbackReplies:
+    def test_user_reply_to_resolved_thread_reopens_it(self, authenticated_client, test_user, db_session):
+        row = Feedback(
+            user_id=test_user.id,
+            category='bug',
+            message='still broken',
+            status='resolved',
+        )
+        db_session.add(row)
+        db_session.commit()
+
+        resp = authenticated_client.post(
+            f'/api/feedback/{row.id}/reply',
+            json={'body': 'Проблема всё ещё воспроизводится'},
+        )
+        assert resp.status_code == 201
+
+        db_session.expire_all()
+        updated = Feedback.query.get(row.id)
+        assert updated.status == 'reopened'
+        assert updated.reopened_at is not None

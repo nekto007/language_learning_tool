@@ -6,12 +6,13 @@ trade replies via ``FeedbackReply`` rows; notifications fan-out keeps
 both sides aware of new activity.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.utils.db import db
 
 FEEDBACK_CATEGORIES = ('bug', 'idea', 'question')
-FEEDBACK_STATUSES = ('new', 'seen', 'in_progress', 'resolved')
+FEEDBACK_STATUSES = ('new', 'seen', 'in_progress', 'resolved', 'reopened')
+FEEDBACK_PRIORITIES = ('low', 'normal', 'high', 'critical')
 
 MESSAGE_MAX_LENGTH = 4000
 URL_MAX_LENGTH = 2048
@@ -42,6 +43,18 @@ class Feedback(db.Model):
         default='new',
         server_default='new',
     )
+    priority = db.Column(
+        db.String(16),
+        nullable=False,
+        default='normal',
+        server_default='normal',
+    )
+    assignee_admin_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+    reopened_at = db.Column(db.DateTime, nullable=True)
 
     # Optional screenshot uploaded with the report (relative path under
     # uploads/feedback). Never trust the client extension — file_security
@@ -64,18 +77,29 @@ class Feedback(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         server_default=db.func.now(),
     )
     updated_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         server_default=db.func.now(),
     )
 
-    user = db.relationship('User', lazy='joined', viewonly=True)
+    user = db.relationship(
+        'User',
+        foreign_keys=[user_id],
+        lazy='joined',
+        viewonly=True,
+    )
+    assignee = db.relationship(
+        'User',
+        foreign_keys=[assignee_admin_id],
+        lazy='joined',
+        viewonly=True,
+    )
     replies = db.relationship(
         'FeedbackReply',
         backref='feedback',
@@ -111,7 +135,7 @@ class FeedbackReply(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         server_default=db.func.now(),
     )
 
@@ -132,6 +156,7 @@ def create_feedback(
     url: str | None,
     user_agent: str | None,
     *,
+    priority: str = 'normal',
     screenshot_path: str | None = None,
     viewport_width: int | None = None,
     viewport_height: int | None = None,
@@ -156,6 +181,7 @@ def create_feedback(
         url=_trim(url, URL_MAX_LENGTH),
         user_agent=_trim(user_agent, USER_AGENT_MAX_LENGTH),
         status='new',
+        priority=priority if priority in FEEDBACK_PRIORITIES else 'normal',
         screenshot_path=_trim(screenshot_path, SCREENSHOT_PATH_MAX_LENGTH),
         viewport_width=viewport_width,
         viewport_height=viewport_height,
@@ -198,10 +224,14 @@ def create_reply(
 
     parent = Feedback.query.get(feedback_id)
     if parent is not None:
-        parent.updated_at = datetime.utcnow()
-        if is_admin and parent.status == 'new':
-            # First admin response moves the ticket out of the new bucket.
+        parent.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        if is_admin and parent.status in ('new', 'seen', 'reopened'):
+            # Admin response means the ticket is actively being handled.
             parent.status = 'in_progress'
+        elif not is_admin and parent.status == 'resolved':
+            # A user follow-up after closure is a real signal: reopen it.
+            parent.status = 'reopened'
+            parent.reopened_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     db.session.flush()
     return reply

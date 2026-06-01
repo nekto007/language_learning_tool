@@ -13,6 +13,7 @@ from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.navigation import find_next_lesson
 from app.daily_plan.level_utils import get_user_current_cefr_level
+from app.daily_plan.repair_pressure import RepairBreakdown
 from app.daily_plan.models import (
     MODE_CATEGORY_MAP,
     Mission,
@@ -589,7 +590,7 @@ def assemble_progress_mission(
 
 def assemble_repair_mission(
     user_id: int,
-    repair_breakdown: Any,
+    repair_breakdown: RepairBreakdown,
     reason_code: str = "repair_pressure_high",
     reason_text: str = "У тебя накопились слабые места — давай укрепим основу",
     tz: Optional[str] = None,
