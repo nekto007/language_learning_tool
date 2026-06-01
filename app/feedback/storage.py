@@ -30,14 +30,30 @@ ALLOWED_SCREENSHOT_FORMATS = frozenset({'PNG', 'JPEG', 'WEBP'})
 MAX_SCREENSHOT_DIMENSION = 2400  # downscale runaway hi-DPI captures
 
 
-def save_feedback_screenshot(file: FileStorage) -> Optional[str]:
-    """Validate + persist a feedback screenshot. Returns relative path or None.
+SCREENSHOT_REJECT_REASONS = {
+    'too_large': 'Файл больше 5 МБ — сожмите или сделайте меньший снимок.',
+    'unsupported_format': 'Поддерживаются PNG, JPEG и WEBP.',
+    'malicious_content': 'Файл отклонён как небезопасный.',
+    'read_failed': 'Не удалось прочитать файл.',
+    'process_failed': 'Не удалось обработать изображение.',
+    'empty': 'Пустой файл.',
+}
 
-    Returns None on any validation failure (caller logs + continues without
-    a screenshot — feedback submission must not be lost to a bad upload).
+
+def save_feedback_screenshot(file: FileStorage) -> tuple[Optional[str], Optional[str]]:
+    """Validate + persist a feedback screenshot.
+
+    Returns ``(relative_path, reject_reason)``:
+      - ``(path, None)`` on success.
+      - ``(None, None)`` when no file was attached.
+      - ``(None, reason_code)`` when the file was rejected. Reason maps to a
+        human-readable hint in ``SCREENSHOT_REJECT_REASONS`` — the caller
+        passes it through to the client so the user knows their screenshot
+        didn't land (previously the upload was silently dropped and the
+        submission still returned 201, leaving the user puzzled).
     """
     if not file or not getattr(file, 'filename', ''):
-        return None
+        return None, None
 
     # Read once into memory (small cap), then operate via Pillow buffer.
     try:
@@ -45,17 +61,17 @@ def save_feedback_screenshot(file: FileStorage) -> Optional[str]:
         head = file.stream.read(MAX_SCREENSHOT_BYTES + 1)
     except Exception:
         logger.warning('feedback_screenshot_read_failed', exc_info=True)
-        return None
+        return None, 'read_failed'
     if not head:
-        return None
+        return None, 'empty'
     if len(head) > MAX_SCREENSHOT_BYTES:
         logger.info('feedback_screenshot_too_large bytes=%s', len(head))
-        return None
+        return None, 'too_large'
 
     forbidden = check_forbidden_magic_bytes(head)
     if forbidden:
         logger.warning('feedback_screenshot_dangerous_magic_bytes=%s', forbidden)
-        return None
+        return None, 'malicious_content'
 
     os.makedirs(FEEDBACK_UPLOAD_FOLDER, exist_ok=True)
 
@@ -65,7 +81,7 @@ def save_feedback_screenshot(file: FileStorage) -> Optional[str]:
             img_format = (img.format or '').upper()
             if img_format not in ALLOWED_SCREENSHOT_FORMATS:
                 logger.info('feedback_screenshot_bad_format=%s', img_format)
-                return None
+                return None, 'unsupported_format'
             img.load()
             cleaned = strip_image_metadata(img)
             # Cap dimensions — protects against memory blow-ups + keeps
@@ -90,11 +106,11 @@ def save_feedback_screenshot(file: FileStorage) -> Optional[str]:
             cleaned.save(target, format=img_format, **save_kwargs)
     except Exception:
         logger.warning('feedback_screenshot_process_failed', exc_info=True)
-        return None
+        return None, 'process_failed'
 
     # Relative path so we can ship the upload between hosts / containers
     # without baking the absolute filesystem layout into the DB.
-    return os.path.join('feedback', filename)
+    return os.path.join('feedback', filename), None
 
 
 def feedback_screenshot_abs_path(rel_path: str) -> Optional[str]:

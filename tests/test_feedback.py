@@ -1,5 +1,7 @@
 """Smoke tests for the in-app feedback channel."""
 
+import io
+
 import pytest
 
 from app.feedback.models import Feedback
@@ -59,6 +61,30 @@ class TestFeedbackApi:
         assert resp.status_code == 201
         row = Feedback.query.get(resp.get_json()['id'])
         assert row.priority == 'normal'
+
+    def test_post_marks_urgent_as_high_priority(self, authenticated_client, db_session):
+        resp = authenticated_client.post(
+            '/api/feedback',
+            json={'category': 'bug', 'message': 'не могу продолжить урок', 'urgent': '1'},
+        )
+        assert resp.status_code == 201
+        row = Feedback.query.get(resp.get_json()['id'])
+        assert row.priority == 'high'
+
+    def test_post_reports_rejected_screenshot(self, authenticated_client, db_session):
+        resp = authenticated_client.post(
+            '/api/feedback',
+            data={
+                'category': 'bug',
+                'message': 'скрин не должен пройти',
+                'screenshot': (io.BytesIO(b'<?php echo "x"; ?>'), 'bad.php'),
+            },
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 201
+        body = resp.get_json()
+        assert body['screenshot_status'] == 'rejected'
+        assert body['screenshot_reject_reason'] == 'malicious_content'
 
     def test_post_requires_login(self, client, db_session):
         resp = client.post(
@@ -217,3 +243,94 @@ class TestFeedbackReplies:
         updated = Feedback.query.get(row.id)
         assert updated.status == 'reopened'
         assert updated.reopened_at is not None
+
+    def test_reply_acl_403_when_not_owner(self, app, client, test_user, second_user, db_session):
+        from flask_login import login_user
+
+        row = Feedback(
+            user_id=test_user.id,
+            category='bug',
+            message='private thread',
+            status='new',
+        )
+        db_session.add(row)
+        db_session.commit()
+
+        with app.test_request_context():
+            login_user(second_user)
+            with client.session_transaction() as session:
+                session['_user_id'] = str(second_user.id)
+                session['_fresh'] = True
+                session['user_id'] = second_user.id
+
+        resp = client.post(
+            f'/api/feedback/{row.id}/reply',
+            json={'body': 'чужой ответ'},
+        )
+        assert resp.status_code == 403
+
+    def test_admin_reply_does_not_demote_resolved(self, client, admin_user, test_user, db_session):
+        row = Feedback(
+            user_id=test_user.id,
+            category='question',
+            message='already resolved',
+            status='resolved',
+        )
+        db_session.add(row)
+        db_session.commit()
+
+        resp = client.post(
+            f'/admin/feedback/{row.id}/reply',
+            data={'body': 'финальное уточнение'},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 302
+
+        db_session.expire_all()
+        assert Feedback.query.get(row.id).status == 'resolved'
+
+    def test_thread_list_api_owner_only(self, authenticated_client, test_user, second_user, db_session):
+        own = Feedback(user_id=test_user.id, category='bug', message='mine', status='new')
+        other = Feedback(user_id=second_user.id, category='bug', message='not mine', status='new')
+        db_session.add_all([own, other])
+        db_session.commit()
+
+        resp = authenticated_client.get('/api/feedback/threads?limit=10')
+        assert resp.status_code == 200
+        ids = {item['id'] for item in resp.get_json()['threads']}
+        assert own.id in ids
+        assert other.id not in ids
+
+    def test_thread_view_clears_unread_notifications(
+        self, authenticated_client, test_user, db_session
+    ):
+        from app.notifications.models import Notification
+
+        row = Feedback(
+            user_id=test_user.id,
+            category='question',
+            message='needs reply',
+            status='in_progress',
+        )
+        db_session.add(row)
+        db_session.flush()
+        link = f'/feedback/{row.id}'
+        note = Notification(
+            user_id=test_user.id,
+            type='feedback',
+            title='Ответ',
+            message='Команда ответила',
+            link=link,
+            read=False,
+        )
+        db_session.add(note)
+        db_session.commit()
+
+        count_resp = authenticated_client.get('/api/feedback/unread-count')
+        assert count_resp.get_json()['count'] == 1
+
+        resp = authenticated_client.get(link)
+        assert resp.status_code == 200
+
+        db_session.expire_all()
+        assert Notification.query.get(note.id).read is True

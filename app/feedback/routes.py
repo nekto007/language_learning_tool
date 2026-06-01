@@ -29,6 +29,7 @@ from app.feedback.models import (
     USER_AGENT_MAX_LENGTH,
     Feedback,
     FEEDBACK_PRIORITIES,
+    FeedbackReply,
     create_feedback,
     create_reply,
 )
@@ -91,7 +92,7 @@ def submit_feedback():
             400,
         )
 
-    priority = 'normal'
+    urgent = str(source.get('urgent') or '').strip().lower() in ('1', 'true', 'yes', 'on')
 
     message = (source.get('message') or '').strip()
     if not message:
@@ -106,13 +107,16 @@ def submit_feedback():
     user_agent = (request.user_agent.string or '')[:USER_AGENT_MAX_LENGTH] or None
 
     screenshot_rel: Optional[str] = None
+    screenshot_reject_reason: Optional[str] = None
     upload = request.files.get('screenshot') if request.files else None
     if upload is not None and getattr(upload, 'filename', ''):
         try:
-            screenshot_rel = save_feedback_screenshot(upload)
+            screenshot_rel, screenshot_reject_reason = save_feedback_screenshot(upload)
         except Exception:
             logger.warning('feedback_screenshot_save_failed', exc_info=True)
-            screenshot_rel = None
+            screenshot_rel, screenshot_reject_reason = None, 'process_failed'
+
+    priority = 'high' if urgent or (category == 'bug' and screenshot_rel) else 'normal'
 
     try:
         row = create_feedback(
@@ -143,13 +147,31 @@ def submit_feedback():
         return api_error('save_failed', 'could not save feedback', 500)
 
     logger.info(
-        'feedback_submitted id=%s user_id=%s category=%s has_screenshot=%s',
-        row.id, current_user.id, category, bool(screenshot_rel),
+        'feedback_submitted id=%s user_id=%s category=%s has_screenshot=%s screenshot_rejected=%s',
+        row.id, current_user.id, category, bool(screenshot_rel), screenshot_reject_reason or '',
     )
+    from app.feedback.storage import SCREENSHOT_REJECT_REASONS
+
+    if screenshot_reject_reason:
+        screenshot_status = 'rejected'
+        screenshot_message = SCREENSHOT_REJECT_REASONS.get(
+            screenshot_reject_reason,
+            'Скриншот отклонён.',
+        )
+    elif screenshot_rel:
+        screenshot_status = 'attached'
+        screenshot_message = None
+    else:
+        screenshot_status = 'skipped'
+        screenshot_message = None
+
     return jsonify({
         'success': True,
         'id': row.id,
         'thread_url': url_for('feedback.thread_view', feedback_id=row.id),
+        'screenshot_status': screenshot_status,
+        'screenshot_message': screenshot_message,
+        'screenshot_reject_reason': screenshot_reject_reason,
     }), 201
 
 
@@ -172,6 +194,7 @@ def submit_user_reply(feedback_id: int):
         body = body[:REPLY_BODY_MAX_LENGTH]
 
     try:
+        was_resolved = row.status == 'resolved'
         reply = create_reply(
             feedback_id=row.id,
             author_user_id=current_user.id,
@@ -183,7 +206,7 @@ def submit_user_reply(feedback_id: int):
         # self-fan-out).
         if not current_user.is_admin:
             try:
-                _notify_admins_of_reply(row, reply)
+                _notify_admins_of_reply(row, reply, reopened=was_resolved)
             except Exception:
                 logger.exception('feedback_reply_notify_admins_failed id=%s', row.id)
         db.session.commit()
@@ -294,10 +317,26 @@ def thread_list_api():
     )
     unread_by_link = {link: int(cnt) for link, cnt in unread_rows}
 
+    row_ids = [row.id for row in rows]
+    last_reply_ids = (
+        db.session.query(
+            FeedbackReply.feedback_id,
+            db.func.max(FeedbackReply.id).label('last_reply_id'),
+        )
+        .filter(FeedbackReply.feedback_id.in_(row_ids))
+        .group_by(FeedbackReply.feedback_id)
+        .subquery()
+    )
+    last_replies = (
+        db.session.query(FeedbackReply)
+        .join(last_reply_ids, FeedbackReply.id == last_reply_ids.c.last_reply_id)
+        .all()
+    )
+    last_reply_by_feedback = {reply.feedback_id: reply for reply in last_replies}
+
     threads = []
     for row in rows:
-        # Last reply preview — quick scan of the thread's tail.
-        last_reply = row.replies[-1] if row.replies else None
+        last_reply = last_reply_by_feedback.get(row.id)
         if last_reply is not None:
             preview = last_reply.body
             last_is_admin = bool(last_reply.is_admin)
@@ -409,7 +448,7 @@ def _notify_admins_of_feedback(feedback_row) -> None:
     )
 
 
-def _notify_admins_of_reply(feedback_row, reply) -> None:
+def _notify_admins_of_reply(feedback_row, reply, *, reopened: bool = False) -> None:
     """Fan out an in-app notification + Telegram ping on a user reply."""
     from app.auth.models import User
     from app.notifications.services import create_notification
@@ -420,19 +459,27 @@ def _notify_admins_of_reply(feedback_row, reply) -> None:
 
     admins = User.query.filter(User.is_admin.is_(True), User.active.is_(True)).all()
     detail_path = url_for('feedback_admin.feedback_detail', feedback_id=feedback_row.id)
+    title = (
+        f'Переоткрыто обращение #{feedback_row.id}'
+        if reopened else f'Ответ в обратной связи #{feedback_row.id}'
+    )
+    icon = '🔄' if reopened else '💬'
     for admin in admins:
         create_notification(
             user_id=admin.id,
             type='feedback',
-            title=f'Ответ в обратной связи #{feedback_row.id}',
+            title=title,
             message=preview,
             link=detail_path,
-            icon='💬',
+            icon=icon,
         )
 
     _send_admin_telegram(
         admins,
-        title=f'💬 <b>Ответ в обращении #{feedback_row.id}</b>',
+        title=(
+            f'🔄 <b>Переоткрыто обращение #{feedback_row.id}</b>'
+            if reopened else f'💬 <b>Ответ в обращении #{feedback_row.id}</b>'
+        ),
         body=reply.body,
         author=reply.author,
         detail_path=detail_path,
