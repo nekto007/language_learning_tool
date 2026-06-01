@@ -539,6 +539,14 @@ function addSwipeSupport() {
   cards.forEach(card => {
     card.addEventListener('touchstart', (e) => {
       touchStartX = e.changedTouches[0].screenX;
+      // Seed touchEndX so a pure tap (no touchmove between start and end)
+      // computes diff=0 instead of inheriting a stale value from a prior
+      // swipe — that stale value would otherwise trip the > 100px guard in
+      // touchend and synthesise a "swipe" out of every tap, advancing to
+      // the next card whenever the user tried to flip or hit the audio
+      // button. Reproduces especially fast on tablets where touch is the
+      // primary input and the first tap of the session had touchEndX = 0.
+      touchEndX = touchStartX;
       isDragging = true;
     });
 

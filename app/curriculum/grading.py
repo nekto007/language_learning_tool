@@ -1231,17 +1231,37 @@ def process_quiz_submission(questions, answers):
                 user_text = str(user_answer)
 
             elif question_type == 'matching':
-                # For matching questions, format pairs as readable text
+                # For matching questions, format pairs as readable text.
+                # Content schemas vary: some carry ``left``/``right``, older
+                # ones use ``english``/``russian`` or ``word``/``translation``.
+                # Detail review handles all three — mirror that here so the
+                # short "Что повторить" summary doesn't degrade to a row of
+                # bare " → " arrows when the pair fields don't match.
+                def _pair_left(p: dict) -> str:
+                    return str(
+                        p.get('left') or p.get('english')
+                        or p.get('word') or p.get('term') or ''
+                    )
+
+                def _pair_right(p: dict) -> str:
+                    return str(
+                        p.get('right') or p.get('russian')
+                        or p.get('translation') or p.get('match') or ''
+                    )
+
+                pairs_src = None
                 if isinstance(correct_answer, list):
-                    correct_text = ', '.join(
-                        f"{p.get('left', '')} → {p.get('right', '')}"
-                        for p in correct_answer if isinstance(p, dict)
-                    )
+                    pairs_src = correct_answer
                 elif 'pairs' in question:
-                    correct_text = ', '.join(
-                        f"{p.get('left', '')} → {p.get('right', '')}"
-                        for p in question['pairs']
-                    )
+                    pairs_src = question['pairs']
+
+                if pairs_src is not None:
+                    formatted = [
+                        f"{_pair_left(p)} → {_pair_right(p)}"
+                        for p in pairs_src if isinstance(p, dict)
+                        and (_pair_left(p) or _pair_right(p))
+                    ]
+                    correct_text = ', '.join(formatted) if formatted else 'Не указан'
                 else:
                     correct_text = str(correct_answer) if correct_answer is not None else 'Не указан'
                 user_text = str(user_answer)

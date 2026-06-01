@@ -1132,6 +1132,23 @@ def _render_unified_dashboard(tz: str):
         unified_plan, daily_summary
     )
 
+    # Normalise required-section state from plan_completion: if summary data
+    # says an item is done (e.g. user returned to a skipped SRS slot and
+    # reviewed cards), clear any stale skipped/blocked flag and mark the
+    # item completed. Otherwise the template's strict precedence keeps
+    # showing «Пропущено» / locked even though plan_completion already
+    # credits the slot — and the top counter never increments.
+    for _it in (unified_plan.get('required') or []):
+        if plan_completion.get(_it.get('id'), False):
+            _it['completed'] = True
+            _it['skipped'] = False
+            _it['blocked'] = False
+    for _it in (unified_plan.get('optional') or []):
+        if plan_completion.get(_it.get('id'), False):
+            _it['completed'] = True
+            _it['skipped'] = False
+            _it['blocked'] = False
+
     # plan payload приходит с day_secured=False (assembly-time всегда False);
     # пересчитываем по фактической активности и записываем в payload, иначе
     # шаблон оставляет «Дополнительно» заблокированным даже при 4/4.

@@ -241,17 +241,33 @@ def build_optional(
     """
     seen_ids = {it.id for it in required_items}
 
+    def _item_lesson_id(it: PlanItem) -> Optional[int]:
+        raw = (it.data or {}).get('lesson_id') if it.data else None
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    # Lessons already surfaced anywhere in the plan (in any kind / section).
+    # Used to suppress duplicate cards for the same underlying lesson when a
+    # single Lesson row qualifies under more than one builder — e.g. a
+    # writing_prompt curriculum lesson would otherwise appear once as a
+    # ``curriculum:lesson:NNN`` completed card AND once as a
+    # ``writing:lesson:NNN`` skill card.
+    seen_lesson_ids: set[int] = set()
+    for it in required_items:
+        lid = _item_lesson_id(it)
+        if lid is not None:
+            seen_lesson_ids.add(lid)
+
     # Extract the required curriculum lesson id so the optional builder skips
     # it and offers the NEXT lesson on the spine instead.
     required_curriculum_lesson_id: Optional[int] = None
     for it in required_items:
         if it.kind == 'curriculum':
-            lesson_id_raw = (it.data or {}).get('lesson_id')
-            if lesson_id_raw is not None:
-                try:
-                    required_curriculum_lesson_id = int(lesson_id_raw)
-                except (TypeError, ValueError):
-                    pass
+            required_curriculum_lesson_id = _item_lesson_id(it)
             break
     exclude_curriculum_ids: Optional[set[int]] = (
         {required_curriculum_lesson_id} if required_curriculum_lesson_id is not None else None
@@ -273,6 +289,9 @@ def build_optional(
                 continue
             completed_curriculum_items.append(completed_item)
             seen_ids.add(completed_item.id)
+            cli_lid = _item_lesson_id(completed_item)
+            if cli_lid is not None:
+                seen_lesson_ids.add(cli_lid)
 
     # Build candidate items per source. Each source contributes at most one
     # optional item (subsequent extension comes from rebuild after activity).
@@ -285,8 +304,15 @@ def build_optional(
         )
         if candidate is None or candidate.id in seen_ids:
             continue
+        candidate_lid = _item_lesson_id(candidate)
+        if candidate_lid is not None and candidate_lid in seen_lesson_ids:
+            # Same underlying lesson already represented (e.g. surfaced as
+            # a completed curriculum card) — drop the duplicate.
+            continue
         active_candidates.append(candidate)
         seen_ids.add(candidate.id)
+        if candidate_lid is not None:
+            seen_lesson_ids.add(candidate_lid)
 
     # Active candidates take priority over completed cards — drop accumulated
     # completions first if the section would otherwise overflow.

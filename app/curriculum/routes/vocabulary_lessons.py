@@ -26,6 +26,30 @@ from app.words.models import CollectionWords
 logger = logging.getLogger(__name__)
 
 
+_NULL_LIKE_STRINGS = frozenset({'', 'null', 'none', 'n/a', 'na', '-'})
+
+
+def _clean_word_list(values) -> list[str]:
+    """Drop ``None``, blank, and literal "null"/"none" string entries.
+
+    CSV imports and bot scrapers occasionally save the string ``"null"`` into
+    JSON list columns (synonyms / antonyms). Without this filter the card
+    template renders ``Антонимы: null`` because ``["null"] | join(', ')`` is
+    a perfectly valid Jinja expression that yields the literal word.
+    """
+    if not values:
+        return []
+    cleaned: list[str] = []
+    for v in values:
+        if v is None:
+            continue
+        text = str(v).strip()
+        if not text or text.lower() in _NULL_LIKE_STRINGS:
+            continue
+        cleaned.append(text)
+    return cleaned
+
+
 def _load_annotations(user_id: int, word_ids: list[int]) -> dict[int, str]:
     """Return {word_id: note} for all annotated words in word_ids for user."""
     if not word_ids:
@@ -139,8 +163,8 @@ def render_vocabulary_lesson(lesson):
                         {'note': n.note, 'context': n.context or ''}
                         for n in cultural_notes
                     ],
-                    'synonyms': word.synonyms or [],
-                    'antonyms': word.antonyms or [],
+                    'synonyms': _clean_word_list(word.synonyms),
+                    'antonyms': _clean_word_list(word.antonyms),
                     'frequency_band': word.frequency_band,
                     'etymology': bleach.clean(word.etymology or '', tags=[], strip=True),
                     'annotation': annotations.get(word.id, ''),
@@ -466,8 +490,8 @@ def vocabulary_lesson(lesson_id):
                         {'note': n.note, 'context': n.context or ''}
                         for n in cultural_notes
                     ],
-                    'synonyms': word.synonyms or [],
-                    'antonyms': word.antonyms or [],
+                    'synonyms': _clean_word_list(word.synonyms),
+                    'antonyms': _clean_word_list(word.antonyms),
                     'frequency_band': word.frequency_band,
                     'etymology': bleach.clean(word.etymology or '', tags=[], strip=True),
                     'annotation': annotations.get(word.id, ''),
