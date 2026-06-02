@@ -159,9 +159,13 @@ def feedback_index():
 def feedback_detail(feedback_id: int):
     """Full thread view for admins: meta + screenshot + reply form."""
     row = Feedback.query.get_or_404(feedback_id)
-    status_changed = row.status == 'new'
-    if status_changed:
-        row.status = 'seen'
+    if row.status == 'new':
+        try:
+            row.status = 'seen'
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.warning('feedback_admin_seen_failed id=%s', feedback_id, exc_info=True)
     try:
         from app.notifications.models import Notification
 
@@ -176,7 +180,7 @@ def feedback_detail(feedback_id: int):
             )
             .update({'read': True}, synchronize_session=False)
         )
-        if status_changed or updated:
+        if updated:
             db.session.commit()
     except Exception:
         db.session.rollback()

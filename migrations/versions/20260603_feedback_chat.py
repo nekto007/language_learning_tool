@@ -51,6 +51,9 @@ def upgrade():
         ),
     )
 
+    # Backfill so pre-existing rows sort by real submission time, not migration time.
+    op.execute("UPDATE feedback SET updated_at = created_at")
+
     op.create_table(
         'feedback_replies',
         sa.Column('id', sa.Integer(), nullable=False, autoincrement=True),
