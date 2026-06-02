@@ -1506,6 +1506,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     meets_min = meets_min_words and meets_min_sentences
 
     completed = meets_min and checklist_completed and target_phrases_met
+    writing_score = round(len(valid_checked) / len(checklist) * 100) if checklist else 100
 
     if meets_min:
         try:
@@ -1531,6 +1532,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         }
         if progress:
             progress.status = 'completed'
+            progress.score = writing_score
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
@@ -1541,6 +1543,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 user_id=user_id,
                 lesson_id=lesson.id,
                 status='completed',
+                score=writing_score,
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
@@ -1557,7 +1560,6 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 maybe_award_curriculum_xp,
                 maybe_award_writing_xp,
             )
-            writing_score = round(len(valid_checked) / len(checklist) * 100) if checklist else 100
             with db.session.begin_nested():
                 maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=writing_score)
                 maybe_award_writing_xp(user_id, lesson.id, db_session=db)

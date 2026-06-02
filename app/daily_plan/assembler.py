@@ -7,7 +7,6 @@ from typing import Any, Optional
 
 from sqlalchemy import func
 
-from app.books.models import Book, Chapter, UserChapterProgress
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
@@ -318,24 +317,6 @@ def _find_next_book_course_lesson(user_id: int) -> Optional[dict[str, Any]]:
                 'day_number': dl.day_number,
                 'lesson_type': dl.lesson_type,
             }
-    return None
-
-
-def _find_next_book(user_id: int) -> Optional[dict[str, Any]]:
-    most_recent = db.session.query(Chapter.book_id).join(
-        UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id,
-    ).filter(
-        UserChapterProgress.user_id == user_id,
-    ).order_by(UserChapterProgress.updated_at.desc()).first()
-
-    if most_recent:
-        book = Book.query.get(most_recent[0])
-        if book:
-            return {'title': book.title, 'id': book.id}
-
-    book = Book.query.filter(Book.chapters_cnt > 0).order_by(Book.title).first()
-    if book:
-        return {'title': book.title, 'id': book.id}
     return None
 
 

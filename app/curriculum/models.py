@@ -391,7 +391,7 @@ class LessonAttempt(db.Model):
         """Mark attempt as completed with results."""
         self.completed_at = datetime.now(timezone.utc)
         self.score = score
-        self.passed = score >= 70 if score is not None else False  # Default passing score
+        self.passed = score >= PASSING_SCORE_PERCENT if score is not None else False
         self.mistakes = mistakes or []
         self.correct_answers = correct
         self.total_questions = total
