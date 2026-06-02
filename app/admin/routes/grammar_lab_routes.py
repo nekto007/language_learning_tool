@@ -35,6 +35,180 @@ logger = logging.getLogger(__name__)
 ALLOWED_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
 
 
+def _grammar_topic_payload(content: dict | None, lesson_title: str = '') -> tuple[str, dict]:
+    """Normalize grammar lesson content from legacy and rich curriculum imports."""
+    if not isinstance(content, dict):
+        content = {}
+
+    grammar_explanation = content.get('grammar_explanation') or {}
+    if not isinstance(grammar_explanation, dict):
+        grammar_explanation = {}
+
+    rich_source = grammar_explanation if grammar_explanation else content
+    title = (
+        rich_source.get('title')
+        or content.get('title')
+        or lesson_title
+        or content.get('rule')
+        or ''
+    )
+    payload = {
+        'introduction': (
+            rich_source.get('introduction')
+            or content.get('description')
+            or content.get('content')
+            or ''
+        ),
+        'sections': rich_source.get('sections') or content.get('sections') or [],
+        'important_notes': (
+            rich_source.get('important_notes')
+            or content.get('important_notes')
+            or []
+        ),
+        'summary': rich_source.get('summary') or content.get('summary') or {},
+    }
+    if content.get('rule'):
+        payload['rule'] = content['rule']
+    if content.get('examples'):
+        payload['examples'] = content['examples']
+    if rich_source.get('tldr'):
+        payload['tldr'] = rich_source['tldr']
+    return title.strip(), payload
+
+
+def _delete_module_imported_exercises(topic_id: int) -> int:
+    """Delete exercises created by module import while preserving JSON extras."""
+    deleted = 0
+    exercises = GrammarExercise.query.filter_by(topic_id=topic_id).all()
+    for exercise in exercises:
+        content = exercise.content if isinstance(exercise.content, dict) else {}
+        if content.get('source') == 'json_import':
+            continue
+        db.session.delete(exercise)
+        deleted += 1
+    return deleted
+
+
+def _first_present(*values):
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str) and not value:
+            continue
+        if isinstance(value, (list, tuple, dict)) and not value:
+            continue
+        return value
+    return None
+
+
+def _coerce_answer(value):
+    if isinstance(value, list):
+        return value[0] if value else ''
+    return value
+
+
+def _module_exercise_content(ex: dict) -> tuple[str, dict] | tuple[None, None]:
+    if not isinstance(ex, dict):
+        return None, None
+
+    raw_type = ex.get('type') or ex.get('exercise_type') or 'fill_blank'
+    type_mapping = {
+        'fill_blank': 'fill_blank',
+        'fill_in_blank': 'fill_blank',
+        'multiple_choice': 'multiple_choice',
+        'true_false': 'true_false',
+        'matching': 'matching',
+        'match': 'matching',
+        'transformation': 'transformation',
+        'error_correction': 'error_correction',
+        'sentence_builder': 'reorder',
+        'ordering': 'reorder',
+        'reorder': 'reorder',
+        'translation': 'translation',
+    }
+    mapped_type = type_mapping.get(raw_type, 'fill_blank')
+
+    question = _first_present(
+        ex.get('question'),
+        ex.get('text'),
+        ex.get('prompt'),
+        ex.get('instruction'),
+        ex.get('sentence'),
+        ex.get('incorrect_sentence'),
+    ) or ''
+    correct_answer = _coerce_answer(_first_present(
+        ex.get('correct'),
+        ex.get('correct_answer'),
+        ex.get('answer'),
+        ex.get('correct_sentence'),
+        ex.get('target'),
+    ))
+    exercise_content = {
+        'question': question,
+        'correct_answer': correct_answer,
+        'explanation': ex.get('explanation', ''),
+        'source': 'module_import',
+    }
+
+    if mapped_type == 'fill_blank':
+        exercise_content['options'] = ex.get('options', [])
+    elif mapped_type == 'multiple_choice':
+        options = ex.get('options', [])
+        exercise_content['options'] = options
+        correct_value = _first_present(
+            ex.get('correct'),
+            ex.get('correct_answer'),
+            ex.get('answer'),
+            ex.get('correct_index'),
+        )
+        if isinstance(correct_value, str) and correct_value in options:
+            exercise_content['correct_answer'] = options.index(correct_value)
+        elif isinstance(correct_value, int):
+            exercise_content['correct_answer'] = correct_value
+        else:
+            exercise_content['correct_answer'] = 0
+    elif mapped_type == 'matching':
+        exercise_content['pairs'] = ex.get('pairs', [])
+    elif mapped_type == 'reorder':
+        exercise_content['words'] = ex.get('words', [])
+        correct_order = ex.get('correct_order')
+        if isinstance(correct_order, list):
+            exercise_content['correct_answer'] = ' '.join(str(word) for word in correct_order)
+        else:
+            exercise_content['correct_answer'] = _coerce_answer(_first_present(
+                ex.get('correct'),
+                ex.get('correct_answer'),
+                ex.get('answer'),
+            )) or ''
+    elif mapped_type == 'true_false':
+        exercise_content['statement'] = question
+        exercise_content['correct_answer'] = _first_present(
+            ex.get('correct'),
+            ex.get('correct_answer'),
+            ex.get('answer'),
+            False,
+        )
+    elif mapped_type == 'translation':
+        exercise_content['acceptable_answers'] = (
+            ex.get('acceptable_answers')
+            or ex.get('alternative_answers')
+            or []
+        )
+        if 'Переведите на английский:' in question:
+            sentence = question.replace('Переведите на английский:', '').strip()
+        else:
+            sentence = question
+        exercise_content['sentence'] = sentence
+    elif mapped_type == 'error_correction':
+        exercise_content['sentence'] = _first_present(
+            ex.get('incorrect_sentence'),
+            ex.get('sentence'),
+            question,
+        ) or ''
+
+    return mapped_type, exercise_content
+
+
 # region TOPICS ===============================================================
 
 @grammar_lab_bp.route('/grammar-lab')
@@ -405,8 +579,7 @@ def import_from_modules():
                     continue
 
                 content = grammar_lesson.content or {}
-                # Данные на верхнем уровне content, не в grammar_explanation
-                title = content.get('title', '')
+                title, topic_content = _grammar_topic_payload(content, grammar_lesson.title)
 
                 if not title:
                     continue
@@ -428,24 +601,14 @@ def import_from_modules():
                     topic.title_ru = title
                     topic.level = level_code
                     topic.order = module.number
-                    topic.content = {
-                        'introduction': content.get('description', ''),
-                        'sections': content.get('sections', []),
-                        'important_notes': content.get('important_notes', []),
-                        'summary': content.get('summary', {}),
-                        'source_module': module.number
-                    }
+                    topic_content['source_module'] = module.number
+                    topic.content = topic_content
                     # Delete old module exercises to reimport (preserve JSON-imported)
-                    GrammarExercise.query.filter(
-                        GrammarExercise.topic_id == topic.id,
-                        db.or_(
-                            GrammarExercise.content['source'].astext != 'json_import',
-                            ~GrammarExercise.content.has_key('source')
-                        )
-                    ).delete(synchronize_session=False)
+                    _delete_module_imported_exercises(topic.id)
                     skipped += 1  # Count as updated (using skipped for "updated" count)
                 else:
                     # Create new topic with id = module.id
+                    topic_content['source_module'] = module.number
                     topic = GrammarTopic(
                         id=module.id,
                         slug=slug,
@@ -453,13 +616,7 @@ def import_from_modules():
                         title_ru=title,
                         level=level_code,
                         order=module.number,
-                        content={
-                            'introduction': content.get('description', ''),
-                            'sections': content.get('sections', []),
-                            'important_notes': content.get('important_notes', []),
-                            'summary': content.get('summary', {}),
-                            'source_module': module.number
-                        },
+                        content=topic_content,
                         estimated_time=15,
                         difficulty=1
                     )
@@ -505,13 +662,13 @@ def import_from_modules():
                 if synced_count > 0:
                     logger.info(f"Module {module.number}: synced {synced_count} users")
 
-                # Упражнения находятся в quiz уроках в content['exercises']
+                # Упражнения могут быть сохранены прямо в grammar lesson после
+                # curriculum import или вынесены в отдельные quiz lessons.
+                exercises = list(content.get('exercises', []) if isinstance(content, dict) else [])
                 quiz_lessons = Lessons.query.filter_by(
                     module_id=module.id,
                     type='quiz'
                 ).all()
-
-                exercises = []
                 for quiz_lesson in quiz_lessons:
                     quiz_content = quiz_lesson.content or {}
                     lesson_exercises = quiz_content.get('exercises', [])
@@ -519,58 +676,19 @@ def import_from_modules():
                 if exercises:
 
                     for i, ex in enumerate(exercises):
-                        ex_type = ex.get('type', 'fill_blank')
+                        mapped_type, exercise_content = _module_exercise_content(ex)
+                        if not mapped_type:
+                            continue
 
-                        # Map exercise types
-                        type_mapping = {
-                            'fill_blank': 'fill_blank',
-                            'multiple_choice': 'multiple_choice',
-                            'true_false': 'true_false',
-                            'matching': 'matching',
-                            'transformation': 'transformation',
-                            'ordering': 'reorder',
-                            'translation': 'translation'
-                        }
-                        mapped_type = type_mapping.get(ex_type, 'fill_blank')
-
-                        # Build exercise content
-                        exercise_content = {
-                            'question': ex.get('question') or ex.get('instruction', ''),
-                            'correct_answer': ex.get('correct') or ex.get('correct_answer', ''),
-                            'explanation': ex.get('explanation', ''),
-                        }
-
-                        # Add type-specific fields
-                        if mapped_type == 'fill_blank':
-                            exercise_content['options'] = ex.get('options', [])
-                        elif mapped_type == 'multiple_choice':
-                            options = ex.get('options', [])
-                            exercise_content['options'] = options
-                            # Grader expects correct_answer as index, not string
-                            correct_value = ex.get('correct') or ex.get('correct_answer', '')
-                            if isinstance(correct_value, str) and correct_value in options:
-                                exercise_content['correct_answer'] = options.index(correct_value)
-                            elif isinstance(correct_value, int):
-                                exercise_content['correct_answer'] = correct_value
-                            else:
-                                exercise_content['correct_answer'] = 0
-                        elif mapped_type == 'matching':
-                            exercise_content['pairs'] = ex.get('pairs', [])
-                        elif mapped_type == 'reorder':
-                            exercise_content['words'] = ex.get('words', [])
-                            exercise_content['correct_answer'] = ex.get('correct', '')
-                        elif mapped_type == 'true_false':
-                            exercise_content['statement'] = ex.get('question', '')
-                            exercise_content['correct_answer'] = ex.get('correct', True)
-                        elif mapped_type == 'translation':
-                            exercise_content['acceptable_answers'] = ex.get('acceptable_answers', [])
-                            # Extract sentence from question (remove "Переведите на английский: ")
-                            question_text = ex.get('question', '')
-                            if 'Переведите на английский:' in question_text:
-                                sentence = question_text.replace('Переведите на английский:', '').strip()
-                            else:
-                                sentence = question_text
-                            exercise_content['sentence'] = sentence
+                        from app.grammar_lab.content_validator import validate_exercise_content
+                        try:
+                            validate_exercise_content(mapped_type, exercise_content)
+                        except ValueError as ve:
+                            logger.warning(
+                                'Skipping module grammar exercise: module_id=%s topic_id=%s type=%s error=%s',
+                                module.id, topic.id, mapped_type, ve,
+                            )
+                            continue
 
                         exercise = GrammarExercise(
                             topic_id=topic.id,
@@ -620,8 +738,7 @@ def import_from_modules():
             continue
 
         content = grammar_lesson.content or {}
-        # Данные на верхнем уровне content, не в grammar_explanation
-        title = content.get('title', '')
+        title, _topic_content = _grammar_topic_payload(content, grammar_lesson.title)
 
         if not title:
             continue
@@ -633,13 +750,13 @@ def import_from_modules():
             or GrammarTopic.query.filter_by(slug=slug).first()
         )
 
-        # Упражнения находятся в quiz уроках в content['exercises']
+        # Упражнения могут быть сохранены прямо в grammar lesson или в quiz lessons.
         quiz_lessons = Lessons.query.filter_by(
             module_id=module.id,
             type='quiz'
         ).all()
 
-        exercise_count = 0
+        exercise_count = len(content.get('exercises', []) if isinstance(content, dict) else [])
         for quiz_lesson in quiz_lessons:
             quiz_content = quiz_lesson.content or {}
             lesson_exercises = quiz_content.get('exercises', [])
