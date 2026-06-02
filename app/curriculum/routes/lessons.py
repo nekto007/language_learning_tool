@@ -1989,6 +1989,22 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
     from app.curriculum.grading import grade_pronunciation_match
 
     if data.get('finish'):
+        # Validate that the user has made at least one attempt before finishing
+        from app.curriculum.models import PronunciationAttempt
+        pron_content = lesson.content or {}
+        pron_items = pron_content.get('items') or []
+        lesson_words = {str(item.get('word') or '') for item in pron_items if item.get('word')}
+        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        pron_attempts = PronunciationAttempt.query.filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.created_at >= today_start,
+        ).all()
+        relevant = [a for a in pron_attempts if a.word in lesson_words] if lesson_words else pron_attempts
+        if not relevant:
+            return {'success': False, 'error': 'requires_attempt', 'message': 'Необходимо сделать хотя бы одну попытку'}
+
+        pron_score = round(sum(1 for a in relevant if a.matched) / len(relevant) * 100)
+
         # Final submission — mark lesson completed and award XP
         progress = LessonProgress.query.filter_by(
             user_id=user_id, lesson_id=lesson.id
@@ -1998,6 +2014,7 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
+            progress.score = pron_score
         else:
             progress = LessonProgress(
                 user_id=user_id,
@@ -2006,6 +2023,7 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
+                score=pron_score,
             )
             db.session.add(progress)
         try:
@@ -2015,17 +2033,6 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
 
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-            from app.curriculum.models import PronunciationAttempt
-            pron_content = lesson.content or {}
-            pron_items = pron_content.get('items') or []
-            lesson_words = {str(item.get('word') or '') for item in pron_items if item.get('word')}
-            today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
-            pron_attempts = PronunciationAttempt.query.filter(
-                PronunciationAttempt.user_id == user_id,
-                PronunciationAttempt.created_at >= today_start,
-            ).all()
-            relevant = [a for a in pron_attempts if a.word in lesson_words] if lesson_words else pron_attempts
-            pron_score = round(sum(1 for a in relevant if a.matched) / len(relevant) * 100) if relevant else 0
             with db.session.begin_nested():
                 maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=pron_score)
             db.session.commit()
