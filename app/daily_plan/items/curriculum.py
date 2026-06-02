@@ -16,8 +16,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
+from app.curriculum.constants import PASSING_SCORE_DEFAULT
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.items import PlanItem
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
@@ -63,6 +64,18 @@ _QUIZ_LESSON_TYPES: frozenset[str] = frozenset({
     'listening_quiz', 'dialogue_completion_quiz',
     'ordering_quiz', 'translation_quiz', 'listening_immersion_quiz',
 })
+
+# Lesson types whose completion requires a passing score. Activity-based
+# types (vocabulary, reading, flashcards, etc.) have no meaningful score
+# threshold — the fallback LessonProgress check should pass them through.
+_SCORE_BASED_LESSON_TYPES: frozenset[str] = frozenset({
+    'quiz', 'grammar', 'final_test',
+    'listening_quiz', 'dialogue_completion_quiz',
+    'ordering_quiz', 'translation_quiz', 'listening_immersion_quiz',
+    'matching', 'translation', 'sentence_correction',
+    'sentence_completion', 'collocation_matching', 'dictation',
+})
+
 _ADAPTIVE_LOW_THRESHOLD = 60.0
 _ADAPTIVE_HIGH_THRESHOLD = 90.0
 _ADAPTIVE_HINT_WINDOW = 5
@@ -106,6 +119,10 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
+            or_(
+                Lessons.type.notin_(tuple(_SCORE_BASED_LESSON_TYPES)),
+                LessonProgress.score >= PASSING_SCORE_DEFAULT,
+            ),
         )
         .exists()
     ).scalar() or False
@@ -188,6 +205,10 @@ def get_curriculum_lessons_completed_today(
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
+            or_(
+                Lessons.type.notin_(tuple(_SCORE_BASED_LESSON_TYPES)),
+                LessonProgress.score >= PASSING_SCORE_DEFAULT,
+            ),
         )
         .order_by(LessonProgress.completed_at.asc())
         .all()
