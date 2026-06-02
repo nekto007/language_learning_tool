@@ -335,7 +335,14 @@ def submit_lesson(lesson_id):
         from app.api.errors import api_error as _api_error
         if lesson.type == 'pronunciation' and not (isinstance(data, dict) and data.get('finish')):
             if _count_pronunciation_attempts_today(current_user.id) >= PRONUNCIATION_DAILY_LIMIT:
-                return _api_error('rate_limit_exceeded', 'Daily pronunciation attempt limit reached.', 429)
+                from app.utils.time_utils import get_user_local_day_bounds
+                from app.utils.db import db as _db
+                import calendar
+                _, day_end = get_user_local_day_bounds(current_user.id, _db)
+                retry_after = int(calendar.timegm(day_end.timetuple()))
+                return jsonify({'success': False, 'error': 'rate_limit_exceeded',
+                                'message': 'Daily pronunciation attempt limit reached.',
+                                'retry_after': retry_after}), 429
         elif lesson.type in ('writing_prompt', 'translation', 'sentence_correction'):
             if _count_writing_attempts_today(current_user.id) >= WRITING_DAILY_LIMIT:
                 return _api_error('rate_limit_exceeded', 'Daily writing attempt limit reached.', 429)
@@ -1170,6 +1177,15 @@ def sentence_correction_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+
+    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
     if not progress:
         try:
             progress = LessonProgress(
@@ -1357,6 +1373,15 @@ def writing_prompt_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+
+    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
     if not progress:
         try:
             progress = LessonProgress(
