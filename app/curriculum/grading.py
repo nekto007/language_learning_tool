@@ -58,7 +58,7 @@ def check_final_test_attempts_exhausted(
             LessonAttempt.lesson_id == lesson_id,
             LessonAttempt.completed_at.isnot(None),
             LessonAttempt.completed_at >= window_start_naive,
-            (LessonAttempt.passed.is_(False)) | (LessonAttempt.passed.is_(None)),
+            LessonAttempt.passed.is_(False),
         )
         .order_by(LessonAttempt.completed_at.asc())
         .all()
