@@ -59,6 +59,8 @@ def can_user_access_book(user, book: Book) -> bool:
     """
     if book is None:
         return False
+    if not getattr(user, 'is_authenticated', False):
+        return False
     if getattr(user, 'is_admin', False):
         return True
     if book.rights_status == 'public_domain':

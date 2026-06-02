@@ -2018,10 +2018,11 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
     if data.get('finish'):
         # Validate that the user has made at least one attempt before finishing
         from app.curriculum.models import PronunciationAttempt
+        from app.utils.time_utils import get_user_local_day_bounds
         pron_content = lesson.content or {}
         pron_items = pron_content.get('items') or []
         lesson_words = {str(item.get('word') or '') for item in pron_items if item.get('word')}
-        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+        today_start, _today_end = get_user_local_day_bounds(user_id, db)
         pron_attempts = PronunciationAttempt.query.filter(
             PronunciationAttempt.user_id == user_id,
             PronunciationAttempt.created_at >= today_start,

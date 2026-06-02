@@ -1,6 +1,7 @@
 """
 Система отправки напоминаний пользователям языкового приложения
 """
+import html as html_module
 import logging
 import os
 import re
@@ -566,7 +567,7 @@ def preview_template(template_name):
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px; color: #721c24; background: #f8d7da;">
             <h3>Ошибка при загрузке шаблона</h3>
-            <p>{str(e)}</p>
+            <p>{html_module.escape(str(e))}</p>
         </body>
         </html>
         '''

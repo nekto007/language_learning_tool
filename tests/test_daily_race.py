@@ -194,7 +194,7 @@ class TestAdultGate:
         with mock_patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
              mock_patch('app.telegram.queries.get_daily_summary', return_value=summary):
             resp = authenticated_client.get('/api/daily-race')
-        assert resp.status_code != 403, (
+        assert resp.status_code == 200, (
             'birth_year=None must not trigger age_restricted gate'
         )
 

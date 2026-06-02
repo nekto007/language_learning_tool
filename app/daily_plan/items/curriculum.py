@@ -73,7 +73,7 @@ _SCORE_BASED_LESSON_TYPES: frozenset[str] = frozenset({
     'listening_quiz', 'dialogue_completion_quiz',
     'ordering_quiz', 'translation_quiz', 'listening_immersion_quiz',
     'matching', 'translation', 'sentence_correction',
-    'sentence_completion', 'collocation_matching', 'dictation',
+    'sentence_completion', 'collocation_matching', 'dictation', 'audio_fill_blank',
 })
 
 _ADAPTIVE_LOW_THRESHOLD = 60.0

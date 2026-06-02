@@ -7,6 +7,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Optional
 
+from app.curriculum.constants import PASSING_SCORE_DEFAULT
 from app.utils.normalization import normalize_text
 
 logger = logging.getLogger(__name__)
@@ -426,7 +427,7 @@ def grade_sentence_correction_multi(user_answers: list, items: list) -> dict:
     score = round(correct / total * 100)
     return {
         'score': score,
-        'passed': score >= 70,
+        'passed': score >= PASSING_SCORE_DEFAULT,
         'correct_items': correct,
         'total_items': total,
         'item_results': item_results,
