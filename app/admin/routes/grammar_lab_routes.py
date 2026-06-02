@@ -33,6 +33,14 @@ grammar_lab_bp = Blueprint('grammar_lab_admin', __name__)
 logger = logging.getLogger(__name__)
 
 ALLOWED_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
+GRAMMAR_IMPORT_QUIZ_TYPES = (
+    'quiz',
+    'ordering_quiz',
+    'translation_quiz',
+    'listening_quiz',
+    'dialogue_completion_quiz',
+    'listening_immersion_quiz',
+)
 
 
 def _grammar_topic_payload(content: dict | None, lesson_title: str = '') -> tuple[str, dict]:
@@ -207,6 +215,43 @@ def _module_exercise_content(ex: dict) -> tuple[str, dict] | tuple[None, None]:
         ) or ''
 
     return mapped_type, exercise_content
+
+
+def _lesson_exercises(content: dict | None) -> list[dict]:
+    if not isinstance(content, dict):
+        return []
+
+    for key in ('exercises', 'questions', 'items', 'tasks'):
+        value = content.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+
+    sections = content.get('test_sections')
+    if isinstance(sections, list):
+        exercises = []
+        for section in sections:
+            if not isinstance(section, dict):
+                continue
+            for key in ('exercises', 'questions', 'items', 'tasks'):
+                value = section.get(key)
+                if isinstance(value, list):
+                    exercises.extend(item for item in value if isinstance(item, dict))
+        return exercises
+
+    return []
+
+
+def _module_grammar_exercises(module_id: int, grammar_content: dict | None) -> list[dict]:
+    from app.curriculum.models import Lessons
+
+    exercises = list(_lesson_exercises(grammar_content))
+    quiz_lessons = Lessons.query.filter(
+        Lessons.module_id == module_id,
+        Lessons.type.in_(GRAMMAR_IMPORT_QUIZ_TYPES),
+    ).all()
+    for quiz_lesson in quiz_lessons:
+        exercises.extend(_lesson_exercises(quiz_lesson.content))
+    return exercises
 
 
 # region TOPICS ===============================================================
@@ -593,6 +638,8 @@ def import_from_modules():
                     existing = GrammarTopic.query.get(grammar_lesson.grammar_topic_id)
                 if not existing:
                     existing = GrammarTopic.query.filter_by(slug=slug).first()
+                exercises = _module_grammar_exercises(module.id, content)
+
                 if existing:
                     # Update existing topic
                     topic = existing
@@ -603,8 +650,11 @@ def import_from_modules():
                     topic.order = module.number
                     topic_content['source_module'] = module.number
                     topic.content = topic_content
-                    # Delete old module exercises to reimport (preserve JSON-imported)
-                    _delete_module_imported_exercises(topic.id)
+                    # Delete old module exercises only when we have a source to
+                    # reimport from. Otherwise one broken curriculum payload can
+                    # wipe the whole Grammar Lab exercise set.
+                    if exercises:
+                        _delete_module_imported_exercises(topic.id)
                     skipped += 1  # Count as updated (using skipped for "updated" count)
                 else:
                     # Create new topic with id = module.id
@@ -662,17 +712,6 @@ def import_from_modules():
                 if synced_count > 0:
                     logger.info(f"Module {module.number}: synced {synced_count} users")
 
-                # Упражнения могут быть сохранены прямо в grammar lesson после
-                # curriculum import или вынесены в отдельные quiz lessons.
-                exercises = list(content.get('exercises', []) if isinstance(content, dict) else [])
-                quiz_lessons = Lessons.query.filter_by(
-                    module_id=module.id,
-                    type='quiz'
-                ).all()
-                for quiz_lesson in quiz_lessons:
-                    quiz_content = quiz_lesson.content or {}
-                    lesson_exercises = quiz_content.get('exercises', [])
-                    exercises.extend(lesson_exercises)
                 if exercises:
 
                     for i, ex in enumerate(exercises):
@@ -750,17 +789,7 @@ def import_from_modules():
             or GrammarTopic.query.filter_by(slug=slug).first()
         )
 
-        # Упражнения могут быть сохранены прямо в grammar lesson или в quiz lessons.
-        quiz_lessons = Lessons.query.filter_by(
-            module_id=module.id,
-            type='quiz'
-        ).all()
-
-        exercise_count = len(content.get('exercises', []) if isinstance(content, dict) else [])
-        for quiz_lesson in quiz_lessons:
-            quiz_content = quiz_lesson.content or {}
-            lesson_exercises = quiz_content.get('exercises', [])
-            exercise_count += len(lesson_exercises)
+        exercise_count = len(_module_grammar_exercises(module.id, content))
 
         modules_with_grammar.append({
             'module_id': module.number,

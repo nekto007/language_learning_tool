@@ -293,6 +293,90 @@ class TestImportFromModules:
         assert exercises[0].content['correct_answer'] == 'work'
         assert exercises[1].exercise_type == 'matching'
 
+    def test_import_from_modules_uses_quiz_like_questions(
+        self, admin_client, mock_admin_user, db_session,
+    ):
+        from app.curriculum.models import Lessons
+        from app.grammar_lab.models import GrammarExercise, GrammarTopic
+
+        module = self._module_with_grammar(db_session)
+        grammar_lesson = Lessons.query.filter_by(module_id=module.id, type='grammar').one()
+        grammar_lesson.content['exercises'] = []
+        quiz_lesson = Lessons(
+            module_id=module.id,
+            number=2,
+            order=2,
+            title='Translation Quiz',
+            type='translation_quiz',
+            content={
+                'questions': [{
+                    'type': 'translation',
+                    'question': 'Переведите на английский: Я работаю',
+                    'correct_answer': 'I work',
+                    'alternative_answers': ['I am working'],
+                }],
+            },
+        )
+        db_session.add(quiz_lesson)
+        db_session.commit()
+
+        response = admin_client.post(
+            '/admin/grammar-lab/import-from-modules',
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        topic = GrammarTopic.query.filter_by(slug=f'a1-{module.number}').one()
+        exercise = GrammarExercise.query.filter_by(topic_id=topic.id).one()
+        assert exercise.exercise_type == 'translation'
+        assert exercise.content['correct_answer'] == 'I work'
+
+    def test_import_from_modules_does_not_delete_existing_when_no_source_exercises(
+        self, admin_client, mock_admin_user, db_session,
+    ):
+        from app.curriculum.models import Lessons
+        from app.grammar_lab.models import GrammarExercise, GrammarTopic
+
+        module = self._module_with_grammar(db_session)
+        topic = GrammarTopic(
+            id=module.id,
+            slug=f'a1-{module.number}',
+            title='Existing',
+            title_ru='Existing',
+            level='A1',
+            order=module.number,
+            content={'source_module': module.number},
+        )
+        db_session.add(topic)
+        db_session.flush()
+        existing_exercise = GrammarExercise(
+            topic_id=topic.id,
+            exercise_type='fill_blank',
+            content={
+                'source': 'module_import',
+                'question': 'Old',
+                'correct_answer': 'old',
+            },
+            difficulty=1,
+            order=1,
+        )
+        db_session.add(existing_exercise)
+
+        grammar_lesson = Lessons.query.filter_by(module_id=module.id, type='grammar').one()
+        grammar_lesson.grammar_topic_id = topic.id
+        grammar_lesson.content['exercises'] = []
+        db_session.commit()
+
+        response = admin_client.post(
+            '/admin/grammar-lab/import-from-modules',
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        exercises = GrammarExercise.query.filter_by(topic_id=topic.id).all()
+        assert len(exercises) == 1
+        assert exercises[0].content['correct_answer'] == 'old'
+
 
 class TestGrammarRoutesStructure:
     """Module-level structure smoke checks (Task 13)."""
