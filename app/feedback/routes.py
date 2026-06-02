@@ -104,6 +104,8 @@ def submit_feedback():
     url_value = _trim_str(source.get('url'), URL_MAX_LENGTH)
     if not url_value and request.referrer:
         url_value = request.referrer[:URL_MAX_LENGTH]
+    if url_value and not url_value.lower().startswith(('http://', 'https://')):
+        url_value = None
 
     user_agent = (request.user_agent.string or '')[:USER_AGENT_MAX_LENGTH] or None
 

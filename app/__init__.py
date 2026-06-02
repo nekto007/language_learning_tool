@@ -115,6 +115,7 @@ def create_app(config_class=Config):
     from app.curriculum import models as curriculum_models  # noqa: F401
     from app.daily_plan import models as daily_plan_models  # noqa: F401
     from app.daily_plan.linear import models as daily_plan_linear_models  # noqa: F401
+    from app.feedback import models as feedback_models  # noqa: F401
     from app.grammar_lab import models as grammar_models  # noqa: F401
     from app.modules import models as modules_models  # noqa: F401
     from app.notifications import models as notifications_models  # noqa: F401
