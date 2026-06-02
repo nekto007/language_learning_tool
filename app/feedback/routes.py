@@ -237,6 +237,7 @@ def submit_feedback():
         db.session.commit()
         try:
             _notify_admins_of_feedback(row)
+            db.session.commit()
         except Exception:
             logger.exception('feedback_notify_failed feedback_id=%s', row.id)
     except Exception:
@@ -315,6 +316,7 @@ def submit_user_reply(feedback_id: int):
     if not current_user.is_admin:
         try:
             _notify_admins_of_reply(row, reply, reopened=was_resolved)
+            db.session.commit()
         except Exception:
             logger.exception('feedback_reply_notify_admins_failed id=%s', row.id)
 

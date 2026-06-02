@@ -158,7 +158,7 @@
                     {% endif %}
 
                     <!-- Книги -->
-                    {% if has_module('books') %}
+                    {% if books_nav_visible() %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('books.') %}active{% endif %}" href="#" id="booksDropdown" role="button" data-bs-toggle="dropdown" aria-label="Книги">
                             <i class="fas fa-book"></i><span class="cabinet-nav__label">Книги</span>
@@ -437,7 +437,7 @@
             <span class="bottom-nav__icon"><i class="fas fa-ellipsis-h"></i></span>
             <span class="bottom-nav__label">Ещё</span>
             <div class="bottom-nav__dropdown" id="bottom-nav-dropdown">
-                {% if has_module('books') %}
+                {% if books_nav_visible() %}
                 <a href="{{ url_for('books.book_list') }}" class="bottom-nav__dropdown-item">
                     <i class="fas fa-book"></i> Книги
                 </a>
