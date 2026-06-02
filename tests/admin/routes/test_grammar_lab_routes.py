@@ -221,6 +221,79 @@ class TestImportExercisesJson:
         assert questions == {'New 1', 'New 2'}
 
 
+class TestImportFromModules:
+    """Tests for importing Grammar Lab topics/exercises from curriculum modules."""
+
+    def _module_with_grammar(self, db_session):
+        from app.curriculum.models import CEFRLevel, Lessons, Module
+
+        level = CEFRLevel(code='A1', name='Beginner', order=1)
+        db_session.add(level)
+        db_session.flush()
+
+        module = Module(
+            level_id=level.id,
+            number=7,
+            title='Grammar Import Module',
+            description='Module with grammar lesson exercises',
+        )
+        db_session.add(module)
+        db_session.flush()
+
+        lesson = Lessons(
+            module_id=module.id,
+            number=1,
+            order=1,
+            title='Present Simple',
+            type='grammar',
+            content={
+                'grammar_explanation': {
+                    'title': 'Present Simple',
+                    'introduction': 'Basic present forms.',
+                    'sections': [],
+                },
+                'exercises': [
+                    {
+                        'type': 'fill_in_blank',
+                        'prompt': 'I ___ here every day.',
+                        'answer': ['work'],
+                        'explanation': 'Use present simple for routines.',
+                    },
+                    {
+                        'type': 'match',
+                        'pairs': [{'left': 'I work', 'right': 'я работаю'}],
+                    },
+                ],
+            },
+        )
+        db_session.add(lesson)
+        db_session.commit()
+        return module
+
+    def test_import_from_modules_uses_grammar_lesson_exercises(
+        self, admin_client, mock_admin_user, db_session,
+    ):
+        from app.grammar_lab.models import GrammarExercise, GrammarTopic
+
+        module = self._module_with_grammar(db_session)
+
+        response = admin_client.post(
+            '/admin/grammar-lab/import-from-modules',
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        topic = GrammarTopic.query.filter_by(slug=f'a1-{module.number}').one()
+        exercises = GrammarExercise.query.filter_by(topic_id=topic.id).order_by(
+            GrammarExercise.order
+        ).all()
+        assert topic.title == 'Present Simple'
+        assert len(exercises) == 2
+        assert exercises[0].exercise_type == 'fill_blank'
+        assert exercises[0].content['correct_answer'] == 'work'
+        assert exercises[1].exercise_type == 'matching'
+
+
 class TestGrammarRoutesStructure:
     """Module-level structure smoke checks (Task 13)."""
 

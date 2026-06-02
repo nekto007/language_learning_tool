@@ -599,7 +599,8 @@ function showResults(data) {
   // When opened from the daily plan, replace the catalog "К списку уроков"
   // escape hatch with a "На дашборд" + "Следующий урок плана" pair so the
   // learner stays on the plan flow instead of falling into the module view.
-  const dp = (DAILY_PLAN_CTX && DAILY_PLAN_CTX.is_daily_plan) ? DAILY_PLAN_CTX : null;
+  const dpSource = (data && data.daily_plan_ctx) ? data.daily_plan_ctx : DAILY_PLAN_CTX;
+  const dp = (dpSource && dpSource.is_daily_plan) ? dpSource : null;
 
   if (isPerfect && (data.next_lesson_url || dp)) {
     if (dp) {

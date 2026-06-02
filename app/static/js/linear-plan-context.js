@@ -196,7 +196,8 @@
     // important when required and optional both carry curriculum items.
     try {
       var path = window.location.pathname || '';
-      var match = path.match(/\/learn\/(\d+)\/?/);
+      var match = path.match(/\/learn\/(\d+)\/?/) ||
+        path.match(/\/curriculum\/lesson\/(\d+)(?:\/|$)/);
       if (match) {
         params.push('lesson_id=' + encodeURIComponent(match[1]));
       }

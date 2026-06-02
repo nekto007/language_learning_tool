@@ -85,6 +85,11 @@ class TestPublicApiSurface:
             'Script must read the ?from=linear_plan marker'
         )
 
+    def test_fetch_next_slot_reads_canonical_and_typed_lesson_urls(self):
+        src = _read_script()
+        assert r'\/learn\/(\d+)\/?' in src
+        assert r'\/curriculum\/lesson\/(\d+)(?:\/|$)' in src
+
     def test_sessionStorage_used_with_try_catch(self):
         """Private mode / disabled storage must not crash the lesson page."""
         src = _read_script()

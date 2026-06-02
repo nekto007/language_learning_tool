@@ -1645,6 +1645,21 @@ def sentence_completion_lesson(lesson_id: int):
         if next_lesson:
             next_lesson_url = _lesson_completion_url(next_lesson)
 
+    daily_plan_ctx = None
+    try:
+        from app.daily_plan.linear.lesson_context import build_lesson_context
+        daily_plan_ctx = build_lesson_context(
+            current_user.id,
+            db,
+            current_lesson_id=lesson.id,
+        )
+    except Exception as ctx_err:
+        logger.warning(
+            "daily_plan_ctx build failed for sentence_completion lesson %s: %s",
+            lesson.id,
+            ctx_err,
+        )
+
     return render_template(
         'curriculum/lessons/sentence_completion.html',
         lesson=lesson,
@@ -1653,6 +1668,7 @@ def sentence_completion_lesson(lesson_id: int):
         module_url=module_url,
         is_completed=is_completed,
         next_lesson_url=next_lesson_url,
+        daily_plan_ctx=daily_plan_ctx,
     )
 
 

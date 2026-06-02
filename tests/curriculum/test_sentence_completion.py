@@ -278,6 +278,11 @@ class TestSentenceCompletionTemplate:
         tpl = _read_template()
         assert 'completion-next-area' in tpl
 
+    def test_daily_plan_uses_plan_next_slot(self):
+        tpl = _read_template()
+        assert "planNext.href = dp.next_slot_url" in tpl
+        assert "Следующий урок плана" in tpl
+
     def test_context_conditional_block(self):
         tpl = _read_template()
         assert 'item.context' in tpl
@@ -335,6 +340,44 @@ class TestSentenceCompletionLessonRoute:
         _login(client, test_user)
         resp = client.get(f"/curriculum/lesson/{test_lesson_vocabulary.id}/sentence-completion")
         assert resp.status_code in (302, 400)
+
+    def test_get_linear_plan_renders_daily_plan_context(
+        self, app, db_session, test_user, client, monkeypatch
+    ):
+        lesson = _make_sentence_completion_lesson(db_session)
+
+        def fake_plan(user_id, db):
+            return {
+                'required': [
+                    {
+                        'kind': 'curriculum',
+                        'title': 'Current lesson',
+                        'url': f'/learn/{lesson.id}/?from=linear_plan&slot=curriculum',
+                        'completed': False,
+                        'data': {'lesson_id': lesson.id},
+                    },
+                    {
+                        'kind': 'srs',
+                        'title': 'Review cards',
+                        'url': '/study/cards?from=linear_plan&slot=srs',
+                        'completed': False,
+                        'data': {},
+                    },
+                ],
+                'optional': [],
+            }
+
+        monkeypatch.setattr('app.daily_plan.plan.get_daily_plan', fake_plan)
+        _login(client, test_user)
+        resp = client.get(
+            f"/curriculum/lesson/{lesson.id}/sentence-completion"
+            "?from=linear_plan&slot=curriculum"
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_data(as_text=True)
+        assert '"is_daily_plan": true' in body
+        assert '"slot_kind": "curriculum"' in body
 
 
 # ---------------------------------------------------------------------------
