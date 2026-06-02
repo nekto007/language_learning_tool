@@ -10,6 +10,19 @@
     ('Прогресс', '')
 ]) }}
 {% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <dl class="row">
+                        <dt class="col-sm-4">User:</dt>
+                        <dd class="col-sm-8">{{ user.username }}</dd>
+
+                        <dt class="col-sm-4">Module:</dt>
+                        <dd class="col-sm-8">
                                 Module {{ module.number }}: {{ module.title }}
                             </dd>
 
