@@ -362,6 +362,18 @@ def submit_lesson(lesson_id):
                 return jsonify({'success': False, **rate_limit}), 429
             _content = lesson.content if isinstance(lesson.content, dict) else {}
             result = process_final_test_submission(_content.get('questions', []), data.get('answers', {}))
+            _ft_passing = _content.get('passing_score_percent', _content.get('passing_score', PASSING_SCORE_DEFAULT))
+            try:
+                from app.curriculum.services.progress_service import ProgressService
+                ProgressService.update_progress_with_grading(
+                    user_id=current_user.id,
+                    lesson=lesson,
+                    result=result,
+                    passing_score=_ft_passing,
+                )
+            except Exception as _ft_err:
+                logger.warning("Failed to record final_test attempt for lesson %s: %s", lesson_id, _ft_err)
+                db.session.rollback()
         elif lesson.type == 'dictation':
             result = _process_dictation_submission(lesson, current_user.id, data)
         elif lesson.type == 'audio_fill_blank':

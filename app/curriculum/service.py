@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.curriculum.constants import PASSING_SCORE_DEFAULT
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.utils.db import db
 from app.utils.db_utils import query_by_ids
@@ -229,7 +230,7 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
                 started_at=progress.started_at,
                 completed_at=progress.completed_at or progress.last_activity,
                 score=progress.score,
-                passed=(progress.score >= 70)
+                passed=(progress.score >= PASSING_SCORE_DEFAULT)
             )
             db.session.add(legacy_attempt)
             db.session.commit()
@@ -245,7 +246,7 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
             started_at=progress.started_at,
             completed_at=progress.completed_at,
             score=score,
-            passed=(score >= 70)  # Assuming 70% is passing score
+            passed=(score >= PASSING_SCORE_DEFAULT)
         )
         db.session.add(attempt)
         db.session.commit()

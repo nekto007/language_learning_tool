@@ -16,6 +16,7 @@ from app.curriculum.models import (
     WordCollocation,
     save_annotation,
 )
+from app.curriculum.constants import PASSING_SCORE_DEFAULT
 from app.curriculum.routes.lessons import lessons_bp
 from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson
@@ -353,7 +354,7 @@ def render_text_lesson(lesson):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=70
+            passing_score=PASSING_SCORE_DEFAULT
         )
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -785,7 +786,7 @@ def text_lesson(lesson_id):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=70
+            passing_score=PASSING_SCORE_DEFAULT
         )
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

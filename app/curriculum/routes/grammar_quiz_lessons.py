@@ -9,6 +9,7 @@ from flask_login import current_user, login_required
 from marshmallow import ValidationError
 from sqlalchemy.orm import joinedload
 
+from app.curriculum.constants import PASSING_SCORE_DEFAULT
 from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.curriculum.routes.lessons import lessons_bp
@@ -217,7 +218,7 @@ def render_grammar_lesson(lesson):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=70
+            passing_score=PASSING_SCORE_DEFAULT
         )
 
         if progress and progress.status == 'completed':
@@ -445,7 +446,7 @@ def render_quiz_lesson(lesson):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=70
+            passing_score=PASSING_SCORE_DEFAULT
         )
 
         if progress and progress.status == 'completed':
@@ -787,7 +788,7 @@ def grammar_lesson(lesson_id):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=70
+            passing_score=PASSING_SCORE_DEFAULT
         )
 
         if progress and progress.status == 'completed':
@@ -907,7 +908,7 @@ def quiz_lesson(lesson_id):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=70
+            passing_score=PASSING_SCORE_DEFAULT
         )
 
         if progress and progress.status == 'completed':
