@@ -249,6 +249,11 @@ class TestSentenceCorrectionTemplate:
         tpl = _read_template()
         assert "correction-next-area" in tpl
 
+    def test_daily_plan_uses_refreshed_submit_context(self):
+        tpl = _read_template()
+        assert "const dpSource = (data && data.daily_plan_ctx) ? data.daily_plan_ctx : DAILY_PLAN_CTX;" in tpl
+        assert "const dp = (dpSource && dpSource.is_daily_plan) ? dpSource : null;" in tpl
+
 
 # ---------------------------------------------------------------------------
 # Route tests — GET

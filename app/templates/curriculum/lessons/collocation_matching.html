@@ -541,7 +541,7 @@ function appendMatchedRow(phrase, translation) {
   list.appendChild(row);
 }
 
-function renderFinalState(nextLessonUrl) {
+function renderFinalState(nextLessonUrl, dailyPlanCtx) {
   // Switch the section into the compact completed-state: empty columns and
   // the active-state instruction are hidden via CSS so the matched-pairs
   // list moves to the top of the working area.
@@ -581,7 +581,8 @@ function renderFinalState(nextLessonUrl) {
   // left, primary "Следующий урок →" on the right. Using the same lsn-btn
   // classes keeps the look identical across every lesson type.
   const finalActions = document.getElementById('matching-final-actions');
-  const dp = (DAILY_PLAN_CTX && DAILY_PLAN_CTX.is_daily_plan) ? DAILY_PLAN_CTX : null;
+  const dpSource = dailyPlanCtx || DAILY_PLAN_CTX;
+  const dp = (dpSource && dpSource.is_daily_plan) ? dpSource : null;
   if (finalActions) {
     finalActions.innerHTML = '';
     const secondary = document.createElement('a');
@@ -631,7 +632,7 @@ async function finalizeLesson() {
     console.error('Submit error:', err);
   }
 
-  renderFinalState(data.next_lesson_url);
+  renderFinalState(data.next_lesson_url, data.daily_plan_ctx);
   document.getElementById('matching-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
