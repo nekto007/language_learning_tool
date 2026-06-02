@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ email_title }}</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f6f7fb; color: #111827; font-family: Arial, sans-serif; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 24px 14px; }
+    .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+    .hero { padding: 28px 28px 20px; background: #111827; color: #ffffff; }
+    .eyebrow { color: #c7d2fe; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    h1 { margin: 10px 0 0; font-size: 26px; line-height: 1.2; }
+    .body { padding: 26px 28px; }
+    p { margin: 0 0 16px; line-height: 1.55; color: #374151; }
+    .stats { display: table; width: 100%; margin: 20px 0; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+    .stat { display: table-cell; width: 33%; padding: 14px 10px; text-align: center; border-right: 1px solid #e5e7eb; }
+    .stat:last-child { border-right: 0; }
+    .stat strong { display: block; color: #111827; font-size: 22px; }
+    .stat span { display: block; color: #6b7280; font-size: 12px; margin-top: 3px; }
+    .steps { margin: 18px 0; padding: 0; list-style: none; }
+    .steps li { margin: 0 0 10px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; color: #374151; }
+    .cta { display: inline-block; margin: 8px 0 18px; padding: 14px 22px; border-radius: 8px; background: #4f46e5; color: #ffffff !important; text-decoration: none; font-weight: 700; }
+    .secondary { color: #4f46e5; text-decoration: none; font-weight: 700; }
+    .footer { padding: 18px 28px 24px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; line-height: 1.5; }
+    .footer a { color: #4b5563; }
+    @media only screen and (max-width: 520px) {
+      .hero, .body, .footer { padding-left: 18px; padding-right: 18px; }
+      .stat { display: block; width: auto; border-right: 0; border-bottom: 1px solid #e5e7eb; }
+      .stat:last-child { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="hero">
+        <div class="eyebrow">{{ eyebrow }}</div>
+        <h1>{{ heading }}</h1>
+      </div>
+      <div class="body">
+        <p>{{ intro }}</p>
+
+        <div class="stats">
+          <div class="stat"><strong>{{ snapshot.completed_lessons }}</strong><span>уроков</span></div>
+          <div class="stat"><strong>{{ snapshot.words }}</strong><span>слов в SRS</span></div>
+          <div class="stat"><strong>{{ snapshot.current_streak }}</strong><span>дней серии</span></div>
+        </div>
+
+        <ul class="steps">
+          {% for item in steps %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+
+        <a href="{{ primary_url }}" class="cta">{{ primary_label }}</a>
+
+        {% if secondary_links %}
+          <p>
+            {% for link in secondary_links %}
+              <a class="secondary" href="{{ link.url }}">{{ link.label }}</a>{% if not loop.last %} · {% endif %}
+            {% endfor %}
+          </p>
+        {% endif %}
+      </div>
+      <div class="footer">
+        <p>Вы получили это письмо, потому что зарегистрированы на LLT English и включили email-напоминания.</p>
+        <p>
+          <a href="{{ links.settings }}">Настройки уведомлений</a>
+          {% if unsubscribe_token %} · <a href="{{ url_for('auth.unsubscribe', token=unsubscribe_token, _external=True) }}">Отписаться</a>{% endif %}
+        </p>
+        <p>© {{ now.year }} LLT English</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -12,12 +12,13 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate, make_msgid
 
-from flask import Blueprint, flash, make_response, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from app.admin.utils.decorators import admin_required
 from app.auth.models import User
+from app.curriculum.models import LessonProgress
 from app.reminders.models import ReminderLog
 from app.utils.db import db
 
@@ -138,6 +139,235 @@ def send_email(to_email, subject, html_content, from_email=DEFAULT_FROM_EMAIL):
 
 
 REMINDER_MIN_INTERVAL_HOURS = 24
+MAX_REMINDER_TARGETS = 500
+
+
+REMINDER_CAMPAIGNS = {
+    'default': {
+        'label': 'Стандартное',
+        'subject': 'Пора вернуться к изучению английского!',
+        'description': 'Базовый шаблон для совместимости со старыми формами.',
+        'best_for': 'Любая ручная отправка',
+        'cta': 'Вернуться к обучению',
+        'template': 'default',
+    },
+    'friendly': {
+        'label': 'Дружелюбное',
+        'subject': 'Давайте продолжим английский с короткого шага',
+        'description': 'Более мягкая версия стандартного возврата.',
+        'best_for': 'Новые и малоактивные',
+        'cta': 'Начать занятие',
+        'template': 'friendly',
+    },
+    'comeback': {
+        'label': 'Вернуться к занятиям',
+        'subject': 'Вернитесь к английскому с короткого занятия',
+        'description': 'Мягкое re-engagement письмо для пользователей, которые давно не заходили.',
+        'best_for': 'Неактивны 7+ дней',
+        'cta': 'Открыть план дня',
+        'template': 'comeback',
+    },
+    'daily_plan': {
+        'label': 'План дня',
+        'subject': 'Ваш короткий план английского на сегодня',
+        'description': 'Продает главный ежедневный сценарий: урок, карточки, грамматика, чтение.',
+        'best_for': 'Заходили, но не закрывают день',
+        'cta': 'Выполнить план',
+        'template': 'daily_plan',
+    },
+    'achievement': {
+        'label': 'Достижения и прогресс',
+        'subject': 'Ваш прогресс в LLT English уже ждет продолжения',
+        'description': 'Показывает уроки, streak, слова и ближайший маленький следующий шаг.',
+        'best_for': 'Есть прогресс, но пропали',
+        'cta': 'Продолжить прогресс',
+        'template': 'achievement',
+    },
+    'features': {
+        'label': 'Разделы сайта',
+        'subject': 'Попробуйте книги, карточки и грамматику в LLT English',
+        'description': 'Рекламирует разные разделы сайта: book courses, library, SRS, grammar lab.',
+        'best_for': 'Новые или малоактивные',
+        'cta': 'Выбрать формат',
+        'template': 'features',
+    },
+    'books': {
+        'label': 'Книги и курсы',
+        'subject': 'Учите английский через книги и короткие уроки',
+        'description': 'Фокус на библиотеке, book courses и чтении как альтернативе обычным урокам.',
+        'best_for': 'Любят чтение или не идут в curriculum',
+        'cta': 'Открыть книги',
+        'template': 'books',
+    },
+    'grammar': {
+        'label': 'Грамматика',
+        'subject': 'Закройте один грамматический пробел сегодня',
+        'description': 'Приглашает в Grammar Lab и предлагает короткую практику без большого урока.',
+        'best_for': 'Низкая активность в grammar',
+        'cta': 'Открыть Grammar Lab',
+        'template': 'grammar',
+    },
+}
+
+
+REMINDER_SEGMENTS = {
+    'inactive_3': {
+        'label': 'Неактивны 3+ дня',
+        'description': 'Ранний мягкий возврат, пока привычка еще не потеряна.',
+        'inactive_days': 3,
+    },
+    'inactive_7': {
+        'label': 'Неактивны 7+ дней',
+        'description': 'Основная re-engagement аудитория.',
+        'inactive_days': 7,
+    },
+    'inactive_14': {
+        'label': 'Неактивны 14+ дней',
+        'description': 'Нужен сильный повод вернуться: достижения, книги, новый формат.',
+        'inactive_days': 14,
+    },
+    'inactive_30': {
+        'label': 'Неактивны 30+ дней',
+        'description': 'Переоткрыть продукт и показать новые возможности.',
+        'inactive_days': 30,
+    },
+    'never_started': {
+        'label': 'Зарегистрировались, но не начали',
+        'description': 'Нет входа после регистрации или нет завершенных уроков.',
+    },
+    'has_progress': {
+        'label': 'Есть прогресс, но пропали',
+        'description': 'Пользователи с завершенными уроками, которым есть что показать.',
+    },
+    'all_eligible': {
+        'label': 'Все доступные для email',
+        'description': 'Все active, не отписанные, с включенными email reminders.',
+    },
+}
+
+
+def _eligible_users_query():
+    return User.query.filter(
+        User.active.is_(True),
+        User.email.isnot(None),
+        User.email != '',
+        User.email_opted_out.is_(False),
+        User.notify_email_reminders.is_(True),
+    )
+
+
+def _segment_query(segment_key: str):
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    query = _eligible_users_query()
+
+    segment = REMINDER_SEGMENTS.get(segment_key) or REMINDER_SEGMENTS['inactive_7']
+    if segment_key.startswith('inactive_') or segment.get('inactive_days') is not None:
+        days = int(segment.get('inactive_days') or 7)
+        cutoff = now_naive - timedelta(days=days)
+        return query.filter(db.or_(User.last_login.is_(None), User.last_login < cutoff))
+
+    if segment_key == 'never_started':
+        completed_subq = db.session.query(LessonProgress.user_id).filter(
+            LessonProgress.status == 'completed'
+        )
+        return query.filter(
+            db.or_(User.last_login.is_(None), ~User.id.in_(completed_subq))
+        )
+
+    if segment_key == 'has_progress':
+        cutoff = now_naive - timedelta(days=7)
+        completed_subq = db.session.query(LessonProgress.user_id).filter(
+            LessonProgress.status == 'completed'
+        )
+        return query.filter(
+            User.id.in_(completed_subq),
+            db.or_(User.last_login.is_(None), User.last_login < cutoff),
+        )
+
+    return query
+
+
+def _get_segment_users(segment_key: str, limit: int = MAX_REMINDER_TARGETS):
+    return _segment_query(segment_key).order_by(
+        User.last_login.asc().nullsfirst(),
+        User.created_at.desc(),
+    ).limit(limit).all()
+
+
+def _build_segment_cards():
+    cards = []
+    for key, meta in REMINDER_SEGMENTS.items():
+        count = _segment_query(key).with_entities(func.count(User.id)).scalar() or 0
+        cards.append({'key': key, 'count': count, **meta})
+    return cards
+
+
+def _safe_campaign(template_name: str) -> dict | None:
+    if not re.match(r'^[a-zA-Z0-9_-]+$', template_name or ''):
+        return None
+    campaign = REMINDER_CAMPAIGNS.get(template_name)
+    if campaign:
+        return campaign
+    return None
+
+
+def _user_learning_snapshot(user: User) -> dict:
+    try:
+        from app.achievements.models import StreakCoins, UserStatistics
+        from app.study.models import UserWord
+        stats = UserStatistics.query.filter_by(user_id=user.id).first()
+        coins = StreakCoins.query.filter_by(user_id=user.id).first()
+        word_count = UserWord.query.filter_by(user_id=user.id).count()
+        completed_lessons = LessonProgress.query.filter_by(
+            user_id=user.id, status='completed'
+        ).count()
+    except Exception:
+        logger.exception('Failed to build reminder snapshot for user %s', user.id)
+        stats = None
+        coins = None
+        word_count = 0
+        completed_lessons = 0
+
+    return {
+        'completed_lessons': completed_lessons,
+        'words': word_count,
+        'current_streak': stats.current_streak_days if stats else 0,
+        'longest_streak': stats.longest_streak_days if stats else 0,
+        'badges': stats.total_badges if stats else 0,
+        'coins': coins.balance if coins else 0,
+    }
+
+
+def _reminder_links(template_name: str) -> dict:
+    return {
+        'dashboard': url_for('words.dashboard', _external=True),
+        'study': url_for('study.index', _external=True),
+        'book_courses': url_for('book_courses.list_book_courses', _external=True),
+        'books': url_for('books.book_list', _external=True),
+        'grammar': url_for('grammar_lab.practice', _external=True),
+        'settings': url_for('study.settings', _external=True),
+        'primary': {
+            'daily_plan': url_for('words.dashboard', _external=True),
+            'comeback': url_for('words.dashboard', _external=True),
+            'achievement': url_for('study.index', _external=True),
+            'features': url_for('book_courses.list_book_courses', _external=True),
+            'books': url_for('books.book_list', _external=True),
+            'grammar': url_for('grammar_lab.practice', _external=True),
+        }.get(template_name, url_for('words.dashboard', _external=True)),
+    }
+
+
+def _render_reminder_template(template_name: str, user: User, now, unsubscribe_token: str) -> str:
+    campaign = REMINDER_CAMPAIGNS[template_name]
+    return render_template(
+        f'emails/reminders/{campaign["template"]}.html',
+        user=user,
+        now=now,
+        unsubscribe_token=unsubscribe_token,
+        campaign=campaign,
+        snapshot=_user_learning_snapshot(user),
+        links=_reminder_links(template_name),
+    )
 
 
 def get_inactive_users(days=7):
@@ -152,11 +382,7 @@ def get_inactive_users(days=7):
     Returns:
         list: Список пользователей
     """
-    base_filter = User.query.filter(
-        User.active == True,
-        User.email_opted_out == False,
-        User.notify_email_reminders == True,
-    )
+    base_filter = _eligible_users_query()
 
     if days == 0:
         return base_filter.all()
@@ -187,11 +413,24 @@ def reminder_dashboard():
     """
     Панель управления напоминаниями для администраторов.
     """
-    # Получаем параметры фильтрации из запроса
-    inactive_days = request.args.get('inactive_days', 7, type=int)
+    segment_key = (request.args.get('segment') or '').strip()
+    if segment_key not in REMINDER_SEGMENTS:
+        inactive_days = request.args.get('inactive_days', 7, type=int)
+        segment_key = {
+            0: 'all_eligible',
+            3: 'inactive_3',
+            7: 'inactive_7',
+            14: 'inactive_14',
+            30: 'inactive_30',
+        }.get(inactive_days, 'inactive_7')
+    else:
+        inactive_days = REMINDER_SEGMENTS[segment_key].get('inactive_days', 7)
 
-    # Получаем неактивных пользователей
-    inactive_users = get_inactive_users(days=inactive_days)
+    campaign_key = (request.args.get('campaign') or 'comeback').strip()
+    if campaign_key not in REMINDER_CAMPAIGNS:
+        campaign_key = 'comeback'
+
+    inactive_users = _get_segment_users(segment_key)
 
     # Получаем статистику по отправленным напоминаниям
     reminders_sent = ReminderLog.query.order_by(desc(ReminderLog.sent_at)).limit(50).all()
@@ -202,6 +441,11 @@ def reminder_dashboard():
         'admin/reminders/dashboard.html',
         inactive_users=inactive_users,
         inactive_days=inactive_days,
+        segment_key=segment_key,
+        campaign_key=campaign_key,
+        segment_cards=_build_segment_cards(),
+        campaigns=REMINDER_CAMPAIGNS,
+        selected_campaign=REMINDER_CAMPAIGNS[campaign_key],
         reminders_sent=reminders_sent,
         now=now
     )
@@ -214,11 +458,14 @@ def send_reminders():
     Отправляет напоминания выбранным пользователям.
     """
     user_ids = request.form.getlist('user_ids')
-    reminder_template = request.form.get('reminder_template', 'default')
-    custom_subject = request.form.get('custom_subject', 'Пора вернуться к изучению английского!')
+    reminder_template = request.form.get('reminder_template', 'comeback')
+    campaign = _safe_campaign(reminder_template)
+    if not campaign:
+        flash('Недопустимый шаблон напоминания.', 'danger')
+        return redirect(url_for('reminders.reminder_dashboard'))
+    custom_subject = (request.form.get('custom_subject') or campaign['subject']).strip()[:255]
 
     # Защита от path traversal — только безопасные имена шаблонов
-    import re
     if not re.match(r'^[a-zA-Z0-9_-]+$', reminder_template):
         flash('Недопустимое имя шаблона.', 'danger')
         return redirect(url_for('reminders.reminder_dashboard'))
@@ -229,29 +476,27 @@ def send_reminders():
 
     users = User.query.filter(
         User.id.in_(user_ids),
-        User.active == True,
-        User.email_opted_out == False,
-        User.notify_email_reminders == True,
+        User.active.is_(True),
+        User.email.isnot(None),
+        User.email != '',
+        User.email_opted_out.is_(False),
+        User.notify_email_reminders.is_(True),
     ).all()
     success_count = 0
+    skipped_recent = 0
 
     now = datetime.now(timezone.utc)
 
     for user in users:
         if _was_recently_reminded(user.id):
             logger.info(f"Skipping reminder for user {user.id}: sent within last {REMINDER_MIN_INTERVAL_HOURS}h")
+            skipped_recent += 1
             continue
 
         from app.email_scheduler import ensure_unsubscribe_token
         unsubscribe_token = ensure_unsubscribe_token(user)
 
-        # Формируем HTML-содержимое письма на основе шаблона
-        html_content = render_template(
-            f'emails/reminders/{reminder_template}.html',
-            user=user,
-            now=now,
-            unsubscribe_token=unsubscribe_token,
-        )
+        html_content = _render_reminder_template(reminder_template, user, now, unsubscribe_token)
 
         # Отправляем письмо
         if send_email(user.email, custom_subject, html_content):
@@ -269,9 +514,13 @@ def send_reminders():
     db.session.commit()
 
     if success_count > 0:
-        flash(f'Успешно отправлено {success_count} напоминаний из {len(users)}.', 'success')
+        suffix = f' Пропущено по cooldown: {skipped_recent}.' if skipped_recent else ''
+        flash(f'Успешно отправлено {success_count} напоминаний из {len(users)}.{suffix}', 'success')
     else:
-        flash('Не удалось отправить напоминания. Проверьте настройки SMTP.', 'danger')
+        if skipped_recent:
+            flash(f'Все выбранные пользователи уже получали напоминание за последние {REMINDER_MIN_INTERVAL_HOURS} ч.', 'warning')
+        else:
+            flash('Не удалось отправить напоминания. Проверьте настройки SMTP.', 'danger')
 
     # Возвращаемся на исходную страницу, если она указана (с проверкой безопасности)
     from app.auth.routes import get_safe_redirect_url
@@ -288,8 +537,7 @@ def list_templates():
     """
     Отображает список доступных шаблонов напоминаний.
     """
-    templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../templates/emails/reminders')
-    template_files = [f.replace('.html', '') for f in os.listdir(templates_dir) if f.endswith('.html')]
+    template_files = list(REMINDER_CAMPAIGNS.keys())
 
     return render_template('admin/reminders/templates.html', templates=template_files)
 
@@ -300,17 +548,14 @@ def preview_template(template_name):
     """
     Предварительный просмотр шаблона напоминания.
     """
-    # Защита от path traversal — только безопасные имена шаблонов
-    import re
-    if not re.match(r'^[a-zA-Z0-9_-]+$', template_name):
+    if not _safe_campaign(template_name):
         abort(400, 'Недопустимое имя шаблона')
 
     try:
         now = datetime.now(timezone.utc)
         unsubscribe_token = "sample_token"
 
-        html = render_template(f'emails/reminders/{template_name}.html', user=current_user,
-                               unsubscribe_token=unsubscribe_token, now=now)
+        html = _render_reminder_template(template_name, current_user, now, unsubscribe_token)
         response = make_response(html)
         # Allow iframe embedding from same origin for preview
         response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
@@ -328,5 +573,3 @@ def preview_template(template_name):
         response = make_response(error_html, 500)
         response.headers['Content-Security-Policy'] = "frame-ancestors 'self'"
         return response
-
-

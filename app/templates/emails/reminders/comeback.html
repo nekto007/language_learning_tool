@@ -1,0 +1,17 @@
+{% set email_title = 'Вернитесь к английскому с короткого шага' %}
+{% set eyebrow = 'Короткий возврат' %}
+{% set heading = user.username + ', начните с 5 минут сегодня' %}
+{% set intro = 'Лучший способ вернуться после паузы — не большой рывок, а один короткий шаг. На LLT English уже собран план дня: откройте его и продолжите с простого задания.' %}
+{% set steps = [
+  'Откройте план дня и выполните первый доступный слот.',
+  'Если нет времени на урок, начните с карточек или короткой грамматики.',
+  'После одного действия система снова подхватит ваш прогресс.'
+] %}
+{% set primary_url = links.primary %}
+{% set primary_label = campaign.cta %}
+{% set secondary_links = [
+  {'label': 'Карточки', 'url': links.study},
+  {'label': 'Книги', 'url': links.books},
+  {'label': 'Грамматика', 'url': links.grammar}
+] %}
+{% include 'emails/reminders/_modern.html' %}
