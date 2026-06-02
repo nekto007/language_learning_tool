@@ -315,3 +315,46 @@ def test_extension_after_baseline_chosen_as_next():
     assert nxt is not None
     assert nxt['data'].get('extension') is True
     assert nxt['kind'] == 'curriculum'
+
+
+def test_completed_curriculum_current_picks_optional_curriculum_before_grammar_review():
+    """A lesson completion CTA should follow the next plan slot. If the
+    optional section offers the next curriculum lesson before grammar review,
+    the CTA must not jump to grammar-lab."""
+    plan = {
+        'slots': [
+            {
+                'kind': 'curriculum',
+                'completed': True,
+                'data': {'lesson_id': 23},
+                'url': None,
+                'title': 'Lesson 23',
+            },
+            {
+                'kind': 'curriculum',
+                'completed': False,
+                'data': {'lesson_id': 24, 'extension': True},
+                'url': '/learn/24/?from=linear_plan&slot=curriculum',
+                'title': 'Lesson 24',
+            },
+            {
+                'kind': 'grammar_review',
+                'completed': False,
+                'data': {'topic_id': 1},
+                'url': '/grammar-lab/topic/a1-1',
+                'title': 'Grammar review',
+            },
+        ],
+        'baseline_slots': [
+            {'kind': 'curriculum', 'completed': True, 'data': {'lesson_id': 23}},
+        ],
+    }
+    ctx = build_lesson_context_from_plan(
+        plan,
+        slot_param='curriculum',
+        current_lesson_id=23,
+        dashboard_url='/dashboard',
+    )
+
+    assert ctx.next_slot_kind == 'curriculum'
+    assert ctx.next_slot_url == '/learn/24/?from=linear_plan&slot=curriculum'
