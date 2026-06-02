@@ -690,10 +690,24 @@ def dictation_lesson(lesson_id: int):
             completed_result['next_lesson_url'] = _lesson_completion_url(next_lesson)
         completed_gap_values = [item.get("display", "") for item in word_items]
     elif isinstance(progress.data, dict):
-        if progress.data.get('dictation_failed_indices') or progress.data.get('dictation_attempts'):
+        # Reset stale state on page reload for an in-progress lesson. Two
+        # families to drop:
+        #   • per-word counters (``dictation_attempts``, ``dictation_failed_indices``)
+        #     from the granular submit path;
+        #   • grade-dict leftovers (``failed_indices``, ``failed_by_attempt_limit``,
+        #     ``passed``, ``score``) saved by a previous *failed* full submit.
+        # Without the second family, the next full submit reads
+        # ``failed_indices`` from the leftover dict and re-applies the 79%
+        # penalty even though the user just typed everything correctly.
+        stale_keys = (
+            'dictation_failed_indices', 'dictation_attempts',
+            'failed_indices', 'failed_by_attempt_limit',
+            'passed', 'score', 'correct_words', 'total_words', 'word_results',
+        )
+        if any(progress.data.get(k) for k in stale_keys):
             progress_data = dict(progress.data)
-            progress_data.pop('dictation_failed_indices', None)
-            progress_data.pop('dictation_attempts', None)
+            for key in stale_keys:
+                progress_data.pop(key, None)
             progress.data = progress_data
             progress.last_activity = datetime.now(UTC)
             flag_modified(progress, 'data')
@@ -760,7 +774,17 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
             or existing_progress.data.get('failed_indices')
             or []
         )
-    if failed_indices:
+
+    # Mastery override: when the CURRENT full submission is 100% correct,
+    # ignore historic word-attempt failures. The user typed every word
+    # correctly — capping at 79% with "раскрытые слова" is misleading
+    # (UI advertises "Доступно подсказок: 4/4") and demotivating after a
+    # successful retry. The per-word attempt cap stays as friction during
+    # the live exercise; it doesn't override end-to-end mastery on submit.
+    correct_words = int(grade.get('correct_words') or 0)
+    total_words = int(grade.get('total_words') or 0)
+    full_mastery = total_words > 0 and correct_words >= total_words
+    if failed_indices and not full_mastery:
         grade['passed'] = False
         grade['score'] = min(int(grade.get('score') or 0), 79)
         grade['failed_by_attempt_limit'] = True

@@ -623,8 +623,12 @@ function showResults(data) {
   if (wordCounter) wordCounter.textContent = String(data.correct_words || 0);
   const badgeClass = passed ? 'dictation-score-badge--pass' : 'dictation-score-badge--fail';
   const icon = passed ? 'fa-check-circle' : 'fa-times-circle';
+  // ``failed_by_attempt_limit`` fires when a word hit the 3-attempts cap
+  // earlier. Previous copy ("Есть раскрытые слова") was confusing — the
+  // hint counter in the UI shows 4/4 available, so the user blames the
+  // wrong subsystem. Word-attempt cap is what's penalising them.
   const label = data.failed_by_attempt_limit
-    ? '{{ _("Есть раскрытые слова") }}'
+    ? '{{ _("Превышен лимит попыток на словах") }}'
     : (passed ? '{{ _("Отлично!") }}' : '{{ _("Попробуйте ещё") }}');
   scoreArea.innerHTML = `
     <div class="dictation-score-badge ${badgeClass}">
