@@ -16,6 +16,7 @@ def test_book(db_session):
         chapters_cnt=5,
         words_total=100,
         unique_words=80,
+        rights_status='public_domain',
         created_at=datetime.now(UTC)
     )
     db_session.add(book)
