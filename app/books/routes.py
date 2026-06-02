@@ -15,6 +15,11 @@ from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional
 
 from app.admin.utils.decorators import admin_required
+from app.books.access import (
+    accessible_books_filter,
+    books_section_visible,
+    can_user_access_book,
+)
 from app.books.forms import BookContentForm
 from app.books.models import Book, Chapter
 from app.books.parsers import process_uploaded_book
@@ -251,11 +256,17 @@ def upload_cover(book_id):
 
 @books.route('/read')
 @login_required
-@module_required('books')
 def read_selection():
     from app.books.models import UserChapterProgress
 
-    all_books = Book.query.join(Chapter).distinct().order_by(Book.title).all()
+    if not books_section_visible(current_user):
+        flash('У вас нет доступа к этому разделу. Обратитесь к администратору.', 'error')
+        abort(403)
+
+    books_query = Book.query.join(Chapter).filter(accessible_books_filter(current_user))
+    if not current_user.is_admin:
+        books_query = books_query.filter(Book.is_published == True)
+    all_books = books_query.distinct().order_by(Book.title).all()
 
     user_progress = db.session.query(
         UserChapterProgress, Chapter
@@ -313,11 +324,13 @@ def read_selection():
 
 @books.route('/read/<int:book_id>')
 @login_required
-@module_required('books')
 def read_book(book_id):
     book = Book.query.get_or_404(book_id)
     if not book.is_published and not current_user.is_admin:
         abort(404)
+    if not can_user_access_book(current_user, book):
+        flash('У вас нет доступа к этой книге. Обратитесь к администратору.', 'error')
+        abort(403)
     forwarded_args = {k: v for k, v in request.args.items() if k not in {'book_id'}}
     return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 
@@ -327,7 +340,6 @@ def read_book(book_id):
 @books.route('/reader/<string:book_slug>/<int:chapter_num>')
 @books.route('/read/<int:book_id>/chapters')
 @login_required
-@module_required('books')
 def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     if book_slug:
         book = Book.query.filter_by(slug=book_slug).first_or_404()
@@ -337,6 +349,10 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
 
     if not book.is_published and not current_user.is_admin:
         abort(404)
+
+    if not can_user_access_book(current_user, book):
+        flash('У вас нет доступа к этой книге. Обратитесь к администратору.', 'error')
+        abort(403)
 
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
@@ -417,6 +433,8 @@ def book_list():
 
     if not current_user.is_admin:
         query = query.where(Book.is_published == True)
+
+    query = query.where(accessible_books_filter(current_user))
 
     if search_query:
         search_term = f"%{search_query}%"
@@ -547,6 +565,10 @@ def book_details(book_id):
 
     if not book.is_published and not current_user.is_admin:
         abort(404)
+
+    if not can_user_access_book(current_user, book):
+        flash('У вас нет доступа к этой книге. Обратитесь к администратору.', 'error')
+        abort(403)
 
     word_stats_query = db.select(
         UserWord.status,
@@ -918,12 +940,15 @@ def edit_book_info_with_cover(book_id):
 
 @books.route('/books/<int:book_id>/read')
 @login_required
-@module_required('books')
 def book_read(book_id):
     book = Book.query.get_or_404(book_id)
 
     if not book.is_published and not current_user.is_admin:
         abort(404)
+
+    if not can_user_access_book(current_user, book):
+        flash('У вас нет доступа к этой книге. Обратитесь к администратору.', 'error')
+        abort(403)
 
     has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
 

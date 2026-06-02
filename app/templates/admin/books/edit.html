@@ -53,7 +53,89 @@
                             <textarea class="form-control" id="description" name="description" rows="4">{{ book.summary or '' }}</textarea>
                         </div>
 
-                        <div class="d-flex gap-2">
+                        {# === Права и лицензия === #}
+                        <hr class="my-4">
+                        <h6 class="text-primary mb-3"><i class="fas fa-shield-alt me-1"></i>Права и лицензия</h6>
+                        <p class="text-muted small mb-3">
+                            <strong>public_domain</strong> — книга доступна всем зарегистрированным пользователям автоматически.
+                            <strong>licensed</strong> / <strong>companion_only</strong> — доступ только пользователям, которым выдан модуль «Книги».
+                        </p>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="rights_status" class="form-label">Статус прав</label>
+                                <select class="form-select" id="rights_status" name="rights_status">
+                                    {% set rs = book.rights_status or 'companion_only' %}
+                                    <option value="public_domain" {{ 'selected' if rs == 'public_domain' else '' }}>Public domain</option>
+                                    <option value="licensed" {{ 'selected' if rs == 'licensed' else '' }}>Licensed</option>
+                                    <option value="companion_only" {{ 'selected' if rs == 'companion_only' else '' }}>Companion only</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="audio_rights_status" class="form-label">Права на аудио</label>
+                                <select class="form-select" id="audio_rights_status" name="audio_rights_status">
+                                    {% set ar = book.audio_rights_status or 'companion_only' %}
+                                    <option value="public_domain" {{ 'selected' if ar == 'public_domain' else '' }}>Public domain</option>
+                                    <option value="licensed" {{ 'selected' if ar == 'licensed' else '' }}>Licensed</option>
+                                    <option value="companion_only" {{ 'selected' if ar == 'companion_only' else '' }}>Companion only</option>
+                                    <option value="none" {{ 'selected' if ar == 'none' else '' }}>None</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="license_type" class="form-label">Тип лицензии</label>
+                                <input type="text" class="form-control" id="license_type" name="license_type"
+                                       placeholder="например, CC-BY-4.0, Project Gutenberg, CC0"
+                                       value="{{ book.license_type or '' }}">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="expiration_date" class="form-label">Срок лицензии</label>
+                                <input type="date" class="form-control" id="expiration_date" name="expiration_date"
+                                       value="{{ book.expiration_date.isoformat() if book.expiration_date else '' }}">
+                                <div class="form-text">Оставьте пустым, если лицензия бессрочная.</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="allowed_text_percent" class="form-label">Доступный % текста</label>
+                                <input type="number" class="form-control" id="allowed_text_percent" name="allowed_text_percent"
+                                       min="0" max="100" step="1"
+                                       value="{{ book.allowed_text_percent if book.allowed_text_percent is not none else 100 }}">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="territory" class="form-label">Территория</label>
+                                <input type="text" class="form-control" id="territory" name="territory"
+                                       placeholder="worldwide, RU, EU, …"
+                                       value="{{ book.territory or 'worldwide' }}">
+                            </div>
+
+                            <div class="col-12">
+                                <label for="source_url" class="form-label">URL источника</label>
+                                <input type="url" class="form-control" id="source_url" name="source_url"
+                                       placeholder="https://www.gutenberg.org/ebooks/12345"
+                                       value="{{ book.source_url or '' }}">
+                            </div>
+
+                            <div class="col-12">
+                                <label for="permission_document" class="form-label">Документ-разрешение</label>
+                                <textarea class="form-control" id="permission_document" name="permission_document" rows="2"
+                                          placeholder="Путь к файлу, ссылка или краткое описание разрешения от правообладателя">{{ book.permission_document or '' }}</textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="commercial_use_allowed" name="commercial_use_allowed"
+                                           {{ 'checked' if book.commercial_use_allowed else '' }}>
+                                    <label class="form-check-label" for="commercial_use_allowed">
+                                        Разрешено коммерческое использование
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save me-1"></i>Сохранить
                             </button>

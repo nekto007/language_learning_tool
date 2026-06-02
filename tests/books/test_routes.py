@@ -8,12 +8,15 @@ from app.books.models import Book, Chapter
 
 @pytest.fixture
 def published_book(db_session):
+    # ``rights_status='public_domain'`` keeps the book visible to any
+    # logged-in user (test_user lacks the optional ``books`` module).
     book = Book(
         title='Published Book',
         author='Author A',
         level='A1',
         chapters_cnt=3,
         is_published=True,
+        rights_status='public_domain',
     )
     db_session.add(book)
     db_session.flush()
@@ -60,6 +63,7 @@ def book_no_chapters(db_session):
         level='B1',
         chapters_cnt=0,
         is_published=True,
+        rights_status='public_domain',
     )
     db_session.add(book)
     db_session.flush()

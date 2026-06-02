@@ -22,12 +22,16 @@ from app.utils.db import db as real_db
 
 def _make_book(db_session, level: str, *, chapters: int = 3) -> Book:
     suffix = uuid.uuid4().hex[:8]
+    # public_domain keeps the book visible to test_user, who has no
+    # ``books`` module granted — keeps the catalog test focused on level
+    # filtering rather than rights gating.
     book = Book(
         title=f'Book {level} {suffix}',
         author='Author',
         level=level,
         chapters_cnt=chapters,
         summary=f'Summary {suffix}',
+        rights_status='public_domain',
     )
     db_session.add(book)
     db_session.commit()
