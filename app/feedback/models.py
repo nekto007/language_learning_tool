@@ -74,6 +74,15 @@ class Feedback(db.Model):
     timezone = db.Column(db.String(TIMEZONE_MAX_LENGTH), nullable=True)
     platform = db.Column(db.String(PLATFORM_MAX_LENGTH), nullable=True)
 
+    # Auto-context: structured pointers + JSON bag.
+    # Stored as plain Integer (no FK) — Lessons / Book rows can be deleted
+    # legitimately (admin cleanup) and we want the report history to outlive
+    # that. Operator can still join in queries when both rows exist.
+    lesson_id = db.Column(db.Integer, nullable=True)
+    book_id = db.Column(db.Integer, nullable=True)
+    app_version = db.Column(db.String(64), nullable=True)
+    context_json = db.Column(db.JSON, nullable=True)
+
     created_at = db.Column(
         db.DateTime,
         nullable=False,
@@ -166,6 +175,10 @@ def create_feedback(
     locale: str | None = None,
     timezone: str | None = None,
     platform: str | None = None,
+    lesson_id: int | None = None,
+    book_id: int | None = None,
+    app_version: str | None = None,
+    context_json: dict | None = None,
 ) -> Feedback:
     """Insert + flush a Feedback row. Caller commits."""
 
@@ -191,6 +204,10 @@ def create_feedback(
         locale=_trim(locale, LOCALE_MAX_LENGTH),
         timezone=_trim(timezone, TIMEZONE_MAX_LENGTH),
         platform=_trim(platform, PLATFORM_MAX_LENGTH),
+        lesson_id=lesson_id,
+        book_id=book_id,
+        app_version=_trim(app_version, 64),
+        context_json=context_json or None,
     )
     db.session.add(row)
     db.session.flush()
