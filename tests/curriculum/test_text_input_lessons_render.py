@@ -199,6 +199,31 @@ class TestSubmissionRoundTrips:
         assert resp.status_code == 200
         assert resp.get_json()["completed"] is True
 
+    def test_writing_prompt_completes_without_client_flag(self, app, db_session, _module, test_user, client):
+        # Regression: server must derive checklist_completed from the
+        # validated count alone — a JS regression that drops the flag
+        # should not silently fail an otherwise valid submission.
+        checklist = ["used new words", "checked tense", "added details"]
+        lesson = _make_lesson(
+            db_session, _module, lesson_type="writing_prompt",
+            content={"prompt": "Describe your day.", "min_words": 3, "checklist": checklist},
+        )
+        _login(client, test_user)
+        client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
+        resp = client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={
+                "response_text": "one two three four five",
+                "checked_items": [checklist[0], checklist[1]],
+                "lesson_type": "writing_prompt",
+            },
+            content_type="application/json",
+        )
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["completed"] is True
+        assert body["checklist_completed"] is True
+
     def test_writing_prompt_rejects_invalid_checklist_items(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(
             db_session, _module, lesson_type="writing_prompt",

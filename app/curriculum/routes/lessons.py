@@ -1418,7 +1418,12 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     if not min_checklist:
         min_checklist = 3 if mode == 'guided' else 2
     min_checklist = min(min_checklist, max(len(checklist), 2))
-    checklist_completed = bool(data.get('checklist_completed', False)) and len(valid_checked) >= min_checklist
+    # ``checklist_completed`` is derived purely from the server-side count of
+    # validly-checked items. The historical client flag was redundant — and
+    # a JS regression that forgot to set it would silently fail a perfectly
+    # good submission. ``valid_checked`` already filters out anything not on
+    # the checklist, so the count alone is the source of truth.
+    checklist_completed = len(valid_checked) >= min_checklist
     # min_words / min_sentences — оба опциональны, нужно хотя бы одно.
     # Если есть min_sentences → проверяем по количеству предложений,
     # иначе по словам. Default 50 слов сохранён для legacy-контента.
