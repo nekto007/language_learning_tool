@@ -1426,11 +1426,11 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
 
     if meets_min:
         try:
-            save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
-            db.session.flush()
+            with db.session.begin_nested():
+                save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
+                db.session.flush()
         except Exception as save_err:
             logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
-            db.session.rollback()
 
     if completed:
         progress = LessonProgress.query.filter_by(

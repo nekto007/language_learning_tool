@@ -34,6 +34,7 @@ from app.feedback.models import (
     create_reply,
 )
 from app.feedback.storage import (
+    SCREENSHOT_REJECT_REASONS,
     feedback_screenshot_abs_path,
     save_feedback_screenshot,
 )
@@ -150,8 +151,6 @@ def submit_feedback():
         'feedback_submitted id=%s user_id=%s category=%s has_screenshot=%s screenshot_rejected=%s',
         row.id, current_user.id, category, bool(screenshot_rel), screenshot_reject_reason or '',
     )
-    from app.feedback.storage import SCREENSHOT_REJECT_REASONS
-
     if screenshot_reject_reason:
         screenshot_status = 'rejected'
         screenshot_message = SCREENSHOT_REJECT_REASONS.get(

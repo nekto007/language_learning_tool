@@ -551,12 +551,10 @@ def daily_race_status():
     import pytz
 
     from app.achievements.daily_race import (
-        CHALLENGE_BONUS_POINTS,
         get_race_standings,
         is_daily_race_enabled,
     )
     from app.auth.models import User
-    from app.daily_plan.challenge import get_today_challenge
 
     tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
@@ -583,12 +581,6 @@ def daily_race_status():
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TZ)
     local_today = datetime.now(tz_obj).date()
-
-    try:
-        challenge_data = get_today_challenge(user_id, db)
-        _ = CHALLENGE_BONUS_POINTS if challenge_data.get('is_completed') else 0
-    except Exception:
-        logger.warning("daily race: challenge bonus lookup failed for user %s", user_id, exc_info=True)
 
     standings = get_race_standings(user_id, local_today, tz=tz)
     db.session.commit()
@@ -1134,7 +1126,7 @@ def challenge_complete():
 
     body = request.get_json(silent=True) or {}
     challenge_id = body.get('challenge_id')
-    if not isinstance(challenge_id, int):
+    if isinstance(challenge_id, bool) or not isinstance(challenge_id, int) or challenge_id <= 0:
         return api_error('invalid_input', 'challenge_id is required', 400)
 
     from app.daily_plan.models import DailyChallenge
