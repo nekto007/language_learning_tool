@@ -281,6 +281,12 @@ class TestCollocationMatchingTemplate:
         tpl = _read_template()
         assert "lesson_type: 'collocation_matching'" in tpl
 
+    def test_daily_plan_uses_refreshed_submit_context(self):
+        tpl = _read_template()
+        assert "function renderFinalState(nextLessonUrl, dailyPlanCtx)" in tpl
+        assert "const dpSource = dailyPlanCtx || DAILY_PLAN_CTX;" in tpl
+        assert "renderFinalState(data.next_lesson_url, data.daily_plan_ctx);" in tpl
+
     def test_flash_classes_present(self):
         # Live-feedback classes drive the green pulse / red shake transitions.
         tpl = _read_template()

@@ -661,7 +661,8 @@ function _scShowSummary(data) {
   nextArea.style.gap = '0.75rem';
   nextArea.style.marginTop = '1rem';
 
-  const dp = (DAILY_PLAN_CTX && DAILY_PLAN_CTX.is_daily_plan) ? DAILY_PLAN_CTX : null;
+  const dpSource = (data && data.daily_plan_ctx) ? data.daily_plan_ctx : DAILY_PLAN_CTX;
+  const dp = (dpSource && dpSource.is_daily_plan) ? dpSource : null;
   if (isPerfect && (data.next_lesson_url || CACHED_NEXT_LESSON_URL || dp)) {
     const secondary = document.createElement('a');
     secondary.className = 'lsn-btn lsn-btn--outline';
