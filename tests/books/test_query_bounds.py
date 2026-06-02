@@ -57,6 +57,7 @@ def book_with_words(db_session):
         chapters_cnt=1,
         is_published=True,
         unique_words=3,
+        rights_status='public_domain',
     )
     db_session.add(book)
     db_session.flush()

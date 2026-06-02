@@ -271,6 +271,9 @@ def serve_chapter_audio(book_id: int, chapter_num: int):
     book = chapter.book
     if not book.is_published and not current_user.is_admin:
         return 'Not found', 404
+    from app.books.access import can_user_access_book
+    if not can_user_access_book(current_user, book):
+        return 'Not found', 404
     if not chapter.audio_url:
         return 'No audio available', 404
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
