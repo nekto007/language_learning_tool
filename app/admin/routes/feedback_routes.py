@@ -11,7 +11,6 @@ from sqlalchemy import desc, func, or_
 from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.admin.utils.request_validators import escape_like
-from app.api.errors import api_error
 from app.auth.models import User
 from app.feedback.models import (
     FEEDBACK_CATEGORIES,
@@ -250,11 +249,13 @@ def feedback_reply(feedback_id: int):
 def feedback_set_status(feedback_id: int):
     new_status = (request.form.get('status') or '').strip().lower()
     if new_status not in FEEDBACK_STATUSES:
-        return api_error('invalid_status', 'unknown status', 400)
+        flash('Неизвестный статус', 'danger')
+        return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
 
     row = Feedback.query.get(feedback_id)
     if row is None:
-        return api_error('not_found', 'feedback not found', 404)
+        flash('Обращение не найдено', 'danger')
+        return redirect(url_for('feedback_admin.feedback_index'))
 
     previous = row.status
     row.status = new_status
@@ -285,21 +286,25 @@ def feedback_triage(feedback_id: int):
     assignee_raw = (request.form.get('assignee_admin_id') or '').strip()
 
     if priority not in FEEDBACK_PRIORITIES:
-        return api_error('invalid_priority', 'unknown priority', 400)
+        flash('Неизвестный приоритет', 'danger')
+        return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
 
     row = Feedback.query.get(feedback_id)
     if row is None:
-        return api_error('not_found', 'feedback not found', 404)
+        flash('Обращение не найдено', 'danger')
+        return redirect(url_for('feedback_admin.feedback_index'))
 
     assignee_admin_id = None
     if assignee_raw:
         try:
             assignee_admin_id = int(assignee_raw)
         except ValueError:
-            return api_error('invalid_assignee', 'unknown assignee', 400)
+            flash('Неверный ID исполнителя', 'danger')
+            return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
         assignee_user = User.query.filter_by(id=assignee_admin_id, is_admin=True).first()
         if assignee_user is None:
-            return api_error('invalid_assignee', 'unknown assignee', 400)
+            flash('Исполнитель не найден', 'danger')
+            return redirect(url_for('feedback_admin.feedback_detail', feedback_id=feedback_id))
 
     previous = (row.priority, row.assignee_admin_id)
     row.priority = priority

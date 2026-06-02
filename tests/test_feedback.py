@@ -176,8 +176,9 @@ class TestFeedbackAdmin:
         resp = client.post(
             f'/admin/feedback/{row.id}/status',
             data={'status': 'spam'},
+            follow_redirects=False,
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 302
 
     def test_admin_triage_sets_priority_and_assignee(self, client, admin_user, db_session):
         row = Feedback(
