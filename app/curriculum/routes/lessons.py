@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 
 from app import limiter
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
 from app.curriculum.grading import check_final_test_attempts_exhausted
@@ -798,7 +799,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=80,
+        passing_score=PASSING_SCORE_DICTATION,
     )
 
     try:
@@ -905,7 +906,7 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     try:
@@ -1110,7 +1111,7 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if passed:
@@ -1257,7 +1258,7 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
         user_id=user_id,
         lesson=lesson,
         result={'passed': passed, 'score': score_value, **grade},
-        passing_score=70 if is_multi else 100,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if passed:
@@ -1624,7 +1625,7 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if grade.get('passed'):
@@ -1737,7 +1738,7 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if grade.get('passed'):
