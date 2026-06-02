@@ -337,13 +337,17 @@ def submit_lesson(lesson_id):
                 return _api_error('rate_limit_exceeded', 'Daily writing attempt limit reached.', 429)
 
         if lesson.type == 'quiz':
-            result = process_quiz_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_quiz_submission(_content.get('questions', []), data.get('answers', {}))
         elif lesson.type == 'grammar':
-            result = process_grammar_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_grammar_submission(_content.get('exercises', []), data.get('answers', {}))
         elif lesson.type == 'matching':
-            result = process_matching_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_matching_submission(_content.get('pairs', []), data.get('answers', {}))
         elif lesson.type == 'final_test':
-            result = process_final_test_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_final_test_submission(_content.get('questions', []), data.get('answers', {}))
         elif lesson.type == 'dictation':
             result = _process_dictation_submission(lesson, current_user.id, data)
         elif lesson.type == 'audio_fill_blank':

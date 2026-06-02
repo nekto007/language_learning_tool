@@ -139,11 +139,11 @@ def submit_feedback():
             timezone=_trim_str(source.get('timezone'), 64),
             platform=_trim_str(source.get('platform'), 64),
         )
+        db.session.commit()
         try:
             _notify_admins_of_feedback(row)
         except Exception:
             logger.exception('feedback_notify_failed feedback_id=%s', row.id)
-        db.session.commit()
     except Exception:
         db.session.rollback()
         logger.exception('feedback_submit_failed user_id=%s', current_user.id)
