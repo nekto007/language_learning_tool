@@ -181,6 +181,7 @@ const useSentences = minSentences > 0;
 const targetTotal = useSentences ? minSentences : minWords;
 const MIN_CHECKLIST = {{ min_checklist | default(2) | int }};
 const TARGET_PHRASES = {{ target_phrases | tojson }};
+const MODE_IS_GUIDED = {{ (mode == 'guided') | tojson }};
 
 function countWords(text) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -190,6 +191,19 @@ function countSentences(text) {
   // окружающего whitespace.
   const parts = String(text || '').split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
   return parts.length;
+}
+
+function _normalizeWritingText(text) {
+  return String(text || '').toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function _hasTargetPhrase(text) {
+  if (!MODE_IS_GUIDED || !Array.isArray(TARGET_PHRASES) || TARGET_PHRASES.length === 0) return true;
+  const normalizedText = ' ' + _normalizeWritingText(text) + ' ';
+  return TARGET_PHRASES.some((phrase) => {
+    const normalizedPhrase = _normalizeWritingText(phrase);
+    return normalizedPhrase && normalizedText.includes(' ' + normalizedPhrase + ' ');
+  });
 }
 
 function insertWritingChip(word) {
@@ -312,6 +326,9 @@ function _writingReadiness(text, count) {
     }
     for (const h of hints) missing.push(h);
   }
+  if (!_hasTargetPhrase(text)) {
+    missing.push('{{ _("Добавьте хотя бы одну фразу из подсказок.") }}');
+  }
   return missing;
 }
 
@@ -368,7 +385,7 @@ async function submitWriting() {
   // Submit-кнопка заблокирована до тех пор, пока все условия не выполнены
   // (см. _renderReadiness). Дополнительный server-side check на всякий случай.
   const checkboxes = document.querySelectorAll('.writing-prompt-checkbox:checked');
-  if (count < targetTotal || checkboxes.length < MIN_CHECKLIST) {
+  if (count < targetTotal || checkboxes.length < MIN_CHECKLIST || !_hasTargetPhrase(text)) {
     return;
   }
   const checkedItems = Array.from(checkboxes).map(cb => cb.value);
@@ -449,6 +466,8 @@ function showResult(data) {
       hint = '{{ _("Добавьте ещё — минимум ") }}' + targetTotal + ' ' + unit + '.';
     } else if (!data.checklist_completed) {
       hint = '{{ _("Отметьте пункты проверочного списка.") }}';
+    } else if (data.target_phrases_required && !data.target_phrases_met) {
+      hint = '{{ _("Добавьте хотя бы одну фразу из подсказок.") }}';
     }
     _setResultBadge('neutral', '<i class="fas fa-info-circle"></i>', hint, null);
   }

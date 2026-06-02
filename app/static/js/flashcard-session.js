@@ -904,6 +904,19 @@ class FlashcardSession {
         const cardKey = `${card.word_id}_${card.direction}`;
         this.sessionAttempts[cardKey] = (this.sessionAttempts[cardKey] || 0) + 1;
 
+        if (!this.config.gradeUrl || !card.word_id) {
+            if (rating >= 3) {
+                this.sessionStats.correct++;
+            } else {
+                this.sessionStats.incorrect++;
+            }
+            this.sessionStats.total++;
+            this._recountRemaining();
+            this.showCard(this.currentCardIndex + 1);
+            this._rateInFlight = false;
+            return;
+        }
+
         try {
             const extraParams = {
                 deckId: this.config.deckId,

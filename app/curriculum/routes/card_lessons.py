@@ -382,7 +382,7 @@ def render_card_lesson(lesson):
         cards_list = _build_cards_for_words(
             word_objects, current_user.id, activate_srs=True,
         )
-    elif isinstance(content, dict):
+    if not cards_list and isinstance(content, dict):
         cards_list = _build_display_cards_from_content(content)
 
     next_review_time = None
@@ -583,7 +583,7 @@ def card_lesson(lesson_id):
         cards_list = _build_cards_for_words(
             word_objects, current_user.id, activate_srs=True,
         )
-    elif isinstance(content, dict):
+    if not cards_list and isinstance(content, dict):
         cards_list = _build_display_cards_from_content(content)
 
     next_review_time = None

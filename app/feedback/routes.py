@@ -61,7 +61,7 @@ def _coerce_float(value) -> Optional[float]:
         out = float(value)
     except (TypeError, ValueError):
         return None
-    if out < 0 or out > 16:
+    if not (0 <= out <= 16):
         return None
     return out
 

@@ -285,7 +285,6 @@ def update_lesson_progress(lesson_id):
         if progress.status == 'completed' and progress.score is not None and not _is_score_strip_type:
             try:
                 from app.achievements.services import process_lesson_completion
-                Lessons.query.get(lesson_id)
                 completion_result = process_lesson_completion(
                     user_id=current_user.id,
                     lesson_id=lesson_id,
@@ -1361,6 +1360,9 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     """Save a writing prompt attempt, mark lesson complete, award XP, return result."""
     from app.curriculum.models import save_writing_attempt
 
+    def _normalize_phrase(value: str) -> str:
+        return re.sub(r'[^a-z0-9]+', ' ', str(value or '').lower().replace('\u2019', '').replace("'", '')).strip()
+
     content = lesson.content or {}
     example_response = content.get('example_response') or None
     response_text = (data.get('response_text') or '')[:20000].strip()
@@ -1404,12 +1406,23 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     word_count = len(response_text.split()) if response_text else 0
     # Sentence count: разделители .!? с любым whitespace вокруг.
     sentence_count = len([s for s in re.split(r'[.!?]+', response_text) if s.strip()])
+    target_phrases = [
+        phrase for phrase in (content.get('target_phrases') or [])
+        if isinstance(phrase, str) and phrase.strip()
+    ]
+    normalized_response = f" {_normalize_phrase(response_text)} "
+    matched_target_phrases = [
+        phrase for phrase in target_phrases
+        if _normalize_phrase(phrase) and f" {_normalize_phrase(phrase)} " in normalized_response
+    ]
+    target_phrases_required = bool(target_phrases and mode == 'guided')
+    target_phrases_met = (not target_phrases_required) or bool(matched_target_phrases)
 
     meets_min_words = (min_words == 0) or (word_count >= min_words)
     meets_min_sentences = (min_sentences == 0) or (sentence_count >= min_sentences)
     meets_min = meets_min_words and meets_min_sentences
 
-    completed = meets_min and len(valid_checked) >= min_checklist
+    completed = meets_min and checklist_completed and target_phrases_met
 
     if meets_min:
         try:
@@ -1431,6 +1444,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
             'checked_items': sorted(valid_checked),
             'word_count': word_count,
             'sentence_count': sentence_count,
+            'matched_target_phrases': matched_target_phrases,
         }
         if progress:
             progress.status = 'completed'
@@ -1483,6 +1497,9 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         'meets_min_words': meets_min_words,
         'meets_min_sentences': meets_min_sentences,
         'checklist_completed': checklist_completed,
+        'target_phrases_required': target_phrases_required,
+        'target_phrases_met': target_phrases_met,
+        'matched_target_phrases': matched_target_phrases,
     }
     if completed and example_response:
         result['example_response'] = example_response

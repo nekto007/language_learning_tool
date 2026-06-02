@@ -773,7 +773,7 @@
               {% endif %}
 
               <p class="final-test-matching-hint">
-                {{ _('Кликните на слово слева, затем на его перевод справа') }}
+                {{ _('Соберите все пары. В итоговом тесте ответ фиксируется с первого выбора.') }}
               </p>
 
               <div class="final-test-matching-game">
@@ -1047,46 +1047,31 @@ function checkMatch(questionIndex) {
   const state = matchingState[questionIndex];
   const leftBtn = state.selectedLeft.button;
   const rightBtn = state.selectedRight.button;
+  const isCorrect = state.selectedLeft.pairId === state.selectedRight.pairId;
 
-  // Check if pair IDs match
-  if (state.selectedLeft.pairId === state.selectedRight.pairId) {
-    // Correct match!
-    leftBtn.classList.remove('selected');
-    rightBtn.classList.remove('selected');
-    leftBtn.classList.add('matched', 'correct-match');
-    rightBtn.classList.add('matched', 'correct-match');
+  leftBtn.classList.remove('selected');
+  rightBtn.classList.remove('selected');
+  leftBtn.classList.add('matched');
+  rightBtn.classList.add('matched');
+  if (isCorrect) {
+    leftBtn.classList.add('correct-match');
+    rightBtn.classList.add('correct-match');
+  }
 
-    // Add to matched list
-    state.matchedPairs.push({
-      left: leftBtn.dataset.word,
-      right: rightBtn.dataset.word
-    });
+  state.matchedPairs.push({
+    left: leftBtn.dataset.word,
+    right: rightBtn.dataset.word,
+    correct: isCorrect
+  });
 
-    // Move matched buttons to the top of their columns
-    const leftColumn = document.getElementById(`matching-left-${questionIndex}`);
-    const rightColumn = document.getElementById(`matching-right-${questionIndex}`);
+  const leftColumn = document.getElementById(`matching-left-${questionIndex}`);
+  const rightColumn = document.getElementById(`matching-right-${questionIndex}`);
+  leftColumn.prepend(leftBtn);
+  rightColumn.prepend(rightBtn);
 
-    // Prepend (move to top)
-    leftColumn.prepend(leftBtn);
-    rightColumn.prepend(rightBtn);
-
-    // Check if all pairs are matched
-    const question = window.finalTestData.questions[questionIndex];
-    if (state.matchedPairs.length === question.pairs.length) {
-      // All matched! Show submit button
-      document.getElementById(`matching-submit-${questionIndex}`).style.display = 'block';
-    }
-  } else {
-    // Wrong match - shake and deselect
-    leftBtn.style.animation = 'shake 0.5s';
-    rightBtn.style.animation = 'shake 0.5s';
-
-    setTimeout(() => {
-      leftBtn.classList.remove('selected');
-      rightBtn.classList.remove('selected');
-      leftBtn.style.animation = '';
-      rightBtn.style.animation = '';
-    }, 500);
+  const question = window.finalTestData.questions[questionIndex];
+  if (state.matchedPairs.length === question.pairs.length) {
+    document.getElementById(`matching-submit-${questionIndex}`).style.display = 'block';
   }
 
   // Reset selections
@@ -1095,13 +1080,11 @@ function checkMatch(questionIndex) {
 }
 
 function submitMatchingAnswer(questionIndex) {
-  // For matching questions, we just mark them as correct (they're educational, not test).
-  // But we DO collect the pairs the user actually assembled so the results page
-  // can render «Friend → Друг» instead of a useless "completed" token.
   const state = (window.matchingState && window.matchingState[questionIndex]) || null;
   const pairs = state && Array.isArray(state.matchedPairs) ? state.matchedPairs.map(p => ({
-    left: p.left, right: p.right, correct: true
+    left: p.left, right: p.right, correct: !!p.correct
   })) : [];
+  const isCorrect = pairs.length > 0 && pairs.every(p => p.correct);
 
   // Form-friendly compact string so server stores something meaningful even
   // without separate pairs handling: "left1 → right1; left2 → right2".
@@ -1110,17 +1093,18 @@ function submitMatchingAnswer(questionIndex) {
   FinalTestApp.state.answers[questionIndex] = {
     value: pairsText || 'completed',
     text: pairsText || 'Соответствия найдены',
-    correct: true,
+    correct: isCorrect,
     pairs: pairs
   };
 
-  FinalTestApp.state.correctCount++;
+  if (isCorrect) {
+    FinalTestApp.state.correctCount++;
+  }
 
   const submitBtn = document.getElementById(`matching-submit-${questionIndex}`);
   submitBtn.disabled = true;
 
-  // Show simplified feedback for matching
-  FinalTestApp.showFeedback(questionIndex, true, null);
+  FinalTestApp.showFeedback(questionIndex, isCorrect, null);
 
   // Save progress immediately after answering
   FinalTestApp.saveProgress();
@@ -1552,4 +1536,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endblock %}
-
