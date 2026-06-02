@@ -15,7 +15,7 @@ Use :func:`can_user_access_book` for ad-hoc checks and
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any
 
 from sqlalchemy import or_
@@ -86,7 +86,7 @@ def accessible_books_filter(user) -> Any:
     if _user_has_books_module(user):
         licensed_ok = or_(
             Book.expiration_date.is_(None),
-            Book.expiration_date >= date.today(),
+            Book.expiration_date >= datetime.now(timezone.utc).date(),
         )
         return or_(public_domain, licensed_ok)
     return public_domain

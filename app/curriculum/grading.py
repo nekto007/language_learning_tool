@@ -7,7 +7,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Optional
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
 from app.utils.normalization import normalize_text
 
 logger = logging.getLogger(__name__)
@@ -223,7 +223,7 @@ def grade_dictation(user_text: str, transcript: str, hint_chars: int = 0) -> dic
         word_results.append({"word": correct_word, "user_word": user_word, "correct": is_correct})
 
     score = round(correct_words / total_words * 100)
-    passed = score >= 80
+    passed = score >= PASSING_SCORE_DICTATION
 
     return {
         "score": score,
@@ -279,7 +279,7 @@ def grade_audio_fill_blank(user_answers: list, items: list) -> dict:
         })
 
     score = round(correct / total * 100)
-    passed = score >= 70
+    passed = score >= PASSING_SCORE_DEFAULT
 
     return {
         'score': score,
@@ -352,7 +352,7 @@ def grade_translation_multi(user_answers: list, items: list) -> dict:
     score = round(correct / total * 100)
     return {
         'score': score,
-        'passed': score >= 70,
+        'passed': score >= PASSING_SCORE_DEFAULT,
         'correct_items': correct,
         'total_items': total,
         'item_results': item_results,
@@ -476,7 +476,7 @@ def grade_sentence_completion(user_answers: list, items: list) -> dict:
         })
 
     score = round(correct / total * 100)
-    passed = score >= 70
+    passed = score >= PASSING_SCORE_DEFAULT
 
     return {
         'score': score,
@@ -543,7 +543,7 @@ def grade_collocation_matching(user_pairs: list, correct_pairs: list) -> dict:
         })
 
     score = round(correct / total * 100)
-    passed = score >= 70
+    passed = score >= PASSING_SCORE_DEFAULT
 
     return {
         'score': score,
@@ -1312,7 +1312,7 @@ def process_final_test_submission(questions: list, user_answers: dict) -> dict:
         }
 
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
-    passed = score >= 70
+    passed = score >= PASSING_SCORE_DEFAULT
 
     return {
         'score': round(score, 1),

@@ -692,6 +692,9 @@ def book_words(book_id):
     if not book.is_published and not current_user.is_admin:
         abort(404)
 
+    if not can_user_access_book(current_user, book):
+        abort(403)
+
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     status = request.args.get('status', type=int)
@@ -812,6 +815,9 @@ def book_words(book_id):
 @login_required
 def add_book_to_queue(book_id):
     book = Book.query.get_or_404(book_id)
+
+    if not can_user_access_book(current_user, book):
+        abort(403)
 
     words_query = db.select(
         CollectionWords.id

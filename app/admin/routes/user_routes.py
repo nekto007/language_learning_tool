@@ -385,7 +385,7 @@ def export_users_csv():
     rows = UserManagementService.export_users_csv(search=search)
     rows = rows[:MAX_EXPORT_ROWS]
 
-    # Audit log
+    log_admin_action(current_user.id, 'user.export_csv', target_type='user')
     current_app.logger.info(
         'CSV user export by admin %s, search=%r, %d records',
         current_user.id, search, len(rows),

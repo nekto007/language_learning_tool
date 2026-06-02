@@ -475,7 +475,9 @@ def test_book(db_session):
         title='Test Book',
         author='Test Author',
         level='A1',
-        chapters_cnt=1
+        chapters_cnt=1,
+        rights_status='public_domain',
+        is_published=True,
     )
     db_session.add(book)
     db_session.commit()

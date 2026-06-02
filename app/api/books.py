@@ -9,6 +9,7 @@ from sqlalchemy import func
 
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
+from app.books.access import can_user_access_book
 from app.books.models import Block, Book, Chapter, Task, UserChapterProgress
 from app.curriculum.cache import cached
 from app.study.models import QuizDeck, QuizDeckWord
@@ -41,6 +42,8 @@ def get_books():
 @api_auth_required
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
+    if not can_user_access_book(current_user, book):
+        return api_error('forbidden', 'Access denied', 403)
 
     # Get word stats for this book using the new UserWord model
     from app.study.models import UserWord
@@ -116,6 +119,8 @@ def get_book_chapters_by_slug(slug):
     Returns: [{"id": 12, "num": 1, "title": "The Boy...", "words": 4526, "audio_url": null}, ...]
     """
     book = Book.query.filter_by(slug=slug).first_or_404()
+    if not can_user_access_book(current_user, book):
+        return api_error('forbidden', 'Access denied', 403)
 
     chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chap_num).all()
 
@@ -136,7 +141,9 @@ def get_book_chapters(book_id):
     Get all chapters for a book
     Returns: [{"id": 12, "num": 1, "title": "The Boy...", "words": 4526, "audio_url": null}, ...]
     """
-    Book.query.get_or_404(book_id)
+    book = Book.query.get_or_404(book_id)
+    if not can_user_access_book(current_user, book):
+        return api_error('forbidden', 'Access denied', 403)
 
     chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
@@ -156,6 +163,9 @@ def get_chapter_content(book_id, chapter_num):
     Get chapter content with navigation info
     Returns: {"id": 12, "num": 1, "text": "...", "next": 2, "prev": null}
     """
+    book = Book.query.get_or_404(book_id)
+    if not can_user_access_book(current_user, book):
+        return api_error('forbidden', 'Access denied', 403)
     chapter = Chapter.query.filter_by(
         book_id=book_id,
         chap_num=chapter_num

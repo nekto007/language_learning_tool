@@ -362,6 +362,18 @@ def submit_lesson(lesson_id):
                 return jsonify({'success': False, **rate_limit}), 429
             _content = lesson.content if isinstance(lesson.content, dict) else {}
             result = process_final_test_submission(_content.get('questions', []), data.get('answers', {}))
+            _ft_passing = _content.get('passing_score_percent', _content.get('passing_score', PASSING_SCORE_DEFAULT))
+            try:
+                from app.curriculum.services.progress_service import ProgressService
+                ProgressService.update_progress_with_grading(
+                    user_id=current_user.id,
+                    lesson=lesson,
+                    result=result,
+                    passing_score=_ft_passing,
+                )
+            except Exception as _ft_err:
+                logger.warning("Failed to record final_test attempt for lesson %s: %s", lesson_id, _ft_err)
+                db.session.rollback()
         elif lesson.type == 'dictation':
             result = _process_dictation_submission(lesson, current_user.id, data)
         elif lesson.type == 'audio_fill_blank':
@@ -1494,6 +1506,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     meets_min = meets_min_words and meets_min_sentences
 
     completed = meets_min and checklist_completed and target_phrases_met
+    writing_score = round(len(valid_checked) / len(checklist) * 100) if checklist else 100
 
     if meets_min:
         try:
@@ -1519,6 +1532,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         }
         if progress:
             progress.status = 'completed'
+            progress.score = writing_score
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
@@ -1529,6 +1543,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 user_id=user_id,
                 lesson_id=lesson.id,
                 status='completed',
+                score=writing_score,
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
@@ -1545,7 +1560,6 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 maybe_award_curriculum_xp,
                 maybe_award_writing_xp,
             )
-            writing_score = round(len(valid_checked) / len(checklist) * 100) if checklist else 100
             with db.session.begin_nested():
                 maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=writing_score)
                 maybe_award_writing_xp(user_id, lesson.id, db_session=db)
@@ -2027,11 +2041,14 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             PronunciationAttempt.user_id == user_id,
             PronunciationAttempt.created_at >= today_start,
         ).all()
-        relevant = [a for a in pron_attempts if a.word in lesson_words] if lesson_words else pron_attempts
+        if not lesson_words:
+            return {'success': False, 'error': 'requires_attempt', 'message': 'Необходимо сделать хотя бы одну попытку'}
+        relevant = [a for a in pron_attempts if a.word in lesson_words]
         if not relevant:
             return {'success': False, 'error': 'requires_attempt', 'message': 'Необходимо сделать хотя бы одну попытку'}
 
-        pron_score = round(sum(1 for a in relevant if a.matched) / len(relevant) * 100)
+        matched_words = {a.word for a in relevant if a.matched}
+        pron_score = round(len(matched_words) / len(lesson_words) * 100)
 
         # Final submission — mark lesson completed and award XP
         progress = LessonProgress.query.filter_by(
