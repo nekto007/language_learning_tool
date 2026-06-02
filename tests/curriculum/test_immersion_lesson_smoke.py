@@ -735,6 +735,12 @@ class TestPronunciationSmoke:
         lesson = _make_pronunciation_lesson(db_session)
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/pronunciation")
+        # Must submit at least one item attempt before finishing (item_index required)
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={"item_index": 0, "self_assessed": True, "lesson_type": "pronunciation"},
+            content_type="application/json",
+        )
         resp = client.post(
             f"/curriculum/api/lesson/{lesson.id}/submit",
             json={"finish": True, "lesson_type": "pronunciation"},
@@ -762,6 +768,12 @@ class TestPronunciationSmoke:
         lesson = _make_pronunciation_lesson(db_session)
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/pronunciation")
+        # Must submit at least one item attempt before finishing (item_index required)
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={"item_index": 0, "self_assessed": True, "lesson_type": "pronunciation"},
+            content_type="application/json",
+        )
         resp = client.post(
             f"/curriculum/api/lesson/{lesson.id}/submit",
             json={"finish": True, "lesson_type": "pronunciation"},

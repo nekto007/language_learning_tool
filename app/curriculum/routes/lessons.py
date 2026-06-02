@@ -382,6 +382,8 @@ def submit_lesson(lesson_id):
             result = _process_listening_immersion_submission(lesson, current_user.id, data)
         elif lesson.type == 'pronunciation':
             result = _process_pronunciation_submission(lesson, current_user.id, data)
+            if not result.get('success') and result.get('error') == 'requires_attempt':
+                return jsonify(result), 400
         elif lesson.type == 'idiom':
             result = _process_idiom_submission(lesson, current_user.id, data)
         else:
