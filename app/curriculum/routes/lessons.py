@@ -2039,11 +2039,14 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             PronunciationAttempt.user_id == user_id,
             PronunciationAttempt.created_at >= today_start,
         ).all()
-        relevant = [a for a in pron_attempts if a.word in lesson_words] if lesson_words else pron_attempts
+        if not lesson_words:
+            return {'success': False, 'error': 'requires_attempt', 'message': 'Необходимо сделать хотя бы одну попытку'}
+        relevant = [a for a in pron_attempts if a.word in lesson_words]
         if not relevant:
             return {'success': False, 'error': 'requires_attempt', 'message': 'Необходимо сделать хотя бы одну попытку'}
 
-        pron_score = round(sum(1 for a in relevant if a.matched) / len(relevant) * 100)
+        matched_words = {a.word for a in relevant if a.matched}
+        pron_score = round(len(matched_words) / len(lesson_words) * 100)
 
         # Final submission — mark lesson completed and award XP
         progress = LessonProgress.query.filter_by(

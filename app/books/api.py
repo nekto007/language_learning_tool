@@ -905,6 +905,9 @@ def save_reading_position():
         return jsonify({'success': False, 'message': 'Chapter not found'}), 404
     if not chapter.book.is_published and not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Chapter not found'}), 404
+    from app.books.access import can_user_access_book
+    if not can_user_access_book(current_user, chapter.book):
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
 
     # Lock existing progress row to serialize concurrent updates from
     # two tabs completing the same chapter. First insert wins via PK;
@@ -1108,6 +1111,9 @@ def reading_session_start():
         return api_error('not_found', 'chapter not found', 404)
     if not chapter.book.is_published and not current_user.is_admin:
         return api_error('not_found', 'chapter not found', 404)
+    from app.books.access import can_user_access_book
+    if not can_user_access_book(current_user, chapter.book):
+        return api_error('forbidden', 'access to this book is not enabled for your account', 403)
 
     session = start_session(current_user.id, chapter_id, db)
     db.session.commit()
