@@ -10,11 +10,14 @@
 - ``GET /feedback/screenshots/<path>`` — screenshot file, ACL: owner or admin.
 """
 
+import json as _json
 import logging
+import os
+import re
 from typing import Optional
 
 from flask import (
-    abort, jsonify, render_template, request, send_file, url_for,
+    abort, current_app, jsonify, render_template, request, send_file, url_for,
 )
 from flask_login import current_user, login_required
 
@@ -34,6 +37,7 @@ from app.feedback.models import (
     create_reply,
 )
 from app.feedback.storage import (
+    SCREENSHOT_REJECT_REASONS,
     feedback_screenshot_abs_path,
     save_feedback_screenshot,
 )
@@ -61,7 +65,7 @@ def _coerce_float(value) -> Optional[float]:
         out = float(value)
     except (TypeError, ValueError):
         return None
-    if out < 0 or out > 16:
+    if not (0 <= out <= 16):
         return None
     return out
 
@@ -71,6 +75,85 @@ def _trim_str(value, limit: int) -> Optional[str]:
         return None
     text = str(value).strip()
     return text[:limit] if text else None
+
+
+_LESSON_URL_RE = re.compile(r'/learn/(\d+)(?:/|$|\?)')
+_BOOK_URL_RE = re.compile(r'/(?:read|books)/(\d+)(?:/|$|\?)')
+
+
+def _extract_context_from_url(url: str | None) -> dict[str, int]:
+    """Best-effort lesson/book id extraction from a submitted URL.
+
+    Pure string parsing — doesn't hit the DB, doesn't validate FKs. Extracted
+    ids land in dedicated columns so the admin inbox can sort / filter by
+    them; if the underlying row is gone (admin cleanup), the column just
+    points at nothing, which is acceptable for a historical record.
+    """
+    out: dict[str, int] = {}
+    if not url:
+        return out
+    m = _LESSON_URL_RE.search(url)
+    if m:
+        try:
+            out['lesson_id'] = int(m.group(1))
+        except ValueError:
+            pass
+    m = _BOOK_URL_RE.search(url)
+    if m:
+        try:
+            out['book_id'] = int(m.group(1))
+        except ValueError:
+            pass
+    return out
+
+
+_CONTEXT_JSON_MAX_BYTES = 8 * 1024
+
+
+def _coerce_context_json(raw) -> Optional[dict]:
+    """Decode the client's ``context`` field and enforce an 8 KiB cap.
+
+    Accepts a dict (from a JSON body) or a JSON string (from multipart).
+    Returns None for anything that can't be parsed, isn't a dict, or
+    exceeds the size cap — so a misbehaving client can't bloat the row.
+    """
+    if raw is None or raw == '':
+        return None
+    parsed = None
+    if isinstance(raw, str):
+        try:
+            parsed = _json.loads(raw)
+        except (ValueError, TypeError):
+            return None
+    elif isinstance(raw, dict):
+        parsed = raw
+    if not isinstance(parsed, dict) or not parsed:
+        return None
+    try:
+        encoded = _json.dumps(parsed, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return None
+    if len(encoded) > _CONTEXT_JSON_MAX_BYTES:
+        return None
+    return parsed
+
+
+def _resolve_app_version() -> Optional[str]:
+    """Pick up the current build identifier from env / config.
+
+    Order of preference: explicit ``APP_VERSION`` env > Flask config
+    ``APP_VERSION`` > ``GIT_SHA`` env > ``HEROKU_SLUG_COMMIT`` env. Capped
+    to 64 chars to fit the column.
+    """
+    for source in (
+        os.environ.get('APP_VERSION'),
+        current_app.config.get('APP_VERSION') if current_app else None,
+        os.environ.get('GIT_SHA'),
+        os.environ.get('HEROKU_SLUG_COMMIT'),
+    ):
+        if source:
+            return str(source)[:64]
+    return None
 
 
 @feedback_bp.route('/api/feedback', methods=['POST'])
@@ -103,6 +186,8 @@ def submit_feedback():
     url_value = _trim_str(source.get('url'), URL_MAX_LENGTH)
     if not url_value and request.referrer:
         url_value = request.referrer[:URL_MAX_LENGTH]
+    if url_value and not url_value.lower().startswith(('http://', 'https://')):
+        url_value = None
 
     user_agent = (request.user_agent.string or '')[:USER_AGENT_MAX_LENGTH] or None
 
@@ -117,6 +202,15 @@ def submit_feedback():
             screenshot_rel, screenshot_reject_reason = None, 'process_failed'
 
     priority = 'high' if urgent or (category == 'bug' and screenshot_rel) else 'normal'
+
+    # Auto-context: server-side URL parsing for lesson/book ids, plus the
+    # client's optional ``context`` blob (recent JS errors, route name, SPA
+    # state). Server values win — the client can suggest, but can't lie.
+    url_ctx = _extract_context_from_url(url_value)
+    client_ctx = _coerce_context_json(source.get('context')) or {}
+    lesson_id = url_ctx.get('lesson_id') or _coerce_int(client_ctx.get('lesson_id'))
+    book_id = url_ctx.get('book_id') or _coerce_int(client_ctx.get('book_id'))
+    app_version = _trim_str(source.get('app_version'), 64) or _resolve_app_version()
 
     try:
         row = create_feedback(
@@ -135,12 +229,16 @@ def submit_feedback():
             locale=_trim_str(source.get('locale'), 32),
             timezone=_trim_str(source.get('timezone'), 64),
             platform=_trim_str(source.get('platform'), 64),
+            lesson_id=lesson_id,
+            book_id=book_id,
+            app_version=app_version,
+            context_json=client_ctx or None,
         )
+        db.session.commit()
         try:
             _notify_admins_of_feedback(row)
         except Exception:
             logger.exception('feedback_notify_failed feedback_id=%s', row.id)
-        db.session.commit()
     except Exception:
         db.session.rollback()
         logger.exception('feedback_submit_failed user_id=%s', current_user.id)
@@ -150,8 +248,6 @@ def submit_feedback():
         'feedback_submitted id=%s user_id=%s category=%s has_screenshot=%s screenshot_rejected=%s',
         row.id, current_user.id, category, bool(screenshot_rel), screenshot_reject_reason or '',
     )
-    from app.feedback.storage import SCREENSHOT_REJECT_REASONS
-
     if screenshot_reject_reason:
         screenshot_status = 'rejected'
         screenshot_message = SCREENSHOT_REJECT_REASONS.get(
@@ -201,19 +297,19 @@ def submit_user_reply(feedback_id: int):
             body=body,
             is_admin=bool(current_user.is_admin),
         )
-        # When the user follows up, notify admins so they see the bump in
-        # the inbox. Skip if the author themselves is an admin (avoids
-        # self-fan-out).
-        if not current_user.is_admin:
-            try:
-                _notify_admins_of_reply(row, reply, reopened=was_resolved)
-            except Exception:
-                logger.exception('feedback_reply_notify_admins_failed id=%s', row.id)
         db.session.commit()
     except Exception:
         db.session.rollback()
         logger.exception('feedback_reply_failed user_id=%s', current_user.id)
         return api_error('save_failed', 'could not save reply', 500)
+
+    # Notify after commit so a notification failure never rolls back the reply.
+    # Skip self-fan-out when the author is an admin.
+    if not current_user.is_admin:
+        try:
+            _notify_admins_of_reply(row, reply, reopened=was_resolved)
+        except Exception:
+            logger.exception('feedback_reply_notify_admins_failed id=%s', row.id)
 
     return jsonify({
         'success': True,

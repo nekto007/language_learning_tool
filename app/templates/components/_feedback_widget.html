@@ -216,6 +216,10 @@
         closePopup();
         modal.hidden = false;
         document.body.classList.add('feedback-modal-open');
+        // Restore any unsent draft from a previous session before focusing,
+        // so the user lands inside their already-filled form rather than
+        // an empty one and re-types everything they typed yesterday.
+        restoreDraft();
         setTimeout(function() {
             var firstRadio = modal.querySelector('input[name="category"]');
             if (firstRadio) firstRadio.focus();
@@ -296,6 +300,171 @@
         });
     }
 
+    // Programmatic attach helper used by paste / drag-drop. Reuses the
+    // change-handler's validation by reseting the input via DataTransfer.
+    function attachScreenshot(file) {
+        if (!file || !screenshotInput) return;
+        if (file.size > MAX_BYTES) {
+            errorBox.textContent = 'Скриншот больше 5 МБ. Сожмите или сделайте меньшую область.';
+            errorBox.hidden = false;
+            return;
+        }
+        try {
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            screenshotInput.files = dt.files;
+        } catch (e) {
+            // Some browsers (older Safari) reject DataTransfer assignment;
+            // fall back to just rendering the preview — submit() will pick
+            // the file up via a captured reference below.
+        }
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            previewImg.src = ev.target.result;
+            preview.hidden = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Paste from clipboard: hot-fast path for "сделал скриншот в системе
+    // → Ctrl+V в форму". Only triggers while the modal is open and the
+    // target wasn't a contenteditable input.
+    document.addEventListener('paste', function(e) {
+        if (modal.hidden) return;
+        if (!e.clipboardData || !e.clipboardData.items) return;
+        for (var i = 0; i < e.clipboardData.items.length; i++) {
+            var item = e.clipboardData.items[i];
+            if (item && item.kind === 'file' && item.type.indexOf('image/') === 0) {
+                var file = item.getAsFile();
+                if (file) {
+                    attachScreenshot(file);
+                    e.preventDefault();
+                    return;
+                }
+            }
+        }
+    });
+
+    // Drag-and-drop on the modal body — drop zone is the whole panel so
+    // users don't have to aim for the file input.
+    var modalPanel = modal.querySelector('.feedback-modal__panel');
+    if (modalPanel) {
+        ['dragenter', 'dragover'].forEach(function(ev) {
+            modalPanel.addEventListener(ev, function(e) {
+                if (!e.dataTransfer || !e.dataTransfer.types) return;
+                if (Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') === -1) return;
+                e.preventDefault();
+                modalPanel.classList.add('feedback-modal__panel--drop');
+            });
+        });
+        ['dragleave', 'dragend'].forEach(function(ev) {
+            modalPanel.addEventListener(ev, function() {
+                modalPanel.classList.remove('feedback-modal__panel--drop');
+            });
+        });
+        modalPanel.addEventListener('drop', function(e) {
+            modalPanel.classList.remove('feedback-modal__panel--drop');
+            if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+            var file = e.dataTransfer.files[0];
+            if (!file.type || file.type.indexOf('image/') !== 0) return;
+            e.preventDefault();
+            attachScreenshot(file);
+        });
+    }
+
+    // Draft autosave — keeps the user's typing across reloads and
+    // network-fail retries. Cleared on successful submit. Keyed by user
+    // session indirectly (localStorage is per-origin so the next person
+    // on the same browser won't inherit; if multi-user shared kiosk is a
+    // worry, this can move to sessionStorage).
+    var DRAFT_KEY = 'feedback_draft_v1';
+    var draftTimer = null;
+
+    function saveDraft() {
+        try {
+            var category = (form.querySelector('input[name="category"]:checked') || {}).value || '';
+            var message = (form.querySelector('#feedback-message').value || '');
+            var urgent = !!(form.querySelector('#feedback-urgent') || {}).checked;
+            if (!category && !message) {
+                window.localStorage.removeItem(DRAFT_KEY);
+                return;
+            }
+            window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                category: category,
+                message: message,
+                urgent: urgent,
+                saved_at: new Date().toISOString(),
+            }));
+        } catch (e) { /* private mode / quota — silent */ }
+    }
+    function restoreDraft() {
+        try {
+            var raw = window.localStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            var draft = JSON.parse(raw);
+            if (!draft || typeof draft !== 'object') return;
+            // Drop drafts older than 7 days to avoid surfacing stale text.
+            if (draft.saved_at) {
+                var age = Date.now() - new Date(draft.saved_at).getTime();
+                if (age > 7 * 24 * 60 * 60 * 1000) {
+                    window.localStorage.removeItem(DRAFT_KEY);
+                    return;
+                }
+            }
+            if (draft.category) {
+                var radio = form.querySelector('input[name="category"][value="' + draft.category + '"]');
+                if (radio) radio.checked = true;
+            }
+            if (draft.message) {
+                form.querySelector('#feedback-message').value = draft.message;
+            }
+            var urgent = form.querySelector('#feedback-urgent');
+            if (urgent && draft.urgent) urgent.checked = true;
+        } catch (e) { /* ignore corrupted draft */ }
+    }
+    function clearDraft() {
+        try { window.localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    }
+    function scheduleDraftSave() {
+        if (draftTimer) clearTimeout(draftTimer);
+        draftTimer = setTimeout(saveDraft, 1500);
+    }
+    form.addEventListener('input', scheduleDraftSave);
+    form.addEventListener('change', scheduleDraftSave);
+
+    // Client error buffer — last few uncaught errors / promise rejections.
+    // Shipped in the submit's ``context`` field so bug reports arrive
+    // pre-loaded with what the page actually crashed on.
+    var clientErrors = [];
+    var CLIENT_ERROR_CAP = 5;
+    function pushError(entry) {
+        clientErrors.push(entry);
+        if (clientErrors.length > CLIENT_ERROR_CAP) {
+            clientErrors.splice(0, clientErrors.length - CLIENT_ERROR_CAP);
+        }
+    }
+    window.addEventListener('error', function(e) {
+        if (!e) return;
+        pushError({
+            type: 'error',
+            message: String((e.message || '')).slice(0, 300),
+            source: String((e.filename || '')).slice(0, 200),
+            line: e.lineno || 0,
+            col: e.colno || 0,
+            at: new Date().toISOString(),
+        });
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+        if (!e) return;
+        var reason = '';
+        try { reason = String(e.reason && (e.reason.message || e.reason)) || ''; } catch (_) {}
+        pushError({
+            type: 'unhandledrejection',
+            message: reason.slice(0, 300),
+            at: new Date().toISOString(),
+        });
+    });
+
     function collectMeta() {
         var meta = {};
         try { meta.viewport_width = String(window.innerWidth || ''); } catch (e) {}
@@ -349,6 +518,21 @@
         var file = screenshotInput && screenshotInput.files && screenshotInput.files[0];
         if (file) fd.append('screenshot', file, file.name || 'screenshot.png');
 
+        // Auto-context blob — recent client errors, route hint, referrer.
+        var ctx = {};
+        if (clientErrors.length) ctx.client_errors = clientErrors.slice();
+        try { ctx.path = window.location.pathname || ''; } catch (e) {}
+        try { ctx.referrer = document.referrer || ''; } catch (e) {}
+        try {
+            if (window.linearPlanContext && typeof window.linearPlanContext.getContext === 'function') {
+                var lc = window.linearPlanContext.getContext();
+                if (lc) ctx.plan_slot = lc;
+            }
+        } catch (e) {}
+        if (Object.keys(ctx).length) {
+            try { fd.append('context', JSON.stringify(ctx)); } catch (e) {}
+        }
+
         fetch('/api/feedback', {
             method: 'POST',
             credentials: 'same-origin',
@@ -359,6 +543,7 @@
             body: fd,
         }).then(function(r) {
             if (r.ok) {
+                clearDraft();
                 return r.json().catch(function() { return {}; }).then(function(body) {
                     form.hidden = true;
                     successBox.hidden = false;
@@ -417,6 +602,11 @@
 </script>
 
 <style nonce="{{ csp_nonce }}">
+.feedback-modal__panel--drop {
+    outline: 2px dashed #5046e5;
+    outline-offset: -8px;
+    background-color: rgba(80, 70, 229, 0.04);
+}
 .feedback-fab__badge {
     position: absolute;
     top: -4px;

@@ -334,3 +334,212 @@ class TestFeedbackReplies:
 
         db_session.expire_all()
         assert Notification.query.get(note.id).read is True
+
+
+class TestFeedbackScreenshotUpload:
+    """Validation surface for the screenshot attachment path."""
+
+    def _png_bytes(self) -> bytes:
+        # Smallest valid PNG (8×8 transparent) — enough to satisfy Pillow.
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new('RGBA', (8, 8), (0, 0, 0, 0)).save(buf, format='PNG')
+        return buf.getvalue()
+
+    def test_valid_png_attaches_and_reports_status(self, authenticated_client, db_session):
+        resp = authenticated_client.post(
+            '/api/feedback',
+            data={
+                'category': 'bug',
+                'message': 'cards animate weird',
+                'screenshot': (io.BytesIO(self._png_bytes()), 'shot.png'),
+            },
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 201, resp.data
+        body = resp.get_json()
+        assert body['screenshot_status'] == 'attached'
+        assert body['screenshot_message'] is None
+        row = Feedback.query.get(body['id'])
+        assert row.screenshot_path is not None
+        assert row.screenshot_path.startswith('feedback/')
+
+    def test_rejects_dangerous_magic_bytes(self, authenticated_client, db_session):
+        resp = authenticated_client.post(
+            '/api/feedback',
+            data={
+                'category': 'bug',
+                'message': 'tried to slip a php shell',
+                'screenshot': (io.BytesIO(b'<?php echo "x"; ?>'), 'evil.png'),
+            },
+            content_type='multipart/form-data',
+        )
+        # Feedback still saves — screenshot was just dropped.
+        assert resp.status_code == 201
+        body = resp.get_json()
+        assert body['screenshot_status'] == 'rejected'
+        assert body['screenshot_reject_reason'] == 'malicious_content'
+        assert Feedback.query.get(body['id']).screenshot_path is None
+
+    def test_rejects_unsupported_format_with_human_reason(
+        self, authenticated_client, db_session
+    ):
+        # Random bytes — Pillow will fail to identify any image format.
+        resp = authenticated_client.post(
+            '/api/feedback',
+            data={
+                'category': 'bug',
+                'message': 'not really an image',
+                'screenshot': (io.BytesIO(b'not-an-image-' * 20), 'fake.png'),
+            },
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 201
+        body = resp.get_json()
+        assert body['screenshot_status'] == 'rejected'
+        # Either process_failed (Pillow refused to open) or unsupported_format —
+        # both are acceptable end-states; the user sees a human message either way.
+        assert body['screenshot_reject_reason'] in {'process_failed', 'unsupported_format'}
+        assert body['screenshot_message']
+
+
+class TestFeedbackScreenshotServe:
+    """ACL surface for serving stored screenshots."""
+
+    def _attach_png(self, authenticated_client) -> int:
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new('RGB', (4, 4), (255, 0, 0)).save(buf, format='PNG')
+        resp = authenticated_client.post(
+            '/api/feedback',
+            data={
+                'category': 'bug',
+                'message': 'with screenshot',
+                'screenshot': (io.BytesIO(buf.getvalue()), 'shot.png'),
+            },
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 201
+        return resp.get_json()['id']
+
+    def test_owner_can_view_own_screenshot(self, authenticated_client, db_session):
+        fid = self._attach_png(authenticated_client)
+        row = Feedback.query.get(fid)
+        rel = row.screenshot_path.replace('feedback/', '', 1)
+        resp = authenticated_client.get(f'/feedback/screenshots/{rel}')
+        assert resp.status_code == 200
+        assert resp.content_type.startswith('image/')
+
+    def test_stranger_gets_403(self, app, authenticated_client, second_user, db_session):
+        from flask_login import login_user
+
+        fid = self._attach_png(authenticated_client)
+        row = Feedback.query.get(fid)
+        rel = row.screenshot_path.replace('feedback/', '', 1)
+
+        client = app.test_client()
+        with app.test_request_context():
+            login_user(second_user)
+            with client.session_transaction() as session:
+                session['_user_id'] = str(second_user.id)
+                session['_fresh'] = True
+                session['user_id'] = second_user.id
+
+        resp = client.get(f'/feedback/screenshots/{rel}')
+        assert resp.status_code == 403
+
+    def test_traversal_attempt_returns_404(self, authenticated_client, db_session):
+        resp = authenticated_client.get('/feedback/screenshots/..%2F..%2Fetc%2Fpasswd')
+        assert resp.status_code in (400, 403, 404)
+
+
+class TestFeedbackAutoContext:
+    """Server-side URL parsing + client context blob handling."""
+
+    def test_lesson_id_extracted_from_url(self, authenticated_client, db_session):
+        resp = authenticated_client.post(
+            '/api/feedback',
+            json={
+                'category': 'bug',
+                'message': 'audio not playing',
+                'url': 'https://llt-english.com/learn/12345/?from=linear_plan',
+            },
+        )
+        assert resp.status_code == 201
+        row = Feedback.query.get(resp.get_json()['id'])
+        assert row.lesson_id == 12345
+
+    def test_book_id_extracted_from_read_url(self, authenticated_client, db_session):
+        resp = authenticated_client.post(
+            '/api/feedback',
+            json={
+                'category': 'idea',
+                'message': 'add font-size toggle',
+                'url': 'https://llt-english.com/read/42',
+            },
+        )
+        assert resp.status_code == 201
+        row = Feedback.query.get(resp.get_json()['id'])
+        assert row.book_id == 42
+
+    def test_context_json_persisted_when_small(self, authenticated_client, db_session):
+        import json as _json
+        resp = authenticated_client.post(
+            '/api/feedback',
+            data={
+                'category': 'bug',
+                'message': 'crashed',
+                'context': _json.dumps({
+                    'client_errors': [{'message': 'boom', 'at': '2026-01-01'}],
+                    'path': '/dashboard',
+                }),
+            },
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 201
+        row = Feedback.query.get(resp.get_json()['id'])
+        assert row.context_json is not None
+        assert row.context_json.get('path') == '/dashboard'
+
+    def test_context_json_rejected_when_oversize(self, authenticated_client, db_session):
+        # 9 KiB blob — over the 8 KiB cap.
+        import json as _json
+        huge = {'x': 'y' * (9 * 1024)}
+        resp = authenticated_client.post(
+            '/api/feedback',
+            data={
+                'category': 'idea',
+                'message': 'with oversized context',
+                'context': _json.dumps(huge),
+            },
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 201
+        row = Feedback.query.get(resp.get_json()['id'])
+        # Oversize context is silently dropped — feedback itself still saves.
+        assert row.context_json is None
+
+
+class TestFeedbackUnreadCount:
+    def test_only_unread_feedback_notifications_counted(
+        self, authenticated_client, test_user, db_session
+    ):
+        from app.notifications.models import Notification
+
+        # Mix of read/unread + different types so the count must filter both.
+        for read, ntype in (
+            (False, 'feedback'),
+            (False, 'feedback'),
+            (True, 'feedback'),
+            (False, 'achievement'),
+        ):
+            db_session.add(Notification(
+                user_id=test_user.id, type=ntype,
+                title='x', message='y', link='/feedback/1',
+                read=read,
+            ))
+        db_session.commit()
+
+        resp = authenticated_client.get('/api/feedback/unread-count')
+        assert resp.status_code == 200
+        assert resp.get_json()['count'] == 2

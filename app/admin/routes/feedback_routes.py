@@ -160,7 +160,12 @@ def feedback_detail(feedback_id: int):
     """Full thread view for admins: meta + screenshot + reply form."""
     row = Feedback.query.get_or_404(feedback_id)
     if row.status == 'new':
-        row.status = 'seen'
+        try:
+            row.status = 'seen'
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.warning('feedback_admin_seen_failed id=%s', feedback_id, exc_info=True)
     try:
         from app.notifications.models import Notification
 
@@ -175,7 +180,7 @@ def feedback_detail(feedback_id: int):
             )
             .update({'read': True}, synchronize_session=False)
         )
-        if row.status == 'seen' or updated:
+        if updated:
             db.session.commit()
     except Exception:
         db.session.rollback()
@@ -218,12 +223,15 @@ def feedback_reply(feedback_id: int):
             notify_user_of_admin_reply(row, reply)
         except Exception:
             logger.exception('feedback_admin_reply_notify_failed id=%s', row.id)
-        log_admin_action(
-            current_user.id,
-            'feedback.reply',
-            target_type='feedback',
-            target_id=row.id,
-        )
+        try:
+            log_admin_action(
+                current_user.id,
+                'feedback.reply',
+                target_type='feedback',
+                target_id=row.id,
+            )
+        except Exception:
+            logger.exception('feedback_admin_reply_audit_failed id=%s', row.id)
         db.session.commit()
         flash('Ответ отправлен', 'success')
     except ValueError as exc:

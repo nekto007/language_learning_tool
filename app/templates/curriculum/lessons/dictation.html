@@ -623,8 +623,12 @@ function showResults(data) {
   if (wordCounter) wordCounter.textContent = String(data.correct_words || 0);
   const badgeClass = passed ? 'dictation-score-badge--pass' : 'dictation-score-badge--fail';
   const icon = passed ? 'fa-check-circle' : 'fa-times-circle';
+  // ``failed_by_attempt_limit`` fires when a word hit the 3-attempts cap
+  // earlier. Previous copy ("Есть раскрытые слова") was confusing — the
+  // hint counter in the UI shows 4/4 available, so the user blames the
+  // wrong subsystem. Word-attempt cap is what's penalising them.
   const label = data.failed_by_attempt_limit
-    ? '{{ _("Есть раскрытые слова") }}'
+    ? '{{ _("Превышен лимит попыток на словах") }}'
     : (passed ? '{{ _("Отлично!") }}' : '{{ _("Попробуйте ещё") }}');
   scoreArea.innerHTML = `
     <div class="dictation-score-badge ${badgeClass}">
@@ -666,10 +670,42 @@ function showResults(data) {
       window.showLessonCompletion({ score: score, silent: data._silent === true, daily_plan_ctx: dpCtx });
     }
   } else {
-    nextArea.innerHTML = `
-      <button class="btn btn-primary" type="button" onclick="window.location.reload()">
-        <i class="fas fa-redo"></i> {{ _("Начать заново") }}
-      </button>`;
+    // Failed-state CTA: «Начать заново» — основной путь, но дать и эскейпы
+    // (дашборд, следующий слот плана, к списку уроков) — иначе юзер с 79%
+    // в тупике, кроме как закрыть вкладку.
+    const dpCtx = data.daily_plan_ctx || {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+    const isPlan = !!(dpCtx && dpCtx.is_daily_plan);
+    const dashboardUrl = (dpCtx && dpCtx.dashboard_url) || '/dashboard';
+    const nextSlotUrl = isPlan ? dpCtx.next_slot_url : null;
+    const moduleBackUrl = {{ ('/learn/' ~ (lesson.module.level.code|lower) ~ '/module-' ~ lesson.module.number ~ '/') | tojson if lesson and lesson.module and lesson.module.level else '"/learn/"' }};
+
+    let html = `
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-primary" type="button" onclick="window.location.reload()">
+          <i class="fas fa-redo"></i> {{ _("Начать заново") }}
+        </button>`;
+    if (nextSlotUrl) {
+      html += `
+        <a class="btn btn-outline-primary" href="${nextSlotUrl}">
+          <i class="fas fa-forward"></i> {{ _("Следующий урок плана") }}
+        </a>`;
+    }
+    html += `
+        <a class="btn btn-outline-secondary" href="${dashboardUrl}">
+          <i class="fas fa-home"></i> {{ _("На дашборд") }}
+        </a>`;
+    if (!isPlan) {
+      html += `
+        <a class="btn btn-link" href="${moduleBackUrl}">
+          {{ _("К списку уроков") }}
+        </a>`;
+    }
+    html += `
+      </div>
+      <p class="text-muted small mt-2 mb-0">
+        {{ _("Можно вернуться к уроку позже — прогресс сохранён.") }}
+      </p>`;
+    nextArea.innerHTML = html;
   }
 
   if (!passed) resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

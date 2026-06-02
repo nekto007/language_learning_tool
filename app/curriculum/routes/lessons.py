@@ -285,7 +285,6 @@ def update_lesson_progress(lesson_id):
         if progress.status == 'completed' and progress.score is not None and not _is_score_strip_type:
             try:
                 from app.achievements.services import process_lesson_completion
-                Lessons.query.get(lesson_id)
                 completion_result = process_lesson_completion(
                     user_id=current_user.id,
                     lesson_id=lesson_id,
@@ -338,13 +337,17 @@ def submit_lesson(lesson_id):
                 return _api_error('rate_limit_exceeded', 'Daily writing attempt limit reached.', 429)
 
         if lesson.type == 'quiz':
-            result = process_quiz_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_quiz_submission(_content.get('questions', []), data.get('answers', {}))
         elif lesson.type == 'grammar':
-            result = process_grammar_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_grammar_submission(_content.get('exercises', []), data.get('answers', {}))
         elif lesson.type == 'matching':
-            result = process_matching_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_matching_submission(_content.get('pairs', []), data.get('answers', {}))
         elif lesson.type == 'final_test':
-            result = process_final_test_submission(lesson, current_user.id, data)
+            _content = lesson.content if isinstance(lesson.content, dict) else {}
+            result = process_final_test_submission(_content.get('questions', []), data.get('answers', {}))
         elif lesson.type == 'dictation':
             result = _process_dictation_submission(lesson, current_user.id, data)
         elif lesson.type == 'audio_fill_blank':
@@ -687,10 +690,24 @@ def dictation_lesson(lesson_id: int):
             completed_result['next_lesson_url'] = _lesson_completion_url(next_lesson)
         completed_gap_values = [item.get("display", "") for item in word_items]
     elif isinstance(progress.data, dict):
-        if progress.data.get('dictation_failed_indices') or progress.data.get('dictation_attempts'):
+        # Reset stale state on page reload for an in-progress lesson. Two
+        # families to drop:
+        #   • per-word counters (``dictation_attempts``, ``dictation_failed_indices``)
+        #     from the granular submit path;
+        #   • grade-dict leftovers (``failed_indices``, ``failed_by_attempt_limit``,
+        #     ``passed``, ``score``) saved by a previous *failed* full submit.
+        # Without the second family, the next full submit reads
+        # ``failed_indices`` from the leftover dict and re-applies the 79%
+        # penalty even though the user just typed everything correctly.
+        stale_keys = (
+            'dictation_failed_indices', 'dictation_attempts',
+            'failed_indices', 'failed_by_attempt_limit',
+            'passed', 'score', 'correct_words', 'total_words', 'word_results',
+        )
+        if any(progress.data.get(k) for k in stale_keys):
             progress_data = dict(progress.data)
-            progress_data.pop('dictation_failed_indices', None)
-            progress_data.pop('dictation_attempts', None)
+            for key in stale_keys:
+                progress_data.pop(key, None)
             progress.data = progress_data
             progress.last_activity = datetime.now(UTC)
             flag_modified(progress, 'data')
@@ -757,7 +774,17 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
             or existing_progress.data.get('failed_indices')
             or []
         )
-    if failed_indices:
+
+    # Mastery override: when the CURRENT full submission is 100% correct,
+    # ignore historic word-attempt failures. The user typed every word
+    # correctly — capping at 79% with "раскрытые слова" is misleading
+    # (UI advertises "Доступно подсказок: 4/4") and demotivating after a
+    # successful retry. The per-word attempt cap stays as friction during
+    # the live exercise; it doesn't override end-to-end mastery on submit.
+    correct_words = int(grade.get('correct_words') or 0)
+    total_words = int(grade.get('total_words') or 0)
+    full_mastery = total_words > 0 and correct_words >= total_words
+    if failed_indices and not full_mastery:
         grade['passed'] = False
         grade['score'] = min(int(grade.get('score') or 0), 79)
         grade['failed_by_attempt_limit'] = True
@@ -1361,6 +1388,9 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     """Save a writing prompt attempt, mark lesson complete, award XP, return result."""
     from app.curriculum.models import save_writing_attempt
 
+    def _normalize_phrase(value: str) -> str:
+        return re.sub(r'[^a-z0-9]+', ' ', str(value or '').lower().replace('\u2019', '').replace("'", '')).strip()
+
     content = lesson.content or {}
     example_response = content.get('example_response') or None
     response_text = (data.get('response_text') or '')[:20000].strip()
@@ -1404,20 +1434,31 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     word_count = len(response_text.split()) if response_text else 0
     # Sentence count: разделители .!? с любым whitespace вокруг.
     sentence_count = len([s for s in re.split(r'[.!?]+', response_text) if s.strip()])
+    target_phrases = [
+        phrase for phrase in (content.get('target_phrases') or [])
+        if isinstance(phrase, str) and phrase.strip()
+    ]
+    normalized_response = f" {_normalize_phrase(response_text)} "
+    matched_target_phrases = [
+        phrase for phrase in target_phrases
+        if _normalize_phrase(phrase) and f" {_normalize_phrase(phrase)} " in normalized_response
+    ]
+    target_phrases_required = bool(target_phrases and mode == 'guided')
+    target_phrases_met = (not target_phrases_required) or bool(matched_target_phrases)
 
     meets_min_words = (min_words == 0) or (word_count >= min_words)
     meets_min_sentences = (min_sentences == 0) or (sentence_count >= min_sentences)
     meets_min = meets_min_words and meets_min_sentences
 
-    completed = meets_min and len(valid_checked) >= min_checklist
+    completed = meets_min and checklist_completed and target_phrases_met
 
     if meets_min:
         try:
-            save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
-            db.session.flush()
+            with db.session.begin_nested():
+                save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
+                db.session.flush()
         except Exception as save_err:
             logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
-            db.session.rollback()
 
     if completed:
         progress = LessonProgress.query.filter_by(
@@ -1431,6 +1472,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
             'checked_items': sorted(valid_checked),
             'word_count': word_count,
             'sentence_count': sentence_count,
+            'matched_target_phrases': matched_target_phrases,
         }
         if progress:
             progress.status = 'completed'
@@ -1483,6 +1525,9 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         'meets_min_words': meets_min_words,
         'meets_min_sentences': meets_min_sentences,
         'checklist_completed': checklist_completed,
+        'target_phrases_required': target_phrases_required,
+        'target_phrases_met': target_phrases_met,
+        'matched_target_phrases': matched_target_phrases,
     }
     if completed and example_response:
         result['example_response'] = example_response

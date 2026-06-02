@@ -26,7 +26,9 @@ import sqlalchemy as sa
 revision = '20260603_feedback_chat'
 down_revision = '20260602_book_is_published'
 branch_labels = None
-depends_on = None
+# feedback table is created by 20260527_feedback which is on a separate branch;
+# declare the dependency explicitly so Alembic never runs add_column before CREATE TABLE.
+depends_on = ('20260527_feedback',)
 
 
 def upgrade():
@@ -48,6 +50,9 @@ def upgrade():
             server_default=sa.func.now(),
         ),
     )
+
+    # Backfill so pre-existing rows sort by real submission time, not migration time.
+    op.execute("UPDATE feedback SET updated_at = created_at")
 
     op.create_table(
         'feedback_replies',

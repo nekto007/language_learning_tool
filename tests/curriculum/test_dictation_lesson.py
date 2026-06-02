@@ -528,7 +528,18 @@ class TestDictationSubmitRoute:
         assert "correct_word" not in data
         assert data["attempts_left"] == 2
 
-    def test_submit_after_exhausted_gap_does_not_complete_lesson(self, app, db_session, test_user, client):
+    def test_full_mastery_submit_overrides_historic_word_attempt_failures(
+        self, app, db_session, test_user, client,
+    ):
+        """A 100%-correct full submission should pass even if the user
+        previously exhausted the 3-attempt cap on individual words.
+
+        Old policy capped at 79% + ``failed_by_attempt_limit`` forever,
+        which together with the misleading "Есть раскрытые слова" label
+        looked like punishment for using hints the user never opened.
+        New policy: per-word cap stays as live friction; end-to-end
+        mastery on the final submit clears the penalty.
+        """
         lesson = _make_dictation_lesson(db_session, transcript="Hello world")
         _login(client, test_user)
         for _ in range(3):
@@ -539,9 +550,29 @@ class TestDictationSubmitRoute:
             )
         resp = self._submit(client, lesson.id, "Hello world")
         data = resp.get_json()
+        assert data["passed"] is True
+        assert "failed_by_attempt_limit" not in data or not data.get("failed_by_attempt_limit")
+        assert int(data["score"]) >= 80
+
+    def test_partial_submit_still_penalised_after_exhausted_gap(
+        self, app, db_session, test_user, client,
+    ):
+        """If the user exhausts a word AND submits with mistakes, the cap
+        still applies — full-mastery override is gated on a clean run.
+        """
+        lesson = _make_dictation_lesson(db_session, transcript="Hello world")
+        _login(client, test_user)
+        for _ in range(3):
+            client.post(
+                f"/curriculum/api/lesson/{lesson.id}/dictation-word",
+                json={"index": 0, "answer": "Nope"},
+                content_type="application/json",
+            )
+        resp = self._submit(client, lesson.id, "Hello wrong")
+        data = resp.get_json()
         assert data["passed"] is False
         assert data["failed_by_attempt_limit"] is True
-        assert data["score"] == 79
+        assert data["score"] <= 79
         progress = LessonProgress.query.filter_by(
             user_id=test_user.id, lesson_id=lesson.id
         ).first()
