@@ -175,6 +175,30 @@ def test_retry_after_is_24h_after_oldest_failed_attempt(db_session):
     assert abs((retry_after - expected).total_seconds()) < 10
 
 
+def test_null_passed_attempts_do_not_count_toward_limit(db_session):
+    """Attempts with passed=NULL (incomplete/errored) must not consume retries."""
+    user = _make_user(db_session)
+    lesson = _make_final_test_lesson(db_session)
+
+    # Create attempts with passed=None (simulates crashed/interrupted attempts)
+    for i in range(FINAL_TEST_MAX_ATTEMPTS_PER_DAY + 1):
+        started = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
+        attempt = LessonAttempt(
+            user_id=user.id,
+            lesson_id=lesson.id,
+            attempt_number=i + 1,
+            started_at=started,
+            completed_at=started,
+            score=None,
+            passed=None,
+        )
+        db_session.add(attempt)
+    db_session.commit()
+
+    # NULL passed attempts should not block the user
+    assert check_final_test_attempts_exhausted(user.id, lesson.id, db_session=db_session) is None
+
+
 @pytest.mark.smoke
 def test_exhausted_check_does_not_create_lesson_attempt(db_session):
     """check_final_test_attempts_exhausted must never write LessonAttempt rows."""

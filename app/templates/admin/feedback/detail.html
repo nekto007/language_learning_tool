@@ -175,7 +175,11 @@
                 <dl class="mb-0">
                     {% if feedback.url %}
                     <dt class="text-muted fw-normal">URL страницы</dt>
+                    {% if feedback.url.startswith('https://') or feedback.url.startswith('http://') %}
                     <dd class="text-break"><a href="{{ feedback.url }}" target="_blank" rel="noopener">{{ feedback.url }}</a></dd>
+                    {% else %}
+                    <dd class="text-break">{{ feedback.url }}</dd>
+                    {% endif %}
                     {% endif %}
                     {% if feedback.lesson_id %}
                     <dt class="text-muted fw-normal">Урок</dt>

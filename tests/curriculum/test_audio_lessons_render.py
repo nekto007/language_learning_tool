@@ -260,6 +260,13 @@ class TestSubmissionRoundTrips:
         )
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/pronunciation")
+        # Must submit at least one item attempt before finishing
+        client.post(
+            f"/curriculum/api/lesson/{lesson.id}/submit",
+            json={"lesson_type": "pronunciation", "item_index": 0,
+                  "recognized_text": "hello", "target_word": "hello"},
+            content_type="application/json",
+        )
         resp = client.post(
             f"/curriculum/api/lesson/{lesson.id}/submit",
             json={"lesson_type": "pronunciation", "finish": True},

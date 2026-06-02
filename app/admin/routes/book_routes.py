@@ -504,12 +504,73 @@ def edit_book(book_id):
         book.level = submitted_level
         book.summary = request.form.get('description', book.summary)
 
+        rights_error = _apply_book_rights_form(book, request.form)
+        if rights_error:
+            flash(rights_error, 'danger')
+            return render_template('admin/books/edit.html', book=book)
+
         log_admin_action(current_user.id, 'book.update', target_type='book', target_id=book_id)
         db.session.commit()
         flash(f'Книга "{book.title}" обновлена', 'success')
         return redirect(url_for('book_admin.books'))
 
     return render_template('admin/books/edit.html', book=book)
+
+
+# ---------------------------------------------------------------------------
+# Rights / licensing metadata form handling
+# ---------------------------------------------------------------------------
+
+_RIGHTS_STATUS_CHOICES = ('public_domain', 'licensed', 'companion_only')
+_AUDIO_RIGHTS_CHOICES = ('public_domain', 'licensed', 'companion_only', 'none')
+
+
+def _apply_book_rights_form(book, form) -> str | None:
+    """Validate & apply rights fields from the admin edit form.
+
+    Returns an error message string on failure, ``None`` on success. Does not
+    commit — the caller's existing ``db.session.commit()`` covers it.
+    """
+    from datetime import date as _date
+
+    rights_status = (form.get('rights_status') or book.rights_status or 'companion_only').strip()
+    if rights_status not in _RIGHTS_STATUS_CHOICES:
+        return f'Недопустимый rights_status: {rights_status!r}'
+
+    audio_rights = (form.get('audio_rights_status') or book.audio_rights_status or 'companion_only').strip()
+    if audio_rights not in _AUDIO_RIGHTS_CHOICES:
+        return f'Недопустимый audio_rights_status: {audio_rights!r}'
+
+    raw_pct = form.get('allowed_text_percent')
+    if raw_pct is None or raw_pct == '':
+        allowed_pct = book.allowed_text_percent or 100
+    else:
+        try:
+            allowed_pct = int(raw_pct)
+        except (TypeError, ValueError):
+            return 'allowed_text_percent должен быть целым числом 0–100'
+        if not 0 <= allowed_pct <= 100:
+            return 'allowed_text_percent должен быть в диапазоне 0–100'
+
+    expiration_raw = (form.get('expiration_date') or '').strip()
+    if expiration_raw:
+        try:
+            expiration = _date.fromisoformat(expiration_raw)
+        except ValueError:
+            return 'expiration_date должен быть в формате YYYY-MM-DD'
+    else:
+        expiration = None
+
+    book.rights_status = rights_status
+    book.audio_rights_status = audio_rights
+    book.allowed_text_percent = allowed_pct
+    book.expiration_date = expiration
+    book.source_url = (form.get('source_url') or '').strip() or None
+    book.license_type = (form.get('license_type') or '').strip() or None
+    book.permission_document = (form.get('permission_document') or '').strip() or None
+    book.territory = (form.get('territory') or 'worldwide').strip() or 'worldwide'
+    book.commercial_use_allowed = form.get('commercial_use_allowed') == 'on'
+    return None
 
 
 @book_bp.route('/books/<int:book_id>/delete', methods=['POST'])
@@ -607,6 +668,17 @@ def add_book():
         new_book.title = form.title.data
         new_book.author = form.author.data
         new_book.level = form.level.data
+
+        # Применяем поля прав/лицензии перед сохранением. Невалидные
+        # значения откатывают всю форму — пользователь увидит ошибку без
+        # частично созданной книги.
+        rights_error = _apply_book_rights_form(new_book, request.form)
+        if rights_error:
+            logger.warning(f"[BOOK_ADD] Rights validation failed: {rights_error}")
+            if request.is_json or request.headers.get('Content-Type') == 'application/json':
+                return jsonify({'success': False, 'error': rights_error}), 400
+            flash(rights_error, 'danger')
+            return render_template('admin/books/add.html', form=form)
 
         # Обрабатываем обложку
         if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):

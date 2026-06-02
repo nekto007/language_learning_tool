@@ -12,8 +12,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 
 from app import limiter
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
+from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import (
     process_final_test_submission,
     process_grammar_submission,
@@ -259,19 +261,21 @@ def update_lesson_progress(lesson_id):
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
                 lesson_for_xp = Lessons.query.get(lesson_id)
                 if lesson_for_xp:
-                    maybe_award_curriculum_xp(
-                        current_user.id, lesson_for_xp,
-                        db_session=db,
-                        score=progress.score,
-                    )
-                    if lesson_for_xp.type in ('listening_immersion', 'listening_immersion_quiz'):
-                        maybe_award_listening_xp(
-                            current_user.id, lesson_for_xp.id,
-                            score=progress.score,
+                    with db.session.begin_nested():
+                        maybe_award_curriculum_xp(
+                            current_user.id, lesson_for_xp,
                             db_session=db,
+                            score=progress.score,
                         )
+                        if lesson_for_xp.type in ('listening_immersion', 'listening_immersion_quiz'):
+                            maybe_award_listening_xp(
+                                current_user.id, lesson_for_xp.id,
+                                score=progress.score,
+                                db_session=db,
+                            )
                     db.session.commit()
             except Exception as xp_err:
+                db.session.rollback()
                 logger.warning(f"Linear XP award failed for lesson {lesson_id}: {xp_err}")
 
         completion_result = None
@@ -331,7 +335,14 @@ def submit_lesson(lesson_id):
         from app.api.errors import api_error as _api_error
         if lesson.type == 'pronunciation' and not (isinstance(data, dict) and data.get('finish')):
             if _count_pronunciation_attempts_today(current_user.id) >= PRONUNCIATION_DAILY_LIMIT:
-                return _api_error('rate_limit_exceeded', 'Daily pronunciation attempt limit reached.', 429)
+                from app.utils.time_utils import get_user_local_day_bounds
+                from app.utils.db import db as _db
+                import calendar
+                _, day_end = get_user_local_day_bounds(current_user.id, _db)
+                retry_after = int(calendar.timegm(day_end.timetuple()))
+                return jsonify({'success': False, 'error': 'rate_limit_exceeded',
+                                'message': 'Daily pronunciation attempt limit reached.',
+                                'retry_after': retry_after}), 429
         elif lesson.type in ('writing_prompt', 'translation', 'sentence_correction'):
             if _count_writing_attempts_today(current_user.id) >= WRITING_DAILY_LIMIT:
                 return _api_error('rate_limit_exceeded', 'Daily writing attempt limit reached.', 429)
@@ -346,6 +357,9 @@ def submit_lesson(lesson_id):
             _content = lesson.content if isinstance(lesson.content, dict) else {}
             result = process_matching_submission(_content.get('pairs', []), data.get('answers', {}))
         elif lesson.type == 'final_test':
+            rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
+            if rate_limit is not None:
+                return jsonify({'success': False, **rate_limit}), 429
             _content = lesson.content if isinstance(lesson.content, dict) else {}
             result = process_final_test_submission(_content.get('questions', []), data.get('answers', {}))
         elif lesson.type == 'dictation':
@@ -368,6 +382,8 @@ def submit_lesson(lesson_id):
             result = _process_listening_immersion_submission(lesson, current_user.id, data)
         elif lesson.type == 'pronunciation':
             result = _process_pronunciation_submission(lesson, current_user.id, data)
+            if not result.get('success') and result.get('error') == 'requires_attempt':
+                return jsonify(result), 400
         elif lesson.type == 'idiom':
             result = _process_idiom_submission(lesson, current_user.id, data)
         else:
@@ -794,7 +810,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=80,
+        passing_score=PASSING_SCORE_DICTATION,
     )
 
     try:
@@ -815,8 +831,9 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     if grade.get('passed'):
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
-            maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+                maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -901,7 +918,7 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     try:
@@ -922,8 +939,9 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     if grade.get('passed'):
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
-            maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+                maybe_award_listening_xp(user_id, lesson.id, score=grade['score'], db_session=db)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -1106,14 +1124,15 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if passed:
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_writing_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade.get('score', 100))
-            maybe_award_writing_xp(user_id, lesson.id, db_session=db)
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade.get('score', 100))
+                maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -1160,6 +1179,15 @@ def sentence_correction_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+
+    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
     if not progress:
         try:
             progress = LessonProgress(
@@ -1253,14 +1281,15 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
         user_id=user_id,
         lesson=lesson,
         result={'passed': passed, 'score': score_value, **grade},
-        passing_score=70 if is_multi else 100,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if passed:
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_writing_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=score_value)
-            maybe_award_writing_xp(user_id, lesson.id, db_session=db)
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=score_value)
+                maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -1346,6 +1375,15 @@ def writing_prompt_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+
+    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
+        progress.status = 'in_progress'
+        progress.score = None
+        progress.data = None
+        progress.completed_at = None
+        progress.last_activity = datetime.now(UTC)
+        db.session.commit()
+
     if not progress:
         try:
             progress = LessonProgress(
@@ -1414,7 +1452,12 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     if not min_checklist:
         min_checklist = 3 if mode == 'guided' else 2
     min_checklist = min(min_checklist, max(len(checklist), 2))
-    checklist_completed = bool(data.get('checklist_completed', False)) and len(valid_checked) >= min_checklist
+    # ``checklist_completed`` is derived purely from the server-side count of
+    # validly-checked items. The historical client flag was redundant — and
+    # a JS regression that forgot to set it would silently fail a perfectly
+    # good submission. ``valid_checked`` already filters out anything not on
+    # the checklist, so the count alone is the source of truth.
+    checklist_completed = len(valid_checked) >= min_checklist
     # min_words / min_sentences — оба опциональны, нужно хотя бы одно.
     # Если есть min_sentences → проверяем по количеству предложений,
     # иначе по словам. Default 50 слов сохранён для legacy-контента.
@@ -1502,8 +1545,10 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 maybe_award_curriculum_xp,
                 maybe_award_writing_xp,
             )
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
-            maybe_award_writing_xp(user_id, lesson.id, db_session=db)
+            writing_score = round(len(valid_checked) / len(checklist) * 100) if checklist else 100
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=writing_score)
+                maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -1615,13 +1660,14 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if grade.get('passed'):
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -1728,16 +1774,15 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=70,
+        passing_score=PASSING_SCORE_DEFAULT,
     )
 
     if grade.get('passed'):
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
-            db.session.flush()
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
         except Exception as xp_err:
-            db.session.rollback()
             logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
     db.session.commit()
 
@@ -1834,7 +1879,8 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
 
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -1896,8 +1942,9 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
 
     try:
         from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
-        maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
-        maybe_award_listening_xp(user_id, lesson.id, score=100.0, db_session=db)
+        with db.session.begin_nested():
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+            maybe_award_listening_xp(user_id, lesson.id, score=100.0, db_session=db)
         db.session.commit()
     except Exception as xp_err:
         db.session.rollback()
@@ -1969,6 +2016,23 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
     from app.curriculum.grading import grade_pronunciation_match
 
     if data.get('finish'):
+        # Validate that the user has made at least one attempt before finishing
+        from app.curriculum.models import PronunciationAttempt
+        from app.utils.time_utils import get_user_local_day_bounds
+        pron_content = lesson.content or {}
+        pron_items = pron_content.get('items') or []
+        lesson_words = {str(item.get('word') or '') for item in pron_items if item.get('word')}
+        today_start, _today_end = get_user_local_day_bounds(user_id, db)
+        pron_attempts = PronunciationAttempt.query.filter(
+            PronunciationAttempt.user_id == user_id,
+            PronunciationAttempt.created_at >= today_start,
+        ).all()
+        relevant = [a for a in pron_attempts if a.word in lesson_words] if lesson_words else pron_attempts
+        if not relevant:
+            return {'success': False, 'error': 'requires_attempt', 'message': 'Необходимо сделать хотя бы одну попытку'}
+
+        pron_score = round(sum(1 for a in relevant if a.matched) / len(relevant) * 100)
+
         # Final submission — mark lesson completed and award XP
         progress = LessonProgress.query.filter_by(
             user_id=user_id, lesson_id=lesson.id
@@ -1978,6 +2042,7 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
+            progress.score = pron_score
         else:
             progress = LessonProgress(
                 user_id=user_id,
@@ -1986,6 +2051,7 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
+                score=pron_score,
             )
             db.session.add(progress)
         try:
@@ -1995,7 +2061,8 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
 
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+            with db.session.begin_nested():
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=pron_score)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()
@@ -2145,7 +2212,8 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
 
     try:
         from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-        maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
+        with db.session.begin_nested():
+            maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
         db.session.commit()
     except Exception as xp_err:
         db.session.rollback()

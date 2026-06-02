@@ -241,10 +241,16 @@ def create_app(config_class=Config):
             return []
         return ModuleService.get_user_modules(current_user.id, enabled_only=True)
 
+    def books_nav_visible() -> bool:
+        from flask_login import current_user
+        from app.books.access import books_section_visible
+        return books_section_visible(current_user)
+
     app.jinja_env.globals.update(enumerate=enumerate)
     app.jinja_env.globals.update(chr=chr)
     app.jinja_env.globals.update(has_module=has_module)
     app.jinja_env.globals.update(get_user_modules=get_user_modules)
+    app.jinja_env.globals.update(books_nav_visible=books_nav_visible)
 
     # CSRF token refresh endpoint (for long-lived pages like quizzes)
     from flask import jsonify as _jsonify

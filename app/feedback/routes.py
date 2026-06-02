@@ -237,10 +237,18 @@ def submit_feedback():
         db.session.commit()
         try:
             _notify_admins_of_feedback(row)
+            db.session.commit()
         except Exception:
             logger.exception('feedback_notify_failed feedback_id=%s', row.id)
     except Exception:
         db.session.rollback()
+        if screenshot_rel:
+            abs_path = feedback_screenshot_abs_path(screenshot_rel)
+            if abs_path:
+                try:
+                    os.unlink(abs_path)
+                except OSError:
+                    logger.warning('feedback_screenshot_cleanup_failed path=%s', screenshot_rel)
         logger.exception('feedback_submit_failed user_id=%s', current_user.id)
         return api_error('save_failed', 'could not save feedback', 500)
 
@@ -308,6 +316,7 @@ def submit_user_reply(feedback_id: int):
     if not current_user.is_admin:
         try:
             _notify_admins_of_reply(row, reply, reopened=was_resolved)
+            db.session.commit()
         except Exception:
             logger.exception('feedback_reply_notify_admins_failed id=%s', row.id)
 

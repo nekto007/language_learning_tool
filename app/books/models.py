@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import CheckConstraint, Column, DateTime
+from sqlalchemy import CheckConstraint, Column, Date, DateTime
 from sqlalchemy import Enum as SQLAEnum
 from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
@@ -46,12 +46,68 @@ class Book(db.Model):
     # Course generation fields
     create_course = Column(db.Boolean, default=False, nullable=False)
 
+    # Rights / licensing metadata. ``rights_status='public_domain'`` exposes the
+    # book to every registered user without the optional ``books`` module;
+    # ``licensed`` / ``companion_only`` require admin to grant the module.
+    rights_status = Column(
+        String(20), nullable=False, default='companion_only',
+        server_default='companion_only',
+    )
+    source_url = Column(Text, nullable=True)
+    license_type = Column(String(100), nullable=True)
+    permission_document = Column(Text, nullable=True)
+    allowed_text_percent = Column(
+        Integer, nullable=False, default=100, server_default='100',
+    )
+    audio_rights_status = Column(
+        String(20), nullable=False, default='companion_only',
+        server_default='companion_only',
+    )
+    commercial_use_allowed = Column(
+        db.Boolean, nullable=False, default=False, server_default='false',
+    )
+    territory = Column(
+        String(100), nullable=False, default='worldwide',
+        server_default='worldwide',
+    )
+    expiration_date = Column(Date, nullable=True)
+
     words = relationship("CollectionWords", secondary="word_book_link", back_populates="books")
     chapters = relationship("Chapter", back_populates="book", cascade="all, delete-orphan")
     blocks = relationship("Block", back_populates="book", cascade="all, delete-orphan")
 
+    __table_args__ = (
+        CheckConstraint(
+            "rights_status IN ('public_domain', 'licensed', 'companion_only')",
+            name='ck_book_rights_status',
+        ),
+        CheckConstraint(
+            "audio_rights_status IN ('public_domain', 'licensed', 'companion_only', 'none')",
+            name='ck_book_audio_rights_status',
+        ),
+        CheckConstraint(
+            'allowed_text_percent >= 0 AND allowed_text_percent <= 100',
+            name='ck_book_allowed_text_percent',
+        ),
+        Index('idx_book_rights_status', 'rights_status'),
+    )
+
     def __repr__(self):
         return f"<Book {self.id}: {self.title}>"
+
+    @property
+    def is_public_domain(self) -> bool:
+        return self.rights_status == 'public_domain'
+
+    @property
+    def license_is_expired(self) -> bool:
+        # public_domain has no expiration concept — copyright term is over.
+        if self.rights_status == 'public_domain':
+            return False
+        if self.expiration_date is None:
+            return False
+        from datetime import date as _date
+        return self.expiration_date < _date.today()
 
 
 class Chapter(db.Model):

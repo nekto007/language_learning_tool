@@ -373,6 +373,8 @@ class TestPronunciationSubmit:
         lesson = _make_pronunciation_lesson(db_session)
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/pronunciation")
+        # Must submit at least one item attempt before finishing
+        self._submit_item(client, lesson.id, "hello", "hello")
         resp = self._submit_finish(client, lesson.id)
         assert resp.status_code == 200
         data = resp.get_json()

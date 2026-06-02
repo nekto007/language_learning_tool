@@ -19,6 +19,7 @@ from flask_login import current_user
 
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
+from app.books.access import accessible_books_filter, can_user_access_book
 from app.books.models import Book
 from app.curriculum.models import CEFRLevel
 from app.daily_plan.level_utils import _cefr_code_to_order, get_user_current_cefr_level
@@ -57,7 +58,12 @@ def get_books_catalog():
 
     codes = _level_window_codes(user_level)
 
-    query = db.session.query(Book).filter(Book.chapters_cnt > 0)
+    query = (
+        db.session.query(Book)
+        .filter(Book.chapters_cnt > 0)
+        .filter(Book.is_published == True)
+        .filter(accessible_books_filter(current_user))
+    )
     if codes:
         query = query.filter(Book.level.in_(codes))
     books = query.order_by(Book.level.asc(), Book.title.asc()).all()
@@ -91,6 +97,9 @@ def select_book():
     book = db.session.get(Book, book_id)
     if book is None:
         return api_error('book_not_found', 'Book not found', 404)
+
+    if not can_user_access_book(current_user, book):
+        return api_error('book_access_denied', 'Нет доступа к этой книге', 403)
 
     pref = (
         db.session.query(UserReadingPreference)
