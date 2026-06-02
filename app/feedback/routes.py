@@ -241,6 +241,13 @@ def submit_feedback():
             logger.exception('feedback_notify_failed feedback_id=%s', row.id)
     except Exception:
         db.session.rollback()
+        if screenshot_rel:
+            abs_path = feedback_screenshot_abs_path(screenshot_rel)
+            if abs_path:
+                try:
+                    os.unlink(abs_path)
+                except OSError:
+                    logger.warning('feedback_screenshot_cleanup_failed path=%s', screenshot_rel)
         logger.exception('feedback_submit_failed user_id=%s', current_user.id)
         return api_error('save_failed', 'could not save feedback', 500)
 

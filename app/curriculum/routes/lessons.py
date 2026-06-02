@@ -14,6 +14,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app import limiter
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
+from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import (
     process_final_test_submission,
     process_grammar_submission,
@@ -346,6 +347,9 @@ def submit_lesson(lesson_id):
             _content = lesson.content if isinstance(lesson.content, dict) else {}
             result = process_matching_submission(_content.get('pairs', []), data.get('answers', {}))
         elif lesson.type == 'final_test':
+            rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
+            if rate_limit is not None:
+                return jsonify({'success': False, **rate_limit}), 429
             _content = lesson.content if isinstance(lesson.content, dict) else {}
             result = process_final_test_submission(_content.get('questions', []), data.get('answers', {}))
         elif lesson.type == 'dictation':
