@@ -1,5 +1,5 @@
 {% extends 'admin/base.html' %}
-{% from 'admin/components.html' import page_header, breadcrumb, stat_card, quick_stats, status_badge %}
+{% from 'admin/components.html' import breadcrumb, stat_card, quick_stats, status_badge %}
 
 {% block title %}Пользователь: {{ detail.username }}{% endblock %}
 
@@ -12,160 +12,358 @@
 {% endblock %}
 
 {% block content %}
-{{ page_header('Профиль: ' + detail.username, detail.email or 'Email не указан') }}
+<style nonce="{{ csp_nonce }}">
+.user-admin-shell {
+  display: grid;
+  gap: 1rem;
+}
+.user-admin-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+.user-admin-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.user-admin-avatar {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.user-admin-identity h1 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+.user-admin-identity p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+}
+.user-admin-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.user-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 1rem;
+}
+.user-admin-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+.user-admin-card__header {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+.user-admin-card__header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.user-admin-card__body {
+  padding: 1rem;
+}
+.user-admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+.user-admin-toggles {
+  display: grid;
+  gap: 0.55rem;
+}
+.user-admin-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.user-admin-links .btn {
+  text-align: left;
+}
+@media (max-width: 992px) {
+  .user-admin-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .user-admin-hero { display: block; }
+  .user-admin-actions { justify-content: flex-start; margin-top: 0.75rem; }
+  .user-admin-form-grid,
+  .user-admin-links { grid-template-columns: 1fr; }
+}
+</style>
 
-<!-- User Info -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Статус', 'Активен' if detail.active else 'Неактивен', 'fa-user-check' if detail.active else 'fa-user-times', 'success' if detail.active else 'danger') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Регистрация', detail.created_at.strftime('%d %b %Y') if detail.created_at else '-', 'fa-calendar-plus', 'info') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Последний вход', detail.last_login.strftime('%d %b %Y') if detail.last_login else 'Никогда', 'fa-sign-in-alt', 'primary') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Роль', 'Администратор' if detail.is_admin else 'Пользователь', 'fa-user-shield' if detail.is_admin else 'fa-user', 'warning' if detail.is_admin else 'secondary') }}
-    </div>
-</div>
-
-<!-- Learning Progress -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Уроков завершено', detail.lessons.completed, 'fa-graduation-cap', 'success') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Уроков в процессе', detail.lessons.in_progress, 'fa-spinner', 'warning') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Всего слов', detail.words.total, 'fa-spell-check', 'primary') }}
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        {{ stat_card('Модулей', detail.modules_enabled, 'fa-cubes', 'info') }}
-    </div>
-</div>
-
-<div class="row g-4">
-    <!-- Word SRS Distribution -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-spell-check me-2 text-muted"></i>Слова ({{ detail.words.total }})</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Новые', detail.words.new, 'fa-plus-circle'),
-                    ('Изучаемые', detail.words.learning, 'fa-spinner'),
-                    ('На повторении', detail.words.review, 'fa-redo'),
-                    ('Выучены', detail.words.mastered, 'fa-check-double')
-                ]) }}
-            </div>
+<div class="user-admin-shell">
+  <header class="user-admin-hero">
+    <div class="user-admin-identity">
+      <div class="user-admin-avatar">{{ detail.username[:2].upper() }}</div>
+      <div>
+        <h1>{{ detail.username }}</h1>
+        <p>#{{ detail.user_id }} · {{ detail.email or 'email не указан' }}</p>
+        <div class="mt-2">
+          {{ status_badge('Активен' if detail.active else 'Отключен', 'success' if detail.active else 'danger') }}
+          {{ status_badge('Админ' if detail.is_admin else 'Пользователь', 'info' if detail.is_admin else 'secondary') }}
+          {% if detail.user.email_opted_out %}{{ status_badge('Email opt-out', 'warning') }}{% endif %}
         </div>
+      </div>
     </div>
-
-    <!-- Streak & Achievements -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-fire me-2 text-muted"></i>Серии и достижения</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Текущая серия', detail.streak.current, 'fa-fire-alt'),
-                    ('Рекорд серии', detail.streak.longest, 'fa-trophy'),
-                    ('Всего бейджей', detail.streak.total_badges, 'fa-medal'),
-                    ('Очки бейджей', detail.streak.badge_points, 'fa-star')
-                ]) }}
-            </div>
-        </div>
+    <div class="user-admin-actions">
+      <a href="{{ url_for('user_admin.users') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> К списку
+      </a>
+      <a href="{{ url_for('admin_curriculum.user_progress', user_id=detail.user_id) }}" class="btn btn-outline-primary">
+        <i class="fas fa-chart-line me-1"></i> Прогресс
+      </a>
+      <a href="{{ url_for('admin.user_modules', user_id=detail.user_id) }}" class="btn btn-outline-primary">
+        <i class="fas fa-cubes me-1"></i> Модули
+      </a>
     </div>
+  </header>
 
-    <!-- Coins -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-coins me-2 text-muted"></i>Монеты</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Баланс', detail.coins.balance, 'fa-wallet'),
-                    ('Заработано', detail.coins.total_earned, 'fa-arrow-up'),
-                    ('Потрачено', detail.coins.total_spent, 'fa-arrow-down')
-                ]) }}
-            </div>
-        </div>
+  <div class="row g-3">
+    <div class="col-sm-6 col-xl-3">
+      {{ stat_card('Уроков завершено', detail.lessons.completed, 'fa-graduation-cap', 'success') }}
     </div>
-</div>
-
-<div class="row g-4 mt-2">
-    <!-- Grammar Progress -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-language me-2 text-muted"></i>Грамматика</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Тем начато', detail.grammar.started, 'fa-book-open'),
-                    ('Тем освоено', detail.grammar.mastered, 'fa-check-double')
-                ]) }}
-            </div>
-        </div>
+    <div class="col-sm-6 col-xl-3">
+      {{ stat_card('Серия', detail.streak.current, 'fa-fire', 'warning') }}
     </div>
-
-    <!-- Grades -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-star me-2 text-muted"></i>Оценки за уроки</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('A', detail.grades.get('A', 0), 'fa-star'),
-                    ('B', detail.grades.get('B', 0), 'fa-star-half-alt'),
-                    ('C', detail.grades.get('C', 0), 'fa-star'),
-                    ('D/F', (detail.grades.get('D', 0) + detail.grades.get('F', 0)), 'fa-times')
-                ]) }}
-            </div>
-        </div>
+    <div class="col-sm-6 col-xl-3">
+      {{ stat_card('Слов в SRS', detail.words.total, 'fa-spell-check', 'primary') }}
     </div>
-
-    <!-- Referrals & Modules -->
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-user-friends me-2 text-muted"></i>Рефералы и модули</h5>
-            </div>
-            <div class="card-body">
-                {{ quick_stats([
-                    ('Приглашено', detail.referrals_made, 'fa-share-alt')
-                ]) }}
-                {% if detail.module_names %}
-                <hr class="my-3">
-                <h6 class="text-muted mb-2">Активные модули:</h6>
-                {% for name in detail.module_names %}
-                    <span class="badge bg-primary me-1 mb-1">{{ name }}</span>
-                {% endfor %}
-                {% endif %}
-            </div>
-        </div>
+    <div class="col-sm-6 col-xl-3">
+      {{ stat_card('Монеты', detail.coins.balance, 'fa-coins', 'info') }}
     </div>
-</div>
+  </div>
 
-<!-- Actions -->
-<div class="card mt-4">
-    <div class="card-body">
-        <a href="{{ url_for('user_admin.users') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i>К списку
-        </a>
-        <form action="{{ url_for('user_admin.toggle_user_status', user_id=detail.user_id) }}" method="POST" class="d-inline ms-2">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-outline-{{ 'danger' if detail.active else 'success' }}">
-                <i class="fas fa-{{ 'ban' if detail.active else 'check' }} me-1"></i>
-                {{ 'Деактивировать' if detail.active else 'Активировать' }}
-            </button>
+  <div class="user-admin-grid">
+    <div class="user-admin-card">
+      <div class="user-admin-card__header">
+        <h2><i class="fas fa-sliders-h me-2 text-muted"></i>Настройки пользователя</h2>
+      </div>
+      <div class="user-admin-card__body">
+        <form action="{{ url_for('user_admin.update_user_identity', user_id=detail.user_id) }}" method="POST" class="mb-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="user-admin-form-grid">
+            <div>
+              <label class="form-label">Username</label>
+              <input type="text" name="username" class="form-control" value="{{ detail.username }}" required maxlength="64">
+            </div>
+            <div>
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control" value="{{ detail.email or '' }}" maxlength="120">
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Сохранить профиль</button>
+          </div>
         </form>
+
+        <form action="{{ url_for('user_admin.update_user_settings', user_id=detail.user_id) }}" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="user-admin-form-grid">
+            <div>
+              <label class="form-label">Onboarding level</label>
+              <select name="onboarding_level" class="form-select">
+                {% for lvl in ['', 'A1', 'A2', 'B1', 'B2', 'C1'] %}
+                  <option value="{{ lvl }}" {% if (detail.user.onboarding_level or '') == lvl %}selected{% endif %}>{{ lvl or 'Не задан' }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Фокус</label>
+              <input type="text" name="onboarding_focus" class="form-control" value="{{ detail.user.onboarding_focus or '' }}" maxlength="100">
+            </div>
+            <div>
+              <label class="form-label">Timezone</label>
+              <input type="text" name="timezone" class="form-control" value="{{ detail.user.timezone or 'Europe/Moscow' }}" maxlength="50">
+            </div>
+            <div>
+              <label class="form-label">Сложность плана</label>
+              <select name="plan_difficulty" class="form-select">
+                <option value="light" {% if detail.user.plan_difficulty == 'light' %}selected{% endif %}>light</option>
+                <option value="normal" {% if detail.user.plan_difficulty == 'normal' %}selected{% endif %}>normal</option>
+                <option value="intensive" {% if detail.user.plan_difficulty == 'intensive' %}selected{% endif %}>intensive</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Цель минут/день</label>
+              <input type="number" name="daily_goal_minutes" class="form-control" min="1" max="240" value="{{ detail.user.daily_goal_minutes or 15 }}">
+            </div>
+            <div>
+              <label class="form-label">Listening минут/день</label>
+              <input type="number" name="listening_goal_minutes" class="form-control" min="1" max="240" value="{{ detail.user.listening_goal_minutes or 10 }}">
+            </div>
+            <div>
+              <label class="form-label">Слов в день</label>
+              <input type="number" name="daily_word_goal" class="form-control" min="1" max="200" value="{{ detail.user.daily_word_goal or 10 }}">
+            </div>
+            <div>
+              <label class="form-label">Уроков в неделю</label>
+              <input type="number" name="weekly_lesson_goal" class="form-control" min="1" max="100" value="{{ detail.user.weekly_lesson_goal or 5 }}">
+            </div>
+            <div>
+              <label class="form-label">Пауза плана до</label>
+              <input type="date" name="plan_paused_until" class="form-control"
+                     value="{{ detail.user.plan_paused_until.isoformat() if detail.user.plan_paused_until else '' }}">
+            </div>
+          </div>
+
+          <hr>
+          <div class="user-admin-toggles">
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="onboarding_completed" {% if detail.user.onboarding_completed %}checked{% endif %}>
+              <span class="form-check-label">Onboarding completed</span>
+            </label>
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="streak_shield_active" {% if detail.user.streak_shield_active %}checked{% endif %}>
+              <span class="form-check-label">Streak shield active</span>
+            </label>
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="email_opted_out" {% if detail.user.email_opted_out %}checked{% endif %}>
+              <span class="form-check-label">Email opt-out</span>
+            </label>
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="notify_email_reminders" {% if detail.user.notify_email_reminders %}checked{% endif %}>
+              <span class="form-check-label">Email reminders</span>
+            </label>
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="notify_in_app_achievements" {% if detail.user.notify_in_app_achievements %}checked{% endif %}>
+              <span class="form-check-label">In-app achievements</span>
+            </label>
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="notify_in_app_streaks" {% if detail.user.notify_in_app_streaks %}checked{% endif %}>
+              <span class="form-check-label">In-app streaks</span>
+            </label>
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="notify_in_app_weekly" {% if detail.user.notify_in_app_weekly %}checked{% endif %}>
+              <span class="form-check-label">Weekly notifications</span>
+            </label>
+          </div>
+
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+          </div>
+        </form>
+      </div>
     </div>
+
+    <aside class="user-admin-card">
+      <div class="user-admin-card__header">
+        <h2><i class="fas fa-bolt me-2 text-muted"></i>Действия</h2>
+      </div>
+      <div class="user-admin-card__body">
+        <div class="d-grid gap-2 mb-3">
+          <form action="{{ url_for('user_admin.toggle_user_status', user_id=detail.user_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-{{ 'danger' if detail.active else 'success' }} w-100"
+                    {% if detail.user_id == current_user.id %}disabled{% endif %}>
+              <i class="fas fa-{{ 'ban' if detail.active else 'check' }} me-1"></i>
+              {{ 'Отключить аккаунт' if detail.active else 'Включить аккаунт' }}
+            </button>
+          </form>
+          {% if detail.user_id != current_user.id %}
+            <form action="{{ url_for('user_admin.toggle_admin_status', user_id=detail.user_id) }}" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-warning w-100">
+                <i class="fas fa-user-shield me-1"></i>
+                {{ 'Снять admin' if detail.is_admin else 'Сделать admin' }}
+              </button>
+            </form>
+          {% endif %}
+          <form action="{{ url_for('user_admin.send_password_reset', user_id=detail.user_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-secondary w-100" {% if not detail.email %}disabled{% endif %}>
+              <i class="fas fa-key me-1"></i> Отправить сброс пароля
+            </button>
+          </form>
+          {% if detail.email %}
+            <a href="mailto:{{ detail.email }}" class="btn btn-outline-secondary">
+              <i class="fas fa-envelope me-1"></i> Написать email
+            </a>
+          {% endif %}
+        </div>
+
+        <h3 class="h6 text-muted">Связанные разделы</h3>
+        <div class="user-admin-links mb-3">
+          <a href="{{ url_for('admin_curriculum.user_progress', user_id=detail.user_id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-chart-line me-1"></i> Curriculum progress
+          </a>
+          <a href="{{ url_for('admin.user_modules', user_id=detail.user_id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-cubes me-1"></i> Module access
+          </a>
+          <a href="{{ url_for('activity_admin.activity_index', user_id=detail.user_id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-list me-1"></i> Activity feed
+          </a>
+          <a href="{{ url_for('user_admin.users', search=detail.email or detail.username) }}" class="btn btn-outline-primary">
+            <i class="fas fa-search me-1"></i> Search view
+          </a>
+        </div>
+
+        <h3 class="h6 text-muted">Сводка</h3>
+        {{ quick_stats([
+          ('В процессе', detail.lessons.in_progress, 'fa-spinner'),
+          ('Модулей', detail.modules_enabled, 'fa-cubes'),
+          ('Бейджей', detail.streak.total_badges, 'fa-medal'),
+          ('Рефералов', detail.referrals_made, 'fa-share-alt')
+        ]) }}
+      </div>
+    </aside>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="user-admin-card">
+        <div class="user-admin-card__header"><h2>Слова</h2></div>
+        <div class="user-admin-card__body">
+          {{ quick_stats([
+            ('Новые', detail.words.new, 'fa-plus-circle'),
+            ('Изучаемые', detail.words.learning, 'fa-spinner'),
+            ('Повторение', detail.words.review, 'fa-redo'),
+            ('Выучены', detail.words.mastered, 'fa-check-double')
+          ]) }}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="user-admin-card">
+        <div class="user-admin-card__header"><h2>Грамматика и оценки</h2></div>
+        <div class="user-admin-card__body">
+          {{ quick_stats([
+            ('Тем начато', detail.grammar.started, 'fa-book-open'),
+            ('Тем освоено', detail.grammar.mastered, 'fa-check-double'),
+            ('A/B', (detail.grades.get('A', 0) + detail.grades.get('B', 0)), 'fa-star'),
+            ('D/F', (detail.grades.get('D', 0) + detail.grades.get('F', 0)), 'fa-times')
+          ]) }}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="user-admin-card">
+        <div class="user-admin-card__header"><h2>Монеты и streak</h2></div>
+        <div class="user-admin-card__body">
+          {{ quick_stats([
+            ('Баланс', detail.coins.balance, 'fa-wallet'),
+            ('Заработано', detail.coins.total_earned, 'fa-arrow-up'),
+            ('Потрачено', detail.coins.total_spent, 'fa-arrow-down'),
+            ('Рекорд серии', detail.streak.longest, 'fa-trophy')
+          ]) }}
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
