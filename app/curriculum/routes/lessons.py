@@ -31,6 +31,20 @@ logger = logging.getLogger(__name__)
 PRONUNCIATION_DAILY_LIMIT = 200
 WRITING_DAILY_LIMIT = 70
 
+# Writing-prompt word-count thresholds only kick in from B1 upwards. Below that
+# level we treat min_words as 0 — the sentence/checklist/target-phrase checks
+# are enough for A1/A2 learners and avoid the «18 слов из 50 нужно» wall.
+_WRITING_WORDS_REQUIRED_LEVELS = frozenset({'B1', 'B2', 'C1', 'C2'})
+
+
+def _writing_words_required(lesson: 'Lessons') -> bool:
+    """True only when the lesson's CEFR level enforces min_words."""
+    try:
+        code = (lesson.module.level.code or '').upper()
+    except AttributeError:
+        return False
+    return code in _WRITING_WORDS_REQUIRED_LEVELS
+
 
 def _count_pronunciation_attempts_today(user_id: int) -> int:
     from app.curriculum.models import PronunciationAttempt
@@ -1359,6 +1373,11 @@ def writing_prompt_lesson(lesson_id: int):
             min_sentences = int(min_sentences)
         except (TypeError, ValueError):
             min_sentences = None
+    # Below B1 we drop the word-count gate — sentences + checklist + phrases
+    # are enough for elementary learners. The UI still surfaces the gate when
+    # it IS in effect (B1+), so the requirement is never hidden.
+    if not _writing_words_required(lesson):
+        min_words = 0
     example_response = content.get('example_response') or None
     template_text = content.get('template') or None
     hint_words = content.get('hint_words') or []
@@ -1485,6 +1504,9 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
             min_words = int(raw_min_words) if raw_min_words is not None else 0
         except (TypeError, ValueError):
             min_words = 0
+    # Mirror the route-side level gate: drop min_words below B1.
+    if not _writing_words_required(lesson):
+        min_words = 0
 
     word_count = len(response_text.split()) if response_text else 0
     # Sentence count: разделители .!? с любым whitespace вокруг.
