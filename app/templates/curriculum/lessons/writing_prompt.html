@@ -49,10 +49,17 @@
           <i class="fas fa-align-left"></i>
           {{ _('Минимум %(n)s предложений', n=_total) }}
         </span>
-        {% else %}
+        {% endif %}
+        {% if min_words and min_words > 0 %}
+        <span class="writing-prompt-min-words">
+          <i class="fas fa-font"></i>
+          {{ _('Минимум %(n)s слов', n=min_words) }}
+        </span>
+        {% endif %}
+        {% if not _use_sentences and not (min_words and min_words > 0) %}
         <span class="writing-prompt-min-words">
           <i class="fas fa-align-left"></i>
-          {{ _('Минимум %(n)s слов', n=_total) }}
+          {{ _('Свободный объём') }}
         </span>
         {% endif %}
       </div>
@@ -293,16 +300,21 @@ function updateWritingProgress() {
 
 // Считает, чего не хватает для завершения. Возвращает массив сообщений;
 // пустой массив = всё готово, можно завершать.
+// Server enforces BOTH min_words AND min_sentences when both are set,
+// so the client mirrors that — checks each independently and surfaces
+// hints for whichever is below threshold.
 function _writingReadiness(text, count) {
   const missing = [];
-  if (count < targetTotal) {
-    const remaining = targetTotal - count;
-    if (useSentences) {
-      missing.push('{{ _("Добавьте ещё ") }}' + remaining + ' '
-        + (remaining === 1 ? '{{ _("предложение") }}' : '{{ _("предложения") }}'));
-    } else {
-      missing.push('{{ _("Напишите ещё ") }}' + remaining + ' {{ _("слов") }}');
-    }
+  const wordCount = countWords(text);
+  const sentenceCount = countSentences(text);
+  if (minWords > 0 && wordCount < minWords) {
+    const remaining = minWords - wordCount;
+    missing.push('{{ _("Напишите ещё ") }}' + remaining + ' {{ _("слов") }}');
+  }
+  if (minSentences > 0 && sentenceCount < minSentences) {
+    const remaining = minSentences - sentenceCount;
+    missing.push('{{ _("Добавьте ещё ") }}' + remaining + ' '
+      + (remaining === 1 ? '{{ _("предложение") }}' : '{{ _("предложения") }}'));
   }
   const checked = document.querySelectorAll('.writing-prompt-checkbox:checked').length;
   if (checked < MIN_CHECKLIST) {
@@ -379,13 +391,18 @@ function _setResultBadge(kind, iconHtml, message, statTextOrNull) {
 
 async function submitWriting() {
   const text = document.getElementById('writing-response').value.trim();
-  const count = useSentences ? countSentences(text) : countWords(text);
+  const wordCount = countWords(text);
+  const sentenceCount = countSentences(text);
   const submitBtn = document.getElementById('submit-btn');
 
   // Submit-кнопка заблокирована до тех пор, пока все условия не выполнены
   // (см. _renderReadiness). Дополнительный server-side check на всякий случай.
+  // Mirror server's `meets_min = meets_min_words AND meets_min_sentences` —
+  // each threshold is independent and required when configured.
   const checkboxes = document.querySelectorAll('.writing-prompt-checkbox:checked');
-  if (count < targetTotal || checkboxes.length < MIN_CHECKLIST || !_hasTargetPhrase(text)) {
+  const wordsOk = (minWords === 0) || (wordCount >= minWords);
+  const sentencesOk = (minSentences === 0) || (sentenceCount >= minSentences);
+  if (!wordsOk || !sentencesOk || checkboxes.length < MIN_CHECKLIST || !_hasTargetPhrase(text)) {
     return;
   }
   const checkedItems = Array.from(checkboxes).map(cb => cb.value);
