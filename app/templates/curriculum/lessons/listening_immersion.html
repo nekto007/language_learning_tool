@@ -460,7 +460,7 @@ async function finishLesson() {
     if (actions) actions.hidden = true;
 
     if (typeof window.showLessonCompletion === 'function') {
-      const dpCtx = data.daily_plan_ctx || {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+      const dpCtx = data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
       window.showLessonCompletion({ score: 100, daily_plan_ctx: dpCtx });
     }
   } catch (err) {
@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // глобальную плашку «Урок завершён!» (silent=true, без авто-скролла,
   // чтобы пользователь сначала видел сам контент).
   if (typeof window.showLessonCompletion === 'function') {
-    const dpCtx = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+    const dpCtx = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
     window.showLessonCompletion({ score: 100, silent: true, daily_plan_ctx: dpCtx });
   }
   {% endif %}

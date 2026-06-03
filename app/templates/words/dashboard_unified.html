@@ -20,6 +20,15 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 {% block content %}
 <div class="dash-unified-wrap">
 
+  {# ── HERO BANNER (full width, top of dashboard) ── #}
+  <a href="#daily-plan" class="dash-hero-banner" aria-label="Перейти к плану дня">
+    <img src="{{ url_for('static', filename='media/dashboard.png') }}"
+         alt="План дня в LLT English"
+         class="dash-hero-banner__img"
+         loading="eager"
+         decoding="async">
+  </a>
+
   {# ── RANK BAND (full width, above the plan) ── #}
   {% if rank_info %}
   <div class="dash-rank dash-rank--{{ rank_info.code }} dash-rank--band"

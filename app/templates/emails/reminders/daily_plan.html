@@ -7,6 +7,9 @@
   'Добавьте карточки, если хотите быстро освежить слова.',
   'Вернитесь вечером за коротким итогом и закреплением.'
 ] %}
+{% set hero_image = url_for('static', filename='media/daily-plan.png', _external=True) %}
+{% set hero_image_alt = 'Лисёнок составляет план дня' %}
+{% set show_plan_preview = true %}
 {% set primary_url = links.primary %}
 {% set primary_label = campaign.cta %}
 {% set secondary_links = [

@@ -324,6 +324,10 @@ def _user_learning_snapshot(user: User) -> dict:
         ).count()
     except Exception:
         logger.exception('Failed to build reminder snapshot for user %s', user.id)
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.exception('Failed to rollback snapshot session for user %s', user.id)
         stats = None
         coins = None
         word_count = 0
@@ -358,17 +362,170 @@ def _reminder_links(template_name: str) -> dict:
     }
 
 
-def _render_reminder_template(template_name: str, user: User, now, unsubscribe_token: str) -> str:
+_PLAN_KIND_LABELS = {
+    'curriculum': 'Урок дня',
+    'srs': 'Повторение слов',
+    'reading': 'Чтение книги',
+    'listening': 'Аудирование',
+    'speaking': 'Произношение',
+    'writing': 'Письмо',
+    'error_review': 'Разбор ошибок',
+    'grammar_review': 'Грамматика',
+    'challenge': 'Челлендж дня',
+    'setup_book': 'Выберите книгу',
+    'setup_level': 'Уровень',
+}
+
+_PLAN_LESSON_TYPE_LABELS = {
+    'vocabulary': 'Урок курса',
+    'grammar': 'Грамматика',
+    'quiz': 'Квиз',
+    'reading': 'Чтение в уроке',
+    'listening_immersion': 'Аудирование',
+    'translation': 'Перевод',
+    'sentence_completion': 'Завершение фраз',
+    'sentence_correction': 'Исправление',
+    'pronunciation': 'Произношение',
+    'shadow_reading': 'Чтение вслух',
+    'writing_prompt': 'Письмо',
+    'audio_fill_blank': 'Аудиозапись',
+    'dictation': 'Диктант',
+    'idiom': 'Идиома',
+    'collocation_matching': 'Сочетания',
+    'final_test': 'Итоговый тест',
+    'card': 'Закрепление',
+    'flashcards': 'Закрепление',
+    'matching': 'Соответствия',
+}
+
+
+def _user_daily_plan_preview(user: User, max_items: int = 5) -> dict:
+    """Best-effort preview of pending plan items for email.
+
+    Returns ``{'cards': [{eyebrow, title, subtitle}], 'day_secured': bool}``.
+    Key is ``cards`` (not ``items``) so Jinja's ``plan_preview.cards`` resolves
+    via getitem instead of hitting ``dict.items`` method.
+    Errors are swallowed — email render must not fail if planning breaks.
+    """
+    try:
+        from app.daily_plan.service import get_daily_plan_unified
+        plan = get_daily_plan_unified(user.id)
+    except Exception:
+        logger.exception('reminder: plan preview failed for user %s', user.id)
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.exception('reminder: rollback failed for user %s', user.id)
+        return {'cards': [], 'day_secured': False}
+
+    if plan.get('mode') == 'paused':
+        return {'cards': [], 'day_secured': bool(plan.get('day_secured')), 'paused': True}
+
+    pending: list[dict] = []
+    seen_kinds: set[str] = set()
+    for bucket in ('required', 'optional'):
+        for raw in (plan.get(bucket) or []):
+            if raw.get('completed') or raw.get('skipped') or raw.get('blocked'):
+                continue
+            kind = raw.get('kind') or 'curriculum'
+            # Dedup repeated kinds (e.g. multiple curriculum items) — keep first only.
+            if kind in seen_kinds and kind != 'curriculum':
+                continue
+            seen_kinds.add(kind)
+            lesson_type = raw.get('lesson_type')
+            eyebrow = (
+                _PLAN_LESSON_TYPE_LABELS.get(lesson_type)
+                if kind == 'curriculum' and lesson_type
+                else None
+            ) or _PLAN_KIND_LABELS.get(kind) or 'Задание'
+            eta = raw.get('eta_minutes') or 0
+            subtitle = raw.get('subtitle')
+            meta_bits = []
+            if subtitle:
+                meta_bits.append(str(subtitle))
+            if eta:
+                meta_bits.append(f'~{eta} мин')
+            pending.append({
+                'eyebrow': eyebrow,
+                'title': raw.get('title') or '',
+                'subtitle': ' · '.join(meta_bits),
+            })
+            if len(pending) >= max_items:
+                break
+        if len(pending) >= max_items:
+            break
+
+    return {'cards': pending, 'day_secured': bool(plan.get('day_secured'))}
+
+
+def _render_reminder_template(
+    template_name: str,
+    user: User,
+    now,
+    unsubscribe_token: str,
+    tracking_token: str | None = None,
+) -> str:
     campaign = REMINDER_CAMPAIGNS[template_name]
+    # Plan preview first: builds via get_daily_plan_unified which touches many
+    # tables. If it poisons the txn it self-rolls-back, so snapshot below
+    # starts on a clean session.
+    plan_preview = _user_daily_plan_preview(user)
+    snapshot = _user_learning_snapshot(user)
+    pixel_url = None
+    tracked = None
+    if tracking_token:
+        from app.reminders.tracking import sign_click
+        pixel_url = url_for(
+            'reminder_tracking.track_open', token=tracking_token, _external=True,
+        )
+
+        def tracked(target_url: str) -> str:
+            if not target_url:
+                return target_url
+            return url_for(
+                'reminder_tracking.track_click',
+                blob=sign_click(tracking_token, target_url),
+                _external=True,
+            )
+
+    links = _reminder_links(template_name)
+    if tracked:
+        links = _wrap_links_with_tracking(links, tracked)
+
     return render_template(
         f'emails/reminders/{campaign["template"]}.html',
         user=user,
         now=now,
         unsubscribe_token=unsubscribe_token,
         campaign=campaign,
-        snapshot=_user_learning_snapshot(user),
-        links=_reminder_links(template_name),
+        snapshot=snapshot,
+        links=links,
+        plan_preview=plan_preview,
+        tracking_pixel_url=pixel_url,
+        tracked=tracked,
     )
+
+
+def _wrap_links_with_tracking(links: dict, tracked) -> dict:
+    """Return a copy of ``links`` with every URL routed through tracking.
+
+    ``unsubscribe`` is intentionally NOT wrapped (we don't want unsubscribes
+    to count as engagement clicks). ``settings`` is also kept raw — it's a
+    system action, not a campaign CTA.
+    """
+    wrapped: dict = {}
+    skip_keys = {'settings'}
+    for key, value in links.items():
+        if key in skip_keys:
+            wrapped[key] = value
+            continue
+        if isinstance(value, str):
+            wrapped[key] = tracked(value)
+        elif isinstance(value, dict):
+            wrapped[key] = {k: tracked(v) if isinstance(v, str) else v for k, v in value.items()}
+        else:
+            wrapped[key] = value
+    return wrapped
 
 
 def get_inactive_users(days=7):
@@ -435,6 +592,7 @@ def reminder_dashboard():
 
     # Получаем статистику по отправленным напоминаниям
     reminders_sent = ReminderLog.query.order_by(desc(ReminderLog.sent_at)).limit(50).all()
+    campaign_stats = _campaign_engagement_stats()
 
     now = datetime.now(timezone.utc)
 
@@ -448,8 +606,42 @@ def reminder_dashboard():
         campaigns=REMINDER_CAMPAIGNS,
         selected_campaign=REMINDER_CAMPAIGNS[campaign_key],
         reminders_sent=reminders_sent,
+        campaign_stats=campaign_stats,
         now=now
     )
+
+
+def _campaign_engagement_stats() -> list[dict]:
+    """Aggregate sent / opened / clicked per campaign template.
+
+    Returns rows ordered by total sent desc — empty rows for campaigns
+    that haven't been used yet are skipped. Open- and click-rate are
+    percentages of ``sent`` (rounded to 1 decimal); guarded against
+    div-by-zero.
+    """
+    rows = db.session.query(
+        ReminderLog.template,
+        func.count(ReminderLog.id).label('sent'),
+        func.count(ReminderLog.opened_at).label('opened'),
+        func.count(ReminderLog.clicked_at).label('clicked'),
+    ).group_by(ReminderLog.template).order_by(func.count(ReminderLog.id).desc()).all()
+
+    out: list[dict] = []
+    for row in rows:
+        sent = int(row.sent or 0)
+        opened = int(row.opened or 0)
+        clicked = int(row.clicked or 0)
+        campaign = REMINDER_CAMPAIGNS.get(row.template) or {}
+        out.append({
+            'template': row.template,
+            'label': campaign.get('label', row.template),
+            'sent': sent,
+            'opened': opened,
+            'clicked': clicked,
+            'open_rate': round(opened / sent * 100, 1) if sent else 0.0,
+            'click_rate': round(clicked / sent * 100, 1) if sent else 0.0,
+        })
+    return out
 
 
 @reminders.route('/send', methods=['POST'])
@@ -497,7 +689,13 @@ def send_reminders():
         from app.email_scheduler import ensure_unsubscribe_token
         unsubscribe_token = ensure_unsubscribe_token(user)
 
-        html_content = _render_reminder_template(reminder_template, user, now, unsubscribe_token)
+        import secrets
+        tracking_token = secrets.token_hex(16)
+
+        html_content = _render_reminder_template(
+            reminder_template, user, now, unsubscribe_token,
+            tracking_token=tracking_token,
+        )
 
         # Отправляем письмо
         if send_email(user.email, custom_subject, html_content):
@@ -506,7 +704,8 @@ def send_reminders():
                 user_id=user.id,
                 template=reminder_template,
                 subject=custom_subject,
-                sent_by=current_user.id
+                sent_by=current_user.id,
+                token=tracking_token,
             )
             db.session.add(log)
             success_count += 1

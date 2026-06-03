@@ -1,14 +1,18 @@
 {% set email_title = 'Один грамматический шаг сегодня' %}
 {% set eyebrow = 'Grammar Lab' %}
-{% set heading = user.username + ', закройте один грамматический пробел' %}
+{% set heading = user.username + ', разберите одну грамматическую тему за 5 минут' %}
 {% set intro = 'Не обязательно проходить большой урок. В Grammar Lab можно сделать короткую практику, проверить слабое место и сразу увидеть результат.' %}
 {% set steps = [
-  'Откройте короткую практику по грамматике.',
+  'Выберите одну тему, которая даётся сложнее всего.',
   'Сделайте 5–10 заданий без длинной теории.',
-  'Если тема дается легко, переходите к плану дня или карточкам.'
+  'Посмотрите результат и вернитесь к плану дня или карточкам.'
 ] %}
+{% set hide_stats = true %}
+{% set hero_image = url_for('static', filename='media/grammar.png', _external=True) %}
+{% set hero_image_alt = 'Grammar Lab — короткая практика' %}
+{% set hero_image_no_crop = true %}
 {% set primary_url = links.primary %}
-{% set primary_label = campaign.cta %}
+{% set primary_label = 'Открыть Grammar Lab' %}
 {% set secondary_links = [
   {'label': 'План дня', 'url': links.dashboard},
   {'label': 'Учить слова', 'url': links.study}

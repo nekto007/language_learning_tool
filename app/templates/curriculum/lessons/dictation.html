@@ -666,14 +666,14 @@ function showResults(data) {
     // Передаём daily_plan_ctx из submit-response (или серверный template-fallback),
     // чтобы при заходе через план дня CTA вели на дашборд, а не в curriculum.
     if (typeof window.showLessonCompletion === 'function') {
-      const dpCtx = data.daily_plan_ctx || {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+      const dpCtx = data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
       window.showLessonCompletion({ score: score, silent: data._silent === true, daily_plan_ctx: dpCtx });
     }
   } else {
     // Failed-state CTA: «Начать заново» — основной путь, но дать и эскейпы
     // (дашборд, следующий слот плана, к списку уроков) — иначе юзер с 79%
     // в тупике, кроме как закрыть вкладку.
-    const dpCtx = data.daily_plan_ctx || {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+    const dpCtx = data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
     const isPlan = !!(dpCtx && dpCtx.is_daily_plan);
     const dashboardUrl = (dpCtx && dpCtx.dashboard_url) || '/dashboard';
     const nextSlotUrl = isPlan ? dpCtx.next_slot_url : null;

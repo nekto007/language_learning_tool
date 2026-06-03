@@ -101,7 +101,7 @@ const CACHED_NEXT_LESSON_URL = {{ next_lesson_url | tojson if next_lesson_url el
 // Daily-plan context: when the user opened this lesson with
 // ?from=linear_plan&slot=..., CTAs should point back to the plan, not
 // to the curriculum module page.
-const DAILY_PLAN_CTX = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+const DAILY_PLAN_CTX = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
 
 // Per-item state. Pending → terminal (correct or given-up after MAX_ATTEMPTS
 // failed tries). Wrong-attempts are tracked for the error-dots column.

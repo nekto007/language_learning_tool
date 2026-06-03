@@ -424,7 +424,7 @@ const SAVED_STATE = {{ (progress.data | tojson) if (progress and progress.data) 
 const IS_COMPLETED = {{ 'true' if is_completed else 'false' }};
 const CACHED_NEXT_LESSON_URL = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
 window.__moduleUrl = {{ module_url | tojson if module_url else '"/learn/"' }};
-const DAILY_PLAN_CTX = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+const DAILY_PLAN_CTX = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
 
 // Hide the legacy single-item submit row + result area — multi-item flow
 // renders its own per-item feedback and a separate summary panel below.

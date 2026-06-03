@@ -1,16 +1,20 @@
 {% set email_title = 'Выберите удобный формат английского' %}
 {% set eyebrow = 'Возможности LLT English' %}
-{% set heading = user.username + ', английский можно продолжить разными способами' %}
-{% set intro = 'Если один формат надоел, переключитесь. На сайте есть план дня, карточки, книжные курсы, библиотека и Grammar Lab — выберите то, что проще открыть прямо сейчас.' %}
+{% set heading = user.username + ', продолжите английский в удобном формате' %}
+{% set intro = 'Если один формат надоел, просто переключитесь. На LLT English можно учить слова, читать книги, пройти короткую грамматику или открыть готовый план дня.' %}
 {% set steps = [
-  'План дня — если хотите готовый маршрут без выбора.',
-  'Книги — если хочется учить язык через сюжет и контекст.',
-  'Grammar Lab и карточки — если нужен быстрый точечный прогресс.'
+  'План дня — готовый маршрут без лишнего выбора.',
+  'Книжные курсы — английский через сюжет и контекст.',
+  'Карточки и Grammar Lab — быстрый точечный прогресс.'
 ] %}
+{% set hero_image = url_for('static', filename='media/features.png', _external=True) %}
+{% set hero_image_alt = 'Форматы обучения LLT English' %}
+{% set hero_image_max_height = 400 %}
 {% set primary_url = links.primary %}
-{% set primary_label = campaign.cta %}
+{% set primary_label = 'Выбрать формат' %}
 {% set secondary_links = [
   {'label': 'План дня', 'url': links.dashboard},
+  {'label': 'Карточки', 'url': links.study},
   {'label': 'Книжные курсы', 'url': links.book_courses},
   {'label': 'Grammar Lab', 'url': links.grammar}
 ] %}

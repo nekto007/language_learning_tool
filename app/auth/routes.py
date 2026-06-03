@@ -760,23 +760,49 @@ def public_streak(username: str):
     )
 
 
-@auth.route('/unsubscribe')
+@auth.route('/unsubscribe', methods=['GET', 'POST'])
 def unsubscribe():
-    """One-click email unsubscribe via token."""
-    token = request.args.get('token')
+    """One-click email unsubscribe via token.
+
+    GET shows a confirmation page (so accidental prefetches by mail clients
+    don't silently opt the user out — common Gmail/Outlook proxy behavior).
+    POST actually performs the opt-out and renders a success page with
+    instructions to re-enable.
+    """
+    token = request.args.get('token') or request.form.get('token')
     if not token:
-        flash('Неверная ссылка для отписки.', 'danger')
-        return redirect(url_for('landing.index'))
+        return render_template(
+            'auth/unsubscribe_error.html',
+            message='Ссылка для отписки повреждена или отсутствует.',
+        ), 400
 
     user = User.query.filter_by(email_unsubscribe_token=token).first()
-    if not user:
-        flash('Неверная ссылка для отписки.', 'danger')
-        return redirect(url_for('landing.index'))
 
-    # Mark user as unsubscribed permanently
+    # Idempotent: a user can hit the same link twice (mail client prefetch
+    # then human click) without seeing an error. If the token is gone but
+    # there's no matching user, surface a friendly already-done state when
+    # possible — we just can't show their email.
+    if not user:
+        return render_template(
+            'auth/unsubscribe_done.html',
+            email=None,
+            already_done=True,
+        )
+
+    if request.method == 'GET':
+        return render_template(
+            'auth/unsubscribe_confirm.html',
+            email=user.email,
+            token=token,
+        )
+
+    user_email = user.email
     user.email_unsubscribe_token = None
     user.email_opted_out = True
     db.session.commit()
 
-    flash('Вы отписаны от рассылки.', 'success')
-    return redirect(url_for('landing.index'))
+    return render_template(
+        'auth/unsubscribe_done.html',
+        email=user_email,
+        already_done=False,
+    )

@@ -232,7 +232,7 @@ class TestEmailErrorLogging:
 class TestUnsubscribeFlow:
     """Test one-click email unsubscribe."""
 
-    def test_unsubscribe_with_valid_token(self, client, db_session):
+    def test_unsubscribe_with_valid_token(self, app, client, db_session):
         suffix = uuid.uuid4().hex[:8]
         user = User(
             username=f'unsub_{suffix}',
@@ -244,8 +244,16 @@ class TestUnsubscribeFlow:
         db_session.add(user)
         db_session.commit()
 
-        response = client.get(f'/unsubscribe?token=testtoken_{suffix}')
-        assert response.status_code == 302
+        # GET shows confirmation but does not opt out (prefetch-safe).
+        resp_get = client.get(f'/unsubscribe?token=testtoken_{suffix}')
+        assert resp_get.status_code == 200
+
+        db_session.refresh(user)
+        assert user.email_opted_out is False
+
+        # POST actually performs the opt-out.
+        resp_post = client.post('/unsubscribe', data={'token': f'testtoken_{suffix}'})
+        assert resp_post.status_code == 200
 
         db_session.refresh(user)
         assert user.email_unsubscribe_token is None
@@ -253,8 +261,10 @@ class TestUnsubscribeFlow:
 
     def test_unsubscribe_with_invalid_token(self, client):
         response = client.get('/unsubscribe?token=nonexistent')
-        assert response.status_code == 302
+        # Idempotent: unknown token shows a friendly already-done page.
+        assert response.status_code == 200
 
     def test_unsubscribe_without_token(self, client):
         response = client.get('/unsubscribe')
-        assert response.status_code == 302
+        # Missing token → 400 error page (no silent failure).
+        assert response.status_code == 400
