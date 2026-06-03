@@ -72,6 +72,20 @@ def create_app(config_class=Config):
         from config.settings import validate_environment
         validate_environment()
 
+    # Behind nginx: trust X-Forwarded-Proto so request.scheme reflects HTTPS,
+    # which makes url_for(_external=True) emit https://... URLs (otherwise
+    # Flask sees the loopback gunicorn connection as http and links generated
+    # inside templates — including reminder-email images — get blocked by the
+    # `img-src 'self' data: https:` CSP on the production site).
+    if not app.config.get('TESTING'):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    # Fallback for URL generation outside a request context (email scheduler,
+    # CLI tasks). With this set, url_for(_external=True) defaults to https://
+    # even when there's no incoming request to read X-Forwarded-Proto from.
+    app.config.setdefault('PREFERRED_URL_SCHEME', 'https')
+
     # Configure JWT
     from datetime import timedelta
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
