@@ -9,6 +9,7 @@
     .wrap { max-width: 640px; margin: 0 auto; padding: 24px 14px; }
     .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
     .hero { padding: 28px 28px 20px; background: #111827; color: #ffffff; }
+    .hero-image { display: block; width: 100%; max-width: 100%; max-height: 320px; height: auto; object-fit: cover; margin: 0 0 20px; border-radius: 12px; }
     .eyebrow { color: #c7d2fe; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
     h1 { margin: 10px 0 0; font-size: 26px; line-height: 1.2; }
     .body { padding: 26px 28px; }
@@ -39,19 +40,58 @@
         <h1>{{ heading }}</h1>
       </div>
       <div class="body">
+        {% if hero_image %}
+          {% if hero_image_max_height is defined and hero_image_max_height %}
+            <img src="{{ hero_image }}" alt="{{ hero_image_alt or heading }}" class="hero-image" width="600" style="max-height:{{ hero_image_max_height }}px;object-fit:cover;" />
+          {% elif hero_image_no_crop %}
+            <img src="{{ hero_image }}" alt="{{ hero_image_alt or heading }}" width="600" style="display:block;width:100%;max-width:100%;height:auto;margin:0 0 32px;border:0;border-radius:16px;" />
+          {% else %}
+            <img src="{{ hero_image }}" alt="{{ hero_image_alt or heading }}" class="hero-image" width="600" style="max-height:320px;object-fit:cover;" />
+          {% endif %}
+        {% endif %}
         <p>{{ intro }}</p>
 
-        <div class="stats">
-          <div class="stat"><strong>{{ snapshot.completed_lessons }}</strong><span>уроков</span></div>
-          <div class="stat"><strong>{{ snapshot.words }}</strong><span>слов в SRS</span></div>
-          <div class="stat"><strong>{{ snapshot.current_streak }}</strong><span>дней серии</span></div>
-        </div>
+        {% if not hide_stats %}
+          <div class="stats">
+            <div class="stat"><strong>{{ snapshot.completed_lessons }}</strong><span>уроков</span></div>
+            <div class="stat"><strong>{{ snapshot.words }}</strong><span>слов в SRS</span></div>
+            <div class="stat"><strong>{{ snapshot.current_streak }}</strong><span>дней серии</span></div>
+          </div>
+        {% endif %}
 
-        <ul class="steps">
-          {% for item in steps %}
-            <li>{{ item }}</li>
-          {% endfor %}
-        </ul>
+        {% if show_plan_preview and plan_preview and plan_preview.cards %}
+          <div style="margin:24px 0 28px; text-align:left;">
+            <div style="font-size:18px; line-height:1.35; font-weight:700; color:#111827; margin:0 0 12px;">
+              Сегодня в плане:
+            </div>
+            <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#ffffff;">
+              {% for it in plan_preview.cards %}
+                <div style="padding:14px 18px; {% if not loop.last %}border-bottom:1px solid #e5e7eb;{% endif %}">
+                  <div style="font-size:12px; font-weight:700; color:#4f46e5; text-transform:uppercase; letter-spacing:.04em;">
+                    {{ it.eyebrow }}
+                  </div>
+                  <div style="font-size:17px; line-height:1.35; color:#222; font-weight:700; margin-top:4px;">
+                    {{ it.title }}
+                  </div>
+                  {% if it.subtitle %}
+                    <div style="font-size:13px; color:#777; margin-top:4px;">{{ it.subtitle }}</div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+            {% if plan_preview.day_secured %}
+              <div style="font-size:13px; color:#10b981; margin-top:10px;">День уже закрыт — это бонус.</div>
+            {% else %}
+              <div style="font-size:13px; color:#777; margin-top:10px;">Бонус откроется после дневного минимума.</div>
+            {% endif %}
+          </div>
+        {% else %}
+          <ul class="steps">
+            {% for item in steps %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
 
         <a href="{{ primary_url }}" class="cta">{{ primary_label }}</a>
 

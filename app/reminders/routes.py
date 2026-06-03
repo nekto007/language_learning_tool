@@ -324,6 +324,10 @@ def _user_learning_snapshot(user: User) -> dict:
         ).count()
     except Exception:
         logger.exception('Failed to build reminder snapshot for user %s', user.id)
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.exception('Failed to rollback snapshot session for user %s', user.id)
         stats = None
         coins = None
         word_count = 0
@@ -358,16 +362,118 @@ def _reminder_links(template_name: str) -> dict:
     }
 
 
+_PLAN_KIND_LABELS = {
+    'curriculum': 'Урок дня',
+    'srs': 'Повторение слов',
+    'reading': 'Чтение книги',
+    'listening': 'Аудирование',
+    'speaking': 'Произношение',
+    'writing': 'Письмо',
+    'error_review': 'Разбор ошибок',
+    'grammar_review': 'Грамматика',
+    'challenge': 'Челлендж дня',
+    'setup_book': 'Выберите книгу',
+    'setup_level': 'Уровень',
+}
+
+_PLAN_LESSON_TYPE_LABELS = {
+    'vocabulary': 'Урок курса',
+    'grammar': 'Грамматика',
+    'quiz': 'Квиз',
+    'reading': 'Чтение в уроке',
+    'listening_immersion': 'Аудирование',
+    'translation': 'Перевод',
+    'sentence_completion': 'Завершение фраз',
+    'sentence_correction': 'Исправление',
+    'pronunciation': 'Произношение',
+    'shadow_reading': 'Чтение вслух',
+    'writing_prompt': 'Письмо',
+    'audio_fill_blank': 'Аудиозапись',
+    'dictation': 'Диктант',
+    'idiom': 'Идиома',
+    'collocation_matching': 'Сочетания',
+    'final_test': 'Итоговый тест',
+    'card': 'Закрепление',
+    'flashcards': 'Закрепление',
+    'matching': 'Соответствия',
+}
+
+
+def _user_daily_plan_preview(user: User, max_items: int = 5) -> dict:
+    """Best-effort preview of pending plan items for email.
+
+    Returns ``{'cards': [{eyebrow, title, subtitle}], 'day_secured': bool}``.
+    Key is ``cards`` (not ``items``) so Jinja's ``plan_preview.cards`` resolves
+    via getitem instead of hitting ``dict.items`` method.
+    Errors are swallowed — email render must not fail if planning breaks.
+    """
+    try:
+        from app.daily_plan.service import get_daily_plan_unified
+        plan = get_daily_plan_unified(user.id)
+    except Exception:
+        logger.exception('reminder: plan preview failed for user %s', user.id)
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.exception('reminder: rollback failed for user %s', user.id)
+        return {'cards': [], 'day_secured': False}
+
+    if plan.get('mode') == 'paused':
+        return {'cards': [], 'day_secured': bool(plan.get('day_secured')), 'paused': True}
+
+    pending: list[dict] = []
+    seen_kinds: set[str] = set()
+    for bucket in ('required', 'optional'):
+        for raw in (plan.get(bucket) or []):
+            if raw.get('completed') or raw.get('skipped') or raw.get('blocked'):
+                continue
+            kind = raw.get('kind') or 'curriculum'
+            # Dedup repeated kinds (e.g. multiple curriculum items) — keep first only.
+            if kind in seen_kinds and kind != 'curriculum':
+                continue
+            seen_kinds.add(kind)
+            lesson_type = raw.get('lesson_type')
+            eyebrow = (
+                _PLAN_LESSON_TYPE_LABELS.get(lesson_type)
+                if kind == 'curriculum' and lesson_type
+                else None
+            ) or _PLAN_KIND_LABELS.get(kind) or 'Задание'
+            eta = raw.get('eta_minutes') or 0
+            subtitle = raw.get('subtitle')
+            meta_bits = []
+            if subtitle:
+                meta_bits.append(str(subtitle))
+            if eta:
+                meta_bits.append(f'~{eta} мин')
+            pending.append({
+                'eyebrow': eyebrow,
+                'title': raw.get('title') or '',
+                'subtitle': ' · '.join(meta_bits),
+            })
+            if len(pending) >= max_items:
+                break
+        if len(pending) >= max_items:
+            break
+
+    return {'cards': pending, 'day_secured': bool(plan.get('day_secured'))}
+
+
 def _render_reminder_template(template_name: str, user: User, now, unsubscribe_token: str) -> str:
     campaign = REMINDER_CAMPAIGNS[template_name]
+    # Plan preview first: builds via get_daily_plan_unified which touches many
+    # tables. If it poisons the txn it self-rolls-back, so snapshot below
+    # starts on a clean session.
+    plan_preview = _user_daily_plan_preview(user)
+    snapshot = _user_learning_snapshot(user)
     return render_template(
         f'emails/reminders/{campaign["template"]}.html',
         user=user,
         now=now,
         unsubscribe_token=unsubscribe_token,
         campaign=campaign,
-        snapshot=_user_learning_snapshot(user),
+        snapshot=snapshot,
         links=_reminder_links(template_name),
+        plan_preview=plan_preview,
     )
 
 

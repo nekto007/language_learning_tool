@@ -1,16 +1,19 @@
 {% set email_title = 'Английский через книги' %}
 {% set eyebrow = 'Книги и курсы' %}
 {% set heading = user.username + ', попробуйте учить английский через чтение' %}
-{% set intro = 'Если обычные упражнения не тянут, смените формат: книжные курсы и библиотека дают английский через сюжет, лексику в контексте и короткие задания.' %}
+{% set intro = 'Если сегодня не хочется обычных упражнений, смените формат: книжные курсы и библиотека дают английский через сюжет, лексику в контексте и короткие задания.' %}
 {% set steps = [
-  'Откройте book courses и выберите историю под ваш уровень.',
+  'Откройте книжные курсы и выберите историю под ваш уровень.',
   'Читайте главу небольшими фрагментами с переводом слов.',
   'Новые слова можно закрепить карточками после чтения.'
 ] %}
+{% set hero_image = url_for('static', filename='media/books.png', _external=True) %}
+{% set hero_image_alt = 'Лисёнок читает книгу' %}
+{% set hero_image_no_crop = true %}
 {% set primary_url = links.primary %}
 {% set primary_label = campaign.cta %}
 {% set secondary_links = [
-  {'label': 'Book courses', 'url': links.book_courses},
+  {'label': 'Книжные курсы', 'url': links.book_courses},
   {'label': 'Карточки', 'url': links.study}
 ] %}
 {% include 'emails/reminders/_modern.html' %}

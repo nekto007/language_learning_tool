@@ -7,6 +7,8 @@
   'Если нет времени на урок, начните с карточек или короткой грамматики.',
   'После одного действия система снова подхватит ваш прогресс.'
 ] %}
+{% set hero_image = url_for('static', filename='media/email-comeback.png', _external=True) %}
+{% set hero_image_alt = 'Вернитесь к занятиям на LLT English' %}
 {% set primary_url = links.primary %}
 {% set primary_label = campaign.cta %}
 {% set secondary_links = [
