@@ -75,6 +75,14 @@
           </div>
         {% endif %}
       </div>
+
+      <div class="learn-hero__visual" aria-hidden="true">
+        <img src="{{ url_for('static', filename='media/learn.png') }}"
+             alt=""
+             class="learn-hero__visual-img"
+             loading="eager"
+             decoding="async">
+      </div>
     </div>
   {% endif %}
 
@@ -261,6 +269,28 @@
   margin-bottom: 2rem;
   overflow: hidden;
   color: white;
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+.learn-hero__visual {
+  flex: 0 0 200px;
+  align-self: flex-end;
+  position: relative;
+  z-index: 1;
+  margin: -1rem -1rem -2rem 0;
+}
+.learn-hero__visual-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 240px;
+  object-fit: contain;
+  object-position: bottom right;
+  filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.25));
+}
+@media (max-width: 720px) {
+  .learn-hero__visual { display: none; }
 }
 
 .learn-hero__bg-shapes {
@@ -305,6 +335,8 @@
 .learn-hero__content {
   position: relative;
   z-index: 1;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .learn-hero__greeting {

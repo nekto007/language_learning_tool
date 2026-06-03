@@ -8,54 +8,62 @@
     <!-- Telegram Banner -->
     {% include 'partials/telegram_banner.html' %}
 
-    <!-- Hero Section -->
-    {% if user_level %}
-    <div class="decks-hero">
-        <div class="decks-hero__shapes">
-            <div class="decks-hero__circle decks-hero__circle--1"></div>
-            <div class="decks-hero__circle decks-hero__circle--2"></div>
-            <div class="decks-hero__circle decks-hero__circle--3"></div>
+    <!-- Study Hero: fox-character left, daily stats + dual CTA right -->
+    <section class="study-hero">
+        <div class="study-hero__visual">
+            <img src="{{ url_for('static', filename='media/card_SRS_4.png') }}"
+                 alt="Лисёнок с карточками"
+                 class="study-hero__img"
+                 loading="eager"
+                 decoding="async">
         </div>
-        <div class="decks-hero__content">
-            <div class="decks-hero__top">
-                <div class="decks-hero__level">
-                    <div class="decks-hero__level-badge">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
-                    </div>
-                    <div>
-                        <div class="decks-hero__level-title">Уровень {{ user_level }}</div>
-                        <div class="decks-hero__level-xp">{{ user_xp }} XP &middot; {{ xp_to_next_level }} XP до следующего</div>
-                    </div>
-                </div>
-                <a href="{{ url_for('study.quiz') }}" class="decks-hero__xp-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
-                    Заработать XP
+        <div class="study-hero__content">
+            <div class="study-hero__eyebrow">Сегодня в словаре</div>
+            {% if due_items_count > 0 %}
+                <h1 class="study-hero__title">{{ due_items_count }} карточек ждут повторения</h1>
+            {% elif new_items_count > 0 %}
+                <h1 class="study-hero__title">{{ new_items_count }} новых слов готовы к изучению</h1>
+            {% else %}
+                <h1 class="study-hero__title">Всё повторено — добавьте новые слова</h1>
+            {% endif %}
+            <p class="study-hero__sub">
+                {{ learning_total }} слов в изучении&nbsp;·&nbsp;{{ new_items_count }} новых доступны
+            </p>
+            <div class="study-hero__cta">
+                {% if due_items_count > 0 or new_items_count > 0 %}
+                <a href="{{ url_for('study.cards') }}" class="study-hero__btn study-hero__btn--primary">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Повторить сейчас
                 </a>
+                {% endif %}
+                {% if new_items_count > 0 %}
+                <a href="{{ url_for('study.cards') }}?focus=new" class="study-hero__btn study-hero__btn--secondary">
+                    Учить новые слова
+                </a>
+                {% else %}
+                <a href="{{ url_for('study.create_deck') }}" class="study-hero__btn study-hero__btn--secondary">
+                    Создать колоду
+                </a>
+                {% endif %}
             </div>
-            <div class="decks-hero__progress">
-                <div class="decks-hero__progress-bar" style="width: {{ xp_progress_percent }}%;"></div>
-            </div>
-            <div class="decks-hero__stats">
-                <div class="decks-hero__stat">
-                    <span class="decks-hero__stat-value">{{ due_items_count }}</span>
-                    <span class="decks-hero__stat-label">к повторению</span>
-                </div>
-                <div class="decks-hero__stat-divider"></div>
-                <div class="decks-hero__stat">
-                    <span class="decks-hero__stat-value">{{ learning_total }}</span>
-                    <span class="decks-hero__stat-label">в изучении</span>
-                </div>
-                <div class="decks-hero__stat-divider"></div>
-                <div class="decks-hero__stat">
-                    <span class="decks-hero__stat-value">{{ review_total }}</span>
-                    <span class="decks-hero__stat-label">на повторении</span>
-                </div>
-                <div class="decks-hero__stat-divider"></div>
-                <div class="decks-hero__stat">
-                    <span class="decks-hero__stat-value">{{ mastered_count }}</span>
-                    <span class="decks-hero__stat-label">выучено</span>
-                </div>
-            </div>
+        </div>
+    </section>
+
+    <!-- Compact Level Strip -->
+    {% if user_level %}
+    <div class="study-level-strip">
+        <div class="study-level-strip__row">
+            <span class="study-level-strip__badge" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
+            </span>
+            <span class="study-level-strip__text">
+                Уровень {{ user_level }}&nbsp;·&nbsp;{{ user_xp }} XP&nbsp;·&nbsp;{{ xp_to_next_level }} до уровня {{ user_level + 1 }}
+            </span>
+            <a href="{{ url_for('study.quiz') }}" class="study-level-strip__xp">Заработать XP →</a>
+        </div>
+        <div class="study-level-strip__bar" role="progressbar"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ xp_progress_percent }}">
+            <span class="study-level-strip__bar-fill" style="width: {{ xp_progress_percent }}%"></span>
         </div>
     </div>
     {% endif %}
@@ -122,37 +130,6 @@
     </div>
     {% endif %}
 
-    <!-- Quick Start / Review Block -->
-    {% if due_items_count > 0 or new_items_count > 0 or all_words_count > 0 %}
-    <div class="decks-review slideUp" style="animation-delay: .15s">
-        <div class="decks-review__body">
-            <div class="decks-review__info">
-                <div class="decks-review__icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 1L3 14h7l-1 9 10-13h-7l1-9z"/></svg>
-                </div>
-                <div>
-                    <h3 class="decks-review__title">Быстрый старт</h3>
-                    <p class="decks-review__desc">
-                        {% if due_items_count + new_items_count > 0 %}
-                        <strong>{{ due_items_count + new_items_count }}</strong> слов к изучению
-                        {% if new_items_count > 0 %}<span style="margin-left: 8px; opacity: .7;">Новых: {{ new_items_count }}</span>{% endif %}
-                        {% else %}
-                        Все слова повторены! Добавьте новые или продолжайте изучение.
-                        {% endif %}
-                    </p>
-                    <div class="decks-review__meta">
-                        В изучении: <strong>{{ learning_total }}</strong> &nbsp;|&nbsp; На повторении: <strong>{{ review_total }}</strong> &nbsp;|&nbsp; Выучено: <strong>{{ mastered_count }}</strong>
-                    </div>
-                </div>
-            </div>
-            <a href="{{ url_for('study.cards') }}" class="decks-review__btn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Начать изучение
-            </a>
-        </div>
-    </div>
-    {% endif %}
-
     <!-- Vocab Map Link -->
     <div class="decks-vocab-map-link slideUp" style="animation-delay: .16s">
         <a href="{{ url_for('study.vocab_map') }}" class="decks-vocab-map-link__btn">
@@ -160,30 +137,6 @@
             Карта словарного запаса
         </a>
     </div>
-
-    <!-- Study Now - Most Urgent Deck -->
-    {% if most_urgent_deck %}
-    <div class="decks-study-now slideUp" style="animation-delay: .17s">
-        <div class="decks-study-now__body">
-            <div class="decks-study-now__info">
-                <div class="decks-study-now__icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
-                </div>
-                <div>
-                    <h3 class="decks-study-now__title">Пора повторять!</h3>
-                    <p class="decks-study-now__desc">
-                        <strong>{{ most_urgent_deck.title }}</strong> &mdash;
-                        {{ most_urgent_deck.learning_count + most_urgent_deck.review_count }} карточек ждут повторения
-                    </p>
-                </div>
-            </div>
-            <a href="{{ url_for('study.cards_deck', deck_id=most_urgent_deck.id) }}" class="decks-study-now__btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Повторить сейчас
-            </a>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- My Decks Section -->
     {% if my_decks %}
