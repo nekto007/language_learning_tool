@@ -113,5 +113,8 @@
       </div>
     </div>
   </div>
+  {% if tracking_pixel_url %}
+    <img src="{{ tracking_pixel_url }}" alt="" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" />
+  {% endif %}
 </body>
 </html>

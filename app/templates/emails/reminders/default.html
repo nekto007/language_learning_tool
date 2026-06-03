@@ -35,8 +35,9 @@
                 Всего <strong>5 минут в день</strong> — и ваш английский будет на высоте!
             </p>
 
+            {% set _default_cta = url_for('study.index', _external=True) %}
             <a
-                href="{{ url_for('study.index', _external=True) }}"
+                href="{{ tracked(_default_cta) if tracked else _default_cta }}"
                 style="display:inline-block; background:#4A90E2; color:#fff; text-decoration:none; font-size:26px; font-weight:700; padding:24px 54px; border-radius:999px;"
             >
                 ВЕРНУТЬСЯ К ОБУЧЕНИЮ
@@ -54,5 +55,8 @@
             </p>
         </div>
     </div>
+    {% if tracking_pixel_url %}
+      <img src="{{ tracking_pixel_url }}" alt="" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" />
+    {% endif %}
 </body>
 </html>

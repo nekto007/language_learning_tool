@@ -36,8 +36,9 @@
                 {% endif %}
             </p>
 
+            {% set _friendly_cta = url_for('words.dashboard', _external=True) %}
             <a
-                href="{{ url_for('words.dashboard', _external=True) }}"
+                href="{{ tracked(_friendly_cta) if tracked else _friendly_cta }}"
                 style="display:inline-block; background:#ff7f2a; color:#fff; text-decoration:none; font-size:23px; line-height:1.2; font-weight:700; padding:22px 46px; border-radius:999px;"
             >
                 Продолжить обучение
@@ -61,5 +62,8 @@
             </p>
         </div>
     </div>
+    {% if tracking_pixel_url %}
+      <img src="{{ tracking_pixel_url }}" alt="" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" />
+    {% endif %}
 </body>
 </html>

@@ -40,6 +40,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'telegram_channel_admin.', 'word_contrast_admin.',
     'refresh_csrf_token',
     'health_check',
+    'reminder_tracking.',
 )
 
 csrf = CSRFProtect()
@@ -167,6 +168,9 @@ def create_app(config_class=Config):
 
     from app.reminders.routes import reminders as reminders_blueprint
     app.register_blueprint(reminders_blueprint)
+
+    from app.reminders.tracking import reminder_tracking as reminder_tracking_blueprint
+    app.register_blueprint(reminder_tracking_blueprint)
 
     from app.study.routes import study as study_blueprint
     app.register_blueprint(study_blueprint, url_prefix='/study')

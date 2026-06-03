@@ -458,13 +458,40 @@ def _user_daily_plan_preview(user: User, max_items: int = 5) -> dict:
     return {'cards': pending, 'day_secured': bool(plan.get('day_secured'))}
 
 
-def _render_reminder_template(template_name: str, user: User, now, unsubscribe_token: str) -> str:
+def _render_reminder_template(
+    template_name: str,
+    user: User,
+    now,
+    unsubscribe_token: str,
+    tracking_token: str | None = None,
+) -> str:
     campaign = REMINDER_CAMPAIGNS[template_name]
     # Plan preview first: builds via get_daily_plan_unified which touches many
     # tables. If it poisons the txn it self-rolls-back, so snapshot below
     # starts on a clean session.
     plan_preview = _user_daily_plan_preview(user)
     snapshot = _user_learning_snapshot(user)
+    pixel_url = None
+    tracked = None
+    if tracking_token:
+        from app.reminders.tracking import sign_click
+        pixel_url = url_for(
+            'reminder_tracking.track_open', token=tracking_token, _external=True,
+        )
+
+        def tracked(target_url: str) -> str:
+            if not target_url:
+                return target_url
+            return url_for(
+                'reminder_tracking.track_click',
+                blob=sign_click(tracking_token, target_url),
+                _external=True,
+            )
+
+    links = _reminder_links(template_name)
+    if tracked:
+        links = _wrap_links_with_tracking(links, tracked)
+
     return render_template(
         f'emails/reminders/{campaign["template"]}.html',
         user=user,
@@ -472,9 +499,33 @@ def _render_reminder_template(template_name: str, user: User, now, unsubscribe_t
         unsubscribe_token=unsubscribe_token,
         campaign=campaign,
         snapshot=snapshot,
-        links=_reminder_links(template_name),
+        links=links,
         plan_preview=plan_preview,
+        tracking_pixel_url=pixel_url,
+        tracked=tracked,
     )
+
+
+def _wrap_links_with_tracking(links: dict, tracked) -> dict:
+    """Return a copy of ``links`` with every URL routed through tracking.
+
+    ``unsubscribe`` is intentionally NOT wrapped (we don't want unsubscribes
+    to count as engagement clicks). ``settings`` is also kept raw — it's a
+    system action, not a campaign CTA.
+    """
+    wrapped: dict = {}
+    skip_keys = {'settings'}
+    for key, value in links.items():
+        if key in skip_keys:
+            wrapped[key] = value
+            continue
+        if isinstance(value, str):
+            wrapped[key] = tracked(value)
+        elif isinstance(value, dict):
+            wrapped[key] = {k: tracked(v) if isinstance(v, str) else v for k, v in value.items()}
+        else:
+            wrapped[key] = value
+    return wrapped
 
 
 def get_inactive_users(days=7):
@@ -541,6 +592,7 @@ def reminder_dashboard():
 
     # Получаем статистику по отправленным напоминаниям
     reminders_sent = ReminderLog.query.order_by(desc(ReminderLog.sent_at)).limit(50).all()
+    campaign_stats = _campaign_engagement_stats()
 
     now = datetime.now(timezone.utc)
 
@@ -554,8 +606,42 @@ def reminder_dashboard():
         campaigns=REMINDER_CAMPAIGNS,
         selected_campaign=REMINDER_CAMPAIGNS[campaign_key],
         reminders_sent=reminders_sent,
+        campaign_stats=campaign_stats,
         now=now
     )
+
+
+def _campaign_engagement_stats() -> list[dict]:
+    """Aggregate sent / opened / clicked per campaign template.
+
+    Returns rows ordered by total sent desc — empty rows for campaigns
+    that haven't been used yet are skipped. Open- and click-rate are
+    percentages of ``sent`` (rounded to 1 decimal); guarded against
+    div-by-zero.
+    """
+    rows = db.session.query(
+        ReminderLog.template,
+        func.count(ReminderLog.id).label('sent'),
+        func.count(ReminderLog.opened_at).label('opened'),
+        func.count(ReminderLog.clicked_at).label('clicked'),
+    ).group_by(ReminderLog.template).order_by(func.count(ReminderLog.id).desc()).all()
+
+    out: list[dict] = []
+    for row in rows:
+        sent = int(row.sent or 0)
+        opened = int(row.opened or 0)
+        clicked = int(row.clicked or 0)
+        campaign = REMINDER_CAMPAIGNS.get(row.template) or {}
+        out.append({
+            'template': row.template,
+            'label': campaign.get('label', row.template),
+            'sent': sent,
+            'opened': opened,
+            'clicked': clicked,
+            'open_rate': round(opened / sent * 100, 1) if sent else 0.0,
+            'click_rate': round(clicked / sent * 100, 1) if sent else 0.0,
+        })
+    return out
 
 
 @reminders.route('/send', methods=['POST'])
@@ -603,7 +689,13 @@ def send_reminders():
         from app.email_scheduler import ensure_unsubscribe_token
         unsubscribe_token = ensure_unsubscribe_token(user)
 
-        html_content = _render_reminder_template(reminder_template, user, now, unsubscribe_token)
+        import secrets
+        tracking_token = secrets.token_hex(16)
+
+        html_content = _render_reminder_template(
+            reminder_template, user, now, unsubscribe_token,
+            tracking_token=tracking_token,
+        )
 
         # Отправляем письмо
         if send_email(user.email, custom_subject, html_content):
@@ -612,7 +704,8 @@ def send_reminders():
                 user_id=user.id,
                 template=reminder_template,
                 subject=custom_subject,
-                sent_by=current_user.id
+                sent_by=current_user.id,
+                token=tracking_token,
             )
             db.session.add(log)
             success_count += 1

@@ -213,6 +213,46 @@
 
   <section class="rem-panel">
     <div class="rem-panel__header">
+      <h2>Эффективность кампаний</h2>
+      <span class="text-muted small">Open и click rate за всё время</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table rem-history mb-0">
+        <thead>
+          <tr>
+            <th>Кампания</th>
+            <th class="text-end">Отправлено</th>
+            <th class="text-end">Открыто</th>
+            <th class="text-end">Open rate</th>
+            <th class="text-end">Клики</th>
+            <th class="text-end">Click rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in campaign_stats %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td class="text-end">{{ row.sent }}</td>
+              <td class="text-end">{{ row.opened }}</td>
+              <td class="text-end">{{ row.open_rate }}%</td>
+              <td class="text-end">{{ row.clicked }}</td>
+              <td class="text-end">{{ row.click_rate }}%</td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">Пока нет отправленных писем.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="px-3 pt-2 pb-3 text-muted small">
+      Open rate занижен/завышен из-за приватности почтовых клиентов (Apple Mail Privacy Protection, Gmail proxy). Click rate — более честный показатель.
+    </div>
+  </section>
+
+  <section class="rem-panel mt-4">
+    <div class="rem-panel__header">
       <h2>История</h2>
       <span class="text-muted small">Последние 50 отправок</span>
     </div>
@@ -225,6 +265,8 @@
             <th>Тема</th>
             <th>Кампания</th>
             <th>Отправлено</th>
+            <th>Открыто</th>
+            <th>Клик</th>
             <th>Кем</th>
           </tr>
         </thead>
@@ -243,6 +285,20 @@
               <td>{{ campaigns.get(reminder.template, {}).get('label', reminder.template) }}</td>
               <td>{{ reminder.sent_at.strftime('%d.%m.%Y %H:%M') }}</td>
               <td>
+                {% if reminder.opened_at %}
+                  <span title="{{ reminder.opened_at.strftime('%d.%m.%Y %H:%M') }} · {{ reminder.open_count }} раз">{{ reminder.opened_at.strftime('%d.%m %H:%M') }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if reminder.clicked_at %}
+                  <span title="{{ reminder.clicked_at.strftime('%d.%m.%Y %H:%M') }} · {{ reminder.click_count }} раз">{{ reminder.clicked_at.strftime('%d.%m %H:%M') }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
                 {% if reminder.admin %}
                   {{ reminder.admin.username }}
                 {% else %}
@@ -252,7 +308,7 @@
             </tr>
           {% else %}
             <tr>
-              <td colspan="6" class="text-center text-muted py-4">История пока пустая.</td>
+              <td colspan="8" class="text-center text-muted py-4">История пока пустая.</td>
             </tr>
           {% endfor %}
         </tbody>

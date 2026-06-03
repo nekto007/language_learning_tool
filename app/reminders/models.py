@@ -13,6 +13,17 @@ class ReminderLog(db.Model):
     sent_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     sent_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
+    # Tracking.
+    token = db.Column(db.String(32), unique=True, nullable=False)
+    opened_at = db.Column(db.DateTime, nullable=True)
+    open_count = db.Column(db.Integer, nullable=False, default=0)
+    clicked_at = db.Column(db.DateTime, nullable=True)
+    click_count = db.Column(db.Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        db.Index('ix_reminder_logs_template_sent_at', 'template', 'sent_at'),
+    )
+
     # Отношения
     user = db.relationship('User', foreign_keys=[user_id], backref='received_reminders')
     admin = db.relationship('User', foreign_keys=[sent_by], backref='sent_reminders')

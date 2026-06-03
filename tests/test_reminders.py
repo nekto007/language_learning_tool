@@ -261,3 +261,109 @@ class TestSendRemindersEndpoint:
         }, follow_redirects=False)
         # Should redirect (flash error), not render template
         assert resp.status_code in (302, 303)
+
+
+# ---------------------------------------------------------------------------
+# Tracking endpoints (opens, clicks)
+# ---------------------------------------------------------------------------
+
+class TestReminderTracking:
+    def _seed_log(self, db_session, user, token='tok_abcdef0123456789'):
+        log = ReminderLog(
+            user_id=user.id, template='comeback', subject='S',
+            sent_by=user.id, token=token,
+        )
+        db_session.add(log)
+        db_session.commit()
+        return log
+
+    def test_open_pixel_returns_gif(self, client, db_session):
+        user = _make_user(db_session)
+        log = self._seed_log(db_session, user)
+
+        resp = client.get(f'/r/o/{log.token}.gif')
+        assert resp.status_code == 200
+        assert resp.headers['Content-Type'] == 'image/gif'
+        # GIF magic bytes
+        assert resp.data[:3] == b'GIF'
+
+        db_session.expire_all()
+        log = ReminderLog.query.get(log.id)
+        assert log.open_count == 1
+        assert log.opened_at is not None
+
+    def test_open_pixel_unknown_token_still_returns_gif(self, client, db_session):
+        resp = client.get('/r/o/nonexistent_token.gif')
+        assert resp.status_code == 200
+        assert resp.headers['Content-Type'] == 'image/gif'
+
+    def test_open_pixel_increments_count(self, client, db_session):
+        user = _make_user(db_session)
+        log = self._seed_log(db_session, user, token='tok_count_1234567890')
+
+        for _ in range(3):
+            client.get(f'/r/o/{log.token}.gif')
+
+        db_session.expire_all()
+        log = ReminderLog.query.get(log.id)
+        assert log.open_count == 3
+
+    def test_click_redirects_and_records(self, app, client, db_session):
+        user = _make_user(db_session)
+        log = self._seed_log(db_session, user, token='tok_click_111111111')
+
+        with app.app_context():
+            from app.reminders.tracking import sign_click
+            blob = sign_click(log.token, 'https://example.com/dashboard')
+
+        resp = client.get(f'/r/c/{blob}', follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers['Location'] == 'https://example.com/dashboard'
+
+        db_session.expire_all()
+        log = ReminderLog.query.get(log.id)
+        assert log.click_count == 1
+        assert log.clicked_at is not None
+        # Click implies open.
+        assert log.opened_at is not None
+
+    def test_click_bad_signature_returns_400(self, client, db_session):
+        resp = client.get('/r/c/totally_unsigned_garbage')
+        assert resp.status_code == 400
+
+    def test_click_rejects_non_http_target(self, app, client, db_session):
+        user = _make_user(db_session)
+        log = self._seed_log(db_session, user, token='tok_evil_2222222222')
+
+        with app.app_context():
+            from app.reminders.tracking import sign_click
+            blob = sign_click(log.token, 'javascript:alert(1)')
+
+        resp = client.get(f'/r/c/{blob}', follow_redirects=False)
+        assert resp.status_code == 400
+
+    def test_campaign_stats_aggregate(self, app, db_session):
+        user = _make_user(db_session)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        # 2 sent, 1 opened, 1 clicked for 'comeback'
+        db_session.add_all([
+            ReminderLog(user_id=user.id, template='comeback', subject='s',
+                        sent_by=user.id, token='cmb_a' * 6,
+                        opened_at=now, open_count=1,
+                        clicked_at=now, click_count=1),
+            ReminderLog(user_id=user.id, template='comeback', subject='s',
+                        sent_by=user.id, token='cmb_b' * 6),
+        ])
+        db_session.commit()
+
+        with app.app_context():
+            from app.reminders.routes import _campaign_engagement_stats
+            stats = _campaign_engagement_stats()
+
+        comeback = next((s for s in stats if s['template'] == 'comeback'), None)
+        assert comeback is not None
+        assert comeback['sent'] >= 2
+        assert comeback['opened'] >= 1
+        assert comeback['clicked'] >= 1
+        assert comeback['open_rate'] > 0
+        assert comeback['click_rate'] > 0
