@@ -456,7 +456,7 @@ function showResult(data) {
     // из lesson_base_template — единая плашка «Урок завершён!» + CTA
     // «К списку уроков» / «Следующий урок», как у всех остальных уроков.
     if (typeof window.showLessonCompletion === 'function') {
-      const dpCtx = data.daily_plan_ctx || {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+      const dpCtx = data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
       window.showLessonCompletion({ score: 100, daily_plan_ctx: dpCtx });
     }
   } else {
@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', function _restoreCompleted() {
   const readiness = document.getElementById('wp-readiness');
   if (readiness) readiness.hidden = true;
   if (typeof window.showLessonCompletion === 'function') {
-    const dpCtx = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+    const dpCtx = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
     window.showLessonCompletion({ score: 100, silent: true, daily_plan_ctx: dpCtx });
   }
 });

@@ -331,7 +331,7 @@ const totalPairs = {{ pairs | length }};
 // re-submitting to the API.
 const isAlreadyCompleted = {{ 'true' if is_completed else 'false' }};
 const cachedNextLessonUrl = {{ next_lesson_url | tojson if next_lesson_url else 'null' }};
-const DAILY_PLAN_CTX = {{ daily_plan_ctx.to_dict() | tojson if daily_plan_ctx else '{"is_daily_plan": false}' }};
+const DAILY_PLAN_CTX = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
 // URL of the parent module's lessons page — destination for "К списку уроков"
 // (kept distinct from the global /learn/ index).
 const moduleUrl = {{ module_url | tojson }};
