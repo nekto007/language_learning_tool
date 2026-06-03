@@ -127,28 +127,46 @@ class TestWasRecentlyReminded:
 # ---------------------------------------------------------------------------
 
 class TestUnsubscribeNoAuth:
-    def test_unsubscribe_works_without_login(self, client, db_session):
-        """GET /unsubscribe?token=... must work for unauthenticated users."""
+    def test_unsubscribe_get_shows_confirmation_without_opting_out(self, client, db_session):
+        """GET only shows confirmation — prevents accidental opt-out via mail client prefetch."""
         user = _make_user(db_session)
         user.email_unsubscribe_token = 'test_tok_' + uuid.uuid4().hex[:8]
         db_session.commit()
 
-        resp = client.get(f'/unsubscribe?token={user.email_unsubscribe_token}',
-                          follow_redirects=True)
+        resp = client.get(f'/unsubscribe?token={user.email_unsubscribe_token}')
         assert resp.status_code == 200
-        # token cleared, opted_out set
+        assert 'Да, отписаться'.encode('utf-8') in resp.data
+
+        from app.utils.db import db as _db
+        _db.session.refresh(user)
+        assert user.email_opted_out is False
+        assert user.email_unsubscribe_token is not None
+
+    def test_unsubscribe_post_opts_out(self, client, db_session, app):
+        user = _make_user(db_session)
+        user.email_unsubscribe_token = 'test_tok_' + uuid.uuid4().hex[:8]
+        db_session.commit()
+        token = user.email_unsubscribe_token
+
+        resp = client.post('/unsubscribe', data={'token': token})
+        assert resp.status_code == 200
+        assert 'Готово'.encode('utf-8') in resp.data
+
         from app.utils.db import db as _db
         _db.session.refresh(user)
         assert user.email_opted_out is True
         assert user.email_unsubscribe_token is None
 
-    def test_unsubscribe_invalid_token_does_not_crash(self, client):
-        resp = client.get('/unsubscribe?token=nonexistent_token', follow_redirects=True)
+    def test_unsubscribe_invalid_token_shows_idempotent_done(self, client):
+        """Unknown token → friendly already-done page (200), not an error."""
+        resp = client.get('/unsubscribe?token=nonexistent_token')
         assert resp.status_code == 200
+        assert 'уже отписаны'.encode('utf-8') in resp.data
 
-    def test_unsubscribe_missing_token_does_not_crash(self, client):
-        resp = client.get('/unsubscribe', follow_redirects=True)
-        assert resp.status_code == 200
+    def test_unsubscribe_missing_token_shows_error(self, client):
+        resp = client.get('/unsubscribe')
+        assert resp.status_code == 400
+        assert 'отписки'.encode('utf-8') in resp.data
 
 
 # ---------------------------------------------------------------------------

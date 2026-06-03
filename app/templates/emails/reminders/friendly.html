@@ -54,6 +54,9 @@
                 © {{ now.year }} LLT English. Вы получили это письмо, потому что зарегистрированы на LLT English.
             </p>
             <p style="margin:0;">
+                {% set _tg_url = 'https://t.me/llt_english_com' %}
+                <a href="{{ tracked(_tg_url) if tracked else _tg_url }}" style="color:#777;">Telegram-канал</a>
+                &nbsp;|&nbsp;
                 <a href="{{ url_for('study.settings', _external=True) }}" style="color:#777;">Настройки уведомлений</a>
                 {% if unsubscribe_token %}
                     &nbsp;|&nbsp;

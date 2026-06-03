@@ -106,7 +106,9 @@
       <div class="footer">
         <p>Вы получили это письмо, потому что зарегистрированы на LLT English и включили email-напоминания.</p>
         <p>
-          <a href="{{ links.settings }}">Настройки уведомлений</a>
+          {% set _tg_url = 'https://t.me/llt_english_com' %}
+          <a href="{{ tracked(_tg_url) if tracked else _tg_url }}">Telegram-канал</a>
+          · <a href="{{ links.settings }}">Настройки уведомлений</a>
           {% if unsubscribe_token %} · <a href="{{ url_for('auth.unsubscribe', token=unsubscribe_token, _external=True) }}">Отписаться</a>{% endif %}
         </p>
         <p>© {{ now.year }} LLT English</p>

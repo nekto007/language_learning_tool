@@ -47,6 +47,9 @@
         <div style="text-align:center; padding:32px 20px 0; font-size:13px; color:#999;">
             <p style="margin:0 0 8px;">Вы получили это письмо, потому что зарегистрированы на LLT English.</p>
             <p style="margin:0;">
+                {% set _tg_url = 'https://t.me/llt_english_com' %}
+                <a href="{{ tracked(_tg_url) if tracked else _tg_url }}" style="color:#777;">Telegram-канал</a>
+                &nbsp;|&nbsp;
                 <a href="{{ url_for('study.settings', _external=True) }}" style="color:#777;">Настройки уведомлений</a>
                 {% if unsubscribe_token %}
                     &nbsp;|&nbsp;
