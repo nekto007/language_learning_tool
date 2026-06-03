@@ -66,10 +66,35 @@
     position: relative;
     background: var(--vocab-gradient);
     border-radius: var(--vocab-radius);
-    padding: 2rem 2rem 1.5rem;
+    padding: 0.75rem 2rem;
     margin-bottom: 1.5rem;
     overflow: hidden;
     color: #fff;
+    display: flex;
+    align-items: stretch;
+    gap: 1.5rem;
+    min-height: 160px;
+}
+.vocab-hero__visual {
+    flex: 0 0 180px;
+    align-self: flex-end;
+    position: relative;
+    z-index: 1;
+    margin-bottom: -0.75rem;  /* let illustration kiss the bottom edge */
+}
+.vocab-hero__visual-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+    object-fit: contain;
+    object-position: bottom center;
+    filter: drop-shadow(0 10px 16px rgba(30, 64, 175, 0.3));
+}
+@media (max-width: 720px) {
+    .vocab-hero { flex-direction: column; min-height: 0; padding: 1rem 1.25rem; gap: 0.75rem; }
+    .vocab-hero__visual { flex: 0 0 auto; align-self: center; margin-bottom: 0; }
+    .vocab-hero__visual-img { max-height: 150px; }
 }
 
 .vocab-hero__shapes {
@@ -117,6 +142,11 @@
 .vocab-hero__content {
     position: relative;
     z-index: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .vocab-hero__top {
@@ -124,7 +154,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.75rem;
 }
 
 .vocab-hero__title-group {
@@ -1311,6 +1341,14 @@
             <div class="vocab-hero__circle vocab-hero__circle--3"></div>
         </div>
 
+        <div class="vocab-hero__visual" aria-hidden="true">
+            <img src="{{ url_for('static', filename='media/words.png') }}"
+                 alt=""
+                 class="vocab-hero__visual-img"
+                 loading="eager"
+                 decoding="async">
+        </div>
+
         <div class="vocab-hero__content">
             <div class="vocab-hero__top">
                 <div class="vocab-hero__title-group">
@@ -1322,10 +1360,6 @@
                         <p class="vocab-hero__subtitle">{{ _('Изучайте новые слова и отслеживайте прогресс') }}</p>
                     </div>
                 </div>
-                <a href="{{ url_for('words.dashboard') }}" class="vocab-hero__back">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                    {{ _('К панели') }}
-                </a>
             </div>
 
             {% if words %}
