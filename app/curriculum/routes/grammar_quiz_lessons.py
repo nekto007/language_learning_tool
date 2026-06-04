@@ -1210,13 +1210,24 @@ def final_test_results(lesson_id):
 
     next_lesson = get_next_lesson(lesson.id)
 
+    # Legacy / partial progress.data rows may be missing keys the template
+    # reads directly (results.score / .correct_answers / .total_questions /
+    # .feedback) — Jinja then raises UndefinedError on first miss. Fill the
+    # safe defaults from progress.score and the lesson content so the page
+    # always renders, even for incomplete attempt history.
+    results = dict(progress.data or {})
+    results.setdefault('score', progress.score or 0)
+    results.setdefault('correct_answers', 0)
+    results.setdefault('total_questions', len(questions))
+    results.setdefault('feedback', {})
+
     return render_template(
         'curriculum/lessons/final_test_results.html',
         lesson=lesson,
         questions=questions,
         exercises=questions,
         progress=progress,
-        results=progress.data,
+        results=results,
         next_lesson=next_lesson,
         passing_score=passing_score,
         passed=progress.score >= passing_score if progress.score else False
