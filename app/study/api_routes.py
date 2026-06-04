@@ -287,33 +287,34 @@ def get_study_items():
             query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
         return query
 
-    # PRIORITY 1: RELEARNING cards
-    if remaining_reviews > 0:
-        relearning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
-            UserCardDirection.state == CardState.RELEARNING.value
-        ).order_by(
-            UserCardDirection.next_review
-        ).limit(remaining_reviews).all()
+    # PRIORITY 1: RELEARNING cards.
+    # NOT gated by remaining_reviews — Anki convention is that once a card
+    # is in (re)learning it must be finished, otherwise it rots half-learnt.
+    # The unified plan slot (build_srs_item) treats learning_due as
+    # uncapped too; this branch must agree, or the plan tile says "67 due"
+    # and clicking it lands on an empty queue (Bug from prod after fix).
+    relearning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
+        UserCardDirection.state == CardState.RELEARNING.value
+    ).order_by(
+        UserCardDirection.next_review
+    ).all()
 
-        for direction in relearning_cards:
-            word = direction.user_word.word
-            if word and word.russian_word:
-                result_items.append(format_card(direction, word, 'relearning'))
-        remaining_reviews -= len(relearning_cards)
+    for direction in relearning_cards:
+        word = direction.user_word.word
+        if word and word.russian_word:
+            result_items.append(format_card(direction, word, 'relearning'))
 
-    # PRIORITY 2: LEARNING cards
-    if remaining_reviews > 0:
-        learning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
-            UserCardDirection.state == CardState.LEARNING.value
-        ).order_by(
-            UserCardDirection.next_review
-        ).limit(remaining_reviews).all()
+    # PRIORITY 2: LEARNING cards — same uncapped semantics as relearning.
+    learning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
+        UserCardDirection.state == CardState.LEARNING.value
+    ).order_by(
+        UserCardDirection.next_review
+    ).all()
 
-        for direction in learning_cards:
-            word = direction.user_word.word
-            if word and word.russian_word:
-                result_items.append(format_card(direction, word, 'learning'))
-        remaining_reviews -= len(learning_cards)
+    for direction in learning_cards:
+        word = direction.user_word.word
+        if word and word.russian_word:
+            result_items.append(format_card(direction, word, 'learning'))
 
     # PRIORITY 2.5: NEW state cards (already have UserWord entries)
     if remaining_new > 0:
