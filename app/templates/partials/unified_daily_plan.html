@@ -342,6 +342,15 @@
           {% set _is_current = (not u_optional_locked) and (loop.index0 == u_optional_current_idx) %}
           {% set _is_step_locked = (not u_optional_locked) and (not _completed) and (not _is_current) %}
           {% set _is_locked_any = u_optional_locked or _is_step_locked %}
+          {# Type eyebrow — same resolution as required so bonus reads
+             consistently ("АУДИРОВАНИЕ", "ГРАММАТИКА" etc.) instead of
+             leaking the type inline in the title. #}
+          {% set _label = '' %}
+          {% if _kind == 'curriculum' %}
+              {% set _label = lesson_kind_labels.get(item.get('lesson_type'), 'Урок курса') %}
+          {% elif _kind in kind_section_labels %}
+              {% set _label = kind_section_labels[_kind] %}
+          {% endif %}
           <li class="plan-item plan-item--{{ _kind }} plan-item--optional{% if _is_locked_any %} plan-item--optional-locked{% endif %}{% if _completed %} plan-item--compact{% endif %}"
               data-plan-item="true"
               data-item-id="{{ _id }}"
@@ -352,6 +361,9 @@
               {% if _completed %}&#10003;{% elif _is_challenge and _bonus %}+{{ _bonus }} XP{% else %}Бонус{% endif %}
             </span>
             <div class="plan-item__body">
+              {% if _label %}
+                <span class="plan-item__kind-label">{{ _label }}</span>
+              {% endif %}
               {% if _is_locked_any %}
                 <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
                 {% if _is_step_locked %}
