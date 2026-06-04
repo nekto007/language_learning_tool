@@ -18,6 +18,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="{{ request.base_url }}">
 {% endblock %}
+{% block og_image %}{{ url_for('static', filename='img/dictionary_og.png', _external=True) }}{% endblock %}
 
 {% block head_extra %}
 {% set _page_num = words_page.page if words_page else 1 %}
