@@ -685,7 +685,9 @@ class TestGrammarReviewItemBuilder:
         assert item is not None
         assert item.kind == 'grammar_review'
         assert item.id == f'grammar_review:topic:{topic.id}'
-        assert item.url == f'/grammar-lab/topic/{topic.slug}'
+        # Bug #1 fix: link the practice queue (where the user does
+        # exercises), not the topic detail page (theory only).
+        assert item.url == f'/grammar-lab/practice/topic/{topic.id}'
         assert item.eta_minutes == 10
         assert item.completed is False
 

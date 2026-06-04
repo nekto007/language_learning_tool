@@ -72,7 +72,10 @@ def build_grammar_review_item(
     if topic is None:
         return None
 
-    url = f'/grammar-lab/topic/{topic.slug}'
+    # Grammar review = doing exercises, not reading theory. Point straight
+    # at /practice/topic/<id> so "Следующий шаг" from the daily plan lands
+    # on the practice queue instead of the topic detail page (Bug #1).
+    url = f'/grammar-lab/practice/topic/{topic.id}'
     completed = _grammar_reviewed_today(user_id, db)
 
     return PlanItem(
