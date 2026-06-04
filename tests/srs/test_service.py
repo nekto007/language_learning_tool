@@ -259,9 +259,15 @@ class TestAdaptiveLimitReason:
         assert new == 0
         assert reviews == 0
 
-    def test_critical_from_backlog(self, db_session):
-        """50 overdue REVIEW cards with reviews_per_day=10 → 5 days behind →
-        critical tier (NEW=0, REVIEW=20% of 100=20)."""
+    def test_backlog_caps_new_but_not_reviews(self, db_session):
+        """51 overdue REVIEW cards with reviews_per_day=10 = 5+ days behind.
+
+        After Bug #2 fix: backlog throttles NEW only — REVIEW stays at
+        accuracy_pct. So with normal accuracy:
+          new   → 0  (critical-tier backlog cap)
+          reviews → 10 (100% of base 10, because reviews are how the
+                        user reduces the backlog).
+        """
         user = _make_user(db_session)
         _make_settings(db_session, user, new_per_day=10)
         past = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=2)
@@ -279,17 +285,15 @@ class TestAdaptiveLimitReason:
             card.next_review = past
             db_session.add(card)
         db_session.commit()
-        # base reviews_per_day from _make_settings = 100 → 51/100 = 0.51 days
-        # behind, normal. To force critical we adjust:
-        # 51 overdue with reviews_per_day=10 = 5.1 days behind → critical.
         from app.study.models import StudySettings
         s = StudySettings.query.filter_by(user_id=user.id).first()
         s.reviews_per_day = 10
         db_session.commit()
-        assert SRSService.get_adaptive_limit_reason(user.id) == 'critical'
+        # Tier label reflects accuracy only — accuracy 90% → normal.
+        assert SRSService.get_adaptive_limit_reason(user.id) == 'normal'
         new, reviews = SRSService.get_adaptive_limits(user.id)
-        assert new == 0
-        assert reviews == 2  # 20% of 10
+        assert new == 0    # backlog "critical" → NEW capped at 0%
+        assert reviews == 10  # accuracy normal → REVIEW unchanged
 
 
 class TestAdaptiveTierLadder:
@@ -328,50 +332,49 @@ class TestAdaptiveTierLadder:
 
     def test_rest_day_at_floor_after_drop(self, db_session):
         """Day 1 after drop: still at floor (no climb yet)."""
-        from datetime import date, timedelta as td
+        from datetime import timedelta as td
+        from app.utils.time_utils import get_user_local_date
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        # No bad-accuracy data → target='normal'. But stored floor='collapse'
-        # from yesterday → ladder uses floor, days_since=1 → stays at collapse.
-        yesterday = date.today() - td(days=1)
-        self._store_floor(db_session, user, 'collapse', yesterday)
+        today = get_user_local_date(user.id)
+        self._store_floor(db_session, user, 'collapse', today - td(days=1))
         assert SRSService.get_adaptive_limit_reason(user.id) == 'collapse'
 
     def test_climb_one_tier_two_days_after_drop(self, db_session):
         """Day 2 after drop: climb one tier (collapse → critical)."""
-        from datetime import date, timedelta as td
+        from datetime import timedelta as td
+        from app.utils.time_utils import get_user_local_date
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        two_days_ago = date.today() - td(days=2)
-        self._store_floor(db_session, user, 'collapse', two_days_ago)
+        today = get_user_local_date(user.id)
+        self._store_floor(db_session, user, 'collapse', today - td(days=2))
         assert SRSService.get_adaptive_limit_reason(user.id) == 'critical'
 
     def test_full_climb_back_to_normal(self, db_session):
         """Day 4 after collapse drop: reached normal."""
-        from datetime import date, timedelta as td
+        from datetime import timedelta as td
+        from app.utils.time_utils import get_user_local_date
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        four_days_ago = date.today() - td(days=4)
-        self._store_floor(db_session, user, 'collapse', four_days_ago)
+        today = get_user_local_date(user.id)
+        self._store_floor(db_session, user, 'collapse', today - td(days=4))
         assert SRSService.get_adaptive_limit_reason(user.id) == 'normal'
 
     def test_drop_during_climb_resets_floor(self, db_session):
         """If accuracy crashes mid-recovery, immediate drop to new floor."""
-        from datetime import date, timedelta as td
+        from datetime import timedelta as td
+        from app.utils.time_utils import get_user_local_date
         from app.achievements.models import UserStatistics
 
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        # Was at 'low' (one rung from normal), 2 days ago.
-        two_days_ago = date.today() - td(days=2)
-        self._store_floor(db_session, user, 'low', two_days_ago)
-        # Now seed collapse-level accuracy.
+        today = get_user_local_date(user.id)
+        self._store_floor(db_session, user, 'low', today - td(days=2))
         self._seed_collapse(db_session, user)
-        # record_tier_state must overwrite stored floor.
         SRSService.record_tier_state(user.id)
         stats = UserStatistics.query.filter_by(user_id=user.id).first()
         assert stats.adaptive_tier_floor == 'collapse'
-        assert stats.adaptive_tier_floor_date == date.today()
+        assert stats.adaptive_tier_floor_date == today
 
 
 class TestGradeCardPessimisticLock:

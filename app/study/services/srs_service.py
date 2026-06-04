@@ -288,14 +288,20 @@ class SRSService:
 
     @staticmethod
     def _resolve_tier(user_id: int) -> Tuple[str, bool, str, 'date | None']:
-        """Pure read: compute effective tier and whether a new drop fires.
+        """Pure read: compute effective accuracy tier (drop ladder).
 
         Returns ``(current_tier, is_new_drop, new_floor, new_floor_date)``.
         Caller may persist ``new_floor`` / ``new_floor_date`` to
         ``UserStatistics`` when ``is_new_drop`` is True.
 
+        **Backlog is NOT considered here** — that signal only throttles
+        NEW cards and is applied separately in ``_compute_adaptive_state``.
+        Otherwise a huge overdue pile would collapse the tier and zero out
+        REVIEW too, blocking the only way the user can reduce that pile
+        (Bug #2 in the post-deploy report).
+
         Algorithm:
-        - Target = worse(accuracy_tier, backlog_tier) based on current data.
+        - Target = accuracy_tier based on last REVIEW grades.
         - Ladder = climb from stored floor by (days_since_drop - 1) tiers.
         - If target is worse than ladder → new drop, target wins, floor reset.
         - Otherwise → ladder tier (gradual recovery).
@@ -315,11 +321,7 @@ class SRSService:
         stored_floor_date = stats.adaptive_tier_floor_date if stats else None
 
         accuracy = SRSService._accuracy_on_recent_reviews(user_id, base_reviews)
-        overdue = SRSService._overdue_review_count(user_id)
-        target_tier = SRSService._worse_tier(
-            SRSService._tier_from_accuracy(accuracy),
-            SRSService._tier_from_backlog(overdue, base_reviews),
-        )
+        target_tier = SRSService._tier_from_accuracy(accuracy)
         target_idx = SRSService.TIER_ORDER.index(target_tier)
 
         today_local = get_user_local_date(user_id)
@@ -385,19 +387,32 @@ class SRSService:
 
     @staticmethod
     def _compute_adaptive_state(user_id: int) -> Tuple[int, int, str]:
-        """Internal: returns (adaptive_new, adaptive_reviews, tier).
+        """Internal: returns (adaptive_new, adaptive_reviews, accuracy_tier).
 
-        ``tier`` ∈ {'normal', 'low', 'critical', 'collapse'} replaces the
-        old reasons {'normal', 'accuracy_low', 'backlog_reduction'}.
+        ``accuracy_tier`` ∈ {'normal', 'low', 'critical', 'collapse'} is
+        the accuracy-driven recovery tier (drives ``review`` and ``new``).
+
+        Backlog is folded in separately: it only caps NEW (cf. Bug #2 —
+        a huge overdue pile must not zero out reviews because reviews
+        are exactly how the user works through that pile).
         """
         settings = StudySettings.get_settings(user_id)
         base_new = settings.new_words_per_day or 0
         base_reviews = settings.reviews_per_day or 0
 
         current_tier, _, _, _ = SRSService._resolve_tier(user_id)
-        pct = SRSService.TIER_PCT[current_tier]
-        adaptive_new = max(0, round(base_new * pct['new']))
-        adaptive_reviews = max(0, round(base_reviews * pct['review']))
+        accuracy_pct = SRSService.TIER_PCT[current_tier]
+
+        # Backlog throttle on NEW only.
+        overdue = SRSService._overdue_review_count(user_id)
+        backlog_tier = SRSService._tier_from_backlog(overdue, base_reviews)
+        backlog_new_pct = SRSService.TIER_PCT[backlog_tier]['new']
+
+        new_pct = min(accuracy_pct['new'], backlog_new_pct)
+        review_pct = accuracy_pct['review']
+
+        adaptive_new = max(0, round(base_new * new_pct))
+        adaptive_reviews = max(0, round(base_reviews * review_pct))
         return (adaptive_new, adaptive_reviews, current_tier)
 
     @staticmethod
