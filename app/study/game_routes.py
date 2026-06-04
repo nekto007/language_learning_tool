@@ -165,6 +165,9 @@ def quiz_auto():
 @login_required
 @module_required('study')
 def quiz_linear_plan():
+    from app.daily_plan.linear.lesson_context import build_lesson_context
+    from app.utils.db import db as _db
+
     settings = StudySettings.get_settings(current_user.id)
     word_limit = request.args.get(
         'limit',
@@ -177,6 +180,15 @@ def quiz_linear_plan():
     )
     session = SessionService.start_session(current_user.id, 'quiz')
 
+    # Bug #4: deck-quiz invoked from the daily-plan SRS slot — the
+    # completion screen must show the same dashboard / next-slot CTAs
+    # the lesson pages use, instead of bare «Назад».
+    daily_plan_ctx = build_lesson_context(
+        current_user.id, _db,
+        from_param='linear_plan',
+        slot_param='srs',
+    )
+
     return render_template(
         'study/quiz.html',
         session_id=session.id,
@@ -185,6 +197,7 @@ def quiz_linear_plan():
         deck_id=None,
         deck_title='Квиз по словам из колод',
         word_limit=word_limit,
+        daily_plan_ctx=daily_plan_ctx,
     )
 
 
