@@ -71,20 +71,27 @@
 {# Resolve per-item completion + locate the first actionable required index.
    "Actionable" = not completed, not skipped, not blocked. Skipped items
    stay visible (with a return CTA) but don't count as current. #}
-{% set ns = namespace(done=0, current_idx=-1) %}
+{% set ns = namespace(done=0, skipped=0, current_idx=-1) %}
 {% for item in u_required %}
     {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
     {% set _skipped = item.get('skipped', false) %}
     {% set _blocked = item.get('blocked', false) %}
     {% if _completed %}
         {% set ns.done = ns.done + 1 %}
-    {% elif ns.current_idx == -1 and not _skipped and not _blocked %}
+    {% elif _skipped %}
+        {% set ns.skipped = ns.skipped + 1 %}
+    {% elif ns.current_idx == -1 and not _blocked %}
         {% set ns.current_idx = loop.index0 %}
     {% endif %}
 {% endfor %}
 {% set u_required_done = ns.done %}
 {% set u_required_total = u_required | length %}
 {% set u_current_idx = ns.current_idx %}
+{# Bonus unlock = all required items either completed OR skipped. Skipped
+   slots don't satisfy the streak/rank day_secured rule (server-side, by
+   design), but they should still let the user open bonus exercises —
+   otherwise skipping is double punishment (Bug #3 from prod). #}
+{% set u_required_settled = (ns.done + ns.skipped) >= u_required_total and u_required_total > 0 %}
 
 {# Pre-count kinds across required so duplicate eyebrows can disambiguate
    themselves with a "(2/3)" suffix. Without this, two listening or two
@@ -386,7 +393,11 @@
      CTAs; post-secured the same list becomes fully active with «Начать»
      buttons. The user has clear motivation: finish required → unlock these. #}
   {% if u_optional %}
-    {% set u_optional_locked = not u_day_secured %}
+    {# Unlock when day_secured (all required completed) OR when every
+       required is at least settled (completed-or-skipped). Lets a user
+       who skipped a slot still open bonus content without forcing them
+       to redo what they just chose to skip. #}
+    {% set u_optional_locked = not (u_day_secured or u_required_settled) %}
     {# Sequentially unlock optional items: same UX as required slots — the
        first not-yet-done item is `current`, every later item is `locked`
        until the previous one is completed. Pre-day_secured the whole
