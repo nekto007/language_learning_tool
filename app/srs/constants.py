@@ -70,6 +70,13 @@ DEFAULT_EASE_FACTOR = 2.5
 MIN_EASE_FACTOR = 1.3
 MAX_EASE_FACTOR = 2.8  # Anki allows up to 2.8, not 2.5
 
+# Hard ceiling on REVIEW interval (Раздел 12). Without it, well-known cards
+# drift to 180+ day cycles where the user may forget them entirely. Capping
+# at 60 days = at most one "wake up" reminder every two months for fully
+# mastered material — negligible load (~10 sec/card * 6 = 1 min/year), big
+# safety net against silent erosion.
+MAX_REVIEW_INTERVAL_DAYS = 60
+
 # Ease factor adjustments
 EF_DECREASE_LAPSE = 0.20     # Failed REVIEW: decrease by 0.20
 EF_DECREASE_HARD = 0.15      # Rating 2 on REVIEW: decrease by 0.15
@@ -95,7 +102,13 @@ EF_INCREASE_KNOW = 0.15
 LAPSE_NEW_INTERVAL_PERCENT = 0  # New interval = 0% of old (i.e., reset to 1 day)
 LAPSE_MINIMUM_INTERVAL = 1      # Minimum interval after lapse (days)
 LEECH_THRESHOLD = 6             # Card becomes a "leech" after 6 lapses (was 8)
-LEECH_SUSPEND_DAYS = 7          # When leech threshold reached, bury card for 7 days
+LEECH_SUSPEND_DAYS = 7          # Base bury duration at leech threshold (first bury)
+
+# Progressive bury (Раздел 9): each consecutive bury without an intervening
+# successful review extends the next interval. ``bury_days = base * (1+n)``
+# capped at MAX_LEECH_SUSPEND_DAYS. Counter on UserCardDirection.
+# Sequence: 7, 14, 21, 28, 35, 42, 49, 56, 63, 70, 77, 84, 90, 90, …
+MAX_LEECH_SUSPEND_DAYS = 90
 
 # =============================================================================
 # CARD STATUSES (UserWord level)

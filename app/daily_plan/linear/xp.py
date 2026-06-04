@@ -264,6 +264,78 @@ def maybe_award_srs_global_xp(
     )
 
 
+def is_srs_slot_completed_today(user_id: int, db_session: Any) -> bool:
+    """Return True when the linear SRS slot is done for today.
+
+    Primary signal: a ``StreakEvent`` with source ``linear_srs_global``
+    exists for the user's local date. Fallback (Раздел 8 of
+    docs/srs-fix-plan.md): if no event was recorded but the universal
+    pool is exhausted AND the user clearly graded cards today (XP/event
+    write must have been lost between grade and complete-session), fire
+    a corrective idempotent award and return True. The award uses the
+    same key as the normal path — duplicates are silently ignored.
+
+    Reconciliation is a side effect of a read path; the corrective call
+    only flushes (no commit), so if the caller's transaction rolls back
+    the next page load triggers reconciliation again — idempotent.
+    """
+    from app.achievements.models import StreakEvent
+
+    db_obj = db_session
+    today = get_linear_event_local_date(user_id, db_obj)
+    has_event = db_obj.session.query(
+        db_obj.session.query(StreakEvent).filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
+            StreakEvent.event_date == today,
+            StreakEvent.details['source'].astext == 'linear_srs_global',
+        ).exists()
+    ).scalar() or False
+    if has_event:
+        return True
+
+    # No event — look for fallback signal.
+    from app.srs.constants import CardState
+    from app.srs.counting import (
+        count_due_by_states,
+        count_new_cards_today,
+        count_pending_new,
+        count_reviews_today,
+        get_new_card_budget,
+    )
+
+    activity = count_reviews_today(user_id, db_obj) + count_new_cards_today(user_id, db_obj)
+    if activity <= 0:
+        return False
+
+    new_pending = count_pending_new(user_id, db_obj)
+    learning_due = count_due_by_states(
+        user_id, db_obj,
+        states=(CardState.LEARNING.value, CardState.RELEARNING.value),
+    )
+    review_due = count_due_by_states(
+        user_id, db_obj, states=(CardState.REVIEW.value,),
+    )
+    remaining_new, remaining_reviews = get_new_card_budget(user_id, db_obj)
+    pool = (
+        min(new_pending, remaining_new)
+        + learning_due
+        + min(review_due, remaining_reviews)
+    )
+    if pool > 0:
+        return False
+
+    try:
+        award_linear_slot_xp_idempotent(
+            user_id, 'linear_srs_global', today, db_session=db_obj,
+        )
+    except Exception:
+        logger.exception(
+            'is_srs_slot_completed_today: corrective XP failed user=%s', user_id,
+        )
+    return True
+
+
 def maybe_award_book_srs_xp(
     user_id: int,
     for_date: Optional[date_cls] = None,

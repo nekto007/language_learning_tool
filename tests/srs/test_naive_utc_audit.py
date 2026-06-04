@@ -6,13 +6,9 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from app.auth.models import User
-from app.daily_plan.linear.slots.srs_slot import (
-    _today_start,
-    count_srs_due_cards,
-    get_linear_plan_due_mix_cards,
-)
 from app.daily_plan.next_step import _check_srs_due
 from app.srs.constants import CardState
+from app.srs.counting import count_due_cards
 from app.study.models import UserCardDirection, UserWord
 from app.study.services.srs_service import SRSService
 from app.utils.db import db as real_db
@@ -58,25 +54,12 @@ def _seed_due_card(db_session, user: User) -> UserCardDirection:
     return direction
 
 
-def test_today_start_is_naive():
-    start = _today_start()
-    assert start.tzinfo is None
-
-
-def test_count_srs_due_cards_handles_naive_column(db_session):
+def test_count_due_cards_handles_naive_column(db_session):
     user = _user(db_session)
     _seed_due_card(db_session, user)
     # Must not raise TypeError (naive vs aware)
-    count = count_srs_due_cards(user.id, real_db)
+    count = count_due_cards(user.id, real_db)
     assert count >= 1
-
-
-def test_get_linear_plan_due_mix_cards_uses_naive_now(db_session):
-    user = _user(db_session)
-    _seed_due_card(db_session, user)
-    # Must not raise (the internal `now` must be naive)
-    cards = get_linear_plan_due_mix_cards(user.id, real_db, limit=5)
-    assert isinstance(cards, list)
 
 
 def test_check_srs_due_naive(db_session):

@@ -11,7 +11,8 @@ Design:
 - `count_due_cards` includes state IN (learning, relearning, review) and
   filters out `UserWord.status IN ('new','learning','review')` and
   buried cards. No mix filter — we count all due cards the user has.
-- `today_start` is naive UTC midnight (matches how /study tallies the day).
+- `today_start` is the user's local-day midnight projected to naive UTC
+  (matches XP/StreakEvent idempotency, prevents UTC-boundary skew).
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ from app.srs.constants import CardState
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db as _db
 from app.utils.db_utils import chunk_ids
+from app.utils.time_utils import day_to_naive_utc
 
 
 def _naive_utc_now(now_utc: Optional[datetime] = None) -> datetime:
@@ -34,9 +36,8 @@ def _naive_utc_now(now_utc: Optional[datetime] = None) -> datetime:
     return now_utc
 
 
-def _today_start_naive(now_utc: Optional[datetime] = None) -> datetime:
-    now = _naive_utc_now(now_utc)
-    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+def _today_start_naive(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> datetime:
+    return day_to_naive_utc(user_id, db, days_ahead=0, now_utc=now_utc)
 
 
 def count_due_cards(
@@ -47,8 +48,15 @@ def count_due_cards(
 ) -> int:
     """Count review/learning/relearning cards due for the user right now.
 
-    Includes all three due states. Excludes NEW state (not yet activated),
-    mastered UserWords, and currently-buried cards.
+    Includes all three due states. Excludes NEW state (not yet activated)
+    and currently-buried cards. Filters match `_get_due_cards` in
+    `app/srs/service.py` — counter must reflect what gets actually served.
+
+    `UserCardDirection.state` is authoritative; `UserWord.status` is a
+    derived UI label updated by `recalculate_status` after grading. Filtering
+    on the derived field hid cards whose parent status lagged behind a
+    direction grade (race or partial cleanup), so the counter drifted from
+    the queue. We trust the direction state directly.
 
     When ``word_ids`` is provided, restrict the count to cards whose underlying
     CollectionWord id is in that set — used by the mission assembler so its
@@ -61,7 +69,6 @@ def count_due_cards(
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
-            UserWord.status.in_(('new', 'learning', 'review')),
             UserCardDirection.state.in_(
                 (
                     CardState.LEARNING.value,
@@ -90,8 +97,8 @@ def count_due_cards(
 
 
 def count_new_cards_today(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
-    """Count card directions first reviewed today (naive UTC midnight boundary)."""
-    today_start = _today_start_naive(now_utc)
+    """Count card directions first reviewed today (user-local day boundary)."""
+    today_start = _today_start_naive(user_id, db, now_utc)
     user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
     return int(
         db.session.query(func.count(UserCardDirection.id))
@@ -128,9 +135,56 @@ def get_new_card_budget(
     )
 
 
+def count_due_by_states(
+    user_id: int,
+    db: Any = _db,
+    states: Sequence[str] = (),
+    now_utc: Optional[datetime] = None,
+) -> int:
+    """Count due directions filtered to specific SM-2 states.
+
+    Used by SRS-slot UI to split «N новых · L в изучении · R на повтор»
+    without rebuilding the same JOIN/where in three places.
+    """
+    if not states:
+        return 0
+    now = _naive_utc_now(now_utc)
+    return int(
+        db.session.query(func.count(UserCardDirection.id))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.state.in_(tuple(states)),
+            UserCardDirection.next_review <= now,
+            or_(
+                UserCardDirection.buried_until.is_(None),
+                UserCardDirection.buried_until <= now,
+            ),
+        )
+        .scalar() or 0
+    )
+
+
+def count_pending_new(user_id: int, db: Any = _db) -> int:
+    """Count NEW-state directions (started but never graded).
+
+    These are not «due now» (NEW has no scheduling), they form the new-card
+    pool the user can pick up within ``new_words_per_day`` budget.
+    """
+    return int(
+        db.session.query(func.count(UserCardDirection.id))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.state == CardState.NEW.value,
+        )
+        .scalar() or 0
+    )
+
+
 def count_reviews_today(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
     """Count card reviews that happened today excluding first-time reviews."""
-    today_start = _today_start_naive(now_utc)
+    today_start = _today_start_naive(user_id, db, now_utc)
     user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
     return int(
         db.session.query(func.count(UserCardDirection.id))

@@ -801,21 +801,19 @@ class TestSRSIgnoreDailyBudget:
 
     def test_ignore_daily_budget_surfaces_done_item_in_optional(self, app):
         """With ignore_daily_budget=True, 'done today' SRS item not filtered in optional."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
         from app.daily_plan.items.srs import build_srs_item
 
         with app.app_context():
             with patch('app.daily_plan.items.srs._srs_completed_today', return_value=True), \
-                 patch('app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards', return_value=0), \
                  patch('app.daily_plan.linear.slots.srs_slot.count_srs_reviews_today', return_value=5), \
-                 patch('app.srs.counting.count_due_cards', return_value=0), \
+                 patch('app.srs.counting.count_pending_new', return_value=0), \
+                 patch('app.srs.counting.count_due_by_states', return_value=0), \
                  patch('app.srs.counting.get_new_card_budget', return_value=(0, 0)), \
                  patch('app.srs.counting.count_new_cards_today', return_value=0), \
-                 patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'), \
-                 patch('app.study.models.StudySettings.get_settings') as mock_settings:
-                mock_settings.return_value = MagicMock(reviews_per_day=30)
-
-                db = MagicMock()
+                 patch('app.srs.counting.count_reviews_today', return_value=5), \
+                 patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'):
+                db = object()
                 item = build_srs_item(1, db, section='optional', ignore_daily_budget=True)
 
         assert item is not None, (
@@ -825,13 +823,19 @@ class TestSRSIgnoreDailyBudget:
 
     def test_without_ignore_daily_budget_filters_done_optional(self, app):
         """Without the flag, the default behaviour still filters done SRS from optional."""
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
         from app.daily_plan.items.srs import build_srs_item
 
         with app.app_context():
             with patch('app.daily_plan.items.srs._srs_completed_today', return_value=True), \
-                 patch('app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards', return_value=0):
-                db = MagicMock()
+                 patch('app.daily_plan.linear.slots.srs_slot.count_srs_reviews_today', return_value=0), \
+                 patch('app.srs.counting.count_pending_new', return_value=0), \
+                 patch('app.srs.counting.count_due_by_states', return_value=0), \
+                 patch('app.srs.counting.get_new_card_budget', return_value=(0, 0)), \
+                 patch('app.srs.counting.count_new_cards_today', return_value=0), \
+                 patch('app.srs.counting.count_reviews_today', return_value=0), \
+                 patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'):
+                db = object()
                 item = build_srs_item(1, db, section='optional')
 
         assert item is None, (

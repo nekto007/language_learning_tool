@@ -29,18 +29,15 @@ _SRS_ITEM_ETA_MINUTES = 8
 
 
 def _srs_completed_today(user_id: int, db: Any) -> bool:
-    """Return True when the user earned SRS-slot XP today."""
-    from app.achievements.models import StreakEvent
-    from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
+    """Return True when the SRS slot is done for today.
 
-    today = get_linear_event_local_date(user_id, db)
-    query = db.session.query(StreakEvent).filter(
-        StreakEvent.user_id == user_id,
-        StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
-        StreakEvent.event_date == today,
-        StreakEvent.details['source'].astext == 'linear_srs_global',
-    )
-    return db.session.query(query.exists()).scalar() or False
+    Delegates to :func:`is_srs_slot_completed_today` so the primary
+    signal (StreakEvent XP entry) and the corrective-award fallback for
+    a lost ``complete-session`` write are shared with ``build_srs_slot``.
+    """
+    from app.daily_plan.linear.xp import is_srs_slot_completed_today
+
+    return is_srs_slot_completed_today(user_id, db)
 
 
 def build_srs_item(
@@ -59,84 +56,85 @@ def build_srs_item(
     None when due=0 AND no activity today (e.g. brand-new user with no
     cards yet).
     """
-    from app.daily_plan.linear.slots.srs_slot import (
-        count_linear_plan_srs_due_cards,
-        count_srs_reviews_today,
+    from app.daily_plan.linear.slots.srs_slot import count_srs_reviews_today
+    from app.srs.constants import CardState
+    from app.srs.counting import (
+        count_due_by_states,
+        count_new_cards_today,
+        count_pending_new,
+        count_reviews_today,
+        get_new_card_budget,
     )
-    from app.srs.counting import count_due_cards, count_new_cards_today, get_new_card_budget
-    from app.study.models import StudySettings
     from app.study.services import SRSService
 
-    due_count = count_linear_plan_srs_due_cards(user_id, db)
-    reviews_today = count_srs_reviews_today(user_id, db)
+    # Three-bucket model (Раздел 5 of docs/srs-fix-plan.md):
+    #   NEW       — capped by new_words_per_day × tier_pct
+    #   LEARNING  — always all due (commit semantics, Anki convention)
+    #   REVIEW    — capped by reviews_per_day × tier_pct
+    new_pending = count_pending_new(user_id, db)
+    learning_due = count_due_by_states(
+        user_id, db, states=(CardState.LEARNING.value, CardState.RELEARNING.value),
+    )
+    review_due = count_due_by_states(user_id, db, states=(CardState.REVIEW.value,))
+
+    remaining_new, remaining_reviews = get_new_card_budget(user_id, db)
+    new_show = min(new_pending, remaining_new)
+    review_show = min(review_due, remaining_reviews)
+    total_show = new_show + learning_due + review_show  # LEARNING uncapped
+
+    reviews_today_total = count_reviews_today(user_id, db)
+    new_today = count_new_cards_today(user_id, db)
     completed_today = _srs_completed_today(user_id, db)
 
-    if due_count <= 0 and not completed_today:
+    if total_show <= 0 and not completed_today:
         if not ignore_daily_budget:
             return None
-        # For graduated users (ignore_daily_budget=True): count_linear_plan_srs_due_cards
-        # is capped by the daily review budget, which may be 0 even when real cards are
-        # due. Check the raw backlog to decide whether to surface the item at all.
-        raw_due = count_due_cards(user_id, db)
-        if raw_due <= 0:
+        # Graduated users: even if budget is exhausted, show backlog if any.
+        raw_backlog = learning_due + review_due
+        if raw_backlog <= 0 and new_pending <= 0:
             return None
-        due_count = raw_due
+        total_show = raw_backlog + new_pending  # ignore budgets
 
-    # In optional, don't surface a "done today" placeholder — keep the
-    # bonus list focused on actionable items. Required keeps the done
-    # card so the user can see progress and the counter reflects it.
-    # Exception: when ignore_daily_budget=True (graduated users), keep
-    # the item visible in optional so the user can see their SRS work.
-    if section == 'optional' and due_count <= 0 and completed_today and not ignore_daily_budget:
+    if section == 'optional' and total_show <= 0 and completed_today and not ignore_daily_budget:
         return None
 
-    backlog = count_due_cards(user_id, db)
-    remaining_new, _ = get_new_card_budget(user_id, db)
-    settings = StudySettings.get_settings(user_id)
-    reviews_limit = max(int(settings.reviews_per_day or 0), 0)
-    new_today = count_new_cards_today(user_id, db)
-    limit_reason = SRSService.get_adaptive_limit_reason(user_id)
-
-    reviews_remaining = max(reviews_limit - reviews_today, 0)
-    limit_reached = reviews_limit > 0 and reviews_today >= reviews_limit
-    # Reason hint surfaces ONLY for pending SRS: a service explanation
-    # belongs on the actionable card, not on a closed one (otherwise it
-    # reads as «punishment after the step is already done»).
-    reason_hint = None
-    if due_count > 0:
-        if limit_reason == 'accuracy_low':
-            reason_hint = 'Точность ниже 85% — сосредоточьтесь на повторении'
-        elif limit_reason == 'backlog_reduction':
-            reason_hint = 'Лимит новых слов снижен — много просроченных карточек'
-        elif limit_reached:
-            reason_hint = 'Лимит повторений на сегодня достигнут'
+    tier = SRSService.get_adaptive_limit_reason(user_id)  # one of normal/low/critical/collapse
+    reason_hint: Optional[str] = None
+    if total_show > 0 and tier != 'normal':
+        reason_hint = {
+            'low':      'Точность ниже 85% — нагрузка снижена',
+            'critical': 'Точность ниже 70% — новые отключены, повторений мало',
+            'collapse': 'Точность ниже 50% — только текущее изучение',
+        }.get(tier)
 
     data: dict[str, Any] = {
-        'due_count': due_count,
-        'backlog_due_count': backlog,
-        'reviews_today': reviews_today,
-        'reviews_limit': reviews_limit,
-        'reviews_remaining': reviews_remaining,
-        'new_count': new_today,
-        'new_budget': remaining_new,
-        'budget_remaining': remaining_new,
-        'srs_limit_reason': limit_reason,
-        'limit_reached': limit_reached,
+        'new_show': new_show,
+        'learning_due': learning_due,
+        'review_show': review_show,
+        'total_show': total_show,
+        'new_pending': new_pending,
+        'review_due': review_due,
+        'new_today': new_today,
+        'reviews_today': reviews_today_total,
+        'remaining_new': remaining_new,
+        'remaining_reviews': remaining_reviews,
+        'srs_tier': tier,
         'reason_hint': reason_hint,
     }
 
-    if due_count <= 0 and completed_today:
-        # «Закрыто» (not «засчитано») avoids the «what was credited?»
-        # confusion when XP-counter elsewhere shows 0/30. The card states
-        # a fact (повторение закрыто), not a reward claim.
+    if total_show <= 0 and completed_today:
         title = 'Повторение закрыто'
-        subtitle = f'{reviews_today} карточек сегодня' if reviews_today else 'на сегодня всё'
+        subtitle = f'{reviews_today_total} карточек сегодня' if reviews_today_total else 'на сегодня всё'
     else:
-        title = f'Повторить {due_count} карточек'
-        subtitle_bits = [f'{due_count} к повторению']
-        if backlog > due_count:
-            subtitle_bits.append(f'в очереди ещё {backlog - due_count}')
-        subtitle = ' · '.join(subtitle_bits)
+        title = f'Повторение слов — {total_show}'
+        subtitle_bits = []
+        if new_show > 0:
+            subtitle_bits.append(f'{new_show} новых')
+        if learning_due > 0:
+            subtitle_bits.append(f'{learning_due} в изучении')
+        if review_show > 0:
+            subtitle_bits.append(f'{review_show} на повтор')
+        subtitle = ' · '.join(subtitle_bits) or 'все типы доступны'
 
     return PlanItem(
         id='srs:global',
@@ -145,7 +143,7 @@ def build_srs_item(
         title=title,
         subtitle=subtitle,
         lesson_type=None,
-        eta_minutes=0 if completed_today and due_count <= 0 else _SRS_ITEM_ETA_MINUTES,
+        eta_minutes=0 if completed_today and total_show <= 0 else _SRS_ITEM_ETA_MINUTES,
         url=build_slot_url('/study/cards?source=linear_plan', LinearSlotKind.SRS),
         completed=completed_today,
         completion_signal='srs_xp_earned',

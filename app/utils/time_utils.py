@@ -73,11 +73,53 @@ def get_user_local_day_bounds(
     compare against legacy ``DateTime`` columns that store UTC timestamps
     without tzinfo.
     """
+    start = day_to_naive_utc(user_id, db_session, days_ahead=0)
+    return (start, start + timedelta(days=1))
+
+
+def day_to_naive_utc(
+    user_id: int,
+    db_session: Any = None,
+    days_ahead: int = 0,
+    now_utc: Optional[datetime] = None,
+) -> datetime:
+    """Return midnight of ``(today_local + days_ahead)`` as naive UTC.
+
+    Single source of truth for SRS day-based scheduling and counters:
+    cards are always written/compared at the start of the user's local
+    day so that "today" semantics stay consistent across UTC boundaries.
+
+    ``now_utc`` lets tests freeze the reference clock (aware or naive UTC).
+    """
     tz_obj = _get_user_timezone(user_id, db_session)
-    local_today = datetime.now(tz_obj).date()
-    local_start = datetime.combine(local_today, time.min, tzinfo=tz_obj)
-    local_end = local_start + timedelta(days=1)
-    return (
-        local_start.astimezone(timezone.utc).replace(tzinfo=None),
-        local_end.astimezone(timezone.utc).replace(tzinfo=None),
-    )
+    if now_utc is None:
+        now_local = datetime.now(tz_obj)
+    else:
+        ref = now_utc if now_utc.tzinfo is not None else now_utc.replace(tzinfo=timezone.utc)
+        now_local = ref.astimezone(tz_obj)
+    target_local_date = (now_local + timedelta(days=days_ahead)).date()
+    target_local_midnight = datetime.combine(target_local_date, time.min, tzinfo=tz_obj)
+    return target_local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def minutes_to_day_offset(
+    user_id: int,
+    db_session: Any = None,
+    minutes: int = 0,
+    now_utc: Optional[datetime] = None,
+) -> int:
+    """How many local days from now ``minutes`` ahead lands on.
+
+    Used by SRS grading to translate intra-day learning steps (1/10/1440
+    min) into a day offset for ``next_review``: a 10-min step at 10:00 is
+    same-day (offset 0); the same step at 23:55 crosses to tomorrow
+    (offset 1).
+    """
+    tz_obj = _get_user_timezone(user_id, db_session)
+    if now_utc is None:
+        now_local = datetime.now(tz_obj)
+    else:
+        ref = now_utc if now_utc.tzinfo is not None else now_utc.replace(tzinfo=timezone.utc)
+        now_local = ref.astimezone(tz_obj)
+    target_local = now_local + timedelta(minutes=minutes)
+    return (target_local.date() - now_local.date()).days

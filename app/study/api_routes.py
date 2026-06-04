@@ -154,15 +154,14 @@ def get_study_items():
         new_cards_today = count_new_cards_today(current_user.id, db)
         reviews_today = count_reviews_today(current_user.id, db)
 
-        if is_linear_plan_srs:
-            from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
-
-            new_cards_limit = new_cards_today
-            reviews_limit = reviews_today + count_linear_plan_srs_due_cards(current_user.id, db)
-        else:
-            adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(current_user.id)
-            new_cards_limit = adaptive_new
-            reviews_limit = adaptive_reviews
+        # Linear-plan SRS slot uses the same adaptive budget as free study.
+        # Previously it forced new_limit=0 (no new cards) and inflated
+        # reviews_limit by the linear due count — both bypassed user
+        # preferences. Now the slot is a universal "daily review" pool:
+        # NEW + LEARNING/RELEARNING + REVIEW within the user's caps.
+        adaptive_new, adaptive_reviews = SRSService.get_adaptive_limits(current_user.id)
+        new_cards_limit = adaptive_new
+        reviews_limit = adaptive_reviews
 
     new_cards_limit_reached = new_cards_today >= new_cards_limit
     reviews_limit_reached = reviews_today >= reviews_limit
@@ -195,10 +194,7 @@ def get_study_items():
 
     result_items = []
 
-    if is_linear_plan_srs:
-        new_limit = 0
-        review_limit = max(0, reviews_limit - reviews_today)
-    elif extra_study:
+    if extra_study:
         new_limit = 5
         review_limit = 10
     else:
@@ -267,9 +263,10 @@ def get_study_items():
         else:
             due_filter = UserCardDirection.next_review <= now
 
+        # UserCardDirection.state is authoritative; UserWord.status is a
+        # derived UI label and may lag behind direction grades.
         filters = [
             UserWord.user_id == current_user.id,
-            UserWord.status.in_(['new', 'learning', 'review']),
             or_(
                 UserCardDirection.buried_until.is_(None),
                 UserCardDirection.buried_until <= now
@@ -327,7 +324,6 @@ def get_study_items():
             ) \
             .filter(
                 UserWord.user_id == current_user.id,
-                UserWord.status.in_(['new', 'learning', 'review']),
                 UserCardDirection.state == CardState.NEW.value,
                 or_(
                     UserCardDirection.next_review.is_(None),
@@ -681,22 +677,44 @@ def complete_session():
 
         if is_linear_plan_srs:
             try:
-                from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
                 from app.daily_plan.linear.xp import (
                     maybe_award_linear_perfect_day,
                     maybe_award_srs_global_xp,
                 )
+                from app.srs.counting import (
+                    count_due_by_states,
+                    count_pending_new,
+                    get_new_card_budget,
+                )
+                from app.srs.constants import CardState as _CS
 
-                remaining_due = count_linear_plan_srs_due_cards(current_user.id, db)
-                if remaining_due <= 0:
+                # Slot is "done" when no cards remain to surface today across
+                # all three buckets (Раздел 5 universal pool model).
+                remaining_new_budget, remaining_reviews = get_new_card_budget(
+                    current_user.id, db,
+                )
+                new_remaining = min(
+                    count_pending_new(current_user.id, db), remaining_new_budget,
+                )
+                learning_remaining = count_due_by_states(
+                    current_user.id, db,
+                    states=(_CS.LEARNING.value, _CS.RELEARNING.value),
+                )
+                review_remaining = min(
+                    count_due_by_states(current_user.id, db, states=(_CS.REVIEW.value,)),
+                    remaining_reviews,
+                )
+                total_remaining = new_remaining + learning_remaining + review_remaining
+                if total_remaining <= 0:
                     if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
                         maybe_award_linear_perfect_day(current_user.id, db_session=db)
                         db.session.commit()
                 else:
                     logger.info(
-                        "linear_xp: srs-session incomplete user=%s remaining_due=%s",
-                        current_user.id,
-                        remaining_due,
+                        "linear_xp: srs-session incomplete user=%s remaining=%s "
+                        "(new=%d learning=%d review=%d)",
+                        current_user.id, total_remaining,
+                        new_remaining, learning_remaining, review_remaining,
                     )
             except Exception:
                 logger.warning(

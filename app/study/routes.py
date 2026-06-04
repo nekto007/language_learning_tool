@@ -514,24 +514,13 @@ def cards():
     if request.args.get('slot'):
         fetch_cards_params['slot'] = request.args['slot']
 
-    if source == 'linear_plan' and request.args.get('slot') == 'srs':
-        from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
-
-        due_count = count_linear_plan_srs_due_cards(current_user.id, db)
-        counts = {
-            'due_count': due_count,
-            'new_count': 0,
-            'new_today': 0,
-            'new_limit': 0,
-            'can_study_new': False,
-            'nothing_to_study': due_count == 0,
-            'limit_reached': False,
-        }
-    else:
-        counts = SRSService.get_card_counts(current_user.id, deck_word_ids=deck_word_ids)
-        if source == 'word_detail' and extra_study:
-            counts['nothing_to_study'] = False
-            counts['limit_reached'] = False
+    # Раздел 5: linear-plan SRS slot now serves the universal daily pool —
+    # the same counts (new+learning+review under adaptive limits) as the
+    # auto-study path. No more new_limit=0 / due-only carve-out here.
+    counts = SRSService.get_card_counts(current_user.id, deck_word_ids=deck_word_ids)
+    if source == 'word_detail' and extra_study:
+        counts['nothing_to_study'] = False
+        counts['limit_reached'] = False
 
     _reset_flashcard_attempts_for_new_session(current_user.id, word_ids=deck_word_ids)
     session = SessionService.start_session(current_user.id, 'cards')

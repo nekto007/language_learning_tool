@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from flask import jsonify, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.routes.lessons import lessons_bp
@@ -137,6 +138,29 @@ def _extract_word_example(word) -> tuple[str, str]:
     return text, ''
 
 
+def _reset_lesson_session_attempts(user_id: int, word_ids: list[int]) -> None:
+    """Clear per-card ``session_attempts`` at lesson entry.
+
+    Раздел 11 of docs/srs-fix-plan.md: ``/study/cards`` already calls
+    ``unified_srs_service.reset_session_attempts`` on entry so the
+    ``MAX_SESSION_ATTEMPTS`` cap re-arms for a fresh queue. Lesson card
+    routes weren't doing this — a card that hit the cap in any earlier
+    session stayed un-requeueable forever on subsequent openings of the
+    same lesson. Resetting at the start of every lesson card session
+    fixes the parity.
+    """
+    if not word_ids:
+        return
+    try:
+        from app.srs.service import unified_srs_service
+        unified_srs_service.reset_session_attempts(user_id, word_ids=word_ids)
+    except SQLAlchemyError:
+        db.session.rollback()
+        logger.exception(
+            'Failed to reset lesson card session_attempts user=%s', user_id,
+        )
+
+
 def _build_cards_for_words(
     word_objects: list,
     user_id: int,
@@ -178,28 +202,25 @@ def _build_cards_for_words(
     existing_word_ids = set(directions_by_word.keys())
     needs_flush = False
     if activate_srs:
+        # Concurrent writers (two tabs, lesson + book vocab-pull, etc.) can
+        # all hit the same (user_id, word_id) / (user_word_id, direction).
+        # Both helpers wrap the INSERT in a savepoint and recover on the
+        # unique-constraint violation — see UserWord.get_or_create and
+        # UserCardDirection.get_or_create. No explicit retry loop here.
         for word in word_objects:
             if word.id not in directions_by_word:
-                uw = user_word_map.get(word.id)
-                if not uw:
-                    uw = UserWord.get_or_create(user_id, word.id)
-                    user_word_map[word.id] = uw
-                dir_eng_rus = UserCardDirection(
+                uw = user_word_map.get(word.id) or UserWord.get_or_create(user_id, word.id)
+                user_word_map[word.id] = uw
+                dir_eng_rus = UserCardDirection.get_or_create(
                     user_word_id=uw.id,
                     direction=DIRECTION_ENG_RUS,
                     source='lesson_vocab',
-                    ease_factor=DEFAULT_EASE_FACTOR,
-                    state=CardState.NEW.value,
                 )
-                dir_rus_eng = UserCardDirection(
+                dir_rus_eng = UserCardDirection.get_or_create(
                     user_word_id=uw.id,
                     direction=DIRECTION_RUS_ENG,
                     source='lesson_vocab',
-                    ease_factor=DEFAULT_EASE_FACTOR,
-                    state=CardState.NEW.value,
                 )
-                db.session.add(dir_eng_rus)
-                db.session.add(dir_rus_eng)
                 directions_by_word[word.id] = [dir_eng_rus, dir_rus_eng]
                 needs_flush = True
 
@@ -379,6 +400,7 @@ def render_card_lesson(lesson):
     cards_list = []
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
+        _reset_lesson_session_attempts(current_user.id, word_ids)
         cards_list = _build_cards_for_words(
             word_objects, current_user.id, activate_srs=True,
         )
@@ -580,6 +602,7 @@ def card_lesson(lesson_id):
     cards_list = []
     if word_ids:
         word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
+        _reset_lesson_session_attempts(current_user.id, word_ids)
         cards_list = _build_cards_for_words(
             word_objects, current_user.id, activate_srs=True,
         )

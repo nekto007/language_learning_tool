@@ -53,7 +53,10 @@ DEFAULT_ENV_VARS = {
     'SECRET_KEY': 'test-secret-key',
     'FLASK_ENV': 'testing',
     'FLASK_APP': 'app',
-    'DATABASE_URL': os.environ.get('DATABASE_URL', 'sqlite:///test.db')
+    'DATABASE_URL': os.environ.get('DATABASE_URL', 'sqlite:///test.db'),
+    # Pin user-local-day computations to UTC midnight by default so existing
+    # tests that assume `_now_naive().replace(hour=0,...)` boundaries stay valid.
+    'DEFAULT_TIMEZONE': 'UTC',
 }
 for key, value in DEFAULT_ENV_VARS.items():
     os.environ.setdefault(key, value)
@@ -68,6 +71,13 @@ from app.auth.models import User
 from app.curriculum.models import (
     CEFRLevel, Module, Lessons, LessonProgress
 )
+
+# Pin User.timezone default to UTC for tests. The production default is
+# Europe/Moscow, but tests assert UTC-midnight semantics for "today"
+# counters; without this override new users would silently land on +3h.
+_user_tz_default = User.__table__.columns['timezone'].default
+if _user_tz_default is not None and hasattr(_user_tz_default, 'arg'):
+    _user_tz_default.arg = 'UTC'
 
 
 def _truncate_all_tables(db_instance) -> None:

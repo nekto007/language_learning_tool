@@ -7,6 +7,7 @@ Responsibilities:
 - Card updates after reviews
 - Daily limits tracking
 """
+import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Set, Tuple
 
@@ -17,6 +18,8 @@ from app.srs.constants import CardState
 from app.study.models import QuizDeckWord, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_word_ids(user_id: int, word_ids: List[int] = None) -> Set[int]:
@@ -178,69 +181,247 @@ class SRSService:
         _, reviews_today, _, review_limit = SRSService.check_daily_limits(user_id)
         return reviews_today < review_limit
 
+    # ------------------------------------------------------------------
+    # Adaptive tier (Раздел 5 of docs/srs-fix-plan.md)
+    # ------------------------------------------------------------------
+    # Tiers ordered worst → best. _ladder_tier climbs from floor upward.
+    TIER_ORDER: Tuple[str, ...] = ('collapse', 'critical', 'low', 'normal')
+
+    # Percentages applied to user's base settings per tier.
+    # LEARNING / RELEARNING are NOT capped — Anki-style commit semantics:
+    # once started a card must be finished, otherwise it rots half-learned.
+    TIER_PCT: Dict[str, Dict[str, float]] = {
+        'normal':   {'new': 1.00, 'review': 1.00},
+        'low':      {'new': 0.30, 'review': 0.60},
+        'critical': {'new': 0.00, 'review': 0.20},
+        'collapse': {'new': 0.00, 'review': 0.00},
+    }
+
+    @staticmethod
+    def _tier_from_accuracy(accuracy_pct: float) -> str:
+        if accuracy_pct >= 85.0:
+            return 'normal'
+        if accuracy_pct >= 70.0:
+            return 'low'
+        if accuracy_pct >= 50.0:
+            return 'critical'
+        return 'collapse'
+
+    @staticmethod
+    def _tier_from_backlog(overdue: int, reviews_per_day: int) -> str:
+        if reviews_per_day <= 0:
+            return 'normal'
+        days_behind = overdue / reviews_per_day
+        if days_behind <= 1.0:
+            return 'normal'
+        if days_behind <= 3.0:
+            return 'low'
+        if days_behind <= 7.0:
+            return 'critical'
+        return 'collapse'
+
+    @staticmethod
+    def _worse_tier(a: str, b: str) -> str:
+        return min(a, b, key=lambda t: SRSService.TIER_ORDER.index(t))
+
+    @staticmethod
+    def _ladder_tier(floor: str, days_since_drop: int) -> str:
+        """Climb from `floor` by `max(0, days_since_drop - 1)` steps.
+
+        Day 0 = floor, Day 1 = floor (rest day), Day 2 = floor + 1,
+        Day 3 = floor + 2, ... capped at 'normal'.
+        """
+        floor_idx = SRSService.TIER_ORDER.index(floor)
+        steps = max(0, days_since_drop - 1)
+        target_idx = min(floor_idx + steps, len(SRSService.TIER_ORDER) - 1)
+        return SRSService.TIER_ORDER[target_idx]
+
+    @staticmethod
+    def _accuracy_on_recent_reviews(user_id: int, reviews_per_day: int) -> float:
+        """Percent correct on the last `window` REVIEW/RELEARNING-state cards.
+
+        Window = min(200, max(20, 2 × reviews_per_day)) — scales with the
+        user's own daily target (≈ last 2 sessions). Cards in NEW / LEARNING
+        do not affect the metric (Anki convention: only graduated cards
+        measure true retention; LEARNING failures are part of acquisition).
+
+        `correct_count` / `incorrect_count` are lifetime aggregates per
+        direction, but ordering by `last_reviewed.desc()` and capping to
+        `window` rows approximates recent activity well enough without a
+        per-grade log.
+        """
+        window = min(200, max(20, 2 * max(reviews_per_day, 0)))
+        recent = (
+            db.session.query(UserCardDirection)
+            .filter(
+                UserCardDirection.user_word_id.in_(
+                    db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+                ),
+                UserCardDirection.last_reviewed.isnot(None),
+                UserCardDirection.state.in_(
+                    (CardState.REVIEW.value, CardState.RELEARNING.value)
+                ),
+            )
+            .order_by(UserCardDirection.last_reviewed.desc())
+            .limit(window)
+            .all()
+        )
+        total_correct = sum(c.correct_count or 0 for c in recent)
+        total_incorrect = sum(c.incorrect_count or 0 for c in recent)
+        total = total_correct + total_incorrect
+        return (total_correct / total * 100.0) if total > 0 else 100.0
+
+    @staticmethod
+    def _overdue_review_count(user_id: int) -> int:
+        """Count REVIEW-state cards whose next_review fell before today_local."""
+        from app.utils.time_utils import day_to_naive_utc
+        today_start = day_to_naive_utc(user_id, db, days_ahead=0)
+        return int(
+            db.session.query(func.count(UserCardDirection.id)).filter(
+                UserCardDirection.user_word_id.in_(
+                    db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+                ),
+                UserCardDirection.state == CardState.REVIEW.value,
+                UserCardDirection.next_review < today_start,
+            ).scalar() or 0
+        )
+
+    @staticmethod
+    def _resolve_tier(user_id: int) -> Tuple[str, bool, str, 'date | None']:
+        """Pure read: compute effective tier and whether a new drop fires.
+
+        Returns ``(current_tier, is_new_drop, new_floor, new_floor_date)``.
+        Caller may persist ``new_floor`` / ``new_floor_date`` to
+        ``UserStatistics`` when ``is_new_drop`` is True.
+
+        Algorithm:
+        - Target = worse(accuracy_tier, backlog_tier) based on current data.
+        - Ladder = climb from stored floor by (days_since_drop - 1) tiers.
+        - If target is worse than ladder → new drop, target wins, floor reset.
+        - Otherwise → ladder tier (gradual recovery).
+        """
+        from app.achievements.models import UserStatistics
+        from app.utils.time_utils import get_user_local_date
+
+        # Read settings WITHOUT auto-create — StudySettings.get_settings
+        # commits a fresh row, which would prematurely close a grade_card
+        # transaction when this resolver runs inside the grading path.
+        settings = StudySettings.query.filter_by(user_id=user_id).first()
+        base_reviews = (settings.reviews_per_day if settings else 0) or 0
+
+        # Same concern for UserStatistics — read-only lookup with defaults.
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        stored_floor = (stats.adaptive_tier_floor if stats else 'normal') or 'normal'
+        stored_floor_date = stats.adaptive_tier_floor_date if stats else None
+
+        accuracy = SRSService._accuracy_on_recent_reviews(user_id, base_reviews)
+        overdue = SRSService._overdue_review_count(user_id)
+        target_tier = SRSService._worse_tier(
+            SRSService._tier_from_accuracy(accuracy),
+            SRSService._tier_from_backlog(overdue, base_reviews),
+        )
+        target_idx = SRSService.TIER_ORDER.index(target_tier)
+
+        today_local = get_user_local_date(user_id)
+        if stored_floor_date is None:
+            ladder_tier = 'normal'
+        else:
+            days_since = (today_local - stored_floor_date).days
+            ladder_tier = SRSService._ladder_tier(stored_floor, days_since)
+        ladder_idx = SRSService.TIER_ORDER.index(ladder_tier)
+
+        if target_idx < ladder_idx:
+            # New drop — accuracy/backlog signals are worse than where the
+            # recovery ladder would place us. Record fresh floor & date.
+            return (target_tier, True, target_tier, today_local)
+        return (ladder_tier, False, stored_floor, stored_floor_date)
+
+    @staticmethod
+    def record_tier_state(user_id: int) -> str:
+        """Persist a new tier-floor row on detected drop. Caller commits.
+
+        Called from grading paths (after each grade); a no-op when the
+        resolver returns ``is_new_drop=False``. Read endpoints should call
+        :meth:`get_adaptive_limits` instead — it does not write.
+
+        On a drop, emits a structured ``logger.info`` event with the
+        diagnostic signals (accuracy %, overdue count, reviews_per_day,
+        prior floor) so support / observability can answer the «почему
+        у меня вдруг ноль новых» question without spelunking. Recovery
+        climbs (ladder-driven) are deterministic from (floor, date) and
+        not logged.
+        """
+        from app.achievements.services import StatisticsService
+
+        current_tier, is_new_drop, new_floor, new_floor_date = SRSService._resolve_tier(user_id)
+        if is_new_drop:
+            stats = StatisticsService.get_or_create_statistics(user_id)
+            prior_floor = stats.adaptive_tier_floor or 'normal'
+            prior_floor_date = stats.adaptive_tier_floor_date
+
+            # Recompute signals locally for the log line. These are the same
+            # values _resolve_tier just used, but it does not surface them.
+            settings = StudySettings.query.filter_by(user_id=user_id).first()
+            base_reviews = (settings.reviews_per_day if settings else 0) or 0
+            accuracy = SRSService._accuracy_on_recent_reviews(user_id, base_reviews)
+            overdue = SRSService._overdue_review_count(user_id)
+            logger.info(
+                'adaptive_tier: user=%s drop %s → %s on=%s '
+                'accuracy=%.1f%% overdue=%d reviews_per_day=%d prior_floor_date=%s',
+                user_id,
+                prior_floor,
+                new_floor,
+                new_floor_date,
+                accuracy,
+                overdue,
+                base_reviews,
+                prior_floor_date,
+            )
+
+            stats.adaptive_tier_floor = new_floor
+            stats.adaptive_tier_floor_date = new_floor_date
+            db.session.flush()
+        return current_tier
+
     @staticmethod
     def _compute_adaptive_state(user_id: int) -> Tuple[int, int, str]:
-        """Internal: returns (adaptive_new, adaptive_reviews, reason).
+        """Internal: returns (adaptive_new, adaptive_reviews, tier).
 
-        reason ∈ {'normal', 'accuracy_low', 'backlog_reduction'}.
-        Accuracy takes precedence over backlog when both trigger.
+        ``tier`` ∈ {'normal', 'low', 'critical', 'collapse'} replaces the
+        old reasons {'normal', 'accuracy_low', 'backlog_reduction'}.
         """
         settings = StudySettings.get_settings(user_id)
-        base_new = settings.new_words_per_day
-        base_reviews = settings.reviews_per_day
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        base_new = settings.new_words_per_day or 0
+        base_reviews = settings.reviews_per_day or 0
 
-        recent_cards = db.session.query(UserCardDirection).filter(
-            UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
-            ),
-            UserCardDirection.last_reviewed.isnot(None)
-        ).order_by(UserCardDirection.last_reviewed.desc()).limit(50).all()
-
-        total_correct = sum(c.correct_count or 0 for c in recent_cards)
-        total_incorrect = sum(c.incorrect_count or 0 for c in recent_cards)
-        total = total_correct + total_incorrect
-
-        accuracy = (total_correct / total * 100) if total > 0 else 100
-
-        backlog = db.session.query(func.count(UserCardDirection.id)).filter(
-            UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
-            ),
-            UserCardDirection.next_review < now,
-            UserCardDirection.state == 'review'
-        ).scalar() or 0
-
-        if accuracy < 85:
-            return (min(2, base_new), base_reviews, 'accuracy_low')
-        if backlog > 50:
-            return (min(2, base_new), base_reviews, 'backlog_reduction')
-        return (base_new, base_reviews, 'normal')
+        current_tier, _, _, _ = SRSService._resolve_tier(user_id)
+        pct = SRSService.TIER_PCT[current_tier]
+        adaptive_new = max(0, round(base_new * pct['new']))
+        adaptive_reviews = max(0, round(base_reviews * pct['review']))
+        return (adaptive_new, adaptive_reviews, current_tier)
 
     @staticmethod
     def get_adaptive_limits(user_id: int) -> Tuple[int, int]:
-        """
-        Returns adaptive limits based on accuracy and backlog.
+        """Returns ``(adaptive_new, adaptive_reviews)`` after applying tier
+        percentages to the user's base settings.
 
-        If accuracy < 85% over last 50 reviews OR backlog > 50 overdue cards:
-        → reduce new cards limit to min(2, base_limit)
-
-        Returns:
-            Tuple of (adaptive_new_limit, adaptive_review_limit)
+        Tier is computed from accuracy on REVIEW/RELEARNING cards and
+        backlog days. See :meth:`_resolve_tier` and
+        ``docs/srs-fix-plan.md`` Раздел 5.
         """
         adaptive_new, adaptive_reviews, _ = SRSService._compute_adaptive_state(user_id)
         return (adaptive_new, adaptive_reviews)
 
     @staticmethod
     def get_adaptive_limit_reason(user_id: int) -> str:
-        """Returns reason for current adaptive new-card limit.
+        """Returns current adaptive tier as a label for UI tooltips.
 
-        One of 'normal', 'accuracy_low', 'backlog_reduction'. Used by
+        One of 'normal', 'low', 'critical', 'collapse'. Used by
         /api/daily-status and /api/daily-plan to surface a one-time tooltip
-        when the new-card cap is reduced.
+        when the user is below normal.
         """
-        _, _, reason = SRSService._compute_adaptive_state(user_id)
-        return reason
+        _, _, tier = SRSService._compute_adaptive_state(user_id)
+        return tier
 
     @staticmethod
     def get_card_counts(user_id: int, deck_word_ids: List[int] = None) -> Dict:

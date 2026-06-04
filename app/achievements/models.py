@@ -129,6 +129,13 @@ class UserStatistics(db.Model):
     # SRS card review counter
     total_cards_reviewed = Column(Integer, default=0, nullable=False, server_default='0')
 
+    # Adaptive SRS tier (Раздел 5 of docs/srs-fix-plan.md).
+    # tier_floor — last "rock bottom" tier user dropped to; recovery climbs from there.
+    # tier_floor_date — date (user-local) when the drop happened. Resolver climbs +1 tier
+    # per day starting on day 2 after the drop (day 1 is a rest day).
+    adaptive_tier_floor = Column(String(16), default='normal', nullable=False, server_default='normal')
+    adaptive_tier_floor_date = Column(db.Date, nullable=True)
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))

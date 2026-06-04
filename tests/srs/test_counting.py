@@ -161,17 +161,23 @@ class TestCountDueCards:
         )
         assert count_due_cards(user.id, real_db) == 0
 
-    def test_excludes_mastered_user_word(self, db_session):
+    def test_counts_regardless_of_userword_status(self, db_session):
+        """`UserCardDirection.state` is authoritative — even a stale or
+        diverged `UserWord.status` (e.g. legacy 'mastered', or 'new' after
+        a partial recalc) must not hide a due direction from the counter.
+        See app/srs/counting.py docstring for the rationale.
+        """
         user = _make_user(db_session)
         now = _now_naive()
-        word = _make_word(db_session)
-        uw = _make_user_word(db_session, user, word, status='mastered')
-        _make_direction(
-            db_session, uw,
-            state=CardState.REVIEW.value,
-            next_review=now - timedelta(hours=1),
-        )
-        assert count_due_cards(user.id, real_db) == 0
+        for stale_status in ('mastered', 'new'):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word, status=stale_status)
+            _make_direction(
+                db_session, uw,
+                state=CardState.REVIEW.value,
+                next_review=now - timedelta(hours=1),
+            )
+        assert count_due_cards(user.id, real_db) == 2
 
     def test_accepts_aware_now_utc(self, db_session):
         """Passing tz-aware datetime should be normalized to naive UTC internally."""
@@ -419,11 +425,11 @@ class TestGetNewCardBudget:
         assert remaining_reviews == 0  # clamped to 0, not -1
 
     def test_low_accuracy_triggers_adaptive_cap(self, db_session):
+        """70% accuracy on REVIEW cards → 'low' tier → NEW × 30%."""
         user = _make_user(db_session)
         self._settings(db_session, user, new_per_day=10, reviews_per_day=50)
         now = _now_naive()
 
-        # Create a reviewed card with 70% accuracy (7 correct / 3 incorrect) → accuracy < 85.
         word = _make_word(db_session)
         uw = _make_user_word(db_session, user, word)
         card = _make_direction(
@@ -434,12 +440,12 @@ class TestGetNewCardBudget:
             next_review=now + timedelta(days=1),
         )
         card.correct_count = 7
-        card.incorrect_count = 3
+        card.incorrect_count = 3  # 70% accuracy
         db_session.commit()
 
         remaining_new, _ = get_new_card_budget(user.id, real_db)
-        # Adaptive clamp: min(2, base=10) = 2, minus 0 today = 2.
-        assert remaining_new == 2
+        # 'low' tier: NEW × 30% of base 10 = 3.
+        assert remaining_new == 3
 
 
 class TestUnifiedCountingAcrossCallsites:
@@ -447,10 +453,7 @@ class TestUnifiedCountingAcrossCallsites:
 
     def test_mission_and_linear_agree(self, db_session):
         from app.daily_plan.assembler import _count_srs_due
-        from app.daily_plan.linear.slots.srs_slot import (
-            count_srs_due_cards,
-            count_srs_reviews_today,
-        )
+        from app.daily_plan.linear.slots.srs_slot import count_srs_reviews_today
         from app.study.models import QuizDeck, QuizDeckWord
 
         user = _make_user(db_session)
@@ -479,7 +482,6 @@ class TestUnifiedCountingAcrossCallsites:
         # Mission assembler scopes to daily-plan mix (deck words); when all due
         # cards are in the mix, mission count equals the global canonical count.
         assert _count_srs_due(user.id) == canonical
-        assert count_srs_due_cards(user.id, real_db) == canonical
 
         assert count_reviews_today(user.id, real_db) == count_srs_reviews_today(user.id, real_db)
 
@@ -526,7 +528,6 @@ class TestUnifiedBudgetAcrossCallsites:
 
     def test_assembler_and_linear_budget_agree(self, db_session):
         from app.daily_plan.assembler import _get_remaining_card_budget
-        from app.daily_plan.linear.slots.srs_slot import get_srs_budget_remaining
 
         user = _make_user(db_session)
         self._settings(db_session, user, new_per_day=7, reviews_per_day=30)
@@ -543,4 +544,3 @@ class TestUnifiedBudgetAcrossCallsites:
 
         canonical_new, _canonical_reviews = get_new_card_budget(user.id, real_db)
         assert _get_remaining_card_budget(user.id)[0] == canonical_new
-        assert get_srs_budget_remaining(user.id, real_db) == canonical_new

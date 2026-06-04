@@ -587,7 +587,6 @@ class BookSRSIntegration:
                      .join(UserWord)
                      .filter(
                          UserWord.user_id == user_id,
-                         UserWord.status.in_(['new', 'learning', 'review']),
                          db.or_(
                              UserCardDirection.state == CardState.NEW.value,
                              UserCardDirection.next_review <= now,

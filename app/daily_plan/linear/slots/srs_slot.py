@@ -1,84 +1,35 @@
 """SRS/deck quiz slot — second baseline slot on the linear spine.
 
-Usually exposes the due-card queue for the user's personal decks (/study).
-When the current curriculum slot is itself a card lesson, this slot becomes
-a deck quiz so the same card session does not satisfy both baseline tasks.
+Universal daily pool model (Раздел 5 of docs/srs-fix-plan.md):
+NEW + LEARNING/RELEARNING + REVIEW within the user's adaptive caps —
+shared with ``app/daily_plan/items/srs.py::build_srs_item`` and the
+``/study`` auto-mode path. Single source of truth lives in
+``app/srs/counting.py``; this module only formats the result for the
+legacy linear chain.
 
-Budget semantics:
-- ``budget = adaptive_new_per_day - first_reviewed_today_count``
-- ``adaptive_new_per_day`` comes from `SRSService.get_adaptive_limits`
-  via the canonical `get_new_card_budget` in `app/srs/counting.py` — the
-  same source /study uses, so linear and /study share one daily budget.
-
-Slot states:
-- due > 0 → active, links directly to ``/study/cards?source=linear_plan``.
-- due = 0 AND any card reviewed today → collapsed "review tomorrow", completed.
-- due = 0 AND no activity today → collapsed "nothing due today", completed.
+Special case: when the current curriculum slot is itself a card lesson,
+``build_srs_slot`` returns a deck-quiz slot instead so the two card
+activities don't satisfy each other.
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, or_
 
 logger = logging.getLogger(__name__)
 
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.slots import LinearSlot
 from app.srs.constants import CardState
-from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
+from app.study.models import QuizDeck, QuizDeckWord
 from app.words.models import CollectionWords
 
 _SRS_SLOT_ETA_MINUTES = 8
 _CARD_LESSON_TYPES = frozenset({'card', 'flashcards'})
 _DECK_QUIZ_LIMIT = 30
 _DECK_QUIZ_SOURCE = 'linear_plan_deck_quiz'
-
-
-def _today_start() -> datetime:
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    return now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-
-def _user_word_ids_subquery(user_id: int, db: Any):
-    return db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
-
-
-def get_srs_budget_remaining(user_id: int, db: Any) -> int:
-    """Return remaining daily new-card budget for the user.
-
-    Delegates to the canonical `get_new_card_budget` (adaptive-limits source
-    of truth shared by mission-plan, linear-plan and /study). Returns only
-    the new-card half — review budget is tracked separately in this slot.
-    """
-    from app.srs.counting import get_new_card_budget
-
-    remaining_new, _ = get_new_card_budget(user_id, db)
-    return remaining_new
-
-
-def count_srs_due_cards(user_id: int, db: Any) -> int:
-    """Count review/learning/relearning cards due for the user right now."""
-    from app.srs.counting import count_due_cards
-
-    return count_due_cards(user_id, db)
-
-
-def count_srs_cards_studied_today(user_id: int, db: Any) -> int:
-    """Count card directions the user reviewed today (any state)."""
-    start = _today_start()
-    return int(
-        db.session.query(func.count(UserCardDirection.id))
-        .filter(
-            UserCardDirection.user_word_id.in_(_user_word_ids_subquery(user_id, db)),
-            UserCardDirection.last_reviewed.isnot(None),
-            UserCardDirection.last_reviewed >= start,
-        )
-        .scalar()
-        or 0
-    )
 
 
 def count_srs_reviews_today(user_id: int, db: Any) -> int:
@@ -88,32 +39,16 @@ def count_srs_reviews_today(user_id: int, db: Any) -> int:
     return count_reviews_today(user_id, db)
 
 
-def count_linear_plan_srs_due_cards(user_id: int, db: Any) -> int:
-    """Count cards the linear-plan SRS slot can actually serve today."""
-    settings = StudySettings.get_settings(user_id)
-    reviews_limit = max(int(settings.reviews_per_day or 0), 0)
-    reviews_today = count_srs_reviews_today(user_id, db)
-    reviews_remaining = max(reviews_limit - reviews_today, 0)
-    backlog_due_count = count_srs_due_cards(user_id, db)
-    return min(backlog_due_count, reviews_remaining)
-
-
 def _linear_srs_completed_today(user_id: int, db: Any) -> bool:
-    """Return whether the linear SRS/global study slot has awarded XP today."""
-    from app.achievements.models import StreakEvent
-    from app.daily_plan.linear.xp import (
-        LINEAR_XP_EVENT_TYPE,
-        get_linear_event_local_date,
-    )
+    """Return True when the linear SRS slot is done for today.
 
-    today = get_linear_event_local_date(user_id, db)
-    query = db.session.query(StreakEvent).filter(
-        StreakEvent.user_id == user_id,
-        StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
-        StreakEvent.event_date == today,
-        StreakEvent.details['source'].astext == 'linear_srs_global',
-    )
-    return db.session.query(query.exists()).scalar() or False
+    Delegates to :func:`app.daily_plan.linear.xp.is_srs_slot_completed_today`
+    so the primary StreakEvent check and the lost-XP fallback are
+    consistent with ``build_srs_item``.
+    """
+    from app.daily_plan.linear.xp import is_srs_slot_completed_today
+
+    return is_srs_slot_completed_today(user_id, db)
 
 
 def _count_user_deck_quiz_words(user_id: int, db: Any) -> int:
@@ -208,53 +143,70 @@ def _build_deck_quiz_slot(user_id: int, db: Any) -> LinearSlot:
 
 
 def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> LinearSlot:
-    """Build the SRS baseline slot for the dashboard.
+    """Build the SRS baseline slot for the linear chain.
 
-    Active when ``due_count > 0``. When there is nothing due, the slot
-    collapses to a completed placeholder — "review tomorrow" if the user
-    touched any cards today, "nothing due" otherwise.
+    Universal daily pool (Раздел 5): NEW + LEARNING/RELEARNING + REVIEW
+    within the user's adaptive caps. Same model and counting helpers as
+    ``app/daily_plan/items/srs.py::build_srs_item`` — only the output
+    type differs (LinearSlot vs PlanItem) for the legacy chain consumer.
     """
     if getattr(curriculum_lesson, 'type', None) in _CARD_LESSON_TYPES:
         return _build_deck_quiz_slot(user_id, db)
 
+    from app.srs.counting import (
+        count_due_by_states,
+        count_new_cards_today,
+        count_pending_new,
+        count_reviews_today,
+        get_new_card_budget,
+    )
     from app.study.services import SRSService
 
-    settings = StudySettings.get_settings(user_id)
-    reviews_limit = max(int(settings.reviews_per_day or 0), 0)
-    reviews_today = count_srs_reviews_today(user_id, db)
-    reviews_remaining = max(reviews_limit - reviews_today, 0)
-    backlog_due_count = count_srs_due_cards(user_id, db)
-    due_count = count_linear_plan_srs_due_cards(user_id, db)
-    studied_today = count_srs_cards_studied_today(user_id, db)
-    budget_remaining = get_srs_budget_remaining(user_id, db)
-    limit_reason = SRSService.get_adaptive_limit_reason(user_id)
+    new_pending = count_pending_new(user_id, db)
+    learning_due = count_due_by_states(
+        user_id, db, states=(CardState.LEARNING.value, CardState.RELEARNING.value),
+    )
+    review_due = count_due_by_states(user_id, db, states=(CardState.REVIEW.value,))
 
-    from app.srs.counting import count_new_cards_today
+    remaining_new, remaining_reviews = get_new_card_budget(user_id, db)
+    new_show = min(new_pending, remaining_new)
+    review_show = min(review_due, remaining_reviews)
+    total_show = new_show + learning_due + review_show  # LEARNING uncapped
 
-    new_count = count_new_cards_today(user_id, db)
+    new_today = count_new_cards_today(user_id, db)
+    reviews_today_total = count_reviews_today(user_id, db)
+    tier = SRSService.get_adaptive_limit_reason(user_id)
+    completed_today = _linear_srs_completed_today(user_id, db)
 
     data = {
-        'due_count': due_count,
-        'backlog_due_count': backlog_due_count,
-        'studied_today': studied_today,
-        'reviews_today': reviews_today,
-        'reviews_limit': reviews_limit,
-        'reviews_remaining': reviews_remaining,
-        'budget_remaining': budget_remaining,
-        'new_count': new_count,
-        'new_budget': budget_remaining,
-        'srs_limit_reason': limit_reason,
+        'new_show': new_show,
+        'learning_due': learning_due,
+        'review_show': review_show,
+        'total_show': total_show,
+        'new_pending': new_pending,
+        'review_due': review_due,
+        'new_today': new_today,
+        'reviews_today': reviews_today_total,
+        'remaining_new': remaining_new,
+        'remaining_reviews': remaining_reviews,
+        'srs_tier': tier,
     }
 
-    if due_count > 0:
+    if total_show > 0:
         logger.info(
-            "srs_slot user=%s mode=cards state=pending due=%d backlog=%d"
-            " reviews_today=%d reviews_limit=%d budget=%d",
-            user_id, due_count, backlog_due_count, reviews_today, reviews_limit, budget_remaining,
+            "srs_slot user=%s state=pending total=%d new=%d learning=%d review=%d tier=%s",
+            user_id, total_show, new_show, learning_due, review_show, tier,
         )
+        subtitle_bits = []
+        if new_show > 0:
+            subtitle_bits.append(f'{new_show} новых')
+        if learning_due > 0:
+            subtitle_bits.append(f'{learning_due} в изучении')
+        if review_show > 0:
+            subtitle_bits.append(f'{review_show} на повтор')
         return LinearSlot(
             kind='srs',
-            title=f'Повторить {due_count} карточек',
+            title=f'Повторение слов — {total_show}',
             lesson_type=None,
             eta_minutes=_SRS_SLOT_ETA_MINUTES,
             url=build_slot_url('/study/cards?source=linear_plan', LinearSlotKind.SRS),
@@ -262,15 +214,18 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
             data=data,
         )
 
-    if backlog_due_count > 0 and reviews_remaining == 0:
+    if completed_today:
+        title = 'Повторение закрыто'
+        state = 'done_today'
+    elif review_due > 0 and remaining_reviews == 0:
         title = 'Лимит повторений на сегодня достигнут'
         state = 'limit_reached'
     else:
-        title = 'Карточки повторим завтра' if studied_today > 0 else 'Сегодня повторять нечего'
-        state = 'done_today' if studied_today > 0 else 'nothing_due'
+        title = 'Сегодня повторять нечего'
+        state = 'nothing_due'
     logger.info(
-        "srs_slot user=%s mode=cards state=%s studied=%d backlog=%d reviews_remaining=%d",
-        user_id, state, studied_today, backlog_due_count, reviews_remaining,
+        "srs_slot user=%s state=%s new_pending=%d review_due=%d remaining_reviews=%d",
+        user_id, state, new_pending, review_due, remaining_reviews,
     )
     return LinearSlot(
         kind='srs',
@@ -281,55 +236,3 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
         completed=True,
         data=data,
     )
-
-
-def get_linear_plan_due_mix_cards(user_id: int, db: Any, limit: int) -> list[dict]:
-    """Return due cards for the card-lesson mix injected by linear plan."""
-    if limit <= 0:
-        return []
-
-    from app.curriculum.routes.card_lessons import _build_cards_for_words
-
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    due_directions = (
-        db.session.query(UserCardDirection)
-        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
-        .filter(
-            UserWord.user_id == user_id,
-            UserWord.status.in_(('new', 'learning', 'review')),
-            UserCardDirection.next_review <= now,
-            or_(
-                UserCardDirection.buried_until.is_(None),
-                UserCardDirection.buried_until <= now,
-            ),
-            UserCardDirection.state.in_(
-                (
-                    CardState.LEARNING.value,
-                    CardState.RELEARNING.value,
-                    CardState.REVIEW.value,
-                )
-            ),
-        )
-        .order_by(UserCardDirection.next_review.asc())
-        .limit(limit)
-        .all()
-    )
-    if not due_directions:
-        return []
-
-    word_ids = []
-    seen: set[int] = set()
-    for direction in due_directions:
-        word_id = direction.user_word.word_id if direction.user_word is not None else None
-        if word_id and word_id not in seen:
-            seen.add(word_id)
-            word_ids.append(word_id)
-
-    if not word_ids:
-        return []
-
-    word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
-    cards = _build_cards_for_words(word_objects, user_id, activate_srs=False)
-
-    due_direction_ids = {direction.id for direction in due_directions}
-    return [card for card in cards if card.get('direction_id') in due_direction_ids]

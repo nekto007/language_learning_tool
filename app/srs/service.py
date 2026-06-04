@@ -31,6 +31,8 @@ from app.srs.constants import (
     LEECH_SUSPEND_DAYS,
     LEECH_THRESHOLD,
     MAX_EASE_FACTOR,
+    MAX_LEECH_SUSPEND_DAYS,
+    MAX_REVIEW_INTERVAL_DAYS,
     MAX_SESSION_ATTEMPTS,
     MIN_EASE_FACTOR,
     RATING_DONT_KNOW,
@@ -133,7 +135,8 @@ class UnifiedSRSService:
         repetitions: int,
         interval: int,
         ease_factor: float,
-        lapses: int = 0
+        lapses: int = 0,
+        consecutive_leech_burials: int = 0,
     ) -> Dict[str, Any]:
         """
         Calculate new SM-2 parameters based on Anki-like state machine.
@@ -176,7 +179,7 @@ class UnifiedSRSService:
 
         elif state == CardState.REVIEW.value:
             result = UnifiedSRSService._handle_review(
-                rating, interval, ease_factor, lapses
+                rating, interval, ease_factor, lapses, consecutive_leech_burials,
             )
 
         elif state == CardState.RELEARNING.value:
@@ -284,7 +287,8 @@ class UnifiedSRSService:
         rating: int,
         interval: int,
         ease_factor: float,
-        lapses: int
+        lapses: int,
+        consecutive_leech_burials: int = 0,
     ) -> Dict[str, Any]:
         """Handle rating for REVIEW card."""
         old_interval = max(1, interval)
@@ -303,15 +307,20 @@ class UnifiedSRSService:
                 'days_until_review': 0
             }
             # Auto-suspend leech cards: re-bury whenever a card at or above
-            # the threshold lapses. Firing only on the threshold-crossing
-            # transition would leave already-leeched cards (lapses>=threshold,
-            # bury expired) cycling through daily failures without protection.
+            # the threshold lapses. Progressive scaling (Раздел 9): each
+            # consecutive bury without an intervening success extends the
+            # next interval by LEECH_SUSPEND_DAYS, capped at
+            # MAX_LEECH_SUSPEND_DAYS. The streak counter is owned by
+            # ``grade_card`` (it knows whether to increment vs reset).
             if new_lapses >= LEECH_THRESHOLD:
-                result['bury_days'] = LEECH_SUSPEND_DAYS
+                scaled = LEECH_SUSPEND_DAYS * (1 + max(0, consecutive_leech_burials))
+                result['bury_days'] = min(MAX_LEECH_SUSPEND_DAYS, scaled)
             return result
         elif rating == RATING_DOUBT:
-            # Hard: small increase, ease penalty
+            # Hard: small increase, ease penalty. Capped (Раздел 12) so a
+            # long-streak card cannot drift beyond MAX_REVIEW_INTERVAL_DAYS.
             new_interval = max(old_interval + 1, round(old_interval * INTERVAL_MULTIPLIER_HARD))
+            new_interval = min(MAX_REVIEW_INTERVAL_DAYS, new_interval)
             new_ef = max(MIN_EASE_FACTOR, old_ef - EF_DECREASE_HARD)
             return {
                 'state': CardState.REVIEW.value,
@@ -323,8 +332,9 @@ class UnifiedSRSService:
                 'days_until_review': new_interval
             }
         else:  # RATING_KNOW
-            # Good: normal increase with ease bonus
+            # Good: normal increase with ease bonus. Cap as above.
             new_interval = max(old_interval + 1, round(old_interval * old_ef * INTERVAL_MULTIPLIER_EASY))
+            new_interval = min(MAX_REVIEW_INTERVAL_DAYS, new_interval)
             new_ef = min(MAX_EASE_FACTOR, old_ef + EF_INCREASE_EASY)
             return {
                 'state': CardState.REVIEW.value,
@@ -345,6 +355,11 @@ class UnifiedSRSService:
         steps: List[int]
     ) -> Dict[str, Any]:
         """Handle rating for RELEARNING card."""
+        # Symmetry with _handle_new / _handle_learning / _handle_review:
+        # ease_factor is always returned within [MIN, MAX]. Today this
+        # handler doesn't decay ef, but normalizing on entry locks the
+        # invariant against future changes that add penalties here.
+        ease_factor = max(MIN_EASE_FACTOR, min(MAX_EASE_FACTOR, ease_factor))
         if rating == RATING_DONT_KNOW:
             # Reset to step 0
             return {
@@ -425,8 +440,18 @@ class UnifiedSRSService:
             }
         """
         try:
-            # Get card
-            card = UserCardDirection.query.get(card_id)
+            # Pessimistic row lock — two parallel grades on the same direction
+            # must serialize so that ``lapses``/``first_reviewed``/state
+            # transitions all see a consistent prior value. Without it, the
+            # second flush would overwrite the first (last-write-wins) and
+            # one of the grades would be silently lost. Lock released on
+            # the caller's commit or rollback.
+            card = (
+                UserCardDirection.query
+                .filter_by(id=card_id)
+                .with_for_update()
+                .first()
+            )
 
             if not card:
                 return {'success': False, 'error': 'Card not found'}
@@ -450,7 +475,8 @@ class UnifiedSRSService:
                 repetitions=card.repetitions or 0,
                 interval=card.interval or 0,
                 ease_factor=card.ease_factor or DEFAULT_EASE_FACTOR,
-                lapses=card.lapses or 0
+                lapses=card.lapses or 0,
+                consecutive_leech_burials=card.consecutive_leech_burials or 0,
             )
 
             # Update card with new values
@@ -460,14 +486,26 @@ class UnifiedSRSService:
             card.interval = update_result['interval']
             card.ease_factor = update_result['ease_factor']
             card.lapses = update_result['lapses']
-            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
-            card.last_reviewed = now_naive
+            from app.utils.time_utils import day_to_naive_utc, minutes_to_day_offset
+            today_midnight = day_to_naive_utc(user_id, db, days_ahead=0)
+            card.last_reviewed = today_midnight
             if is_first_review:
-                card.first_reviewed = now_naive
+                card.first_reviewed = today_midnight
 
             bury_days = update_result.get('bury_days')
             if bury_days:
-                card.buried_until = now_naive + timedelta(days=bury_days)
+                card.buried_until = day_to_naive_utc(user_id, db, days_ahead=bury_days)
+                # Progressive leech bury: track consecutive burials without
+                # an intervening successful review.
+                card.consecutive_leech_burials = (card.consecutive_leech_burials or 0) + 1
+            elif (
+                update_result['state'] == CardState.REVIEW.value
+                and rating >= RATING_DOUBT
+            ):
+                # Successful review (Doubt or Know on REVIEW, or graduating
+                # back from RELEARNING) — break the leech-bury streak so the
+                # next bury (if any) restarts from the base interval.
+                card.consecutive_leech_burials = 0
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -491,18 +529,31 @@ class UnifiedSRSService:
             days_until_review = update_result['days_until_review']
 
             if card.state == CardState.REVIEW.value and days_until_review > 0:
-                # Add ±10% variance to prevent review cliff
+                # Add ±10% variance to prevent review cliff, then re-cap so
+                # variance can't push us past MAX_REVIEW_INTERVAL_DAYS.
                 variance = random.uniform(0.9, 1.1)
                 adjusted_days = max(1, round(days_until_review * variance))
-                card.next_review = now_naive + timedelta(days=adjusted_days)
+                adjusted_days = min(MAX_REVIEW_INTERVAL_DAYS, adjusted_days)
+                card.next_review = day_to_naive_utc(user_id, db, days_ahead=adjusted_days)
             elif requeue_minutes:
-                # Learning/Relearning: schedule for minutes from now
-                card.next_review = now_naive + timedelta(minutes=requeue_minutes)
+                # Intra-day learning steps stay today (session re-queue handles
+                # in-session order); steps that cross local midnight schedule
+                # for the next day.
+                day_offset = minutes_to_day_offset(user_id, db, minutes=requeue_minutes)
+                card.next_review = day_to_naive_utc(user_id, db, days_ahead=day_offset)
             else:
-                card.next_review = now_naive
+                card.next_review = today_midnight
 
             # Update parent UserWord status
             self._update_user_word_status(card)
+
+            # Adaptive tier: if this grade pushes accuracy/backlog below the
+            # current recovery ladder, record the drop. No-op otherwise.
+            try:
+                from app.study.services import SRSService
+                SRSService.record_tier_state(user_id)
+            except Exception:
+                logger.warning("record_tier_state failed for user=%s", user_id, exc_info=True)
 
             # Flush only — caller commits (allows downstream XP/plan ops in same tx)
             db.session.flush()
@@ -598,8 +649,18 @@ class UnifiedSRSService:
             }
         """
         try:
-            # Get or create exercise progress
+            # Get or create exercise progress, then upgrade to a row-locked
+            # snapshot — two parallel grades on the same exercise must
+            # serialize. Same reasoning as ``grade_card`` above.
             progress = UserGrammarExercise.get_or_create(user_id, exercise_id)
+            progress = (
+                UserGrammarExercise.query
+                .filter_by(id=progress.id)
+                .with_for_update()
+                .first()
+            )
+            if progress is None:
+                return {'success': False, 'error': 'Exercise progress not found'}
 
             # Get current state (default to 'new')
             current_state = progress.state or CardState.NEW.value
@@ -623,16 +684,17 @@ class UnifiedSRSService:
             progress.interval = update_result['interval']
             progress.ease_factor = update_result['ease_factor']
             progress.lapses = update_result['lapses']
-            now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
-            progress.last_reviewed = now_naive
+            from app.utils.time_utils import day_to_naive_utc, minutes_to_day_offset
+            today_midnight = day_to_naive_utc(user_id, db, days_ahead=0)
+            progress.last_reviewed = today_midnight
 
             bury_days = update_result.get('bury_days')
             if bury_days:
-                progress.buried_until = now_naive + timedelta(days=bury_days)
+                progress.buried_until = day_to_naive_utc(user_id, db, days_ahead=bury_days)
 
             # Set first_reviewed on first review
             if progress.first_reviewed is None:
-                progress.first_reviewed = now_naive
+                progress.first_reviewed = today_midnight
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -651,12 +713,15 @@ class UnifiedSRSService:
                 # Add ±10% variance to prevent review cliff
                 variance = random.uniform(0.9, 1.1)
                 adjusted_days = max(1, round(days_until_review * variance))
-                progress.next_review = now_naive + timedelta(days=adjusted_days)
+                progress.next_review = day_to_naive_utc(user_id, db, days_ahead=adjusted_days)
             elif requeue_minutes:
-                # Learning/Relearning: schedule for minutes from now
-                progress.next_review = now_naive + timedelta(minutes=requeue_minutes)
+                # Intra-day learning steps stay today; cross-midnight steps
+                # schedule for the next day. Intra-session order handled by
+                # requeue_position / session_attempts, not next_review.
+                day_offset = minutes_to_day_offset(user_id, db, minutes=requeue_minutes)
+                progress.next_review = day_to_naive_utc(user_id, db, days_ahead=day_offset)
             else:
-                progress.next_review = now_naive
+                progress.next_review = today_midnight
 
             db.session.flush()  # caller commits
 
@@ -1046,8 +1111,9 @@ class UnifiedSRSService:
         user_id: int,
         word_ids: List[int] = None
     ) -> int:
-        """Считает количество слов, изученных сегодня."""
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
+        """Считает количество слов, изученных сегодня (user-local day)."""
+        from app.utils.time_utils import day_to_naive_utc
+        today_start = day_to_naive_utc(user_id, db, days_ahead=0)
 
         query = (
             UserCardDirection.query
@@ -1145,42 +1211,29 @@ class UnifiedSRSService:
         if directions is None:
             directions = [DIRECTION_ENG_RUS, DIRECTION_RUS_ENG]
 
-        # Get or create UserWord
-        user_word = UserWord.query.filter_by(user_id=user_id, word_id=word_id).first()
-
-        if not user_word:
-            user_word = UserWord(user_id=user_id, word_id=word_id)
-            db.session.add(user_word)
-            db.session.flush()
-
+        # Concurrent-safe upserts (Раздел 7): both helpers retry on the
+        # unique-constraint violation, so two parallel callers cannot
+        # IntegrityError each other on the same (user_id, word_id) /
+        # (user_word_id, direction) pair.
+        was_new_user_word = UserWord.query.filter_by(
+            user_id=user_id, word_id=word_id,
+        ).first() is None
+        user_word = UserWord.get_or_create(user_id, word_id)
+        if was_new_user_word:
             from app.study.deck_utils import ensure_word_in_default_deck
             ensure_word_in_default_deck(user_id, word_id, user_word.id)
 
         cards = []
-
+        from app.utils.time_utils import day_to_naive_utc
+        today_midnight = day_to_naive_utc(user_id, db, days_ahead=0)
         for direction in directions:
-            card = UserCardDirection.query.filter_by(
-                user_word_id=user_word.id,
-                direction=direction
-            ).first()
-
-            if not card:
-                card = UserCardDirection(
-                    user_word_id=user_word.id,
-                    direction=direction
-                )
-                # Initialize with Anki-like state
-                card.state = CardState.NEW.value
-                card.step_index = 0
-                card.lapses = 0
-                card.ease_factor = DEFAULT_EASE_FACTOR
-                card.interval = 0
-                card.repetitions = 0
-                card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
-                db.session.add(card)
-                db.session.flush()
-
+            card = UserCardDirection.get_or_create(
+                user_word_id=user_word.id, direction=direction,
+            )
+            if card.next_review is None:
+                card.next_review = today_midnight
             cards.append(card)
+        db.session.flush()
 
         # Пересчитываем статус UserWord на основе состояний карточек
         db.session.flush()  # Ensure all card state changes are visible

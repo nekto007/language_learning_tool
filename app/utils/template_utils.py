@@ -292,7 +292,6 @@ def init_template_utils(app):
                     UserWord, UserCardDirection.user_word_id == UserWord.id
                 ).filter(
                     UserWord.user_id == current_user.id,
-                    UserWord.status.in_(['new', 'learning', 'review']),
                     UserCardDirection.direction == 'eng-rus',
                     or_(
                         UserCardDirection.next_review.is_(None),

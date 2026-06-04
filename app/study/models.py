@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from sqlalchemy import Index, func
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -240,12 +241,23 @@ class UserWord(db.Model):
 
     @classmethod
     def get_or_create(cls, user_id: int, word_id: int) -> 'UserWord':
-        """Get existing user_word or create a new one"""
+        """Get existing user_word or create a new one.
+
+        Safe under concurrent writers: the INSERT is wrapped in a savepoint;
+        if another writer raced us and the ``uix_user_word`` unique constraint
+        fires, the savepoint rolls back and we re-fetch the row that landed.
+        Same pattern as ``UserGrammarExercise.get_or_create``.
+        """
+        from sqlalchemy.exc import IntegrityError
+
         user_word = cls.query.filter_by(user_id=user_id, word_id=word_id).first()
-        if not user_word:
+        if user_word is None:
             user_word = cls(user_id=user_id, word_id=word_id)
-            db.session.add(user_word)
-            db.session.flush()
+            try:
+                with db.session.begin_nested():
+                    db.session.add(user_word)
+            except IntegrityError:
+                user_word = cls.query.filter_by(user_id=user_id, word_id=word_id).first()
         return user_word
 
     def recalculate_status(self):
@@ -379,6 +391,14 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     # Bury until - card won't be shown until this timestamp (for session-level bury)
     buried_until = db.Column(db.DateTime, nullable=True)
 
+    # Consecutive leech burials without an intervening successful review.
+    # Drives progressive ``bury_days`` scaling in ``_handle_review``
+    # (Раздел 9 of docs/srs-fix-plan.md). Resets to 0 when the card is
+    # graded ≥ Doubt while in or returning to REVIEW.
+    consecutive_leech_burials = db.Column(
+        db.Integer, default=0, nullable=False, server_default='0',
+    )
+
     # Spaced repetition parameters
     repetitions = db.Column(db.Integer, default=0)
     ease_factor = db.Column(db.Float, default=2.5)
@@ -425,6 +445,41 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.buried_until = None
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+    @classmethod
+    def get_or_create(
+        cls,
+        user_word_id: int,
+        direction: str,
+        source: Optional[str] = None,
+    ) -> 'UserCardDirection':
+        """Get existing direction row or create a new one.
+
+        Safe under concurrent writers: the INSERT is wrapped in a savepoint;
+        if another writer raced us and the ``uix_user_word_direction`` unique
+        constraint fires, the savepoint rolls back and we re-fetch the row
+        that landed. Same pattern as ``UserWord.get_or_create`` /
+        ``UserGrammarExercise.get_or_create`` — used by lesson card prep,
+        ``UnifiedSRSService.get_or_create_cards_for_word`` and book vocab
+        pull, all of which can race on the same ``(user_word_id, direction)``.
+        """
+        from sqlalchemy.exc import IntegrityError
+
+        direction_row = cls.query.filter_by(
+            user_word_id=user_word_id, direction=direction,
+        ).first()
+        if direction_row is None:
+            direction_row = cls(
+                user_word_id=user_word_id, direction=direction, source=source,
+            )
+            try:
+                with db.session.begin_nested():
+                    db.session.add(direction_row)
+            except IntegrityError:
+                direction_row = cls.query.filter_by(
+                    user_word_id=user_word_id, direction=direction,
+                ).first()
+        return direction_row
 
     def bury(self, hours: int = 24):
         """

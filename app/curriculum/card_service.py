@@ -273,19 +273,13 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
     from app.study.deck_utils import ensure_word_in_default_deck
     ensure_word_in_default_deck(user_id, word_id, user_word.id)
 
-    # Получаем или создаем направление
-    card_direction = UserCardDirection.query.filter_by(
+    # Получаем или создаем направление через savepoint-safe helper
+    # (lesson grading может конкурировать с book vocab-pull / другой вкладкой).
+    card_direction = UserCardDirection.get_or_create(
         user_word_id=user_word.id,
-        direction=direction
-    ).first()
-
-    if not card_direction:
-        card_direction = UserCardDirection(
-            user_word_id=user_word.id,
-            direction=direction,
-            source='lesson_vocab',
-        )
-        db.session.add(card_direction)
+        direction=direction,
+        source='lesson_vocab',
+    )
 
     # Сначала получаем или создаем прогресс урока (нужно для обеих веток)
     progress = LessonProgress.query.filter_by(

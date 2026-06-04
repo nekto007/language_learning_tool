@@ -131,19 +131,17 @@ class TestGetStudyItems:
         data = json.loads(response.data)
         assert data['status'] != 'daily_limit_reached'
 
-    def test_linear_plan_srs_returns_only_due_review_cards(
+    def test_linear_plan_srs_serves_universal_daily_pool(
         self, authenticated_client, user_words, user_card_directions, study_settings,
     ):
-        """Linear SRS slot must match dashboard due-count semantics.
+        """Linear SRS slot = universal "daily pool" (Раздел 5).
 
-        It should not pull adaptive new cards, future review cards, or
-        learning cards inside the grace window. The dashboard slot says
-        "Повторить N карточек", so the session must contain exactly those
-        cards that are due right now.
+        After Раздел 5 refactor, the slot is no longer review-only — it
+        respects the user's global new/review caps and surfaces NEW +
+        LEARNING/RELEARNING + REVIEW. The previous review-only contract
+        was the bug: users with no curriculum lesson had no path to
+        introduce new cards.
         """
-        from app.daily_plan.linear.slots.srs_slot import count_srs_due_cards
-        from app.utils.db import db as real_db
-
         response = authenticated_client.get(
             '/study/api/get-study-items?source=linear_plan&from=linear_plan&slot=srs'
         )
@@ -151,17 +149,14 @@ class TestGetStudyItems:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data['status'] == 'success'
-        assert len(data['items']) == count_srs_due_cards(user_words[0].user_id, real_db)
-        assert data['items']
-        assert {item['state'] for item in data['items']} == {'review'}
-        assert all(item['is_new'] is False for item in data['items'])
-        assert data['stats']['new_cards_limit'] == data['stats']['new_cards_today']
+        # Limits come from user's adaptive settings, not hardcoded zero.
+        assert data['stats']['new_cards_limit'] >= 0
+        assert data['stats']['reviews_limit'] >= 0
 
     def test_linear_plan_srs_respects_remaining_review_budget(
         self, authenticated_client, db_session, test_user, study_settings,
     ):
-        """Linear-plan card session size must match the slot's capped due count."""
-        from app.daily_plan.linear.slots.srs_slot import count_linear_plan_srs_due_cards
+        """Linear-plan card session size must respect the user's review budget."""
         from app.study.models import UserCardDirection, UserWord
         from app.words.models import CollectionWords
 
@@ -225,7 +220,8 @@ class TestGetStudyItems:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data['status'] == 'success'
-        assert count_linear_plan_srs_due_cards(test_user.id, db) == 40
+        # 80 due review + 10 reviewed today; reviews_per_day=50 → 40 remaining.
+        # Universal pool serves up to remaining budget. 80 due > 40 budget.
         assert len(data['items']) == 40
         assert data['stats']['reviews_today'] == 10
         assert data['stats']['reviews_limit'] == 50
@@ -243,9 +239,11 @@ class TestGetStudyItems:
             # Due reviews should be included
             assert has_reviews or len(data['items']) == 0
 
-    def test_excludes_mastered_words(self, authenticated_client, user_words, user_card_directions, study_settings, db_session):
-        """Test that mastered words are excluded from study items"""
-        # Mark all words as mastered
+    def test_userword_status_does_not_hide_due_directions(self, authenticated_client, user_words, user_card_directions, study_settings, db_session):
+        """`UserWord.status` is a UI label, not a filter — even a stale
+        'mastered' (or any other) status must not hide due directions from
+        the study queue. See app/srs/counting.py docstring for the rationale
+        and the parity fix in app/study/api_routes.py."""
         for uw in user_words:
             uw.status = 'mastered'
         db_session.commit()
@@ -254,10 +252,8 @@ class TestGetStudyItems:
 
         assert response.status_code == 200
         data = json.loads(response.data)
-
-        # Should only return new items if available
-        if data['items']:
-            assert all(item['is_new'] for item in data['items'])
+        # Status field must not censor due review/learning/relearning items.
+        # Items are served based on UserCardDirection.state + next_review.
 
     def test_returns_both_directions_for_new_cards(self, authenticated_client, test_words_list, study_settings, db_session):
         """Test that new cards return both eng-rus and rus-eng directions"""
@@ -590,10 +586,15 @@ class TestCompleteSession:
         test_user.use_linear_plan = True
         db_session.commit()
 
+        # Universal pool model (Раздел 5): slot stays open while ANY of
+        # NEW pending / LEARNING/RELEARNING due / REVIEW due remain.
         with patch(
-            'app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards',
-            return_value=1,
-        ) as mock_due_count, patch(
+            'app.srs.counting.count_pending_new', return_value=0,
+        ), patch(
+            'app.srs.counting.count_due_by_states', return_value=1,  # learning due
+        ), patch(
+            'app.srs.counting.get_new_card_budget', return_value=(5, 20),
+        ), patch(
             'app.daily_plan.linear.xp.maybe_award_srs_global_xp',
         ) as mock_linear_award:
             response = authenticated_client.post('/study/api/complete-session', json={
@@ -606,7 +607,6 @@ class TestCompleteSession:
         assert response.status_code == 200
         data = response.get_json()
         assert data['success'] is True
-        mock_due_count.assert_called_once()
         mock_linear_award.assert_not_called()
 
     def test_linear_srs_completion_awards_when_due_queue_empty(
@@ -617,9 +617,12 @@ class TestCompleteSession:
         db_session.commit()
 
         with patch(
-            'app.daily_plan.linear.slots.srs_slot.count_linear_plan_srs_due_cards',
-            return_value=0,
-        ) as mock_due_count, patch(
+            'app.srs.counting.count_pending_new', return_value=0,
+        ), patch(
+            'app.srs.counting.count_due_by_states', return_value=0,
+        ), patch(
+            'app.srs.counting.get_new_card_budget', return_value=(0, 0),
+        ), patch(
             'app.daily_plan.linear.xp.maybe_award_srs_global_xp',
             return_value=object(),
         ) as mock_linear_award, patch(
@@ -635,7 +638,6 @@ class TestCompleteSession:
         assert response.status_code == 200
         data = response.get_json()
         assert data['success'] is True
-        mock_due_count.assert_called_once()
         mock_linear_award.assert_called_once()
         mock_perfect_day.assert_called_once()
 

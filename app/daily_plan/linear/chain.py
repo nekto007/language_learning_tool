@@ -31,11 +31,7 @@ from app.daily_plan.linear.slots.reading_slot import (
     get_user_reading_preference,
 )
 from app.daily_plan.linear.slots.speaking_slot import build_speaking_slot
-from app.daily_plan.linear.slots.srs_slot import (
-    build_srs_slot,
-    count_linear_plan_srs_due_cards,
-    get_srs_budget_remaining,
-)
+from app.daily_plan.linear.slots.srs_slot import build_srs_slot
 from app.daily_plan.linear.slots.writing_slot import build_writing_slot
 
 logger = logging.getLogger(__name__)
@@ -125,17 +121,20 @@ def _build_curriculum_extension(
 def _build_srs_extension(
     user_id: int, db: Any, chain: list[dict[str, Any]]
 ) -> Optional[dict[str, Any]]:
-    """Append an SRS slot only when there are due cards or new-card budget left."""
+    """Append an SRS slot only when there is something to surface today.
+
+    Decision is made by ``build_srs_slot`` itself (universal pool model
+    from Раздел 5): if total_show > 0 the slot is pending and we extend;
+    otherwise the slot reports completed/empty and we skip extension.
+    """
     if _has_pending_kind(chain, 'srs'):
-        return None
-    due = count_linear_plan_srs_due_cards(user_id, db)
-    budget = get_srs_budget_remaining(user_id, db)
-    if due <= 0 and budget <= 0:
         return None
     slot_dict = build_srs_slot(user_id, db, curriculum_lesson=None).to_dict()
     if slot_dict.get('completed'):
         return None
     data = dict(slot_dict.get('data') or {})
+    if data.get('total_show', 0) <= 0:
+        return None
     data['extension'] = True
     slot_dict['data'] = data
     return slot_dict
