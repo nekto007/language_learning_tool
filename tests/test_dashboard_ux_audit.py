@@ -142,7 +142,8 @@ class TestDaySecured:
 
     def test_day_secured_note_shown_when_true(self):
         env = _build_env()
-        # secured-note only renders when required list is non-empty and day_secured=True
+        # Celebration block (replaces the legacy secured-note) renders when
+        # required list is non-empty and day_secured=True.
         plan = _base_plan(
             day_secured=True,
             required=[{
@@ -152,7 +153,8 @@ class TestDaySecured:
             }]
         )
         html = _render_partial(env, plan)
-        assert 'daily-plan__secured-note' in html
+        assert 'daily-plan__celebration' in html
+        assert 'День закрыт' in html
 
     def test_close_hint_shown_when_not_secured(self):
         env = _build_env()

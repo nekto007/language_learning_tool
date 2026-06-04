@@ -17129,9 +17129,23 @@ body.dashboard-path-wide main.container {
     font-weight: 600;
     font-size: 0.875rem;
 }
+/* Clickable breadcrumb — jumps to the module overview page. */
+a.daily-plan__position--link {
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+a.daily-plan__position--link:hover,
+a.daily-plan__position--link:focus {
+    background: var(--color-brand, #4f46e5);
+    color: #fff;
+}
 .daily-plan__position--no-content {
     background: var(--color-surface-muted, #f5f5f5);
     color: var(--color-text-muted, #888);
+}
+.daily-plan__level-caption-pct {
+    font-weight: 600;
+    color: var(--color-brand, #4f46e5);
 }
 .daily-plan__level-bar {
     height: 6px;
@@ -17200,6 +17214,14 @@ body.dashboard-path-wide main.container {
 .daily-plan__section--setup .daily-plan__section-title {
     font-size: 0.9375rem;
     color: var(--color-text-muted, #666);
+}
+/* Subtle background tint for the optional/bonus section so the user's
+   eye lands on the required block first. The tint is gentle enough not
+   to compete with item-level surfaces. */
+.daily-plan__section--optional {
+    padding: 16px;
+    background: var(--color-surface-muted, #fafafa);
+    border-radius: 12px;
 }
 
 .daily-plan__list {
@@ -17359,9 +17381,52 @@ body.dashboard-path-wide main.container {
     margin-top: 6px;
 }
 .daily-plan__close-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     margin: 12px 0 0;
     font-size: 0.8125rem;
     color: var(--color-text-muted, #888);
+    font-style: italic;
+}
+.daily-plan__close-hint-icon {
+    font-style: normal;
+    opacity: 0.7;
+}
+
+/* Celebration block replaces the small green "День закрыт ✓" text.
+   Reads as a milestone — soft success background, big tick, summary
+   line of how many required items closed. */
+.daily-plan__celebration {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 16px 0 0;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, var(--color-success-soft, #f0fdf4) 0%, #d1fae5 100%);
+    border: 1px solid var(--color-success, #16a34a);
+    border-radius: 12px;
+}
+.daily-plan__celebration-icon {
+    font-size: 2rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.daily-plan__celebration-body {
+    flex: 1;
+    min-width: 0;
+}
+.daily-plan__celebration-title {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #15803d;
+}
+.daily-plan__celebration-subtitle {
+    margin: 2px 0 0;
+    font-size: 0.875rem;
+    color: #166534;
+    opacity: 0.85;
 }
 
 /* Compact done item — one line, low height */
@@ -17531,12 +17596,24 @@ body.dashboard-path-wide main.container {
 }
 
 .plan-item__hint {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     margin-top: 4px;
     margin-left: 28px;
     font-size: 0.75rem;
     color: var(--color-text-muted, #888);
     line-height: 1.4;
+    cursor: help;
+}
+.plan-item__hint-icon {
+    color: var(--color-brand, #4f46e5);
+    font-size: 0.9375rem;
+    flex-shrink: 0;
+}
+.plan-item__hint:hover .plan-item__hint-icon,
+.plan-item__hint:focus .plan-item__hint-icon {
+    color: var(--color-brand-strong, #3730a3);
 }
 
 /* Unified plan: skip button stack under primary CTA */
@@ -17630,7 +17707,9 @@ body.dashboard-path-wide main.container {
 
 /* Unified plan: methodist-pass polish */
 .plan-item__kind-label {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.6875rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -17638,19 +17717,107 @@ body.dashboard-path-wide main.container {
     color: var(--color-text-muted, #888);
     margin-bottom: 4px;
 }
+.plan-item__kind-icon {
+    font-size: 0.875rem;
+    line-height: 1;
+    text-transform: none;
+}
+.plan-item__kind-suffix {
+    font-weight: 500;
+    opacity: 0.7;
+    letter-spacing: 0;
+    text-transform: none;
+}
 .plan-item--current .plan-item__kind-label {
     color: var(--color-brand, #4f46e5);
 }
 
-/* Locked: read at 70% (not 45%) so disabled is unmistakable but text stays legible. */
+/* Per-kind accent (Раздел UX-polish): each activity gets its own marker
+   colour so the user can scan "what's today" without reading. SRS keeps
+   the brand violet; the other kinds use distinct hues that read well
+   over the soft background. */
+.plan-item--current.plan-item--listening .plan-item__marker,
+.plan-item--listening .plan-item__marker {
+    background: #e0f2fe; color: #0369a1;
+}
+.plan-item--current.plan-item--listening .plan-item__marker {
+    background: #0ea5e9; color: #fff;
+}
+.plan-item--current.plan-item--reading .plan-item__marker,
+.plan-item--reading .plan-item__marker {
+    background: #dcfce7; color: #15803d;
+}
+.plan-item--current.plan-item--reading .plan-item__marker {
+    background: #16a34a; color: #fff;
+}
+.plan-item--current.plan-item--writing .plan-item__marker,
+.plan-item--writing .plan-item__marker {
+    background: #ffedd5; color: #c2410c;
+}
+.plan-item--current.plan-item--writing .plan-item__marker {
+    background: #f97316; color: #fff;
+}
+.plan-item--current.plan-item--speaking .plan-item__marker,
+.plan-item--speaking .plan-item__marker {
+    background: #fce7f3; color: #be185d;
+}
+.plan-item--current.plan-item--speaking .plan-item__marker {
+    background: #ec4899; color: #fff;
+}
+.plan-item--current.plan-item--grammar_review .plan-item__marker,
+.plan-item--grammar_review .plan-item__marker {
+    background: #fef3c7; color: #b45309;
+}
+.plan-item--current.plan-item--grammar_review .plan-item__marker {
+    background: #f59e0b; color: #fff;
+}
+.plan-item--current.plan-item--error_review .plan-item__marker,
+.plan-item--error_review .plan-item__marker {
+    background: #fee2e2; color: #b91c1c;
+}
+.plan-item--current.plan-item--error_review .plan-item__marker {
+    background: #ef4444; color: #fff;
+}
+/* Locked + done keep the muted / success colours regardless of kind —
+   the state signal is stronger than the kind signal there. */
+.plan-item--locked.plan-item--listening .plan-item__marker,
+.plan-item--locked.plan-item--reading .plan-item__marker,
+.plan-item--locked.plan-item--writing .plan-item__marker,
+.plan-item--locked.plan-item--speaking .plan-item__marker,
+.plan-item--locked.plan-item--grammar_review .plan-item__marker,
+.plan-item--locked.plan-item--error_review .plan-item__marker {
+    background: var(--color-surface-muted, #f0f0f0);
+    color: var(--color-text-muted, #888);
+}
+.plan-item--done.plan-item--listening .plan-item__marker,
+.plan-item--done.plan-item--reading .plan-item__marker,
+.plan-item--done.plan-item--writing .plan-item__marker,
+.plan-item--done.plan-item--speaking .plan-item__marker,
+.plan-item--done.plan-item--grammar_review .plan-item__marker,
+.plan-item--done.plan-item--error_review .plan-item__marker {
+    background: var(--color-success, #16a34a);
+    color: #fff;
+}
+
+/* Locked: compact one-line treatment — vertical density matters when
+   3+ locked steps stack on top of each other. Hint moves to a tooltip
+   on the lock icon (title attr); inline hint removed to save vertical
+   space. */
 .plan-item--locked {
     opacity: 0.7;
     background: var(--color-surface, #fff);
     border-color: var(--color-border, #e5e5e5);
+    padding-top: 10px;
+    padding-bottom: 10px;
 }
 .plan-item--locked .plan-item__title--locked {
     color: var(--color-text, #2a2a2a);
     opacity: 0.95;
+    font-size: 0.95rem;
+}
+.plan-item--locked .plan-item__lock-hint {
+    font-size: 0.75rem;
+    opacity: 0.65;
 }
 
 /* Optional locked: muted but not skeleton-like (no dashed border). */

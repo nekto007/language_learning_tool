@@ -53,6 +53,19 @@
     'srs': 'Повторение слов',
     'grammar_review': 'Грамматика',
 } %}
+{# Glyph per kind shown before the eyebrow label — speeds up the
+   "что сегодня" scan by giving each activity a visual anchor. #}
+{% set kind_icons = {
+    'srs': '🃏',
+    'reading': '📖',
+    'listening': '🎧',
+    'speaking': '🎤',
+    'writing': '✍️',
+    'error_review': '🛠',
+    'grammar_review': '🧩',
+    'curriculum': '📚',
+    'challenge': '⚡',
+} %}
 
 
 {# Resolve per-item completion + locate the first actionable required index.
@@ -73,6 +86,17 @@
 {% set u_required_total = u_required | length %}
 {% set u_current_idx = ns.current_idx %}
 
+{# Pre-count kinds across required so duplicate eyebrows can disambiguate
+   themselves with a "(2/3)" suffix. Without this, two listening or two
+   curriculum slots look identical at a glance. #}
+{% set kind_totals = {} %}
+{% for item in u_required %}
+    {% set _k = item.get('kind', '') %}
+    {% if _k %}
+        {% if kind_totals.update({_k: kind_totals.get(_k, 0) + 1}) %}{% endif %}
+    {% endif %}
+{% endfor %}
+
 <section id="daily-plan" class="daily-plan" data-daily-plan="true" data-mode="unified">
 
   {# ── Header: human-readable spine position + module progress ── #}
@@ -81,11 +105,24 @@
       {% set _lvl = u_position.get('level_code') or '' %}
       {% set _mod = u_position.get('module_number') %}
       {% set _les = u_position.get('lesson_number') %}
-      <span class="daily-plan__position">
-        {% if _lvl %}{{ _lvl }}{% endif %}
-        {% if _mod is not none %} · Модуль {{ _mod }}{% endif %}
-        {% if _les is not none %} · Урок {{ _les }}{% endif %}
-      </span>
+      {# Module breadcrumb is clickable — jumps to the module overview. #}
+      {% set _module_url = '' %}
+      {% if _lvl and _mod is not none %}
+        {% set _module_url = url_for('learn.learn_by_module', level_code=_lvl|lower, module_number=_mod) %}
+      {% endif %}
+      {% if _module_url %}
+        <a class="daily-plan__position daily-plan__position--link" href="{{ _module_url }}">
+          {% if _lvl %}{{ _lvl }}{% endif %}
+          {% if _mod is not none %} · Модуль {{ _mod }}{% endif %}
+          {% if _les is not none %} · Урок {{ _les }}{% endif %}
+        </a>
+      {% else %}
+        <span class="daily-plan__position">
+          {% if _lvl %}{{ _lvl }}{% endif %}
+          {% if _mod is not none %} · Модуль {{ _mod }}{% endif %}
+          {% if _les is not none %} · Урок {{ _les }}{% endif %}
+        </span>
+      {% endif %}
       {% if u_module.get('module_title') %}
         <h2 class="daily-plan__module-title">{{ u_module.get('module_title') }}</h2>
       {% endif %}
@@ -93,12 +130,14 @@
         {% set _done = u_module.get('lessons_completed', 0) %}
         {% set _total = u_module.get('lessons_total') %}
         {% set _current_les = u_position.get('lesson_number') if u_position else None %}
+        {% set _pct = ((_done / _total) * 100)|round(0)|int %}
         <div class="daily-plan__module-progress">
           <div class="daily-plan__level-bar" role="progressbar" aria-valuemin="0" aria-valuemax="{{ _total }}" aria-valuenow="{{ _done }}">
-            <div class="daily-plan__level-bar__fill" style="width: {{ ((_done / _total) * 100)|round(0) }}%"></div>
+            <div class="daily-plan__level-bar__fill" style="width: {{ _pct }}%"></div>
           </div>
           <span class="daily-plan__level-caption">
             {% if _current_les %}Урок {{ _current_les }} из {{ _total }}{% else %}{{ _done }} из {{ _total }} уроков{% endif %}
+            <span class="daily-plan__level-caption-pct">· {{ _pct }}%</span>
           </span>
         </div>
       {% endif %}
@@ -124,6 +163,9 @@
     </div>
 
     {% if u_required %}
+      {# Running counter of how many items of each kind we've seen so far —
+         drives the "(N/M)" suffix on duplicate eyebrows. #}
+      {% set ns_kinds = namespace(counts={}) %}
       <ol class="daily-plan__list">
         {% for item in u_required %}
           {% set _id = item.get('id') %}
@@ -156,6 +198,11 @@
           {% elif _kind in kind_section_labels %}
               {% set _label = kind_section_labels[_kind] %}
           {% endif %}
+          {# Disambiguate duplicate kinds in required: "(1/2)", "(2/2)". #}
+          {% set _kind_total = kind_totals.get(_kind, 0) %}
+          {% set _kind_seen = ns_kinds.counts.get(_kind, 0) + 1 %}
+          {% if ns_kinds.counts.update({_kind: _kind_seen}) %}{% endif %}
+          {% set _kind_glyph = kind_icons.get(_kind, '') %}
           <li class="plan-item plan-item--{{ _kind }} plan-item--{{ _state }}{% if _completed %} plan-item--compact{% endif %}"
               data-plan-item="true"
               data-item-id="{{ _id }}"
@@ -180,7 +227,11 @@
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
               <div class="plan-item__body">
                 {% if _label %}
-                  <span class="plan-item__kind-label">{{ _label }}</span>
+                  <span class="plan-item__kind-label">
+                    {% if _kind_glyph %}<span class="plan-item__kind-icon" aria-hidden="true">{{ _kind_glyph }}</span>{% endif %}
+                    {{ _label }}
+                    {% if _kind_total > 1 %}<span class="plan-item__kind-suffix">{{ _kind_seen }}/{{ _kind_total }}</span>{% endif %}
+                  </span>
                 {% endif %}
                 <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
                 <span class="plan-item__lock-hint">Откроется после предыдущего шага</span>
@@ -189,7 +240,11 @@
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
               <div class="plan-item__body">
                 {% if _label %}
-                  <span class="plan-item__kind-label">{{ _label }}</span>
+                  <span class="plan-item__kind-label">
+                    {% if _kind_glyph %}<span class="plan-item__kind-icon" aria-hidden="true">{{ _kind_glyph }}</span>{% endif %}
+                    {{ _label }}
+                    {% if _kind_total > 1 %}<span class="plan-item__kind-suffix">{{ _kind_seen }}/{{ _kind_total }}</span>{% endif %}
+                  </span>
                 {% endif %}
                 <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
                 <span class="plan-item__lock-hint">{{ _item_data.get('locked_reason') or 'Сначала завершите урок курса' }}</span>
@@ -198,7 +253,11 @@
               <span class="plan-item__marker plan-item__marker--skipped" aria-hidden="true">⤼</span>
               <div class="plan-item__body">
                 {% if _label %}
-                  <span class="plan-item__kind-label">{{ _label }}</span>
+                  <span class="plan-item__kind-label">
+                    {% if _kind_glyph %}<span class="plan-item__kind-icon" aria-hidden="true">{{ _kind_glyph }}</span>{% endif %}
+                    {{ _label }}
+                    {% if _kind_total > 1 %}<span class="plan-item__kind-suffix">{{ _kind_seen }}/{{ _kind_total }}</span>{% endif %}
+                  </span>
                 {% endif %}
                 <span class="plan-item__title">{{ _display_title }}</span>
                 <span class="plan-item__skipped-hint">Пропущено — можно вернуться в любой момент</span>
@@ -213,7 +272,11 @@
               <span class="plan-item__marker" aria-hidden="true">{{ loop.index }}</span>
               <div class="plan-item__body">
                 {% if _label %}
-                  <span class="plan-item__kind-label">{{ _label }}</span>
+                  <span class="plan-item__kind-label">
+                    {% if _kind_glyph %}<span class="plan-item__kind-icon" aria-hidden="true">{{ _kind_glyph }}</span>{% endif %}
+                    {{ _label }}
+                    {% if _kind_total > 1 %}<span class="plan-item__kind-suffix">{{ _kind_seen }}/{{ _kind_total }}</span>{% endif %}
+                  </span>
                 {% endif %}
                 <a class="plan-item__link" href="{{ _url }}">
                   <span class="plan-item__title">{{ _display_title }}</span>
@@ -222,7 +285,10 @@
                   {% endif %}
                 </a>
                 {% if _kind == 'srs' and _item_data.get('reason_hint') %}
-                  <span class="plan-item__hint">{{ _item_data.get('reason_hint') }}</span>
+                  <span class="plan-item__hint" title="{{ _item_data.get('reason_hint') }}" tabindex="0">
+                    <span class="plan-item__hint-icon" aria-hidden="true">ⓘ</span>
+                    <span class="plan-item__hint-text">{{ _item_data.get('reason_hint') }}</span>
+                  </span>
                 {% endif %}
               </div>
               <div class="plan-item__actions">
@@ -261,10 +327,22 @@
       </ol>
       {% if not u_day_secured and u_required_total > 0 %}
         <p class="daily-plan__close-hint">
+          <span class="daily-plan__close-hint-icon" aria-hidden="true">⏱</span>
           День закроется после {% if u_required_total == 1 %}этого шага{% else %}этих {{ u_required_total }} {% if u_required_total < 5 %}шагов{% else %}шагов{% endif %}{% endif %}.
         </p>
       {% else %}
-        <p class="daily-plan__secured-note">День закрыт <span aria-hidden="true">&#10003;</span></p>
+        {# Celebration block — replaces the small green text with a card
+           that summarizes the day's outcome so closing the day reads as
+           a milestone, not a sticker. #}
+        <div class="daily-plan__celebration" role="status" aria-live="polite">
+          <span class="daily-plan__celebration-icon" aria-hidden="true">🎉</span>
+          <div class="daily-plan__celebration-body">
+            <p class="daily-plan__celebration-title">День закрыт</p>
+            <p class="daily-plan__celebration-subtitle">
+              {{ u_required_done }} {% if u_required_total %}из {{ u_required_total }}{% endif %} обязательных заданий — отличная работа.
+            </p>
+          </div>
+        </div>
       {% endif %}
     {% else %}
       <div class="daily-plan__empty-state" role="status" aria-live="polite">
@@ -351,6 +429,11 @@
           {% elif _kind in kind_section_labels %}
               {% set _label = kind_section_labels[_kind] %}
           {% endif %}
+          {% set _kind_glyph = kind_icons.get(_kind, '') %}
+          {# No "(N/M)" suffix in optional — duplicates are rare and the
+             "БОНУС" badge already differentiates the section. #}
+          {% set _kind_total = 0 %}
+          {% set _kind_seen = 0 %}
           <li class="plan-item plan-item--{{ _kind }} plan-item--optional{% if _is_locked_any %} plan-item--optional-locked{% endif %}{% if _completed %} plan-item--compact{% endif %}"
               data-plan-item="true"
               data-item-id="{{ _id }}"
