@@ -26,6 +26,88 @@ from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 logger = logging.getLogger(__name__)
 
 _SRS_ITEM_ETA_MINUTES = 8
+_DECK_QUIZ_DEFAULT_LIMIT = 30
+
+
+def _build_deck_quiz_plan_item(
+    user_id: int,
+    db: Any,
+    *,
+    section: str = 'required',
+) -> Optional[PlanItem]:
+    """Return a deck-quiz ``PlanItem`` when curriculum already serves the
+    card session for today.
+
+    Two card-form activities in one day satisfy each other in the user's
+    head — they look like duplicates. When the curriculum slot is itself a
+    card lesson we swap the regular SRS-card item for a quiz over the
+    user's decks instead, so the daily plan still surfaces a vocabulary-
+    review activity without literally repeating cards twice.
+    """
+    from app.daily_plan.linear.slots.srs_slot import (
+        _DECK_QUIZ_LIMIT,
+        _DECK_QUIZ_SOURCE,
+        _count_user_deck_quiz_words,
+    )
+
+    completed_today = _srs_completed_today(user_id, db)
+    deck_word_count = _count_user_deck_quiz_words(user_id, db)
+    limit = min(_DECK_QUIZ_LIMIT, max(deck_word_count, 0))
+
+    data: dict[str, Any] = {
+        'mode': 'deck_quiz',
+        'source': _DECK_QUIZ_SOURCE,
+        'deck_word_count': deck_word_count,
+        'word_limit': limit,
+    }
+
+    if completed_today:
+        return PlanItem(
+            id='srs:deck_quiz',
+            section=section,  # type: ignore[arg-type]
+            kind='srs',
+            title='Квиз по словам из колод закрыт',
+            subtitle=f'{deck_word_count} слов в колодах' if deck_word_count else None,
+            lesson_type='quiz',
+            eta_minutes=0,
+            url=None,
+            completed=True,
+            completion_signal='srs_xp_earned',
+            data=data,
+        )
+
+    if deck_word_count <= 0:
+        # Nothing to quiz over — surface a no-op completed placeholder.
+        return PlanItem(
+            id='srs:deck_quiz',
+            section=section,  # type: ignore[arg-type]
+            kind='srs',
+            title='Нет слов для квиза в колодах',
+            subtitle=None,
+            lesson_type='quiz',
+            eta_minutes=0,
+            url=None,
+            completed=True,
+            completion_signal='srs_xp_earned',
+            data=data,
+        )
+
+    return PlanItem(
+        id='srs:deck_quiz',
+        section=section,  # type: ignore[arg-type]
+        kind='srs',
+        title=f'Квиз по словам — {limit}',
+        subtitle=f'{deck_word_count} в колодах' if deck_word_count else None,
+        lesson_type='quiz',
+        eta_minutes=_SRS_ITEM_ETA_MINUTES,
+        url=build_slot_url(
+            f'/study/quiz/linear-plan?source={_DECK_QUIZ_SOURCE}&limit={limit}',
+            LinearSlotKind.SRS,
+        ),
+        completed=False,
+        completion_signal='srs_xp_earned',
+        data=data,
+    )
 
 
 def _srs_completed_today(user_id: int, db: Any) -> bool:
@@ -46,6 +128,7 @@ def build_srs_item(
     *,
     section: str = 'required',
     ignore_daily_budget: bool = False,
+    as_deck_quiz: bool = False,
 ) -> Optional[PlanItem]:
     """Return SRS PlanItem: pending when due>0, done when reviewed today, None otherwise.
 
@@ -55,7 +138,14 @@ def build_srs_item(
     item with completed=True so it stays on the «done» list. Only return
     None when due=0 AND no activity today (e.g. brand-new user with no
     cards yet).
+
+    ``as_deck_quiz=True`` swaps the regular card-review item for a deck
+    quiz — used when the curriculum slot is itself a card lesson, to
+    avoid two cards-form activities crediting each other.
     """
+    if as_deck_quiz:
+        return _build_deck_quiz_plan_item(user_id, db, section=section)
+
     from app.daily_plan.linear.slots.srs_slot import count_srs_reviews_today
     from app.srs.constants import CardState
     from app.srs.counting import (

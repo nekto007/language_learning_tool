@@ -180,14 +180,17 @@ def build_required(
     )
 
     # SRS placement rules:
-    #   curriculum is NOT card-lesson      → SRS in required (standard)
-    #   curriculum IS card-lesson, SRS pending → SRS in optional (dedup)
-    #   curriculum IS card-lesson, SRS done    → SRS in required as done
-    #     (so the counter shows progress instead of dropping a step)
-    srs_item = build_srs_item(user_id, db, section='required')
+    #   curriculum is NOT card-lesson      → SRS as standard card review
+    #   curriculum IS card-lesson, pending → SRS as deck quiz (so the
+    #       user doesn't get «cards twice today» visual dedup; the quiz
+    #       is a different form factor over the same vocabulary pool)
+    #   curriculum IS card-lesson, done    → SRS as standard card review
+    srs_item = build_srs_item(
+        user_id, db, section='required',
+        as_deck_quiz=next_is_card_lesson,
+    )
     if srs_item is not None:
-        if srs_item.completed or not next_is_card_lesson:
-            items.append(srs_item)
+        items.append(srs_item)
 
     if cur_item is not None:
         items.append(cur_item)
