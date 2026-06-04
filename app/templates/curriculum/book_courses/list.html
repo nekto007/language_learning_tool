@@ -14,6 +14,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://llt-english.com/curriculum/book-courses">
 {% endblock %}
+{% block og_image %}{{ url_for('static', filename='img/book_courses_og.png', _external=True) }}{% endblock %}
 
 {% block content %}
 {% set my_courses = courses | selectattr('is_enrolled') | list %}

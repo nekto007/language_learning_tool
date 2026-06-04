@@ -8,6 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="{{ request.base_url }}">
 {% endblock %}
+{% block og_image %}{{ url_for('static', filename='img/landing_OG.png', _external=True) }}{% endblock %}
 
 {% block meta_description %}<meta name="description" content="Изучайте английский язык онлайн: грамматика с теорией и упражнениями, курсы по уровням A1–C1, карточки для запоминания слов, книги с переводом.">{% endblock %}
 

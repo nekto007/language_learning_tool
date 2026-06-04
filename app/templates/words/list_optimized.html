@@ -2,6 +2,8 @@
 
 {% block title %}{{ _('Слова') }} - {{ _('Приложение для изучения английского') }}{% endblock %}
 
+{% block og_image %}{{ url_for('static', filename='img/words.png', _external=True) }}{% endblock %}
+
 {% block content %}
 <style>
 /* ====== Scoped CSS Variables ====== */
