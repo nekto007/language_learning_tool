@@ -162,15 +162,19 @@
               data-item-kind="{{ _kind }}"
               data-state="{{ _state }}">
             {% if _completed %}
-              {# Compact one-liner for completed items. #}
+              {# Compact one-liner for completed items. Rendered as <span>,
+                 not <a>: re-clicking a completed SRS / lesson slot lands
+                 on an empty state ("nothing to study" / "lesson already
+                 done") which reads as a broken link. The done marker +
+                 muted styling are the affordance. #}
               <span class="plan-item__marker plan-item__marker--done" aria-hidden="true">&#10003;</span>
               <div class="plan-item__body">
-                <a class="plan-item__link plan-item__link--compact" href="{{ _url }}">
+                <span class="plan-item__link plan-item__link--compact plan-item__link--static">
                   <span class="plan-item__title">{{ item.get('title') }}</span>
                   {% if item.get('subtitle') %}
                     <span class="plan-item__subtitle plan-item__subtitle--inline">· {{ item.get('subtitle') }}</span>
                   {% endif %}
-                </a>
+                </span>
               </div>
             {% elif _state == 'locked' %}
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
@@ -353,6 +357,11 @@
                 {% if _is_step_locked %}
                   <span class="plan-item__lock-hint">Откроется после предыдущего шага</span>
                 {% endif %}
+              {% elif _completed %}
+                {# Static span — completed item, see required-list rationale. #}
+                <span class="plan-item__link plan-item__link--static">
+                  <span class="plan-item__title">{{ item.get('title') }}</span>
+                </span>
               {% else %}
                 <a class="plan-item__link" href="{{ _url }}">
                   <span class="plan-item__title">{{ item.get('title') }}</span>
@@ -366,7 +375,7 @@
                 </span>
               {% endif %}
             </div>
-            {% if _is_current %}
+            {% if _is_current and not _completed %}
               <a class="plan-item__cta plan-item__cta--button plan-item__cta--secondary" href="{{ _url }}">
                 Начать <span aria-hidden="true">→</span>
               </a>
