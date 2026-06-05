@@ -375,8 +375,16 @@ def submit_lesson(lesson_id):
             if rate_limit is not None:
                 return jsonify({'success': False, **rate_limit}), 429
             _content = lesson.content if isinstance(lesson.content, dict) else {}
-            result = process_final_test_submission(_content.get('questions', []), data.get('answers', {}))
             _ft_passing = _content.get('passing_score_percent', _content.get('passing_score', PASSING_SCORE_DEFAULT))
+            try:
+                _ft_passing = int(_ft_passing)
+            except (TypeError, ValueError):
+                _ft_passing = PASSING_SCORE_DEFAULT
+            result = process_final_test_submission(
+                _content.get('questions', []),
+                data.get('answers', {}),
+                passing_score=_ft_passing,
+            )
             try:
                 from app.curriculum.services.progress_service import ProgressService
                 ProgressService.update_progress_with_grading(

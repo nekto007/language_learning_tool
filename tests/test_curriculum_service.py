@@ -397,6 +397,30 @@ class TestFinalTestProcessing:
             assert result['score'] == 0.0
             assert result['passed'] is False
 
+    def test_passing_score_param_honours_higher_threshold(self, app, db_session):
+        """Regression: when a final_test lesson has passing_score_percent=80
+        in content, the grader must use it — otherwise result['passed'] would
+        be True at score=79 (default 70) while update_progress_with_grading
+        marks status='in_progress' at threshold 80. UI/DB divergence.
+        """
+        with app.app_context():
+            # 4 questions, 3 correct → 75 (< 80 threshold)
+            questions = [
+                {'type': 'multiple_choice', 'options': ['a'], 'correct': 0}
+                for _ in range(4)
+            ]
+            user_answers = {'0': 0, '1': 0, '2': 0, '3': 1}
+
+            with_default = process_final_test_submission(questions, user_answers)
+            assert with_default['score'] == 75
+            assert with_default['passed'] is True  # default 70
+
+            with_strict = process_final_test_submission(
+                questions, user_answers, passing_score=80
+            )
+            assert with_strict['score'] == 75
+            assert with_strict['passed'] is False  # 75 < 80
+
 
 class TestGrammarProcessing:
     """Тесты обработки грамматических упражнений"""

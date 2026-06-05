@@ -95,9 +95,13 @@ class TestEffectivePassingScore:
         lesson = _make_lesson(db_session, lesson_type='dictation', content={})
         assert _effective_passing_score(lesson) == 80
 
-    def test_audio_fill_blank_default_is_80(self, db_session):
+    def test_audio_fill_blank_default_is_70(self, db_session):
+        """audio_fill_blank uses PASSING_SCORE_DEFAULT in both grader and
+        route (see grade_audio_fill_blank). Only ``dictation`` is the 80
+        special case, despite the two often being grouped colloquially.
+        """
         lesson = _make_lesson(db_session, lesson_type='audio_fill_blank', content={})
-        assert _effective_passing_score(lesson) == 80
+        assert _effective_passing_score(lesson) == 70
 
     def test_other_default_is_70(self, db_session):
         lesson = _make_lesson(db_session, lesson_type='final_test', content={})

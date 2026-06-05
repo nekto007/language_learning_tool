@@ -1238,7 +1238,11 @@ def process_matching_submission(pairs: list, user_matches: dict) -> dict:
     }
 
 
-def process_final_test_submission(questions: list, user_answers: dict) -> dict:
+def process_final_test_submission(
+    questions: list,
+    user_answers: dict,
+    passing_score: int = PASSING_SCORE_DEFAULT,
+) -> dict:
     correct_count = 0
     total_count = len(questions)
     feedback = {}
@@ -1312,7 +1316,7 @@ def process_final_test_submission(questions: list, user_answers: dict) -> dict:
         }
 
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
-    passed = score >= PASSING_SCORE_DEFAULT
+    passed = score >= passing_score
 
     return {
         'score': round(score, 1),

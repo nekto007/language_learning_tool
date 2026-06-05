@@ -37,16 +37,15 @@ from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
 
 logger = logging.getLogger(__name__)
 
-_DICTATION_TYPES = frozenset({'dictation', 'audio_fill_blank'})
-
-
 def _effective_passing_score(lesson: Lessons) -> int:
     """Return the passing-score threshold the lesson actually grades against.
 
     Mirrors the precedence used by the lesson routes / progress service:
     explicit ``passing_score_percent`` / ``passing_score`` in content win,
-    otherwise fall back to the type-default (dictation/audio_fill_blank → 80,
-    everything else → 70).
+    otherwise fall back to the type-default (dictation → 80, everything
+    else → 70). ``audio_fill_blank`` uses 70 in both grader and route
+    (see ``grade_audio_fill_blank`` and the ``audio_fill_blank`` handler
+    in ``lessons.py``) — only ``dictation`` is the 80-threshold special case.
     """
     content = lesson.content if isinstance(lesson.content, dict) else {}
     explicit = content.get('passing_score_percent')
@@ -57,7 +56,7 @@ def _effective_passing_score(lesson: Lessons) -> int:
             return int(explicit)
         except (TypeError, ValueError):
             pass
-    if (lesson.type or '') in _DICTATION_TYPES:
+    if (lesson.type or '') == 'dictation':
         return PASSING_SCORE_DICTATION
     return PASSING_SCORE_DEFAULT
 
