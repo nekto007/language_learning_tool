@@ -1172,11 +1172,20 @@ window.FinalTestApp = {
     if (testScreen) testScreen.style.display = 'block';
     this.state.started = true;
 
-    // Restore progress if exists
+    // Restore progress if exists. ``current_question`` is clamped to a
+    // valid index: an older bug let stuck progress save N+1 (one past
+    // the last index), and an unclamped restore here renders "Вопрос N+1
+    // из N" with no question card on screen. Clamping keeps the user on
+    // the last real question so they can re-submit.
     {% if progress and progress.data and progress.status != 'completed' %}
       const savedData = {{ progress.data|tojson|safe }};
       if (savedData.current_question !== undefined) {
-        this.state.currentQuestion = savedData.current_question;
+        const total = Number(window.finalTestData.totalQuestions || 0);
+        const maxIdx = Math.max(0, total - 1);
+        const raw = Number(savedData.current_question);
+        this.state.currentQuestion = Math.max(
+          0, Math.min(Number.isFinite(raw) ? raw : 0, maxIdx)
+        );
         this.state.answers = savedData.answers || [];
         this.state.correctCount = savedData.correct_answers || 0;
       }
@@ -1351,10 +1360,28 @@ window.FinalTestApp = {
   saveProgressTimer: null,
 
   async saveProgress() {
-    // Debounce - don't save too frequently (wait 1 second)
+    // Debounce - don't save too frequently (wait 1 second). The snapshot
+    // is taken HERE, not inside the timer closure: the timer fires ~1s
+    // later and reading ``this.state`` then would race with submitResults
+    // (which increments currentQuestion past the last index just before
+    // POSTing the answers form). A stale read writes current_question=N+1
+    // back to LessonProgress.data, and the next page load restores
+    // currentQuestion out-of-bounds → "Вопрос N+1 из N" with no question
+    // to render. Snapshotting at call time freezes the intended save.
     if (this.saveProgressTimer) {
       clearTimeout(this.saveProgressTimer);
     }
+
+    const total = Number(window.finalTestData.totalQuestions || 0);
+    const clampedCurrent = Math.max(
+      0, Math.min(this.state.currentQuestion, Math.max(0, total - 1))
+    );
+    const snapshot = {
+      current_question: clampedCurrent,
+      answers: (this.state.answers || []).slice(),
+      correct_answers: this.state.correctCount,
+      total_questions: total,
+    };
 
     this.saveProgressTimer = setTimeout(async () => {
       const csrfToken = document.querySelector('meta[name="csrf-token"]');
@@ -1368,12 +1395,7 @@ window.FinalTestApp = {
           },
           body: JSON.stringify({
             status: 'in_progress',
-            data: {
-              current_question: this.state.currentQuestion,
-              answers: this.state.answers,
-              correct_answers: this.state.correctCount,
-              total_questions: window.finalTestData.totalQuestions
-            }
+            data: snapshot,
           })
         });
 
@@ -1479,6 +1501,15 @@ window.FinalTestApp = {
   },
 
   submitResults() {
+    // Cancel any pending debounced progress save: it would otherwise fire
+    // after this POST and race-overwrite LessonProgress.data with a stale
+    // {current_question: N+1} snapshot, stranding the user out-of-bounds
+    // on the next page load.
+    if (this.saveProgressTimer) {
+      clearTimeout(this.saveProgressTimer);
+      this.saveProgressTimer = null;
+    }
+
     // Create a hidden form and submit it (traditional POST)
     const form = document.createElement('form');
     form.method = 'POST';

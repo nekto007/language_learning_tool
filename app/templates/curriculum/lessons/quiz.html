@@ -2032,11 +2032,20 @@ window.QuizApp = {
     if (quizScreen) quizScreen.style.display = 'block';
     this.state.started = true;
 
-    // Restore progress if exists
+    // Restore progress if exists. ``current_question`` is clamped to a
+    // valid index — without this, a stuck row with current_question == N
+    // (one past the last index, e.g. from an old race between the
+    // debounced save and submit) would render "Вопрос N+1 из N" with no
+    // question card on screen.
     {% if progress and progress.data and not is_completed %}
       const savedData = {{ progress.data|tojson|safe }};
       if (savedData.current_question !== undefined) {
-        this.state.currentQuestion = savedData.current_question;
+        const total = Number(window.quizData.totalQuestions || 0);
+        const maxIdx = Math.max(0, total - 1);
+        const raw = Number(savedData.current_question);
+        this.state.currentQuestion = Math.max(
+          0, Math.min(Number.isFinite(raw) ? raw : 0, maxIdx)
+        );
         this.state.answers = savedData.answers || [];
         this.state.correctCount = savedData.correct_answers || 0;
       }

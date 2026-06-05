@@ -617,6 +617,7 @@ def _register_cli_commands(app):
         click.echo(f'  Flipped          : {report.flipped}')
         click.echo(f'    by attempt     : {report.flipped_by_attempt}')
         click.echo(f'    by score       : {report.flipped_by_score}')
+        click.echo(f'    by data perfect: {report.flipped_by_data_perfect}')
         if report.errors:
             click.echo(f'\n  Errors ({len(report.errors)}):')
             for e in report.errors:

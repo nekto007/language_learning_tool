@@ -210,3 +210,48 @@ class TestReconcile:
 
         assert progress.status == 'completed'
         assert progress.score == 90.0
+
+    def test_dictation_perfect_mastery_in_data_flips(self, db_session):
+        """Regression: dictation rows stuck below threshold (e.g. score=79
+        capped by the old attempt-limit override) flip when progress.data
+        shows correct_words >= total_words. Without this, pre-fix users
+        stay 'in_progress' forever despite typing every word correctly.
+        """
+        user = _make_user(db_session)
+        lesson = _make_lesson(db_session, lesson_type='dictation', content={})
+        progress = _make_progress(db_session, user, lesson, score=79.0)
+        progress.data = {
+            'score': 79,
+            'passed': False,
+            'correct_words': 4,
+            'total_words': 4,
+            'failed_by_attempt_limit': True,
+        }
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(progress, 'data')
+        db_session.commit()
+
+        report = reconcile_stuck_lesson_progress(db_session, dry_run=False)
+        db_session.refresh(progress)
+
+        assert report.flipped == 1
+        assert report.flipped_by_data_perfect == 1
+        assert progress.status == 'completed'
+
+    def test_dictation_partial_mastery_does_not_flip(self, db_session):
+        """If correct_words < total_words, no by_data_perfect flip."""
+        user = _make_user(db_session)
+        lesson = _make_lesson(db_session, lesson_type='dictation', content={})
+        progress = _make_progress(db_session, user, lesson, score=50.0)
+        progress.data = {
+            'score': 50, 'correct_words': 2, 'total_words': 4,
+        }
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(progress, 'data')
+        db_session.commit()
+
+        report = reconcile_stuck_lesson_progress(db_session, dry_run=False)
+        db_session.refresh(progress)
+
+        assert report.flipped == 0
+        assert progress.status == 'in_progress'

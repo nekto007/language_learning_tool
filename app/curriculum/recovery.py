@@ -67,8 +67,32 @@ class ReconcileReport:
     flipped: int = 0
     flipped_by_attempt: int = 0
     flipped_by_score: int = 0
+    flipped_by_data_perfect: int = 0
     flipped_ids: list[int] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+
+
+def _data_says_perfect_mastery(lesson: Lessons, data: Any) -> bool:
+    """Return True when ``progress.data`` carries an unambiguous
+    perfect-mastery signal that should bypass historical caps.
+
+    Currently only ``dictation`` is handled: the route used to apply an
+    "attempt-limit" cap to score even when the final submission was 100%
+    correct (see the mastery-override block in ``_process_dictation_submission``).
+    Pre-fix rows can therefore be stuck with ``score=79`` and
+    ``failed_by_attempt_limit=True`` despite ``correct_words == total_words``
+    — those are real completions and should flip.
+    """
+    if not isinstance(data, dict):
+        return False
+    if (lesson.type or '') != 'dictation':
+        return False
+    try:
+        correct = int(data.get('correct_words') or 0)
+        total = int(data.get('total_words') or 0)
+    except (TypeError, ValueError):
+        return False
+    return total > 0 and correct >= total
 
 
 def _now_utc_naive() -> datetime:
@@ -112,12 +136,16 @@ def _iter_stuck_progress(db_session: Any) -> Iterable[tuple[LessonProgress, Less
         LessonProgress.score.isnot(None)
         & (LessonProgress.score >= PASSING_SCORE_DEFAULT)
     )
+    # Dictation rows can be stuck below PASSING_SCORE_DEFAULT (e.g. 79
+    # capped by the old attempt-limit override) while progress.data shows
+    # full mastery. Include them so the by_data_perfect signal can fire.
+    is_dictation = Lessons.type == 'dictation'
     rows = (
         db_session.query(LessonProgress, Lessons)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.status == 'in_progress',
-            (has_passed_attempt | score_at_least_default),
+            (has_passed_attempt | score_at_least_default | is_dictation),
         )
         .order_by(LessonProgress.id)
         .yield_per(500)
@@ -163,8 +191,9 @@ def reconcile_stuck_lesson_progress(
 
                 by_attempt = latest_passed is not None
                 by_score = score >= threshold
+                by_data_perfect = _data_says_perfect_mastery(lesson, progress.data)
 
-                if not (by_attempt or by_score):
+                if not (by_attempt or by_score or by_data_perfect):
                     continue
 
                 new_score = score
@@ -186,8 +215,13 @@ def reconcile_stuck_lesson_progress(
                 report.flipped += 1
                 if by_attempt:
                     report.flipped_by_attempt += 1
-                else:
+                    signal = 'attempt'
+                elif by_score:
                     report.flipped_by_score += 1
+                    signal = 'score'
+                else:
+                    report.flipped_by_data_perfect += 1
+                    signal = 'data_perfect'
                 report.flipped_ids.append(progress.id)
                 pending += 1
 
@@ -195,8 +229,7 @@ def reconcile_stuck_lesson_progress(
                     "reconcile: flip lesson_progress id=%s user=%s lesson=%s "
                     "score=%s threshold=%s signal=%s",
                     progress.id, progress.user_id, progress.lesson_id,
-                    new_score, threshold,
-                    'attempt' if by_attempt else 'score',
+                    new_score, threshold, signal,
                 )
 
                 if not dry_run and pending >= 100:
