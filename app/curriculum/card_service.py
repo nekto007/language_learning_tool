@@ -486,14 +486,21 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
 
     progress.last_activity = datetime.now(UTC)
 
-    # Проверяем, завершен ли урок (для уроков 3 и 5)
+    # Lesson completes only when ``cards_studied`` reaches the lesson's
+    # ``min_cards_required`` threshold (default 10 per ``Lessons`` model).
+    # The previous implementation flipped status as soon as
+    # ``get_cards_for_lesson`` returned an empty list — which could happen
+    # mid-lesson when the user's global daily SRS budget ran out, marking
+    # the lesson "completed" after just a few reviews. The hardcoded
+    # ``lesson.number in [3, 5]`` gate was equally brittle. The threshold
+    # comparison below is consistent across all card lessons and never
+    # finishes the lesson before the configured card count is processed.
     lesson = Lessons.query.get(lesson_id)
-    if lesson.number in [3, 5]:
-        # Проверяем, есть ли еще доступные карточки
-        cards_data = get_cards_for_lesson(lesson_id, user_id)
-        if not cards_data['cards']:  # Нет больше карточек для показа
-            progress.status = 'completed'
-            progress.completed_at = datetime.now(UTC)
+    min_required = max(1, int(getattr(lesson, 'min_cards_required', 0) or 10))
+    cards_studied = int(progress.data.get('cards_studied', 0) or 0)
+    if cards_studied >= min_required and progress.status != 'completed':
+        progress.status = 'completed'
+        progress.completed_at = datetime.now(UTC)
 
     # Помечаем объект как измененный для SQLAlchemy
     from sqlalchemy.orm.attributes import flag_modified

@@ -731,27 +731,36 @@ def complete_srs_session(lesson_id):
             )
             db.session.add(progress)
 
-        cards_studied = data.get('cards_studied', 0)
-        accuracy = data.get('accuracy', 0)
+        cards_studied = int(data.get('cards_studied', 0) or 0)
+        accuracy = float(data.get('accuracy', 0) or 0)
 
+        # Lesson is "completed" only when the session covered at least
+        # ``min_cards_required`` distinct cards (default 10 per Lessons
+        # model). The earlier `cards_studied > 0` gate flipped status on
+        # any non-empty session — a user who answered 2 cards and walked
+        # back to the dashboard would see the lesson marked done while
+        # 8+ cards were still expected. Sessions below the threshold
+        # still persist their stats in ``progress.data`` so the next
+        # open resumes correctly; the status simply stays `in_progress`.
+        min_required = max(1, int(getattr(lesson, 'min_cards_required', 0) or 10))
+        threshold_met = cards_studied >= min_required
         newly_completed = False
+        from sqlalchemy.orm.attributes import flag_modified
         if cards_studied > 0:
-            newly_completed = progress.status != 'completed'
-            progress.status = 'completed'
-            progress.score = round(accuracy, 2)
-            progress.completed_at = datetime.now(UTC)
             correct_for_data = int(round(cards_studied * (accuracy / 100)))
-            # Сохраняем stats в progress.data — на повторном открытии урока
-            # роут читает их и показывает celebration без перепрохождения
-            # карточек (read-only re-view). Точно как у других уроков
-            # (audio_fill_blank/shadow_reading/dictation/listening_immersion).
-            progress.data = {
-                'cards_studied': int(cards_studied),
+            existing = dict(progress.data or {})
+            existing.update({
+                'cards_studied': cards_studied,
                 'correct': correct_for_data,
-                'accuracy': float(accuracy),
-            }
-            from sqlalchemy.orm.attributes import flag_modified
+                'accuracy': accuracy,
+            })
+            progress.data = existing
             flag_modified(progress, 'data')
+            if threshold_met:
+                newly_completed = progress.status != 'completed'
+                progress.status = 'completed'
+                progress.score = round(accuracy, 2)
+                progress.completed_at = datetime.now(UTC)
 
         db.session.commit()
 
