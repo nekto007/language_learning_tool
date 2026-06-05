@@ -1229,6 +1229,23 @@ function restoreSession() {
   const state = loadSessionState();
   if (!state) return false;
 
+  // Validate cached exercise ids against the server's fresh ``exercises``
+  // array (rendered by the template on this page load). If any cached
+  // exercise no longer exists on the server — admin purged it, content
+  // got re-imported, etc. — the cache is stale and we must NOT restore
+  // it. Otherwise the user keeps seeing deleted exercises (e.g. the
+  // audio-only listening_choice items removed from grammar_lab) and the
+  // page stays broken across hard refreshes because sessionStorage
+  // persists. Drop cache and fall through to a fresh start.
+  const freshIds = new Set((exercises || []).map(e => e && e.id).filter(Boolean));
+  const cachedIds = (state.exercises || []).map(e => e && e.id).filter(Boolean);
+  const allCachedStillExist = cachedIds.length > 0
+    && cachedIds.every(id => freshIds.has(id));
+  if (!allCachedStillExist) {
+    clearSessionState();
+    return false;
+  }
+
   // Restore saved exercises array to preserve order and avoid server's random shuffle
   exercises = state.exercises;
   currentIndex = state.currentIndex;
