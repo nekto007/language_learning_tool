@@ -572,10 +572,12 @@ def _register_cli_commands(app):
 
     @app.cli.command('start-email-scheduler')
     def start_email_scheduler_cmd():
-        """Start the email re-engagement scheduler."""
+        """Start the email re-engagement scheduler. Blocks until SIGTERM
+        so the daemon scheduler thread keeps running in a Docker container.
+        """
         from app.email_scheduler import init_email_scheduler
-        init_email_scheduler(app)
-        click.echo('Email scheduler started.')
+        click.echo('Email scheduler started; waiting for jobs (SIGTERM to stop).')
+        init_email_scheduler(app, blocking=True)
 
     @app.cli.command('backfill-achievements')
     @click.option('--dry-run', is_flag=True, default=False,

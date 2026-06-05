@@ -171,11 +171,23 @@ def run_lesson_progress_reconcile_job() -> None:
     )
 
 
-def init_email_scheduler(app) -> None:
-    """Initialize email scheduler within Flask app context."""
+def init_email_scheduler(app, *, blocking: bool = False) -> None:
+    """Initialize email scheduler within Flask app context.
+
+    The scheduler runs in a daemon thread (``BackgroundScheduler``), so the
+    calling process MUST stay alive for jobs to fire. When invoked via the
+    ``flask start-email-scheduler`` CLI inside a container, Click returns
+    immediately after this function — the daemon thread dies with the
+    process and no job ever runs. Pass ``blocking=True`` from such entry
+    points: this call then blocks on ``signal.pause()`` until the process
+    receives a signal (SIGTERM from ``docker stop``), giving the scheduler
+    thread an actual lifetime.
+    """
     global _scheduler
 
     if _scheduler is not None:
+        if blocking:
+            _block_until_signal()
         return
 
     _scheduler = BackgroundScheduler()
@@ -217,3 +229,29 @@ def init_email_scheduler(app) -> None:
 
     _scheduler.start()
     logger.info('Email scheduler started')
+
+    if blocking:
+        _block_until_signal()
+
+
+def _block_until_signal() -> None:
+    """Block the calling thread until SIGTERM/SIGINT, keeping the daemon
+    scheduler thread alive. ``signal.pause()`` is POSIX-only; on platforms
+    without it we fall back to an infinite sleep loop.
+    """
+    import signal
+    import time
+
+    logger.info('Email scheduler blocking on signal; waiting for jobs')
+    pause = getattr(signal, 'pause', None)
+    if pause is not None:
+        try:
+            pause()
+        except (KeyboardInterrupt, SystemExit):
+            pass
+        return
+    try:
+        while True:
+            time.sleep(3600)
+    except (KeyboardInterrupt, SystemExit):
+        pass

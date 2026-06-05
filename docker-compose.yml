@@ -52,6 +52,29 @@ services:
     networks:
       - app_network
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    container_name: language_learning_tool_scheduler
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=${FLASK_ENV}
+      - PYTHONPATH=/app
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    command: flask start-email-scheduler
+    networks:
+      - app_network
+
   nginx:
     image: nginx:1.25  # Updated from 1.27 to latest stable version
     container_name: language_learning_tool_nginx
