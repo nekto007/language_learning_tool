@@ -1372,16 +1372,22 @@ function renderExercise(exercise) {
     case 'translation': {
       // Translation supports both directions (ru→en and en→ru). The
       // exercise model exposes ``source_lang`` / ``target_lang`` so we
-      // pick the right prompt label and always show the source phrase
-      // — earlier code hardcoded "Переведите на английский:" AND
-      // stripped that prefix from sentence, so en→ru exercises (where
+      // pick the right prompt label and always show the source phrase.
+      // Earlier code hardcoded "Переведите на английский:" AND stripped
+      // that prefix from sentence, so en→ru exercises (where
       // ``question`` reads "Что означает эта фраза?" and the English
       // phrase lives in ``sentence``) rendered as just the question
       // with no phrase to translate.
+      //
+      // ``question`` is used as label only when it differs from the
+      // source phrase — otherwise (e.g. question="Откуда ты?",
+      // sentence="Откуда ты?") it would duplicate the phrase below.
       const targetLang = (exercise.target_lang || 'en').toString().toLowerCase();
       const isToRussian = targetLang === 'ru' || targetLang === 'rus' || targetLang === 'russian';
-      const labelText = question || (isToRussian ? 'Переведите на русский:' : 'Переведите на английский:');
-      const translationText = (sentence || '').replace(/^Переведите на (английский|русский):\s*/i, '');
+      const defaultLabel = isToRussian ? 'Переведите на русский:' : 'Переведите на английский:';
+      const translationText = (sentence || '').replace(/^Переведите на (английский|русский):\s*/i, '').trim();
+      const questionIsPhrase = !!question && question.trim() === translationText;
+      const labelText = (question && !questionIsPhrase) ? question : defaultLabel;
       const placeholderText = isToRussian ? 'Ваш перевод (на русский)' : 'Ваш перевод';
       const phraseHtml = translationText
         ? `<p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${translationText}</p>`
