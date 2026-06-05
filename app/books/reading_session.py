@@ -522,31 +522,19 @@ def is_daily_reading_target_met_today(
     book_id: int,
     db_session: Any = db,
 ) -> bool:
-    """Return True iff any chapter of ``book_id`` reached the daily target
-    today (aggregated time + offset advance). Used by the unified daily
+    """Return True iff the user spent ``DAILY_READING_TARGET_SECONDS`` total
+    reading any chapter of ``book_id`` today. Used by the unified daily
     plan reading slot to decide completion.
 
-    Open sessions count toward both the chapter shortlist and the
-    per-chapter aggregate via ``compute_chapter_daily_target_state``, so
-    a navigation from the reader straight to the dashboard no longer
-    needs the sendBeacon close to land before the slot can flip.
+    Aggregation is book-level (sum across all of today's sessions on any
+    chapter of the book), not per-chapter: when the user advances to the
+    next chapter mid-read, the accumulated time would otherwise split
+    between two chapters and never reach the per-chapter target despite
+    a qualifying book-level total. Matches the slot's "Прочитано N сек /
+    300 сек" progress bar (also book-level) and ``has_min_reading_time_today``
+    (which gates the XP award). Open sessions count up to one heartbeat
+    window so a sendBeacon close that hasn't committed yet does not flip
+    the slot back to incomplete.
     """
-    from app.books.models import Chapter
-
-    start_utc, end_utc = _user_local_day_window_utc(user_id, db_session)
-    chapter_rows = (
-        db_session.session.query(UserReadingSession.chapter_id)
-        .join(Chapter, Chapter.id == UserReadingSession.chapter_id)
-        .filter(
-            UserReadingSession.user_id == user_id,
-            Chapter.book_id == book_id,
-            _sessions_in_local_day_filter(start_utc, end_utc),
-        )
-        .distinct()
-        .all()
-    )
-    for (chapter_id,) in chapter_rows:
-        state = compute_chapter_daily_target_state(user_id, chapter_id, db_session)
-        if state['daily_target_met']:
-            return True
-    return False
+    total_seconds = get_book_reading_seconds_today(user_id, book_id, db_session)
+    return total_seconds >= DAILY_READING_TARGET_SECONDS

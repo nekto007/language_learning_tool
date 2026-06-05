@@ -1019,6 +1019,35 @@ class TestDailyReadingTarget:
         self._set_chapter_progress(db_session, test_user, test_chapter, 0.10)
         assert is_daily_reading_target_met_today(test_user.id, test_book.id, db) is True
 
+    def test_target_met_when_time_split_across_chapters(
+        self, db_session, test_user, test_book, test_chapter,
+    ):
+        """Regression: user reads chapter N, advances to chapter N+1 mid-read.
+        Time splits across two chapters, neither hits the per-chapter target
+        alone, but the book total >= DAILY_READING_TARGET_SECONDS should
+        still close the slot.
+        """
+        from app.books.models import Chapter
+
+        second = Chapter(
+            book_id=test_book.id,
+            chap_num=2,
+            title='Test Chapter 2',
+            words=100,
+            text_raw='More text.',
+        )
+        db_session.add(second)
+        db_session.commit()
+
+        half = DAILY_READING_TARGET_SECONDS // 2 + 5  # split slightly over
+        s1 = start_session(test_user.id, test_chapter.id, db)
+        _close_session_with_duration(s1, half)
+        s2 = start_session(test_user.id, second.id, db)
+        _close_session_with_duration(s2, half)
+        db_session.commit()
+
+        assert is_daily_reading_target_met_today(test_user.id, test_book.id, db) is True
+
 
 class TestReadingSessionEndBannerState:
     """`/api/books/reading-session/end` returns banner_state for the client
