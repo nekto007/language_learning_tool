@@ -1300,10 +1300,22 @@ function renderExercise(exercise) {
   const sentence = exercise.sentence || exercise.question || '';
   const exerciseType = (exercise.exercise_type || '').toLowerCase();
 
+  // A source-phrase block (sentence / statement / original) the user
+  // is supposed to act on. Rendered for fill_blank/default whenever
+  // the exercise carries a non-empty phrase but no dedicated case
+  // handles it — without this, exercises authored as
+  // ``{question: "Что означает эта фраза?", sentence: "I am happy"}``
+  // would render only the question with nothing to translate.
+  const sourcePhrase = (exercise.sentence || exercise.statement || exercise.original || '').toString().trim();
+  const sourcePhraseHtml = sourcePhrase
+    ? `<p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${sourcePhrase}</p>`
+    : '';
+
   switch (exerciseType) {
     case 'fill_blank':
       return `
         <label>${question || 'Заполните пропуск:'}</label>
+        ${sourcePhraseHtml}
         <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
       `;
 
@@ -1340,13 +1352,29 @@ function renderExercise(exercise) {
         <input type="hidden" id="user-answer" value="">
       `;
 
-    case 'translation':
-      let translationText = sentence.replace(/^Переведите на английский:\s*/i, '');
+    case 'translation': {
+      // Translation supports both directions (ru→en and en→ru). The
+      // exercise model exposes ``source_lang`` / ``target_lang`` so we
+      // pick the right prompt label and always show the source phrase
+      // — earlier code hardcoded "Переведите на английский:" AND
+      // stripped that prefix from sentence, so en→ru exercises (where
+      // ``question`` reads "Что означает эта фраза?" and the English
+      // phrase lives in ``sentence``) rendered as just the question
+      // with no phrase to translate.
+      const targetLang = (exercise.target_lang || 'en').toString().toLowerCase();
+      const isToRussian = targetLang === 'ru' || targetLang === 'rus' || targetLang === 'russian';
+      const labelText = question || (isToRussian ? 'Переведите на русский:' : 'Переведите на английский:');
+      const translationText = (sentence || '').replace(/^Переведите на (английский|русский):\s*/i, '');
+      const placeholderText = isToRussian ? 'Ваш перевод (на русский)' : 'Ваш перевод';
+      const phraseHtml = translationText
+        ? `<p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${translationText}</p>`
+        : '';
       return `
-        <label>Переведите на английский:</label>
-        <p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${translationText}</p>
-        <input type="text" id="user-answer" placeholder="Ваш перевод" autocomplete="off">
+        <label>${labelText}</label>
+        ${phraseHtml}
+        <input type="text" id="user-answer" placeholder="${placeholderText}" autocomplete="off">
       `;
+    }
 
     case 'reorder':
       return renderReorder(exercise);
@@ -1373,6 +1401,7 @@ function renderExercise(exercise) {
     default:
       return `
         <label>${question || 'Введите ответ:'}</label>
+        ${sourcePhraseHtml}
         <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
       `;
   }
