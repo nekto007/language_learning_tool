@@ -598,5 +598,27 @@ def _register_cli_commands(app):
             for e in report.errors:
                 click.echo(f'    - {e}')
 
+    @app.cli.command('reconcile-lesson-progress')
+    @click.option('--dry-run', is_flag=True, default=False,
+                  help='Scan and report without writing flips to DB')
+    def reconcile_lesson_progress_cmd(dry_run):
+        """Flip stuck LessonProgress rows to 'completed' when an attempt
+        passed or score already meets the lesson's threshold. Idempotent.
+        """
+        from app.curriculum.recovery import reconcile_stuck_lesson_progress
+        from app.utils.db import db
+        mode = 'dry-run' if dry_run else 'live'
+        click.echo(f'Reconcile stuck lesson_progress starting ({mode}) ...')
+        report = reconcile_stuck_lesson_progress(db.session, dry_run=dry_run)
+        click.echo(f'\nDone.')
+        click.echo(f'  Scanned          : {report.scanned}')
+        click.echo(f'  Flipped          : {report.flipped}')
+        click.echo(f'    by attempt     : {report.flipped_by_attempt}')
+        click.echo(f'    by score       : {report.flipped_by_score}')
+        if report.errors:
+            click.echo(f'\n  Errors ({len(report.errors)}):')
+            for e in report.errors:
+                click.echo(f'    - {e}')
+
     from app.cli.content_commands import register_content_commands
     register_content_commands(app)

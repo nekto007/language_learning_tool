@@ -152,6 +152,25 @@ def run_reengagement_job() -> None:
     logger.info(f'Re-engagement emails sent: {sent}')
 
 
+def run_lesson_progress_reconcile_job() -> None:
+    """Safety-net sweep that flips stuck LessonProgress rows to 'completed'
+    when the user already passed the lesson (per latest attempt or score).
+
+    See ``app.curriculum.recovery`` for the trigger conditions. Idempotent;
+    rows already 'completed' are not re-scanned.
+    """
+    from app.curriculum.recovery import reconcile_stuck_lesson_progress
+
+    logger.info('Running lesson_progress reconcile job')
+    report = reconcile_stuck_lesson_progress(db.session, dry_run=False)
+    logger.info(
+        'lesson_progress reconcile: scanned=%d flipped=%d (attempt=%d score=%d) errors=%d',
+        report.scanned, report.flipped,
+        report.flipped_by_attempt, report.flipped_by_score,
+        len(report.errors),
+    )
+
+
 def init_email_scheduler(app) -> None:
     """Initialize email scheduler within Flask app context."""
     global _scheduler
@@ -168,6 +187,13 @@ def init_email_scheduler(app) -> None:
             except Exception as e:
                 logger.error(f'Re-engagement job failed: {e}')
 
+    def reconcile_wrapper():
+        with app.app_context():
+            try:
+                run_lesson_progress_reconcile_job()
+            except Exception as e:
+                logger.error(f'lesson_progress reconcile job failed: {e}')
+
     # Run daily at 10:00 UTC
     _scheduler.add_job(
         job_wrapper,
@@ -175,6 +201,17 @@ def init_email_scheduler(app) -> None:
         hour=10,
         minute=0,
         id='reengagement_emails',
+        replace_existing=True,
+    )
+
+    # Daily safety-net sweep for stuck lesson_progress rows. 03:00 UTC sits
+    # in low-traffic hours so a long backfill doesn't fight live writes.
+    _scheduler.add_job(
+        reconcile_wrapper,
+        'cron',
+        hour=3,
+        minute=0,
+        id='lesson_progress_reconcile',
         replace_existing=True,
     )
 
