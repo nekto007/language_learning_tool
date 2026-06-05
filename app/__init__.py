@@ -621,18 +621,17 @@ def _register_cli_commands(app):
             'послушайте',
         )
 
-        rows = (
-            db.session.query(GrammarExercise)
-            .filter(GrammarExercise.exercise_type == 'fill_blank')
-            .all()
-        )
+        # Type-agnostic scan: a re-import may have produced rows of any
+        # exercise_type (translation/multiple_choice/etc.) carrying the
+        # same audio-only prompt. Heuristic: source=module_import AND
+        # question matches a listening prompt. Options non-empty is no
+        # longer required — translation-typed audio leftovers have no
+        # options but still need cleanup.
+        rows = db.session.query(GrammarExercise).all()
         candidates = []
         for ex in rows:
             content = ex.content if isinstance(ex.content, dict) else {}
             if content.get('source') != 'module_import':
-                continue
-            options = content.get('options') or []
-            if not options:
                 continue
             question = (content.get('question') or '').lower().strip()
             if not any(h in question for h in AUDIO_HINTS):
