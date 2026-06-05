@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from marshmallow import ValidationError
 from sqlalchemy.orm import joinedload
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, get_lesson_passing_score
 from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.curriculum.routes.lessons import lessons_bp
@@ -577,7 +577,7 @@ def render_final_test_lesson(lesson):
             all_questions = cleaned_content.get(questions_field, [])
 
         result = process_quiz_submission(all_questions, answers)
-        passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', PASSING_SCORE_DEFAULT))
+        passing_score = get_lesson_passing_score(lesson)
 
         try:
             log_quiz_errors_from_result(
@@ -652,7 +652,7 @@ def render_final_test_lesson(lesson):
         settings=cleaned_content,
         progress=progress,
         next_lesson=next_lesson,
-        passing_score=cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', PASSING_SCORE_DEFAULT))
+        passing_score=get_lesson_passing_score(lesson)
     )
 
 
@@ -1083,7 +1083,7 @@ def final_test_lesson(lesson_id):
                     feedback[fb_key]['user_pairs'] = pair_list
             result['feedback'] = feedback
 
-        passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', PASSING_SCORE_DEFAULT))
+        passing_score = get_lesson_passing_score(lesson)
 
         try:
             log_quiz_errors_from_result(
@@ -1157,7 +1157,7 @@ def final_test_lesson(lesson_id):
         settings=cleaned_content,
         progress=progress,
         next_lesson=next_lesson,
-        passing_score=cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', PASSING_SCORE_DEFAULT))
+        passing_score=get_lesson_passing_score(lesson)
     )
 
 
@@ -1206,7 +1206,7 @@ def final_test_results(lesson_id):
         questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
         questions = cleaned_content.get(questions_field, [])
 
-    passing_score = cleaned_content.get('passing_score_percent', cleaned_content.get('passing_score', PASSING_SCORE_DEFAULT))
+    passing_score = get_lesson_passing_score(lesson)
 
     next_lesson = get_next_lesson(lesson.id)
 

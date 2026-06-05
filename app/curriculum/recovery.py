@@ -32,33 +32,17 @@ from typing import Any, Iterable, Optional
 
 from sqlalchemy import func
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, get_lesson_passing_score
 from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
 
 logger = logging.getLogger(__name__)
 
-def _effective_passing_score(lesson: Lessons) -> int:
-    """Return the passing-score threshold the lesson actually grades against.
 
-    Mirrors the precedence used by the lesson routes / progress service:
-    explicit ``passing_score_percent`` / ``passing_score`` in content win,
-    otherwise fall back to the type-default (dictation → 80, everything
-    else → 70). ``audio_fill_blank`` uses 70 in both grader and route
-    (see ``grade_audio_fill_blank`` and the ``audio_fill_blank`` handler
-    in ``lessons.py``) — only ``dictation`` is the 80-threshold special case.
-    """
-    content = lesson.content if isinstance(lesson.content, dict) else {}
-    explicit = content.get('passing_score_percent')
-    if explicit is None:
-        explicit = content.get('passing_score')
-    if explicit is not None:
-        try:
-            return int(explicit)
-        except (TypeError, ValueError):
-            pass
-    if (lesson.type or '') == 'dictation':
-        return PASSING_SCORE_DICTATION
-    return PASSING_SCORE_DEFAULT
+# Recovery used to host its own copy of the passing-score lookup; the
+# canonical implementation now lives in ``app.curriculum.constants`` so
+# the grader, route, and reconcile job all read the same value. Keep
+# this name as an alias so existing tests / imports don't break.
+_effective_passing_score = get_lesson_passing_score
 
 
 @dataclass

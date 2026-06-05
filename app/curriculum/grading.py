@@ -184,7 +184,12 @@ def _normalize_for_dictation(text: str) -> str:
     return s
 
 
-def grade_dictation(user_text: str, transcript: str, hint_chars: int = 0) -> dict:
+def grade_dictation(
+    user_text: str,
+    transcript: str,
+    hint_chars: int = 0,
+    passing_score: int = PASSING_SCORE_DICTATION,
+) -> dict:
     """Grade a dictation exercise by comparing user text to the transcript word by word.
 
     Args:
@@ -223,7 +228,7 @@ def grade_dictation(user_text: str, transcript: str, hint_chars: int = 0) -> dic
         word_results.append({"word": correct_word, "user_word": user_word, "correct": is_correct})
 
     score = round(correct_words / total_words * 100)
-    passed = score >= PASSING_SCORE_DICTATION
+    passed = score >= passing_score
 
     return {
         "score": score,
@@ -234,7 +239,11 @@ def grade_dictation(user_text: str, transcript: str, hint_chars: int = 0) -> dic
     }
 
 
-def grade_audio_fill_blank(user_answers: list, items: list) -> dict:
+def grade_audio_fill_blank(
+    user_answers: list,
+    items: list,
+    passing_score: int = PASSING_SCORE_DEFAULT,
+) -> dict:
     """Grade an audio fill-in-blank exercise.
 
     Args:
@@ -279,7 +288,7 @@ def grade_audio_fill_blank(user_answers: list, items: list) -> dict:
         })
 
     score = round(correct / total * 100)
-    passed = score >= PASSING_SCORE_DEFAULT
+    passed = score >= passing_score
 
     return {
         'score': score,
@@ -307,7 +316,11 @@ def grade_translation(user_answer: str, correct_answer: str) -> dict:
     }
 
 
-def grade_translation_multi(user_answers: list, items: list) -> dict:
+def grade_translation_multi(
+    user_answers: list,
+    items: list,
+    passing_score: int = PASSING_SCORE_DEFAULT,
+) -> dict:
     """Grade a multi-item guided translation lesson.
 
     Matches the audio_fill_blank / sentence_completion shape so the existing
@@ -352,7 +365,7 @@ def grade_translation_multi(user_answers: list, items: list) -> dict:
     score = round(correct / total * 100)
     return {
         'score': score,
-        'passed': score >= PASSING_SCORE_DEFAULT,
+        'passed': score >= passing_score,
         'correct_items': correct,
         'total_items': total,
         'item_results': item_results,
@@ -377,7 +390,11 @@ def grade_sentence_correction(user_answer: str, correct_sentence: str) -> dict:
     }
 
 
-def grade_sentence_correction_multi(user_answers: list, items: list) -> dict:
+def grade_sentence_correction_multi(
+    user_answers: list,
+    items: list,
+    passing_score: int = PASSING_SCORE_DEFAULT,
+) -> dict:
     """Grade a multi-item sentence-correction exercise.
 
     Each item has its own ``correct_sentence``. The user's answer for the
@@ -427,14 +444,18 @@ def grade_sentence_correction_multi(user_answers: list, items: list) -> dict:
     score = round(correct / total * 100)
     return {
         'score': score,
-        'passed': score >= PASSING_SCORE_DEFAULT,
+        'passed': score >= passing_score,
         'correct_items': correct,
         'total_items': total,
         'item_results': item_results,
     }
 
 
-def grade_sentence_completion(user_answers: list, items: list) -> dict:
+def grade_sentence_completion(
+    user_answers: list,
+    items: list,
+    passing_score: int = PASSING_SCORE_DEFAULT,
+) -> dict:
     """Grade a sentence completion exercise.
 
     Each item has a ``prompt`` (sentence start) and an ``answer`` (expected
@@ -476,7 +497,7 @@ def grade_sentence_completion(user_answers: list, items: list) -> dict:
         })
 
     score = round(correct / total * 100)
-    passed = score >= PASSING_SCORE_DEFAULT
+    passed = score >= passing_score
 
     return {
         'score': score,
@@ -487,7 +508,11 @@ def grade_sentence_completion(user_answers: list, items: list) -> dict:
     }
 
 
-def grade_collocation_matching(user_pairs: list, correct_pairs: list) -> dict:
+def grade_collocation_matching(
+    user_pairs: list,
+    correct_pairs: list,
+    passing_score: int = PASSING_SCORE_DEFAULT,
+) -> dict:
     """Grade a collocation matching exercise with partial scoring.
 
     Args:
@@ -543,7 +568,7 @@ def grade_collocation_matching(user_pairs: list, correct_pairs: list) -> dict:
         })
 
     score = round(correct / total * 100)
-    passed = score >= PASSING_SCORE_DEFAULT
+    passed = score >= passing_score
 
     return {
         'score': score,

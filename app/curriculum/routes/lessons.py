@@ -12,7 +12,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
 
 from app import limiter
-from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
+from app.curriculum.constants import (
+    PASSING_SCORE_DEFAULT,
+    PASSING_SCORE_DICTATION,
+    get_lesson_passing_score,
+)
 from app.curriculum.models import LessonProgress, Lessons
 from app.curriculum.security import require_lesson_access, sanitize_json_content
 from app.curriculum.grading import check_final_test_attempts_exhausted
@@ -375,11 +379,7 @@ def submit_lesson(lesson_id):
             if rate_limit is not None:
                 return jsonify({'success': False, **rate_limit}), 429
             _content = lesson.content if isinstance(lesson.content, dict) else {}
-            _ft_passing = _content.get('passing_score_percent', _content.get('passing_score', PASSING_SCORE_DEFAULT))
-            try:
-                _ft_passing = int(_ft_passing)
-            except (TypeError, ValueError):
-                _ft_passing = PASSING_SCORE_DEFAULT
+            _ft_passing = get_lesson_passing_score(lesson)
             result = process_final_test_submission(
                 _content.get('questions', []),
                 data.get('answers', {}),
@@ -807,7 +807,8 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     except (TypeError, ValueError):
         replay_count = 0
 
-    grade = grade_dictation(user_text, reference_text, hint_chars)
+    passing = get_lesson_passing_score(lesson)
+    grade = grade_dictation(user_text, reference_text, hint_chars, passing_score=passing)
     grade['user_text'] = user_text
 
     existing_progress = LessonProgress.query.filter_by(
@@ -844,7 +845,7 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=PASSING_SCORE_DICTATION,
+        passing_score=passing,
     )
 
     try:
@@ -946,13 +947,14 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     except (TypeError, ValueError):
         replay_count = 0
 
-    grade = grade_audio_fill_blank(user_answers, items)
+    passing = get_lesson_passing_score(lesson)
+    grade = grade_audio_fill_blank(user_answers, items, passing_score=passing)
 
     progress, _ = ProgressService.update_progress_with_grading(
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=PASSING_SCORE_DEFAULT,
+        passing_score=passing,
     )
 
     try:
@@ -1120,11 +1122,12 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
 
     content = lesson.content or {}
     items = _translation_items_from_content(content)
+    passing = get_lesson_passing_score(lesson)
 
     answers_payload = data.get('answers')
     if isinstance(answers_payload, list) and items:
         user_answers = [(str(a) if a is not None else '')[:2000] for a in answers_payload]
-        grade = grade_translation_multi(user_answers, items)
+        grade = grade_translation_multi(user_answers, items, passing_score=passing)
         passed = grade['passed']
         combined_text = ' | '.join(a.strip() for a in user_answers if a and a.strip())
     else:
@@ -1158,7 +1161,7 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=PASSING_SCORE_DEFAULT,
+        passing_score=passing,
     )
 
     if passed:
@@ -1284,10 +1287,11 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
     content = lesson.content or {}
     items = content.get('items') or []
     is_multi = bool(items) and isinstance(data.get('answers'), list)
+    passing = get_lesson_passing_score(lesson)
 
     if is_multi:
         user_answers = [(a or '')[:2000] for a in data.get('answers', [])]
-        grade = grade_sentence_correction_multi(user_answers, items)
+        grade = grade_sentence_correction_multi(user_answers, items, passing_score=passing)
         passed = grade.get('passed', False)
         score_value = float(grade.get('score', 0))
     else:
@@ -1315,7 +1319,7 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
         user_id=user_id,
         lesson=lesson,
         result={'passed': passed, 'score': score_value, **grade},
-        passing_score=PASSING_SCORE_DEFAULT,
+        passing_score=passing,
     )
 
     if passed:
@@ -1714,13 +1718,14 @@ def _process_sentence_completion_submission(lesson: 'Lessons', user_id: int, dat
         user_answers = []
     user_answers = [(str(a) if a is not None else '')[:2000] for a in user_answers]
 
-    grade = grade_sentence_completion(user_answers, items)
+    passing = get_lesson_passing_score(lesson)
+    grade = grade_sentence_completion(user_answers, items, passing_score=passing)
 
     ProgressService.update_progress_with_grading(
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=PASSING_SCORE_DEFAULT,
+        passing_score=passing,
     )
 
     if grade.get('passed'):
@@ -1828,13 +1833,14 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     max_pairs = max(len(correct_pairs) * 2, 50)
     user_pairs = user_pairs[:max_pairs]
 
-    grade = grade_collocation_matching(user_pairs, correct_pairs)
+    passing = get_lesson_passing_score(lesson)
+    grade = grade_collocation_matching(user_pairs, correct_pairs, passing_score=passing)
 
     ProgressService.update_progress_with_grading(
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=PASSING_SCORE_DEFAULT,
+        passing_score=passing,
     )
 
     if grade.get('passed'):
