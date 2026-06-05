@@ -600,6 +600,66 @@ def _register_cli_commands(app):
             for e in report.errors:
                 click.echo(f'    - {e}')
 
+    @app.cli.command('purge-audio-grammar-exercises')
+    @click.option('--dry-run', is_flag=True, default=False,
+                  help='Report what would be deleted without committing')
+    def purge_audio_grammar_exercises_cmd(dry_run):
+        """Delete grammar_lab exercises that were mis-imported from module
+        ``listening_choice`` items (audio playback unsupported in grammar_lab
+        UI). Heuristic: ``source='module_import'`` AND content has both
+        non-empty ``options`` AND the question is a known listening prompt
+        ('Что означает эта фраза?', 'Что вы услышали?', 'Прослушайте...').
+        Idempotent; safe to re-run.
+        """
+        from app.grammar_lab.models import GrammarExercise, UserGrammarExercise
+        from app.utils.db import db
+
+        AUDIO_HINTS = (
+            'что означает эта фраза',
+            'что вы услышали',
+            'прослушайте',
+            'послушайте',
+        )
+
+        rows = (
+            db.session.query(GrammarExercise)
+            .filter(GrammarExercise.exercise_type == 'fill_blank')
+            .all()
+        )
+        candidates = []
+        for ex in rows:
+            content = ex.content if isinstance(ex.content, dict) else {}
+            if content.get('source') != 'module_import':
+                continue
+            options = content.get('options') or []
+            if not options:
+                continue
+            question = (content.get('question') or '').lower().strip()
+            if not any(h in question for h in AUDIO_HINTS):
+                continue
+            candidates.append(ex)
+
+        click.echo(f'Found {len(candidates)} audio-misimported grammar exercises.')
+        if dry_run:
+            for ex in candidates[:20]:
+                content = ex.content if isinstance(ex.content, dict) else {}
+                click.echo(f'  id={ex.id} topic={ex.topic_id} q="{content.get("question", "")[:60]}"')
+            click.echo(f'(showing up to 20; dry-run, nothing deleted)')
+            return
+
+        # Cascade also drops user progress on these exercises (FK ON DELETE CASCADE).
+        ids = [ex.id for ex in candidates]
+        if ids:
+            from app.utils.db_utils import chunk_ids
+            deleted = 0
+            for chunk in chunk_ids(ids, 500):
+                q = db.session.query(GrammarExercise).filter(GrammarExercise.id.in_(chunk))
+                deleted += q.delete(synchronize_session=False)
+            db.session.commit()
+            click.echo(f'Deleted {deleted} exercises.')
+        else:
+            click.echo('Nothing to delete.')
+
     @app.cli.command('reconcile-lesson-progress')
     @click.option('--dry-run', is_flag=True, default=False,
                   help='Scan and report without writing flips to DB')

@@ -120,6 +120,16 @@ def _module_exercise_content(ex: dict) -> tuple[str, dict] | tuple[None, None]:
         return None, None
 
     raw_type = ex.get('type') or ex.get('exercise_type') or 'fill_blank'
+    # Audio-dependent types are intentionally skipped: grammar_lab's
+    # practice UI has no audio playback, so a ``listening_choice`` like
+    # {audio: "...", question: "Что означает эта фраза?", options: [...]}
+    # rendered there would show just the question with no way to hear
+    # the source — user can't answer. Prior to this guard such items
+    # fell through to ``fill_blank`` (the unrecognised-type default),
+    # producing exercises with no source phrase / no playable audio.
+    _AUDIO_TYPES = {'listening_choice', 'listening', 'audio_choice', 'audio_fill_blank', 'dictation'}
+    if raw_type in _AUDIO_TYPES:
+        return None, None
     type_mapping = {
         'fill_blank': 'fill_blank',
         'fill_in_blank': 'fill_blank',
