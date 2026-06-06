@@ -536,9 +536,8 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         Returns:
             interval_days (int)
         """
-        import random
-
         from app.srs.constants import DEFAULT_EASE_FACTOR, RATING_DOUBT, CardState
+        from app.srs.scheduling import apply_review_schedule
         from app.srs.service import UnifiedSRSService
 
         # Map to unified 1-2-3 scale for legacy compatibility
@@ -558,15 +557,11 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         # Increment session_attempts
         self.session_attempts = (self.session_attempts or 0) + 1
 
-        # Naive-UTC convention — matches UserCardDirection column type (DateTime, no tz)
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        self.last_reviewed = now
+        # Capture first-review flag before the engine mutates state.
+        is_first_review = self.first_reviewed is None
 
-        # Set first_reviewed only on the first review (for new card limit tracking)
-        if self.first_reviewed is None:
-            self.first_reviewed = now
-
-        # Delegate SM-2 math to the canonical engine
+        # Delegate SM-2 math to the canonical engine. Pass the leech-bury
+        # streak so progressive bury scaling matches grade_card.
         update_result = UnifiedSRSService.calculate_sm2_update(
             rating=rating,
             state=self.state or CardState.NEW.value,
@@ -575,6 +570,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             interval=self.interval or 0,
             ease_factor=self.ease_factor or DEFAULT_EASE_FACTOR,
             lapses=self.lapses or 0,
+            consecutive_leech_burials=self.consecutive_leech_burials or 0,
         )
 
         # Apply SM-2 results
@@ -585,27 +581,18 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.ease_factor = update_result['ease_factor']
         self.lapses = update_result['lapses']
 
-        # Apply leech bury if signalled by the engine
-        bury_days = update_result.get('bury_days')
-        if bury_days:
-            self.buried_until = now + timedelta(days=bury_days)
-
-        # Calculate next_review based on state
-        requeue_minutes = update_result.get('requeue_minutes')
-        days_until_review = update_result.get('days_until_review', 0)
-
-        if self.state == CardState.REVIEW.value and days_until_review > 0:
-            # Add ±10% variance to prevent review cliffs
-            variance = random.uniform(0.9, 1.1)
-            adjusted_interval = max(1, round(days_until_review * variance))
-            self.next_review = now + timedelta(days=adjusted_interval)
-        elif self.state in (CardState.LEARNING.value, CardState.RELEARNING.value):
-            if requeue_minutes:
-                self.next_review = now + timedelta(minutes=requeue_minutes)
-            else:
-                self.next_review = now
-        else:
-            self.next_review = now
+        # Day-anchored review timestamps + next_review — shared with
+        # grade_card so both grading surfaces schedule identically (user-local
+        # midnight, not a raw UTC instant). See app/srs/scheduling.py.
+        user_id = self.user_word.user_id if self.user_word else None
+        apply_review_schedule(
+            self,
+            update_result,
+            rating=rating,
+            is_first_review=is_first_review,
+            user_id=user_id,
+            db=db,
+        )
 
         # Update the parent UserWord status if needed
         self.update_user_word_status()

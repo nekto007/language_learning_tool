@@ -17,6 +17,7 @@ from app.srs.constants import (
     RATING_KNOW,
 )
 from app.study.models import UserCardDirection, UserWord
+from app.utils.time_utils import day_to_naive_utc
 from app.words.models import CollectionWords
 
 
@@ -175,15 +176,15 @@ class TestFirstReviewedLegacyPath:
         card = _make_card(db_session, test_user.id, CardState.NEW.value)
         assert card.first_reviewed is None
 
-        before = datetime.now(timezone.utc).replace(tzinfo=None)
         card.update_after_review(quality=RATING_KNOW)
-        after = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # first_reviewed must be populated after the first grade
         assert card.first_reviewed is not None
         # Strip tzinfo if the legacy path left it tz-aware (column is naive-UTC)
         fr = card.first_reviewed.replace(tzinfo=None) if card.first_reviewed.tzinfo else card.first_reviewed
-        assert before <= fr <= after
+        # Day-anchored (user-local midnight), shared with grade_card — not a
+        # raw instant. Matches the local-day boundary in app/srs/counting.py.
+        assert fr == day_to_naive_utc(test_user.id, db_session, days_ahead=0)
 
     def test_first_reviewed_not_overwritten_on_second_grade(self, db_session, test_user):
         card = _make_card(db_session, test_user.id, CardState.NEW.value)

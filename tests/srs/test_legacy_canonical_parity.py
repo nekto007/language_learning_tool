@@ -34,6 +34,7 @@ from app.srs.constants import (
 )
 from app.srs.service import UnifiedSRSService
 from app.study.models import UserCardDirection, UserWord
+from app.utils.time_utils import day_to_naive_utc
 from app.words.models import CollectionWords
 
 
@@ -227,13 +228,14 @@ class TestLegacyWrapperExtraFields:
         card = _make_card(db_session, test_user.id, state=CardState.NEW.value)
         assert card.first_reviewed is None
 
-        before = _now_naive()
         card.update_after_review(quality=RATING_KNOW)
-        after = _now_naive()
 
+        # Day-anchored (user-local midnight), matching grade_card and the
+        # local-day boundary used by app/srs/counting.py — NOT a raw instant.
+        expected = day_to_naive_utc(test_user.id, db_session, days_ahead=0)
         assert card.first_reviewed is not None
         assert card.first_reviewed.tzinfo is None, 'first_reviewed must be naive-UTC'
-        assert before <= card.first_reviewed <= after
+        assert card.first_reviewed == expected
 
     def test_first_reviewed_not_overwritten(self, db_session, test_user):
         card = _make_card(db_session, test_user.id, state=CardState.NEW.value)
@@ -278,16 +280,18 @@ class TestLegacyWrapperExtraFields:
             interval=10,
             lapses=LEECH_THRESHOLD - 1,
         )
-        before = _now_naive()
         card.update_after_review(quality=RATING_DONT_KNOW)
 
         assert card.lapses == LEECH_THRESHOLD
         assert card.buried_until is not None
-        # buried_until should be approximately LEECH_SUSPEND_DAYS days from now
-        expected_bury = before + timedelta(days=LEECH_SUSPEND_DAYS)
-        assert card.buried_until >= before
-        diff = abs((card.buried_until - expected_bury).total_seconds())
-        assert diff < 5, 'buried_until should be ~LEECH_SUSPEND_DAYS from now'
+        # Day-anchored: buried_until is local midnight LEECH_SUSPEND_DAYS ahead
+        # (first bury → no progressive scaling), matching grade_card.
+        expected_bury = day_to_naive_utc(
+            test_user.id, db_session, days_ahead=LEECH_SUSPEND_DAYS
+        )
+        assert card.buried_until == expected_bury
+        # The legacy wrapper now also tracks the progressive-bury streak.
+        assert card.consecutive_leech_burials == 1
 
     def test_next_review_set_days_for_review_state(self, db_session, test_user):
         card = _make_card(

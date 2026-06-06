@@ -46,6 +46,7 @@ from app.srs.constants import (
     REQUEUE_RANGE_STEP_1,
     CardState,
 )
+from app.srs.scheduling import apply_review_schedule
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -486,26 +487,17 @@ class UnifiedSRSService:
             card.interval = update_result['interval']
             card.ease_factor = update_result['ease_factor']
             card.lapses = update_result['lapses']
-            from app.utils.time_utils import day_to_naive_utc, minutes_to_day_offset
-            today_midnight = day_to_naive_utc(user_id, db, days_ahead=0)
-            card.last_reviewed = today_midnight
-            if is_first_review:
-                card.first_reviewed = today_midnight
 
-            bury_days = update_result.get('bury_days')
-            if bury_days:
-                card.buried_until = day_to_naive_utc(user_id, db, days_ahead=bury_days)
-                # Progressive leech bury: track consecutive burials without
-                # an intervening successful review.
-                card.consecutive_leech_burials = (card.consecutive_leech_burials or 0) + 1
-            elif (
-                update_result['state'] == CardState.REVIEW.value
-                and rating >= RATING_DOUBT
-            ):
-                # Successful review (Doubt or Know on REVIEW, or graduating
-                # back from RELEARNING) — break the leech-bury streak so the
-                # next bury (if any) restarts from the base interval.
-                card.consecutive_leech_burials = 0
+            # Day-anchored review timestamps + next_review (shared with
+            # update_after_review so both grading surfaces stay identical).
+            apply_review_schedule(
+                card,
+                update_result,
+                rating=rating,
+                is_first_review=is_first_review,
+                user_id=user_id,
+                db=db,
+            )
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -524,26 +516,6 @@ class UnifiedSRSService:
             except Exception:
                 logger.exception("Failed to increment total_cards_reviewed for user %s", user_id)
 
-            # Calculate next_review based on state
-            requeue_minutes = update_result['requeue_minutes']
-            days_until_review = update_result['days_until_review']
-
-            if card.state == CardState.REVIEW.value and days_until_review > 0:
-                # Add ±10% variance to prevent review cliff, then re-cap so
-                # variance can't push us past MAX_REVIEW_INTERVAL_DAYS.
-                variance = random.uniform(0.9, 1.1)
-                adjusted_days = max(1, round(days_until_review * variance))
-                adjusted_days = min(MAX_REVIEW_INTERVAL_DAYS, adjusted_days)
-                card.next_review = day_to_naive_utc(user_id, db, days_ahead=adjusted_days)
-            elif requeue_minutes:
-                # Intra-day learning steps stay today (session re-queue handles
-                # in-session order); steps that cross local midnight schedule
-                # for the next day.
-                day_offset = minutes_to_day_offset(user_id, db, minutes=requeue_minutes)
-                card.next_review = day_to_naive_utc(user_id, db, days_ahead=day_offset)
-            else:
-                card.next_review = today_midnight
-
             # Update parent UserWord status
             self._update_user_word_status(card)
 
@@ -557,6 +529,10 @@ class UnifiedSRSService:
 
             # Flush only — caller commits (allows downstream XP/plan ops in same tx)
             db.session.flush()
+
+            # Intra-session re-queue signal (scheduling itself is owned by
+            # apply_review_schedule above).
+            requeue_minutes = update_result.get('requeue_minutes')
 
             # Calculate requeue position for client-side queue management
             requeue_position = self.get_requeue_position(
