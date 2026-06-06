@@ -150,24 +150,27 @@ def _compute_unified_item_completion(
     duplicate kinds across sections (e.g. a curriculum item in required and
     a different curriculum item later in optional — though we exclude
     optional here).
+
+    The unified plan is rebuilt fresh from ``get_daily_plan_unified`` on every
+    request that recomputes day_secured (dashboard, ``/daily-status``,
+    ``/daily-plan``), so each item's own ``completed`` flag is authoritative:
+      - ``build_curriculum_item`` re-anchors the required slot onto the FIRST
+        qualifying curriculum lesson finished today (passing-score gated) and
+        sets ``completed=True``.
+      - ``build_srs_item`` derives ``completed`` from the remaining due/budget
+        pool.
+    Summary counters like ``lessons_count`` / ``srs_words_reviewed`` are much
+    looser — ``lessons_count`` counts *any* completed LessonProgress (any type,
+    any score), and one reviewed card is not a finished SRS slot. Using them as
+    a fallback let the day be secured by an unrelated lesson or a single card
+    while the actual required work was untouched, so we DON'T fall back on them
+    here (matching ``_compute_linear_slot_completion``, which deliberately omits
+    SRS/curriculum fallbacks for the same reason). Only ``error_review`` keeps a
+    summary signal — consistent with the linear slot path.
     """
-    srs_words_reviewed = int(daily_summary.get('srs_words_reviewed', 0) or 0)
     summary_kind_done = {
-        'srs': (
-            int(daily_summary.get('srs_review_reviewed', 0) or 0) > 0
-            or srs_words_reviewed > 0
-        ),
         'error_review': (
             int(daily_summary.get('error_review_resolved_today', 0) or 0) > 0
-        ),
-        # ``daily_summary['lessons_count']`` counts curriculum
-        # LessonProgress rows completed today (see telegram.queries
-        # get_daily_summary). Falls back to ``lessons_completed_today`` for
-        # callers that surface that key instead. Lets day_secured flip True
-        # even if the curriculum item rebuilt around the next pending lesson.
-        'curriculum': (
-            int(daily_summary.get('lessons_count', 0) or 0) > 0
-            or int(daily_summary.get('lessons_completed_today', 0) or 0) > 0
         ),
     }
 

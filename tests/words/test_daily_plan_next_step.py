@@ -4,7 +4,8 @@ Covers the unified-aware next-step handler that replaced _next_step_from_legacy:
 (a) unified plan with mixed required/optional → returns first not-done item
 (b) all required done, optional pending → returns first optional item
 (c) all done → has_next=False, all_done=True with fallback_url
-(d) item in plan_completion but item.completed=False → still treated as done
+(d) error_review item completed via summary signal → treated as done;
+    curriculum is NOT auto-completed by an unrelated lesson (lessons_count)
 (e) blocked items are skipped
 (f) items without url are skipped
 (g) dispatcher routes unified mode to _next_step_from_unified, not legacy
@@ -128,20 +129,42 @@ class TestNextStepFromUnified:
         assert data['all_done'] is True
         assert 'fallback_url' in data
 
-    def test_item_in_plan_completion_treated_as_done(self, authenticated_client):
-        """Item in plan_completion (activity-based) is treated as done even if completed=False."""
+    def test_error_review_completed_via_summary_signal(self, authenticated_client):
+        """error_review item is treated as done via its summary signal even if completed=False."""
         plan = _make_unified_plan(required=[
-            _make_item('curriculum:lesson:1', completed=False),
+            _make_item('error_review:1', kind='error_review', title='Errors', completed=False),
             _make_item('srs:global', kind='srs', title='SRS', url='/study'),
         ])
-        # Mark curriculum item done via activity (lessons_count > 0)
         summary = _make_daily_summary()
-        summary['lessons_count'] = 1
+        summary['error_review_resolved_today'] = 1
 
         data = self._call(authenticated_client, plan, summary)
 
         assert data['has_next'] is True
         assert data['step_type'] == 'srs'
+
+    def test_curriculum_not_auto_completed_by_unrelated_lesson(self, authenticated_client):
+        """Regression: a pending curriculum item must NOT be skipped just because
+        the user finished some other lesson today.
+
+        ``lessons_count`` counts ANY completed LessonProgress (any type/score),
+        so using it as a completion fallback let the required lesson be skipped
+        — securing the day with an unrelated lesson. The required item's own
+        ``completed`` flag (re-anchored by build_curriculum_item on a fresh
+        plan) is authoritative instead.
+        """
+        plan = _make_unified_plan(required=[
+            _make_item('curriculum:lesson:1', completed=False, url='/lesson/1'),
+            _make_item('srs:global', kind='srs', title='SRS', url='/study'),
+        ])
+        summary = _make_daily_summary()
+        summary['lessons_count'] = 1  # an unrelated lesson finished today
+
+        data = self._call(authenticated_client, plan, summary)
+
+        assert data['has_next'] is True
+        assert data['step_type'] == 'curriculum'
+        assert data['step_url'] == '/lesson/1'
 
     def test_blocked_items_are_skipped(self, authenticated_client):
         """Blocked items are skipped; returns next non-blocked item."""
