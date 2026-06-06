@@ -378,6 +378,44 @@ class TestImportFromModules:
         assert exercises[0].content['correct_answer'] == 'old'
 
 
+class TestModuleExerciseRenderableSkip:
+    """_module_exercise_content must drop module exercises that would render as
+    an empty/unanswerable item (e.g. dialogue_completion mis-mapped to a
+    contentless fill_blank)."""
+
+    def _map(self, ex):
+        from app.admin.routes.grammar_lab_routes import _module_exercise_content
+        return _module_exercise_content(ex)[0]  # mapped_type, or None when skipped
+
+    def test_dialogue_completion_instruction_only_is_skipped(self):
+        # Unknown type -> defaults to fill_blank but has no blank/source phrase.
+        assert self._map({
+            'type': 'dialogue_completion',
+            'question': 'Дополните диалог правильной фразой',
+            'correct_answer': 'I am fine',
+        }) is None
+
+    def test_fill_blank_instruction_only_is_skipped(self):
+        assert self._map({
+            'type': 'fill_blank', 'question': 'Заполните пропуск', 'correct_answer': 'x',
+        }) is None
+
+    def test_multiple_choice_without_options_is_skipped(self):
+        assert self._map({
+            'type': 'multiple_choice', 'question': 'Q?', 'correct': 'a',
+        }) is None
+
+    def test_valid_types_pass(self):
+        assert self._map({'type': 'fill_blank', 'question': 'I ___ ok', 'correct_answer': 'am'}) == 'fill_blank'
+        assert self._map({'type': 'ordering', 'words': ['a', 'b'], 'correct_order': ['a', 'b']}) == 'reorder'
+        assert self._map({'type': 'multiple_choice', 'question': 'Q', 'options': ['a', 'b'], 'correct': 'a'}) == 'multiple_choice'
+        assert self._map({'type': 'true_false', 'question': 'X is Y', 'correct': False}) == 'true_false'
+        assert self._map({'type': 'translation', 'question': 'Привет', 'correct_answer': 'Hi'}) == 'translation'
+
+    def test_audio_types_still_skipped(self):
+        assert self._map({'type': 'listening_choice', 'question': '?', 'options': ['a', 'b']}) is None
+
+
 class TestGrammarRoutesStructure:
     """Module-level structure smoke checks (Task 13)."""
 

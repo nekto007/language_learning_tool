@@ -224,7 +224,38 @@ def _module_exercise_content(ex: dict) -> tuple[str, dict] | tuple[None, None]:
             question,
         ) or ''
 
+    # Skip anything that wouldn't render as an answerable exercise. Unknown
+    # module types (e.g. dialogue_completion) fall through to ``fill_blank``
+    # above but carry no blank / source phrase, producing an empty input with
+    # nothing to do. Mirrors the client-side ``isRenderable`` guard so the two
+    # stay in sync; combined with the re-import delete+reinsert this also purges
+    # already-imported broken items.
+    if not _module_content_is_renderable(mapped_type, exercise_content):
+        return None, None
+
     return mapped_type, exercise_content
+
+
+def _module_content_is_renderable(mapped_type: str, content: dict) -> bool:
+    """Return True when ``content`` has what its type needs to be answered."""
+    def _txt(value) -> str:
+        return str(value).strip() if value is not None else ''
+
+    if mapped_type == 'reorder':
+        return bool(content.get('words'))
+    if mapped_type == 'multiple_choice':
+        return len(content.get('options') or []) >= 2
+    if mapped_type == 'matching':
+        return bool(content.get('pairs'))
+    if mapped_type == 'true_false':
+        return bool(_txt(content.get('statement')) or _txt(content.get('question')))
+    if mapped_type == 'error_correction':
+        return bool(_txt(content.get('sentence')) or _txt(content.get('question')))
+    if mapped_type == 'fill_blank':
+        # Needs a blank to fill (question with ___) or an explicit source phrase.
+        return '___' in _txt(content.get('question')) or bool(_txt(content.get('sentence')))
+    # translation / transformation / anything else: need a non-empty prompt.
+    return bool(_txt(content.get('question')) or _txt(content.get('sentence')))
 
 
 def _lesson_exercises(content: dict | None) -> list[dict]:
