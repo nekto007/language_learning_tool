@@ -25,6 +25,7 @@ card's new ``state``.
 from __future__ import annotations
 
 import random
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 from app.srs.constants import (
@@ -92,10 +93,22 @@ def apply_review_schedule(
         adjusted_days = min(MAX_REVIEW_INTERVAL_DAYS, adjusted_days)
         card.next_review = day_to_naive_utc(user_id, db, days_ahead=adjusted_days)
     elif requeue_minutes:
-        # Intra-day learning steps stay today (session re-queue handles
-        # in-session order); steps that cross local midnight schedule for the
-        # next day.
         day_offset = minutes_to_day_offset(user_id, db, minutes=requeue_minutes)
-        card.next_review = day_to_naive_utc(user_id, db, days_ahead=day_offset)
+        if day_offset <= 0:
+            # Intra-day learning/relearning step: schedule at the real
+            # near-future minute, NOT snapped to local midnight. Snapping to
+            # midnight (which is in the past) marks a just-stepped card as
+            # immediately "due", so count_due_by_states counts it as backlog
+            # and the SRS-slot completion gate never credits a user who has
+            # nothing left to serve this session. In-session re-queue handles
+            # the immediate re-show; the card becomes genuinely due once the
+            # step elapses.
+            card.next_review = (
+                datetime.now(timezone.utc).replace(tzinfo=None)
+                + timedelta(minutes=requeue_minutes)
+            )
+        else:
+            # Step crosses local midnight → day-anchor to that day's start.
+            card.next_review = day_to_naive_utc(user_id, db, days_ahead=day_offset)
     else:
         card.next_review = today_midnight
