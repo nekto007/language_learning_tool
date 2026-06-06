@@ -363,6 +363,12 @@ class GrammarLabService:
             'total_exercises': len(selected),
             'all_exercises_count': len(all_exercises),
             'exercises': exercises_data,
+            # Full id universe for this topic. The page caches the in-progress
+            # session in sessionStorage; on reload the server re-samples a
+            # different random subset, so the cache must be validated against
+            # THIS (the topic's full set) — not the new random sample — to tell
+            # "exercise was deleted" from "just not sampled this time".
+            'all_exercise_ids': exercise_ids,
             'status': status.to_dict(),
             'srs_stats': _get_srs_stats_service().get_grammar_stats(user_id, topic_id=topic_id)
         }
