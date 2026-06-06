@@ -11,7 +11,7 @@
     --gl-primary: #6366f1;
     --gl-primary-dark: #4f46e5;
     --gl-primary-light: #818cf8;
-    --gl-secondary: #8b5cf6;
+    --gl-secondary: #818cf8;
 
     /* Accent colors */
     --gl-success: #10b981;
@@ -29,9 +29,9 @@
     --gl-text-light: #94a3b8;
 
     /* Gradients */
-    --gl-gradient-header: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gl-gradient-header: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
     --gl-gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    --gl-gradient-progress: linear-gradient(90deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    --gl-gradient-progress: linear-gradient(90deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
 
     /* Shadows */
     --gl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -288,8 +288,8 @@
 }
 
 .gl-card-header-icon.progress {
-    background: linear-gradient(135deg, #fae8ff, #f5d0fe);
-    color: #a855f7;
+    background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+    color: #4f46e5;
 }
 
 .gl-card-header-icon.info {
@@ -1577,7 +1577,7 @@
 }
 
 .gl-topic-level.beginner {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
 }
 
 .gl-topic-level.intermediate {
