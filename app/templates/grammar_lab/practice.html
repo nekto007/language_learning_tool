@@ -1179,6 +1179,11 @@ let totalXP = 0;
 // Abort a hung /submit so the button never stays disabled forever.
 const SUBMIT_TIMEOUT_MS = 15000;
 
+// Pristine «Проверить» button markup, captured before any submit mutates it.
+// showExercise() restores this for every exercise so a previous submit's
+// disabled / «Проверка…»-spinner state never leaks into the next exercise.
+const CHECK_BTN_HTML = (document.getElementById('check-btn') || {}).innerHTML || 'Проверить';
+
 // An exercise is renderable only if it carries the content its type needs to
 // be answered. Broken module-imported items (e.g. a fill_blank whose
 // "question" is just an instruction with no blank, sentence or options) would
@@ -1358,9 +1363,16 @@ function showExercise(index) {
   const questionArea = document.getElementById('question-area');
   questionArea.innerHTML = renderExercise(exercise);
 
-  // Reset UI
+  // Reset UI — fully restore the check button to a clean, clickable state.
+  // The submit handler leaves it disabled and showing the «Проверка…» spinner
+  // (it only hides it on success); without this reset the next exercise would
+  // inherit that stuck state and the button would be a frozen spinner.
   document.getElementById('feedback-area').style.display = 'none';
-  document.getElementById('check-btn').style.display = 'inline-flex';
+  const _checkBtn = document.getElementById('check-btn');
+  _checkBtn.disabled = false;
+  _checkBtn.innerHTML = CHECK_BTN_HTML;
+  _checkBtn.style.opacity = '';
+  _checkBtn.style.display = 'inline-flex';
   document.getElementById('next-btn').style.display = 'none';
 
   // Setup handlers
