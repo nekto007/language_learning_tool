@@ -383,8 +383,12 @@ def maybe_award_book_reading_xp(
     if not has_min_reading_time_today(user_id, int(preference.book_id), db_obj):
         return None
 
+    # Record book_id so the reading-slot completion check is book-scoped:
+    # switching the preference book mid-day must not carry the old book's
+    # done-event over to the new one (_read_today filters on this).
     return award_linear_slot_xp_idempotent(
         user_id, 'linear_book_reading', for_date, db_obj,
+        extra_details={'book_id': int(preference.book_id)},
     )
 
 

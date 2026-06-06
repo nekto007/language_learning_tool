@@ -49,13 +49,20 @@ def _read_today(user_id: int, book_id: Optional[int], db: Any) -> bool:
     """Return True when today's reading slot is done for ``book_id``.
 
     Two signals are accepted, either of which closes the slot:
-      1. ``StreakEvent(source='linear_book_reading')`` for today — written
-         by ``maybe_award_book_reading_xp`` after a qualifying session.
-      2. ``is_daily_reading_target_met_today`` for the user's selected book
-         — independent fallback so the dashboard tile flips green as soon
-         as the time gate is met, even if the XP-award path never landed
-         (e.g. sendBeacon close was dropped on tab navigation).
+      1. ``StreakEvent(source='linear_book_reading')`` for today, **scoped to
+         this ``book_id``** via ``details.book_id`` — written by
+         ``maybe_award_book_reading_xp`` after a qualifying session. The
+         book scope means switching the preference book mid-day doesn't carry
+         a different book's completion over to the new one.
+      2. ``is_daily_reading_target_met_today`` for this book — independent
+         fallback so the dashboard tile flips green as soon as the time gate
+         is met, even if the XP-award path never landed (e.g. sendBeacon close
+         dropped on tab navigation). Also covers legacy events that predate
+         the ``book_id`` detail.
     """
+    if book_id is None:
+        return False
+
     from app.achievements.models import StreakEvent
     from app.books.reading_session import is_daily_reading_target_met_today
     from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
@@ -66,11 +73,10 @@ def _read_today(user_id: int, book_id: Optional[int], db: Any) -> bool:
         StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
         StreakEvent.event_date == today,
         StreakEvent.details['source'].astext == 'linear_book_reading',
+        StreakEvent.details['book_id'].astext == str(book_id),
     )
     if db.session.query(query.exists()).scalar() or False:
         return True
-    if book_id is None:
-        return False
     try:
         return is_daily_reading_target_met_today(user_id, book_id, db)
     except Exception:
