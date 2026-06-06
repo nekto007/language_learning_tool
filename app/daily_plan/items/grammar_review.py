@@ -24,7 +24,13 @@ _GRAMMAR_REVIEW_ETA_MINUTES = 10
 
 
 def _grammar_reviewed_today(user_id: int, db: Any) -> bool:
-    """Return True when the user completed any grammar exercise today.
+    """Return True when the user did any grammar practice today.
+
+    Unions two sources so the slot flips regardless of *how* grammar was
+    practised:
+    - standalone grammar-lab (``UserGrammarExercise.last_reviewed``)
+    - curriculum grammar lessons (``LessonAttempt`` on ``type='grammar'``
+      lessons), which write LessonProgress/LessonAttempt, NOT UserGrammarExercise.
 
     ``UserGrammarExercise.last_reviewed`` is a naive UTC column, so the
     user-local day must be translated to a UTC window before comparison —
@@ -56,7 +62,26 @@ def _grammar_reviewed_today(user_id: int, db: Any) -> bool:
         UserGrammarExercise.last_reviewed >= start_utc,
         UserGrammarExercise.last_reviewed < end_utc,
     )
-    return db.session.query(query.exists()).scalar() or False
+    if db.session.query(query.exists()).scalar():
+        return True
+
+    # Curriculum grammar lessons write LessonAttempt (naive UTC completed_at),
+    # not UserGrammarExercise. Any grammar attempt today counts as practice —
+    # correctness-agnostic, matching the standalone signal above.
+    from app.curriculum.models import LessonAttempt, Lessons
+
+    curric_query = (
+        db.session.query(LessonAttempt.id)
+        .join(Lessons, Lessons.id == LessonAttempt.lesson_id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.completed_at.isnot(None),
+            LessonAttempt.completed_at >= start_utc,
+            LessonAttempt.completed_at < end_utc,
+            Lessons.type == 'grammar',
+        )
+    )
+    return db.session.query(curric_query.exists()).scalar() or False
 
 
 def build_grammar_review_item(
@@ -100,17 +125,35 @@ def build_grammar_review_item(
 
 
 def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
-    """Return the topic whose exercises were reviewed longest ago by this user."""
+    """Return the topic practised longest ago by this user.
+
+    Unions standalone grammar-lab practice (``UserGrammarExercise.last_reviewed``)
+    with curriculum grammar lessons (``LessonAttempt.completed_at`` joined to the
+    lesson's ``grammar_topic_id``) so a user who only does course grammar still
+    gets their stalest topic surfaced. Both columns are naive UTC; merged in
+    Python and the topic with the oldest most-recent practice wins.
+    """
     from sqlalchemy import func
 
+    from app.curriculum.models import LessonAttempt, Lessons
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 
-    # Group by a scalar column only to avoid PostgreSQL full-GROUP-BY requirement.
-    row = (
+    latest_by_topic: dict[int, datetime] = {}
+
+    def _merge(topic_id: Optional[int], ts: Optional[datetime]) -> None:
+        if topic_id is None or ts is None:
+            return
+        if ts.tzinfo is not None:
+            ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
+        prev = latest_by_topic.get(int(topic_id))
+        if prev is None or ts > prev:
+            latest_by_topic[int(topic_id)] = ts
+
+    standalone_rows = (
         db.session.query(
             GrammarExercise.topic_id,
-            func.max(UserGrammarExercise.last_reviewed).label('latest_review'),
+            func.max(UserGrammarExercise.last_reviewed),
         )
         .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
         .join(GrammarTopic, GrammarTopic.id == GrammarExercise.topic_id)
@@ -120,12 +163,35 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
             GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
         )
         .group_by(GrammarExercise.topic_id)
-        .order_by(func.max(UserGrammarExercise.last_reviewed).asc().nullsfirst())
-        .first()
+        .all()
     )
-    if row is None:
+    for topic_id, ts in standalone_rows:
+        _merge(topic_id, ts)
+
+    curriculum_rows = (
+        db.session.query(
+            Lessons.grammar_topic_id,
+            func.max(LessonAttempt.completed_at),
+        )
+        .join(Lessons, Lessons.id == LessonAttempt.lesson_id)
+        .join(GrammarTopic, GrammarTopic.id == Lessons.grammar_topic_id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            LessonAttempt.completed_at.isnot(None),
+            Lessons.type == 'grammar',
+            Lessons.grammar_topic_id.isnot(None),
+            GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+        )
+        .group_by(Lessons.grammar_topic_id)
+        .all()
+    )
+    for topic_id, ts in curriculum_rows:
+        _merge(topic_id, ts)
+
+    if not latest_by_topic:
         return None
-    return db.session.get(GrammarTopic, row.topic_id)
+    stalest_topic_id = min(latest_by_topic, key=lambda tid: latest_by_topic[tid])
+    return db.session.get(GrammarTopic, stalest_topic_id)
 
 
 def _level_fallback_topic(user_id: int, db: Any) -> Optional[Any]:

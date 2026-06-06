@@ -339,6 +339,43 @@ def _get_weak_grammar_topic_ids(
         accuracy = float(row.correct or 0) / total
         if accuracy < max_accuracy:
             result[int(row.id)] = {'title': row.title, 'accuracy': round(accuracy, 3)}
+
+    # Union curriculum grammar accuracy. Course grammar lessons write
+    # LessonAttempt (correct_answers/total_questions, including failed attempts),
+    # not UserGrammarExercise — without this the weak hint is blind to the
+    # spine's own grammar work. A topic already flagged weak by standalone
+    # practice keeps that accuracy (don't overwrite).
+    from app.curriculum.models import LessonAttempt
+
+    c_correct = func.sum(LessonAttempt.correct_answers)
+    c_total = func.sum(LessonAttempt.total_questions)
+    c_rows = (
+        db.session.query(
+            GrammarTopic.id,
+            GrammarTopic.title,
+            c_correct.label('correct'),
+            c_total.label('total'),
+        )
+        .join(Lessons, Lessons.grammar_topic_id == GrammarTopic.id)
+        .join(LessonAttempt, LessonAttempt.lesson_id == Lessons.id)
+        .filter(
+            LessonAttempt.user_id == user_id,
+            Lessons.type == 'grammar',
+        )
+        .group_by(GrammarTopic.id, GrammarTopic.title)
+        .having(c_total >= min_attempts)
+        .all()
+    )
+    for row in c_rows:
+        tid = int(row.id)
+        if tid in result:
+            continue
+        total = int(row.total or 0)
+        if total <= 0:
+            continue
+        accuracy = float(row.correct or 0) / total
+        if accuracy < max_accuracy:
+            result[tid] = {'title': row.title, 'accuracy': round(accuracy, 3)}
     return result
 
 
