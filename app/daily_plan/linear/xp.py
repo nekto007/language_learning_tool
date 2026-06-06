@@ -82,6 +82,7 @@ _SOURCE_MINUTES: dict[str, int] = {
     'linear_writing': 8,
     'linear_curriculum_use': 8,
     'linear_error_review': 12,
+    'linear_grammar_review': 10,
 }
 
 
@@ -397,6 +398,29 @@ def maybe_award_error_review_xp(
         return None
     return award_linear_slot_xp_idempotent(
         user_id, 'linear_error_review', for_date, db_session,
+    )
+
+
+def maybe_award_grammar_review_xp(
+    user_id: int,
+    for_date: Optional[date_cls] = None,
+    db_session: Any = None,
+) -> Optional[XPAward]:
+    """Award linear XP for doing standalone grammar-lab practice.
+
+    Idempotent per (user, date) via StreakEvent source='linear_grammar_review'
+    — once per day regardless of how many exercises are answered. Mirrors the
+    grammar_review slot's ``completed`` signal (``_grammar_reviewed_today``,
+    which counts any exercise reviewed today), so practising grammar from the
+    daily plan credits global ``total_xp`` and grows levels. Curriculum-driven
+    grammar lessons keep awarding via ``maybe_award_curriculum_xp`` on a
+    separate code path (process_grammar_submission), so there is no double
+    award here.
+    """
+    if not is_linear_user(user_id):
+        return None
+    return award_linear_slot_xp_idempotent(
+        user_id, 'linear_grammar_review', for_date, db_session,
     )
 
 

@@ -106,3 +106,71 @@ class TestGrammarLabXPCoordination:
 
         assert result['is_correct'] is False
         assert result['xp_earned'] == 0
+
+
+class TestGrammarLabGlobalXP:
+    """submit_answer credits the daily grammar_review slot into global total_xp.
+
+    The per-topic ``GrammarSRS.add_xp`` counter is cosmetic; levels are driven
+    by ``UserStatistics.total_xp``. Standalone grammar practice must award the
+    idempotent ``linear_grammar_review`` slot XP once per day so the daily-plan
+    grammar_review slot grows levels.
+    """
+
+    def _total_xp(self, user_id) -> int:
+        from app.achievements.models import UserStatistics
+        st = UserStatistics.query.filter_by(user_id=user_id).first()
+        return (st.total_xp if st else 0) or 0
+
+    def _grammar_review_events(self, user_id) -> int:
+        from app.achievements.models import StreakEvent
+        return StreakEvent.query.filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == 'xp_linear',
+            StreakEvent.details['source'].astext == 'linear_grammar_review',
+        ).count()
+
+    def test_submit_answer_awards_global_grammar_review_xp(
+        self, app, db_session, test_user, grammar_exercise
+    ):
+        before = self._total_xp(test_user.id)
+
+        GrammarLabService().submit_answer(
+            exercise_id=grammar_exercise.id, user_id=test_user.id, answer='am',
+        )
+
+        assert self._grammar_review_events(test_user.id) == 1
+        assert self._total_xp(test_user.id) > before
+
+    def test_grammar_review_xp_idempotent_same_day(
+        self, app, db_session, test_user, grammar_exercise
+    ):
+        service = GrammarLabService()
+        service.submit_answer(
+            exercise_id=grammar_exercise.id, user_id=test_user.id, answer='am',
+        )
+        after_first = self._total_xp(test_user.id)
+
+        # Second exercise the same day must not award the slot again.
+        service.submit_answer(
+            exercise_id=grammar_exercise.id, user_id=test_user.id, answer='am',
+        )
+
+        assert self._grammar_review_events(test_user.id) == 1
+        assert self._total_xp(test_user.id) == after_first
+
+    def test_slot_xp_is_correctness_agnostic(
+        self, app, db_session, test_user, grammar_exercise
+    ):
+        """A wrong answer still credits the slot — mirrors the slot's
+        _grammar_reviewed_today completion signal (any exercise reviewed today),
+        so a green grammar_review slot always implies the XP was credited."""
+        before = self._total_xp(test_user.id)
+
+        result = GrammarLabService().submit_answer(
+            exercise_id=grammar_exercise.id, user_id=test_user.id, answer='is',
+        )
+
+        assert result['is_correct'] is False
+        assert self._grammar_review_events(test_user.id) == 1
+        assert self._total_xp(test_user.id) > before

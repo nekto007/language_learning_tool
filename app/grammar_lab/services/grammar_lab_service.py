@@ -425,6 +425,14 @@ class GrammarLabService:
             # ignore this path.
             self.srs.add_xp(user_id, exercise.topic_id, xp_earned)
 
+        # Credit the daily grammar_review slot in the global XP system so
+        # standalone practice grows total_xp / levels (the per-topic add_xp
+        # above is a cosmetic per-topic counter only). Idempotent once per
+        # day and correctness-agnostic — mirrors the slot's _grammar_reviewed_today
+        # completion signal, so a green slot always implies the XP was credited.
+        from app.daily_plan.linear.xp import maybe_award_grammar_review_xp
+        maybe_award_grammar_review_xp(user_id, db_session=db)
+
         # Update topic status based on exercise activity
         topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)
         if result['is_correct'] and topic_status.status == 'theory_completed':

@@ -54,6 +54,7 @@ LINEAR_XP: dict[str, int] = {
     'linear_book_srs': 8,
     'linear_book_reading': 15,
     'linear_error_review': 10,
+    'linear_grammar_review': 10,
 }
 
 # Streak multiplier: 1.0 + streak_days * 0.02, capped at 2.0
