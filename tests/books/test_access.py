@@ -148,3 +148,40 @@ class TestAccessibleBooksFilter:
         rows = Book.query.filter(accessible_books_filter(admin_user)).all()
         ids = {b.id for b in rows}
         assert {public.id, companion.id, expired.id} <= ids
+
+
+class TestLicenseExpiryDateBasis:
+    """license_is_expired (model) and accessible_books_filter (query) must use
+    the SAME date basis — UTC — so the catalog and the open-book gate agree
+    (finding #16). Both treat the expiration_date day itself as still valid."""
+
+    def test_model_and_filter_agree_on_utc_boundary(
+        self, app, db_session, test_user, _books_module
+    ):
+        from datetime import datetime, timezone
+
+        _enable_books_for(db_session, test_user, _books_module)
+        utc_today = datetime.now(timezone.utc).date()
+
+        expiring_today = _make_book(
+            db_session, title='TODAY', rights_status='licensed',
+            expiration_date=utc_today,
+        )
+        expired_yesterday = _make_book(
+            db_session, title='YESTERDAY', rights_status='licensed',
+            expiration_date=utc_today - timedelta(days=1),
+        )
+        db_session.commit()
+
+        # Model check (used by can_user_access_book on /read open).
+        assert expiring_today.license_is_expired is False
+        assert expired_yesterday.license_is_expired is True
+
+        # Filter (used by the catalog listing) must agree row-for-row.
+        ids = {b.id for b in Book.query.filter(accessible_books_filter(test_user)).all()}
+        assert expiring_today.id in ids
+        assert expired_yesterday.id not in ids
+
+        # And can_user_access_book mirrors the model property.
+        assert can_user_access_book(test_user, expiring_today) is True
+        assert can_user_access_book(test_user, expired_yesterday) is False

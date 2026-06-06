@@ -106,8 +106,13 @@ class Book(db.Model):
             return False
         if self.expiration_date is None:
             return False
-        from datetime import date as _date
-        return self.expiration_date < _date.today()
+        # Compare against the UTC date — the same basis used by
+        # accessible_books_filter (datetime.now(timezone.utc).date()). Using
+        # the server-local date here would let a non-UTC server show a book in
+        # the catalog (UTC filter) while open returned 403 (local model check),
+        # or vice versa, near midnight.
+        from datetime import datetime, timezone
+        return self.expiration_date < datetime.now(timezone.utc).date()
 
 
 class Chapter(db.Model):
