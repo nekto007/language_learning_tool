@@ -1176,6 +1176,38 @@ let correctCount = 0;
 let wrongCount = 0;
 let totalXP = 0;
 
+// Abort a hung /submit so the button never stays disabled forever.
+const SUBMIT_TIMEOUT_MS = 15000;
+
+// An exercise is renderable only if it carries the content its type needs to
+// be answered. Broken module-imported items (e.g. a fill_blank whose
+// "question" is just an instruction with no blank, sentence or options) would
+// otherwise render an empty input with nothing to do. We drop them up front so
+// the user only ever sees actionable exercises.
+function isRenderable(ex) {
+  if (!ex || typeof ex !== 'object') return false;
+  const t = (ex.exercise_type || '').toLowerCase();
+  const txt = (v) => (v == null ? '' : String(v)).trim();
+  if (t === 'reorder') return Array.isArray(ex.words) && ex.words.length > 0;
+  if (t === 'multiple_choice') return Array.isArray(ex.options) && ex.options.length >= 2;
+  if (t === 'matching') {
+    const p = ex.pairs || (ex.content && ex.content.pairs) || [];
+    return Array.isArray(p) && p.length > 0;
+  }
+  if (t === 'true_false') return !!txt(ex.statement || ex.question);
+  if (t === 'error_correction') return !!txt(ex.sentence || ex.question);
+  if (t === 'fill_blank') {
+    // Needs a blank to fill (question with ___) or an explicit source sentence.
+    return txt(ex.question).indexOf('___') !== -1 || !!txt(ex.sentence);
+  }
+  // translation / transformation / default: need a non-empty prompt phrase.
+  return !!txt(ex.question || ex.sentence || ex.statement || ex.original);
+}
+
+// Drop unactionable exercises from the server-provided set before anything
+// uses ``exercises`` (progress counts, session cache, rendering).
+exercises = (exercises || []).filter(isRenderable);
+
 // Get CSRF token safely
 function getCSRFToken() {
   const meta = document.querySelector('meta[name="csrf-token"]');
@@ -1257,12 +1289,18 @@ function restoreSession() {
     return false;
   }
 
-  // Restore saved exercises array to preserve order and avoid server's random shuffle
-  exercises = state.exercises;
-  currentIndex = state.currentIndex;
-  correctCount = state.correctCount;
-  wrongCount = state.wrongCount;
-  totalXP = state.totalXP;
+  // Restore saved exercises array to preserve order and avoid server's random
+  // shuffle. Re-apply the renderable filter in case the cache predates it
+  // (or content changed), and clamp the index so we never point past the end.
+  exercises = (state.exercises || []).filter(isRenderable);
+  if (exercises.length === 0) {
+    clearSessionState();
+    return false;
+  }
+  currentIndex = Math.min(state.currentIndex || 0, exercises.length - 1);
+  correctCount = state.correctCount || 0;
+  wrongCount = state.wrongCount || 0;
+  totalXP = state.totalXP || 0;
 
   // If session was in progress, show exercise screen
   if (currentIndex < exercises.length) {
@@ -1282,6 +1320,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Start button
 document.getElementById('start-btn').addEventListener('click', function() {
+  if (!exercises.length) {
+    // Every server-provided exercise was unactionable — nothing to practise.
+    const start = document.getElementById('start-screen');
+    const desc = start && start.querySelector('.practice-start__desc');
+    if (desc) desc.textContent = 'Нет корректных упражнений для этой темы.';
+    const btn = document.getElementById('start-btn');
+    if (btn) btn.disabled = true;
+    return;
+  }
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('exercise-screen').style.display = 'block';
   saveSessionState();
@@ -1709,6 +1756,11 @@ document.getElementById('check-btn').addEventListener('click', async function() 
   checkBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg> Проверка...`;
   checkBtn.style.opacity = '0.7';
 
+  // Abort a hung request so the button can never stay stuck on «Проверка…».
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+  let answered = false;  // true only when the answer was graded & shown
+
   try {
     const response = await fetch(`/grammar-lab/api/exercise/${exercise.id}/submit`, {
       method: 'POST',
@@ -1720,19 +1772,11 @@ document.getElementById('check-btn').addEventListener('click', async function() 
         answer: answer,
         session_id: sessionId,
         source: 'srs_review'
-      })
+      }),
+      signal: controller.signal
     });
     if (!response.ok) {
-      checkBtn.innerHTML = originalHTML;
-      checkBtn.disabled = false;
-      checkBtn.style.opacity = '';
-      const feedback = document.getElementById('feedback-area');
-      if (feedback) {
-        feedback.className = 'practice-exercise__feedback error';
-        feedback.textContent = 'Ошибка при отправке ответа. Попробуйте снова.';
-        feedback.style.display = 'block';
-      }
-      return;
+      throw new Error('submit failed: HTTP ' + response.status);
     }
 
     const data = await response.json();
@@ -1768,8 +1812,6 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     }
     feedback.style.display = 'block';
 
-    checkBtn.innerHTML = originalHTML;
-    checkBtn.style.opacity = '';
     checkBtn.style.display = 'none';
     document.getElementById('next-btn').style.display = 'inline-flex';
 
@@ -1778,12 +1820,27 @@ document.getElementById('check-btn').addEventListener('click', async function() 
 
     // Save progress after answer
     saveSessionState();
+    answered = true;
 
   } catch (error) {
-    console.error('Error:', error);
-    checkBtn.innerHTML = originalHTML;
-    checkBtn.disabled = false;
-    checkBtn.style.opacity = '';
+    console.error('grammar submit failed:', error);
+    const feedback = document.getElementById('feedback-area');
+    if (feedback) {
+      feedback.className = 'practice-exercise__feedback error';
+      feedback.textContent = (error && error.name === 'AbortError')
+        ? 'Превышено время ожидания. Проверьте соединение и попробуйте снова.'
+        : 'Ошибка при отправке ответа. Попробуйте снова.';
+      feedback.style.display = 'block';
+    }
+  } finally {
+    clearTimeout(timeoutId);
+    // On any failure the button must return to a usable state — never leave it
+    // disabled on «Проверка…» forever. On success it is hidden above instead.
+    if (!answered) {
+      checkBtn.disabled = false;
+      checkBtn.innerHTML = originalHTML;
+      checkBtn.style.opacity = '';
+    }
   }
 });
 
