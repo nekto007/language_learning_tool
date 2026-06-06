@@ -94,6 +94,57 @@ def extract_chapter_vocab(
     return unlearned[:count]
 
 
+def pull_chapter_vocab_once(
+    user_id: int,
+    chapter_id: int,
+    start_offset: float,
+    end_offset: float,
+    db_session: Any = db,
+) -> int:
+    """Idempotent daily vocab pull from a read slice. Flush only — caller commits.
+
+    Writes the per-(user, local-date) ``vocab_pull`` StreakEvent marker ONLY
+    after scanning a **non-degenerate** slice. A degenerate slice (``end <=
+    start`` — e.g. a freshly-opened chapter scrolled to ~0 while today's reading
+    target was met on a *different* chapter) must NOT consume the day's single
+    pull, otherwise the actually-read chapter's words are lost until tomorrow.
+    A non-degenerate slice that yields 0 cards means "all words already known"
+    and correctly marks the day done.
+
+    Returns the number of SRS cards queued (0 when already pulled today, the
+    slice is degenerate, or all candidate words are already known).
+    """
+    from app.achievements.models import StreakEvent
+    from app.utils.time_utils import get_user_local_date
+
+    today_local = get_user_local_date(user_id, db_session)
+    already = (
+        db_session.session.query(StreakEvent)
+        .filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == 'vocab_pull',
+            StreakEvent.event_date == today_local,
+        )
+        .first()
+    )
+    if already is not None:
+        return 0
+    if end_offset <= start_offset:
+        # Degenerate slice — leave the day open for a later /end with real reading.
+        return 0
+
+    words = extract_chapter_vocab(chapter_id, start_offset, end_offset, user_id, db_session)
+    queued = queue_vocab_as_srs(words, user_id, db_session)
+    db_session.session.add(StreakEvent(
+        user_id=user_id,
+        event_type='vocab_pull',
+        event_date=today_local,
+        details={'chapter_id': chapter_id, 'queued_count': queued},
+    ))
+    db_session.session.flush()
+    return queued
+
+
 def queue_vocab_as_srs(words: list, user_id: int, db_session: Any = db) -> int:
     """Create SRS cards for ``words`` scheduled for tomorrow.
 

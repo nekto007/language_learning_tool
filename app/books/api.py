@@ -1391,40 +1391,14 @@ def reading_session_end():
     queued_vocab_count = 0
     if daily_target_met_today and chapter is not None:
         try:
-            from app.achievements.models import StreakEvent
-            from app.books.vocab_pull import extract_chapter_vocab, queue_vocab_as_srs
-            from app.utils.time_utils import get_user_local_date
+            from app.books.vocab_pull import pull_chapter_vocab_once
 
-            today_local = get_user_local_date(current_user.id, db)
-            already_pulled = (
-                db.session.query(StreakEvent)
-                .filter(
-                    StreakEvent.user_id == current_user.id,
-                    StreakEvent.event_type == 'vocab_pull',
-                    StreakEvent.event_date == today_local,
-                )
-                .first()
+            start_off = state['earliest_start_offset'] if state is not None else 0.0
+            end_off = state['current_offset'] if state is not None else 1.0
+            queued_vocab_count = pull_chapter_vocab_once(
+                current_user.id, session.chapter_id, start_off, end_off, db,
             )
-            if already_pulled is None:
-                start_off = state['earliest_start_offset'] if state is not None else 0.0
-                end_off = state['current_offset'] if state is not None else 1.0
-                words = extract_chapter_vocab(
-                    session.chapter_id, start_off, end_off, current_user.id, db
-                )
-                queued_vocab_count = queue_vocab_as_srs(words, current_user.id, db)
-                # Always write the StreakEvent so a follow-up /end doesn't
-                # re-extract — even when 0 cards were created (all words
-                # already known by the user).
-                db.session.add(StreakEvent(
-                    user_id=current_user.id,
-                    event_type='vocab_pull',
-                    event_date=today_local,
-                    details={
-                        'chapter_id': session.chapter_id,
-                        'queued_count': queued_vocab_count,
-                    },
-                ))
-                db.session.commit()
+            db.session.commit()
         except Exception:
             logger.warning(
                 "vocab_pull: failed user=%s chapter=%s",

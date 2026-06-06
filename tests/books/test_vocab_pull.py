@@ -255,3 +255,54 @@ class TestQueueVocabAsSrs:
         assert len(cards) == 2
         for card in cards:
             assert card.ease_factor == DEFAULT_EASE_FACTOR
+
+
+# ---------------------------------------------------------------------------
+# pull_chapter_vocab_once — idempotency + degenerate-slice guard (finding #14)
+# ---------------------------------------------------------------------------
+
+class TestPullChapterVocabOnce:
+    def _vocab_events(self, db_session, user_id):
+        from app.achievements.models import StreakEvent
+        return (
+            db_session.query(StreakEvent)
+            .filter_by(user_id=user_id, event_type='vocab_pull')
+            .count()
+        )
+
+    def test_real_slice_pulls_and_marks_done(self, db_session, test_user, chapter, word_factory):
+        from app.books.vocab_pull import pull_chapter_vocab_once
+        word_factory('vocabulary')
+        queued = pull_chapter_vocab_once(test_user.id, chapter.id, 0.0, 1.0, db)
+        db_session.commit()
+        assert queued == 2  # eng-rus + rus-eng
+        assert self._vocab_events(db_session, test_user.id) == 1
+
+    def test_degenerate_slice_does_not_mark_done(self, db_session, test_user, chapter, word_factory):
+        """Empty slice (just-opened chapter while target met elsewhere) must NOT
+        consume the day's single vocab pull."""
+        from app.books.vocab_pull import pull_chapter_vocab_once
+        word_factory('vocabulary')
+        queued = pull_chapter_vocab_once(test_user.id, chapter.id, 0.0, 0.0, db)
+        db_session.commit()
+        assert queued == 0
+        assert self._vocab_events(db_session, test_user.id) == 0  # day stays open
+
+    def test_degenerate_then_real_slice_still_pulls(self, db_session, test_user, chapter, word_factory):
+        from app.books.vocab_pull import pull_chapter_vocab_once
+        word_factory('vocabulary')
+        assert pull_chapter_vocab_once(test_user.id, chapter.id, 0.0, 0.0, db) == 0
+        db_session.commit()
+        queued = pull_chapter_vocab_once(test_user.id, chapter.id, 0.0, 1.0, db)
+        db_session.commit()
+        assert queued == 2
+        assert self._vocab_events(db_session, test_user.id) == 1
+
+    def test_idempotent_after_real_pull(self, db_session, test_user, chapter, word_factory):
+        from app.books.vocab_pull import pull_chapter_vocab_once
+        word_factory('vocabulary')
+        pull_chapter_vocab_once(test_user.id, chapter.id, 0.0, 1.0, db)
+        db_session.commit()
+        # Second pull the same day is a no-op even with a real slice.
+        assert pull_chapter_vocab_once(test_user.id, chapter.id, 0.0, 1.0, db) == 0
+        assert self._vocab_events(db_session, test_user.id) == 1
