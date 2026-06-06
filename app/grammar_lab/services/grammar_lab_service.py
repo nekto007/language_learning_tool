@@ -433,11 +433,31 @@ class GrammarLabService:
 
         # Credit the daily grammar_review slot in the global XP system so
         # standalone practice grows total_xp / levels (the per-topic add_xp
-        # above is a cosmetic per-topic counter only). Idempotent once per
-        # day and correctness-agnostic — mirrors the slot's _grammar_reviewed_today
-        # completion signal, so a green slot always implies the XP was credited.
+        # above is a cosmetic per-topic counter only). Idempotent once per day.
+        #
+        # BEST-EFFORT + lock-bounded: this writes the user's shared daily-XP
+        # rows (UserStatistics / StreakEvent / DailyStudyMinutes), which the
+        # dashboard's daily-plan poller also writes concurrently. Without a
+        # bound, waiting on a row lock held by that poller would hang the whole
+        # /submit request indefinitely (button stuck on «Проверка…»). We cap the
+        # wait with lock_timeout and isolate any failure in a savepoint so the
+        # already-graded answer (committed below) is never affected — the slot
+        # XP is simply skipped this time if the row is busy.
+        from sqlalchemy import text as _sql_text
+
         from app.daily_plan.linear.xp import maybe_award_grammar_review_xp
-        maybe_award_grammar_review_xp(user_id, db_session=db)
+        try:
+            db.session.execute(_sql_text("SET LOCAL lock_timeout = '3s'"))
+            with db.session.begin_nested():
+                maybe_award_grammar_review_xp(user_id, db_session=db)
+        except Exception as _gr_err:
+            logger.warning('grammar_review slot XP skipped (lock/err): %s', _gr_err)
+        finally:
+            # Don't let the 3s cap leak onto the final commit below.
+            try:
+                db.session.execute(_sql_text("SET LOCAL lock_timeout = '0'"))
+            except Exception:
+                pass
 
         # Update topic status based on exercise activity
         topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)
