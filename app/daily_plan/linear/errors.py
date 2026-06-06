@@ -428,11 +428,10 @@ def get_topic_sibling_exercises(
     """
     from app.grammar_lab.models import GrammarExercise
 
+    # Positional whens (not a list) — the list form is removed in SQLAlchemy 2.0.
     type_priority = case(
-        [
-            (GrammarExercise.exercise_type == 'multiple_choice', 0),
-            (GrammarExercise.exercise_type == 'fill_blank', 1),
-        ],
+        (GrammarExercise.exercise_type == 'multiple_choice', 0),
+        (GrammarExercise.exercise_type == 'fill_blank', 1),
         else_=2,
     )
 

@@ -97,10 +97,17 @@ def has_extra_review_capacity(user_id: int, deck_id: Optional[int] = None) -> bo
 def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] = None) -> None:
     """Write secured_at timestamp to DailyPlanLog if not already set.
 
-    ``mission_type`` is nullable and kept for backward compat with existing
-    rows; unified users always pass ``None``.
+    Flush-only (caller commits). Race-safe: the insert is done inside a
+    savepoint so a concurrent request that wins the
+    ``uq_daily_plan_log_user_date`` constraint raises IntegrityError *here*
+    (not later in the caller's commit) — we recover by re-fetching the row the
+    other request inserted and updating it. ``mission_type`` is nullable and
+    kept for backward compat with existing rows; unified users pass ``None``.
     """
+    from sqlalchemy.exc import IntegrityError
+
     from app.utils.db import db
+
     log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=plan_date).first()
     if log is None:
         log = DailyPlanLog(
@@ -109,7 +116,16 @@ def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] 
             mission_type=mission_type,
         )
         db.session.add(log)
-    if log.secured_at is None:
+        try:
+            with db.session.begin_nested():
+                db.session.flush()
+        except IntegrityError:
+            # Lost the race — the row now exists (committed by the other tx).
+            # Roll back the savepoint and adopt the existing row.
+            log = DailyPlanLog.query.filter_by(
+                user_id=user_id, plan_date=plan_date,
+            ).first()
+    if log is not None and log.secured_at is None:
         log.secured_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.flush()
 

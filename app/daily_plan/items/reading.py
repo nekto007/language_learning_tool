@@ -108,6 +108,18 @@ def build_reading_item(
         logger.warning("reading_item user=%s book=%s not_found preference_stale", user_id, pref.book_id)
         return None
 
+    # A book with no chapters yields an unactionable reading slot — if it landed
+    # in the required section the day could never be secured. Treat it like a
+    # missing preference so the orchestrator surfaces a setup_book item instead.
+    has_chapter = (
+        db.session.query(Chapter.id)
+        .filter(Chapter.book_id == book.id)
+        .first()
+    )
+    if has_chapter is None:
+        logger.warning("reading_item user=%s book=%s has_no_chapters", user_id, book.id)
+        return None
+
     latest = _latest_chapter_progress(user_id, book.id, db)
     chapter_num = None
     chapter_title = None

@@ -48,6 +48,10 @@ def had_recent_failures(user_id: int, db: Any) -> bool:
         .filter(
             LessonAttempt.user_id == user_id,
             LessonAttempt.completed_at.isnot(None),
+            # Only graded attempts count: passed IS NULL is an incomplete/errored
+            # attempt, not a failure. Without this, `not None == True` would treat
+            # a NULL row as a fail and falsely escalate error-review into required.
+            LessonAttempt.passed.isnot(None),
         )
         .order_by(LessonAttempt.completed_at.desc())
         .limit(RECENT_FAILURE_WINDOW)
