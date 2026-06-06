@@ -883,6 +883,7 @@ def save_reading_position():
     Save user's reading position and award XP for chapter completion
     """
     from app.books.models import Chapter, UserChapterProgress
+    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
 
     data = request.json
     book_id = data.get('book_id')
@@ -922,7 +923,7 @@ def save_reading_position():
         .first()
     )
 
-    was_incomplete = not progress or progress.offset_pct < 1.0
+    was_incomplete = not progress or progress.offset_pct < CHAPTER_COMPLETION_THRESHOLD
     previous_offset = progress.offset_pct if progress else 0.0
 
     if not progress:
@@ -942,7 +943,7 @@ def save_reading_position():
                 .first()
             )
             previous_offset = progress.offset_pct if progress else 0.0
-            was_incomplete = not progress or progress.offset_pct < 1.0
+            was_incomplete = not progress or progress.offset_pct < CHAPTER_COMPLETION_THRESHOLD
             if progress:
                 progress.offset_pct = max(progress.offset_pct or 0.0, position)
                 progress.updated_at = datetime.now(UTC)
@@ -954,7 +955,7 @@ def save_reading_position():
 
     response_data = {'success': True}
 
-    chapter_completed = was_incomplete and position >= 1.0
+    chapter_completed = was_incomplete and position >= CHAPTER_COMPLETION_THRESHOLD
     chapter_xp_award = None
     if chapter_completed:
         from app.achievements.xp_service import award_book_chapter_xp_idempotent
@@ -1032,7 +1033,8 @@ def save_reading_position():
             _stats = StatisticsService.get_or_create_statistics(current_user.id)
             _stats.total_chapters_read = (_stats.total_chapters_read or 0) + 1
 
-            # Detect full book completion: all chapters must have offset_pct == 1.0.
+            # Detect full book completion: every chapter must be read (offset_pct
+            # at/above the shared completion threshold).
             total_chs = (
                 db.session.query(func.count(Chapter.id))
                 .filter(Chapter.book_id == book_id)
@@ -1044,7 +1046,7 @@ def save_reading_position():
                 .filter(
                     _UCP.user_id == current_user.id,
                     Chapter.book_id == book_id,
-                    _UCP.offset_pct >= 1.0,
+                    _UCP.offset_pct >= CHAPTER_COMPLETION_THRESHOLD,
                 )
                 .scalar() or 0
             )
@@ -1242,6 +1244,7 @@ def reading_session_end():
     # check the hint silently writes 1.0 and the completion event/XP is
     # lost forever (later saves see was_incomplete=False).
     from app.books.models import UserChapterProgress
+    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
 
     pre_progress = (
         db.session.query(UserChapterProgress)
@@ -1261,7 +1264,11 @@ def reading_session_end():
     )
     post_offset = post_progress.offset_pct if post_progress else 0.0
 
-    if chapter is not None and pre_offset < 1.0 and post_offset >= 1.0:
+    if (
+        chapter is not None
+        and pre_offset < CHAPTER_COMPLETION_THRESHOLD
+        and post_offset >= CHAPTER_COMPLETION_THRESHOLD
+    ):
         try:
             from app.achievements.xp_service import award_book_chapter_xp_idempotent
             from app.utils.time_utils import get_user_local_date

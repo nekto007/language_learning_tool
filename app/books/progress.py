@@ -15,13 +15,18 @@ from app.books.models import Chapter, UserChapterProgress
 
 
 def _progress_from_records(records: Iterable, total_chapters: int) -> float:
+    # Shared "chapter read" threshold — keep in lock-step with chapter-completion
+    # XP / total_chapters_read so a chapter counted as read elsewhere isn't shown
+    # as merely partial here.
+    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
+
     if total_chapters <= 0:
         return 0.0
     completed = 0
     max_partial = 0.0
     for record in records:
         pct = float(record.offset_pct or 0.0)
-        if pct >= 1.0:
+        if pct >= CHAPTER_COMPLETION_THRESHOLD:
             completed += 1
         elif pct > max_partial:
             max_partial = pct
