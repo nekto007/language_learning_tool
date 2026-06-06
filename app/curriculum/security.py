@@ -240,8 +240,21 @@ def check_module_access(module_id: int) -> bool:
     # be satisfied — even if the user already touched a lesson in this module.
     # This protects against bypass via direct lesson URL after a stray progress
     # row was created.
+    #
+    # Pass the user's placement floor (onboarding_level order) so the gate
+    # matches the plan spine: find_next_lesson_linear surfaces lessons using
+    # check_prerequisites(min_level_order=...), so a placement-test C1 student
+    # is offered C1 lessons whose below-placement (e.g. B1) prereqs are skipped.
+    # Without the same floor here the gate would 403/redirect the very lesson
+    # the plan just offered.
     if module.prerequisites:
-        accessible, _reasons = module.check_prerequisites(current_user.id)
+        from app.daily_plan.linear.progression import _user_min_level_order
+        from app.utils.db import db
+
+        min_order = _user_min_level_order(current_user.id, db)
+        accessible, _reasons = module.check_prerequisites(
+            current_user.id, min_level_order=min_order,
+        )
         if not accessible:
             return False
 

@@ -338,6 +338,53 @@ class TestLessonProgressNoDuplicate:
 
 
 # ---------------------------------------------------------------------------
+# Placement-aware prerequisites (finding #7)
+# ---------------------------------------------------------------------------
+
+class TestPlacementPrerequisiteAlignment:
+    """check_module_access must honour the same placement floor as the plan
+    spine (find_next_lesson_linear): a prerequisite whose level is strictly
+    below the user's onboarding_level is skipped, so the gate doesn't 403 a
+    lesson the plan just offered."""
+
+    def _build(self, db_session):
+        low = _make_level(db_session, order=10)
+        high = _make_level(db_session, order=30)
+        m_low = _make_module(db_session, low, number=1)
+        # m_high requires m_low, which the user never completed.
+        m_high = _make_module(
+            db_session, high, number=1,
+            prerequisites=[{'type': 'module', 'id': m_low.id, 'min_score': 70}],
+        )
+        return low, high, m_low, m_high
+
+    def test_placed_user_skips_below_placement_prereq(self, app, db_session, test_user):
+        low, high, m_low, m_high = self._build(db_session)
+        test_user.onboarding_level = high.code  # placement test put them at the high level
+        db_session.commit()
+        with app.app_context():
+            with patch('app.curriculum.security.current_user', _mock_user(test_user.id)):
+                assert check_module_access(m_high.id) is True
+
+    def test_unplaced_user_still_blocked_by_prereq(self, app, db_session, test_user):
+        low, high, m_low, m_high = self._build(db_session)
+        test_user.onboarding_level = None  # no placement → floor 0, prereq enforced
+        db_session.commit()
+        with app.app_context():
+            with patch('app.curriculum.security.current_user', _mock_user(test_user.id)):
+                assert check_module_access(m_high.id) is False
+
+    def test_placement_at_prereq_level_still_blocked(self, app, db_session, test_user):
+        """Strictly-below: placement AT the prereq's own level does not skip it."""
+        low, high, m_low, m_high = self._build(db_session)
+        test_user.onboarding_level = low.code
+        db_session.commit()
+        with app.app_context():
+            with patch('app.curriculum.security.current_user', _mock_user(test_user.id)):
+                assert check_module_access(m_high.id) is False
+
+
+# ---------------------------------------------------------------------------
 # Smoke tests
 # ---------------------------------------------------------------------------
 
