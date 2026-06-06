@@ -926,3 +926,73 @@ class TestGraduatedDaySecured:
         assert meta.get('user_id') == user.id, (
             'user_id must be stamped in _plan_meta'
         )
+
+
+# ── SRS deck-quiz placement vs card lesson (finding #13) ─────────────────────
+
+
+def _make_due_review_card(db_session, user_id):
+    """Create one due REVIEW card so the SRS slot is non-empty."""
+    from app.srs.constants import CardState, DEFAULT_EASE_FACTOR
+    from app.study.models import UserCardDirection, UserWord
+    from app.words.models import CollectionWords
+
+    suffix = uuid.uuid4().hex[:8]
+    word = CollectionWords(
+        english_word=f'due_{suffix}', russian_word=f'due_ru_{suffix}', level='A1',
+    )
+    db_session.add(word)
+    db_session.flush()
+    uw = UserWord(user_id=user_id, word_id=word.id)
+    uw.status = 'review'
+    db_session.add(uw)
+    db_session.flush()
+    past = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    card = UserCardDirection(
+        user_word_id=uw.id, direction='eng-rus',
+        state=CardState.REVIEW.value, interval=5,
+        ease_factor=DEFAULT_EASE_FACTOR, next_review=past,
+    )
+    db_session.add(card)
+    db_session.commit()
+    return card
+
+
+class TestSrsDeckQuizPlacement:
+    def test_card_lesson_no_decks_keeps_plain_srs_and_dedups_optional(self, db_session):
+        """No custom decks: required SRS stays srs:global (not a dead deck-quiz
+        placeholder), and the optional duplicate collapses by id (finding #13)."""
+        level = _make_level(db_session, code='A1', order=1)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, type_='card')  # next lesson is a card lesson
+        user = _make_user(db_session, onboarding_level='A1')
+        _make_due_review_card(db_session, user.id)
+
+        required = build_required(user.id, real_db, difficulty='intensive', focus=None)
+        srs_required = [it for it in required if it.kind == 'srs']
+        assert len(srs_required) == 1
+        assert srs_required[0].id == 'srs:global'
+
+        optional, _ = build_optional(
+            user.id, real_db, required_items=required, focus=None,
+        )
+        # The would-be optional srs:global is the same id as required → collapsed.
+        assert [it for it in optional if it.kind == 'srs'] == []
+
+    def test_card_lesson_with_decks_uses_deck_quiz(self, db_session, monkeypatch):
+        """With custom-deck words the required SRS becomes a deck quiz."""
+        level = _make_level(db_session, code='A1', order=1)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, type_='card')
+        user = _make_user(db_session, onboarding_level='A1')
+        _make_due_review_card(db_session, user.id)
+
+        monkeypatch.setattr(
+            'app.daily_plan.linear.slots.srs_slot._count_user_deck_quiz_words',
+            lambda uid, db: 5,
+        )
+
+        required = build_required(user.id, real_db, difficulty='intensive', focus=None)
+        srs_required = [it for it in required if it.kind == 'srs']
+        assert len(srs_required) == 1
+        assert srs_required[0].id == 'srs:deck_quiz'

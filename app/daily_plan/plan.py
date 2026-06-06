@@ -147,10 +147,14 @@ def build_required(
     a card-type curriculum lesson) → curriculum → reading → listening.
 
     SRS de-duplication: when the next curriculum lesson itself is a card /
-    flashcards lesson, including the SRS slot would mean the user faces
-    two flashcards sessions in a row. In that case SRS moves to optional
-    (so the user can still pull it in if they want extra reps) and only
-    the curriculum card-lesson stays in required.
+    flashcards lesson, a plain SRS-cards slot in required would mean the user
+    faces two flashcards sessions in a row. To avoid that the required SRS slot
+    is swapped for a deck-quiz (a different form factor over the user's custom
+    decks) — but ONLY when the user actually has deck words. Without decks the
+    deck-quiz would be a dead "no words" placeholder while the real SRS card
+    review reappears in optional as ``srs:global`` (a different id the optional
+    de-dup can't collapse). So with no decks we keep the ordinary ``srs:global``
+    in required, and the optional duplicate then collapses by id.
 
     Setup items NEVER appear here. Empty list is valid (orchestrator
     reports day not secured and surfaces setup hints).
@@ -180,14 +184,20 @@ def build_required(
     )
 
     # SRS placement rules:
-    #   curriculum is NOT card-lesson      → SRS as standard card review
-    #   curriculum IS card-lesson, pending → SRS as deck quiz (so the
-    #       user doesn't get «cards twice today» visual dedup; the quiz
-    #       is a different form factor over the same vocabulary pool)
-    #   curriculum IS card-lesson, done    → SRS as standard card review
+    #   curriculum is NOT card-lesson         → SRS as standard card review
+    #   card-lesson pending AND user has decks → SRS as deck quiz (different
+    #       form factor over the user's decks, avoids «cards twice today»)
+    #   card-lesson pending AND no decks       → standard SRS card review
+    #       (a deck quiz would be a dead placeholder, and the real SRS would
+    #       otherwise resurface in optional as a non-collapsible duplicate)
+    #   card-lesson done                       → SRS as standard card review
+    use_deck_quiz = next_is_card_lesson
+    if use_deck_quiz:
+        from app.daily_plan.linear.slots.srs_slot import _count_user_deck_quiz_words
+        use_deck_quiz = _count_user_deck_quiz_words(user_id, db) > 0
     srs_item = build_srs_item(
         user_id, db, section='required',
-        as_deck_quiz=next_is_card_lesson,
+        as_deck_quiz=use_deck_quiz,
     )
     if srs_item is not None:
         items.append(srs_item)
