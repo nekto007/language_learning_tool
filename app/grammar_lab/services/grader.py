@@ -286,11 +286,23 @@ class GrammarExerciseGrader:
         content = exercise.content
         correct = content.get('correct_answer')  # True or False or 0/1
 
-        # Normalize both to boolean
+        # Normalize the correct answer to boolean (True/False or 0/1 or str).
         if isinstance(correct, str):
             correct_bool = correct.lower() in ('true', '1', 'yes')
         else:
             correct_bool = bool(correct)
+
+        # An unset/blank answer is never correct. Without this guard a missing
+        # answer coerces to bool(None)/bool('') == False and would be scored
+        # CORRECT for every false-statement item (correct_answer=False), e.g.
+        # via a direct API submit with no selection.
+        if answer is None or (isinstance(answer, str) and answer.strip() == ''):
+            return {
+                'is_correct': False,
+                'correct_answer': 'True' if correct_bool else 'False',
+                'explanation': content.get('explanation', ''),
+                'user_answer': '',
+            }
 
         if isinstance(answer, str):
             user_bool = answer.lower() in ('true', '1', 'yes')

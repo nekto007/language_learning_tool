@@ -331,6 +331,22 @@ class TestGraderTrueFalse:
         result = grader.grade(ex, 'false')
         assert result['is_correct'] is True
 
+    def test_empty_answer_on_false_statement_is_incorrect(self, db_session, grammar_topic, grader):
+        """Regression: an unset answer must NOT be scored correct for a
+        false-statement item (bool('') == False would coincidentally match)."""
+        ex = GrammarExercise(
+            topic_id=grammar_topic.id, exercise_type='true_false',
+            content={'statement': 'S', 'correct_answer': False, 'explanation': ''},
+            difficulty=1,
+        )
+        db_session.add(ex)
+        db_session.commit()
+        assert grader.grade(ex, '')['is_correct'] is False
+        assert grader.grade(ex, None)['is_correct'] is False
+        # A real selection still grades correctly.
+        assert grader.grade(ex, 'false')['is_correct'] is True
+        assert grader.grade(ex, 'true')['is_correct'] is False
+
 
 class TestGraderUnknownType:
     def test_unknown_type(self, grader, db_session, grammar_topic):
