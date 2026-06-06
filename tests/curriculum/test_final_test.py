@@ -199,6 +199,40 @@ def test_null_passed_attempts_do_not_count_toward_limit(db_session):
     assert check_final_test_attempts_exhausted(user.id, lesson.id, db_session=db_session) is None
 
 
+def test_grading_failure_returns_error_not_phantom_pass(db_session, authenticated_client, test_user):
+    """If persisting the grade raises, the route must return an error — NOT a
+    200 with passed=True over a rolled-back DB (finding #8)."""
+    from unittest.mock import patch
+
+    lesson = _make_final_test_lesson(db_session)
+
+    target = (
+        'app.curriculum.services.progress_service'
+        '.ProgressService.update_progress_with_grading'
+    )
+    with patch(target, side_effect=RuntimeError('persist boom')):
+        resp = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'answers': {}},
+        )
+
+    assert resp.status_code == 500
+    data = resp.get_json()
+    assert data is not None
+    assert data.get('success') is False
+    assert data.get('error') == 'grading_failed'
+    # Nothing must have been persisted (the lesson stays incomplete).
+    from app.curriculum.models import LessonProgress
+    assert (
+        LessonProgress.query.filter_by(user_id=test_user.id, lesson_id=lesson.id).count() == 0
+    )
+    assert (
+        db_session.query(LessonAttempt)
+        .filter_by(user_id=test_user.id, lesson_id=lesson.id)
+        .count() == 0
+    )
+
+
 @pytest.mark.smoke
 def test_exhausted_check_does_not_create_lesson_attempt(db_session):
     """check_final_test_attempts_exhausted must never write LessonAttempt rows."""

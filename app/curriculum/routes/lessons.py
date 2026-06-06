@@ -394,8 +394,20 @@ def submit_lesson(lesson_id):
                     passing_score=_ft_passing,
                 )
             except Exception as _ft_err:
+                # Persisting the grade failed → LessonProgress/LessonAttempt are
+                # rolled back. We must NOT fall through and return result with
+                # passed=True: the UI would show success while the DB has nothing,
+                # the plan would re-surface the lesson, and the challenge/XP/
+                # daily_plan_ctx blocks below would run on a phantom pass. Surface
+                # the failure so the client can retry; the attempt simply isn't
+                # recorded (so it doesn't consume the rolling rate-limit quota).
                 logger.warning("Failed to record final_test attempt for lesson %s: %s", lesson_id, _ft_err)
                 db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'error': 'grading_failed',
+                    'message': 'Не удалось сохранить результат теста. Попробуйте ещё раз.',
+                }), 500
         elif lesson.type == 'dictation':
             result = _process_dictation_submission(lesson, current_user.id, data)
         elif lesson.type == 'audio_fill_blank':
