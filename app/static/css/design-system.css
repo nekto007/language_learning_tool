@@ -12315,7 +12315,7 @@ button.nav-section-title {
 .dash-completion-summary__card--level { border-top: 3px solid #10b981; }
 .dash-completion-summary__card--streak { border-top: 3px solid #f59e0b; }
 .dash-completion-summary__card--race  { border-top: 3px solid #3b82f6; }
-.dash-completion-summary__card--rank  { border-top: 3px solid #8b5cf6; }
+.dash-completion-summary__card--rank  { border-top: 3px solid #6366f1; }
 .dash-completion-summary__card--badges { border-top: 3px solid #f59e0b; }
 .dash-completion-summary__card--bonus { border-top: 3px solid #ec4899; }
 
@@ -12329,7 +12329,7 @@ button.nav-section-title {
 
 .dash-completion-summary__progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: linear-gradient(90deg, #6366f1, #4f46e5);
     border-radius: 2px;
     transition: width 0.8s ease-out;
 }
