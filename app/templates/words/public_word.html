@@ -34,9 +34,9 @@
 <style>
 .pubw-page {
   --pubw-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --pubw-primary: #2563eb;
-  --pubw-primary-dark: #1d4ed8;
-  --pubw-gradient: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  --pubw-primary: var(--info-600);
+  --pubw-primary-dark: var(--info-700);
+  --pubw-gradient: linear-gradient(135deg, var(--info-600) 0%, #0ea5e9 100%);
   --pubw-surface: #ffffff;
   --pubw-surface-alt: #f8fafc;
   --pubw-text: #0f172a;
@@ -130,7 +130,7 @@
 }
 .pubw-card__icon--audio { background: #ede9fe; color: var(--pubw-primary); }
 .pubw-card__icon--examples { background: #fef3c7; color: var(--pubw-warning); }
-.pubw-card__icon--related { background: #dbeafe; color: #3b82f6; }
+.pubw-card__icon--related { background: var(--info-100); color: var(--info-500); }
 .pubw-card__title { font-size: 1.05rem; font-weight: 700; color: var(--pubw-text); margin: 0; }
 
 /* Audio Player */
@@ -165,7 +165,7 @@
 .pubw-related__ru { font-size: 0.8rem; color: var(--pubw-text-muted); margin-top: 0.125rem; }
 .pubw-related__reason {
   display: inline-flex; margin-top: 0.5rem; padding: 0.2rem 0.5rem;
-  border-radius: 999px; background: #eff6ff; color: #1d4ed8;
+  border-radius: 999px; background: var(--info-50); color: var(--info-700);
   font-size: 0.72rem; font-weight: 700;
 }
 
@@ -368,11 +368,11 @@
   <!-- Continue Learning -->
   <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; margin-bottom: 1rem;">
     {% if word.level %}
-    <a href="{{ url_for('courses.level_detail', level_code=word.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:#fff; border:1px solid #e2e8f0; border-radius:10px; text-decoration:none; font-size:0.85rem; color:#0f172a; font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
+    <a href="{{ url_for('courses.level_detail', level_code=word.level) }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:#fff; border:1px solid #e2e8f0; border-radius:10px; text-decoration:none; font-size:0.85rem; color:#0f172a; font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--info-600)'" onmouseout="this.style.borderColor='#e2e8f0'">
       <span style="font-size:1.25rem;">🎓</span> Курс {{ word.level }}
     </a>
     {% endif %}
-    <a href="{{ url_for('grammar_lab.index') }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:#fff; border:1px solid #e2e8f0; border-radius:10px; text-decoration:none; font-size:0.85rem; color:#0f172a; font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0'">
+    <a href="{{ url_for('grammar_lab.index') }}" style="flex:1; min-width:200px; display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:#fff; border:1px solid #e2e8f0; border-radius:10px; text-decoration:none; font-size:0.85rem; color:#0f172a; font-weight:500; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--info-600)'" onmouseout="this.style.borderColor='#e2e8f0'">
       <span style="font-size:1.25rem;">🧠</span> Grammar Lab
     </a>
   </div>

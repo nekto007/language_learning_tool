@@ -58,7 +58,7 @@
 {% block content %}
 <style>
 .pdict-page {
-  --pdict-primary: #2563eb;
+  --pdict-primary: var(--info-600);
   --pdict-accent: #059669;
   --pdict-warm: #b45309;
   --pdict-surface: #ffffff;
@@ -141,7 +141,7 @@
   text-decoration: none;
 }
 
-.pdict-btn:hover { background: #1d4ed8; color: #fff; }
+.pdict-btn:hover { background: var(--info-700); color: #fff; }
 
 .pdict-alpha {
   display: flex;
@@ -243,10 +243,10 @@
 }
 
 .pdict-word__level {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--info-50);
+  border: 1px solid var(--info-200);
   border-radius: 999px;
-  color: #1d4ed8;
+  color: var(--info-700);
   flex: 0 0 auto;
   font-size: 0.7rem;
   font-weight: 800;
