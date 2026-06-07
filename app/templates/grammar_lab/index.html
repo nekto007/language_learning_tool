@@ -422,8 +422,8 @@
 
 .grammar-page {
   --grammar-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --grammar-primary: #4f46e5;
-  --grammar-primary-dark: #4338ca;
+  --grammar-primary: var(--primary-600);
+  --grammar-primary-dark: var(--primary-700);
   --grammar-surface: #ffffff;
   --grammar-surface-alt: #f8fafc;
   --grammar-text: #0f172a;
@@ -444,7 +444,7 @@
 
 .grammar-hero {
   position: relative;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 50%, var(--primary-400) 100%);
   border-radius: var(--grammar-radius);
   padding: 2rem;
   margin-bottom: 2rem;
@@ -569,7 +569,7 @@
 }
 
 .grammar-stat--xp .grammar-stat__icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--warning-500) 0%, #d97706 100%);
 }
 
 .grammar-stat--topics .grammar-stat__icon {
@@ -577,11 +577,11 @@
 }
 
 .grammar-stat--accuracy .grammar-stat__icon {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);
 }
 
 .grammar-stat--mastered .grammar-stat__icon {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: linear-gradient(135deg, var(--danger-500) 0%, #dc2626 100%);
 }
 
 .grammar-stat__data {
@@ -641,7 +641,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   color: #fff !important;
   border-radius: 8px;
   text-decoration: none;
@@ -705,11 +705,11 @@
 }
 
 .recommendation-card__level--b {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  background: linear-gradient(135deg, var(--warning-500) 0%, var(--danger-500) 100%);
 }
 
 .recommendation-card__level--c {
-  background: linear-gradient(135deg, #ec4899 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #ec4899 0%, var(--primary-500) 100%);
 }
 
 .recommendation-card__reason {
@@ -734,7 +734,7 @@
 
 .recommendation-card__reason--new {
   background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
+  color: var(--success-600);
 }
 
 .recommendation-card__content {
@@ -834,12 +834,12 @@
 }
 
 .level-card--b .level-card__badge {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  background: linear-gradient(135deg, var(--warning-500) 0%, var(--danger-500) 100%);
   color: #fff !important;
 }
 
 .level-card--c .level-card__badge {
-  background: linear-gradient(135deg, #ec4899 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #ec4899 0%, var(--primary-500) 100%);
   color: #fff !important;
 }
 
@@ -857,7 +857,7 @@
 }
 
 .level-card__status--completed {
-  background: #22c55e;
+  background: var(--success-500);
   color: #fff !important;
 }
 
@@ -928,13 +928,13 @@
 
 .level-card__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   border-radius: 3px;
   transition: width 0.5s ease;
 }
 
 .level-card--completed .level-card__progress-fill {
-  background: linear-gradient(90deg, #22c55e 0%, #10b981 100%);
+  background: linear-gradient(90deg, var(--success-500) 0%, #10b981 100%);
 }
 
 .level-card__progress-text {
@@ -946,7 +946,7 @@
 }
 
 .level-card--completed .level-card__progress-text {
-  color: #22c55e;
+  color: var(--success-500);
 }
 
 .level-card__arrow {
@@ -1012,7 +1012,7 @@
 }
 
 .action-card--primary .action-card__icon {
-  background: linear-gradient(135deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   color: #fff !important;
 }
 
@@ -1021,21 +1021,21 @@
 }
 
 .action-card--secondary .action-card__icon {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);
   color: #fff !important;
 }
 
 .action-card--secondary:hover {
-  border-color: #22c55e;
+  border-color: var(--success-500);
 }
 
 .action-card--tertiary .action-card__icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--warning-500) 0%, #d97706 100%);
   color: #fff !important;
 }
 
 .action-card--tertiary:hover {
-  border-color: #f59e0b;
+  border-color: var(--warning-500);
 }
 
 .action-card__content {
@@ -1067,8 +1067,8 @@
 }
 
 .action-card--primary:hover .action-card__arrow { color: var(--grammar-primary); }
-.action-card--secondary:hover .action-card__arrow { color: #22c55e; }
-.action-card--tertiary:hover .action-card__arrow { color: #f59e0b; }
+.action-card--secondary:hover .action-card__arrow { color: var(--success-500); }
+.action-card--tertiary:hover .action-card__arrow { color: var(--warning-500); }
 
 /* ============================================
    Empty State
@@ -1190,7 +1190,7 @@
    ============================================ */
 
 .grammar-cta-section {
-  border-color: #6366f1;
+  border-color: var(--primary-500);
   background: linear-gradient(135deg, rgba(79, 70, 229, 0.04) 0%, rgba(99, 102, 241, 0.04) 100%);
 }
 
@@ -1204,7 +1204,7 @@
 .grammar-cta-inline__icon {
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -1236,7 +1236,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   color: #fff !important;
   border-radius: 10px;
   text-decoration: none;
@@ -1332,7 +1332,7 @@
 .grammar-next-topic__icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -1432,7 +1432,7 @@
 
 .level-card__mastery-fill {
   height: 100%;
-  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  background: linear-gradient(90deg, var(--success-500) 0%, var(--success-600) 100%);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -1440,7 +1440,7 @@
 .level-card__mastery-text {
   display: block;
   font-size: 0.6875rem;
-  color: #16a34a;
+  color: var(--success-600);
   margin-top: 0.25rem;
   font-weight: 500;
 }

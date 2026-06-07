@@ -8,16 +8,16 @@
    ======================================== */
 :root {
     /* Primary gradient palette */
-    --gl-primary: #6366f1;
-    --gl-primary-dark: #4f46e5;
-    --gl-primary-light: #818cf8;
-    --gl-secondary: #818cf8;
+    --gl-primary: var(--primary-500);
+    --gl-primary-dark: var(--primary-600);
+    --gl-primary-light: var(--primary-400);
+    --gl-secondary: var(--primary-400);
 
     /* Accent colors */
     --gl-success: #10b981;
     --gl-success-light: #34d399;
-    --gl-warning: #f59e0b;
-    --gl-danger: #ef4444;
+    --gl-warning: var(--warning-500);
+    --gl-danger: var(--danger-500);
     --gl-info: #06b6d4;
 
     /* Neutrals */
@@ -29,9 +29,9 @@
     --gl-text-light: #94a3b8;
 
     /* Gradients */
-    --gl-gradient-header: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    --gl-gradient-header: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
     --gl-gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    --gl-gradient-progress: linear-gradient(90deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+    --gl-gradient-progress: linear-gradient(90deg, var(--primary-600) 0%, var(--primary-500) 50%, var(--primary-400) 100%);
 
     /* Shadows */
     --gl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -284,12 +284,12 @@
 
 .gl-card-header-icon.practice {
     background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-    color: #16a34a;
+    color: var(--success-600);
 }
 
 .gl-card-header-icon.progress {
     background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
-    color: #4f46e5;
+    color: var(--primary-600);
 }
 
 .gl-card-header-icon.info {
@@ -856,7 +856,7 @@
 
 .gl-info-icon.exercises {
     background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-    color: #16a34a;
+    color: var(--success-600);
 }
 
 .gl-info-text {
@@ -1577,7 +1577,7 @@
 }
 
 .gl-topic-level.beginner {
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
 }
 
 .gl-topic-level.intermediate {
@@ -1585,7 +1585,7 @@
 }
 
 .gl-topic-level.advanced {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: linear-gradient(135deg, var(--warning-500), #d97706);
 }
 
 .gl-topic-content {
@@ -1663,7 +1663,7 @@
 
 .gl-status-badge.started {
     background: #e0e7ff;
-    color: #4f46e5;
+    color: var(--primary-600);
 }
 
 .gl-status-badge.learning {

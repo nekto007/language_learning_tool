@@ -218,9 +218,9 @@
 
 .grammar-page {
   --grammar-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --grammar-primary: #4f46e5;
-  --grammar-primary-dark: #4338ca;
-  --grammar-success: #22c55e;
+  --grammar-primary: var(--primary-600);
+  --grammar-primary-dark: var(--primary-700);
+  --grammar-success: var(--success-500);
   --grammar-surface: #ffffff;
   --grammar-surface-alt: #f8fafc;
   --grammar-text: #0f172a;
@@ -262,7 +262,7 @@
 /* Hero */
 .topics-hero {
   position: relative;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 50%, var(--primary-400) 100%);
   border-radius: var(--grammar-radius);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -433,13 +433,13 @@
 }
 
 .topics-filter__btn--b.topics-filter__btn--active {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-  border-color: #ef4444;
+  background: linear-gradient(135deg, var(--warning-500) 0%, var(--danger-500) 100%);
+  border-color: var(--danger-500);
 }
 
 .topics-filter__btn--c.topics-filter__btn--active {
-  background: linear-gradient(135deg, #ec4899 0%, #6366f1 100%);
-  border-color: #6366f1;
+  background: linear-gradient(135deg, #ec4899 0%, var(--primary-500) 100%);
+  border-color: var(--primary-500);
 }
 
 .topics-filter__count {
@@ -499,11 +499,11 @@
 }
 
 .topic-card__level--b {
-  background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+  background: linear-gradient(135deg, var(--warning-500) 0%, var(--danger-500) 100%);
 }
 
 .topic-card__level--c {
-  background: linear-gradient(135deg, #ec4899 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #ec4899 0%, var(--primary-500) 100%);
 }
 
 .topic-card__content {
@@ -548,7 +548,7 @@
 
 .topic-card__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   border-radius: 3px;
 }
 
@@ -575,7 +575,7 @@
 
 .topic-status--mastered {
   background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
+  color: var(--success-600);
 }
 
 .topic-status--confident {
