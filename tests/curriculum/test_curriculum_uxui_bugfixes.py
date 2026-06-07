@@ -229,6 +229,73 @@ class TestCurriculumDoneTodayScoreCheck:
         result = _curriculum_done_today(test_user.id, flask_db)
         assert result is True
 
+    def test_dictation_below_dictation_threshold_not_counted(
+        self, app, db_session, test_user
+    ):
+        """Dictation passed at 72% (>= default 70 but < dictation 80) must NOT
+        count as done — regression for the hardcoded-70 bug."""
+        from app.daily_plan.items.curriculum import _curriculum_done_today
+        from app.utils.db import db as flask_db
+
+        lesson = _make_lesson(db_session, 'dictation', {})
+        progress = LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=72.0,
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        result = _curriculum_done_today(test_user.id, flask_db)
+        assert result is False
+
+    def test_dictation_at_dictation_threshold_is_counted(
+        self, app, db_session, test_user
+    ):
+        """Dictation at 80% (its real bar) counts as done."""
+        from app.daily_plan.items.curriculum import _curriculum_done_today
+        from app.utils.db import db as flask_db
+
+        lesson = _make_lesson(db_session, 'dictation', {})
+        progress = LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=80.0,
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        result = _curriculum_done_today(test_user.id, flask_db)
+        assert result is True
+
+    def test_non_dictation_score_based_still_uses_default(
+        self, app, db_session, test_user
+    ):
+        """Non-dictation score-based lesson at 72% still counts (default bar 70)."""
+        from app.daily_plan.items.curriculum import _curriculum_done_today
+        from app.utils.db import db as flask_db
+
+        lesson = _make_lesson(db_session, 'translation', {})
+        progress = LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=72.0,
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+        )
+        db_session.add(progress)
+        db_session.commit()
+
+        result = _curriculum_done_today(test_user.id, flask_db)
+        assert result is True
+
     def test_non_score_based_lesson_counts_without_score(
         self, app, db_session, test_user
     ):

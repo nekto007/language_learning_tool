@@ -16,9 +16,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.items import PlanItem
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
@@ -81,6 +81,31 @@ _ADAPTIVE_HIGH_THRESHOLD = 90.0
 _ADAPTIVE_HINT_WINDOW = 5
 
 
+def _passing_score_clause():
+    """SQL predicate: a curriculum lesson counts as *done today* when it is a
+    completion-only type, OR a score-based type that met its per-type passing
+    threshold. Thresholds mirror ``get_lesson_passing_score`` type defaults:
+    ``dictation`` → 80 (``PASSING_SCORE_DICTATION``), everything else → 70
+    (``PASSING_SCORE_DEFAULT``). Per-lesson ``passing_score`` content overrides
+    are enforced at grading time (they decide ``LessonProgress`` outcome), not
+    re-evaluated here. Previously this hardcoded 70 for all score-based types,
+    so a dictation passed at e.g. 72% (its real bar is 80%) was wrongly counted
+    as done and the plan never re-offered it.
+    """
+    return or_(
+        Lessons.type.notin_(tuple(_SCORE_BASED_LESSON_TYPES)),
+        and_(
+            Lessons.type == 'dictation',
+            LessonProgress.score >= PASSING_SCORE_DICTATION,
+        ),
+        and_(
+            Lessons.type.in_(tuple(_SCORE_BASED_LESSON_TYPES)),
+            Lessons.type != 'dictation',
+            LessonProgress.score >= PASSING_SCORE_DEFAULT,
+        ),
+    )
+
+
 def _eta_minutes(lesson_type: Optional[str]) -> int:
     return _LESSON_ETA_MINUTES.get(lesson_type or '', _DEFAULT_ETA_MINUTES)
 
@@ -119,10 +144,7 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
-            or_(
-                Lessons.type.notin_(tuple(_SCORE_BASED_LESSON_TYPES)),
-                LessonProgress.score >= PASSING_SCORE_DEFAULT,
-            ),
+            _passing_score_clause(),
         )
         .exists()
     ).scalar() or False
@@ -205,10 +227,7 @@ def get_curriculum_lessons_completed_today(
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
-            or_(
-                Lessons.type.notin_(tuple(_SCORE_BASED_LESSON_TYPES)),
-                LessonProgress.score >= PASSING_SCORE_DEFAULT,
-            ),
+            _passing_score_clause(),
         )
         .order_by(LessonProgress.completed_at.asc())
         .all()
