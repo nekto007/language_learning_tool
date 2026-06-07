@@ -283,7 +283,7 @@
 .nav-btn:hover:not(:disabled) {
   background: #4338ca;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--primary-600-rgb), 0.3);
 }
 
 .nav-btn:disabled {

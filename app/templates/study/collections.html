@@ -336,7 +336,7 @@
 .collections-filter__select:focus {
   outline: none;
   border-color: var(--coll-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--info-500-rgb), 0.1);
 }
 
 .collections-filter__clear {
@@ -380,7 +380,7 @@
 .collection-card:hover {
   border-color: var(--coll-primary);
   transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--info-500-rgb), 0.1);
 }
 
 .collection-card__icon {
@@ -441,8 +441,8 @@
 }
 
 .collection-card__tag--more {
-  background: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.2);
+  background: rgba(var(--info-500-rgb), 0.08);
+  border-color: rgba(var(--info-500-rgb), 0.2);
   color: var(--coll-primary);
 }
 
@@ -477,7 +477,7 @@
 .collection-card__progress-bar {
   width: 60px;
   height: 6px;
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(var(--info-500-rgb), 0.15);
   border-radius: 3px;
   overflow: hidden;
 }

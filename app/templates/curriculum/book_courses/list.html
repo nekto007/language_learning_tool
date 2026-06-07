@@ -631,7 +631,7 @@
 .bc-filter__select:focus {
   outline: none;
   border-color: var(--bc-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--info-600-rgb), 0.12);
 }
 
 /* ============================================
@@ -696,11 +696,11 @@
 .bc-card-link:hover .bc-card {
   border-color: var(--bc-primary);
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 8px 24px rgba(var(--info-600-rgb), 0.15);
 }
 
 .bc-card--current {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(14, 165, 233, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(var(--info-600-rgb), 0.08) 0%, rgba(14, 165, 233, 0.08) 100%);
   border-color: var(--bc-primary);
 }
 
@@ -854,7 +854,7 @@
 .bc-card__progress-bar {
   flex: 1;
   height: 6px;
-  background: rgba(37, 99, 235, 0.15);
+  background: rgba(var(--info-600-rgb), 0.15);
   border-radius: 3px;
   overflow: hidden;
 }

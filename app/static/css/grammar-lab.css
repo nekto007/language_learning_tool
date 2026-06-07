@@ -37,7 +37,7 @@
     --gl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --gl-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     --gl-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-    --gl-shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
+    --gl-shadow-glow: 0 0 20px rgba(var(--primary-500-rgb), 0.3);
 
     /* Border radius */
     --gl-radius-sm: 8px;
@@ -648,12 +648,12 @@
     font-weight: 600;
     cursor: pointer;
     transition: var(--gl-transition);
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 14px rgba(var(--primary-500-rgb), 0.3);
 }
 
 .gl-start-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 6px 20px rgba(var(--primary-500-rgb), 0.4);
 }
 
 .gl-start-btn i {
@@ -947,7 +947,7 @@
 .gl-input:focus {
     outline: none;
     border-color: var(--gl-primary);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 4px rgba(var(--primary-500-rgb), 0.1);
 }
 
 .gl-input::placeholder {

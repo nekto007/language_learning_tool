@@ -312,8 +312,8 @@
     align-items: flex-start;
     gap: 0.75rem;
     padding: 1rem 1.25rem;
-    background: rgba(37, 99, 235, 0.06);
-    border: 1px solid rgba(37, 99, 235, 0.15);
+    background: rgba(var(--info-600-rgb), 0.06);
+    border: 1px solid rgba(var(--info-600-rgb), 0.15);
     border-radius: var(--ms-radius-sm);
     margin-bottom: 1.5rem;
     animation: ms-slideUp 0.4s ease-out 0.1s both;
@@ -366,7 +366,7 @@
 
 .ms-card:hover {
     border-color: var(--ms-primary);
-    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 4px 16px rgba(var(--info-600-rgb), 0.1);
     transform: translateY(-2px);
 }
 
@@ -483,7 +483,7 @@
 }
 
 .ms-toggle__input:focus-visible + .ms-toggle__slider {
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 0 3px rgba(var(--info-600-rgb), 0.25);
 }
 
 /* ===== Badges ===== */
