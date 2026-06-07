@@ -252,11 +252,11 @@
 
 .grammar-page {
   --grammar-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-  --grammar-primary: #4f46e5;
-  --grammar-primary-dark: #4338ca;
-  --grammar-success: #22c55e;
-  --grammar-danger: #ef4444;
-  --grammar-warning: #f59e0b;
+  --grammar-primary: var(--primary-600);
+  --grammar-primary-dark: var(--primary-700);
+  --grammar-success: var(--success-500);
+  --grammar-danger: var(--danger-500);
+  --grammar-warning: var(--warning-500);
   --grammar-surface: #ffffff;
   --grammar-surface-alt: #f8fafc;
   --grammar-text: #0f172a;
@@ -306,7 +306,7 @@
 .practice-header__icon {
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -329,11 +329,11 @@
 }
 
 .practice-hero--b {
-  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  background: linear-gradient(135deg, #f97316 0%, var(--danger-500) 100%);
 }
 
 .practice-hero--c {
-  background: linear-gradient(135deg, #ec4899 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #ec4899 0%, var(--primary-500) 100%);
 }
 
 .practice-hero__bg-shapes {
@@ -452,7 +452,7 @@
 
 .practice-stats__item--relearn .practice-stats__value { color: #dc2626; }
 .practice-stats__item--learn .practice-stats__value { color: #d97706; }
-.practice-stats__item--review .practice-stats__value { color: #16a34a; }
+.practice-stats__item--review .practice-stats__value { color: var(--success-600); }
 .practice-stats__item--new .practice-stats__value { color: #2563eb; }
 
 /* Progress */
@@ -491,7 +491,7 @@
 
 .practice-progress__fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
@@ -710,7 +710,7 @@
 .practice-exercise__feedback.success {
   background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.2);
-  color: #16a34a;
+  color: var(--success-600);
 }
 
 .practice-exercise__feedback.error {
@@ -760,7 +760,7 @@
 }
 
 .practice-btn--primary {
-  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-600) 100%);
   color: #fff !important;
   flex: 1;
 }
@@ -772,7 +772,7 @@
 }
 
 .practice-btn--success {
-  background: linear-gradient(135deg, var(--grammar-success) 0%, #16a34a 100%);
+  background: linear-gradient(135deg, var(--grammar-success) 0%, var(--success-600) 100%);
   color: #fff !important;
   flex: 1;
 }
@@ -879,7 +879,7 @@
 
 .practice-complete__accuracy-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--grammar-primary) 0%, #6366f1 100%);
+  background: linear-gradient(90deg, var(--grammar-primary) 0%, var(--primary-500) 100%);
   border-radius: 4px;
   transition: width 0.5s ease;
 }
