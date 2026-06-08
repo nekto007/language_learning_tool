@@ -69,19 +69,7 @@
             </form>
         </div>
     </div>
-    <script nonce="{{ csp_nonce }}">
-    (function() {
-        var btn = document.getElementById('importToggleBtn');
-        var panel = document.getElementById('importPanel');
-        if (btn && panel) {
-            btn.addEventListener('click', function() {
-                var expanded = btn.getAttribute('aria-expanded') === 'true';
-                btn.setAttribute('aria-expanded', String(!expanded));
-                panel.hidden = expanded;
-            });
-        }
-    })();
-    </script>
+<script src="{{ url_for('static', filename='js/study/custom_list.js') }}?v=1"></script>
 
     {% if entries %}
     <div class="custom-list__study-wrap">

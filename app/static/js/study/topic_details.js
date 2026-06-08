@@ -1,0 +1,107 @@
+document.addEventListener('DOMContentLoaded', function() {
+    // Add all topic words
+    const addTopicForm = document.getElementById('add-topic-form');
+    const addTopicBtn = document.getElementById('add-topic-btn');
+
+    if (addTopicForm) {
+        addTopicForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            addTopicBtn.disabled = true;
+            addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Добавление...';
+
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showTDToast(data.message, 'success');
+
+                    if (data.added_count > 0) {
+                        addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Добавлено';
+                        addTopicBtn.disabled = true;
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        addTopicBtn.disabled = false;
+                        addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                addTopicBtn.disabled = false;
+                addTopicBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Добавить все';
+            });
+        });
+    }
+
+    // Add individual words
+    document.querySelectorAll('.td-add-word-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const submitBtn = this.querySelector('.td-add-word-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83"/></svg>';
+
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(new FormData(this))
+            })
+            .then(response => {
+                if (response.ok) {
+                    const card = submitBtn.closest('.td-word-card');
+                    submitBtn.closest('.td-add-word-form').outerHTML = '<span class="td-word-card__added"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>';
+
+                    const statusEl = card.querySelector('.td-word-status');
+                    if (statusEl) {
+                        statusEl.className = 'td-word-status td-word-status--studying';
+                        statusEl.textContent = 'Изучается';
+                    }
+                } else {
+                    throw new Error('Server error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>';
+            });
+        });
+    });
+
+    function showTDToast(message, type) {
+        const colors = {
+            success: { bg: '#dcfce7', border: '#22c55e', icon: '\u2713' },
+            info: { bg: '#dbeafe', border: '#3b82f6', icon: '\u2139' }
+        };
+        const c = colors[type] || colors.info;
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            background: ${c.bg}; padding: 16px 20px; border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 12px;
+            border-left: 4px solid ${c.border}; font-family: 'Onest', sans-serif; font-size: 14px; font-weight: 500;
+            animation: td-slideUp 0.3s ease-out;
+        `;
+        toast.innerHTML = `<span style="color: ${c.border}; font-size: 18px; font-weight: bold;">${c.icon}</span><span>${message}</span>`;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+});
