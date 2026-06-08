@@ -1,0 +1,497 @@
+(function() {
+    var fab = document.getElementById('feedback-fab');
+    var fabBadge = document.getElementById('feedback-fab-badge');
+    var popup = document.getElementById('feedback-popup');
+    var popupList = document.getElementById('feedback-popup-list');
+    var popupLoading = document.getElementById('feedback-popup-loading');
+    var popupNewBtn = document.getElementById('feedback-popup-new');
+    var modal = document.getElementById('feedback-modal');
+    var form = document.getElementById('feedback-form');
+    var submitBtn = document.getElementById('feedback-submit');
+    var errorBox = document.getElementById('feedback-error');
+    var successBox = document.getElementById('feedback-success');
+    var successNote = document.getElementById('feedback-success-note');
+    var successLink = document.getElementById('feedback-success-link');
+    var screenshotInput = document.getElementById('feedback-screenshot');
+    var preview = document.getElementById('feedback-screenshot-preview');
+    var previewImg = document.getElementById('feedback-screenshot-img');
+    var previewClear = document.getElementById('feedback-screenshot-clear');
+    if (!fab || !modal || !form || !popup) return;
+
+    var MAX_BYTES = 5 * 1024 * 1024;
+    var inFlight = false;
+
+    function escapeHtml(text) {
+        var d = document.createElement('div');
+        d.textContent = String(text == null ? '' : text);
+        return d.innerHTML;
+    }
+
+    var CATEGORY_BADGE = {bug: '🐞 Баг', idea: '💡 Идея', question: '❓ Вопрос'};
+    var STATUS_LABEL = {new: 'Новое', seen: 'Просмотрено', in_progress: 'В работе', resolved: 'Закрыто', reopened: 'Переоткрыто'};
+
+    function renderThreads(threads) {
+        popupList.textContent = '';
+        if (!threads || !threads.length) {
+            var empty = document.createElement('div');
+            empty.className = 'feedback-popup__empty';
+            empty.textContent = 'У вас пока нет обращений.';
+            popupList.appendChild(empty);
+            return;
+        }
+        threads.forEach(function(t) {
+            var a = document.createElement('a');
+            a.className = 'feedback-popup__item';
+            if (t.unread) a.classList.add('feedback-popup__item--unread');
+            a.href = t.url;
+            var head = document.createElement('div');
+            head.className = 'feedback-popup__item-head';
+            head.innerHTML =
+                '<span class="feedback-popup__item-cat">' + escapeHtml(CATEGORY_BADGE[t.category] || t.category) + '</span>' +
+                '<span class="feedback-popup__item-status">' + escapeHtml(STATUS_LABEL[t.status] || t.status) + '</span>';
+            if (t.unread) {
+                head.innerHTML += '<span class="feedback-popup__item-unread" aria-label="Непрочитано">' + escapeHtml(t.unread) + '</span>';
+            }
+            a.appendChild(head);
+            var body = document.createElement('div');
+            body.className = 'feedback-popup__item-body';
+            var prefix = t.last_is_admin ? '<span class="feedback-popup__item-prefix">Команда:</span> ' : '';
+            body.innerHTML = prefix + escapeHtml(t.preview || '');
+            a.appendChild(body);
+            popupList.appendChild(a);
+        });
+    }
+
+    function loadThreads() {
+        if (popupLoading) popupLoading.hidden = false;
+        fetch('/api/feedback/threads?limit=5', {
+            credentials: 'same-origin',
+            headers: {'Accept': 'application/json'},
+        })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (data && data.success) {
+                    renderThreads(data.threads || []);
+                } else {
+                    renderThreads([]);
+                }
+            })
+            .catch(function() { renderThreads([]); });
+    }
+
+    function loadUnreadCount() {
+        fetch('/api/feedback/unread-count', {
+            credentials: 'same-origin',
+            headers: {'Accept': 'application/json'},
+        })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (!data || !data.success) return;
+                var n = parseInt(data.count, 10) || 0;
+                if (n > 0) {
+                    fabBadge.textContent = n > 99 ? '99+' : String(n);
+                    fabBadge.hidden = false;
+                    fab.classList.add('feedback-fab--has-unread');
+                } else {
+                    fabBadge.hidden = true;
+                    fab.classList.remove('feedback-fab--has-unread');
+                }
+            })
+            .catch(function() {});
+    }
+
+    function openPopup() {
+        if (modal && !modal.hidden) return;
+        popup.hidden = false;
+        loadThreads();
+    }
+    function closePopup() {
+        popup.hidden = true;
+    }
+    function openModal() {
+        closePopup();
+        modal.hidden = false;
+        document.body.classList.add('feedback-modal-open');
+        // Restore any unsent draft from a previous session before focusing,
+        // so the user lands inside their already-filled form rather than
+        // an empty one and re-types everything they typed yesterday.
+        restoreDraft();
+        setTimeout(function() {
+            var firstRadio = modal.querySelector('input[name="category"]');
+            if (firstRadio) firstRadio.focus();
+        }, 0);
+    }
+    function closeModal() {
+        modal.hidden = true;
+        document.body.classList.remove('feedback-modal-open');
+        successBox.hidden = true;
+        if (successNote) {
+            successNote.hidden = true;
+            successNote.textContent = '';
+        }
+        form.hidden = false;
+        form.reset();
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Отправить';
+        preview.hidden = true;
+        previewImg.removeAttribute('src');
+        if (successLink) successLink.removeAttribute('href');
+        inFlight = false;
+    }
+
+    fab.addEventListener('click', function() {
+        if (popup.hidden) openPopup(); else closePopup();
+    });
+    popup.querySelectorAll('[data-feedback-popup-close="true"]').forEach(function(el) {
+        el.addEventListener('click', closePopup);
+    });
+    if (popupNewBtn) popupNewBtn.addEventListener('click', openModal);
+    modal.querySelectorAll('[data-feedback-close="true"]').forEach(function(el) {
+        el.addEventListener('click', closeModal);
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        if (!modal.hidden) closeModal();
+        else if (!popup.hidden) closePopup();
+    });
+    // Click outside popup → close.
+    document.addEventListener('click', function(ev) {
+        if (popup.hidden) return;
+        if (popup.contains(ev.target) || fab.contains(ev.target)) return;
+        closePopup();
+    });
+
+    if (screenshotInput) {
+        screenshotInput.addEventListener('change', function() {
+            errorBox.hidden = true;
+            errorBox.textContent = '';
+            var file = screenshotInput.files && screenshotInput.files[0];
+            if (!file) {
+                preview.hidden = true;
+                previewImg.removeAttribute('src');
+                return;
+            }
+            if (file.size > MAX_BYTES) {
+                errorBox.textContent = 'Скриншот больше 5 МБ. Сожмите или сделайте меньшую область.';
+                errorBox.hidden = false;
+                screenshotInput.value = '';
+                preview.hidden = true;
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                previewImg.src = ev.target.result;
+                preview.hidden = false;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    if (previewClear) {
+        previewClear.addEventListener('click', function() {
+            screenshotInput.value = '';
+            preview.hidden = true;
+            previewImg.removeAttribute('src');
+        });
+    }
+
+    // Programmatic attach helper used by paste / drag-drop. Reuses the
+    // change-handler's validation by reseting the input via DataTransfer.
+    function attachScreenshot(file) {
+        if (!file || !screenshotInput) return;
+        if (file.size > MAX_BYTES) {
+            errorBox.textContent = 'Скриншот больше 5 МБ. Сожмите или сделайте меньшую область.';
+            errorBox.hidden = false;
+            return;
+        }
+        try {
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            screenshotInput.files = dt.files;
+        } catch (e) {
+            // Some browsers (older Safari) reject DataTransfer assignment;
+            // fall back to just rendering the preview — submit() will pick
+            // the file up via a captured reference below.
+        }
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            previewImg.src = ev.target.result;
+            preview.hidden = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Paste from clipboard: hot-fast path for "сделал скриншот в системе
+    // → Ctrl+V в форму". Only triggers while the modal is open and the
+    // target wasn't a contenteditable input.
+    document.addEventListener('paste', function(e) {
+        if (modal.hidden) return;
+        if (!e.clipboardData || !e.clipboardData.items) return;
+        for (var i = 0; i < e.clipboardData.items.length; i++) {
+            var item = e.clipboardData.items[i];
+            if (item && item.kind === 'file' && item.type.indexOf('image/') === 0) {
+                var file = item.getAsFile();
+                if (file) {
+                    attachScreenshot(file);
+                    e.preventDefault();
+                    return;
+                }
+            }
+        }
+    });
+
+    // Drag-and-drop on the modal body — drop zone is the whole panel so
+    // users don't have to aim for the file input.
+    var modalPanel = modal.querySelector('.feedback-modal__panel');
+    if (modalPanel) {
+        ['dragenter', 'dragover'].forEach(function(ev) {
+            modalPanel.addEventListener(ev, function(e) {
+                if (!e.dataTransfer || !e.dataTransfer.types) return;
+                if (Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') === -1) return;
+                e.preventDefault();
+                modalPanel.classList.add('feedback-modal__panel--drop');
+            });
+        });
+        ['dragleave', 'dragend'].forEach(function(ev) {
+            modalPanel.addEventListener(ev, function() {
+                modalPanel.classList.remove('feedback-modal__panel--drop');
+            });
+        });
+        modalPanel.addEventListener('drop', function(e) {
+            modalPanel.classList.remove('feedback-modal__panel--drop');
+            if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+            var file = e.dataTransfer.files[0];
+            if (!file.type || file.type.indexOf('image/') !== 0) return;
+            e.preventDefault();
+            attachScreenshot(file);
+        });
+    }
+
+    // Draft autosave — keeps the user's typing across reloads and
+    // network-fail retries. Cleared on successful submit. Keyed by user
+    // session indirectly (localStorage is per-origin so the next person
+    // on the same browser won't inherit; if multi-user shared kiosk is a
+    // worry, this can move to sessionStorage).
+    var DRAFT_KEY = 'feedback_draft_v1';
+    var draftTimer = null;
+
+    function saveDraft() {
+        try {
+            var category = (form.querySelector('input[name="category"]:checked') || {}).value || '';
+            var message = (form.querySelector('#feedback-message').value || '');
+            var urgent = !!(form.querySelector('#feedback-urgent') || {}).checked;
+            if (!category && !message) {
+                window.localStorage.removeItem(DRAFT_KEY);
+                return;
+            }
+            window.localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                category: category,
+                message: message,
+                urgent: urgent,
+                saved_at: new Date().toISOString(),
+            }));
+        } catch (e) { /* private mode / quota — silent */ }
+    }
+    function restoreDraft() {
+        try {
+            var raw = window.localStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            var draft = JSON.parse(raw);
+            if (!draft || typeof draft !== 'object') return;
+            // Drop drafts older than 7 days to avoid surfacing stale text.
+            if (draft.saved_at) {
+                var age = Date.now() - new Date(draft.saved_at).getTime();
+                if (age > 7 * 24 * 60 * 60 * 1000) {
+                    window.localStorage.removeItem(DRAFT_KEY);
+                    return;
+                }
+            }
+            if (draft.category) {
+                var radio = form.querySelector('input[name="category"][value="' + draft.category + '"]');
+                if (radio) radio.checked = true;
+            }
+            if (draft.message) {
+                form.querySelector('#feedback-message').value = draft.message;
+            }
+            var urgent = form.querySelector('#feedback-urgent');
+            if (urgent && draft.urgent) urgent.checked = true;
+        } catch (e) { /* ignore corrupted draft */ }
+    }
+    function clearDraft() {
+        try { window.localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    }
+    function scheduleDraftSave() {
+        if (draftTimer) clearTimeout(draftTimer);
+        draftTimer = setTimeout(saveDraft, 1500);
+    }
+    form.addEventListener('input', scheduleDraftSave);
+    form.addEventListener('change', scheduleDraftSave);
+
+    // Client error buffer — last few uncaught errors / promise rejections.
+    // Shipped in the submit's ``context`` field so bug reports arrive
+    // pre-loaded with what the page actually crashed on.
+    var clientErrors = [];
+    var CLIENT_ERROR_CAP = 5;
+    function pushError(entry) {
+        clientErrors.push(entry);
+        if (clientErrors.length > CLIENT_ERROR_CAP) {
+            clientErrors.splice(0, clientErrors.length - CLIENT_ERROR_CAP);
+        }
+    }
+    window.addEventListener('error', function(e) {
+        if (!e) return;
+        pushError({
+            type: 'error',
+            message: String((e.message || '')).slice(0, 300),
+            source: String((e.filename || '')).slice(0, 200),
+            line: e.lineno || 0,
+            col: e.colno || 0,
+            at: new Date().toISOString(),
+        });
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+        if (!e) return;
+        var reason = '';
+        try { reason = String(e.reason && (e.reason.message || e.reason)) || ''; } catch (_) {}
+        pushError({
+            type: 'unhandledrejection',
+            message: reason.slice(0, 300),
+            at: new Date().toISOString(),
+        });
+    });
+
+    function collectMeta() {
+        var meta = {};
+        try { meta.viewport_width = String(window.innerWidth || ''); } catch (e) {}
+        try { meta.viewport_height = String(window.innerHeight || ''); } catch (e) {}
+        try { meta.screen_width = String((screen && screen.width) || ''); } catch (e) {}
+        try { meta.screen_height = String((screen && screen.height) || ''); } catch (e) {}
+        try { meta.device_pixel_ratio = String(window.devicePixelRatio || ''); } catch (e) {}
+        try { meta.locale = navigator.language || ''; } catch (e) {}
+        try {
+            meta.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        } catch (e) {}
+        try { meta.platform = navigator.platform || ''; } catch (e) {}
+        return meta;
+    }
+
+    function submit() {
+        if (inFlight) return;
+        errorBox.hidden = true;
+        errorBox.textContent = '';
+
+        var category = (form.querySelector('input[name="category"]:checked') || {}).value;
+        var message = (form.querySelector('#feedback-message').value || '').trim();
+        if (!category) {
+            errorBox.textContent = 'Выберите категорию.';
+            errorBox.hidden = false;
+            return;
+        }
+        if (!message) {
+            errorBox.textContent = 'Опишите, что хотите сообщить.';
+            errorBox.hidden = false;
+            return;
+        }
+
+        inFlight = true;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправляю…';
+
+        var metaTag = document.querySelector('meta[name="csrf-token"]');
+        var csrf = metaTag ? metaTag.getAttribute('content') : '';
+        var meta = collectMeta();
+
+        var fd = new FormData();
+        fd.append('category', category);
+        fd.append('message', message);
+        fd.append('url', window.location.href);
+        var urgent = form.querySelector('#feedback-urgent');
+        if (urgent && urgent.checked) fd.append('urgent', '1');
+        Object.keys(meta).forEach(function(k) {
+            if (meta[k]) fd.append(k, meta[k]);
+        });
+        var file = screenshotInput && screenshotInput.files && screenshotInput.files[0];
+        if (file) fd.append('screenshot', file, file.name || 'screenshot.png');
+
+        // Auto-context blob — recent client errors, route hint, referrer.
+        var ctx = {};
+        if (clientErrors.length) ctx.client_errors = clientErrors.slice();
+        try { ctx.path = window.location.pathname || ''; } catch (e) {}
+        try { ctx.referrer = document.referrer || ''; } catch (e) {}
+        try {
+            if (window.linearPlanContext && typeof window.linearPlanContext.getContext === 'function') {
+                var lc = window.linearPlanContext.getContext();
+                if (lc) ctx.plan_slot = lc;
+            }
+        } catch (e) {}
+        if (Object.keys(ctx).length) {
+            try { fd.append('context', JSON.stringify(ctx)); } catch (e) {}
+        }
+
+        fetch('/api/feedback', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRFToken': csrf,
+                'Accept': 'application/json',
+            },
+            body: fd,
+        }).then(function(r) {
+            if (r.ok) {
+                clearDraft();
+                return r.json().catch(function() { return {}; }).then(function(body) {
+                    form.hidden = true;
+                    successBox.hidden = false;
+                    if (successNote) {
+                        if (body.screenshot_status === 'rejected') {
+                            successNote.textContent = body.screenshot_message || 'Скриншот не приложился. Проверьте формат или размер файла.';
+                            successNote.hidden = false;
+                        } else {
+                            successNote.hidden = true;
+                            successNote.textContent = '';
+                        }
+                    }
+                    if (successLink && body.thread_url) {
+                        successLink.href = body.thread_url;
+                    } else if (successLink) {
+                        successLink.style.display = 'none';
+                    }
+                    inFlight = false;
+                });
+            }
+            return r.json().catch(function() { return {}; }).then(function(body) {
+                var msg = (body && body.message) ? body.message :
+                          (r.status === 429 ? 'Слишком много отправок. Попробуйте позже.' :
+                          'Не удалось отправить. Попробуйте позже.');
+                errorBox.textContent = msg;
+                errorBox.hidden = false;
+                inFlight = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Отправить';
+            });
+        }).catch(function() {
+            errorBox.textContent = 'Сеть недоступна. Проверьте подключение.';
+            errorBox.hidden = false;
+            inFlight = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Отправить';
+        });
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submit();
+    });
+
+    form.querySelector('#feedback-message').addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            submit();
+        }
+    });
+
+    // Initial badge load + soft polling.
+    loadUnreadCount();
+    setInterval(loadUnreadCount, 60000);
+})();
