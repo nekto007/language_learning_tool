@@ -1,4 +1,4 @@
-{% extends 'public_base.html' %}
+{% extends "base.html" if current_user.is_authenticated else "public_base.html" %}
 
 {% set _title_ru = topic.title_ru or topic.title %}
 {% set _title_en = topic.title if topic.title and topic.title != _title_ru else '' %}
