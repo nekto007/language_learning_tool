@@ -6416,7 +6416,7 @@ button.module-header-main:disabled {
     }
 
     .hero-section .stat-label {
-        font-size: 0.5rem;
+        font-size: 0.625rem;
     }
 
     /* Progress circle - responsive */
@@ -6781,7 +6781,7 @@ button.module-header-main:disabled {
     }
 
     .hero-section .stat-label {
-        font-size: 0.4375rem;
+        font-size: 0.625rem;
     }
 }
 
@@ -8480,9 +8480,9 @@ textarea:focus-visible,
         padding-bottom: 80px;
     }
 
-    /* Hide footer on mobile to save space */
-    .footer-styled {
-        margin-bottom: 70px;
+    /* Clear the fixed bottom-nav so the cabinet footer isn't hidden under it */
+    .cabinet-footer {
+        margin-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
     }
 }
 
@@ -8515,6 +8515,15 @@ textarea:focus-visible,
     }
 
     .bottom-nav__dropdown-item {
+        min-height: 44px;
+    }
+
+    .vocab-tooltip__close {
+        width: 44px;
+        height: 44px;
+    }
+
+    .chip--clickable {
         min-height: 44px;
     }
 }
@@ -10907,7 +10916,7 @@ textarea:focus-visible,
 
 @media (max-width: 380px) {
     /* Hide brand text on very narrow screens */
-    .navbar-brand-custom span:not(.navbar-logo-wrapper) {
+    .navbar-brand-custom .navbar-brand-text {
         display: none;
     }
 
@@ -12598,6 +12607,11 @@ button.nav-section-title {
     line-height: 1;
     cursor: pointer;
     color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
 }
 .linear-modal__close:hover { color: #0f172a; }
 .linear-modal__hint {
@@ -18104,7 +18118,7 @@ a.daily-plan__position--link:focus {
 }
 .dash-rank--band .dash-rank__progress--band {
     flex: 1;
-    min-width: 240px;
+    min-width: min(240px, 100%);
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -18426,6 +18440,8 @@ a.daily-plan__position--link:focus {
 .feedback-modal__close {
     background: none; border: none; font-size: 1.5rem; line-height: 1;
     color: #64748b; cursor: pointer; padding: 0 .25rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 44px; min-height: 44px;
 }
 .feedback-modal__close:hover { color: #0f172a; }
 .feedback-modal__body { padding: 1rem 1.25rem 1.25rem; overflow-y: auto; }
@@ -18452,7 +18468,7 @@ a.daily-plan__position--link:focus {
 .feedback-cat__hint { color: #64748b; font-size: .82rem; }
 .feedback-modal__textarea {
     width: 100%; resize: vertical;
-    padding: .625rem .75rem; font-size: .92rem;
+    padding: .625rem .75rem; font-size: 16px;
     border: 1px solid #cbd5e1; border-radius: 8px;
     background: #fff; color: #0f172a;
 }

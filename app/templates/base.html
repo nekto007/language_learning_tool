@@ -70,23 +70,23 @@
                 {% if request.endpoint == 'words.dashboard' %}
                 <span class="navbar-brand fw-bold navbar-brand-custom navbar-brand-static">
                     <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" class="navbar-logo" alt="" width="44" height="44" aria-hidden="true">
-                    LLT English
+                    <span class="navbar-brand-text">LLT English</span>
                 </span>
                 {% elif has_module('words') %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('words.dashboard') }}">
                     <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" class="navbar-logo" alt="" width="44" height="44" aria-hidden="true">
-                    LLT English
+                    <span class="navbar-brand-text">LLT English</span>
                 </a>
                 {% else %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('landing.index') }}">
                     <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" class="navbar-logo" alt="" width="44" height="44" aria-hidden="true">
-                    LLT English
+                    <span class="navbar-brand-text">LLT English</span>
                 </a>
                 {% endif %}
             {% else %}
                 <a class="navbar-brand fw-bold navbar-brand-custom" href="{{ url_for('landing.index') }}">
                     <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" class="navbar-logo" alt="" width="44" height="44" aria-hidden="true">
-                    LLT English
+                    <span class="navbar-brand-text">LLT English</span>
                 </a>
             {% endif %}
 
