@@ -1,4 +1,7 @@
 {% extends 'base.html' %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/study/plan_stats.css') }}?v=1">
+{% endblock %}
 
 {% block title %}Статистика плана{% endblock %}
 
@@ -63,108 +66,6 @@
 
 </div>
 
-<style>
-.plan-stats-page {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: var(--space-6);
-}
-
-.plan-stats__header {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    margin-bottom: var(--space-6);
-}
-
-.plan-stats__back {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: var(--radius-md);
-    color: var(--color-text-secondary);
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-}
-.plan-stats__back:hover { background: var(--color-surface-2); color: var(--color-text); }
-
-.plan-stats__title {
-    font-size: var(--text-xl);
-    font-weight: var(--font-bold);
-    color: var(--color-text);
-    margin: 0 0 var(--space-1);
-}
-.plan-stats__subtitle {
-    font-size: var(--text-sm);
-    color: var(--color-text-secondary);
-    margin: 0;
-}
-
-.plan-stats__cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-}
-
-.plan-stats__card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    text-align: center;
-}
-
-.plan-stats__card-value {
-    font-size: var(--text-2xl);
-    font-weight: var(--font-bold);
-    color: var(--color-primary);
-    margin-bottom: var(--space-1);
-}
-
-.plan-stats__card-label {
-    font-size: var(--text-sm);
-    font-weight: var(--font-medium);
-    color: var(--color-text);
-    margin-bottom: var(--space-1);
-}
-
-.plan-stats__card-sub {
-    font-size: var(--text-xs);
-    color: var(--color-text-secondary);
-}
-
-.plan-stats__trend--up { color: var(--color-success, #22c55e); }
-.plan-stats__trend--down { color: var(--color-danger, #ef4444); }
-.plan-stats__trend--flat { color: var(--color-text-secondary); }
-
-.plan-stats__chart-container {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-}
-
-.plan-stats__section-title {
-    font-size: var(--text-base);
-    font-weight: var(--font-semibold);
-    color: var(--color-text);
-    margin: 0 0 var(--space-4);
-}
-
-.plan-stats__chart-wrap {
-    position: relative;
-}
-
-.plan-stats__empty {
-    text-align: center;
-    padding: var(--space-8) 0;
-    color: var(--color-text-secondary);
-    font-size: var(--text-sm);
-}
-</style>
 
 {% if total_active > 0 %}
 <script nonce="{{ csp_nonce }}">
