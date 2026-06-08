@@ -1,0 +1,226 @@
+.cm-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 600px) {
+  .cm-board { grid-template-columns: 1fr; }
+}
+.cm-column-header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lsn-text-muted, #64748b);
+  margin-bottom: 0.5rem;
+}
+.cm-column .option-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+.cm-column .option-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cm-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.cm-row .option-btn { flex: 1; margin-bottom: 0; }
+.cm-row .cm-speak-btn { flex: 0 0 auto; }
+
+/* Live-feedback flash states (animate then auto-clear) */
+.option-btn--correct-flash {
+  border-color: var(--color-success, #10b981);
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+  animation: cm-correct-pulse 0.5s ease-in-out;
+}
+.option-btn--wrong-flash {
+  border-color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+  animation: cm-shake 0.4s;
+}
+@keyframes cm-correct-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes cm-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+/* Matched pair stripped from the columns by removal; preserved in the
+   "Готовые пары" zone below. */
+.option-btn--vanish {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease-out, max-height 0.25s ease-out,
+              margin 0.25s ease-out, padding 0.25s ease-out;
+  max-height: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-width: 0 !important;
+  overflow: hidden;
+}
+.cm-row--vanish { max-height: 0; overflow: hidden; transition: max-height 0.25s ease-out; }
+.cm-matched-zone {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--lsn-border, #e2e8f0);
+}
+.cm-matched-zone__header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lsn-text-muted, #64748b);
+  margin-bottom: 0.5rem;
+}
+.cm-matched-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.4rem;
+  border-radius: 0.5rem;
+  /* Very light green tint + light border — confirmation cue without
+     drowning the row in success-green. Body text remains normal slate so
+     the perceived contrast (and therefore readability) stays high. */
+  background: rgba(16, 185, 129, 0.04);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  color: #1e293b;
+  font-size: 0.95rem;
+  animation: cm-matched-in 0.3s ease-out;
+}
+.cm-matched-row .fa-check { color: #10b981; flex-shrink: 0; }
+.cm-matched-row__phrase { color: #047857; font-weight: 500; }
+.cm-matched-row__translation { color: #334155; }
+@keyframes cm-matched-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cm-matched-row .cm-pair-arrow { opacity: 0.6; }
+
+/* Completed state: hide the empty working area (columns and active-state
+   instruction) so the matched-pairs list moves to the top and the screen
+   no longer looks "broken" with dead vertical space. */
+.cm-lesson--completed .cm-board,
+.cm-lesson--completed .lesson-shell__instruction { display: none; }
+.cm-lesson--completed .cm-matched-zone {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.cm-completed-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem 0;
+  background: rgba(var(--primary-500-rgb), 0.06);
+  border-radius: 0.5rem;
+  color: var(--lsn-text-muted, #475569);
+  font-size: 0.95rem;
+}
+.cm-completed-banner__icon { color: #047857; flex-shrink: 0; }
+/* Final summary block (badge + buttons) gets extra breathing room so the
+   green badge no longer sits flush against the action row. */
+#matching-result { margin-top: 1.25rem; }
+.cm-final-actions { margin-top: 1.5rem; }
+/* No icon-margin override needed: .lsn-btn__icon ships its own margin. */
+/* Before "Проверить" — paired pairs are neutral (indigo), not success-green. */
+.option-btn--paired {
+  border-color: #6366f1;
+  background: rgba(var(--primary-500-rgb), 0.08);
+  color: #4338ca;
+}
+/* After "Проверить" — split into correct/wrong on the buttons themselves. */
+.option-btn--correct {
+  border-color: var(--color-success, #10b981);
+  background: rgba(16, 185, 129, 0.10);
+  color: #047857;
+}
+.option-btn--wrong {
+  border-color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.10);
+  color: #b91c1c;
+}
+.cm-phrase-text { flex: 1; }
+.cm-speak-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--lsn-text-muted, #64748b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+  touch-action: manipulation;
+}
+.cm-speak-btn:hover {
+  color: #4338ca;
+  background: rgba(var(--primary-500-rgb), 0.10);
+  border-color: rgba(var(--primary-500-rgb), 0.25);
+}
+.cm-speak-btn:active { transform: scale(0.94); }
+.cm-speak-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+.cm-speak-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cm-pair-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+}
+.cm-pair-result--correct {
+  background: rgba(16, 185, 129, 0.08);
+  color: #047857;
+}
+.cm-pair-result--wrong {
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+.cm-pair-result__correction {
+  margin-left: 1.75rem;
+  font-size: 0.85rem;
+  color: #047857;
+  opacity: 0.85;
+}
+.cm-pair-arrow { opacity: 0.6; }
+/* Final completion actions: primary "Следующий урок →" + secondary
+   "К списку уроков" sit in one horizontal row so they read as a coherent
+   pair of choices, not a button with a stray text link under it. */
+.cm-final-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+@media (max-width: 480px) {
+  .cm-final-actions { flex-direction: column; align-items: stretch; }
+}
+/* Buttons inside the final-action row inherit .lsn-btn / .lsn-btn--primary
+   / .lsn-btn--outline from lesson_base_template.html so all lesson types
+   share one button look. No local overrides needed. */

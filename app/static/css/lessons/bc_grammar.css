@@ -1,0 +1,308 @@
+/* Grammar Specific Styles */
+.grammar-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Theory Section */
+.grammar-theory {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+}
+
+.theory-header h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  color: var(--accent-color);
+}
+
+.theory-content {
+  margin-bottom: 2rem;
+}
+
+.theory-introduction {
+  background: var(--bg-secondary);
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.theory-section {
+  margin-bottom: 1.5rem;
+}
+
+.theory-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.section-description {
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* Examples Table */
+.examples-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.example-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent-color);
+}
+
+.example-row .pronoun {
+  font-weight: 600;
+  color: var(--accent-color);
+  min-width: 100px;
+}
+
+.example-row .verb {
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 80px;
+}
+
+.example-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.example-text {
+  color: var(--text-primary);
+}
+
+.translation {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Important Notes */
+.theory-notes {
+  margin-top: 2rem;
+  padding: 1rem 1.5rem;
+  background: #fff3e0;
+  border-radius: var(--radius-md);
+  border-left: 4px solid #ff9800;
+}
+
+.theory-notes h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #e65100;
+}
+
+.notes-list {
+  padding-left: 1.25rem;
+  color: #5d4037;
+  margin: 0;
+}
+
+.notes-list li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Practice Section */
+.grammar-practice {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+}
+
+.practice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.practice-header h2 {
+  font-size: 1.25rem;
+}
+
+.practice-progress {
+  color: var(--text-secondary);
+}
+
+.question-card {
+  margin-bottom: 1.5rem;
+}
+
+.question-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: var(--accent-color);
+}
+
+.option.selected {
+  border-color: var(--accent-color);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.option.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.option.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.option-letter {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+}
+
+.feedback.correct {
+  background: #e8f5e9;
+}
+
+.feedback.incorrect {
+  background: #ffebee;
+}
+
+.feedback-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.feedback.correct .feedback-icon {
+  background: #4caf50;
+  color: white;
+}
+
+.feedback.incorrect .feedback-icon {
+  background: #f44336;
+  color: white;
+}
+
+.feedback-text {
+  flex: 1;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.practice-nav {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Results */
+.grammar-results {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.results-card {
+  background: var(--card-bg);
+  padding: 3rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.results-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.results-score {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+}
+
+.results-message {
+  color: var(--text-secondary);
+}
+
+/* Footer */
+.lesson-footer-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.completion-check {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .example-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .example-row .pronoun,
+  .example-row .verb {
+    min-width: auto;
+  }
+}

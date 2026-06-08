@@ -1,4 +1,7 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/bc_word_formation.css') }}?v=1">
+{% endblock %}
 
 {% block lesson_type %}🔤 {{ 'Словообразование' if nav_lang == 'ru' else 'Word Formation' }}{% endblock %}
 
@@ -283,121 +286,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<style>
-/* Word Formation Specific Styles */
-.word-formation-container {
-  max-width: 800px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
 
-.wf-item {
-  display: flex;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-}
-
-.item-number {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-secondary);
-  border-radius: 50%;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.item-content {
-  flex: 1;
-}
-
-.sentence {
-  font-size: 1.0625rem;
-  line-height: 1.6;
-  margin-bottom: 0.5rem;
-}
-
-.wf-input {
-  width: 150px;
-  padding: 0.25rem 0.5rem;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 1rem;
-  background: var(--bg-primary);
-  margin: 0 0.25rem;
-}
-
-.wf-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-}
-
-.wf-input.correct {
-  border-color: #4caf50;
-  background: rgba(76, 175, 80, 0.1);
-}
-
-.wf-input.incorrect {
-  border-color: #f44336;
-  background: rgba(244, 67, 54, 0.1);
-}
-
-.base-word {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: var(--accent-color);
-  color: white;
-  border-radius: var(--radius-full);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.correction {
-  margin-top: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background: #e8f5e9;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-}
-
-.correction-label {
-  color: #2e7d32;
-  font-weight: 500;
-  margin-right: 0.5rem;
-}
-
-.wf-summary {
-  margin-top: 2rem;
-  text-align: center;
-}
-
-.summary-score {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--accent-color);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .wf-item {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .item-number {
-    align-self: flex-start;
-  }
-
-  .wf-input {
-    width: 120px;
-  }
-}
-</style>
 {% endblock %}

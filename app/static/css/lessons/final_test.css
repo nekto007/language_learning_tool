@@ -1,0 +1,516 @@
+/* Hide breadcrumb and header for clean look */
+.lesson-breadcrumb,
+.lesson-header,
+.lesson-description,
+.instruction-box {
+  display: none !important;
+}
+
+.lesson-page {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+
+.lesson-content {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Final test screens */
+.final-test-screen {
+  min-height: 300px;
+}
+
+.checkpoint-lesson {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* Start screen */
+.checkpoint-start-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.checkpoint-icon {
+  font-size: 4rem;
+  color: #dc2626;
+  margin-bottom: 1.5rem;
+}
+
+.checkpoint-start-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.checkpoint-start-content p {
+  font-size: 1.1rem;
+  color: #6b7280;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* Info grid - horizontal layout */
+.checkpoint-info {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-radius: 0.75rem;
+  border: 2px solid #e5e7eb;
+}
+
+.info-item i {
+  font-size: 2rem;
+  /* Indigo вместо red — info-карточки не warning. */
+  color: #6366f1;
+  flex-shrink: 0;
+}
+
+.info-item > div {
+  flex: 1;
+}
+
+.info-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.info-label {
+  display: block;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Warning message */
+.checkpoint-warning {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-left: 4px solid #f59e0b;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: start;
+  gap: 1rem;
+}
+
+.checkpoint-warning i {
+  font-size: 1.5rem;
+  color: #d97706;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.checkpoint-warning p {
+  margin: 0;
+  color: #92400e;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Start button — раньше был красным «алармистским». Делаем брендовым,
+   чтобы старт теста не выглядел как «жми и беги», а как обычное CTA. */
+#start-final-test-btn {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+  border: none;
+  border-radius: 0.75rem;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#start-final-test-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+}
+
+/* Progress bar */
+.final-test-progress-section {
+  margin-bottom: 2rem;
+}
+
+.progress-info {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+}
+
+.final-test-progress-bar {
+  width: 100%;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.final-test-progress-fill {
+  height: 100%;
+  /* Брендовый gradient вместо красного — это прогресс, а не тревога. */
+  background: linear-gradient(90deg, #10b981, #0ea5e9);
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+/* Question cards — нейтральная карточка без красной подсветки.
+   Padding снижен с 2.5rem до 1.5rem 1.75rem — на 2.5rem карточка
+   выглядела «полупустой» с большим зазором сверху/снизу до контента,
+   особенно на transformation/text-вопросах с короткими предложениями. */
+.question-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08),
+              0 2px 6px rgba(15, 23, 42, 0.05);
+  max-width: 900px;
+  border: 1px solid #e2e8f0;
+  background-clip: padding-box;
+  position: relative;
+  animation: cardSlideIn 0.5s ease-out;
+}
+.question-card::before { content: none; }
+
+/* cardSlideIn animation moved to design-system.css */
+
+.question-text {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  line-height: 1.3;
+}
+
+.answer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.answer-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.answer-option:hover:not(:disabled) {
+  /* Брендовый hover, не алярм-красный. */
+  border-color: #6366f1;
+  background: #eef2ff;
+  transform: translateX(5px);
+}
+
+.answer-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.answer-option.correct {
+  border-color: #10b981 !important;
+  background: #d1fae5 !important;
+}
+
+.answer-option.incorrect {
+  border-color: #ef4444 !important;
+  background: #fee2e2 !important;
+}
+
+.answer-option.selected {
+  transform: translateX(0) !important;
+}
+
+.option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  /* Indigo вместо красного — кружки A/B/C не должны выглядеть как
+     «неправильные ответы» до того, как пользователь сделает выбор. */
+  background: #6366f1;
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.option-text {
+  flex: 1;
+  color: #1f2937;
+}
+
+/* Question feedback */
+.question-feedback {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  animation: slideIn 0.3s ease;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.question-feedback.correct {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 3px solid #16a34a;
+}
+
+.question-feedback.incorrect {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 3px solid #dc2626;
+}
+
+.feedback-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.feedback-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.question-feedback.correct .feedback-icon {
+  color: #10b981;
+}
+
+.question-feedback.incorrect .feedback-icon {
+  color: #ef4444;
+}
+
+.feedback-text {
+  font-size: 1rem;
+  color: #1f2937;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* slideIn animation moved to design-system.css */
+
+/* Text input for translation/fill_blank */
+.text-answer .form-control {
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  transition: all 0.3s;
+}
+
+.text-answer .form-control:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(var(--primary-500-rgb), 0.15);
+}
+
+.text-submit-btn,
+.matching-submit-btn,
+.reorder-submit-btn {
+  margin-top: 1rem !important;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1rem !important;
+  /* Брендовый gradient вместо красного: «Отправить ответ» — действие,
+     а не предупреждение. */
+  background: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%) !important;
+  border: none !important;
+  border-radius: 0.5rem !important;
+  color: white !important;
+}
+
+.text-submit-btn:hover,
+.matching-submit-btn:hover,
+.reorder-submit-btn:hover {
+  opacity: 0.92;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Reorder questions */
+.words-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+  min-height: 100px;
+  border: 2px dashed #d1d5db;
+}
+
+.word-button {
+  padding: 0.75rem 1.25rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #1f2937;
+}
+
+.word-button:hover:not(:disabled) {
+  border-color: #6366f1;
+  background: #eef2ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(var(--primary-500-rgb), 0.2);
+}
+
+.word-button:disabled,
+.word-button.used {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f3f4f6;
+}
+
+.sentence-display {
+  min-height: 80px;
+  padding: 1.5rem;
+  background: white;
+  /* Нейтральная брендовая рамка для собираемого предложения — раньше
+     была красная, читалась как «здесь ошибка». */
+  border: 2px solid #6366f1;
+  border-radius: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.sentence-display:hover {
+  background: #fafafa;
+}
+
+.placeholder-text {
+  color: #9ca3af;
+  font-style: italic;
+  width: 100%;
+  text-align: center;
+}
+
+.sentence-word {
+  padding: 0.5rem 1rem;
+  /* Indigo gradient — нейтрально-брендово, не «алертно». */
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sentence-word:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(var(--primary-500-rgb), 0.4);
+}
+
+/* Matching game styles */
+.final-test-matching-btn:hover:not(:disabled):not(.matched) {
+  border-color: #6366f1 !important;
+  background: #eef2ff !important;
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(var(--primary-500-rgb), 0.2);
+}
+
+.final-test-matching-btn.selected {
+  border-color: #6366f1 !important;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  color: white !important;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(var(--primary-500-rgb), 0.4);
+}
+
+.final-test-matching-btn.matched {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+  background: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+}
+
+.final-test-matching-btn.correct-match {
+  /* opacity=1 нужен явно: `.matched` ставит opacity 0.4, и correct-match
+     должен это перетереть, иначе зелёные пары после завершения выглядят
+     «выцветшими» — текст почти не читается. */
+  opacity: 1 !important;
+  border-color: #10b981 !important;
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+  font-weight: 600;
+  animation: matchPulse 0.5s ease;
+}
+
+/* matchPulse and shake animations moved to design-system.css */
+
+@media (max-width: 768px) {
+  .matching-game {
+    grid-template-columns: 1fr !important;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .info-item {
+    padding: 0.75rem;
+  }
+
+  .info-item i {
+    font-size: 1.5rem;
+  }
+
+  .info-value {
+    font-size: 1.5rem;
+  }
+}

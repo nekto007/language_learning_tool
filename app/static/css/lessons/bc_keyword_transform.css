@@ -1,0 +1,131 @@
+/* Transform Specific Styles */
+.transform-container {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.transform-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+
+.item-number {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.item-content {
+  flex: 1;
+}
+
+.sentence-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.original-sentence {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.keyword-badge {
+  display: inline-block;
+  padding: 0.25rem 1rem;
+  background: var(--accent-color);
+  color: white;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.target-sentence {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.transform-input {
+  width: 200px;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  background: var(--bg-primary);
+  margin: 0 0.25rem;
+}
+
+.transform-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.transform-input.correct {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.transform-input.incorrect {
+  border-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.correction {
+  margin-top: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: #e8f5e9;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+
+.correction-label {
+  color: #2e7d32;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
+.transform-summary {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.summary-score {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .transform-item {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .item-number {
+    align-self: flex-start;
+  }
+
+  .transform-input {
+    width: 150px;
+  }
+}

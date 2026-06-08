@@ -1,4 +1,7 @@
 {% extends "curriculum/book_courses/lessons/_lesson_base.html" %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/bc_open_cloze.css') }}?v=1">
+{% endblock %}
 
 {% block lesson_type %}✏️ {{ 'Заполнение пропусков' if nav_lang == 'ru' else 'Open Cloze' }}{% endblock %}
 
@@ -246,81 +249,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<style>
-/* Cloze Specific Styles */
-.cloze-container {
-  max-width: 800px;
-  margin: 0 auto;
-}
 
-.cloze-text {
-  background: var(--card-bg);
-  padding: 2rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  font-size: 1.125rem;
-  line-height: 2;
-  white-space: pre-wrap;
-}
-
-.gap-wrapper {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.25rem;
-}
-
-.gap-number {
-  font-size: 0.75rem;
-  color: var(--accent-color);
-  font-weight: 600;
-}
-
-.gap-input {
-  width: 100px;
-  padding: 0.25rem 0.5rem;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 1rem;
-  background: var(--bg-primary);
-  text-align: center;
-  transition: border-color 0.2s;
-}
-
-.gap-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-}
-
-.gap-input.correct {
-  border-color: #4caf50;
-  background: rgba(76, 175, 80, 0.1);
-}
-
-.gap-input.incorrect {
-  border-color: #f44336;
-  background: rgba(244, 67, 54, 0.1);
-}
-
-.correction {
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  background: #e8f5e9;
-  color: #2e7d32;
-  border-radius: var(--radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.cloze-summary {
-  margin-top: 2rem;
-  text-align: center;
-}
-
-.summary-score {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--accent-color);
-}
-</style>
 {% endblock %}
