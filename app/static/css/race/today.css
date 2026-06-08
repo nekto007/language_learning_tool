@@ -1,0 +1,254 @@
+.race-page {
+        max-width: 960px;
+        margin: 1.5rem auto;
+        padding: 0 1rem;
+    }
+    .race-page__back {
+        display: inline-block;
+        margin-bottom: 1rem;
+        color: #4338ca;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .race-page__back:hover {
+        text-decoration: underline;
+    }
+    .race-page__empty {
+        background: #fff;
+        border-radius: 20px;
+        padding: 2rem 1.5rem;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        text-align: center;
+    }
+    .race-page__empty h1 {
+        margin-top: 0;
+        color: #0f172a;
+    }
+    .race-page__empty p {
+        color: #475569;
+        margin-bottom: 1.5rem;
+    }
+    .dash-race {
+        background: linear-gradient(135deg, rgba(var(--primary-500-rgb),0.12), rgba(16,185,129,0.10));
+        border: 1px solid rgba(var(--primary-500-rgb),0.18);
+        border-radius: 20px;
+        padding: 1.25rem;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+    }
+    .dash-race__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    .dash-race__eyebrow {
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4f46e5;
+        margin-bottom: 0.2rem;
+    }
+    .dash-race__title {
+        margin: 0;
+        font-size: 1.5rem;
+        color: #0f172a;
+    }
+    .dash-race__note {
+        margin-top: 0.35rem;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .dash-race__badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.72);
+        color: #312e81;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .dash-race__hero,
+    .dash-race__board {
+        background: rgba(255,255,255,0.78);
+        border: 1px solid rgba(255,255,255,0.75);
+        border-radius: 18px;
+        padding: 1rem;
+    }
+    .dash-race__hero {
+        display: flex;
+        flex-direction: column;
+        gap: 0.95rem;
+    }
+    .dash-race__stats {
+        display: grid;
+        grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+        gap: 1rem;
+        align-items: center;
+    }
+    .dash-race__score {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1;
+    }
+    .dash-race__score-label,
+    .dash-race__progress-label,
+    .dash-race__user-meta {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .dash-race__progress-bar {
+        margin-top: 0.45rem;
+        height: 10px;
+        background: #e5e7eb;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .dash-race__progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #4f46e5, #10b981);
+    }
+    .dash-race__nudge {
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .dash-race__tasks {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+    .dash-race__task {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: start;
+        padding: 0.8rem 0.9rem;
+        border-radius: 14px;
+        background: rgba(var(--primary-600-rgb),0.06);
+        border: 1px solid rgba(var(--primary-600-rgb),0.10);
+    }
+    .dash-race__task-index {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2ff;
+        color: #4338ca;
+        font-weight: 800;
+    }
+    .dash-race__task-title {
+        font-weight: 700;
+        color: #111827;
+    }
+    .dash-race__task-meta {
+        margin-top: 0.2rem;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .dash-race__cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(var(--primary-600-rgb),0.24);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .dash-race__cta:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 28px rgba(var(--primary-600-rgb),0.3);
+    }
+    .dash-race__board-title {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.8rem;
+    }
+    .dash-race__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+    .dash-race__row {
+        display: grid;
+        grid-template-columns: 28px 28px 1fr auto;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.8rem;
+        border-radius: 14px;
+        background: #f8fafc;
+    }
+    .dash-race__row--me {
+        background: rgba(var(--primary-600-rgb),0.10);
+        outline: 1px solid rgba(var(--primary-600-rgb),0.18);
+    }
+    .dash-race__place {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2ff;
+        color: #4338ca;
+        font-weight: 800;
+        font-size: 0.875rem;
+    }
+    .dash-race__avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #fef3c7;
+        color: #92400e;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .dash-race__name {
+        font-weight: 700;
+        color: #111827;
+    }
+    .dash-race__points {
+        font-weight: 800;
+        color: #111827;
+    }
+    .dash-race__final {
+        text-align: center;
+        padding: 1rem 0.5rem;
+    }
+    .dash-race__final-place {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #111827;
+    }
+    .dash-race__final-score {
+        font-size: 1.1rem;
+        color: #4338ca;
+        margin-top: 0.4rem;
+        font-weight: 700;
+    }
+    .dash-race__final-message {
+        margin-top: 0.75rem;
+        color: #475569;
+    }
+    @media (max-width: 760px) {
+        .dash-race__header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .dash-race__stats {
+            grid-template-columns: 1fr;
+        }
+    }
