@@ -73,10 +73,10 @@ class TestPublicWordRoute:
         assert response.status_code == 200
         # Title is built from `word.english_word` + level. Template at
         # app/templates/words/public_word.html renders
-        # «<word> — перевод на русский, примеры, произношение | <level> английский».
+        # «<word> — перевод на русский (<level>) | LLT English».
         assert (
-            f'<title>{sample_word.english_word} — перевод на русский, '
-            f'примеры, произношение | {sample_word.level} английский</title>'
+            f'<title>{sample_word.english_word} — перевод на русский '
+            f'({sample_word.level}) | LLT English</title>'
             in html
         )
         assert '<meta name="description" content="' in html
@@ -111,13 +111,19 @@ class TestPublicWordRoute:
             app.config['SITE_URL'] = original_site_url
 
         assert response.status_code == 200
-        match = re.search(
+        # The page now also emits sitewide Organization/WebSite JSON-LD, so pick
+        # the DefinedTerm block specifically (not just the first script).
+        blocks = re.findall(
             r'<script type="application/ld\+json">\s*(.*?)\s*</script>',
             html,
             re.S,
         )
-        assert match is not None
-        data = json.loads(match.group(1))
+        data = next(
+            (obj for obj in (json.loads(b) for b in blocks)
+             if obj.get('@type') == 'DefinedTerm'),
+            None,
+        )
+        assert data is not None
         assert data['name'] == word.english_word
         assert data['description'] == (
             f'{word.english_word} — перевод: {word.russian_word}. '

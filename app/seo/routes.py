@@ -13,11 +13,14 @@ def _site_urls() -> list[str]:
     return [configured or canonical]
 
 
-def _add(urlset: Element, loc: str, priority: str = '0.5', changefreq: str = 'weekly') -> None:
+def _add(urlset: Element, loc: str, priority: str = '0.5', changefreq: str = 'weekly',
+         lastmod: str | None = None) -> None:
     url_el = SubElement(urlset, 'url')
     SubElement(url_el, 'loc').text = loc
     SubElement(url_el, 'priority').text = priority
     SubElement(url_el, 'changefreq').text = changefreq
+    if lastmod:
+        SubElement(url_el, 'lastmod').text = lastmod
 
 
 @seo_bp.route('/sitemap.xml')
@@ -26,7 +29,10 @@ def sitemap() -> Response:
     from app.grammar_lab.models import GrammarTopic
 
     site_urls = _site_urls()
-    site_urls[0]
+    today = _date.today()
+
+    def _lastmod(dt) -> str | None:
+        return min(dt.date(), today).strftime('%Y-%m-%d') if dt else None
 
     urlset = Element('urlset')
     urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
@@ -57,19 +63,21 @@ def sitemap() -> Response:
             .all()
         )
         for level in levels:
-            _add(urlset, f'{base_url}/courses/{level.code}', '0.7', 'weekly')
+            _add(urlset, f'{base_url}/courses/{level.code}', '0.7', 'weekly',
+                 lastmod=_lastmod(level.updated_at))
 
-    # Grammar level listing pages
+    # Grammar level listing pages — lastmod = newest topic edit at that level.
     from app.utils.db import db as _db
     grammar_levels = (
-        _db.session.query(GrammarTopic.level)
+        _db.session.query(GrammarTopic.level, func.max(GrammarTopic.updated_at))
         .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
-        .distinct()
+        .group_by(GrammarTopic.level)
         .all()
     )
     for base_url in site_urls:
-        for (lvl,) in grammar_levels:
-            _add(urlset, f'{base_url}/grammar-lab/topics/{lvl.lower()}', '0.7', 'weekly')
+        for lvl, lvl_updated in grammar_levels:
+            _add(urlset, f'{base_url}/grammar-lab/topics/{lvl.lower()}', '0.7', 'weekly',
+                 lastmod=_lastmod(lvl_updated))
 
     # Grammar topics
     topics = (
@@ -78,16 +86,10 @@ def sitemap() -> Response:
         .order_by(GrammarTopic.level, GrammarTopic.order)
         .all()
     )
-    today = _date.today()
     for base_url in site_urls:
         for topic in topics:
-            url_el = SubElement(urlset, 'url')
-            SubElement(url_el, 'loc').text = f'{base_url}/grammar-lab/topic/{topic.slug}'
-            SubElement(url_el, 'priority').text = '0.7'
-            SubElement(url_el, 'changefreq').text = 'monthly'
-            if topic.updated_at:
-                lastmod = min(topic.updated_at.date(), today)
-                SubElement(url_el, 'lastmod').text = lastmod.strftime('%Y-%m-%d')
+            _add(urlset, f'{base_url}/grammar-lab/topic/{topic.slug}', '0.7', 'monthly',
+                 lastmod=_lastmod(topic.updated_at))
 
     # Dictionary pages — all public words, capped at Google's per-sitemap limit (50k).
     # Words ordered by frequency_rank so the most valuable URLs are indexed first

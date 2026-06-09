@@ -1,6 +1,6 @@
 {% extends 'public_base.html' %}
 
-{% block title %}{{ word.english_word }} — перевод на русский, примеры, произношение{% if word.level %} | {{ word.level }} английский{% endif %}{% endblock %}
+{% block title %}{{ word.english_word }} — перевод на русский{% if word.level %} ({{ word.level }}){% endif %} | LLT English{% endblock %}
 
 {% block meta_description %}<meta name="description" content="{{ meta_description | default('') }}">{% endblock %}
 

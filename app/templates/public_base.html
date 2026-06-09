@@ -43,6 +43,28 @@
     </script>
     {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20260531c">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "LLT English",
+      "url": "https://llt-english.com/",
+      "logo": "https://llt-english.com/static/media/llt_logo.png"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "LLT English",
+      "url": "https://llt-english.com/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://llt-english.com/dictionary?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
     {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
     {% block head_extra %}{% endblock %}
