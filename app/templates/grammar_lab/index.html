@@ -236,7 +236,7 @@
           {% set is_completed = level.progress_pct == 100 and level.topic_count > 0 %}
           {% set is_current = has_progress and not is_completed %}
 
-          <a href="{{ url_for('grammar_lab.topics', level=level.level) }}" class="level-card level-card--{{ level.level[0]|lower }} {% if is_completed %}level-card--completed{% elif is_current %}level-card--current{% endif %}">
+          <a href="{{ url_for('grammar_lab.topics', level=level.level|lower) }}" class="level-card level-card--{{ level.level[0]|lower }} {% if is_completed %}level-card--completed{% elif is_current %}level-card--current{% endif %}">
             <div class="level-card__header">
               <div class="level-card__badge">
                 <span class="level-card__code">{{ level.level }}</span>

@@ -38,6 +38,17 @@
   ]
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Главная", "item": "https://llt-english.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Курсы", "item": "https://llt-english.com/courses/"},
+    {"@type": "ListItem", "position": 3, "name": {{ (level.code or '')|tojson }}}
+  ]
+}
+</script>
 {% endblock %}
 
 {% block content %}

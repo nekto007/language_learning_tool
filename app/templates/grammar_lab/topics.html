@@ -108,7 +108,7 @@
         Все
       </a>
       {% for level in levels %}
-      <a href="{{ url_for('grammar_lab.topics', level=level.level) }}"
+      <a href="{{ url_for('grammar_lab.topics', level=level.level|lower) }}"
          class="topics-filter__btn topics-filter__btn--{{ level.level[0]|lower }} {% if current_level == level.level %}topics-filter__btn--active{% endif %}">
         {{ level.level }}
         {% if level.topic_count > 0 %}
@@ -121,6 +121,7 @@
 
   <!-- Topics List -->
   {% if topics %}
+  <h2 class="sr-only">Темы грамматики{% if current_level %} уровня {{ current_level }}{% endif %}</h2>
   <div class="topics-list">
     {% for topic in topics %}
     <a href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}" class="topic-card">

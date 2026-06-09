@@ -28,6 +28,17 @@
   "url": {{ (canonical_url | default(request.base_url))|tojson }}
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Главная", "item": "https://llt-english.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Словарь", "item": "https://llt-english.com/dictionary"},
+    {"@type": "ListItem", "position": 3, "name": {{ word.english_word|tojson }}}
+  ]
+}
+</script>
 {% endblock %}
 
 {% block content %}

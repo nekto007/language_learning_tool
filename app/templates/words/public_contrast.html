@@ -21,12 +21,22 @@
   "@type": "FAQPage",
   "mainEntity": [{
     "@type": "Question",
-    "name": "В чём разница между {{ word_a.english_word }} и {{ word_b.english_word }}?",
+    "name": {{ ('В чём разница между ' ~ word_a.english_word ~ ' и ' ~ word_b.english_word ~ '?')|tojson }},
     "acceptedAnswer": {
       "@type": "Answer",
       "text": {{ contrast.note_ru|striptags|tojson }}
     }
   }]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Словарь", "item": "https://llt-english.com/dictionary"},
+    {"@type": "ListItem", "position": 2, "name": {{ (word_a.english_word ~ ' vs ' ~ word_b.english_word)|tojson }}}
+  ]
 }
 </script>
 {% endblock %}
