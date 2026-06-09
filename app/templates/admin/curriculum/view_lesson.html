@@ -101,10 +101,7 @@
                         {% elif lesson.type == 'card' %}
                             {% include 'admin/curriculum/content/card_view.html' %}
                         {% else %}
-                            <div class="alert alert-info">
-                                <strong>Тип урока:</strong> {{ lesson.type }}<br>
-                                <strong>Содержимое:</strong> Специальный просмотр для данного типа урока не реализован.
-                            </div>
+                            {% include 'admin/curriculum/content/generic_view.html' %}
                         {% endif %}
                     </div>
                     
