@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 
-from flask import Blueprint, abort, render_template
+from flask import Blueprint, abort, redirect, render_template, url_for
 from sqlalchemy import func
 
 from app.curriculum.models import CEFRLevel, Lessons, Module
@@ -62,6 +62,9 @@ def level_detail(level_code: str):
     normalized_code = level_code.upper()
     if normalized_code not in PUBLIC_CEFR_CODES:
         abort(404)
+    # Canonical course path uses the uppercase CEFR code — 301 other casings.
+    if level_code != normalized_code:
+        return redirect(url_for('courses.level_detail', level_code=normalized_code), code=301)
 
     level = CEFRLevel.query.filter_by(code=normalized_code).first()
     if not level:

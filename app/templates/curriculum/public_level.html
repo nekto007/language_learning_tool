@@ -11,27 +11,27 @@
 <meta property="og:title" content="{{ level.code }} {{ level.name }} — Курс английского | LLT English">
 <meta property="og:description" content="{{ meta_description | default('') }}">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.base_url }}">
+<meta property="og:url" content="https://llt-english.com/courses/{{ level.code }}">
 {% endblock %}
 {% block og_image %}{{ url_for('static', filename='img/level_og.png', _external=True) }}{% endblock %}
 
 {% block head_extra %}
-<link rel="canonical" href="{{ url_for('courses.level_detail', level_code=level.code, _external=True) }}">
+<link rel="canonical" href="https://llt-english.com/courses/{{ level.code }}">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "Course",
-  "name": "{{ level.code }} — {{ level.name }}",
-  "description": "{{ meta_description|e }}",
+  "name": {{ (level.code ~ ' — ' ~ level.name)|tojson }},
+  "description": {{ (meta_description or ('Курс английского языка уровня ' ~ level.code))|tojson }},
   "provider": {"@type": "Organization", "name": "LLT English"},
-  "educationalLevel": "{{ level.code }}",
+  "educationalLevel": {{ (level.code or '')|tojson }},
   "inLanguage": ["en", "ru"],
-  "url": "{{ url_for('courses.level_detail', level_code=level.code, _external=True) }}",
+  "url": "https://llt-english.com/courses/{{ level.code }}",
   "hasCourseInstance": [
     {% for item in modules_data %}
     {
       "@type": "CourseInstance",
-      "name": "{{ item.module.title }}",
+      "name": {{ (item.module.title or '')|tojson }},
       "courseMode": "online"
     }{{ ',' if not loop.last }}
     {% endfor %}

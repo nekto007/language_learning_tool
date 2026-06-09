@@ -294,7 +294,7 @@ def og_grammar(slug: str) -> Response:
 @seo_bp.route('/robots.txt')
 def robots() -> Response:
     """Serve robots.txt."""
-    site_url = (current_app.config.get('SITE_URL') or '').rstrip('/')
+    site_url = (current_app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
     content = (
         'User-agent: *\n'
         'Allow: /\n'

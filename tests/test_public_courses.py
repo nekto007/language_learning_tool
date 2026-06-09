@@ -113,10 +113,11 @@ class TestPublicLevelDetail:
         html = response.data.decode()
         assert 'register' in html.lower()
 
-    def test_level_case_insensitive(self, client, sample_level):
-        """Level code lookup should be case-insensitive."""
+    def test_level_lowercase_redirects_to_canonical_case(self, client, sample_level):
+        """Non-canonical (lowercase) level code 301-redirects to the canonical uppercase path."""
         response = client.get(f'/courses/{sample_level.code.lower()}')
-        assert response.status_code == 200
+        assert response.status_code == 301
+        assert response.headers['Location'].endswith(f'/courses/{sample_level.code}')
 
 
 class TestSitemapCourses:
@@ -212,14 +213,14 @@ class TestPreviewContentProtection:
         assert '"correct_answer"' not in html
         assert '"exercise_type"' not in html
 
-    def test_canonical_url_is_not_hardcoded(self, client, sample_level):
-        """Canonical link must not contain a hardcoded domain."""
+    def test_canonical_url_is_apex(self, client, sample_level):
+        """Canonical points to the apex production host (consistent with sitemap + other public pages)."""
         response = client.get(f'/courses/{sample_level.code}')
         html = response.data.decode()
-        assert 'href="https://llt-english.com' not in html
+        assert f'<link rel="canonical" href="https://llt-english.com/courses/{sample_level.code}">' in html
 
-    def test_catalog_canonical_url_is_not_hardcoded(self, client):
-        """Catalog canonical link must not contain a hardcoded domain."""
+    def test_catalog_canonical_url_is_apex(self, client):
+        """Catalog canonical points to the apex production host."""
         response = client.get('/courses/')
         html = response.data.decode()
-        assert 'href="https://llt-english.com' not in html
+        assert '<link rel="canonical" href="https://llt-english.com/courses/">' in html

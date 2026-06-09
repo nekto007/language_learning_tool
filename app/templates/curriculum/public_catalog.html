@@ -11,12 +11,12 @@
 <meta property="og:title" content="Курсы английского языка | LLT English">
 <meta property="og:description" content="Курсы английского языка от A1 до C1. Уроки, грамматика, словарь, аудирование и практика.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.base_url }}">
+<meta property="og:url" content="https://llt-english.com/courses/">
 {% endblock %}
 {% block og_image %}{{ url_for('static', filename='img/learn_og.png', _external=True) }}{% endblock %}
 
 {% block head_extra %}
-<link rel="canonical" href="{{ url_for('courses.catalog', _external=True) }}">
+<link rel="canonical" href="https://llt-english.com/courses/">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -31,10 +31,10 @@
       "position": {{ loop.index }},
       "item": {
         "@type": "Course",
-        "name": "{{ item.level.code }} — {{ item.level.name }}",
-        "description": "{{ item.level.description|e if item.level.description else '' }}",
+        "name": {{ (item.level.code ~ ' — ' ~ item.level.name)|tojson }},
+        "description": {{ (item.level.description or ('Курс английского языка уровня ' ~ item.level.code))|tojson }},
         "provider": {"@type": "Organization", "name": "LLT English"},
-        "url": "{{ url_for('courses.level_detail', level_code=item.level.code, _external=True) }}"
+        "url": "https://llt-english.com/courses/{{ item.level.code }}"
       }
     }{{ ',' if not loop.last }}
     {% endfor %}

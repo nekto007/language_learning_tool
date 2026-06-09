@@ -100,6 +100,17 @@ def public_dictionary(letter: str | None = None, level: str | None = None):
     path_level = (level or '').strip().upper()
     if path_level and path_level not in PUBLIC_CEFR_CODES:
         abort(404)
+    # Canonical level path is lowercase — 301 non-canonical casing.
+    if level and level != level.lower():
+        page_arg = request.args.get('page', type=int)
+        return redirect(
+            url_for(
+                'words.public_dictionary',
+                level=level.lower(),
+                page=page_arg if page_arg and page_arg > 1 else None,
+            ),
+            code=301,
+        )
 
     query_level = request.args.get('level', '').strip().upper()
     if (
@@ -220,6 +231,12 @@ def public_word(word_slug: str):
     if word.level and word.level not in PUBLIC_CEFR_CODES:
         abort(404)
 
+    # Single canonical address per word — 301 non-canonical casing / legacy
+    # hyphen slugs to the encoded canonical slug.
+    canonical_slug = encode_word_slug(word.english_word)
+    if word_slug != canonical_slug:
+        return redirect(url_for('words.public_word', word_slug=canonical_slug), code=301)
+
     word_profile = build_word_profile(word, public_only=True)
     related_words = get_related_words(word, limit=6, public_only=True)
 
@@ -266,7 +283,7 @@ def public_word(word_slug: str):
     )
     canonical_url = (
         f'{_public_site_url()}'
-        f'{url_for("words.public_word", word_slug=encode_word_slug(word.english_word))}'
+        f'{url_for("words.public_word", word_slug=canonical_slug)}'
     )
 
     return render_template(

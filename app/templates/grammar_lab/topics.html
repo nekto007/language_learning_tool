@@ -8,7 +8,7 @@
 <meta property="og:title" content="{% if current_level %}Грамматика английского языка {{ current_level }} — темы и правила | LLT English{% else %}Темы грамматики английского языка | LLT English{% endif %}">
 <meta property="og:description" content="Грамматика английского языка{% if current_level %} уровня {{ current_level }}{% endif %}: правила, таблицы, примеры и упражнения для практики.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.base_url }}">
+<meta property="og:url" content="https://llt-english.com/grammar-lab/topics{% if current_level %}/{{ current_level|lower }}{% endif %}">
 {% endblock %}
 {% block og_image %}{{ url_for('static', filename='img/grammar_topics_og.png', _external=True) }}{% endblock %}
 

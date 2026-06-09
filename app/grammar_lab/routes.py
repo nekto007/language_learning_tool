@@ -63,9 +63,13 @@ def topics_trailing_slash():
 def topics(level=None):
     """Topics listing page — public, with progress for authenticated users"""
     if level:
-        level = level.upper()
-        if level not in PUBLIC_CEFR_CODES:
+        level_norm = level.upper()
+        if level_norm not in PUBLIC_CEFR_CODES:
             abort(404)
+        # Canonical level path is lowercase — 301 non-canonical casing.
+        if level != level.lower():
+            return redirect(url_for('grammar_lab.topics', level=level.lower()), code=301)
+        level = level_norm
 
     user_id = current_user.id if current_user.is_authenticated else None
     topics_list = grammar_service.get_topics_by_level(level, user_id)
@@ -84,7 +88,7 @@ def topic_detail_legacy(topic_id):
     """Legacy ID-based URL. 301-redirect to slug URL for SEO."""
     topic = GrammarTopic.query.get(topic_id)
     if not topic:
-        return redirect(url_for('grammar_lab.topics'))
+        abort(404)
     return redirect(
         url_for('grammar_lab.topic_detail', slug=topic.slug, **request.args.to_dict()),
         code=301,
@@ -96,14 +100,14 @@ def topic_detail(slug):
     """Topic detail page with theory — public, exercises require auth"""
     topic_row = GrammarTopic.query.filter_by(slug=slug).first()
     if not topic_row:
-        return redirect(url_for('grammar_lab.topics'))
+        abort(404)
 
     topic_id = topic_row.id
     user_id = current_user.id if current_user.is_authenticated else None
     topic = grammar_service.get_topic_detail(topic_id, user_id)
 
     if not topic:
-        return redirect(url_for('grammar_lab.topics'))
+        abort(404)
 
     # Hide legacy/non-public CEFR topics: their related CTAs (/courses/<level>,
     # /grammar-lab/topics/<level>) and related-word links 404 downstream.

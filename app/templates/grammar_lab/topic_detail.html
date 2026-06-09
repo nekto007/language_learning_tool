@@ -9,7 +9,7 @@
 <meta property="og:title" content="{{ _title_ru }}{% if _title_en %} ({{ _title_en }}){% endif %} — правила, примеры, упражнения | {{ topic.level }}">
 <meta property="og:description" content="{{ meta_description | default('') }}">
 <meta property="og:type" content="article">
-<meta property="og:url" content="{{ request.base_url }}">
+<meta property="og:url" content="https://llt-english.com/grammar-lab/topic/{{ topic.slug }}">
 {% endblock %}
 
 {% block og_image %}{{ url_for('seo.og_grammar', slug=topic.slug, _external=True) }}{% endblock %}
@@ -23,9 +23,9 @@
 {
   "@context": "https://schema.org",
   "@type": "LearningResource",
-  "name": "{{ topic.title_ru }} ({{ topic.title }})",
-  "description": "{{ meta_description|e }}",
-  "educationalLevel": "{{ topic.level }}",
+  "name": {{ (topic.title_ru ~ ' (' ~ topic.title ~ ')')|tojson }},
+  "description": {{ (meta_description or '')|tojson }},
+  "educationalLevel": {{ (topic.level or '')|tojson }},
   "inLanguage": ["en", "ru"],
   "learningResourceType": "Grammar reference",
   "url": "https://llt-english.com/grammar-lab/topic/{{ topic.slug }}",
@@ -43,8 +43,8 @@
   "itemListElement": [
     {"@type": "ListItem", "position": 1, "name": "LLT English", "item": "https://llt-english.com/"},
     {"@type": "ListItem", "position": 2, "name": "Grammar Lab", "item": "https://llt-english.com/grammar-lab/"},
-    {"@type": "ListItem", "position": 3, "name": "{{ topic.level }}", "item": "https://llt-english.com/grammar-lab/topics/{{ topic.level|lower }}"},
-    {"@type": "ListItem", "position": 4, "name": "{{ topic.title }}"}
+    {"@type": "ListItem", "position": 3, "name": {{ (topic.level or '')|tojson }}, "item": "https://llt-english.com/grammar-lab/topics/{{ topic.level|lower }}"},
+    {"@type": "ListItem", "position": 4, "name": {{ (topic.title or '')|tojson }}}
   ]
 }
 </script>

@@ -71,8 +71,13 @@ class TestTopics:
         assert resp.status_code == 200
 
     def test_topics_by_level(self, client, db_session):
-        resp = client.get("/grammar-lab/topics/B1")
+        resp = client.get("/grammar-lab/topics/b1")
         assert resp.status_code == 200
+
+    def test_topics_level_uppercase_redirects_to_lowercase(self, client, db_session):
+        resp = client.get("/grammar-lab/topics/B1")
+        assert resp.status_code == 301
+        assert resp.headers["Location"].endswith("/grammar-lab/topics/b1")
 
     def test_topics_authenticated(self, authenticated_client, db_session):
         resp = authenticated_client.get("/grammar-lab/topics")
@@ -88,10 +93,9 @@ class TestTopicDetail:
         assert resp.status_code == 200
         assert b"Present Perfect" in resp.data
 
-    def test_topic_detail_missing_redirects(self, client, db_session):
+    def test_topic_detail_missing_returns_404(self, client, db_session):
         resp = client.get("/grammar-lab/topic/no-such-topic-slug")
-        assert resp.status_code == 302
-        assert "/grammar-lab/topics" in resp.headers["Location"]
+        assert resp.status_code == 404
 
     def test_topic_detail_authenticated(self, authenticated_client, db_session, grammar_topic):
         resp = authenticated_client.get(f"/grammar-lab/topic/{grammar_topic.slug}")
@@ -102,10 +106,9 @@ class TestTopicDetail:
         assert resp.status_code == 301
         assert f"/grammar-lab/topic/{grammar_topic.slug}" in resp.headers["Location"]
 
-    def test_legacy_missing_id_redirects_to_topics(self, client, db_session):
+    def test_legacy_missing_id_returns_404(self, client, db_session):
         resp = client.get("/grammar-lab/topic/999999")
-        assert resp.status_code == 302
-        assert "/grammar-lab/topics" in resp.headers["Location"]
+        assert resp.status_code == 404
 
 
 # ==================== HTML Pages (Auth Required) ====================

@@ -5,6 +5,12 @@
                       else ('Английский словарь уровня ' ~ selected_level ~ ' — слова и переводы' if selected_level
                       else 'Англо-русский словарь онлайн — переводы, уровни CEFR') %}
 {% set _page_description = meta_description | default('Англо-русский словарь LLT English: переводы, примеры и уровни CEFR.') %}
+{% set _page_num = words_page.page if words_page else 1 %}
+{% set _canon_path = url_for('words.public_dictionary', letter=selected_letter) if selected_letter
+                     else (url_for('words.public_dictionary', level=selected_level|lower) if selected_level
+                     else url_for('words.public_dictionary')) %}
+{% set _canon_base = 'https://llt-english.com' ~ _canon_path %}
+{% set _canon_url = _canon_base ~ ('?page=' ~ _page_num if _page_num and _page_num > 1 else '') %}
 
 {% block title %}{{ _page_title }} | LLT English{% endblock %}
 
@@ -16,17 +22,11 @@
 <meta property="og:title" content="{{ _page_title }} | LLT English">
 <meta property="og:description" content="{{ _page_description }}">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.base_url }}">
+<meta property="og:url" content="{{ _canon_url }}">
 {% endblock %}
 {% block og_image %}{{ url_for('static', filename='img/dictionary_og.png', _external=True) }}{% endblock %}
 
 {% block head_extra %}
-{% set _page_num = words_page.page if words_page else 1 %}
-{% set _canon_path = url_for('words.public_dictionary', letter=selected_letter) if selected_letter
-                     else (url_for('words.public_dictionary', level=selected_level|lower) if selected_level
-                     else url_for('words.public_dictionary')) %}
-{% set _canon_base = 'https://llt-english.com' ~ _canon_path %}
-{% set _canon_url = _canon_base ~ ('?page=' ~ _page_num if _page_num and _page_num > 1 else '') %}
 <link rel="canonical" href="{{ _canon_url }}">
 {% if words_page and words_page.has_prev %}
 <link rel="prev" href="{{ _canon_base }}{% if words_page.prev_num and words_page.prev_num > 1 %}?page={{ words_page.prev_num }}{% endif %}">

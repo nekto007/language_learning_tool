@@ -8,7 +8,7 @@
 <meta property="og:title" content="Грамматика английского языка A1–C1 | LLT English">
 <meta property="og:description" content="Полный справочник грамматики английского языка: правила, таблицы, примеры. Уровни A1–C1.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="{{ request.base_url }}">
+<meta property="og:url" content="https://llt-english.com/grammar-lab/">
 {% endblock %}
 {% block og_image %}{{ url_for('static', filename='img/grammar_lab_og.png', _external=True) }}{% endblock %}
 
@@ -118,6 +118,17 @@
             <a href="{{ url_for('grammar_lab.topics') }}" class="grammar-stats-empty__cta">Начать первую тему →</a>
           </div>
         {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="grammar-hero grammar-hero--public">
+      <div class="grammar-hero__content">
+        <div class="grammar-hero__header">
+          <div>
+            <h1 class="grammar-hero__title">Грамматика английского языка A1–C1</h1>
+            <p class="grammar-hero__subtitle">Правила, таблицы и примеры по уровням CEFR — бесплатная теория и упражнения для практики</p>
+          </div>
+        </div>
       </div>
     </div>
   {% endif %}
