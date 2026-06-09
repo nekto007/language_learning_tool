@@ -5,6 +5,7 @@ from flask import Blueprint, abort, flash, jsonify, redirect, render_template, u
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
+from werkzeug.exceptions import HTTPException
 
 from app.curriculum.book_courses import (
     BookCourse,
@@ -79,8 +80,10 @@ def list_book_courses():
             telegram_linked=telegram_linked,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error listing book courses: {str(e)}")
+        logger.error(f"Error listing book courses: {str(e)}", exc_info=True)
         flash('Ошибка при загрузке курсов', 'error')
         return redirect(url_for('curriculum.index'))
 
@@ -161,8 +164,10 @@ def view_course(course_id):
             is_enrolled=enrollment is not None
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error viewing course {course_id}: {str(e)}")
+        logger.error(f"Error viewing course {course_id}: {str(e)}", exc_info=True)
         flash('Ошибка при загрузке курса', 'error')
         return redirect(url_for('book_courses.list_book_courses'))
 
@@ -209,8 +214,10 @@ def enroll_in_course(course_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Вы уже записаны на этот курс'}), 400
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error enrolling in course {course_id}: {str(e)}")
+        logger.error(f"Error enrolling in course {course_id}: {str(e)}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Ошибка при записи на курс'}), 500
 
@@ -298,8 +305,10 @@ def view_module(course_id, module_id):
             due_cards_count=due_cards_count
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error viewing module {module_id}: {str(e)}")
+        logger.error(f"Error viewing module {module_id}: {str(e)}", exc_info=True)
         flash('Ошибка при загрузке модуля', 'error')
         return redirect(url_for('book_courses.view_course', course_id=course_id))
 
@@ -624,8 +633,10 @@ def view_lesson(course_id, module_id, lesson_number):
         if ctx is None:
             return redirect(url_for('book_courses.view_course', course_id=course_id))
         return _render_lesson_by_type(ctx)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error viewing lesson {lesson_number}: {str(e)}")
+        logger.error(f"Error viewing lesson {lesson_number}: {str(e)}", exc_info=True)
         flash('Ошибка при загрузке урока', 'error')
         return redirect(url_for('book_courses.view_module',
                                 course_id=course_id, module_id=module_id))
@@ -643,8 +654,10 @@ def view_lesson_by_id(course_id, module_id, lesson_id):
         if ctx is None:
             return redirect(url_for('book_courses.view_course', course_id=course_id))
         return _render_lesson_by_type(ctx)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error viewing lesson by id {lesson_id}: {str(e)}")
+        logger.error(f"Error viewing lesson by id {lesson_id}: {str(e)}", exc_info=True)
         flash('Ошибка при загрузке урока', 'error')
         return redirect(url_for('book_courses.view_module',
                                 course_id=course_id, module_id=module_id))

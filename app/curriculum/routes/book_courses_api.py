@@ -284,7 +284,50 @@ def complete_lesson_api_v1(lesson_id):
                 lessons_completed.append(daily_lesson.id)
                 module_progress.lessons_completed = lessons_completed
                 flag_modified(module_progress, 'lessons_completed')
+
+            if not module_progress.started_at:
+                module_progress.started_at = datetime.now(UTC)
+
+            # Recompute module completion from the actual DailyLesson rows
+            # (lessons_completed stores daily_lesson ids). The frontend always
+            # calls this v1 endpoint, so module/course progress must advance here
+            # — otherwise a module never reaches 'completed' and any locked
+            # follow-up module stays permanently unreachable.
+            total_lessons = DailyLesson.query.filter_by(
+                book_course_module_id=daily_lesson.book_course_module_id
+            ).count()
+            completed_count = len(lessons_completed)
+            if total_lessons > 0:
+                module_progress.progress_percentage = min(
+                    completed_count / total_lessons * 100, 100.0
+                )
+                if completed_count >= total_lessons:
+                    module_progress.status = 'completed'
+                    if not module_progress.completed_at:
+                        module_progress.completed_at = datetime.now(UTC)
+                else:
+                    module_progress.status = 'in_progress'
+            else:
                 module_progress.status = 'in_progress'
+            module_progress.last_activity = datetime.now(UTC)
+
+            # Recompute course-level progress from completed modules. The COUNT
+            # below sees the status set above via autoflush before it executes.
+            enrollment.last_activity = datetime.now(UTC)
+            total_modules = BookCourseModule.query.filter_by(
+                course_id=module.course_id
+            ).count()
+            completed_modules = BookModuleProgress.query.filter_by(
+                enrollment_id=enrollment.id, status='completed'
+            ).count()
+            if total_modules > 0:
+                enrollment.progress_percentage = min(
+                    completed_modules / total_modules * 100, 100.0
+                )
+                if completed_modules >= total_modules and enrollment.status != 'completed':
+                    enrollment.status = 'completed'
+                    if not enrollment.completed_at:
+                        enrollment.completed_at = datetime.now(UTC)
 
         completion_event = LessonCompletionEvent(
             daily_lesson_id=lesson_id,
