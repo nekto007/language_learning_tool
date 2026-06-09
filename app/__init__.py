@@ -364,6 +364,18 @@ def create_app(config_class=Config):
             return None
 
     @app.before_request
+    def redirect_www_to_apex():
+        """Consolidate the www host to the apex host — one canonical host (SEO)."""
+        from flask import redirect, request
+
+        host = request.host or ''
+        if host.split(':')[0].startswith('www.'):
+            apex_host = host[4:]
+            new_url = request.url.replace('://' + host, '://' + apex_host, 1)
+            code = 301 if request.method in ('GET', 'HEAD') else 308
+            return redirect(new_url, code=code)
+
+    @app.before_request
     def update_last_active():
         """Update user's last_login every 12 hours on activity"""
         from datetime import datetime, timedelta, timezone

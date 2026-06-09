@@ -80,7 +80,8 @@ def _public_site_url() -> str:
 
 @words.route('/dictionary')
 @words.route('/dictionary/letter/<string:letter>')
-def public_dictionary(letter: str | None = None):
+@words.route('/dictionary/level/<string:level>')
+def public_dictionary(letter: str | None = None, level: str | None = None):
     """Public dictionary index for SEO — no login required."""
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 
@@ -91,7 +92,33 @@ def public_dictionary(letter: str | None = None):
         abort(404)
 
     search = request.args.get('q', '').strip()
-    selected_level = request.args.get('level', '').strip().upper()
+
+    # Level filtering has a single canonical address: the clean path
+    # /dictionary/level/<level>. The legacy ?level= query form is 301-redirected
+    # to it (when standalone) so each level is indexed once, not as a duplicate
+    # of /dictionary.
+    path_level = (level or '').strip().upper()
+    if path_level and path_level not in PUBLIC_CEFR_CODES:
+        abort(404)
+
+    query_level = request.args.get('level', '').strip().upper()
+    if (
+        query_level in PUBLIC_CEFR_CODES
+        and not path_level
+        and not selected_letter
+        and not search
+    ):
+        page_arg = request.args.get('page', type=int)
+        return redirect(
+            url_for(
+                'words.public_dictionary',
+                level=query_level.lower(),
+                page=page_arg if page_arg and page_arg > 1 else None,
+            ),
+            code=301,
+        )
+
+    selected_level = path_level or query_level
     if selected_level and selected_level not in PUBLIC_CEFR_CODES:
         selected_level = ''
 

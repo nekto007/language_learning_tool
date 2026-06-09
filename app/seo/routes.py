@@ -111,11 +111,21 @@ def sitemap() -> Response:
         .distinct()
         .all()
     )
+    dict_levels = (
+        _db.session.query(CollectionWords.level)
+        .filter(CollectionWords.item_type == 'word')
+        .filter(CollectionWords.level.in_(PUBLIC_CEFR_CODES))
+        .distinct()
+        .all()
+    )
     from app.words.routes import PUBLIC_DICTIONARY_ALPHABET, encode_word_slug
     for base_url in site_urls:
         for (letter,) in letters:
             if letter and len(letter) == 1 and letter in PUBLIC_DICTIONARY_ALPHABET:
                 _add(urlset, f'{base_url}/dictionary/letter/{letter}', '0.5', 'weekly')
+        for (lvl,) in dict_levels:
+            if lvl:
+                _add(urlset, f'{base_url}/dictionary/level/{lvl.lower()}', '0.6', 'weekly')
         for word in top_words:
             _add(urlset, f'{base_url}/dictionary/{encode_word_slug(word.english_word)}', '0.6', 'monthly')
 
