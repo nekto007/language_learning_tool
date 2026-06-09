@@ -52,6 +52,12 @@ def index():
     )
 
 
+@grammar_lab_bp.route('/topics/')
+def topics_trailing_slash():
+    """Redirect the trailing-slash variant to the canonical no-slash URL (SEO)."""
+    return redirect(url_for('grammar_lab.topics'), code=301)
+
+
 @grammar_lab_bp.route('/topics')
 @grammar_lab_bp.route('/topics/<level>')
 def topics(level=None):

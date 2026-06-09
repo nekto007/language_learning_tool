@@ -162,6 +162,12 @@ def public_dictionary(letter: str | None = None):
     )
 
 
+@words.route('/dictionary/')
+def public_dictionary_trailing_slash():
+    """Redirect the trailing-slash variant to the canonical no-slash URL (SEO)."""
+    return redirect(url_for('words.public_dictionary'), code=301)
+
+
 @words.route('/dictionary/<path:word_slug>')
 def public_word(word_slug: str):
     """Public word page for SEO — no login required."""
