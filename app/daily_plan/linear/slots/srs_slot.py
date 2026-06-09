@@ -158,6 +158,7 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
         count_new_cards_today,
         count_pending_new,
         count_reviews_today,
+        get_due_card_budget,
         get_new_card_budget,
     )
     from app.study.services import SRSService
@@ -169,9 +170,13 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
     review_due = count_due_by_states(user_id, db, states=(CardState.REVIEW.value,))
 
     remaining_new, remaining_reviews = get_new_card_budget(user_id, db)
+    # Combined daily ceiling across learning/relearning/review (base reviews_per_day).
+    # Learning/relearning get priority over mature review; new keeps its own budget.
+    due_budget = get_due_card_budget(user_id, db)
     new_show = min(new_pending, remaining_new)
-    review_show = min(review_due, remaining_reviews)
-    total_show = new_show + learning_due + review_show  # LEARNING uncapped
+    learning_show = min(learning_due, due_budget)
+    review_show = min(review_due, max(0, due_budget - learning_show), remaining_reviews)
+    total_show = new_show + learning_show + review_show
 
     new_today = count_new_cards_today(user_id, db)
     reviews_today_total = count_reviews_today(user_id, db)
@@ -181,6 +186,7 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
     data = {
         'new_show': new_show,
         'learning_due': learning_due,
+        'learning_show': learning_show,
         'review_show': review_show,
         'total_show': total_show,
         'new_pending': new_pending,
@@ -200,8 +206,8 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
         subtitle_bits = []
         if new_show > 0:
             subtitle_bits.append(f'{new_show} новых')
-        if learning_due > 0:
-            subtitle_bits.append(f'{learning_due} в изучении')
+        if learning_show > 0:
+            subtitle_bits.append(f'{learning_show} в изучении')
         if review_show > 0:
             subtitle_bits.append(f'{review_show} на повтор')
         return LinearSlot(

@@ -544,3 +544,64 @@ class TestUnifiedBudgetAcrossCallsites:
 
         canonical_new, _canonical_reviews = get_new_card_budget(user.id, real_db)
         assert _get_remaining_card_budget(user.id)[0] == canonical_new
+
+
+class TestDueCardBudget:
+    """get_due_card_budget — combined daily cap (relearning+learning+review)."""
+
+    def _settings(self, db_session, user, *, new_per_day: int, reviews_per_day: int) -> StudySettings:
+        settings = StudySettings(user_id=user.id)
+        settings.new_words_per_day = new_per_day
+        settings.reviews_per_day = reviews_per_day
+        db_session.add(settings)
+        db_session.commit()
+        return settings
+
+    def test_budget_equals_base_reviews_per_day(self, db_session):
+        from app.srs.counting import get_due_card_budget
+
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=10, reviews_per_day=20)
+        assert get_due_card_budget(user.id, real_db) == 20
+
+    def test_budget_subtracts_reviews_done_today(self, db_session):
+        from app.srs.counting import get_due_card_budget
+
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=10, reviews_per_day=20)
+        now = _now_naive()
+        # A card reviewed today but first seen on a previous day = one review today.
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user, word)
+        _make_direction(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            first_reviewed=now - timedelta(days=3),
+            last_reviewed=now,
+            next_review=now + timedelta(days=1),
+        )
+        assert get_due_card_budget(user.id, real_db) == 19
+
+    def test_learning_capped_by_base_limit_in_plan_item(self, db_session):
+        """30 due learning cards + reviews_per_day=20 → slot shows 20, not 30."""
+        from app.daily_plan.items.srs import build_srs_item
+
+        user = _make_user(db_session)
+        self._settings(db_session, user, new_per_day=0, reviews_per_day=20)
+        past = _now_naive() - timedelta(hours=1)
+        long_ago = _now_naive() - timedelta(days=3)
+        for _ in range(30):
+            word = _make_word(db_session)
+            uw = _make_user_word(db_session, user, word, status='learning')
+            _make_direction(
+                db_session, uw,
+                state=CardState.LEARNING.value,
+                next_review=past,
+                first_reviewed=long_ago,
+            )
+
+        item = build_srs_item(user.id, real_db, section='required')
+        assert item is not None
+        assert item.data['learning_due'] == 30      # raw backlog
+        assert item.data['learning_show'] == 20      # capped by reviews_per_day
+        assert item.data['total_show'] == 20

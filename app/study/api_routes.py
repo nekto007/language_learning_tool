@@ -203,6 +203,19 @@ def get_study_items():
 
     remaining_new = new_limit
     remaining_reviews = review_limit
+
+    # Combined daily ceiling for due cards (RELEARNING + LEARNING + REVIEW),
+    # using the BASE reviews_per_day (deck base for decks) rather than the
+    # adaptive reduction — so the session is bounded but a struggling user is
+    # never frozen out of recovery. Mirrors app/srs/counting.py::
+    # get_due_card_budget so the plan tile count and this served queue agree.
+    # extra_study explicitly bypasses the cap ("study beyond limits").
+    if extra_study:
+        due_budget = None
+    elif deck_id and deck:
+        due_budget = max(0, reviews_limit - reviews_today)
+    else:
+        due_budget = max(0, (settings.reviews_per_day or 0) - reviews_today)
     is_word_detail_study = word_source == 'word_detail' and deck_word_ids is not None
 
     def format_card(direction, word, state_type):
@@ -287,29 +300,44 @@ def get_study_items():
             query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
         return query
 
-    # PRIORITY 1: RELEARNING cards.
-    # NOT gated by remaining_reviews — Anki convention is that once a card
-    # is in (re)learning it must be finished, otherwise it rots half-learnt.
-    # The unified plan slot (build_srs_item) treats learning_due as
-    # uncapped too; this branch must agree, or the plan tile says "67 due"
-    # and clicking it lands on an empty queue (Bug from prod after fix).
-    relearning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
+    # PRIORITY 1: RELEARNING cards — first claim on the combined due budget.
+    # Bounded by `due_budget` (base reviews_per_day) so the session can't grow
+    # unbounded; the plan tile (build_srs_item) applies the same cap, so the
+    # count and this queue stay in sync. `due_budget is None` = extra-study
+    # (uncapped). Cards over the cap aren't lost — they surface next day.
+    relearning_query = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
         UserCardDirection.state == CardState.RELEARNING.value
     ).order_by(
         UserCardDirection.next_review
-    ).all()
+    )
+    if due_budget is None:
+        relearning_cards = relearning_query.all()
+    elif due_budget > 0:
+        relearning_cards = relearning_query.limit(due_budget).all()
+    else:
+        relearning_cards = []
+    if due_budget is not None:
+        due_budget -= len(relearning_cards)
 
     for direction in relearning_cards:
         word = direction.user_word.word
         if word and word.russian_word:
             result_items.append(format_card(direction, word, 'relearning'))
 
-    # PRIORITY 2: LEARNING cards — same uncapped semantics as relearning.
-    learning_cards = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
+    # PRIORITY 2: LEARNING cards — share the same combined budget (after relearning).
+    learning_query = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
         UserCardDirection.state == CardState.LEARNING.value
     ).order_by(
         UserCardDirection.next_review
-    ).all()
+    )
+    if due_budget is None:
+        learning_cards = learning_query.all()
+    elif due_budget > 0:
+        learning_cards = learning_query.limit(due_budget).all()
+    else:
+        learning_cards = []
+    if due_budget is not None:
+        due_budget -= len(learning_cards)
 
     for direction in learning_cards:
         word = direction.user_word.word
@@ -350,8 +378,11 @@ def get_study_items():
                 result_items.append(format_card(direction, word, 'new'))
         remaining_new -= len(new_state_cards)
 
-    # PRIORITY 3: REVIEW cards (due today)
-    if remaining_reviews > 0:
+    # PRIORITY 3: REVIEW cards (due today) — fill whatever the combined budget
+    # has left after learning/relearning, additionally capped by the adaptive
+    # review limit (mature reviews are reduced when the user is struggling).
+    review_cap = remaining_reviews if due_budget is None else min(due_budget, remaining_reviews)
+    if review_cap > 0:
         review_cards = base_due_query(include_today=not is_linear_plan_srs).filter(
             or_(
                 UserCardDirection.state == CardState.REVIEW.value,
@@ -359,7 +390,7 @@ def get_study_items():
             )
         ).order_by(
             UserCardDirection.next_review
-        ).limit(remaining_reviews).all()
+        ).limit(review_cap).all()
 
         for direction in review_cards:
             word = direction.user_word.word

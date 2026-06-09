@@ -22,7 +22,7 @@ from typing import Any, Optional, Sequence
 from sqlalchemy import func, or_
 
 from app.srs.constants import CardState
-from app.study.models import UserCardDirection, UserWord
+from app.study.models import StudySettings, UserCardDirection, UserWord
 from app.utils.db import db as _db
 from app.utils.db_utils import chunk_ids
 from app.utils.time_utils import day_to_naive_utc
@@ -133,6 +133,27 @@ def get_new_card_budget(
         max(0, adaptive_new - new_today),
         max(0, adaptive_reviews - rev_today),
     )
+
+
+def get_due_card_budget(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
+    """Combined daily ceiling for *due* cards (RELEARNING + LEARNING + REVIEW).
+
+    Uses the user's BASE ``reviews_per_day`` setting — NOT the adaptive
+    reduction — on purpose:
+      * the daily due-card session stays bounded (no unbounded learning pile
+        that lets a struggling user drown in debt forever), and
+      * a struggling user (collapse tier, where adaptive reviews → 0) still
+        gets a bounded-but-nonzero batch and can work the backlog down, instead
+        of being frozen out of recovery entirely.
+
+    Subtracts review-type cards already done today (same metric as
+    ``count_reviews_today``). Clamped to ≥ 0. Read-only on StudySettings
+    (no auto-create — avoids committing a fresh row inside a grade txn).
+    """
+    settings = StudySettings.query.filter_by(user_id=user_id).first()
+    base_reviews = (settings.reviews_per_day if settings else 0) or 0
+    rev_today = count_reviews_today(user_id, db, now_utc=now_utc)
+    return max(0, base_reviews - rev_today)
 
 
 def count_due_by_states(
