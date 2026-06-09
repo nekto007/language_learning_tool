@@ -14,9 +14,9 @@
 <div class="card mb-4">
     <div class="card-body">
         <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-primary active" onclick="updatePeriod('week')">Последние 7 дней</button>
-            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('month')">Последние 30 дней</button>
-            <button type="button" class="btn btn-outline-primary" onclick="updatePeriod('quarter')">Последние 90 дней</button>
+            <a href="{{ url_for('user_admin.stats', period='week') }}" class="btn btn-outline-primary {% if period == 'week' %}active{% endif %}">Последние 7 дней</a>
+            <a href="{{ url_for('user_admin.stats', period='month') }}" class="btn btn-outline-primary {% if period == 'month' %}active{% endif %}">Последние 30 дней</a>
+            <a href="{{ url_for('user_admin.stats', period='quarter') }}" class="btn btn-outline-primary {% if period == 'quarter' %}active{% endif %}">Последние 90 дней</a>
         </div>
     </div>
 </div>
@@ -89,42 +89,20 @@
                         <thead>
                             <tr>
                                 <th>Пользователь</th>
-                                <th>Сессии</th>
+                                <th>Уроков завершено</th>
                                 <th>Изучено слов</th>
-                                <th>Прогресс</th>
                             </tr>
                         </thead>
                         <tbody>
+                            {% for u in top_users %}
                             <tr>
-                                <td>john_doe</td>
-                                <td>45</td>
-                                <td>320</td>
-                                <td>
-                                    <div class="progress progress-medium">
-                                        <div class="progress-bar bg-success progress-w-75">75%</div>
-                                    </div>
-                                </td>
+                                <td>{{ u.username }}</td>
+                                <td><span class="badge bg-success">{{ u.completed }}</span></td>
+                                <td>{{ u.words }}</td>
                             </tr>
-                            <tr>
-                                <td>jane_smith</td>
-                                <td>38</td>
-                                <td>280</td>
-                                <td>
-                                    <div class="progress progress-medium">
-                                        <div class="progress-bar bg-success progress-w-65">65%</div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>mike_wilson</td>
-                                <td>32</td>
-                                <td>250</td>
-                                <td>
-                                    <div class="progress progress-medium">
-                                        <div class="progress-bar bg-warning progress-w-55">55%</div>
-                                    </div>
-                                </td>
-                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center text-muted py-3">Нет активности за период</td></tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -143,31 +121,21 @@
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>Контент</th>
+                                <th>Урок</th>
                                 <th>Тип</th>
-                                <th>Просмотры</th>
-                                <th>% завершения</th>
+                                <th>Завершений</th>
                             </tr>
                         </thead>
                         <tbody>
+                            {% for c in popular_content %}
                             <tr>
-                                <td>Базовые приветствия</td>
-                                <td><span class="badge bg-primary">Урок</span></td>
-                                <td>1,234</td>
-                                <td>89%</td>
+                                <td>{{ c.title }}</td>
+                                <td><span class="badge bg-info">{{ c.type }}</span></td>
+                                <td>{{ c.completions }}</td>
                             </tr>
-                            <tr>
-                                <td>Словарь путешественника</td>
-                                <td><span class="badge bg-info">Коллекция</span></td>
-                                <td>987</td>
-                                <td>76%</td>
-                            </tr>
-                            <tr>
-                                <td>Бизнес английский</td>
-                                <td><span class="badge bg-success">Тема</span></td>
-                                <td>856</td>
-                                <td>82%</td>
-                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center text-muted py-3">Нет завершённых уроков за период</td></tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -180,17 +148,9 @@
 <div class="card mt-4">
     <div class="card-body text-center">
         <h5 class="mb-3">Экспорт статистики</h5>
-        <div class="btn-group">
-            <button class="btn btn-outline-primary" onclick="exportData('csv')">
-                <i class="fas fa-file-csv me-2"></i> Экспорт CSV
-            </button>
-            <button class="btn btn-outline-primary" onclick="exportData('pdf')">
-                <i class="fas fa-file-pdf me-2"></i> Экспорт PDF
-            </button>
-            <button class="btn btn-outline-primary" onclick="exportData('excel')">
-                <i class="fas fa-file-excel me-2"></i> Экспорт Excel
-            </button>
-        </div>
+        <a href="{{ url_for('user_admin.stats', period=period, export='csv') }}" class="btn btn-outline-primary">
+            <i class="fas fa-file-csv me-2"></i> Экспорт CSV
+        </a>
     </div>
 </div>
 {% endblock %}
@@ -214,7 +174,7 @@ const loginData = {
 const labels = [];
 const regValues = [];
 const loginValues = [];
-for (let i = 29; i >= 0; i--) {
+for (let i = {{ days - 1 }}; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
@@ -298,23 +258,18 @@ new Chart(hourlyCtx, {
     }
 });
 
-// Course Progress Chart
+// Course Progress Chart — real completion rate per CEFR level
+const levelLabels = [{% for l in completion_by_level %}{{ l.level|tojson }},{% endfor %}];
+const levelRates = [{% for l in completion_by_level %}{{ l.rate }},{% endfor %}];
 const courseProgressCtx = document.getElementById('courseProgressChart').getContext('2d');
 new Chart(courseProgressCtx, {
     type: 'bar',
     data: {
-        labels: ['A1', 'A2', 'B1', 'B2', 'C1'],
+        labels: levelLabels,
         datasets: [{
             label: 'Процент завершения',
-            data: [85, 72, 68, 45, 32],
-            backgroundColor: [
-                '#10b981',
-                '#10b981',
-                '#3b82f6',
-                '#3b82f6',
-                '#f59e0b',
-                '#ef4444'
-            ]
+            data: levelRates,
+            backgroundColor: levelRates.map(r => r >= 70 ? '#10b981' : r >= 50 ? '#3b82f6' : r >= 30 ? '#f59e0b' : '#ef4444')
         }]
     },
     options: {
@@ -335,21 +290,18 @@ new Chart(courseProgressCtx, {
     }
 });
 
-// Content Distribution Chart
+// Content Distribution Chart — real lesson-type distribution
+const contentLabels = [{% for c in content_distribution %}{{ c.type|tojson }},{% endfor %}];
+const contentCounts = [{% for c in content_distribution %}{{ c.count }},{% endfor %}];
+const contentPalette = ['#4f46e5','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#06b6d4','#ec4899','#84cc16','#6b7280'];
 const contentCtx = document.getElementById('contentDistributionChart').getContext('2d');
 new Chart(contentCtx, {
     type: 'doughnut',
     data: {
-        labels: ['Словарь', 'Грамматика', 'Чтение', 'Упражнения', 'Прочее'],
+        labels: contentLabels,
         datasets: [{
-            data: [35, 25, 20, 15, 5],
-            backgroundColor: [
-                '#4f46e5',
-                '#10b981',
-                '#f59e0b',
-                '#ef4444',
-                '#6b7280'
-            ]
+            data: contentCounts,
+            backgroundColor: contentCounts.map((_, i) => contentPalette[i % contentPalette.length])
         }]
     },
     options: {
@@ -363,21 +315,5 @@ new Chart(contentCtx, {
     }
 });
 
-// Helper functions
-function updatePeriod(period) {
-    // Update button states
-    document.querySelectorAll('.btn-group button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-
-    // Here you would typically reload the data for the selected period
-    console.log('Loading data for:', period);
-}
-
-function exportData(format) {
-    // Here you would implement the export functionality
-    console.log('Exporting data as:', format);
-}
 </script>
 {% endblock %}

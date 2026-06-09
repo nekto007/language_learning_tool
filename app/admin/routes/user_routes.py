@@ -417,15 +417,62 @@ def export_users_csv():
     )
 
 
+_STATS_PERIODS = {'week': 7, 'month': 30, 'quarter': 90}
+
+
 @user_bp.route('/stats')
 @admin_required
 def stats():
-    """Статистика приложения"""
-    stats_data = UserManagementService.get_user_activity_stats(days=30)
+    """Статистика приложения — активность пользователей + контент-аналитика."""
+    period = request.args.get('period', 'month')
+    days = _STATS_PERIODS.get(period, 30)
+
+    if request.args.get('export') == 'csv':
+        return _export_stats_csv(days, period)
+
+    activity = UserManagementService.get_user_activity_stats(days=days)
+    content = UserManagementService.get_platform_content_stats(days=days)
 
     return render_template(
         'admin/stats.html',
-        user_registrations=stats_data['user_registrations'],
-        user_logins=stats_data['user_logins'],
-        user_activity_by_hour=stats_data['user_activity_by_hour']
+        period=period,
+        days=days,
+        user_registrations=activity['user_registrations'],
+        user_logins=activity['user_logins'],
+        user_activity_by_hour=activity['user_activity_by_hour'],
+        completion_by_level=content['completion_by_level'],
+        content_distribution=content['content_distribution'],
+        top_users=content['top_users'],
+        popular_content=content['popular_content'],
+    )
+
+
+def _export_stats_csv(days: int, period: str) -> Response:
+    """Stream platform stats (level completion + top users + popular content) as CSV."""
+    from app.admin.utils.export_helpers import _sanitize_csv_cell
+
+    content = UserManagementService.get_platform_content_stats(days=days)
+    log_admin_action(current_user.id, 'stats.export_csv', target_type='stats')
+
+    rows: list = [['Период (дней)', days], []]
+    rows.append(['Завершение по уровням', 'Уровень', '% завершения'])
+    rows += [['', r['level'], r['rate']] for r in content['completion_by_level']]
+    rows += [[], ['Топ активных пользователей', 'Пользователь', 'Уроков завершено', 'Слов']]
+    rows += [['', r['username'], r['completed'], r['words']] for r in content['top_users']]
+    rows += [[], ['Популярный контент', 'Урок', 'Тип', 'Завершений']]
+    rows += [['', r['title'], r['type'], r['completions']] for r in content['popular_content']]
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        for row in rows:
+            writer.writerow([_sanitize_csv_cell(c) for c in row])
+        yield buf.getvalue()
+
+    return Response(
+        generate(),
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': f'attachment; filename=platform_stats_{period}_{datetime.now(UTC).strftime("%Y-%m-%d")}.csv',
+        },
     )

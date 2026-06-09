@@ -9,12 +9,12 @@ Responsibilities:
 from datetime import UTC, datetime, timedelta
 from typing import Dict, List, Optional
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from app.admin.audit import log_admin_action
 from app.admin.utils.request_validators import escape_like
 from app.auth.models import ReferralLog, User
-from app.curriculum.models import LessonProgress
+from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.modules.models import UserModule
 from app.study.models import UserWord
 from app.utils.db import db
@@ -389,4 +389,106 @@ class UserManagementService:
             'user_registrations': user_registrations,
             'user_logins': user_logins,
             'user_activity_by_hour': user_activity_by_hour
+        }
+
+    @classmethod
+    def get_platform_content_stats(cls, days: int = 30) -> Dict:
+        """Real platform/content analytics for the admin stats page.
+
+        Returns completion rate per CEFR level, lesson-type distribution, top
+        active users (by lessons completed in the window) and most-completed
+        lessons. Replaces the previously hardcoded mock data on /admin/stats.
+        """
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
+
+        # 1. Completion rate per CEFR level (completed / all progress rows).
+        level_rows = (
+            db.session.query(
+                CEFRLevel.code,
+                func.count(LessonProgress.id),
+                func.sum(case((LessonProgress.status == 'completed', 1), else_=0)),
+            )
+            .select_from(LessonProgress)
+            .join(Lessons, Lessons.id == LessonProgress.lesson_id)
+            .join(Module, Module.id == Lessons.module_id)
+            .join(CEFRLevel, CEFRLevel.id == Module.level_id)
+            .group_by(CEFRLevel.code, CEFRLevel.order)
+            .order_by(CEFRLevel.order)
+            .all()
+        )
+        completion_by_level = [
+            {'level': code, 'rate': round((completed or 0) / total * 100) if total else 0}
+            for code, total, completed in level_rows
+        ]
+
+        # 2. Content distribution by lesson type (all published lessons).
+        type_rows = (
+            db.session.query(Lessons.type, func.count(Lessons.id))
+            .group_by(Lessons.type)
+            .order_by(func.count(Lessons.id).desc())
+            .all()
+        )
+        content_distribution = [{'type': t or 'unknown', 'count': c} for t, c in type_rows]
+
+        # 3. Top active users in the window — by lessons completed.
+        top_rows = (
+            db.session.query(
+                User.id,
+                User.username,
+                func.count(LessonProgress.id).label('completed'),
+            )
+            .join(LessonProgress, LessonProgress.user_id == User.id)
+            .filter(
+                LessonProgress.status == 'completed',
+                LessonProgress.completed_at.isnot(None),
+                LessonProgress.completed_at >= cutoff,
+            )
+            .group_by(User.id, User.username)
+            .order_by(func.count(LessonProgress.id).desc())
+            .limit(10)
+            .all()
+        )
+        words_map: Dict[int, int] = {}
+        if top_rows:
+            user_ids = [r[0] for r in top_rows]
+            for uid, wc in (
+                db.session.query(UserWord.user_id, func.count(UserWord.id))
+                .filter(UserWord.user_id.in_(user_ids))
+                .group_by(UserWord.user_id)
+                .all()
+            ):
+                words_map[uid] = wc
+        top_users = [
+            {'username': uname, 'completed': completed, 'words': words_map.get(uid, 0)}
+            for uid, uname, completed in top_rows
+        ]
+
+        # 4. Most-completed lessons in the window.
+        pop_rows = (
+            db.session.query(
+                Lessons.title,
+                Lessons.type,
+                func.count(LessonProgress.id).label('cnt'),
+            )
+            .join(LessonProgress, LessonProgress.lesson_id == Lessons.id)
+            .filter(
+                LessonProgress.status == 'completed',
+                LessonProgress.completed_at.isnot(None),
+                LessonProgress.completed_at >= cutoff,
+            )
+            .group_by(Lessons.id, Lessons.title, Lessons.type)
+            .order_by(func.count(LessonProgress.id).desc())
+            .limit(10)
+            .all()
+        )
+        popular_content = [
+            {'title': title or '—', 'type': t or 'unknown', 'completions': cnt}
+            for title, t, cnt in pop_rows
+        ]
+
+        return {
+            'completion_by_level': completion_by_level,
+            'content_distribution': content_distribution,
+            'top_users': top_users,
+            'popular_content': popular_content,
         }
