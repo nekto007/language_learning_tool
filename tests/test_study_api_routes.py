@@ -15,6 +15,68 @@ from app.study.models import (
 from app.utils.db import db
 
 
+class TestDayAnchoredServing:
+    """Граница «сегодня» в выдаче — локальная полночь юзера, не UTC-день.
+
+    Regression: для UTC+3 карточка «на завтра» (next_review = завтрашняя
+    локальная полночь = сегодня 21:00 UTC) попадала под UTC end-of-today
+    и выдавалась в тот же день, расходясь со счётчиком count_due_cards.
+    """
+
+    def _make_review_card(self, db_session, test_user, next_review):
+        import uuid as _uuid
+
+        from app.srs.constants import CardState
+        from app.words.models import CollectionWords
+
+        word = CollectionWords(
+            english_word=f'anchor_{_uuid.uuid4().hex[:6]}',
+            russian_word='якорь',
+            level='A1',
+        )
+        db_session.add(word)
+        db_session.flush()
+        uw = UserWord(user_id=test_user.id, word_id=word.id)
+        db_session.add(uw)
+        db_session.flush()
+        card = UserCardDirection(
+            user_word_id=uw.id,
+            direction='eng-rus',
+        )
+        card.state = CardState.REVIEW.value
+        card.repetitions = 3
+        card.interval = 1
+        card.next_review = next_review
+        db_session.add(card)
+        db_session.commit()
+        return card
+
+    def test_tomorrow_card_not_served_today(
+        self, authenticated_client, test_user, db_session, study_settings,
+    ):
+        from app.utils.time_utils import day_to_naive_utc
+
+        test_user.timezone = 'Europe/Istanbul'
+        db_session.commit()
+
+        tomorrow_card = self._make_review_card(
+            db_session, test_user,
+            day_to_naive_utc(test_user.id, db, days_ahead=1),
+        )
+        today_card = self._make_review_card(
+            db_session, test_user,
+            day_to_naive_utc(test_user.id, db, days_ahead=0),
+        )
+
+        response = authenticated_client.get('/study/api/get-study-items?source=auto')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        served_ids = {item['id'] for item in data['items'] if item['id'] is not None}
+
+        assert tomorrow_card.id not in served_ids
+        assert today_card.id in served_ids
+
+
 class TestGetStudyItems:
     """Test /api/get-study-items GET endpoint - Lines 548-741"""
 

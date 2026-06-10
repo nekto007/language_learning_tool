@@ -264,7 +264,15 @@ def get_study_items():
             }
 
     learning_grace_period = timedelta(minutes=15)
-    end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    # «Конец сегодня» — по локальной полуночи юзера (тот же day-anchor, что
+    # в scheduling/counting), а не по UTC-дню. Иначе для восточных таймзон
+    # (UTC+3: завтрашняя карта = сегодня 21:00 UTC) «завтрашние» карточки
+    # попадали в выдачу сегодня, расходясь со счётчиком count_due_cards.
+    from app.utils.time_utils import day_to_naive_utc
+    end_of_today = (
+        day_to_naive_utc(current_user.id, db, days_ahead=1)
+        - timedelta(microseconds=1)
+    )
 
     def base_due_query(include_learning_grace=False, include_today=False):
         if is_word_detail_study and extra_study:

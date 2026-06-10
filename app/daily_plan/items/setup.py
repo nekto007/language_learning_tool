@@ -81,5 +81,8 @@ def book_selected_today(user_id: int, db: Any) -> bool:
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     selected_at = pref.selected_at
     if selected_at.tzinfo is not None:
-        selected_at = selected_at.astimezone().replace(tzinfo=None)
+        # Границы — UTC-naive; aware-метку приводим к UTC, а не к локальной
+        # зоне сервера (argless astimezone() сдвигал сравнение на offset хоста).
+        from datetime import timezone
+        selected_at = selected_at.astimezone(timezone.utc).replace(tzinfo=None)
     return today_start <= selected_at < today_end
