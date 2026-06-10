@@ -235,3 +235,54 @@ class TestChapterPagination:
                 f'/read/{book_no_chapters.id}/chapters'
             )
         assert response.status_code in (302, 200)
+
+    @pytest.mark.smoke
+    def test_reader_renders_chapter_with_audio(
+        self, authenticated_client, published_book, db_session
+    ):
+        """Audio bar url_for builds against books_api.serve_chapter_audio (was 500)."""
+        chapter = Chapter.query.filter_by(
+            book_id=published_book.id, chap_num=1
+        ).first()
+        chapter.audio_url = 'app/static/audio/test.mp3'
+        db_session.flush()
+        with patch(
+            'app.modules.service.ModuleService.is_module_enabled_for_user',
+            return_value=True,
+        ):
+            response = authenticated_client.get(
+                f'/read/{published_book.id}/chapters?chapter=1'
+            )
+        assert response.status_code == 200
+        assert b'chapterAudio' in response.data
+
+
+class TestLegacyBookReadRoute:
+    """/books/<id>/read — легаси-роут читалки, должен не падать."""
+
+    def test_explicit_chapter_param_renders(
+        self, authenticated_client, published_book
+    ):
+        """?chapter=N раньше падал NameError (импорт UserChapterProgress в ветке)."""
+        with patch(
+            'app.modules.service.ModuleService.is_module_enabled_for_user',
+            return_value=True,
+        ):
+            response = authenticated_client.get(
+                f'/books/{published_book.id}/read?chapter=2'
+            )
+        assert response.status_code == 200
+
+    def test_no_chapters_redirects_to_details(
+        self, authenticated_client, book_no_chapters
+    ):
+        """Книга без глав → redirect на details (раньше TemplateNotFound)."""
+        with patch(
+            'app.modules.service.ModuleService.is_module_enabled_for_user',
+            return_value=True,
+        ):
+            response = authenticated_client.get(
+                f'/books/{book_no_chapters.id}/read'
+            )
+        assert response.status_code == 302
+        assert f'/books/{book_no_chapters.id}' in response.headers['Location']

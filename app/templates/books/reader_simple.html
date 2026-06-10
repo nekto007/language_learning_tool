@@ -57,7 +57,7 @@
   <!-- Audio Player Bar -->
   <div class="rdr-audio" id="audioBar" style="display: none;">
     <audio id="chapterAudio" preload="none"
-           src="{{ url_for('books.serve_chapter_audio', book_id=book.id, chapter_num=current_chapter.chap_num) }}"></audio>
+           src="{{ url_for('books_api.serve_chapter_audio', book_id=book.id, chapter_num=current_chapter.chap_num) }}"></audio>
     <button class="rdr-audio__play" id="audioPlayBtn" data-action="toggle-audio">
       <svg id="audioPlayIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
       <svg id="audioPauseIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/></svg>

@@ -959,6 +959,8 @@ def book_read(book_id):
     has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
 
     if has_chapters:
+        from app.books.models import UserChapterProgress
+
         # Render chapter-based reader directly
         chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
 
@@ -967,7 +969,6 @@ def book_read(book_id):
 
         if not chapter_num:
             # Try to get from user progress
-            from app.books.models import UserChapterProgress
             latest_progress = UserChapterProgress.query.filter_by(
                 user_id=current_user.id
             ).join(Chapter).filter(
@@ -1007,7 +1008,7 @@ def book_read(book_id):
                              back_url=back_url)
 
     flash('Этот формат книги не поддерживается. Пожалуйста, используйте книги с главами.', 'warning')
-    return render_template('books/book_details', book=book)
+    return redirect(url_for('books.book_details', book_id=book_id))
 
 
 @books.route('/books/<int:book_id>/edit')
