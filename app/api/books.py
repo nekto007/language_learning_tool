@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, make_response, request, url_for
 from flask_login import current_user
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
@@ -234,25 +235,69 @@ def update_chapter_progress():
     if chapter.book_id != book_id:
         return api_error('chapter_book_mismatch', 'Chapter does not belong to the specified book', 400)
 
-    try:
-        # Update or create progress
-        progress = UserChapterProgress.query.filter_by(
-            user_id=current_user.id,
-            chapter_id=chapter_id
-        ).first()
+    book = chapter.book
+    if book is None or (not book.is_published and not getattr(current_user, 'is_admin', False)):
+        return api_error('not_found', 'Chapter not found', 404)
+    if not can_user_access_book(current_user, book):
+        return api_error('forbidden', 'Access denied', 403)
 
+    try:
+        from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
+
+        # Lock the row to serialize concurrent saves from two tabs — same
+        # protocol as /api/save-reading-position.
+        progress = (
+            db.session.query(UserChapterProgress)
+            .filter_by(user_id=current_user.id, chapter_id=chapter_id)
+            .with_for_update()
+            .first()
+        )
+
+        was_incomplete = not progress or (progress.offset_pct or 0.0) < CHAPTER_COMPLETION_THRESHOLD
         previous_offset = progress.offset_pct if progress else 0.0
 
         if progress:
-            progress.offset_pct = offset_pct
+            # Monotonic max: скролл вверх или открытие главы на другом
+            # устройстве не должны откатывать offset — иначе «прочитанная»
+            # глава выпадает из completed и счётчики инкрементятся повторно.
+            progress.offset_pct = max(progress.offset_pct or 0.0, offset_pct)
             progress.updated_at = datetime.now(timezone.utc)
         else:
-            progress = UserChapterProgress(
-                user_id=current_user.id,
-                chapter_id=chapter_id,
-                offset_pct=offset_pct
+            try:
+                with db.session.begin_nested():
+                    progress = UserChapterProgress(
+                        user_id=current_user.id,
+                        chapter_id=chapter_id,
+                        offset_pct=offset_pct
+                    )
+                    db.session.add(progress)
+            except IntegrityError:
+                progress = (
+                    db.session.query(UserChapterProgress)
+                    .filter_by(user_id=current_user.id, chapter_id=chapter_id)
+                    .with_for_update()
+                    .first()
+                )
+                previous_offset = progress.offset_pct if progress else 0.0
+                was_incomplete = not progress or (progress.offset_pct or 0.0) < CHAPTER_COMPLETION_THRESHOLD
+                if progress:
+                    progress.offset_pct = max(progress.offset_pct or 0.0, offset_pct)
+                    progress.updated_at = datetime.now(timezone.utc)
+        db.session.flush()
+
+        effective_offset = progress.offset_pct if progress else offset_pct
+
+        # Chapter completion side effects (XP, counters, milestone). Этот
+        # эндпоинт — основной save-путь десктоп-ридера; раньше chapter XP
+        # начислялся только в /api/save-reading-position (mobile), и в
+        # основном флоу чтения глава не давала ни XP, ни счётчиков.
+        chapter_completed = was_incomplete and effective_offset >= CHAPTER_COMPLETION_THRESHOLD
+        chapter_xp_award = None
+        if chapter_completed:
+            from app.books.progress import apply_chapter_completion_effects
+            chapter_xp_award = apply_chapter_completion_effects(
+                current_user.id, book_id, chapter, db,
             )
-            db.session.add(progress)
 
         db.session.commit()
 
@@ -272,15 +317,17 @@ def update_chapter_progress():
             )
 
             # See note in app/books/api.py — auto-save deltas are tiny so
-            # the per-save delta check would never fire. Gate on a closed
-            # session today that itself met both 60s and 5%-offset
-            # thresholds; this prevents trivial nudges from minting XP.
+            # the per-save delta check would never fire. Gate on the same
+            # aggregated daily-target check as /api/save-reading-position
+            # (5 мин активного чтения, суммируя pause-cycled сессии). Старый
+            # гейт «одна закрытая сессия >=300s и >=5% delta» был недостижим
+            # при 60-секундном heartbeat-цикле сессий ридера.
             advanced = offset_pct - previous_offset
             if offset_pct >= READ_PROGRESS_THRESHOLD and advanced > 0:
                 pref = get_user_reading_preference(current_user.id, db)
                 if pref is not None and pref.book_id == book_id:
-                    from app.books.reading_session import has_qualifying_reading_session_today
-                    if has_qualifying_reading_session_today(current_user.id, book_id, db):
+                    from app.books.reading_session import is_daily_reading_target_met_today
+                    if is_daily_reading_target_met_today(current_user.id, book_id, db):
                         if maybe_award_book_reading_xp(current_user.id, db_session=db) is not None:
                             maybe_award_linear_perfect_day(current_user.id, db_session=db)
                             db.session.commit()
@@ -292,12 +339,28 @@ def update_chapter_progress():
             )
             db.session.rollback()
 
-        return jsonify({
+        response_data = {
             'success': True,
             'chapter_id': chapter_id,
-            'offset_pct': offset_pct,
+            'offset_pct': effective_offset,
             'reading_slot_completed': reading_slot_completed,
-        })
+        }
+        if chapter_completed:
+            response_data['chapter_completed'] = True
+            response_data['xp_earned'] = chapter_xp_award.xp_awarded if chapter_xp_award else 0
+
+            # Book achievements — best-effort, fired after the outer commit.
+            try:
+                from app.achievements.services import AchievementService, StatisticsService
+                _stats = StatisticsService.get_or_create_statistics(current_user.id)
+                AchievementService.check_book_achievements(current_user.id, _stats)
+            except Exception:
+                logger.warning(
+                    "book achievement check failed user=%s book=%s",
+                    current_user.id, book_id, exc_info=True,
+                )
+
+        return jsonify(response_data)
 
     except Exception as e:
         db.session.rollback()

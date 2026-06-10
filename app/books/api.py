@@ -958,18 +958,9 @@ def save_reading_position():
     chapter_completed = was_incomplete and position >= CHAPTER_COMPLETION_THRESHOLD
     chapter_xp_award = None
     if chapter_completed:
-        from app.achievements.xp_service import award_book_chapter_xp_idempotent
-        from app.utils.time_utils import get_user_local_date
-
-        # Inlined former XPService.calculate_book_chapter_xp (constant 50 XP).
-        BOOK_CHAPTER_XP = 50
-        chapter_xp_award = award_book_chapter_xp_idempotent(
-            user_id=current_user.id,
-            book_id=book_id,
-            chapter_id=chapter.id,
-            xp=BOOK_CHAPTER_XP,
-            for_date=get_user_local_date(current_user.id, db),
-            db_session=db,
+        from app.books.progress import apply_chapter_completion_effects
+        chapter_xp_award = apply_chapter_completion_effects(
+            current_user.id, book_id, chapter, db,
         )
 
     # Linear plan: award book-reading slot XP once per day when the
@@ -1010,54 +1001,6 @@ def save_reading_position():
             "linear_xp: book-reading award failed user=%s",
             current_user.id, exc_info=True,
         )
-
-    # Book milestone (off-band notification, transient). Only checked when a
-    # chapter just transitioned to fully completed — saves per-tick overhead.
-    if chapter_completed:
-        try:
-            from app.books.progress import compute_book_progress_percent
-            from app.daily_plan.milestones import check_book_milestone
-            percent = compute_book_progress_percent(current_user.id, book_id, db)
-            check_book_milestone(current_user.id, book_id, percent, db)
-        except Exception:
-            logger.warning(
-                "book milestone check failed user=%s book=%s",
-                current_user.id, book_id, exc_info=True,
-            )
-
-    # Update book reading counters on UserStatistics (flush only — committed below).
-    if chapter_completed:
-        try:
-            from app.achievements.services import StatisticsService
-            from app.books.models import UserChapterProgress as _UCP
-            _stats = StatisticsService.get_or_create_statistics(current_user.id)
-            _stats.total_chapters_read = (_stats.total_chapters_read or 0) + 1
-
-            # Detect full book completion: every chapter must be read (offset_pct
-            # at/above the shared completion threshold).
-            total_chs = (
-                db.session.query(func.count(Chapter.id))
-                .filter(Chapter.book_id == book_id)
-                .scalar() or 0
-            )
-            completed_chs = (
-                db.session.query(func.count(_UCP.chapter_id))
-                .join(Chapter, Chapter.id == _UCP.chapter_id)
-                .filter(
-                    _UCP.user_id == current_user.id,
-                    Chapter.book_id == book_id,
-                    _UCP.offset_pct >= CHAPTER_COMPLETION_THRESHOLD,
-                )
-                .scalar() or 0
-            )
-            if total_chs > 0 and completed_chs >= total_chs:
-                _stats.total_books_completed = (_stats.total_books_completed or 0) + 1
-            db.session.flush()
-        except Exception:
-            logger.warning(
-                "book stats update failed user=%s book=%s",
-                current_user.id, book_id, exc_info=True,
-            )
 
     db.session.commit()
 
@@ -1270,17 +1213,9 @@ def reading_session_end():
         and post_offset >= CHAPTER_COMPLETION_THRESHOLD
     ):
         try:
-            from app.achievements.xp_service import award_book_chapter_xp_idempotent
-            from app.utils.time_utils import get_user_local_date
-
-            BOOK_CHAPTER_XP = 50
-            award_book_chapter_xp_idempotent(
-                user_id=current_user.id,
-                book_id=chapter.book_id,
-                chapter_id=chapter.id,
-                xp=BOOK_CHAPTER_XP,
-                for_date=get_user_local_date(current_user.id, db),
-                db_session=db,
+            from app.books.progress import apply_chapter_completion_effects
+            apply_chapter_completion_effects(
+                current_user.id, chapter.book_id, chapter, db,
             )
             db.session.commit()
         except Exception:
