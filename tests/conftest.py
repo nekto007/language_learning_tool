@@ -65,6 +65,11 @@ for key, value in DEFAULT_ENV_VARS.items():
 os.environ.setdefault('TESTING', 'true')
 os.environ.setdefault('SQLALCHEMY_DATABASE_URI', os.environ['DATABASE_URL'])
 
+# Не даём интеграционным тестам ходить в реальный SMTP из локального .env:
+# без EMAIL_HOST EmailSender скипает отправку («incomplete SMTP configuration»).
+# Юнит-тесты email_utils подставляют свой EMAIL_HOST через patch.dict.
+os.environ.pop('EMAIL_HOST', None)
+
 from app import create_app
 from app.utils.db import db
 from app.auth.models import User
