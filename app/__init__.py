@@ -301,7 +301,14 @@ def create_app(config_class=Config):
             return jsonify({
                 'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True,
             }), 400
-        return e.description, 400
+
+        # Обычная форма: вместо голого текста — flash и возврат на страницу,
+        # чтобы пользователь мог сразу повторить отправку со свежим токеном.
+        from flask import flash, redirect
+
+        from app.auth.routes import get_safe_redirect_url
+        flash('Сессия устарела, страница обновлена — попробуйте ещё раз.', 'warning')
+        return redirect(get_safe_redirect_url(request.referrer, fallback='/'))
 
     def _wants_json():
         """Check if the client prefers a JSON response."""

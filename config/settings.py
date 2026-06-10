@@ -219,7 +219,11 @@ class Config:
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
 
     WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = 3600
+    # None = токен живёт столько же, сколько сессия (30 дней), а не 1 час.
+    # Часовой лимит ломал submit на долго открытых страницах: скрытые
+    # csrf_token в формах протухали, и кнопка отдавала «CSRF token expired».
+    # Безопасность не меняется — токен по-прежнему привязан к сессии.
+    WTF_CSRF_TIME_LIMIT = None
 
     TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
