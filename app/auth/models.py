@@ -143,11 +143,10 @@ class User(db.Model, UserMixin):
             2 = на повторении ('review')
             3 = уже знаю ('review' с высоким интервалом 180+ дней)
         """
-        from datetime import datetime, timedelta, timezone
-
         from app.srs.constants import DEFAULT_EASE_FACTOR
         from app.study.models import UserCardDirection, UserWord
         from app.utils.db import db
+        from app.utils.time_utils import day_to_naive_utc
 
         # Маппинг числовых статусов в строковые
         # status=3 теперь ставит 'review' вместо 'mastered'
@@ -173,7 +172,12 @@ class User(db.Model, UserMixin):
 
         # Определяем, нужно ли ставить высокий интервал (для "Уже знаю")
         is_already_known = (status == 3)
-        now = datetime.now(timezone.utc)
+        # Day-anchored naive-UTC, как у всех SRS-путей (см. apply_review_schedule):
+        # next_review считается от локальной полуночи юзера, а не от wall-clock.
+        known_next_review = (
+            day_to_naive_utc(self.id, db, days_ahead=UserWord.MASTERED_THRESHOLD_DAYS)
+            if is_already_known else None
+        )
 
         # Создаём новую запись, если её нет
         if not user_word and status > 0:
@@ -191,21 +195,24 @@ class User(db.Model, UserMixin):
                     user_word_id=user_word.id,
                     direction=direction_str
                 )
-                # Для "Уже знаю" - ставим высокий интервал и статус review
+                # Для "Уже знаю" - ставим высокий интервал и статус review.
+                # first_reviewed/last_reviewed НЕ ставим: это не реальный
+                # грейд, а массовая разметка известных слов мгновенно
+                # съедала бы дневной бюджет новых карточек
+                # (count_new_cards_today ключуется по first_reviewed).
                 if is_already_known:
                     direction.state = 'review'
                     direction.interval = UserWord.MASTERED_THRESHOLD_DAYS  # 180 дней
                     direction.ease_factor = DEFAULT_EASE_FACTOR
                     direction.repetitions = 10  # Имитируем много успешных повторов
-                    direction.next_review = now + timedelta(days=UserWord.MASTERED_THRESHOLD_DAYS)
-                    direction.first_reviewed = now
-                    direction.last_reviewed = now
+                    direction.next_review = known_next_review
                 db.session.add(direction)
         elif user_word and status > 0:
             # Обновляем статус существующей записи
             user_word.status = str_status
 
-            # Для "Уже знаю" - обновляем интервалы на карточках
+            # Для "Уже знаю" - обновляем интервалы на карточках.
+            # first_reviewed/last_reviewed не трогаем (см. комментарий выше).
             if is_already_known:
                 directions = UserCardDirection.query.filter_by(user_word_id=user_word.id).all()
                 for direction in directions:
@@ -213,10 +220,7 @@ class User(db.Model, UserMixin):
                     direction.interval = UserWord.MASTERED_THRESHOLD_DAYS
                     direction.ease_factor = max(direction.ease_factor, DEFAULT_EASE_FACTOR)
                     direction.repetitions = max(direction.repetitions, 10)
-                    direction.next_review = now + timedelta(days=UserWord.MASTERED_THRESHOLD_DAYS)
-                    if not direction.first_reviewed:
-                        direction.first_reviewed = now
-                    direction.last_reviewed = now
+                    direction.next_review = known_next_review
 
         # Пересчитываем статус UserWord на основе состояний карточек
         if user_word:
