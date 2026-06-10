@@ -35,6 +35,12 @@ class EmailSender:
         if context is None:
             context = {}
 
+        # В тестах не ходим в реальный SMTP, даже если .env настроен.
+        from flask import current_app
+        if current_app.config.get('TESTING'):
+            logger.info("Email sending skipped in TESTING mode (to=%s)", to_email)
+            return False
+
         # Подготовка письма
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject

@@ -185,6 +185,69 @@ class TestGetChapterDetails:
 
         assert response.status_code == 404
 
+    @pytest.mark.smoke
+    def test_get_chapter_by_id_restricted_book(self, authenticated_client, db_session):
+        """Chapter of a companion_only book is 403 for a user without the books module"""
+        from app.books.models import Book, Chapter
+
+        book = Book(
+            title=f'Restricted Book {uuid.uuid4().hex[:6]}',
+            author='Test Author',
+            chapters_cnt=1,
+            words_total=10,
+            unique_words=10,
+            rights_status='companion_only',
+            created_at=datetime.now(UTC)
+        )
+        db_session.add(book)
+        db_session.flush()
+        chapter = Chapter(
+            book_id=book.id,
+            chap_num=1,
+            title='Hidden Chapter',
+            text_raw='Licensed content must not leak',
+            words=5
+        )
+        db_session.add(chapter)
+        db_session.commit()
+
+        response = authenticated_client.get(f'/api/chapters/{chapter.id}')
+
+        assert response.status_code == 403
+        assert 'Licensed content' not in response.get_data(as_text=True)
+
+    @pytest.mark.smoke
+    def test_get_chapter_by_id_draft_book(self, authenticated_client, db_session):
+        """Chapter of an unpublished book is 404 for non-admins"""
+        from app.books.models import Book, Chapter
+
+        book = Book(
+            title=f'Draft Book {uuid.uuid4().hex[:6]}',
+            author='Test Author',
+            chapters_cnt=1,
+            words_total=10,
+            unique_words=10,
+            rights_status='public_domain',
+            is_published=False,
+            created_at=datetime.now(UTC)
+        )
+        db_session.add(book)
+        db_session.flush()
+        chapter = Chapter(
+            book_id=book.id,
+            chap_num=1,
+            title='Draft Chapter',
+            text_raw='Draft content must not leak',
+            words=5
+        )
+        db_session.add(chapter)
+        db_session.commit()
+
+        response = authenticated_client.get(f'/api/chapters/{chapter.id}')
+
+        assert response.status_code == 404
+        assert 'Draft content' not in response.get_data(as_text=True)
+
 
 class TestGetBlock:
     """Test GET /api/blocks/<id> endpoint"""

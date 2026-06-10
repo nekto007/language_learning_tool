@@ -705,6 +705,13 @@ def get_chapter_by_id(chapter_id):
     try:
         chapter = Chapter.query.get_or_404(chapter_id)
 
+        book = chapter.book
+        if book is None or (not book.is_published and not getattr(current_user, 'is_admin', False)):
+            # Draft books must look nonexistent to non-admins.
+            return api_error('not_found', 'Chapter not found', 404)
+        if not can_user_access_book(current_user, book):
+            return api_error('forbidden', 'Access denied', 403)
+
         return jsonify({
             'success': True,
             'chapter': {
