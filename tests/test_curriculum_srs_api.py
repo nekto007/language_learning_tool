@@ -290,3 +290,32 @@ class TestCreateSrsCards:
     def test_unauth(self, client):
         r = client.post('/curriculum/api/v1/lesson/1/create-srs-cards')
         assert r.status_code in [302, 401]
+
+    @patch('app.curriculum.routes.srs_api.BookSRSIntegration')
+    @patch('app.curriculum.routes.srs_api.BookCourseEnrollment')
+    @patch('app.curriculum.routes.srs_api.DailyLesson')
+    def test_creates_cards_for_vocabulary_lesson(
+        self, mock_dl, mock_enrollment, mock_srs, authenticated_client
+    ):
+        """Path param dispatches into the view (was TypeError → 500)."""
+        mock_lesson = MagicMock()
+        mock_lesson.lesson_type = 'vocabulary'
+        mock_dl.query.get_or_404.return_value = mock_lesson
+        mock_enrollment.query.filter_by.return_value.first.return_value = MagicMock()
+        mock_srs.return_value.auto_create_srs_cards_from_vocabulary_lesson.return_value = True
+
+        r = authenticated_client.post('/curriculum/api/v1/lesson/1/create-srs-cards')
+
+        assert r.status_code == 200
+        assert r.get_json()['success'] is True
+        mock_dl.query.get_or_404.assert_called_once_with(1)
+
+    @patch('app.curriculum.routes.srs_api.DailyLesson')
+    def test_non_vocabulary_rejected(self, mock_dl, authenticated_client):
+        mock_lesson = MagicMock()
+        mock_lesson.lesson_type = 'reading_mcq'
+        mock_dl.query.get_or_404.return_value = mock_lesson
+
+        r = authenticated_client.post('/curriculum/api/v1/lesson/1/create-srs-cards')
+
+        assert r.status_code == 400

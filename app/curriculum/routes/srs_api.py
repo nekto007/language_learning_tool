@@ -245,15 +245,13 @@ def get_next_session_time():
 
 @srs_api_bp.route('/api/v1/lesson/<int:lesson_id>/create-srs-cards', methods=['POST'])
 @login_required
-def create_srs_cards_for_lesson():
+def create_srs_cards_for_lesson(lesson_id: int):
     """
     POST /api/v1/lesson/:id/create-srs-cards
-    
+
     Создает SRS карточки для vocabulary урока
     """
     try:
-        lesson_id = request.args.get('lesson_id', type=int)
-
         daily_lesson = DailyLesson.query.get_or_404(lesson_id)
 
         # Проверяем что это vocabulary урок
