@@ -83,7 +83,7 @@ _UNIFIED_KIND_TO_PHASE: dict[str, str] = {
 
 
 def _sync_unified_route_steps(
-    user_id: int, plan: dict, plan_completion: dict, tz: str
+    user_id: int, plan: dict, plan_completion: dict
 ) -> None:
     """Increment route progress for completed unified-plan required items.
 
@@ -91,21 +91,15 @@ def _sync_unified_route_steps(
     (user, date, phase_kind). Failures are swallowed with a warning so a
     flaky route-progress write never breaks the daily-status response.
     """
-    from datetime import datetime
-
-    import pytz as _pytz
-
     from app.daily_plan.route_progress import (
         PHASE_STEP_WEIGHTS,
         add_route_steps_idempotent,
     )
+    from app.utils.time_utils import get_user_local_date
 
     try:
-        try:
-            tz_obj = _pytz.timezone(tz)
-        except _pytz.UnknownTimeZoneError:
-            tz_obj = _pytz.timezone(DEFAULT_TZ)
-        today = datetime.now(tz_obj).date()
+        # Дедуп route-шагов — по User.timezone, не по клиентскому tz.
+        today = get_user_local_date(user_id, db.session)
         required = plan.get('required') or []
         for item in required:
             if not plan_completion.get(item.get('id', ''), False):
@@ -316,7 +310,7 @@ def daily_status():
     plan['day_secured'] = day_secured
 
     if effective_mode == 'unified':
-        _sync_unified_route_steps(user_id, plan, plan_completion, tz)
+        _sync_unified_route_steps(user_id, plan, plan_completion)
 
     logger.info(
         "daily_status user=%s mode=%s steps=%d/%d day_secured=%s",
@@ -324,16 +318,12 @@ def daily_status():
     )
 
     if day_secured:
-        from datetime import datetime
-
-        import pytz
-
         from app.daily_plan.service import write_secured_at
-        try:
-            tz_obj = pytz.timezone(tz)
-        except pytz.UnknownTimeZoneError:
-            tz_obj = pytz.timezone(DEFAULT_TZ)
-        today = datetime.now(tz_obj).date()
+        from app.utils.time_utils import get_user_local_date
+
+        # secured_at / milestones ключуются по User.timezone — клиентский
+        # ``tz`` не должен сдвигать дату дедупа (см. process_streak_on_activity).
+        today = get_user_local_date(user_id, db.session)
         try:
             # daily_plan_completed milestone (transient notification, not
             # part of the plan payload). Emit BEFORE emit_minimum_completed
@@ -465,7 +455,7 @@ def daily_plan():
     steps_today = 0
 
     if plan.get('_plan_meta', {}).get('effective_mode') == 'unified':
-        _sync_unified_route_steps(user_id, plan, plan_completion, tz)
+        _sync_unified_route_steps(user_id, plan, plan_completion)
 
     route_state = get_route_state(user_id, steps_today, db.session)
 
@@ -548,8 +538,6 @@ def daily_race_status():
     """
     from datetime import datetime
 
-    import pytz
-
     from app.achievements.daily_race import (
         get_race_standings,
         is_daily_race_enabled,
@@ -576,11 +564,10 @@ def daily_race_status():
         except (TypeError, ValueError):
             pass
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-    local_today = datetime.now(tz_obj).date()
+    # Дата кохорты гонки — по User.timezone: клиентский tz позволял бы
+    # зачислиться в две гонки (две даты) за один реальный день.
+    from app.utils.time_utils import get_user_local_date
+    local_today = get_user_local_date(user_id, db.session)
 
     standings = get_race_standings(user_id, local_today, tz=tz)
     db.session.commit()
@@ -710,7 +697,6 @@ def record_daily_plan_event():
         plan_date (str, optional): ISO date string; defaults to today in user tz
     """
     from datetime import date as date_cls
-    from datetime import datetime as datetime_cls
     from datetime import timedelta
 
     from app.daily_plan.models import DailyPlanEvent
@@ -737,13 +723,8 @@ def record_daily_plan_event():
         if is_plan_paused(current_user):
             return api_error('plan_paused', 'План на паузе', 403)
 
-    import pytz as _pytz_ev
-    _tz_name_ev = getattr(current_user, 'timezone', None) or DEFAULT_TZ
-    try:
-        _tz_obj_ev = _pytz_ev.timezone(_tz_name_ev)
-    except Exception:
-        _tz_obj_ev = _pytz_ev.timezone(DEFAULT_TZ)
-    user_today = datetime_cls.now(_tz_obj_ev).date()
+    from app.utils.time_utils import get_user_local_date
+    user_today = get_user_local_date(current_user.id, db.session)
 
     plan_date_str = body.get('plan_date')
     if plan_date_str:

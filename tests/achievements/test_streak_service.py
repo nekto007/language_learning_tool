@@ -150,6 +150,42 @@ class TestTimezoneEdgeCases:
 
         mock_has.assert_called_with(streak_user.id, tz=tz)
 
+    def test_award_date_ignores_client_tz_param(self, db_session, streak_user):
+        """Award dedup dates come from User.timezone, not the client tz param.
+
+        Regression: a client could call the API twice with tz=Pacific/Kiritimati
+        (UTC+14) and tz=Etc/GMT+12 (UTC-12) to get two different "today" dates
+        and double-earn the daily coin / plan completion marker.
+        """
+        from app.achievements.streak_service import process_streak_on_activity
+        from app.utils.time_utils import get_user_local_date
+
+        streak_user.timezone = 'Europe/Istanbul'
+        db_session.flush()
+        expected_date = get_user_local_date(streak_user.id, db_session)
+
+        with patch('app.telegram.queries.has_activity_today', return_value=True), \
+             patch('app.achievements.streak_service.get_streak_status', return_value={
+                 'streak': 5, 'coins_balance': 0, 'has_activity_today': True,
+                 'can_repair': False, 'missed_date': None, 'repair_cost': None,
+                 'required_steps': 1, 'steps_total': 4,
+             }), \
+             patch('app.achievements.streak_service.find_missed_date', return_value=None), \
+             patch('app.achievements.streak_service.check_streak_milestone', return_value=None), \
+             patch('app.achievements.streak_service.auto_heal_streak_on_activity', return_value=0):
+            for spoofed_tz in ('Pacific/Kiritimati', 'Etc/GMT+12'):
+                process_streak_on_activity(
+                    streak_user.id, steps_done=1, steps_total=4, tz=spoofed_tz,
+                )
+
+        events = StreakEvent.query.filter_by(
+            user_id=streak_user.id, event_type='earned_daily',
+        ).all()
+        assert len(events) == 1
+        assert events[0].event_date == expected_date
+        coins = StreakCoins.query.filter_by(user_id=streak_user.id).first()
+        assert coins.balance == 1
+
 
 # ---------------------------------------------------------------------------
 # 3. Streak recovery (paid repair) purchase flow

@@ -291,17 +291,14 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     scoreboard for the user is updated from the current plan view — points
     stay in sync with completed phases without a separate round trip.
     """
-    import pytz
-
     from app.telegram.queries import get_current_streak, has_activity_today
+    from app.utils.time_utils import get_user_local_date
 
-    # Compute the user's local "today" so that earned_daily rows are keyed
-    # to the correct date regardless of the server's timezone.
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
-    user_today = datetime.now(tz_obj).date()
+    # Dedup-даты (монета, plan_completed, phase XP, perfect day) ключуются
+    # по User.timezone, а не по клиентскому ``tz``: два запроса с разными
+    # tz-параметрами дали бы две разные «сегодняшние» даты и двойное
+    # начисление за один реальный день.
+    user_today = get_user_local_date(user_id, db.session)
 
     # Only award coins and record completion when the user has genuine
     # activity in one of the authoritative tables (lessons, grammar,
