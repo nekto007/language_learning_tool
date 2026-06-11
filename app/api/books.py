@@ -22,10 +22,19 @@ logger = logging.getLogger(__name__)
 api_books = Blueprint('api_books', __name__)
 
 
+def _draft_hidden(book) -> bool:
+    """Draft books must look nonexistent to non-admins (404, not 403)."""
+    return not book.is_published and not getattr(current_user, 'is_admin', False)
+
+
 @api_books.route('/books', methods=['GET'])
 @api_auth_required
 def get_books():
-    books_query = db.select(Book)
+    from app.books.access import accessible_books_filter
+
+    books_query = db.select(Book).where(accessible_books_filter(current_user))
+    if not getattr(current_user, 'is_admin', False):
+        books_query = books_query.where(Book.is_published.is_(True))
     books = db.session.execute(books_query).scalars().all()
 
     book_list = [{
@@ -43,6 +52,8 @@ def get_books():
 @api_auth_required
 def get_book(book_id):
     book = Book.query.get_or_404(book_id)
+    if _draft_hidden(book):
+        return api_error('not_found', 'Book not found', 404)
     if not can_user_access_book(current_user, book):
         return api_error('forbidden', 'Access denied', 403)
 
@@ -111,50 +122,52 @@ def get_book(book_id):
 # Chapter-based Reading API
 # ============================================================================
 
+# Кэшируются только данные (одинаковые для всех юзеров), НЕ response роута:
+# `@cached` на самом роуте без user_specific отдавал первый закэшированный
+# ответ всем подряд — юзер без доступа получал чужой список глав, юзер с
+# доступом — чужой 403. Проверки доступа всегда выполняются до кэша.
+@cached(timeout=3600, key_prefix='book_chapters_data')  # Cache for 1 hour
+def _chapter_list_payload(book_id: int) -> list:
+    chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
+    return [{
+        'id': ch.id,
+        'num': ch.chap_num,
+        'title': ch.title,
+        'words': ch.words,
+        'audio_url': ch.audio_url
+    } for ch in chapters]
+
+
 @api_books.route('/books/<slug>/chapters', methods=['GET'])
 @api_auth_required
-@cached(timeout=3600, key_prefix='book_chapters_by_slug')  # Cache for 1 hour
 def get_book_chapters_by_slug(slug):
     """
     Get all chapters for a book by slug
     Returns: [{"id": 12, "num": 1, "title": "The Boy...", "words": 4526, "audio_url": null}, ...]
     """
     book = Book.query.filter_by(slug=slug).first_or_404()
+    if _draft_hidden(book):
+        return api_error('not_found', 'Book not found', 404)
     if not can_user_access_book(current_user, book):
         return api_error('forbidden', 'Access denied', 403)
 
-    chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chap_num).all()
-
-    return jsonify([{
-        'id': ch.id,
-        'num': ch.chap_num,
-        'title': ch.title,
-        'words': ch.words,
-        'audio_url': ch.audio_url
-    } for ch in chapters])
+    return jsonify(_chapter_list_payload(book.id))
 
 
 @api_books.route('/books/<int:book_id>/chapters', methods=['GET'])
 @api_auth_required
-@cached(timeout=3600, key_prefix='book_chapters')  # Cache for 1 hour
 def get_book_chapters(book_id):
     """
     Get all chapters for a book
     Returns: [{"id": 12, "num": 1, "title": "The Boy...", "words": 4526, "audio_url": null}, ...]
     """
     book = Book.query.get_or_404(book_id)
+    if _draft_hidden(book):
+        return api_error('not_found', 'Book not found', 404)
     if not can_user_access_book(current_user, book):
         return api_error('forbidden', 'Access denied', 403)
 
-    chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
-
-    return jsonify([{
-        'id': ch.id,
-        'num': ch.chap_num,
-        'title': ch.title,
-        'words': ch.words,
-        'audio_url': ch.audio_url
-    } for ch in chapters])
+    return jsonify(_chapter_list_payload(book_id))
 
 
 @api_books.route('/books/<int:book_id>/chapters/<int:chapter_num>', methods=['GET'])
@@ -165,6 +178,8 @@ def get_chapter_content(book_id, chapter_num):
     Returns: {"id": 12, "num": 1, "text": "...", "next": 2, "prev": null}
     """
     book = Book.query.get_or_404(book_id)
+    if _draft_hidden(book):
+        return api_error('not_found', 'Book not found', 404)
     if not can_user_access_book(current_user, book):
         return api_error('forbidden', 'Access denied', 403)
     chapter = Chapter.query.filter_by(
@@ -236,7 +251,7 @@ def update_chapter_progress():
         return api_error('chapter_book_mismatch', 'Chapter does not belong to the specified book', 400)
 
     book = chapter.book
-    if book is None or (not book.is_published and not getattr(current_user, 'is_admin', False)):
+    if book is None or _draft_hidden(book):
         return api_error('not_found', 'Chapter not found', 404)
     if not can_user_access_book(current_user, book):
         return api_error('forbidden', 'Access denied', 403)
@@ -375,7 +390,9 @@ def get_book_chapter_progress(book_id):
     Get user's reading progress for a book
     Returns current chapter and offset
     """
-    Book.query.get_or_404(book_id)
+    book = Book.query.get_or_404(book_id)
+    if _draft_hidden(book):
+        return api_error('not_found', 'Book not found', 404)
 
     # Get all progress for this book's chapters
     progress_records = db.session.query(
@@ -769,8 +786,7 @@ def get_chapter_by_id(chapter_id):
         chapter = Chapter.query.get_or_404(chapter_id)
 
         book = chapter.book
-        if book is None or (not book.is_published and not getattr(current_user, 'is_admin', False)):
-            # Draft books must look nonexistent to non-admins.
+        if book is None or _draft_hidden(book):
             return api_error('not_found', 'Chapter not found', 404)
         if not can_user_access_book(current_user, book):
             return api_error('forbidden', 'Access denied', 403)

@@ -117,6 +117,119 @@ class TestGetBook:
         assert response.status_code == 404
 
 
+def _make_restricted_book_with_chapter(db_session, *, rights='companion_only', published=True):
+    from app.books.models import Book, Chapter
+
+    book = Book(
+        title=f'Restricted {uuid.uuid4().hex[:6]}',
+        author='Test Author',
+        chapters_cnt=1,
+        words_total=10,
+        unique_words=10,
+        rights_status=rights,
+        is_published=published,
+        created_at=datetime.now(UTC),
+    )
+    db_session.add(book)
+    db_session.flush()
+    chapter = Chapter(
+        book_id=book.id,
+        chap_num=1,
+        title='Secret Chapter',
+        text_raw='Secret content',
+        words=5,
+    )
+    db_session.add(chapter)
+    db_session.commit()
+    return book, chapter
+
+
+def _login_as(client, user, password):
+    """Re-login through the real auth flow.
+
+    Прямое переписывание ``_user_id`` через session_transaction после уже
+    сделанного запроса не переключает юзера (cookie из response побеждает),
+    поэтому identity меняем честным logout + login.
+    """
+    client.get('/logout', follow_redirects=True)
+    response = client.post(
+        '/login',
+        data={'username_or_email': user.username, 'password': password},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+
+
+class TestBooksListAccessFiltering:
+    """GET /api/books фильтрует draft и недоступные книги."""
+
+    @pytest.mark.smoke
+    def test_draft_and_restricted_books_hidden_from_regular_user(
+        self, authenticated_client, db_session,
+    ):
+        draft, _ = _make_restricted_book_with_chapter(
+            db_session, rights='public_domain', published=False,
+        )
+        restricted, _ = _make_restricted_book_with_chapter(
+            db_session, rights='companion_only', published=True,
+        )
+
+        response = authenticated_client.get('/api/books')
+
+        assert response.status_code == 200
+        titles = {b['title'] for b in response.get_json()['books']}
+        assert draft.title not in titles
+        assert restricted.title not in titles
+
+    def test_admin_sees_everything(
+        self, authenticated_client, admin_user, db_session,
+    ):
+        draft, _ = _make_restricted_book_with_chapter(
+            db_session, rights='public_domain', published=False,
+        )
+        _login_as(authenticated_client, admin_user, 'adminpass123')
+
+        response = authenticated_client.get('/api/books')
+
+        assert response.status_code == 200
+        titles = {b['title'] for b in response.get_json()['books']}
+        assert draft.title in titles
+
+
+class TestChapterListCacheIsolation:
+    """Кэш списка глав не отдаёт чужой ответ (раньше @cached без user_specific)."""
+
+    @pytest.mark.smoke
+    def test_admin_warmed_cache_not_leaked_to_restricted_user(
+        self, authenticated_client, admin_user, test_user, db_session,
+    ):
+        book, _ = _make_restricted_book_with_chapter(db_session)
+
+        # Админ прогревает кэш списка глав.
+        _login_as(authenticated_client, admin_user, 'adminpass123')
+        warm = authenticated_client.get(f'/api/books/{book.id}/chapters')
+        assert warm.status_code == 200
+        assert warm.get_json()[0]['title'] == 'Secret Chapter'
+
+        # Юзер без модуля books не должен получить закэшированный ответ.
+        _login_as(authenticated_client, test_user, 'testpass123')
+        response = authenticated_client.get(f'/api/books/{book.id}/chapters')
+        assert response.status_code == 403
+        assert 'Secret Chapter' not in response.get_data(as_text=True)
+
+    def test_draft_chapter_content_is_404(
+        self, authenticated_client, db_session,
+    ):
+        book, chapter = _make_restricted_book_with_chapter(
+            db_session, rights='public_domain', published=False,
+        )
+        response = authenticated_client.get(
+            f'/api/books/{book.id}/chapters/{chapter.chap_num}'
+        )
+        assert response.status_code == 404
+        assert 'Secret content' not in response.get_data(as_text=True)
+
+
 class TestGetChaptersByBookId:
     """Test GET /api/books/<id>/chapters endpoint"""
 
