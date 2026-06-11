@@ -697,11 +697,25 @@ def complete_matching_game():
         else:
             quality = 0
 
+        # Игра — free-play поверх клиентских word_ids: активация НОВЫХ
+        # карточек уважает дневной бюджет (как Разогрев/deck/free study),
+        # иначе одна игра с произвольными id создавала бы неограниченное
+        # число карточек и сжигала весь new-card бюджет (first_reviewed).
+        from app.srs.counting import get_new_card_budget
+        remaining_new, _ = get_new_card_budget(current_user.id, db)
+        MAX_MATCHING_SRS_WORDS = 50
+
         srs_errors = []
-        for word_id in word_ids:
+        for word_id in word_ids[:MAX_MATCHING_SRS_WORDS]:
             try:
                 with db.session.begin_nested():
-                    user_word = UserWord.get_or_create(current_user.id, word_id)
+                    user_word = UserWord.query.filter_by(
+                        user_id=current_user.id, word_id=word_id
+                    ).first()
+                    if user_word is None:
+                        if remaining_new <= 0:
+                            continue
+                        user_word = UserWord.get_or_create(current_user.id, word_id)
 
                     for direction_str in ['eng-rus', 'rus-eng']:
                         direction = UserCardDirection.query.filter_by(
@@ -710,9 +724,17 @@ def complete_matching_game():
                         ).first()
 
                         if not direction:
+                            if remaining_new <= 0:
+                                continue
                             direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
                             db.session.add(direction)
                             db.session.flush()
+
+                        if direction.first_reviewed is None:
+                            # Грейд unseen-карточки = активация новой.
+                            if remaining_new <= 0:
+                                continue
+                            remaining_new -= 1
 
                         direction.update_after_review(quality)
 

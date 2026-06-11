@@ -579,6 +579,47 @@ class TestSRSService:
             assert new_today == 0
             assert reviews_today == 0
 
+    def test_get_deck_stats_today_uses_user_local_midnight(
+        self, app, db_session, test_user, quiz_deck,
+    ):
+        """Грейд, записанный day-anchored (локальная полночь UTC+3 = вчера
+        21:00 UTC), должен попадать в «сегодня» — раньше UTC-полночь весь
+        день возвращала (0, 0) и лимиты колод не работали."""
+        import uuid as _uuid
+
+        from app.study.models import QuizDeckWord, UserCardDirection, UserWord
+        from app.study.services.srs_service import SRSService
+        from app.utils.time_utils import day_to_naive_utc
+        from app.words.models import CollectionWords
+
+        with app.app_context():
+            test_user.timezone = 'Europe/Istanbul'
+            word = CollectionWords(
+                english_word=f'deckstat_{_uuid.uuid4().hex[:6]}',
+                russian_word='слово',
+                level='A1',
+            )
+            db_session.add(word)
+            db_session.flush()
+            db_session.add(QuizDeckWord(deck_id=quiz_deck.id, word_id=word.id))
+            uw = UserWord(user_id=test_user.id, word_id=word.id)
+            db_session.add(uw)
+            db_session.flush()
+            card = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+            # first_reviewed = сегодняшняя локальная полночь (naive UTC) —
+            # так пишет apply_review_schedule.
+            card.first_reviewed = day_to_naive_utc(test_user.id, db_session)
+            card.last_reviewed = card.first_reviewed
+            db_session.add(card)
+            db_session.commit()
+
+            new_today, reviews_today = SRSService.get_deck_stats_today(
+                test_user.id, quiz_deck.id,
+            )
+
+            assert new_today == 1
+            assert reviews_today == 0
+
     def test_get_study_items_empty_deck(self, app, db_session, test_user, study_settings):
         """Test getting study items for empty deck"""
         from app.study.services.srs_service import SRSService

@@ -141,7 +141,9 @@ class SRSService:
             Tuple of (new_cards_studied_today, reviews_done_today, new_limit, review_limit)
         """
         settings = StudySettings.get_settings(user_id)
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
+        # Локальная полночь юзера — та же граница, что в app/srs/counting.py.
+        from app.utils.time_utils import day_to_naive_utc
+        today_start = day_to_naive_utc(user_id, db)
 
         # Count new cards: first_reviewed is today (card was studied for the first time today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
@@ -793,7 +795,11 @@ class SRSService:
         Returns:
             tuple: (new_cards_today, reviews_today)
         """
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None, hour=0, minute=0, second=0, microsecond=0)
+        # Граница дня — локальная полночь юзера (как в app/srs/counting.py):
+        # first_reviewed/last_reviewed пишутся day-anchored, и UTC-полночь
+        # для UTC+3 весь день возвращала (0, 0) — лимиты колод не работали.
+        from app.utils.time_utils import day_to_naive_utc
+        today_start = day_to_naive_utc(user_id, db)
 
         # Get word IDs for this deck
         deck_word_ids = [dw.word_id for dw in QuizDeckWord.query.filter_by(deck_id=deck_id).all() if dw.word_id]

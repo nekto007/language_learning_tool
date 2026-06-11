@@ -508,3 +508,56 @@ class TestSrsSlotXpDecision:
         assert after_second == after_first, (
             "SRS-slot XP must be idempotent — second same-day quiz must not add StreakEvent"
         )
+
+
+# ---------------------------------------------------------------------------
+# Matching game — активация новых SRS-карточек уважает дневной бюджет
+# ---------------------------------------------------------------------------
+
+class TestMatchingSrsBudget:
+    def test_new_card_activation_respects_daily_budget(
+        self, authenticated_client, test_user, study_settings, db_session,
+    ):
+        """10 клиентских word_ids не активируют больше new_words_per_day(=5)
+        направлений — раньше игра создавала и грейдила карточки без лимита."""
+        import uuid as _uuid
+
+        from app.study.models import UserCardDirection, UserWord
+        from app.words.models import CollectionWords
+
+        words = []
+        for _ in range(10):
+            w = CollectionWords(
+                english_word=f'mgame_{_uuid.uuid4().hex[:6]}',
+                russian_word='пара',
+                level='A1',
+            )
+            db_session.add(w)
+            words.append(w)
+        db_session.commit()
+
+        resp = authenticated_client.post(
+            '/study/api/complete-matching-game',
+            data=json.dumps({
+                'pairs_matched': 10,
+                'total_pairs': 10,
+                'moves': 20,
+                'time_taken': 60,
+                'difficulty': 'easy',
+                'word_ids': [w.id for w in words],
+            }),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+
+        activated = (
+            db.session.query(UserCardDirection)
+            .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+            .filter(
+                UserWord.user_id == test_user.id,
+                UserCardDirection.first_reviewed.isnot(None),
+            )
+            .count()
+        )
+        # study_settings.new_words_per_day == 5
+        assert activated == 5
