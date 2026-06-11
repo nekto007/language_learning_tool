@@ -838,10 +838,15 @@ function checkTrueFalseAnswer(questionIndex, userAnswer) {
 
   const isCorrect = userAnswer === correctAnswer;
 
-  // Disable all buttons
+  // Disable all buttons; highlight the correct option and (if wrong) the picked one.
   buttons.forEach(btn => {
     btn.disabled = true;
-    btn.style.opacity = '0.6';
+    const btnBool = btn.dataset.bool === 'true';
+    if (btnBool === correctAnswer) {
+      btn.classList.add('correct');
+    } else if (btnBool === userAnswer) {
+      btn.classList.add('incorrect');
+    }
   });
 
   // Mark the question block as answered
@@ -872,12 +877,19 @@ function checkFillBlankAnswer(questionIndex, userAnswer) {
   const explanation = feedback.dataset.explanation || '';
 
   // Normalize both answers to lowercase for case-insensitive comparison
-  const isCorrect = userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+  const correctLower = correctAnswer.toLowerCase();
+  const userLower = userAnswer.toLowerCase();
+  const isCorrect = userLower === correctLower;
 
-  // Disable all buttons
+  // Disable all buttons; highlight the correct option and (if wrong) the picked one.
   buttons.forEach(btn => {
     btn.disabled = true;
-    btn.style.opacity = '0.6';
+    const optLower = (btn.dataset.option || '').toLowerCase();
+    if (optLower === correctLower) {
+      btn.classList.add('correct');
+    } else if (optLower === userLower) {
+      btn.classList.add('incorrect');
+    }
   });
 
   // Mark the question block as answered
@@ -1472,10 +1484,16 @@ function initAutoPlay() {
   // Collect all audio buttons with their files
   const audioButtons = document.querySelectorAll('.reading-audio-btn');
   autoPlayState.audioElements = Array.from(audioButtons).map(btn => {
-    const onclick = btn.getAttribute('onclick');
-    const match = onclick.match(/playAudio\('([^']+)'/);
+    // Buttons use a delegated data-action with data-audio-file. Fall back to
+    // legacy inline onclick="playAudio('...')" markup if present.
+    let file = btn.dataset.audioFile || null;
+    if (!file) {
+      const onclick = btn.getAttribute('onclick');
+      const match = onclick && onclick.match(/playAudio\('([^']+)'/);
+      file = match ? match[1] : null;
+    }
     return {
-      file: match ? match[1] : null,
+      file: file,
       button: btn,
       lineElement: btn.closest('.reading-line')
     };
