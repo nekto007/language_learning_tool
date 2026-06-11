@@ -711,6 +711,13 @@ def stats():
         user_id=current_user.id, is_active=True
     ).first() is not None
 
+    from app.srs.counting import get_review_forecast
+    try:
+        review_forecast = get_review_forecast(current_user.id, days=7)
+    except Exception:
+        logger.exception("review_forecast failed for user %s", current_user.id)
+        review_forecast = []
+
     return render_template(
         'study/stats.html',
         total_items=stats_data['total'],
@@ -731,6 +738,7 @@ def stats():
         session_stats=session_stats,
         route_progress_state=route_progress_state,
         srs_by_source=srs_by_source,
+        review_forecast=review_forecast,
     )
 
 
