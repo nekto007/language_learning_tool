@@ -934,3 +934,28 @@ def add_word_to_custom_list(list_id: int):
     db.session.commit()
     return jsonify({'ok': True, 'entry_id': entry.id, 'word': word,
                     'translation': translation, 'already_existed': False})
+
+
+@study.route('/api/difficult-words/complete', methods=['POST'])
+@login_required
+def api_difficult_words_complete():
+    """Завершение контекстной проработки: снять leech-бан с угаданных слов."""
+    from app.study.services.difficult_words_service import unbury_words
+
+    data = request.get_json(silent=True) or {}
+    raw_ids = data.get('correct_word_ids', [])
+    if not isinstance(raw_ids, list):
+        return api_error('invalid_input', 'correct_word_ids must be a list', 400)
+    word_ids = [i for i in raw_ids if isinstance(i, int)][:100]
+
+    try:
+        unburied = unbury_words(current_user.id, word_ids)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        logger.exception(
+            "difficult-words complete failed for user %s", current_user.id
+        )
+        return api_error('internal_error', 'failed to update cards', 500)
+
+    return jsonify({'success': True, 'unburied': unburied})

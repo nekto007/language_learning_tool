@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Проработка трудных слов') }} | LLT English{% endblock %}
+
+{% block content %}
+<style nonce="{{ csp_nonce }}">
+.dwp-page { max-width: 640px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+.dwp-progress { font-size: 0.8rem; color: var(--text-muted, #64748b); margin-bottom: 0.75rem; }
+.dwp-bar { height: 6px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-bottom: 1.25rem; }
+.dwp-bar__fill { height: 100%; background: var(--primary-600, #4f46e5); border-radius: 999px; transition: width 0.25s ease; width: 0; }
+.dwp-prompt { font-size: 1.15rem; line-height: 1.5; margin-bottom: 0.4rem; }
+.dwp-hint { font-size: 0.82rem; color: var(--text-muted, #64748b); margin-bottom: 1.1rem; }
+.dwp-options { display: flex; flex-direction: column; gap: 0.6rem; }
+.dwp-option { text-align: left; padding: 0.75rem 1rem; border: 1.5px solid #e2e8f0; border-radius: 10px; background: #fff; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; font-family: inherit; }
+.dwp-option:hover { border-color: var(--primary-400, #818cf8); }
+.dwp-option--correct { border-color: #22c55e; background: #f0fdf4; color: #166534; }
+.dwp-option--wrong { border-color: #ef4444; background: #fef2f2; color: #b91c1c; }
+.dwp-option:disabled { cursor: default; }
+.dwp-reveal { margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 10px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 0.875rem; display: none; }
+.dwp-reveal__ru { color: #64748b; }
+.dwp-next { display: none; margin-top: 1.25rem; padding: 0.65rem 1.4rem; border: none; border-radius: 10px; background: var(--primary-600, #4f46e5); color: #fff; font-weight: 600; font-size: 0.95rem; cursor: pointer; font-family: inherit; }
+.dwp-summary { text-align: center; padding: 2.5rem 1rem; display: none; }
+.dwp-summary__emoji { font-size: 2.75rem; }
+.dwp-summary__score { font-size: 1.5rem; font-weight: 800; margin: 0.5rem 0; }
+.dwp-summary__note { color: var(--text-muted, #64748b); font-size: 0.9rem; margin-bottom: 1.5rem; }
+.dwp-summary__actions a { display: inline-block; margin: 0 0.4rem; }
+</style>
+
+<div class="dwp-page">
+  <p style="font-size: 0.85rem;"><a href="{{ url_for('study.difficult_words') }}">&larr; {{ _('Трудные слова') }}</a></p>
+
+  <div id="dwp-quiz">
+    <div class="dwp-progress"><span id="dwp-step">1</span> / <span id="dwp-total"></span></div>
+    <div class="dwp-bar"><div class="dwp-bar__fill" id="dwp-bar-fill"></div></div>
+    <div class="dwp-prompt" id="dwp-prompt"></div>
+    <div class="dwp-hint" id="dwp-hint"></div>
+    <div class="dwp-options" id="dwp-options"></div>
+    <div class="dwp-reveal" id="dwp-reveal"></div>
+    <button type="button" class="dwp-next" id="dwp-next">{{ _('Дальше') }}</button>
+  </div>
+
+  <div class="dwp-summary" id="dwp-summary">
+    <div class="dwp-summary__emoji" id="dwp-summary-emoji">💪</div>
+    <div class="dwp-summary__score" id="dwp-summary-score"></div>
+    <p class="dwp-summary__note" id="dwp-summary-note"></p>
+    <div class="dwp-summary__actions">
+      <a href="{{ url_for('study.difficult_words') }}">{{ _('К списку') }}</a>
+      <a href="{{ url_for('study.difficult_words_practice') }}">{{ _('Ещё раз') }}</a>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+  var questions = {{ questions | tojson }};
+  var idx = 0;
+  var correctIds = [];
+  var correctCount = 0;
+
+  var els = {
+    step: document.getElementById('dwp-step'),
+    total: document.getElementById('dwp-total'),
+    barFill: document.getElementById('dwp-bar-fill'),
+    prompt: document.getElementById('dwp-prompt'),
+    hint: document.getElementById('dwp-hint'),
+    options: document.getElementById('dwp-options'),
+    reveal: document.getElementById('dwp-reveal'),
+    next: document.getElementById('dwp-next'),
+    quiz: document.getElementById('dwp-quiz'),
+    summary: document.getElementById('dwp-summary')
+  };
+
+  els.total.textContent = questions.length;
+
+  function render() {
+    var q = questions[idx];
+    els.step.textContent = idx + 1;
+    els.barFill.style.width = (idx / questions.length * 100) + '%';
+    els.reveal.style.display = 'none';
+    els.reveal.textContent = '';
+    els.next.style.display = 'none';
+    els.options.textContent = '';
+
+    if (q.type === 'cloze') {
+      els.prompt.textContent = q.prompt;
+      els.hint.textContent = '{{ _("Какое слово пропущено?") }}' + (q.russian ? ' (' + q.russian + ')' : '');
+    } else {
+      els.prompt.textContent = q.prompt;
+      els.hint.textContent = '{{ _("Выберите английское слово с таким переводом") }}';
+    }
+
+    q.options.forEach(function(opt) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dwp-option';
+      btn.textContent = opt;
+      btn.addEventListener('click', function() { answer(btn, opt, q); });
+      els.options.appendChild(btn);
+    });
+  }
+
+  function answer(btn, opt, q) {
+    var isCorrect = opt.toLowerCase() === q.correct.toLowerCase();
+    Array.prototype.forEach.call(els.options.children, function(b) {
+      b.disabled = true;
+      if (b.textContent.toLowerCase() === q.correct.toLowerCase()) {
+        b.classList.add('dwp-option--correct');
+      }
+    });
+    if (!isCorrect) {
+      btn.classList.add('dwp-option--wrong');
+    } else {
+      correctCount++;
+      correctIds.push(q.word_id);
+    }
+
+    var revealParts = [];
+    if (q.type === 'cloze' && q.example_en) {
+      revealParts.push(q.example_en);
+    }
+    if (q.example_ru) {
+      revealParts.push(q.example_ru);
+    }
+    if (revealParts.length) {
+      els.reveal.textContent = '';
+      var en = document.createElement('div');
+      en.textContent = revealParts[0];
+      els.reveal.appendChild(en);
+      if (revealParts[1]) {
+        var ru = document.createElement('div');
+        ru.className = 'dwp-reveal__ru';
+        ru.textContent = revealParts[1];
+        els.reveal.appendChild(ru);
+      }
+      els.reveal.style.display = 'block';
+    }
+    els.next.style.display = 'inline-block';
+  }
+
+  function finish() {
+    els.quiz.style.display = 'none';
+    els.summary.style.display = 'block';
+    document.getElementById('dwp-summary-emoji').textContent =
+      correctCount === questions.length ? '🎉' : correctCount >= questions.length / 2 ? '👍' : '💪';
+    document.getElementById('dwp-summary-score').textContent =
+      correctCount + ' / ' + questions.length;
+
+    var note = document.getElementById('dwp-summary-note');
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrfToken = csrfMeta && csrfMeta.content;
+    fetch('{{ url_for('study.api_difficult_words_complete') }}', {
+      method: 'POST',
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        csrfToken ? { 'X-CSRFToken': csrfToken } : {}
+      ),
+      body: JSON.stringify({ correct_word_ids: correctIds })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data && data.success && data.unburied > 0) {
+        note.textContent = '{{ _("Возвращено в ротацию повторений:") }} ' + data.unburied;
+      } else {
+        note.textContent = '{{ _("Отличная разминка — продолжайте в том же духе!") }}';
+      }
+    }).catch(function() {
+      note.textContent = '{{ _("Результат не удалось сохранить, но практика засчитана вам лично 🙂") }}';
+    });
+  }
+
+  els.next.addEventListener('click', function() {
+    idx++;
+    if (idx >= questions.length) {
+      finish();
+    } else {
+      render();
+    }
+  });
+
+  render();
+})();
+</script>
+{% endblock %}

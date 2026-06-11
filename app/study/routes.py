@@ -712,11 +712,17 @@ def stats():
     ).first() is not None
 
     from app.srs.counting import get_review_forecast
+    from app.study.services.difficult_words_service import get_difficult_words
     try:
         review_forecast = get_review_forecast(current_user.id, days=7)
     except Exception:
         logger.exception("review_forecast failed for user %s", current_user.id)
         review_forecast = []
+    try:
+        difficult_words_count = len(get_difficult_words(current_user.id))
+    except Exception:
+        logger.exception("difficult_words_count failed for user %s", current_user.id)
+        difficult_words_count = 0
 
     return render_template(
         'study/stats.html',
@@ -739,6 +745,63 @@ def stats():
         route_progress_state=route_progress_state,
         srs_by_source=srs_by_source,
         review_forecast=review_forecast,
+        difficult_words_count=difficult_words_count,
+    )
+
+
+@study.route('/difficult-words')
+@login_required
+@module_required('study')
+def difficult_words():
+    """Слова, на которых пользователь системно спотыкается (leech и около)."""
+    from app.srs.constants import LEECH_THRESHOLD
+    from app.study.services.difficult_words_service import get_difficult_words
+
+    words = get_difficult_words(current_user.id)
+    return render_template(
+        'study/difficult_words.html',
+        words=words,
+        leech_threshold=LEECH_THRESHOLD,
+    )
+
+
+@study.route('/difficult-words/practice')
+@login_required
+@module_required('study')
+def difficult_words_practice():
+    """Контекстная проработка трудных слов: cloze-quiz по примерам."""
+    from app.study.services.difficult_words_service import (
+        PRACTICE_OPTIONS_COUNT,
+        build_practice_questions,
+        get_difficult_words,
+    )
+    from app.words.models import CollectionWords
+
+    words = get_difficult_words(current_user.id)
+    if not words:
+        flash(_('Трудных слов сейчас нет — отличная работа!'), 'info')
+        return redirect(url_for('study.difficult_words'))
+
+    distractor_pool = []
+    if len(words) < PRACTICE_OPTIONS_COUNT:
+        extra_rows = (
+            db.session.query(CollectionWords.english_word)
+            .join(UserWord, UserWord.word_id == CollectionWords.id)
+            .filter(UserWord.user_id == current_user.id)
+            .order_by(func.random())
+            .limit(10)
+            .all()
+        )
+        distractor_pool = [row[0] for row in extra_rows]
+
+    questions = build_practice_questions(words, distractor_pool=distractor_pool)
+    if not questions:
+        flash(_('Для проработки не хватает данных по словам.'), 'warning')
+        return redirect(url_for('study.difficult_words'))
+
+    return render_template(
+        'study/difficult_words_practice.html',
+        questions=questions,
     )
 
 

@@ -85,6 +85,15 @@
         </div>
     </div>
 
+    {% if difficult_words_count %}
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 0.8rem 1.1rem; margin-bottom: 1rem;">
+      <div style="font-size: 0.9rem; color: #92400e;">
+        🧗 {{ _('Трудные слова') }}: <strong>{{ difficult_words_count }}</strong> — {{ _('карточки, на которых вы спотыкаетесь') }}
+      </div>
+      <a href="{{ url_for('study.difficult_words') }}" style="font-weight: 600; font-size: 0.875rem; white-space: nowrap;">{{ _('Проработать') }} &rarr;</a>
+    </div>
+    {% endif %}
+
     {% set forecast_total = review_forecast | sum(attribute='count') if review_forecast else 0 %}
     <!-- Charts Section -->
     {% if accuracy_trend or mastered_over_time or study_heatmap.data or forecast_total %}
