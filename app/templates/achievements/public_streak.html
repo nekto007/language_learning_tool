@@ -86,6 +86,12 @@
 </style>
 
 <div class="strk-page">
+  {% if not profile_user.profile_is_public %}
+  <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.875rem; color: #92400e;">
+    🔒 Страница скрыта настройками приватности — её видите только вы.
+    <a href="{{ url_for('auth.profile') }}" style="color: #92400e; font-weight: 600;">Изменить</a>
+  </div>
+  {% endif %}
   <div class="strk-hero">
     <div class="strk-hero__fire">🔥</div>
     <h1 class="strk-hero__title">{{ calendar.current_streak }} дней</h1>
@@ -113,7 +119,7 @@
   </div>
 
   <div class="strk-share">
-    {% set share_url = 'https://llt-english.com/streak/' ~ profile_user.username %}
+    {% set share_url = url_for('auth.public_streak', username=profile_user.username, _external=True) %}
     {% set share_text = profile_user.username ~ ' — стрик ' ~ calendar.current_streak ~ ' дней на LLT English! 🔥' %}
     {% include 'components/share_buttons.html' %}
   </div>
