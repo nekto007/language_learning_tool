@@ -536,29 +536,32 @@ def maybe_award_linear_perfect_day(
     for_date: Optional[date_cls] = None,
     db_session: Any = None,
 ) -> Optional[XPAward]:
-    """Award the linear perfect-day bonus when all baseline slots are done.
+    """Award the perfect-day bonus when the UNIFIED plan's required is done.
 
-    Completion detection mirrors ``/api/daily-status``: we combine each
-    slot's own ``completed`` flag with the daily activity summary so a
-    user who completed today's work earns the bonus even though the
-    per-slot ``completed`` field tracks the next incomplete target
-    (e.g., the curriculum slot always points at the next unfinished
-    lesson). Without this, the perfect-day bonus would almost never
-    fire since the slot-builder's ``completed`` field is rarely True
-    for the current day's activity.
+    Бонус считается по тому же плану, который видит пользователь
+    (``get_daily_plan_unified``), и тем же предикатом, что ``day_secured``
+    (``compute_day_secured_from_activity``). Раньше здесь собирался legacy
+    linear-план (``get_linear_plan``): наборы слотов расходились с unified
+    (reading безусловно, 5 слотов без капа против 4 required), и бонус для
+    части конфигураций был недостижим — либо, наоборот, выдавался без
+    закрытия видимого плана.
     """
     if not is_linear_user(user_id):
         return None
 
     from app.achievements.streak_service import compute_plan_steps
-    from app.daily_plan.linear.plan import get_linear_plan
+    from app.daily_plan.service import (
+        compute_day_secured_from_activity,
+        get_daily_plan_unified,
+    )
     from app.telegram.queries import get_daily_summary
 
     when = for_date or get_linear_event_local_date(user_id, db_session)
+    tz = _get_user_timezone(user_id, db_session)
 
     try:
-        plan = get_linear_plan(user_id, db_session)
-        summary = get_daily_summary(user_id, tz=_get_user_timezone(user_id, db_session))
+        plan = get_daily_plan_unified(user_id, tz=tz)
+        summary = get_daily_summary(user_id, tz=tz)
     except Exception:  # noqa: BLE001 — never break caller on plan assembly
         logger.warning(
             'linear_xp: perfect-day check failed to assemble plan for user=%s',
@@ -566,16 +569,14 @@ def maybe_award_linear_perfect_day(
         )
         return None
 
-    baseline_slots = plan.get('baseline_slots') or []
-    if not baseline_slots:
+    plan_meta = plan.get('_plan_meta') or {}
+    if plan_meta.get('effective_mode') == 'paused':
+        return None
+    if not (plan.get('required') or []) and not plan_meta.get('graduated'):
         return None
 
     plan_completion, _, _, _ = compute_plan_steps(plan, summary)
-    all_done = all(
-        plan_completion.get(slot.get('kind', ''), False)
-        for slot in baseline_slots
-    )
-    if not all_done:
+    if not compute_day_secured_from_activity(plan, plan_completion):
         return None
 
     return award_perfect_day_xp_idempotent(user_id, when, is_linear=True)
