@@ -265,7 +265,9 @@ def maybe_award_srs_global_xp(
     )
 
 
-def is_srs_slot_completed_today(user_id: int, db_session: Any) -> bool:
+def is_srs_slot_completed_today(
+    user_id: int, db_session: Any, *, allow_fallback: bool = True
+) -> bool:
     """Return True when the linear SRS slot is done for today.
 
     Primary signal: a ``StreakEvent`` with source ``linear_srs_global``
@@ -275,6 +277,10 @@ def is_srs_slot_completed_today(user_id: int, db_session: Any) -> bool:
     write must have been lost between grade and complete-session), fire
     a corrective idempotent award and return True. The award uses the
     same key as the normal path — duplicates are silently ignored.
+
+    ``allow_fallback=False`` (deck-quiz слот) отключает fallback: общие
+    SRS-счётчики поднимает и парный curriculum card-урок, который не
+    должен закрывать квиз (см. компенсацию в streak_service).
 
     Reconciliation is a side effect of a read path; the corrective call
     only flushes (no commit), so if the caller's transaction rolls back
@@ -294,6 +300,12 @@ def is_srs_slot_completed_today(user_id: int, db_session: Any) -> bool:
     ).scalar() or False
     if has_event:
         return True
+    if not allow_fallback:
+        # Deck-quiz слот: засчитывается ТОЛЬКО по XP-событию. Fallback ниже
+        # срабатывает от общих SRS-счётчиков, которые поднимает парный
+        # curriculum card-урок (он же съедает бюджет → pool=0) — слот
+        # закрывался бы и награждался без прохождения квиза.
+        return False
 
     # No event — look for fallback signal.
     from app.srs.constants import CardState

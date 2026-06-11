@@ -50,7 +50,11 @@ def _build_deck_quiz_plan_item(
         _count_user_deck_quiz_words,
     )
 
-    completed_today = _srs_completed_today(user_id, db)
+    # Strict (event-only): деку-квиз закрывает только собственное XP-событие,
+    # fallback от общих счётчиков сработал бы от парного card-урока.
+    from app.daily_plan.linear.xp import is_srs_slot_completed_today
+
+    completed_today = is_srs_slot_completed_today(user_id, db, allow_fallback=False)
     deck_word_count = _count_user_deck_quiz_words(user_id, db)
     limit = min(_DECK_QUIZ_LIMIT, max(deck_word_count, 0))
 

@@ -184,3 +184,45 @@ class TestSrsSlotCompletion:
             user_id=user.id, event_type=LINEAR_XP_EVENT_TYPE,
         ).all()
         assert len(events) == 1
+
+
+class TestDeckQuizStrictCompletion:
+    """allow_fallback=False (deck-quiz): только XP-событие закрывает слот.
+
+    Regression: fallback срабатывал от общих SRS-счётчиков, которые
+    поднимает парный curriculum card-урок (он же съедает бюджет → pool=0),
+    и deck-quiz закрывался + награждался без прохождения квиза.
+    """
+
+    def test_card_lesson_activity_does_not_complete_deck_quiz(self, db_session):
+        user = _make_user(db_session)
+        _make_settings(db_session, user)
+        now = _now_naive()
+        today_midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Тот же сетап, что у сработавшего fallback: активность есть,
+        # пул пуст — но это активность card-урока, не квиза.
+        _make_card(
+            db_session, user,
+            state=CardState.REVIEW.value,
+            first_reviewed=today_midnight - timedelta(days=2),
+            last_reviewed=today_midnight,
+            next_review=today_midnight + timedelta(days=10),
+        )
+
+        result = is_srs_slot_completed_today(user.id, real_db, allow_fallback=False)
+        real_db.session.flush()
+
+        assert result is False
+        # И корректирующий XP не начислен.
+        assert not StreakEvent.query.filter_by(
+            user_id=user.id, event_type=LINEAR_XP_EVENT_TYPE,
+        ).all()
+
+    def test_xp_event_still_completes_in_strict_mode(self, db_session):
+        user = _make_user(db_session)
+        _make_settings(db_session, user)
+        _seed_xp_event(db_session, user)
+        assert is_srs_slot_completed_today(
+            user.id, real_db, allow_fallback=False,
+        ) is True
