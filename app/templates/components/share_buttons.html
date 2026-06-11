@@ -5,7 +5,7 @@
      - variant: 'inline' (default) or 'compact'
 #}
 {% set base_url = share_url|default(request.url) %}
-{% if current_user is defined and current_user.is_authenticated and current_user.referral_code %}
+{% if current_user is defined and current_user.is_authenticated and current_user.referral_code and 'ref=' not in base_url %}
   {% set url = base_url ~ ('&' if '?' in base_url else '?') ~ 'ref=' ~ current_user.referral_code %}
 {% else %}
   {% set url = base_url %}

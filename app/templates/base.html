@@ -688,7 +688,7 @@ document.addEventListener('click', function(e) {
             e.preventDefault();
             var url = lvlShare.dataset.shareUrl || window.location.origin;
             var title = (document.getElementById('levelup-title') || {}).textContent || '';
-            if (typeof shareVia === 'function') shareVia('telegram', url, title);
+            if (typeof shareVia === 'function') shareVia('telegram', title, url);
             var m = document.getElementById('levelup-modal');
             if (m) m.style.display = 'none';
         });

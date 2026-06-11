@@ -109,7 +109,7 @@
                         <div class="de-share__link" id="share-link">{{ url_for('study.quiz_deck_shared', code=deck.share_code, _external=True) }}</div>
                     </div>
                     <button type="button" class="de-share__copy-btn"
-                            onclick="navigator.clipboard.writeText(document.getElementById('share-link').textContent); this.innerHTML='<svg width=&quot;12&quot; height=&quot;12&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;3&quot;><path d=&quot;M20 6L9 17l-5-5&quot;/></svg> Скопировано'; setTimeout(() => { this.innerHTML='<svg width=&quot;12&quot; height=&quot;12&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot;><rect x=&quot;9&quot; y=&quot;9&quot; width=&quot;13&quot; height=&quot;13&quot; rx=&quot;2&quot;/><path d=&quot;M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1&quot;/></svg> Копировать'; }, 2000);">
+                            onclick="copyDeckShareLink(this)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                         Копировать
                     </button>
@@ -383,6 +383,17 @@
 
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
+function copyDeckShareLink(btn) {
+    var link = document.getElementById('share-link');
+    if (!link || typeof lltCopyText !== 'function') return;
+    var orig = btn.innerHTML;
+    lltCopyText(link.textContent.trim(), function(ok) {
+        if (!ok) return;
+        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Скопировано';
+        setTimeout(function() { btn.innerHTML = orig; }, 2000);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const englishInput = document.getElementById('custom_english');
     const russianInput = document.getElementById('custom_russian');
