@@ -160,3 +160,21 @@
   .onboarding-level-btn__desc { display: none; }
   .onboarding-back { padding: 0 1.25rem 1rem; }
 }
+
+/* === Placement test === */
+.onboarding-placement { margin-top: 1.25rem; text-align: center; }
+.onboarding-placement__divider { color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.75rem; position: relative; }
+.onboarding-placement__start { background: none; border: 1.5px dashed #c7d2fe; color: #4f46e5; border-radius: 10px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s ease; }
+.onboarding-placement__start:hover { background: #eef2ff; }
+.onboarding-placement__panel { margin-top: 1rem; text-align: left; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem 1.1rem; }
+.onboarding-placement__progress { font-size: 0.78rem; color: #64748b; margin-bottom: 0.5rem; }
+.onboarding-placement__question { font-size: 1rem; font-weight: 600; margin-bottom: 0.85rem; line-height: 1.5; }
+.onboarding-placement__options { display: flex; flex-direction: column; gap: 0.5rem; }
+.onboarding-placement__option { text-align: left; padding: 0.6rem 0.9rem; border: 1.5px solid #e2e8f0; border-radius: 9px; background: #fff; font-size: 0.9rem; cursor: pointer; font-family: inherit; transition: border-color 0.15s ease; }
+.onboarding-placement__option:hover:not(:disabled) { border-color: #818cf8; }
+.onboarding-placement__option:disabled { opacity: 0.6; cursor: default; }
+.onboarding-placement__result { text-align: center; padding: 0.5rem 0; }
+.onboarding-placement__verdict { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; }
+.onboarding-placement__apply { background: #4f46e5; color: #fff; border: none; border-radius: 10px; padding: 0.65rem 1.3rem; font-weight: 600; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
+.onboarding-placement__apply:hover { background: #4338ca; }
+.onboarding-placement__note { font-size: 0.75rem; color: #94a3b8; margin-top: 0.55rem; }

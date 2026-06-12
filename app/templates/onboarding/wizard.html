@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/wizard.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/wizard.css') }}?v=2">
 {% endblock %}
 
 {% block title %}Добро пожаловать | LLT English{% endblock %}
@@ -64,6 +64,21 @@
           <span class="onboarding-level-btn__desc">Понимаю сложные тексты и фильмы</span>
         </button>
       </div>
+
+      {% if placement_enabled %}
+      <div class="onboarding-placement" id="placementBlock">
+        <div class="onboarding-placement__divider">или</div>
+        <button type="button" class="onboarding-placement__start" id="placementStartBtn">
+          🎯 Не уверены? Пройти тест на уровень (≈2 минуты)
+        </button>
+        <div class="onboarding-placement__panel" id="placementPanel" hidden>
+          <div class="onboarding-placement__progress" id="placementProgress"></div>
+          <div class="onboarding-placement__question" id="placementQuestion"></div>
+          <div class="onboarding-placement__options" id="placementOptions"></div>
+          <div class="onboarding-placement__result" id="placementResult" hidden></div>
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     <!-- Step 2: Focus selection -->
@@ -154,5 +169,5 @@
 </div>
 
 
-<script src="{{ url_for('static', filename='js/onboarding/wizard.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/onboarding/wizard.js') }}?v=2"></script>
 {% endblock %}
