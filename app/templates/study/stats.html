@@ -85,8 +85,18 @@
         </div>
     </div>
 
+    {% if difficult_words_count %}
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 0.8rem 1.1rem; margin-bottom: 1rem;">
+      <div style="font-size: 0.9rem; color: #92400e;">
+        🧗 {{ _('Трудные слова') }}: <strong>{{ difficult_words_count }}</strong> — {{ _('карточки, на которых вы спотыкаетесь') }}
+      </div>
+      <a href="{{ url_for('study.difficult_words') }}" style="font-weight: 600; font-size: 0.875rem; white-space: nowrap;">{{ _('Проработать') }} &rarr;</a>
+    </div>
+    {% endif %}
+
+    {% set forecast_total = review_forecast | sum(attribute='count') if review_forecast else 0 %}
     <!-- Charts Section -->
-    {% if accuracy_trend or mastered_over_time or study_heatmap.data %}
+    {% if accuracy_trend or mastered_over_time or study_heatmap.data or forecast_total %}
     <div class="stats-charts slideUp" style="animation-delay: .15s">
         <!-- Accuracy Trend Chart -->
         {% if accuracy_trend %}
@@ -114,6 +124,21 @@
             </h3>
             <div class="stats-chart-card__canvas-wrap">
                 <canvas id="mastered-over-time-chart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Review Forecast -->
+        {% if forecast_total %}
+        <div class="stats-chart-card">
+            <h3 class="stats-chart-card__title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+                </svg>
+                {{ _('Прогноз повторений на неделю') }}
+            </h3>
+            <div class="stats-chart-card__canvas-wrap">
+                <canvas id="review-forecast-chart"></canvas>
             </div>
         </div>
         {% endif %}
@@ -514,6 +539,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 scales: {
                     y: {beginAtZero: true, ticks: {stepSize: 1}},
                     x: {ticks: {maxTicksLimit: 8}}
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // Review Forecast Chart
+    {% if forecast_total %}
+    const forecastCtx = document.getElementById('review-forecast-chart');
+    if (forecastCtx) {
+        const forecastData = {{ review_forecast | tojson }};
+        new Chart(forecastCtx, {
+            type: 'bar',
+            data: {
+                labels: forecastData.map((d, i) => {
+                    if (i === 0) return 'Сегодня';
+                    if (i === 1) return 'Завтра';
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'});
+                }),
+                datasets: [{
+                    label: 'Карточек к повторению',
+                    data: forecastData.map(d => d.count),
+                    backgroundColor: forecastData.map((d, i) =>
+                        i === 0 ? 'rgba(79, 70, 229, 0.85)' : 'rgba(79, 70, 229, 0.45)'),
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {display: false},
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `Карточек: ${ctx.parsed.y}` +
+                                (ctx.dataIndex === 0 ? ' (включая просроченные)' : '')
+                        }
+                    }
+                },
+                scales: {
+                    y: {beginAtZero: true, ticks: {precision: 0}},
                 }
             }
         });

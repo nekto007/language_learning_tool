@@ -334,13 +334,21 @@ def achievements():
         ach.xp_reward for ach in Achievement.query.all()
     )
 
+    from app.achievements.certificates import get_completed_levels
+    try:
+        level_certificates = get_completed_levels(current_user.id)
+    except Exception:
+        logger.exception("level certificates failed for user %s", current_user.id)
+        level_certificates = []
+
     return render_template(
         'study/achievements.html',
         achievements_by_category=data['by_category'],
         total_achievements=data['total_achievements'],
         earned_count=data['earned_count'],
         total_xp_available=total_xp_available,
-        earned_xp=data['total_xp_earned']
+        earned_xp=data['total_xp_earned'],
+        level_certificates=level_certificates,
     )
 
 

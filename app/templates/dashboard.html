@@ -430,6 +430,7 @@
                 <p class="dash-completion-summary__closing">{{ completion_summary.closing_message }}</p>
                 <button class="dash-completion-summary__share-btn"
                         data-share-text="{{ completion_summary.share_text }}"
+                        data-share-url="{{ url_for('auth.register', ref=current_user.referral_code, _external=True) if current_user.referral_code else url_for('auth.register', _external=True) }}"
                         data-action="share-day-results"
                         type="button" aria-label="Поделиться результатами дня">
                     Поделиться
@@ -1579,8 +1580,7 @@
     </div>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>
+{% block scripts %}<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>
 <script nonce="{{ csp_nonce }}">window.DASHBOARD_STREAK = {{ streak|default(0) }};</script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=1"></script>
 {% endblock %}

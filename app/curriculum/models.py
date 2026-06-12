@@ -1,6 +1,7 @@
 # app/curriculum/models.py
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import (
     JSON,
@@ -463,6 +464,10 @@ class UserWritingAttempt(db.Model):
     response_text = Column(db.Text, nullable=False)
     word_count = Column(Integer, nullable=False, default=0)
     checklist_completed = Column(db.Boolean, nullable=False, default=False)
+    # LanguageTool: NULL = проверка не выполнялась (сервер выключен/упал),
+    # 0 = проверено и чисто. matches — упрощённый список из app/utils/languagetool.py.
+    grammar_error_count = Column(Integer, nullable=True)
+    grammar_matches = Column(db.JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     __table_args__ = (
@@ -483,11 +488,14 @@ def save_writing_attempt(
     text: str,
     checklist_completed: bool,
     db_session,
+    grammar_check: 'Optional[dict]' = None,
 ) -> 'UserWritingAttempt':
     """Persist a writing attempt and return the new row.
 
     Word count is computed from the submitted text. Multiple attempts per
     lesson are allowed — each submission creates a new row.
+    ``grammar_check`` — результат ``app.utils.languagetool.check_text``
+    (None, когда проверка недоступна).
     Caller owns the commit.
     """
     if not text or not text.strip():
@@ -500,9 +508,39 @@ def save_writing_attempt(
         word_count=word_count,
         checklist_completed=checklist_completed,
     )
+    if grammar_check is not None:
+        attempt.grammar_error_count = grammar_check.get('error_count', 0)
+        attempt.grammar_matches = grammar_check.get('matches') or []
     db_session.session.add(attempt)
     db_session.session.flush()
     return attempt
+
+
+class ModuleTestOut(db.Model):
+    """Попытка сдать модуль экстерном (test-out).
+
+    Прошедший тест получает массовый LessonProgress completed по урокам
+    модуля — спайн и prerequisites видят модуль завершённым. XP за экстерн
+    не начисляется (экономия времени, не фарм).
+    """
+    __tablename__ = 'module_test_outs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    module_id = Column(Integer, ForeignKey('modules.id', ondelete='CASCADE'), nullable=False)
+    score = Column(Float, nullable=False, default=0.0)
+    passed = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_module_test_outs_user_module', 'user_id', 'module_id', 'created_at'),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f'<ModuleTestOut user={self.user_id} module={self.module_id} '
+            f'score={self.score} passed={self.passed}>'
+        )
 
 
 class WordCollocation(db.Model):

@@ -176,9 +176,23 @@
   <div class="lesson-shell__result writing-prompt-result" id="writing-result"
        role="status" aria-live="polite" aria-atomic="true" hidden>
     <div id="result-message"></div>
+    <div id="grammar-feedback" class="wp-grammar" hidden></div>
     <div id="writing-next-area" style="margin-top: 1rem;"></div>
   </div>
 </section>
+
+<style nonce="{{ csp_nonce }}">
+.wp-grammar { margin-top: 1rem; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1rem; background: #fff; text-align: left; }
+.wp-grammar__title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem; }
+.wp-grammar__title--clean { color: #166534; }
+.wp-grammar__text { font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; background: #f8fafc; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.65rem; }
+.wp-grammar__mark { background: #fee2e2; color: #b91c1c; border-radius: 3px; padding: 0 2px; cursor: help; }
+.wp-grammar__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.wp-grammar__item { font-size: 0.82rem; line-height: 1.45; border-left: 3px solid #fca5a5; padding-left: 0.6rem; }
+.wp-grammar__cat { display: inline-block; background: #f1f5f9; color: #475569; border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.7rem; font-weight: 600; margin-right: 0.35rem; }
+.wp-grammar__fix { color: #166534; }
+.wp-grammar__disclaimer { font-size: 0.72rem; color: #94a3b8; margin-top: 0.6rem; }
+</style>
 
 <script nonce="{{ csp_nonce }}">
 const lessonId = {{ lesson.id }};
@@ -451,6 +465,76 @@ async function submitWriting() {
   }
 }
 
+function renderGrammarFeedback(grammar) {
+  const box = document.getElementById('grammar-feedback');
+  if (!box) return;
+  box.hidden = true;
+  box.textContent = '';
+  if (!grammar || !grammar.checked) return;
+
+  const title = document.createElement('div');
+  title.className = 'wp-grammar__title';
+
+  if (!grammar.error_count) {
+    title.classList.add('wp-grammar__title--clean');
+    title.textContent = '✓ {{ _("Грамматических замечаний не найдено — отличный текст!") }}';
+    box.appendChild(title);
+    box.hidden = false;
+    return;
+  }
+
+  title.textContent = '{{ _("Замечания по тексту") }}: ' + grammar.error_count;
+  box.appendChild(title);
+
+  // Подсветка по offset/length в том же тексте, что ушёл на сервер (trim).
+  const text = document.getElementById('writing-response').value.trim();
+  const matches = (grammar.matches || []).slice().sort((a, b) => a.offset - b.offset);
+  const para = document.createElement('div');
+  para.className = 'wp-grammar__text';
+  let pos = 0;
+  matches.forEach(m => {
+    if (m.offset < pos || m.offset + m.length > text.length) return;
+    para.appendChild(document.createTextNode(text.slice(pos, m.offset)));
+    const mark = document.createElement('mark');
+    mark.className = 'wp-grammar__mark';
+    mark.textContent = text.slice(m.offset, m.offset + m.length);
+    mark.title = m.message || '';
+    para.appendChild(mark);
+    pos = m.offset + m.length;
+  });
+  para.appendChild(document.createTextNode(text.slice(pos)));
+  box.appendChild(para);
+
+  const list = document.createElement('ul');
+  list.className = 'wp-grammar__list';
+  matches.forEach(m => {
+    const li = document.createElement('li');
+    li.className = 'wp-grammar__item';
+    if (m.category_label) {
+      const cat = document.createElement('span');
+      cat.className = 'wp-grammar__cat';
+      cat.textContent = m.category_label;
+      li.appendChild(cat);
+    }
+    li.appendChild(document.createTextNode(m.message || m.short_message || ''));
+    if (m.replacements && m.replacements.length) {
+      const fix = document.createElement('div');
+      fix.className = 'wp-grammar__fix';
+      fix.textContent = '→ ' + m.replacements.join(' / ');
+      li.appendChild(fix);
+    }
+    list.appendChild(li);
+  });
+  box.appendChild(list);
+
+  const disclaimer = document.createElement('div');
+  disclaimer.className = 'wp-grammar__disclaimer';
+  disclaimer.textContent = '{{ _("Автоматическая проверка LanguageTool — возможны ложные срабатывания.") }}';
+  box.appendChild(disclaimer);
+
+  box.hidden = false;
+}
+
 function showResult(data) {
   const resultArea = document.getElementById('writing-result');
   const nextArea = document.getElementById('writing-next-area');
@@ -488,6 +572,8 @@ function showResult(data) {
     }
     _setResultBadge('neutral', '<i class="fas fa-info-circle"></i>', hint, null);
   }
+
+  renderGrammarFeedback(data.grammar);
 
   resultArea.hidden = false;
   resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -185,7 +185,7 @@
 
   <!-- Share -->
   <div style="margin-bottom: 1rem;">
-    {% set share_url = 'https://llt-english.com/grammar-lab/topic/' ~ topic.slug %}
+    {% set share_url = url_for('grammar_lab.topic_detail', slug=topic.slug, _external=True) %}
     {% set share_text = topic.title ~ ' (' ~ topic.title_ru ~ ') — Grammar Lab | LLT English' %}
     {% include 'components/share_buttons.html' %}
   </div>
@@ -698,9 +698,6 @@
 {% endblock %}
 
 {% block scripts %}
-{% if not current_user.is_authenticated %}
-<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
-{% endif %}
 <script nonce="{{ csp_nonce }}">
 const topicId = {{ topic.id }};
 </script>

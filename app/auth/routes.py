@@ -585,6 +585,9 @@ def profile_update():
         current_user.notify_in_app_streaks = 'notify_in_app_streaks' in request.form
         current_user.notify_in_app_weekly = 'notify_in_app_weekly' in request.form
 
+    elif section == 'privacy':
+        current_user.profile_is_public = 'profile_is_public' in request.form
+
     try:
         db.session.commit()
         flash('Настройки сохранены.', 'success')
@@ -679,6 +682,16 @@ def referrals():
     )
 
 
+def _public_page_visible(user: User) -> bool:
+    """Скрытый профиль виден только владельцу и админам (для остальных — 404)."""
+    if user.profile_is_public:
+        return True
+    return (
+        current_user.is_authenticated
+        and (current_user.id == user.id or current_user.is_admin)
+    )
+
+
 @auth.route('/u/<username>', strict_slashes=False)
 def public_profile(username: str):
     """Public user achievement showcase — no login required."""
@@ -691,7 +704,7 @@ def public_profile(username: str):
     from app.telegram.queries import get_current_streak
 
     user = User.query.filter_by(username=username, active=True).first()
-    if not user:
+    if not user or not _public_page_visible(user):
         abort(404)
 
     # XP and level — read canonical UserStatistics.total_xp
@@ -742,7 +755,7 @@ def public_streak(username: str):
     from app.achievements.streak_service import get_streak_calendar
 
     user = User.query.filter_by(username=username, active=True).first()
-    if not user:
+    if not user or not _public_page_visible(user):
         abort(404)
 
     calendar = get_streak_calendar(user.id, days=90)
@@ -757,6 +770,50 @@ def public_streak(username: str):
         profile_user=user,
         calendar=calendar,
         meta_description=meta_description,
+    )
+
+
+def _certificate_or_404(username: str, level_code: str):
+    """Юзер + данные завершённого уровня; 404 при приватности/незавершённости."""
+    from flask import abort
+
+    from app.achievements.certificates import get_completed_level
+
+    user = User.query.filter_by(username=username, active=True).first()
+    if not user or not _public_page_visible(user):
+        abort(404)
+    cert = get_completed_level(user.id, level_code)
+    if cert is None:
+        abort(404)
+    return user, cert
+
+
+@auth.route('/u/<username>/certificate/<level_code>', strict_slashes=False)
+def public_certificate(username: str, level_code: str):
+    """Публичная страница сертификата уровня — шарящийся артефакт."""
+    user, cert = _certificate_or_404(username, level_code)
+    return render_template(
+        'achievements/certificate_public.html',
+        profile_user=user,
+        cert=cert,
+    )
+
+
+@auth.route('/u/<username>/certificate/<level_code>.png')
+def public_certificate_png(username: str, level_code: str):
+    """PNG-сертификат 1200x630 — og:image публичной страницы."""
+    from flask import Response
+
+    from app.achievements.certificates import render_certificate_png
+
+    user, cert = _certificate_or_404(username, level_code)
+    png = render_certificate_png(
+        user.username, cert['code'], cert['name'], cert['completed_at']
+    )
+    return Response(
+        png,
+        mimetype='image/png',
+        headers={'Cache-Control': 'public, max-age=3600'},
     )
 
 

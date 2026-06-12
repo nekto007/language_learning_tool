@@ -139,5 +139,8 @@ REVIEW_THRESHOLD_REPETITIONS = 3  # After 3 successful repetitions
 # Mature: word is well-known but still being reviewed
 MATURE_THRESHOLD_DAYS = 21
 
-# Mastered: word is fully learned and needs only rare reviews
-MASTERED_THRESHOLD_DAYS = 180
+# Mastered: word reached the maximum review interval (the deliberate cap).
+# Tied to MAX_REVIEW_INTERVAL_DAYS so "mastered" is actually reachable through
+# normal SM-2 review — with a 60-day review ceiling a 180-day threshold could
+# only ever be hit via the explicit "I already know" shortcut.
+MASTERED_THRESHOLD_DAYS = MAX_REVIEW_INTERVAL_DAYS

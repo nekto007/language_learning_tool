@@ -185,6 +185,17 @@
         <span class="pf-link__arrow">&rsaquo;</span>
       </a>
     </div>
+    <form method="POST" action="{{ url_for('auth.profile_update') }}" style="margin-top: 0.75rem;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="privacy">
+      <div class="pf-toggle">
+        <label class="pf-toggle__label" for="profile_is_public">{{ _('Профиль и стрик видны всем') }}</label>
+        <input type="checkbox" name="profile_is_public" id="profile_is_public"
+               {% if user.profile_is_public %}checked{% endif %}>
+      </div>
+      <p style="font-size: 0.78rem; color: var(--pf-text-muted); margin: 0.25rem 0 0.6rem;">{{ _('Если выключить, публичные страницы будут видны только вам.') }}</p>
+      <button type="submit" class="pf-btn">{{ _('Сохранить') }}</button>
+    </form>
   </div>
 
   {# Links #}

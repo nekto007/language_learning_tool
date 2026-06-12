@@ -59,6 +59,13 @@
                     {% if item.lesson.type == 'writing_prompt' %}чеклист{% else %}сдано{% endif %}
                 </span>
                 {% endif %}
+                {% if item.attempt.grammar_error_count is not none %}
+                {% if item.attempt.grammar_error_count == 0 %}
+                <span style="display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.72rem; font-weight: 600; color: #166534; background: #dcfce7; border-radius: 999px; padding: 0.1rem 0.5rem;">✓ грамматика ок</span>
+                {% else %}
+                <span style="display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.72rem; font-weight: 600; color: #b91c1c; background: #fee2e2; border-radius: 999px; padding: 0.1rem 0.5rem;">замечаний: {{ item.attempt.grammar_error_count }}</span>
+                {% endif %}
+                {% endif %}
             </div>
             {% if item.prompt %}
             <div class="writing-history__prompt">{{ item.prompt }}</div>

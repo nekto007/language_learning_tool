@@ -105,6 +105,12 @@
 </style>
 
 <div class="prof-page">
+  {% if not profile_user.profile_is_public %}
+  <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.875rem; color: #92400e;">
+    🔒 Профиль скрыт настройками приватности — его видите только вы.
+    <a href="{{ url_for('auth.profile') }}" style="color: #92400e; font-weight: 600;">Изменить</a>
+  </div>
+  {% endif %}
   <div class="prof-hero">
     <div class="prof-hero__avatar">{{ profile_user.username[0]|upper }}</div>
     <h1 class="prof-hero__name">{{ profile_user.username }}</h1>
@@ -147,8 +153,8 @@
   </div>
 
   <div class="prof-share">
-    {% set share_url = 'https://llt-english.com/u/' ~ profile_user.username %}
-    {% set share_text = profile_user.username ~ ' — Level ' ~ level ~ ', ' ~ streak ~ '-day streak на LLT English' %}
+    {% set share_url = url_for('auth.public_profile', username=profile_user.username, _external=True) %}
+    {% set share_text = profile_user.username ~ ' — уровень ' ~ level ~ ', стрик ' ~ streak ~ ' дн. на LLT English' %}
     {% include 'components/share_buttons.html' %}
   </div>
 

@@ -54,6 +54,9 @@ class User(db.Model, UserMixin):
     notify_in_app_streaks = Column(Boolean, default=True, nullable=False, server_default='true')
     notify_in_app_weekly = Column(Boolean, default=True, nullable=False, server_default='true')
 
+    # Privacy: публичные страницы /u/<username> и /streak/<username>
+    profile_is_public = Column(Boolean, default=True, nullable=False, server_default='true')
+
     # Daily plan: legacy mission-based plan feature flag.
     # Deprecated — kept for backward compat with existing rows and admin UI.
     # The router no longer reads it; unified plan is the only active mode.

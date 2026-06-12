@@ -219,3 +219,65 @@ def count_reviews_today(user_id: int, db: Any = _db, now_utc: Optional[datetime]
         .scalar()
         or 0
     )
+
+
+def get_review_forecast(
+    user_id: int,
+    days: int = 7,
+    db: Any = _db,
+    now_utc: Optional[datetime] = None,
+) -> list:
+    """Forecast of review-card counts per user-local day, starting today.
+
+    Returns ``[{'date': 'YYYY-MM-DD', 'count': N}, ...]`` of length ``days``.
+    Bucket 0 absorbs everything overdue (next_review in the past). A buried
+    card lands in the bucket of ``max(next_review, buried_until)`` — that's
+    when it actually becomes reviewable. Day boundaries come from
+    ``day_to_naive_utc`` so the forecast matches the due-counters above.
+    """
+    from datetime import date as _date, timedelta
+
+    from app.utils.time_utils import get_user_local_date
+
+    if days <= 0:
+        return []
+
+    boundaries = [
+        day_to_naive_utc(user_id, db, days_ahead=k, now_utc=now_utc)
+        for k in range(1, days + 1)
+    ]
+    horizon = boundaries[-1]
+
+    rows = (
+        db.session.query(UserCardDirection.next_review, UserCardDirection.buried_until)
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserCardDirection.state.in_(
+                (
+                    CardState.LEARNING.value,
+                    CardState.RELEARNING.value,
+                    CardState.REVIEW.value,
+                )
+            ),
+            UserCardDirection.next_review.isnot(None),
+            UserCardDirection.next_review < horizon,
+        )
+        .all()
+    )
+
+    counts = [0] * days
+    for next_review, buried_until in rows:
+        effective = next_review
+        if buried_until is not None and buried_until > effective:
+            effective = buried_until
+        for k, boundary in enumerate(boundaries):
+            if effective < boundary:
+                counts[k] += 1
+                break
+
+    local_today: _date = get_user_local_date(user_id, db)
+    return [
+        {'date': (local_today + timedelta(days=k)).isoformat(), 'count': counts[k]}
+        for k in range(days)
+    ]

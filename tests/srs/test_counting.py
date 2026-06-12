@@ -11,6 +11,7 @@ from app.srs.counting import (
     count_new_cards_today,
     count_reviews_today,
     get_new_card_budget,
+    get_review_forecast,
 )
 from app.study.models import StudySettings
 from app.study.models import UserCardDirection, UserWord
@@ -605,3 +606,56 @@ class TestDueCardBudget:
         assert item.data['learning_due'] == 30      # raw backlog
         assert item.data['learning_show'] == 20      # capped by reviews_per_day
         assert item.data['total_show'] == 20
+
+
+class TestGetReviewForecast:
+    def test_overdue_lands_in_today(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, next_review=_now_naive() - timedelta(days=3))
+        forecast = get_review_forecast(user.id, days=7)
+        assert len(forecast) == 7
+        assert forecast[0]['count'] == 1
+        assert sum(d['count'] for d in forecast) == 1
+
+    def test_future_card_in_correct_bucket(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, next_review=_now_naive() + timedelta(days=3))
+        forecast = get_review_forecast(user.id, days=7)
+        bucket = next(i for i, d in enumerate(forecast) if d['count'] == 1)
+        assert bucket in (2, 3, 4)  # допускаем сдвиг на границе локального дня
+
+    def test_beyond_horizon_excluded(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, next_review=_now_naive() + timedelta(days=30))
+        forecast = get_review_forecast(user.id, days=7)
+        assert sum(d['count'] for d in forecast) == 0
+
+    def test_bury_shifts_bucket(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(
+            db_session, uw,
+            next_review=_now_naive() - timedelta(days=1),
+            buried_until=_now_naive() + timedelta(days=4),
+        )
+        forecast = get_review_forecast(user.id, days=7)
+        assert forecast[0]['count'] == 0
+        bucket = next(i for i, d in enumerate(forecast) if d['count'] == 1)
+        assert bucket in (3, 4, 5)
+
+    def test_new_state_excluded(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, state=CardState.NEW.value, next_review=_now_naive())
+        forecast = get_review_forecast(user.id, days=7)
+        assert sum(d['count'] for d in forecast) == 0
+
+    def test_stats_page_includes_forecast(self, authenticated_client, db_session, test_user):
+        uw = _make_user_word(db_session, test_user, _make_word(db_session))
+        _make_direction(db_session, uw, next_review=_now_naive() + timedelta(days=2))
+        resp = authenticated_client.get('/study/stats')
+        assert resp.status_code == 200
+        assert b'review-forecast-chart' in resp.data

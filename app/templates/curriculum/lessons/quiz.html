@@ -7,6 +7,15 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/quiz.css') }}?v=1">
+<style nonce="{{ csp_nonce }}">
+  /* A11Y: respect prefers-reduced-motion — suppress quiz result/modal animations */
+  @media (prefers-reduced-motion: reduce) {
+    .quiz-lesson *,
+    .quiz-results-compact,
+    .quiz-reset-modal,
+    .quiz-reset-modal__dialog { animation: none !important; }
+  }
+</style>
 {% endblock %}
 
 
@@ -1743,7 +1752,7 @@ window.QuizApp = {
     }
     
     // Scroll to results
-    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    resultsDiv.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
     
     // Show navigation buttons with delay to ensure DOM is ready
     setTimeout(() => {

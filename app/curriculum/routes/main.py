@@ -446,6 +446,30 @@ def learn_by_module(level_code, module_number):
                     'current_pct': pct,
                 }
 
+    # Экстерн доступен на открытом, не завершённом модуле с достаточным
+    # пулом вопросов. Дешёвый путь: completion из уже загруженного
+    # прогресса, вопросы из eager-loaded уроков, +1 query на попытки —
+    # страница модуля держит бюджет запросов (test_n1_performance).
+    test_out_available = False
+    if module_lock_reason is None:
+        try:
+            from app.curriculum.services.test_out import (
+                TEST_OUT_MIN_QUESTIONS,
+                collect_module_questions,
+                test_out_attempts_block,
+            )
+            completed_count = sum(
+                1 for p in user_lesson_progress.values() if p.status == 'completed'
+            )
+            if (
+                completed_count < len(sorted_lessons)
+                and len(collect_module_questions(module)) >= TEST_OUT_MIN_QUESTIONS
+                and not test_out_attempts_block(current_user.id, module.id, db)
+            ):
+                test_out_available = True
+        except Exception:
+            logger.exception("test-out state failed for module %s", module.id)
+
     return render_template(
         'curriculum/module_lessons.html',
         module=module,
@@ -453,6 +477,7 @@ def learn_by_module(level_code, module_number):
         user_lesson_progress=user_lesson_progress,
         module_lock_reason=module_lock_reason,
         admin_preview=getattr(current_user, 'is_admin', False),
+        test_out_available=test_out_available,
     )
 
 

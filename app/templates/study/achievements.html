@@ -66,9 +66,29 @@
   <div class="ach-share">
     <span class="ach-share__label">Поделиться достижениями:</span>
     {% set share_text = "Я получил " ~ earned_count ~ " из " ~ total_achievements ~ " достижений и заработал " ~ earned_xp ~ " XP!" %}
-    {% set share_url = url_for('auth.register', _external=True) %}
+    {% set share_url = url_for('auth.public_profile', username=current_user.username, _external=True) %}
     {% include 'components/share_buttons.html' with context %}
   </div>
+
+  {% if level_certificates %}
+  <!-- Level Certificates -->
+  <div style="margin: 1.25rem 0;">
+    <h2 style="font-size: 1.05rem; font-weight: 700; margin: 0 0 0.7rem;">🎓 Сертификаты уровней</h2>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      {% for cert in level_certificates %}
+      <a href="{{ url_for('auth.public_certificate', username=current_user.username, level_code=cert.code) }}"
+         style="display: flex; flex-direction: column; gap: 0.2rem; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.8rem 1.1rem; text-decoration: none; min-width: 150px; background: #fff;">
+        <span style="font-size: 1.25rem; font-weight: 800; color: #4f46e5;">{{ cert.code }}</span>
+        <span style="font-size: 0.8rem; color: #475569;">{{ cert.name }}</span>
+        {% if cert.completed_at %}
+        <span style="font-size: 0.72rem; color: #94a3b8;">{{ cert.completed_at.strftime('%d.%m.%Y') }}</span>
+        {% endif %}
+        <span style="font-size: 0.78rem; color: #4f46e5; font-weight: 600; margin-top: 0.25rem;">Открыть и поделиться &rarr;</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Achievements by Category -->
   {% set category_names = {
@@ -199,4 +219,3 @@
 </div>
 
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/share.js') }}" defer></script>{% endblock %}

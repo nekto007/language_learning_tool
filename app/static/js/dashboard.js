@@ -261,16 +261,18 @@ document.addEventListener('click', function(e) {
     if (typeof shareVia === 'function') {
       var txt = t.getAttribute('data-share-text') || '';
       var ref = t.getAttribute('data-share-ref') || '';
-      shareVia('telegram', txt, window.location.origin + '/register?ref=' + ref);
+      shareVia('telegram', txt, window.location.origin + '/register?ref=' + encodeURIComponent(ref));
     }
   } else if (action === 'repair-streak') {
     if (typeof repairStreak === 'function') repairStreak();
   } else if (action === 'share-day-results') {
     var msg = t.getAttribute('data-share-text') || '';
-    var fallbackPrompt = function() { try { window.prompt('Скопируйте текст:', msg); } catch (e) {} };
+    var shareUrl = t.getAttribute('data-share-url') || '';
+    var fullText = shareUrl ? msg + ' ' + shareUrl : msg;
+    var fallbackPrompt = function() { try { window.prompt('Скопируйте текст:', fullText); } catch (e) {} };
     var copyToClipboard = function() {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(msg).then(function() {
+        navigator.clipboard.writeText(fullText).then(function() {
           t.textContent = 'Скопировано!';
           setTimeout(function() { t.textContent = 'Поделиться'; }, 2000);
         }).catch(fallbackPrompt);
@@ -279,7 +281,8 @@ document.addEventListener('click', function(e) {
       }
     };
     if (navigator.share) {
-      navigator.share({ text: msg }).catch(function(err) {
+      var payload = shareUrl ? { text: msg, url: shareUrl } : { text: msg };
+      navigator.share(payload).catch(function(err) {
         if (err && err.name === 'AbortError') return;
         copyToClipboard();
       });
