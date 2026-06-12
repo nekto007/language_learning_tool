@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ _('Экстерн') }}: {{ module.title }} | LLT English{% endblock %}
+
+{% block content %}
+<style nonce="{{ csp_nonce }}">
+.mto-page { max-width: 680px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+.mto-head__title { font-size: 1.4rem; font-weight: 800; margin: 0 0 0.3rem; }
+.mto-head__desc { font-size: 0.875rem; color: var(--text-muted, #64748b); margin: 0 0 1.25rem; }
+.mto-question { border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.9rem 1.1rem; margin-bottom: 0.85rem; background: #fff; }
+.mto-question__num { font-size: 0.72rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.3rem; }
+.mto-question__text { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.65rem; line-height: 1.5; }
+.mto-option { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.45rem 0.6rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+.mto-option:hover { background: #f8fafc; }
+.mto-option input { margin-top: 0.2rem; }
+.mto-submit { display: block; width: 100%; padding: 0.8rem; border: none; border-radius: 10px; background: var(--primary-600, #4f46e5); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; font-family: inherit; margin-top: 1rem; }
+.mto-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.mto-result { text-align: center; padding: 2rem 1rem; display: none; }
+.mto-result__emoji { font-size: 2.75rem; }
+.mto-result__score { font-size: 1.6rem; font-weight: 800; margin: 0.4rem 0; }
+.mto-result__note { color: var(--text-muted, #64748b); font-size: 0.9rem; margin-bottom: 1.25rem; }
+.mto-result__btn { display: inline-block; padding: 0.7rem 1.4rem; border-radius: 10px; background: var(--primary-600, #4f46e5); color: #fff; font-weight: 600; text-decoration: none; }
+.mto-result__btn:hover { color: #fff; background: var(--primary-700, #4338ca); }
+</style>
+
+<div class="mto-page">
+  <p style="font-size: 0.85rem;"><a href="{{ module_url }}">&larr; {{ module.title }}</a></p>
+
+  <div id="mto-form-area">
+    <h1 class="mto-head__title">{{ _('Сдать модуль экстерном') }}</h1>
+    <p class="mto-head__desc">
+      {{ _('Ответьте на вопросы по материалу модуля. Порог сдачи — ') }}{{ passing_score }}%.
+      {{ _('При сдаче все уроки модуля будут зачтены, и вы перейдёте дальше.') }}
+    </p>
+
+    {% for q in questions %}
+    {% set qi = loop.index0 %}
+    <div class="mto-question" data-index="{{ qi }}" data-type="{{ q.type }}">
+      <div class="mto-question__num">{{ _('Вопрос') }} {{ loop.index }} / {{ questions|length }}</div>
+      <div class="mto-question__text">{{ q.question }}</div>
+      {% for opt in q.options %}
+      <label class="mto-option">
+        <input type="radio" name="q{{ qi }}">
+        <span>{{ opt }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <button type="button" class="mto-submit" id="mto-submit" disabled>{{ _('Проверить') }}</button>
+  </div>
+
+  <div class="mto-result" id="mto-result">
+    <div class="mto-result__emoji" id="mto-result-emoji"></div>
+    <div class="mto-result__score" id="mto-result-score"></div>
+    <p class="mto-result__note" id="mto-result-note"></p>
+    <a class="mto-result__btn" id="mto-result-btn" href="{{ module_url }}"></a>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+  var questionEls = Array.prototype.slice.call(document.querySelectorAll('.mto-question'));
+  var submitBtn = document.getElementById('mto-submit');
+  var answers = {};
+
+  questionEls.forEach(function(qEl) {
+    var index = qEl.dataset.index;
+    var type = qEl.dataset.type;
+    var radios = qEl.querySelectorAll('input[type="radio"]');
+    radios.forEach(function(radio, optIdx) {
+      radio.name = 'q' + index;
+      radio.addEventListener('change', function() {
+        if (type === 'true_false') {
+          answers[index] = optIdx === 0 ? 'true' : 'false';
+        } else {
+          answers[index] = optIdx;
+        }
+        submitBtn.disabled = Object.keys(answers).length < questionEls.length;
+      });
+    });
+  });
+
+  submitBtn.addEventListener('click', function() {
+    submitBtn.disabled = true;
+    submitBtn.classList.add('btn--loading');
+    submitBtn.textContent = 'Проверка...';
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    fetch('{{ url_for('curriculum_lessons.module_test_out_submit', module_id=module.id) }}', {
+      method: 'POST',
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        csrfMeta && csrfMeta.content ? { 'X-CSRFToken': csrfMeta.content } : {}
+      ),
+      body: JSON.stringify({ answers: answers })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.success) {
+        submitBtn.classList.remove('btn--loading');
+        submitBtn.textContent = d.error === 'attempts_exhausted'
+          ? 'Лимит попыток на сегодня исчерпан'
+          : 'Ошибка — обновите страницу';
+        return;
+      }
+      document.getElementById('mto-form-area').style.display = 'none';
+      var result = document.getElementById('mto-result');
+      result.style.display = 'block';
+      document.getElementById('mto-result-emoji').textContent = d.passed ? '🎓' : '💪';
+      document.getElementById('mto-result-score').textContent =
+        Math.round(d.score) + '% (' + d.correct_answers + ' / ' + d.total_questions + ')';
+      document.getElementById('mto-result-note').textContent = d.passed
+        ? 'Модуль зачтён! Уроков закрыто: ' + d.completed_lessons + '. Продолжайте со следующего модуля.'
+        : 'Для сдачи нужно {{ passing_score }}%. Можно попробовать ещё раз или пройти модуль обычным порядком.';
+      var btn = document.getElementById('mto-result-btn');
+      btn.textContent = d.passed ? 'К курсу' : 'К модулю';
+      btn.href = d.module_url;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }).catch(function() {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('btn--loading');
+      submitBtn.textContent = 'Проверить';
+    });
+  });
+})();
+</script>
+{% endblock %}

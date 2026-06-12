@@ -516,6 +516,33 @@ def save_writing_attempt(
     return attempt
 
 
+class ModuleTestOut(db.Model):
+    """Попытка сдать модуль экстерном (test-out).
+
+    Прошедший тест получает массовый LessonProgress completed по урокам
+    модуля — спайн и prerequisites видят модуль завершённым. XP за экстерн
+    не начисляется (экономия времени, не фарм).
+    """
+    __tablename__ = 'module_test_outs'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    module_id = Column(Integer, ForeignKey('modules.id', ondelete='CASCADE'), nullable=False)
+    score = Column(Float, nullable=False, default=0.0)
+    passed = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        Index('idx_module_test_outs_user_module', 'user_id', 'module_id', 'created_at'),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f'<ModuleTestOut user={self.user_id} module={self.module_id} '
+            f'score={self.score} passed={self.passed}>'
+        )
+
+
 class WordCollocation(db.Model):
     """Collocation phrases associated with a vocabulary word."""
     __tablename__ = 'word_collocations'

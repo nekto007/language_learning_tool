@@ -2354,4 +2354,5 @@ import app.curriculum.routes.card_lessons  # noqa: E402, F401
 import app.curriculum.routes.grammar_quiz_lessons  # noqa: E402, F401
 
 # Import route modules to register their routes on lessons_bp
+import app.curriculum.routes.test_out  # noqa: E402, F401
 import app.curriculum.routes.vocabulary_lessons  # noqa: E402, F401

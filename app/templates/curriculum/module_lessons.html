@@ -100,6 +100,15 @@
         <div class="ml-hero__progress-fill" style="width: {{ progress_pct }}%"></div>
       </div>
     {% endif %}
+
+    {% if test_out_available|default(false) %}
+    <div style="margin-top: 0.9rem;">
+      <a href="{{ url_for('curriculum_lessons.module_test_out', module_id=module.id) }}"
+         style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.5rem 1rem; border-radius: 999px; border: 1.5px dashed rgba(255,255,255,0.6); color: inherit; font-size: 0.85rem; font-weight: 600; text-decoration: none;">
+        🎓 {{ _('Уже знаете это? Сдайте модуль экстерном') }}
+      </a>
+    </div>
+    {% endif %}
   </div>
 
   <!-- Lessons Section -->
