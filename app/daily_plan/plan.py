@@ -450,10 +450,6 @@ def get_daily_plan(
     # uncompleted. API layer recomputes from actual activity.
     day_secured = False
 
-    total_estimated_minutes = sum(
-        it.eta_minutes for it in required if not it.completed
-    )
-
     logger.info(
         "unified_plan_assemble user=%s done req=%d opt=%d setup=%d intensity=%s focus=%s",
         user_id, len(required), len(optional), len(setup), difficulty, focus or 'none',
@@ -467,6 +463,35 @@ def get_daily_plan(
         )
 
     required_dicts = [it.to_dict() for it in required]
+    optional_dicts = [it.to_dict() for it in optional]
+
+    # Pin the required composition to the day's snapshot so the plan the user
+    # saw in the morning is the plan they close in the evening. Fresh items
+    # whose kind appeared mid-day get demoted to optional instead of growing
+    # required. Graduated users have required=[] by design — nothing to pin.
+    if not graduated:
+        from app.daily_plan.snapshot import reconcile_required_with_snapshot
+
+        required_dicts, demoted = reconcile_required_with_snapshot(
+            user_id, required_dicts, session,
+        )
+        if demoted:
+            optional_ids = {it.get('id') for it in optional_dicts}
+            for item in demoted:
+                if item.get('id') in optional_ids:
+                    continue
+                item['section'] = 'optional'
+                optional_dicts.insert(0, item)
+            if len(optional_dicts) > OPTIONAL_MAX:
+                optional_dicts = optional_dicts[:OPTIONAL_MAX]
+                has_more_optional = True
+
+    # ETA from the reconciled list — carried/completed slots cost 0 minutes.
+    total_estimated_minutes = sum(
+        int(it.get('eta_minutes') or 0)
+        for it in required_dicts
+        if not it.get('completed')
+    )
 
     # Apply per-day skip state before serialising so the template sees
     # 'skipped'/'blocked' flags and the skip-quota annotation in one place.
@@ -487,7 +512,7 @@ def get_daily_plan(
         'progress': _level_progress_to_dict(level_progress),
         'module_progress': module_progress,
         'required': required_dicts,
-        'optional': [it.to_dict() for it in optional],
+        'optional': optional_dicts,
         'setup': [it.to_dict() for it in setup],
         'day_secured': day_secured,
         'total_estimated_minutes': total_estimated_minutes,

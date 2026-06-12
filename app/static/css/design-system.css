@@ -17205,6 +17205,28 @@ a.daily-plan__position--link:focus {
     font-size: 0.8125rem;
     color: var(--color-text-muted, #888);
 }
+/* Slot partial progress — «12 из 30 карточек» на текущем SRS-слоте. */
+.plan-item__slot-progress {
+    display: block;
+    height: 4px;
+    margin-top: 6px;
+    background: var(--color-surface-muted, #f0f0f0);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.plan-item__slot-progress-fill {
+    display: block;
+    height: 100%;
+    background: var(--color-brand, var(--primary-600));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+.plan-item__slot-progress-caption {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #888);
+}
 /* Pace forecast — «в этом темпе B1 ≈ к 20 августа» в шапке плана. */
 .daily-plan__forecast {
     margin: 2px 0 0;

@@ -1272,6 +1272,13 @@ def _render_unified_dashboard(tz: str):
     streak = get_current_streak(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
     unified_plan = get_daily_plan_unified(current_user.id, tz=tz) or {}
+    # Снапшот состава дня пишется flush-only при сборке — фиксируем его,
+    # иначе teardown откатит запись и план продолжит «плыть» между запросами.
+    try:
+        db.session.commit()
+    except Exception:
+        logger.warning('plan snapshot commit failed', exc_info=True)
+        db.session.rollback()
     plan_completion, _avail, steps_done, steps_total = compute_plan_steps(
         unified_plan, daily_summary
     )

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import JSON, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
@@ -24,6 +24,8 @@ class DailyPlanLog(db.Model):
     plan_date = Column(Date, nullable=False)
     mission_type = Column(String(20), nullable=True)
     secured_at = Column(DateTime, nullable=True)
+    # Снапшот состава required-секции на день (см. app/daily_plan/snapshot.py).
+    plan_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     user = relationship('User', backref='daily_plan_logs')

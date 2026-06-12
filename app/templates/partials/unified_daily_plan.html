@@ -355,6 +355,23 @@
                     <span class="plan-item__hint-text">{{ _item_data.get('reason_hint') }}</span>
                   </span>
                 {% endif %}
+                {# Частичный прогресс SRS: «12 из 30» со стабильным знаменателем
+                   (goal_total заморожен дневным снапшотом — живой total_show
+                   тает по мере ревью и превращал бы цель в «12 из 18»). #}
+                {% if _kind == 'srs' and _item_data.get('goal_total') %}
+                  {% set _srs_goal = _item_data.get('goal_total') %}
+                  {% set _srs_done = (_item_data.get('reviews_today') or 0) + (_item_data.get('new_today') or 0) %}
+                  {% if _srs_done > 0 and _srs_goal > 0 %}
+                    {% set _srs_done_capped = _srs_done if _srs_done < _srs_goal else _srs_goal %}
+                    {% set _srs_pct = ((_srs_done_capped / _srs_goal) * 100)|round|int %}
+                    <span class="plan-item__slot-progress" role="progressbar"
+                          aria-valuemin="0" aria-valuemax="{{ _srs_goal }}" aria-valuenow="{{ _srs_done_capped }}"
+                          aria-label="Карточек повторено">
+                      <span class="plan-item__slot-progress-fill" style="width: {{ _srs_pct }}%"></span>
+                    </span>
+                    <span class="plan-item__slot-progress-caption">{{ _srs_done_capped }} из {{ _srs_goal }} карточек</span>
+                  {% endif %}
+                {% endif %}
               </div>
               <div class="plan-item__actions">
                 <a class="plan-item__cta plan-item__cta--button" href="{{ _url }}">
