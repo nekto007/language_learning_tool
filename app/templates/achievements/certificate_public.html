@@ -1,0 +1,61 @@
+{% extends 'public_base.html' %}
+
+{% block title %}{{ profile_user.username }} — Сертификат {{ cert.code }} | LLT English{% endblock %}
+
+{% block meta_description %}<meta name="description" content="{{ profile_user.username }} успешно завершил(а) уровень английского {{ cert.code }} — {{ cert.name }} на LLT English.">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:title" content="{{ profile_user.username }} — Сертификат {{ cert.code }} | LLT English">
+<meta property="og:description" content="{{ profile_user.username }} успешно завершил(а) уровень английского {{ cert.code }} — {{ cert.name }} на LLT English.">
+<meta property="og:type" content="profile">
+<meta property="og:url" content="{{ request.base_url }}">
+{% endblock %}
+{% block og_image %}{{ url_for('auth.public_certificate_png', username=profile_user.username, level_code=cert.code, _external=True) }}{% endblock %}
+
+{% block head_extra %}
+<link rel="canonical" href="{{ url_for('auth.public_certificate', username=profile_user.username, level_code=cert.code, _external=True) }}">
+{% endblock %}
+
+{% block content %}
+<style>
+.cert-page { max-width: 760px; margin: 0 auto; padding: 1.5rem 1rem 3rem; text-align: center; }
+.cert-page__title { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.35rem; }
+.cert-page__sub { color: #64748b; font-size: 0.9rem; margin: 0 0 1.25rem; }
+.cert-page__img { width: 100%; max-width: 720px; height: auto; border-radius: 14px; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.18); }
+.cert-page__share { margin-top: 1.25rem; display: flex; justify-content: center; }
+.cert-page__profile-link { display: inline-block; margin-top: 1rem; font-size: 0.875rem; }
+.cert-cta { margin-top: 2rem; padding: 1.25rem; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
+.cert-cta__text { margin: 0 0 0.75rem; font-size: 0.95rem; }
+.cert-cta__btn { display: inline-block; padding: 0.65rem 1.4rem; border-radius: 10px; background: #2563eb; color: #fff; font-weight: 600; text-decoration: none; }
+.cert-cta__btn:hover { color: #fff; background: #1d4ed8; }
+.cert-hidden-note { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.875rem; color: #92400e; text-align: left; }
+</style>
+
+<div class="cert-page">
+  {% if not profile_user.profile_is_public %}
+  <div class="cert-hidden-note">🔒 Страница скрыта настройками приватности — её видите только вы.</div>
+  {% endif %}
+
+  <h1 class="cert-page__title">Сертификат уровня {{ cert.code }}</h1>
+  <p class="cert-page__sub">{{ profile_user.username }} завершил(а) все {{ cert.total_lessons }} уроков уровня {{ cert.code }} — {{ cert.name }}{% if cert.completed_at %} · {{ cert.completed_at.strftime('%d.%m.%Y') }}{% endif %}</p>
+
+  <img class="cert-page__img"
+       src="{{ url_for('auth.public_certificate_png', username=profile_user.username, level_code=cert.code) }}"
+       alt="Сертификат: {{ profile_user.username }} — уровень {{ cert.code }} ({{ cert.name }})">
+
+  <div class="cert-page__share">
+    {% set share_url = url_for('auth.public_certificate', username=profile_user.username, level_code=cert.code, _external=True) %}
+    {% set share_text = 'Я завершил(а) уровень английского ' ~ cert.code ~ ' — ' ~ cert.name ~ ' на LLT English! 🎓' %}
+    {% include 'components/share_buttons.html' %}
+  </div>
+
+  <a class="cert-page__profile-link" href="{{ url_for('auth.public_profile', username=profile_user.username) }}">Профиль {{ profile_user.username }} &rarr;</a>
+
+  {% if not current_user.is_authenticated %}
+  <div class="cert-cta">
+    <p class="cert-cta__text">Хотите так же? Учите английский по персональному плану.</p>
+    <a href="{{ url_for('auth.register') }}" class="cert-cta__btn">Начать бесплатно</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

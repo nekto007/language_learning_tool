@@ -773,6 +773,50 @@ def public_streak(username: str):
     )
 
 
+def _certificate_or_404(username: str, level_code: str):
+    """Юзер + данные завершённого уровня; 404 при приватности/незавершённости."""
+    from flask import abort
+
+    from app.achievements.certificates import get_completed_level
+
+    user = User.query.filter_by(username=username, active=True).first()
+    if not user or not _public_page_visible(user):
+        abort(404)
+    cert = get_completed_level(user.id, level_code)
+    if cert is None:
+        abort(404)
+    return user, cert
+
+
+@auth.route('/u/<username>/certificate/<level_code>', strict_slashes=False)
+def public_certificate(username: str, level_code: str):
+    """Публичная страница сертификата уровня — шарящийся артефакт."""
+    user, cert = _certificate_or_404(username, level_code)
+    return render_template(
+        'achievements/certificate_public.html',
+        profile_user=user,
+        cert=cert,
+    )
+
+
+@auth.route('/u/<username>/certificate/<level_code>.png')
+def public_certificate_png(username: str, level_code: str):
+    """PNG-сертификат 1200x630 — og:image публичной страницы."""
+    from flask import Response
+
+    from app.achievements.certificates import render_certificate_png
+
+    user, cert = _certificate_or_404(username, level_code)
+    png = render_certificate_png(
+        user.username, cert['code'], cert['name'], cert['completed_at']
+    )
+    return Response(
+        png,
+        mimetype='image/png',
+        headers={'Cache-Control': 'public, max-age=3600'},
+    )
+
+
 @auth.route('/unsubscribe', methods=['GET', 'POST'])
 def unsubscribe():
     """One-click email unsubscribe via token.
