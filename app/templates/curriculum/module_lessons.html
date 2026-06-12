@@ -243,7 +243,8 @@
 
             <div class="ml-lesson__action">
               {% if is_available %}
-                <a href="/learn/{{ lesson.id }}/"
+                <a href="/learn/{{ lesson.id }}/{% if is_completed %}?reset=true{% endif %}"
+                   {% if is_completed %}onclick="return confirm('{{ _('Сбросить результат и пройти урок заново?') }}');"{% endif %}
                    class="ml-lesson__btn {% if is_completed %}ml-lesson__btn--completed{% elif is_current %}ml-lesson__btn--current{% endif %}">
                   {% if is_completed %}
                     <span>{{ _('Повторить') }}</span>
