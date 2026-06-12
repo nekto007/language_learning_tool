@@ -71,6 +71,28 @@ def _count_writing_attempts_today(user_id: int) -> int:
         UserWritingAttempt.created_at >= today_start,
     ).count()
 
+
+def maybe_reset_lesson_progress(progress: 'LessonProgress | None') -> bool:
+    """Обработать ``?reset=true``: сброс прогресса для пересдачи урока.
+
+    Единая семантика кнопки «Повторить»: status → in_progress, score/data/
+    completed_at очищаются — урок рендерится как чистая попытка. SRS-прогресс
+    слов (UserCardDirection) не трогается; XP не дублируется (idempotent
+    dedup per (lesson, date)). Возвращает True, если сброс выполнен.
+    """
+    if request.args.get('reset') != 'true':
+        return False
+    if progress is None or progress.status not in ('completed', 'in_progress'):
+        return False
+    progress.status = 'in_progress'
+    progress.score = None
+    progress.data = None
+    progress.completed_at = None
+    progress.last_activity = datetime.now(UTC)
+    db.session.commit()
+    return True
+
+
 lessons_bp = Blueprint('curriculum_lessons', __name__)
 
 
@@ -726,6 +748,7 @@ def dictation_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+    maybe_reset_lesson_progress(progress)
     completed_result = None
     completed_gap_values = []
     if not progress:
@@ -913,6 +936,7 @@ def audio_fill_blank_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+    maybe_reset_lesson_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -1083,13 +1107,7 @@ def translation_lesson(lesson_id: int):
     # Прогресс отдельных слов в SRS отдельная история — он живёт в
     # UserCardDirection и не трогается. XP не дублируется (idempotent
     # dedup в maybe_award_curriculum_xp / writing_xp).
-    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
+    maybe_reset_lesson_progress(progress)
 
     if not progress:
         try:
@@ -1229,13 +1247,7 @@ def sentence_correction_lesson(lesson_id: int):
         lesson_id=lesson.id
     ).first()
 
-    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
+    maybe_reset_lesson_progress(progress)
 
     if not progress:
         try:
@@ -1431,13 +1443,7 @@ def writing_prompt_lesson(lesson_id: int):
         lesson_id=lesson.id
     ).first()
 
-    if request.args.get('reset') == 'true' and progress and progress.status in ('completed', 'in_progress'):
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
+    maybe_reset_lesson_progress(progress)
 
     if not progress:
         try:
@@ -1674,6 +1680,7 @@ def sentence_completion_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+    maybe_reset_lesson_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -1800,6 +1807,7 @@ def collocation_matching_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id,
     ).first()
+    maybe_reset_lesson_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -1909,6 +1917,7 @@ def shadow_reading_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id,
     ).first()
+    maybe_reset_lesson_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -2073,6 +2082,7 @@ def pronunciation_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id,
     ).first()
+    maybe_reset_lesson_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -2253,6 +2263,7 @@ def idiom_lesson(lesson_id: int):
         user_id=current_user.id,
         lesson_id=lesson.id,
     ).first()
+    maybe_reset_lesson_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(

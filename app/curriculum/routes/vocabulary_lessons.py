@@ -17,7 +17,7 @@ from app.curriculum.models import (
     save_annotation,
 )
 from app.curriculum.constants import PASSING_SCORE_DEFAULT
-from app.curriculum.routes.lessons import lessons_bp
+from app.curriculum.routes.lessons import lessons_bp, maybe_reset_lesson_progress
 from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson
 from app.curriculum.services.progress_service import ProgressService
@@ -410,6 +410,7 @@ def vocabulary_lesson(lesson_id):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+    maybe_reset_lesson_progress(progress)
 
     words = []
 
@@ -610,6 +611,7 @@ def matching_lesson(lesson_id):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+    maybe_reset_lesson_progress(progress)
 
     next_lesson = get_next_lesson(lesson.id)
 
@@ -677,6 +679,7 @@ def listening_immersion_lesson(lesson_id):
         user_id=current_user.id,
         lesson_id=lesson.id,
     ).first()
+    maybe_reset_lesson_progress(progress)
     if not progress:
         try:
             from datetime import UTC, datetime
@@ -766,6 +769,7 @@ def text_lesson(lesson_id):
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
+    maybe_reset_lesson_progress(progress)
 
     next_lesson = get_next_lesson(lesson.id)
 
