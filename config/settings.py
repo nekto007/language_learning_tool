@@ -235,6 +235,10 @@ class Config:
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 
+    # Self-hosted LanguageTool для грамматической проверки письма.
+    # Пусто → проверка выключена, writing-уроки работают без фидбека.
+    LANGUAGETOOL_URL = os.environ.get("LANGUAGETOOL_URL", "")
+
     SQLALCHEMY_ENGINE_OPTIONS = DEFAULT_SQLALCHEMY_ENGINE_OPTIONS
     SLOW_QUERY_MS: int = SLOW_QUERY_MS
     DEFAULT_TIMEZONE: str = DEFAULT_TIMEZONE

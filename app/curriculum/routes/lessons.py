@@ -1554,10 +1554,17 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     completed = meets_min and checklist_completed and target_phrases_met
     writing_score = round(len(valid_checked) / len(checklist) * 100) if checklist else 100
 
+    grammar_check = None
     if meets_min:
+        from app.utils.languagetool import check_text
+        # Best-effort: None при выключенном/упавшем LT — submit не блокируем.
+        grammar_check = check_text(response_text)
         try:
             with db.session.begin_nested():
-                save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db)
+                save_writing_attempt(
+                    user_id, lesson.id, response_text, checklist_completed, db,
+                    grammar_check=grammar_check,
+                )
                 db.session.flush()
         except Exception as save_err:
             logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
@@ -1634,6 +1641,12 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         'target_phrases_met': target_phrases_met,
         'matched_target_phrases': matched_target_phrases,
     }
+    if meets_min:
+        result['grammar'] = {
+            'checked': grammar_check is not None,
+            'error_count': grammar_check['error_count'] if grammar_check else None,
+            'matches': grammar_check['matches'] if grammar_check else [],
+        }
     if completed and example_response:
         result['example_response'] = example_response
 
