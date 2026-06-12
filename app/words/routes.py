@@ -1158,6 +1158,101 @@ def _build_day_secured_banner(linear_plan, plan_completion, streak):
         return None
 
 
+_RU_MONTHS_GEN = {
+    1: 'января', 2: 'февраля', 3: 'марта', 4: 'апреля', 5: 'мая', 6: 'июня',
+    7: 'июля', 8: 'августа', 9: 'сентября', 10: 'октября', 11: 'ноября', 12: 'декабря',
+}
+
+
+def _build_level_forecast(user_id: int, tz: str) -> dict | None:
+    """Forecast «выйдешь на следующий уровень ≈ к дате» for the plan header.
+
+    Hidden when velocity data is too thin (confidence=low) or the estimate
+    is unavailable — a jumping date demotivates more than no date at all.
+    """
+    from datetime import datetime, timedelta
+
+    import pytz
+
+    from app.study.insights_service import get_level_eta
+
+    eta = get_level_eta(user_id)
+    if not eta or eta.get('confidence') == 'low':
+        return None
+    weeks = eta.get('weeks_estimate')
+    if not weeks or weeks <= 0 or not eta.get('next_level'):
+        return None
+    try:
+        tzinfo = pytz.timezone(tz)
+    except pytz.UnknownTimeZoneError:
+        tzinfo = pytz.timezone(DEFAULT_TIMEZONE)
+    today_local = datetime.now(tzinfo).date()
+    target = today_local + timedelta(weeks=weeks)
+    date_text = f'{target.day} {_RU_MONTHS_GEN[target.month]}'
+    if target.year != today_local.year:
+        date_text += f' {target.year}'
+    return {
+        'current_level': eta.get('current_level'),
+        'next_level': eta.get('next_level'),
+        'weeks': weeks,
+        'date_text': date_text,
+    }
+
+
+def _build_weekly_report() -> dict | None:
+    """Monday recap card: last calendar week stats, dismissible per ISO week.
+
+    Shared by the legacy and unified dashboards. Returns None outside Monday,
+    when already dismissed this week, or when last week had no activity.
+    """
+    try:
+        import pytz as _pytz_wr
+
+        from datetime import datetime as _dt_wr, timedelta as _td_wr
+
+        _tz_wr_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
+        try:
+            _tz_wr = _pytz_wr.timezone(_tz_wr_name)
+        except Exception:
+            _tz_wr = _pytz_wr.timezone(DEFAULT_TIMEZONE)
+        _today_wr = _dt_wr.now(_tz_wr).date()
+        if _today_wr.weekday() != 0:
+            return None
+        # ISO week key e.g. "2026-W19" — dismissed once per Monday session
+        _week_key = _today_wr.strftime('%G-W%V')
+        _dismissed_key = f'weekly_report_dismissed_{_week_key}'
+        if session.get(_dismissed_key):
+            return None
+        from app.study.insights_service import get_last_week_summary
+        report = _safe_widget_call(
+            'last_week_summary',
+            get_last_week_summary,
+            current_user.id,
+            _tz_wr_name,
+            default=None,
+        )
+        if not report or not report.get('has_activity'):
+            return None
+        report['dismiss_key'] = _dismissed_key
+        # get_last_week_summary не возвращает week_label — собираем здесь
+        # («19–25 мая» / «28 апреля – 4 мая»), легаси-шаблон рендерил пустоту.
+        last_monday = _today_wr - _td_wr(days=7)
+        last_sunday = _today_wr - _td_wr(days=1)
+        if last_monday.month == last_sunday.month:
+            report['week_label'] = (
+                f'{last_monday.day}–{last_sunday.day} {_RU_MONTHS_GEN[last_sunday.month]}'
+            )
+        else:
+            report['week_label'] = (
+                f'{last_monday.day} {_RU_MONTHS_GEN[last_monday.month]} – '
+                f'{last_sunday.day} {_RU_MONTHS_GEN[last_sunday.month]}'
+            )
+        return report
+    except Exception:
+        logger.warning('weekly_report build failed', exc_info=True)
+        return None
+
+
 def _render_unified_dashboard(tz: str):
     """Render the two-column dashboard for unified-plan users.
 
@@ -1281,9 +1376,21 @@ def _render_unified_dashboard(tz: str):
         'goal_label': 'слов',
     }
 
-    minutes_left = int(unified_plan.get('total_estimated_minutes', 0) or 0)
+    # Live remaining minutes: assembly-time total_estimated_minutes ignores
+    # slots credited later via plan_completion (normalised above), so re-sum
+    # eta over the still-incomplete required items.
+    minutes_left = sum(
+        int(_it.get('eta_minutes') or 0)
+        for _it in (unified_plan.get('required') or [])
+        if not _it.get('completed')
+    )
     if steps_total and steps_done >= steps_total:
         subtitle = 'Минимум на сегодня выполнен — продолжайте, если есть силы'
+    elif steps_total and steps_total - steps_done == 1:
+        subtitle = 'Остался 1 шаг'
+        if minutes_left:
+            subtitle += f' · ~{minutes_left} мин'
+        subtitle += ' — и день закрыт'
     elif steps_total:
         subtitle = f'{steps_done} из {steps_total} шагов'
         if minutes_left:
@@ -1315,6 +1422,10 @@ def _render_unified_dashboard(tz: str):
     #   - rank_info → full-width band above the plan
     #   - achievements_by_category → right rail, below week rhythm
     #   - xp_leaderboard → left column, below «Показать ещё задания»
+    level_forecast = _safe_widget_call(
+        'level_forecast', _build_level_forecast, current_user.id, tz, default=None)
+    weekly_report = _build_weekly_report()
+
     rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
     try:
         from app.study.services.stats_service import StatsService
@@ -1340,6 +1451,8 @@ def _render_unified_dashboard(tz: str):
         focus=focus,
         week_rhythm=week_rhythm,
         challenge_card=challenge_card,
+        level_forecast=level_forecast,
+        weekly_report=weekly_report,
         rank_info=rank_info,
         xp_leaderboard=xp_leaderboard,
         user_xp_rank=user_xp_rank,
@@ -1728,35 +1841,7 @@ def dashboard():
     minutes_studied_today = _safe_widget_call(
         'study_minutes', get_minutes_today, current_user.id, _study_today, db, default=0)
 
-    weekly_report = None
-    try:
-        import pytz as _pytz_wr
-        _tz_wr_name = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
-        try:
-            _tz_wr = _pytz_wr.timezone(_tz_wr_name)
-        except Exception:
-            _tz_wr = _pytz_wr.timezone(DEFAULT_TIMEZONE)
-        _today_wr = datetime.now(_tz_wr).date()
-        _is_monday = _today_wr.weekday() == 0
-        if _is_monday:
-            # ISO week key e.g. "2026-W19" — dismissed once per Monday session
-            _week_key = _today_wr.strftime('%G-W%V')
-            _dismissed_key = f'weekly_report_dismissed_{_week_key}'
-            if not session.get(_dismissed_key):
-                from app.study.insights_service import get_last_week_summary
-                _lw = _safe_widget_call(
-                    'last_week_summary',
-                    get_last_week_summary,
-                    current_user.id,
-                    _tz_wr_name,
-                    default=None,
-                )
-                if _lw and _lw.get('has_activity'):
-                    weekly_report = _lw
-                    weekly_report['dismiss_key'] = _dismissed_key
-    except Exception:
-        logger.warning('weekly_report build failed', exc_info=True)
-        weekly_report = None
+    weekly_report = _build_weekly_report()
 
     today_challenge = None
     try:

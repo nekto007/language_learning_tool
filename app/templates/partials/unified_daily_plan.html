@@ -7,7 +7,6 @@
 {% set u_setup = unified_plan.get('setup') or [] %}
 {% set u_has_more = unified_plan.get('has_more_optional', false) %}
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
-{% set u_eta = unified_plan.get('total_estimated_minutes', 0) %}
 
 {# When reading focus is on AND a setup_book card is present, the user
    hasn't picked a book yet — surface setup ABOVE optional with a clear
@@ -71,22 +70,30 @@
 {# Resolve per-item completion + locate the first actionable required index.
    "Actionable" = not completed, not skipped, not blocked. Skipped items
    stay visible (with a return CTA) but don't count as current. #}
-{% set ns = namespace(done=0, skipped=0, current_idx=-1) %}
+{% set ns = namespace(done=0, skipped=0, current_idx=-1, eta_left=0) %}
 {% for item in u_required %}
     {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
     {% set _skipped = item.get('skipped', false) %}
     {% set _blocked = item.get('blocked', false) %}
     {% if _completed %}
         {% set ns.done = ns.done + 1 %}
-    {% elif _skipped %}
-        {% set ns.skipped = ns.skipped + 1 %}
-    {% elif ns.current_idx == -1 and not _blocked %}
-        {% set ns.current_idx = loop.index0 %}
+    {% else %}
+        {# Live remaining minutes: assembly-time total_estimated_minutes goes
+           stale once plan_completion credits a slot mid-day, so re-sum here.
+           Skipped slots still count — day_secured requires completing them. #}
+        {% set ns.eta_left = ns.eta_left + (item.get('eta_minutes') or 0) %}
+        {% if _skipped %}
+            {% set ns.skipped = ns.skipped + 1 %}
+        {% elif ns.current_idx == -1 and not _blocked %}
+            {% set ns.current_idx = loop.index0 %}
+        {% endif %}
     {% endif %}
 {% endfor %}
 {% set u_required_done = ns.done %}
 {% set u_required_total = u_required | length %}
 {% set u_current_idx = ns.current_idx %}
+{% set u_eta_left = ns.eta_left %}
+{% set u_required_left = u_required_total - u_required_done %}
 {# Bonus unlock = all required items either completed OR skipped. Skipped
    slots don't satisfy the streak/rank day_secured rule (server-side, by
    design), but they should still let the user open bonus exercises —
@@ -153,6 +160,44 @@
         Подбираем материал
       </span>
     {% endif %}
+
+    {# ── Pace forecast: превращает streak в видимое движение к цели.
+       Рендерится только при достаточной velocity-уверенности (роут отдаёт
+       None при confidence=low, чтобы дата не прыгала день ото дня). #}
+    {% if level_forecast is defined and level_forecast %}
+      <p class="daily-plan__forecast">
+        <span class="daily-plan__forecast-icon" aria-hidden="true">📈</span>
+        В этом темпе выйдешь на <strong>{{ level_forecast.next_level }}</strong> примерно к {{ level_forecast.date_text }}
+      </p>
+    {% endif %}
+
+    {# ── Goal chips: «что сегодня» одной строкой — по слоту required на чип,
+       сделанные гаснут. Даёт ощущение осмысленного набора навыков, а не
+       просто списка карточек. #}
+    {% if u_required %}
+      {% set goal_chip_labels = {
+          'srs': 'Слова',
+          'curriculum': 'Урок',
+          'reading': 'Чтение',
+          'listening': 'Аудирование',
+          'speaking': 'Речь',
+          'writing': 'Письмо',
+          'error_review': 'Ошибки',
+          'grammar_review': 'Грамматика',
+          'challenge': 'Челлендж',
+      } %}
+      <ul class="daily-plan__goals" aria-label="Сегодня в плане">
+        {% for item in u_required %}
+          {% set _gc_done = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
+          {% set _gc_kind = item.get('kind', '') %}
+          <li class="goal-chip{% if _gc_done %} goal-chip--done{% elif item.get('skipped', false) %} goal-chip--skipped{% endif %}">
+            {% if kind_icons.get(_gc_kind) %}<span class="goal-chip__icon" aria-hidden="true">{{ kind_icons[_gc_kind] }}</span>{% endif %}
+            <span class="goal-chip__label">{{ goal_chip_labels.get(_gc_kind) or item.get('title') }}</span>
+            {% if _gc_done %}<span class="goal-chip__check" aria-hidden="true">&#10003;</span><span class="visually-hidden">— выполнено</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
   </header>
 
   {# ── REQUIRED ── #}
@@ -163,8 +208,8 @@
         {% if u_required_total > 0 %}
           <span class="daily-plan__counter">· {{ u_required_done }}/{{ u_required_total }}</span>
         {% endif %}
-        {% if u_eta > 0 and not u_day_secured %}
-          <span class="daily-plan__eta">· ~{{ u_eta }} мин</span>
+        {% if u_eta_left > 0 and not u_day_secured %}
+          <span class="daily-plan__eta">· ~{{ u_eta_left }} мин</span>
         {% endif %}
       </h3>
     </div>
@@ -241,7 +286,20 @@
                   </span>
                 {% endif %}
                 <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
-                <span class="plan-item__lock-hint">Откроется после предыдущего шага</span>
+                {# Name the gating step instead of the vague «предыдущий шаг» —
+                   the user should know WHAT to finish to unlock this slot. #}
+                {% set _prev = u_required[loop.index0 - 1] if loop.index0 > 0 else None %}
+                {% set _prev_label = '' %}
+                {% if _prev %}
+                  {% if _prev.get('kind') == 'curriculum' %}
+                    {% set _prev_label = lesson_kind_labels.get(_prev.get('lesson_type'), 'Урок курса') %}
+                  {% elif _prev.get('kind') in kind_section_labels %}
+                    {% set _prev_label = kind_section_labels[_prev.get('kind')] %}
+                  {% else %}
+                    {% set _prev_label = _prev.get('title') or '' %}
+                  {% endif %}
+                {% endif %}
+                <span class="plan-item__lock-hint">{% if _prev_label %}Откроется после шага «{{ _prev_label }}»{% else %}Откроется после предыдущего шага{% endif %}</span>
               </div>
             {% elif _state == 'blocked' %}
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
@@ -332,10 +390,14 @@
           </li>
         {% endfor %}
       </ol>
-      {% if not u_day_secured and u_required_total > 0 %}
+      {% if not u_day_secured and u_required_left > 0 %}
         <p class="daily-plan__close-hint">
           <span class="daily-plan__close-hint-icon" aria-hidden="true">⏱</span>
-          День закроется после {% if u_required_total == 1 %}этого шага{% else %}этих {{ u_required_total }} {% if u_required_total < 5 %}шагов{% else %}шагов{% endif %}{% endif %}.
+          {% if u_required_left == 1 %}
+            Остался 1 шаг{% if u_eta_left %} · ~{{ u_eta_left }} мин{% endif %} — и день закрыт.
+          {% else %}
+            До зачёта дня: {{ u_required_left }} {% if u_required_left % 10 in (2, 3, 4) and u_required_left % 100 not in (12, 13, 14) %}шага{% else %}шагов{% endif %}{% if u_eta_left %} · ~{{ u_eta_left }} мин{% endif %}.
+          {% endif %}
         </p>
       {% else %}
         {# Celebration block — replaces the small green text with a card
@@ -461,7 +523,18 @@
               {% if _is_locked_any %}
                 <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
                 {% if _is_step_locked %}
-                  <span class="plan-item__lock-hint">Откроется после предыдущего шага</span>
+                  {% set _prev_opt = u_optional[loop.index0 - 1] if loop.index0 > 0 else None %}
+                  {% set _prev_opt_label = '' %}
+                  {% if _prev_opt %}
+                    {% if _prev_opt.get('kind') == 'curriculum' %}
+                      {% set _prev_opt_label = lesson_kind_labels.get(_prev_opt.get('lesson_type'), 'Урок курса') %}
+                    {% elif _prev_opt.get('kind') in kind_section_labels %}
+                      {% set _prev_opt_label = kind_section_labels[_prev_opt.get('kind')] %}
+                    {% else %}
+                      {% set _prev_opt_label = _prev_opt.get('title') or '' %}
+                    {% endif %}
+                  {% endif %}
+                  <span class="plan-item__lock-hint">{% if _prev_opt_label %}Откроется после шага «{{ _prev_opt_label }}»{% else %}Откроется после предыдущего шага{% endif %}</span>
                 {% endif %}
               {% elif _completed %}
                 {# Static span — completed item, see required-list rationale. #}

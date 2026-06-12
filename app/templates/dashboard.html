@@ -155,57 +155,8 @@
     </a>
     {% endif %}
 
-    <!-- Weekly Learning Report (task 78) — Monday recap of last week -->
-    {% if weekly_report is defined and weekly_report %}
-    {% set wr = weekly_report %}
-    <div class="dash-weekly-report" id="weekly-report-card" role="region" aria-label="Итоги прошлой недели" data-dismiss-key="{{ wr.dismiss_key }}">
-        <div class="dash-weekly-report__header">
-            <div class="dash-weekly-report__title">
-                <span aria-hidden="true">&#128197;</span> Итоги прошлой недели
-                <span class="dash-weekly-report__period">{{ wr.week_label }}</span>
-            </div>
-            <button type="button" class="dash-weekly-report__close" aria-label="Закрыть" data-action="dismiss-weekly-report">&times;</button>
-        </div>
-        <div class="dash-weekly-report__grid">
-            <div class="dash-weekly-report__stat">
-                <div class="dash-weekly-report__stat-value">{{ wr.words_reviewed }}</div>
-                <div class="dash-weekly-report__stat-label">слов повторено</div>
-                {% if wr.vs_prev_week.words_diff > 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.words_diff }}</div>
-                {% elif wr.vs_prev_week.words_diff < 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.words_diff }}</div>
-                {% endif %}
-            </div>
-            <div class="dash-weekly-report__stat">
-                <div class="dash-weekly-report__stat-value">{{ wr.lessons_completed }}</div>
-                <div class="dash-weekly-report__stat-label">уроков</div>
-                {% if wr.vs_prev_week.lessons_diff > 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.lessons_diff }}</div>
-                {% elif wr.vs_prev_week.lessons_diff < 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.lessons_diff }}</div>
-                {% endif %}
-            </div>
-            <div class="dash-weekly-report__stat">
-                <div class="dash-weekly-report__stat-value">{{ wr.days_secured }}</div>
-                <div class="dash-weekly-report__stat-label">дней выполнено</div>
-                {% if wr.vs_prev_week.days_diff > 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.days_diff }}</div>
-                {% elif wr.vs_prev_week.days_diff < 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.days_diff }}</div>
-                {% endif %}
-            </div>
-            <div class="dash-weekly-report__stat">
-                <div class="dash-weekly-report__stat-value">{{ wr.total_minutes }}</div>
-                <div class="dash-weekly-report__stat-label">минут</div>
-                {% if wr.vs_prev_week.minutes_diff > 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--up">+{{ wr.vs_prev_week.minutes_diff }}</div>
-                {% elif wr.vs_prev_week.minutes_diff < 0 %}
-                <div class="dash-weekly-report__diff dash-weekly-report__diff--down">{{ wr.vs_prev_week.minutes_diff }}</div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
+    <!-- Weekly Learning Report — Monday recap of last week -->
+    {% include 'partials/_weekly_report.html' %}
 
     <!-- Daily Plan -->
     <div id="dash-plan" class="dash-plan">
@@ -1582,5 +1533,5 @@
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}" defer></script>
 <script nonce="{{ csp_nonce }}">window.DASHBOARD_STREAK = {{ streak|default(0) }};</script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=2"></script>
 {% endblock %}

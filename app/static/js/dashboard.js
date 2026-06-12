@@ -16,22 +16,8 @@
             setTimeout(function () { flash.remove(); }, 2500);
         })();
 
-(function () {
-        var card = document.getElementById('weekly-report-card');
-        if (!card) return;
-        var btn = card.querySelector('[data-action="dismiss-weekly-report"]');
-        if (!btn) return;
-        btn.addEventListener('click', function () {
-            var key = card.getAttribute('data-dismiss-key');
-            fetch('/api/weekly-report/dismiss', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': (document.querySelector('meta[name=csrf-token]') || {}).content || ''},
-                body: JSON.stringify({dismiss_key: key}),
-                credentials: 'same-origin'
-            });
-            card.style.display = 'none';
-        });
-    })();
+/* Weekly-report dismiss handler живёт inline в partials/_weekly_report.html —
+   карточка теперь рендерится и на unified-дашборде, где этот файл не подключён. */
 
 async function repairStreak() {
     const btn = document.getElementById('repair-streak-btn');

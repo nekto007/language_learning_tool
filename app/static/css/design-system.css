@@ -17205,6 +17205,64 @@ a.daily-plan__position--link:focus {
     font-size: 0.8125rem;
     color: var(--color-text-muted, #888);
 }
+/* Pace forecast — «в этом темпе B1 ≈ к 20 августа» в шапке плана. */
+.daily-plan__forecast {
+    margin: 2px 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted, #888);
+}
+.daily-plan__forecast strong {
+    color: var(--color-brand, var(--primary-600));
+}
+.daily-plan__forecast-icon {
+    margin-right: 2px;
+}
+/* Goal chips — «что сегодня» одной строкой в шапке плана.
+   Один чип на required-слот; выполненные гаснут и получают галочку. */
+.daily-plan__goals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+}
+.goal-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border, #eaeaea);
+    background: var(--color-surface, #fff);
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--color-text, #222);
+    line-height: 1.4;
+}
+.goal-chip__icon {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+.goal-chip--done {
+    border-color: transparent;
+    background: var(--color-success-soft, #ecfdf5);
+    color: var(--color-success, #16a34a);
+}
+.goal-chip--done .goal-chip__label {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+.goal-chip__check {
+    font-weight: 700;
+}
+.goal-chip--skipped {
+    opacity: 0.55;
+}
+.goal-chip--skipped .goal-chip__label {
+    text-decoration: line-through dashed;
+    text-decoration-thickness: 1px;
+}
 
 .daily-plan__section { margin-bottom: 24px; }
 .daily-plan__section:last-child { margin-bottom: 0; }
