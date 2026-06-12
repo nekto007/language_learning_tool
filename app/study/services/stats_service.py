@@ -265,8 +265,8 @@ class StatsService:
                 User.id,
                 User.username,
                 func.count(QuizResult.id).label('games_played'),
-                func.avg(QuizResult.score).label('avg_score'),
-                func.max(QuizResult.score).label('best_score')
+                func.avg(QuizResult.score_percentage).label('avg_score'),
+                func.max(QuizResult.score_percentage).label('best_score')
             ).join(
                 QuizResult, User.id == QuizResult.user_id
             ).filter(
