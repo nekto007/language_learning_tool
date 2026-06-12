@@ -703,6 +703,9 @@ def stats():
     try:
         route_progress_state = get_route_state(current_user.id, steps_today, db.session)
     except Exception:
+        # rollback обязателен: без него abort'нутая транзакция валит ВСЕ
+        # последующие запросы страницы (InFailedSqlTransaction).
+        db.session.rollback()
         logger.exception("route_progress_state failed for user %s", current_user.id)
         route_progress_state = None
 
@@ -716,11 +719,13 @@ def stats():
     try:
         review_forecast = get_review_forecast(current_user.id, days=7)
     except Exception:
+        db.session.rollback()
         logger.exception("review_forecast failed for user %s", current_user.id)
         review_forecast = []
     try:
         difficult_words_count = len(get_difficult_words(current_user.id))
     except Exception:
+        db.session.rollback()
         logger.exception("difficult_words_count failed for user %s", current_user.id)
         difficult_words_count = 0
 
