@@ -49,6 +49,9 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
+      # LT доступен по имени сервиса внутри compose-сети; переопределяется
+      # через .env (пустое значение выключает проверку письма).
+      - LANGUAGETOOL_URL=${LANGUAGETOOL_URL:-http://languagetool:8010}
     networks:
       - app_network
 
@@ -72,6 +75,16 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     command: flask start-email-scheduler
+    networks:
+      - app_network
+
+  languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: language_learning_tool_languagetool
+    restart: always
+    environment:
+      - Java_Xms=512m
+      - Java_Xmx=1g
     networks:
       - app_network
 
