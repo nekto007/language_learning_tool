@@ -6,6 +6,14 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/idiom.css') }}?v=1">
+<style nonce="{{ csp_nonce }}">
+  /* A11Y: respect prefers-reduced-motion — disable idiom card transitions/animations */
+  @media (prefers-reduced-motion: reduce) {
+    .idiom-lesson *,
+    .idiom-card,
+    .idiom-meaning-block { transition: none !important; animation: none !important; }
+  }
+</style>
 {% endblock %}
 
 {% block lesson_content %}
@@ -117,7 +125,7 @@ function markItemDone(idx) {
   if (nextPending !== -1) {
     document.getElementById('current-idx').textContent = String(nextPending + 1);
     document.getElementById('card-' + nextPending).classList.add('idiom-card--active');
-    document.getElementById('card-' + nextPending).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('card-' + nextPending).scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
   }
   checkAllDone();
 }
@@ -140,7 +148,7 @@ function revealMeaning(idx) {
   // Show self-assess checkbox
   const selfAssess = document.getElementById('self-assess-' + idx);
   selfAssess.style.display = 'block';
-  selfAssess.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  selfAssess.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'nearest' });
 }
 
 function onSelfAssessChange(idx) {
