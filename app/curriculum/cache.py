@@ -279,8 +279,10 @@ def init_cache(app, redis_client=None):
     cache = SimpleCache()
     logger.info("Initialized simple cache")
 
-    # Warm cache on startup
-    # Skip in testing mode - tests will handle their own setup
-    if not app.config.get('TESTING', False):
+    # Warm the per-worker cache on startup — only when serving web traffic.
+    # Skip in testing (tests handle their own setup) and in one-off
+    # `flask <cmd>` management processes (db upgrade, seed, start-email-
+    # scheduler), where warming a throwaway process's in-memory cache is wasted.
+    if not app.config.get('TESTING', False) and not app.config.get('IS_MANAGEMENT_COMMAND', False):
         with app.app_context():
             warm_cache()

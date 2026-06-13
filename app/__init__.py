@@ -68,6 +68,12 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Distinguish a SERVED web process (gunicorn / `flask run`) from a one-off
+    # `flask <cmd>` management command (db upgrade, seed, start-email-scheduler,
+    # ...). Background services and per-worker cache warming run only when
+    # serving — see _start_background_services() and curriculum init_cache().
+    app.config['IS_MANAGEMENT_COMMAND'] = _is_management_command()
+
     if not app.config.get('TESTING'):
         from config.settings import validate_environment
         validate_environment()
@@ -523,18 +529,51 @@ def create_app(config_class=Config):
     # Register CLI commands for startup jobs (seed, warm-cache, start-bot, start-email-scheduler)
     _register_cli_commands(app)
 
-    # Auto-start the Telegram APScheduler inside one gunicorn worker.
-    # init_scheduler uses a file lock (/tmp/tg_scheduler.lock) so only one
-    # worker takes the jobs; the rest exit immediately. Skipped in tests
-    # to avoid background threads running during pytest runs.
-    if not app.config.get('TESTING') and app.config.get('TELEGRAM_BOT_TOKEN'):
+    # Start runtime background services — only in a serving web process.
+    _start_background_services(app)
+
+    return app
+
+
+def _is_management_command() -> bool:
+    """True when this process is a one-off ``flask <subcommand>`` management
+    command (db upgrade, seed, warm-cache, start-email-scheduler, ...) rather
+    than a served web app (gunicorn or ``flask run``).
+
+    Background services and per-worker cache warming must NOT start in these
+    processes: management commands are short-lived (a scheduler thread would
+    die the moment the command finishes) or single-purpose (the dedicated
+    `scheduler` container runs ``flask start-email-scheduler`` and must not also
+    spin up the Telegram scheduler — that was a source of duplicate
+    notifications). Only the serving process runs them.
+    """
+    import sys
+    prog = os.path.basename(sys.argv[0] or '')
+    if prog != 'flask':
+        # gunicorn, `python run.py`, pytest — treat as a serving/test process.
+        return False
+    # `flask run` is a serving process; any other `flask <cmd>` is management.
+    return not (len(sys.argv) > 1 and sys.argv[1] == 'run')
+
+
+def _start_background_services(app) -> None:
+    """Single home for runtime services that belong to a serving web process.
+
+    Skipped in tests and in one-off management commands. Cross-process
+    singletons (the Telegram scheduler) additionally coordinate via a Postgres
+    advisory lock so exactly one runs across all workers and containers. Add
+    future background services here — keep the gating in one place rather than
+    inline in create_app().
+    """
+    if app.config.get('TESTING') or app.config.get('IS_MANAGEMENT_COMMAND'):
+        return
+
+    if app.config.get('TELEGRAM_BOT_TOKEN'):
         try:
             from app.telegram.scheduler import init_scheduler
             init_scheduler(app)
         except Exception:
             logger.exception('Auto-init of Telegram scheduler failed')
-
-    return app
 
 
 def _register_cli_commands(app):
