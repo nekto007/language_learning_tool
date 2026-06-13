@@ -1,8 +1,6 @@
 """APScheduler jobs for Telegram notifications."""
-import fcntl
 import logging
 import os
-import tempfile
 from datetime import datetime, timezone
 
 import pytz
@@ -34,15 +32,28 @@ from config.settings import DEFAULT_TIMEZONE
 logger = logging.getLogger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
-_lock_file = None
+_lock_conn = None
+
+# Arbitrary 32-bit key identifying the "telegram scheduler" singleton in
+# pg_advisory_lock space. Keep stable — changing it lets a second scheduler in.
+_SCHEDULER_LOCK_KEY = 0x7E1E6004
 
 
 def init_scheduler(app) -> None:
     """Initialize APScheduler within Flask app context.
 
-    Uses a file lock to ensure only one gunicorn worker starts the scheduler.
+    Holds a PostgreSQL session-level advisory lock so that EXACTLY ONE
+    scheduler runs across the whole deployment. Every gunicorn worker AND
+    every container (web + the dedicated `scheduler` container) imports
+    run.py → create_app() → init_scheduler(), so without a cross-process lock
+    each container would spawn its own _hourly_check and users get duplicate
+    notifications. A file lock can't coordinate across containers (separate
+    /tmp); a Postgres advisory lock can — only the connection that wins
+    pg_try_advisory_lock starts the jobs. The lock is held for as long as
+    `_lock_conn` stays open (process lifetime); if the process dies the
+    connection drops and Postgres releases it so another process can take over.
     """
-    global _scheduler, _lock_file
+    global _scheduler, _lock_conn
 
     if not app.config.get('TELEGRAM_BOT_TOKEN'):
         logger.info('TELEGRAM_BOT_TOKEN not set — scheduler disabled')
@@ -51,16 +62,25 @@ def init_scheduler(app) -> None:
     if _scheduler is not None:
         return
 
-    # Acquire exclusive lock — only one process wins
-    lock_path = os.path.join(tempfile.gettempdir(), 'tg_scheduler.lock')
-    _lock_file = open(lock_path, 'w')
+    from sqlalchemy import text
+
+    from app.utils.db import db
     try:
-        fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        logger.info('Another worker owns the scheduler — skipping')
-        _lock_file.close()
-        _lock_file = None
+        conn = db.engine.connect()
+        got = conn.execute(
+            text('SELECT pg_try_advisory_lock(:k)'),
+            {'k': _SCHEDULER_LOCK_KEY},
+        ).scalar()
+    except Exception:
+        logger.exception('Could not acquire scheduler advisory lock — skipping')
         return
+
+    if not got:
+        conn.close()
+        logger.info('Another process owns the scheduler — skipping (pid=%s)', os.getpid())
+        return
+
+    _lock_conn = conn  # keep open for the process lifetime to hold the lock
 
     _scheduler = BackgroundScheduler(timezone='UTC')
     _scheduler.add_job(
