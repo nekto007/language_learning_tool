@@ -421,15 +421,13 @@ class TestChallengeLeaderboardBonus:
         from app.achievements.daily_race import CHALLENGE_BONUS_POINTS
         assert CHALLENGE_BONUS_POINTS == 10
 
-    def test_update_race_points_from_plan_with_challenge_bonus(self, db_session):
+    def test_linear_plan_race_points_with_challenge_bonus(self, db_session):
         """Race points include +10 when challenge_bonus=10 is passed."""
-        from app.utils.db import db
         from app.achievements.daily_race import (
             CHALLENGE_BONUS_POINTS,
-            DailyRace,
             DailyRaceParticipant,
             get_or_create_race,
-            update_race_points_from_plan,
+            update_race_points_from_linear_plan,
         )
         user = _make_user(db_session)
         race_date = date.today()
@@ -439,7 +437,9 @@ class TestChallengeLeaderboardBonus:
         db_session.commit()
 
         # Base points without challenge bonus
-        update_race_points_from_plan(user.id, race_date, [], {}, challenge_bonus=0)
+        update_race_points_from_linear_plan(
+            user.id, race_date, [], {}, challenge_bonus=0,
+        )
         db_session.commit()
         participant_no_bonus = (
             db_session.query(DailyRaceParticipant)
@@ -450,7 +450,7 @@ class TestChallengeLeaderboardBonus:
         base_points = participant_no_bonus.points
 
         # Now add challenge bonus
-        update_race_points_from_plan(
+        update_race_points_from_linear_plan(
             user.id, race_date, [], {}, challenge_bonus=CHALLENGE_BONUS_POINTS,
         )
         db_session.commit()
@@ -463,11 +463,10 @@ class TestChallengeLeaderboardBonus:
 
     def test_no_bonus_when_challenge_not_completed(self, db_session):
         """Without challenge completion, no bonus points added."""
-        from app.utils.db import db
         from app.achievements.daily_race import (
             DailyRaceParticipant,
             get_or_create_race,
-            update_race_points_from_plan,
+            update_race_points_from_linear_plan,
         )
         user = _make_user(db_session)
         race_date = date.today()
@@ -475,7 +474,9 @@ class TestChallengeLeaderboardBonus:
         get_or_create_race(user.id, race_date)
         db_session.commit()
 
-        update_race_points_from_plan(user.id, race_date, [], {}, challenge_bonus=0)
+        update_race_points_from_linear_plan(
+            user.id, race_date, [], {}, challenge_bonus=0,
+        )
         db_session.commit()
 
         participant = (

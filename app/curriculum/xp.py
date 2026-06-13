@@ -4,7 +4,7 @@ Prevents duplicate XP awards when ``complete_lesson`` is invoked more than
 once for the same user/lesson/day (e.g. page reload, client retry, or the
 callsite is reached twice in the same flow). Uses ``StreakEvent`` with
 ``event_type='xp_curriculum_lesson'`` as the dedup ledger, matching the
-pattern used by ``award_phase_xp_idempotent`` / linear slot XP helpers.
+pattern used by the linear slot XP helpers.
 
 Callers own the outer commit; this helper only flushes the StreakEvent
 row so the dedup check is visible to a subsequent call inside the same

@@ -4,7 +4,6 @@ Covers:
 - Model creation for both tables
 - Unique constraint: one participant per user per race_date
 - Cascade delete from race to participants
-- MISSION_PHASE_POINTS helper parity with the dashboard scoreboard
 """
 from __future__ import annotations
 
@@ -17,10 +16,8 @@ from sqlalchemy.exc import IntegrityError
 from app.achievements.daily_race import (
     DailyRace,
     DailyRaceParticipant,
-    MISSION_PHASE_POINTS,
     RACE_MAX_PARTICIPANTS,
     RACE_MIN_PARTICIPANTS,
-    phase_points,
 )
 from app.auth.models import User
 
@@ -191,43 +188,3 @@ class TestCapacityConstants:
         assert RACE_MIN_PARTICIPANTS == 3
         assert RACE_MAX_PARTICIPANTS == 5
         assert RACE_MIN_PARTICIPANTS <= RACE_MAX_PARTICIPANTS
-
-
-class TestMissionPhasePoints:
-    """phase_points() must agree with the dashboard scoreboard."""
-
-    def test_covers_all_phase_kinds(self):
-        # Pulled from app/words/routes.py::_MISSION_PHASE_POINTS
-        expected = {
-            'recall': 8,
-            'learn': 22,
-            'use': 18,
-            'read': 20,
-            'check': 12,
-            'close': 0,
-        }
-        assert MISSION_PHASE_POINTS == expected
-
-    def test_agrees_with_dashboard_points(self):
-        from app.words.routes import _MISSION_PHASE_POINTS
-
-        assert dict(MISSION_PHASE_POINTS) == _MISSION_PHASE_POINTS
-
-    @pytest.mark.parametrize(
-        'phase,expected',
-        [
-            ('recall', 8),
-            ('learn', 22),
-            ('use', 18),
-            ('read', 20),
-            ('check', 12),
-            ('close', 0),
-        ],
-    )
-    def test_phase_points_known_kinds(self, phase, expected):
-        assert phase_points(phase) == expected
-
-    def test_phase_points_unknown_returns_zero(self):
-        assert phase_points('unknown') == 0
-        assert phase_points('') == 0
-        assert phase_points(None) == 0

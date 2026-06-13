@@ -315,91 +315,13 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     _user_tz = getattr(_u, 'timezone', None) or DEFAULT_TIMEZONE
     real_activity = has_activity_today(user_id, tz=_user_tz)
 
+    # XP / race-point / perfect-day accrual for the unified plan now lives in
+    # the day-secured paths (app/daily_plan/linear/xp.py and
+    # app/api/daily_plan.py). The legacy mission/phase XP block that used to
+    # run here was dead — unified plans never carry a `phases` key — so it has
+    # been removed. These keys stay None and are surfaced by other paths.
     xp_level_up: dict | None = None
     perfect_day_info: dict | None = None
-    if real_activity and daily_plan is not None and plan_completion is not None:
-        phases = daily_plan.get('phases') or []
-        if phases:
-            try:
-                from app.achievements.daily_race import (
-                    update_race_points_from_plan,
-                )
-                update_race_points_from_plan(
-                    user_id,
-                    user_today,
-                    phases,
-                    plan_completion,
-                )
-            except Exception:
-                logger.warning(
-                    "Failed to update race points for user %s",
-                    user_id, exc_info=True,
-                )
-
-            try:
-                from app.achievements.xp_service import (
-                    award_perfect_day_xp_idempotent,
-                    award_phase_xp_idempotent,
-                    get_perfect_day_info,
-                )
-                last_level_up: dict | None = None
-                for phase in phases:
-                    if not plan_completion.get(phase['id']):
-                        continue
-                    phase_kind = phase.get('phase', '')
-                    if not phase.get('required', True) and phase_kind != 'bonus':
-                        continue
-                    xp_key = (
-                        phase.get('mode', '')
-                        if phase_kind == 'bonus'
-                        else (phase_kind or phase.get('mode', ''))
-                    )
-                    xp_result = award_phase_xp_idempotent(
-                        user_id,
-                        phase['id'],
-                        xp_key,
-                        user_today,
-                    )
-                    if xp_result and xp_result.leveled_up:
-                        last_level_up = {
-                            'new_level': xp_result.new_level,
-                            'xp': xp_result.new_total_xp,
-                        }
-
-                required_phases = [p for p in phases if p.get('required', True)]
-                all_required_done = bool(required_phases) and all(
-                    plan_completion.get(p['id']) for p in required_phases
-                )
-                if all_required_done:
-                    bonus = award_perfect_day_xp_idempotent(user_id, user_today)
-                    if bonus and bonus.leveled_up:
-                        last_level_up = {
-                            'new_level': bonus.new_level,
-                            'xp': bonus.new_total_xp,
-                        }
-
-                if last_level_up:
-                    xp_level_up = last_level_up
-                    try:
-                        from app.notifications.services import notify_level_up
-                        notify_level_up(user_id, last_level_up['new_level'])
-                    except Exception:
-                        logger.warning(
-                            "Failed to send level-up notification for user %s",
-                            user_id, exc_info=True,
-                        )
-
-                # Capture perfect day info for dashboard display
-                try:
-                    perfect_day_info = get_perfect_day_info(user_id)
-                except Exception:
-                    perfect_day_info = None
-            except Exception:
-                logger.warning(
-                    "Failed to award XP for user %s",
-                    user_id, exc_info=True,
-                )
-                perfect_day_info = None
 
     rank_up = None
     if steps_done > 0 and real_activity:
@@ -411,14 +333,8 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
         # Full plan completion: every required step is done.
         if steps_total > 0 and steps_done >= steps_total:
             try:
-                from app.achievements.ranks import (
-                    _has_plan_completion_marker,
-                    record_plan_completion,
-                )
+                from app.achievements.ranks import record_plan_completion
 
-                was_already_completed = _has_plan_completion_marker(
-                    user_id, user_today,
-                )
                 rank_up = record_plan_completion(user_id, for_date=user_today)
                 if rank_up is not None:
                     try:
@@ -427,18 +343,6 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                     except Exception:
                         logger.warning(
                             "Failed to send rank-up notification for user %s",
-                            user_id, exc_info=True,
-                        )
-
-                # First completion for this date — evaluate mission badges.
-                if not was_already_completed:
-                    try:
-                        _check_mission_badges_for_today(
-                            user_id, user_today, tz,
-                        )
-                    except Exception:
-                        logger.warning(
-                            "Failed to check mission badges for user %s",
                             user_id, exc_info=True,
                         )
             except Exception:
@@ -1113,69 +1017,6 @@ def auto_heal_streak_on_activity(
         db.session.flush()  # Ensure new repair is visible to next iteration
 
     return healed
-
-
-def _get_today_mission_type(user_id: int, today_local: date) -> str | None:
-    """Return the mission type selected for the user on `today_local`."""
-    event = StreakEvent.query.filter_by(
-        user_id=user_id,
-        event_type='mission_selected',
-        event_date=today_local,
-    ).first()
-    if event and event.details:
-        return event.details.get('mission_type')
-    return None
-
-
-def _compute_plan_duration_minutes(
-    user_id: int, today_local: date,
-) -> int | None:
-    """Duration from first earned_daily to plan_completed for the given date.
-
-    Uses StreakEvent.created_at timestamps: earned_daily is written on the
-    user's first activity-bearing request of the day, plan_completed on the
-    request that finishes the plan. The delta approximates total time spent
-    in the day's plan.
-    """
-    events = StreakEvent.query.filter(
-        StreakEvent.user_id == user_id,
-        StreakEvent.event_date == today_local,
-        StreakEvent.event_type.in_(['earned_daily', 'plan_completed']),
-    ).all()
-
-    earned = next((e for e in events if e.event_type == 'earned_daily'), None)
-    completed = next((e for e in events if e.event_type == 'plan_completed'), None)
-
-    if (earned is None or completed is None
-            or earned.created_at is None or completed.created_at is None):
-        return None
-
-    start = earned.created_at
-    end = completed.created_at
-    if start.tzinfo is not None:
-        start = start.astimezone(timezone.utc).replace(tzinfo=None)
-    if end.tzinfo is not None:
-        end = end.astimezone(timezone.utc).replace(tzinfo=None)
-    delta = end - start
-    return max(0, int(delta.total_seconds() // 60))
-
-
-def _check_mission_badges_for_today(
-    user_id: int, user_today: date, tz: str,
-) -> None:
-    """Invoke the mission badge check for the plan just completed today."""
-    mission_type = _get_today_mission_type(user_id, user_today)
-    if mission_type is None:
-        return
-
-    duration = _compute_plan_duration_minutes(user_id, user_today)
-    from app.achievements.services import AchievementService
-    AchievementService.check_mission_achievements(
-        user_id=user_id,
-        mission_type=mission_type,
-        duration_minutes=duration,
-        tz=tz,
-    )
 
 
 def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE) -> int:
