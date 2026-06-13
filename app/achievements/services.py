@@ -222,7 +222,7 @@ class AchievementService:
     """Service for checking and awarding achievements based on statistics"""
 
     @staticmethod
-    def check_grade_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_grade_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """
         Check and award grade-based achievements
 
@@ -266,14 +266,17 @@ class AchievementService:
                         logger.exception("Failed to send achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
             # Update badge statistics
-            StatisticsService.update_badge_stats(user_id)
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_streak_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_streak_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """
         Check and award streak-based achievements
 
@@ -313,13 +316,16 @@ class AchievementService:
                         logger.exception("Failed to send streak achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_lesson_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_lesson_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """Check and award lesson-count-based achievements.
 
         Codes must match seed.py: first_lesson, lessons_5, lessons_10,
@@ -353,13 +359,16 @@ class AchievementService:
                         logger.exception("Failed to send lesson achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_book_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_book_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """Check and award book-reading achievements.
 
         Codes must match seed.py: first_book, books_5, books_10, chapter_marathon.
@@ -391,13 +400,16 @@ class AchievementService:
                         logger.exception("Failed to send book achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_card_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_card_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """Check and award SRS card-review achievements.
 
         Codes must match seed.py: cards_100, cards_500, cards_1000.
@@ -428,8 +440,11 @@ class AchievementService:
                         logger.exception("Failed to send card achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
@@ -531,6 +546,7 @@ class AchievementService:
         user_id: int,
         score_percentage: Optional[float] = None,
         duration_sec: Optional[int] = None,
+        commit: bool = True,
     ) -> List[Achievement]:
         """Check and award matching-game achievements.
 
@@ -611,8 +627,11 @@ class AchievementService:
                         )
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
@@ -918,14 +937,18 @@ class AchievementService:
         """
         stats = StatisticsService.get_or_create_statistics(user_id)
 
-        grade_achievements = AchievementService.check_grade_achievements(user_id, stats)
-        streak_achievements = AchievementService.check_streak_achievements(user_id, stats)
-        lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats)
-        book_achievements = AchievementService.check_book_achievements(user_id, stats)
-        card_achievements = AchievementService.check_card_achievements(user_id, stats)
+        # Sub-checks run flush-only (commit=False) so the whole batch is atomic
+        # under the caller's single commit — no mid-handler partial commits when
+        # invoked from process_lesson_completion (audit E-068). The flush-only
+        # families (level/words/quiz/perfect_*/listening/...) already don't commit.
+        grade_achievements = AchievementService.check_grade_achievements(user_id, stats, commit=False)
+        streak_achievements = AchievementService.check_streak_achievements(user_id, stats, commit=False)
+        lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats, commit=False)
+        book_achievements = AchievementService.check_book_achievements(user_id, stats, commit=False)
+        card_achievements = AchievementService.check_card_achievements(user_id, stats, commit=False)
         level_achievements = AchievementService.check_level_achievements(user_id, stats)
         words_achievements = AchievementService.check_words_learned_achievements(user_id)
-        matching_achievements = AchievementService.check_matching_achievements(user_id)
+        matching_achievements = AchievementService.check_matching_achievements(user_id, commit=False)
         quiz_achievements = AchievementService.check_quiz_achievements(user_id)
         perfect_quiz_achievements = AchievementService.check_perfect_quiz_achievements(user_id)
         perfect_session_achievements = AchievementService.check_perfect_session_achievements(user_id)
@@ -945,8 +968,11 @@ class AchievementService:
                    + writing_achievements + speaking_achievements
                    + challenge_achievements + weekly_milestone_achievements)
         if all_new:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            # Flush-only — the caller (process_lesson_completion → lesson submit
+            # handler) owns the commit so the achievement grants are atomic with
+            # the rest of the handler's work (audit E-068).
+            db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=False)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,

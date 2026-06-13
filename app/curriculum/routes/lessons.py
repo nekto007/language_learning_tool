@@ -334,8 +334,13 @@ def update_lesson_progress(lesson_id):
                     lesson_id=lesson_id,
                     score=progress.score
                 )
+                # check_all_achievements is now flush-only (audit E-068): commit
+                # the badge grants as one atomic batch here. On failure roll back
+                # so a mid-batch error can't leave some grants committed.
+                db.session.commit()
             except Exception as e:
                 logger.error(f"Error processing lesson completion: {e}")
+                db.session.rollback()
 
         response_data = {
             'success': True,
