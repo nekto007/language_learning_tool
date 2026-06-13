@@ -321,6 +321,14 @@ def grade_audio_fill_blank(
 ) -> dict:
     """Grade an audio fill-in-blank exercise.
 
+    Mixed item format is intentional (audit E-101): an item WITH ``options`` is
+    multiple-choice (exact normalized match); an item WITHOUT ``options`` is
+    free-text (single-word Levenshtein tolerance). The template branches on
+    ``data-mode`` accordingly — do not assume every item has ``options``.
+
+    The literal string ``"null"`` is valid option content (e.g. the legal term
+    in C1:04 — audit E-102); never treat option strings as JSON-null / falsy.
+
     Args:
         user_answers: List of strings, one per item (same order as items).
         items: List of item dicts with 'answer' (and optional 'options') fields.

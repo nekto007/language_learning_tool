@@ -438,6 +438,8 @@ def submit_lesson(lesson_id):
             result = _process_translation_submission(lesson, current_user.id, data)
         elif lesson.type == 'sentence_correction':
             result = _process_sentence_correction_submission(lesson, current_user.id, data)
+            if result.get('error') == 'payload_shape_mismatch':
+                return jsonify(result), 400
         elif lesson.type == 'writing_prompt':
             result = _process_writing_prompt_submission(lesson, current_user.id, data)
         elif lesson.type == 'sentence_completion':
@@ -1312,6 +1314,15 @@ def _process_sentence_correction_submission(lesson: 'Lessons', user_id: int, dat
     items = content.get('items') or []
     is_multi = bool(items) and isinstance(data.get('answers'), list)
     passing = get_lesson_passing_score(lesson)
+
+    # Multi-item content with a single-item payload would silently grade against
+    # the (empty) top-level correct_sentence and always fail (audit E-100).
+    if items and not is_multi:
+        return {
+            'success': False,
+            'error': 'payload_shape_mismatch',
+            'message': 'Этот урок состоит из нескольких пунктов — ожидается список answers[].',
+        }
 
     if is_multi:
         user_answers = [(a or '')[:2000] for a in data.get('answers', [])]
