@@ -464,8 +464,9 @@ def validate_file_upload(file, max_size_mb: int = 10, allowed_extensions: set = 
                 return False, f"Filename contains suspicious pattern: {pattern}"
 
         dangerous_exts = ('.exe', '.bat', '.cmd', '.js', '.sh', '.php')
-        if lowered.endswith(dangerous_exts):
-            return False, "Filename has a disallowed executable/script extension"
+        for ext in dangerous_exts:
+            if lowered.endswith(ext):
+                return False, f"Filename has a disallowed extension: {ext}"
 
     return True, None
 
