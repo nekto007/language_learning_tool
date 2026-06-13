@@ -1102,7 +1102,6 @@ def challenge_complete():
 
     Returns completion status. Idempotent — repeated calls return already_completed=True.
     """
-    from app.achievements.xp_service import award_xp
     from app.daily_plan.challenge import complete_challenge
 
     body = request.get_json(silent=True) or {}
@@ -1152,6 +1151,8 @@ def challenge_complete():
         return api_error('challenge_error', 'Challenge validation failed', 500)
 
     try:
+        # complete_challenge awards bonus XP atomically with the completion
+        # row (E-028); no separate XP step here.
         result = complete_challenge(
             user_id=current_user.id,
             challenge_id=challenge_id,
@@ -1161,16 +1162,10 @@ def challenge_complete():
         )
     except ValueError as e:
         return api_error('not_found', str(e), 404)
-
-    if not result.get('already_completed'):
-        bonus_xp = result.get('bonus_xp', 0)
-        if bonus_xp:
-            try:
-                with db.session.begin_nested():
-                    award_xp(current_user.id, bonus_xp, 'daily_challenge')
-            except Exception as xp_err:
-                logger.warning("Challenge XP award failed for user %s: %s", current_user.id, xp_err)
-                result['bonus_xp'] = 0
+    except Exception:
+        logger.exception("complete_challenge failed for user %s", current_user.id)
+        db.session.rollback()
+        return api_error('challenge_error', 'Failed to record challenge completion', 500)
 
     try:
         db.session.commit()

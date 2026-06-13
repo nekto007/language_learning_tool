@@ -93,12 +93,16 @@ def get_today_challenge(user_id: int, db) -> dict:
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
         from sqlalchemy.exc import IntegrityError
+        # Flush-only inside a savepoint (caller commits). A mid-handler commit
+        # here would prematurely persist the lesson-submit handler's partial
+        # state (audit E-020). A concurrent seed surfaces as IntegrityError on
+        # the savepoint flush; recover by re-fetching the winner's row.
         try:
-            challenge = _seed_today_challenge(today, db)
-            db.session.commit()
+            with db.session.begin_nested():
+                challenge = _seed_today_challenge(today, db)
+                db.session.flush()
         except IntegrityError:
             logger.warning("get_today_challenge: race seeding challenge for %s, retrying read", today)
-            db.session.rollback()
             challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
             if challenge is None:
                 raise
@@ -168,6 +172,13 @@ def complete_challenge(
     try:
         with db.session.begin_nested():
             db.session.add(completion)
+            # Award the bonus XP in the SAME savepoint as the completion row so
+            # a failed XP write rolls back the completion too — no silent
+            # 0-XP completion that can never be retried (audit E-028).
+            if challenge.bonus_xp:
+                from app.achievements.xp_service import award_xp
+                award_xp(user_id, challenge.bonus_xp, 'daily_challenge')
+            db.session.flush()
     except IntegrityError:
         existing = DailyChallengeCompletion.query.filter_by(
             challenge_id=challenge_id,
@@ -356,12 +367,14 @@ def maybe_auto_complete_challenge(
     challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
     if challenge is None:
         from sqlalchemy.exc import IntegrityError
+        # Savepoint flush, not commit — preserves the lesson-submit handler's
+        # atomicity (audit E-020).
         try:
-            challenge = _seed_today_challenge(today, db)
-            db.session.commit()
+            with db.session.begin_nested():
+                challenge = _seed_today_challenge(today, db)
+                db.session.flush()
         except IntegrityError:
             logger.warning("maybe_auto_complete_challenge: race seeding challenge for %s, retrying read", today)
-            db.session.rollback()
             challenge = DailyChallenge.query.filter_by(challenge_date=today).first()
             if challenge is None:
                 logger.exception("maybe_auto_complete_challenge: failed to seed or read challenge for %s", today)
@@ -388,23 +401,15 @@ def maybe_auto_complete_challenge(
         return None
 
     try:
-        result = complete_challenge(
+        # complete_challenge awards bonus XP atomically with the completion
+        # row (E-028); no separate XP step here.
+        return complete_challenge(
             user_id=user_id,
             challenge_id=challenge.id,
             score=score,
             time_spent_seconds=time_spent_seconds,
             db=db,
         )
-        bonus_xp = result.get('bonus_xp', 0)
-        if bonus_xp and not result.get('already_completed'):
-            try:
-                from app.achievements.xp_service import award_xp
-                with db.session.begin_nested():
-                    award_xp(user_id, bonus_xp, 'daily_challenge')
-            except Exception:
-                logger.warning("maybe_auto_complete_challenge: XP award failed for user=%s", user_id)
-                result['bonus_xp'] = 0
-        return result
     except Exception:
         logger.exception("maybe_auto_complete_challenge failed for user=%s lesson=%s", user_id, lesson_id)
         return None
