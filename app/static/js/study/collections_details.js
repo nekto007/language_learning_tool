@@ -65,7 +65,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const c = type === 'success' ? { bg: '#dcfce7', b: '#22c55e', i: '\u2713' } : { bg: '#dbeafe', b: '#3b82f6', i: '\u2139' };
         const t = document.createElement('div');
         t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${c.bg};padding:16px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);display:flex;align-items:center;gap:12px;border-left:4px solid ${c.b};font-family:'Onest',sans-serif;font-size:14px;font-weight:500;animation:cd-up .3s ease-out`;
-        t.innerHTML = `<span style="color:${c.b};font-size:18px;font-weight:bold">${c.i}</span><span>${msg}</span>`;
+        // textContent for the message — no innerHTML interpolation (audit E-103).
+        const ic = document.createElement('span');
+        ic.style.cssText = `color:${c.b};font-size:18px;font-weight:bold`;
+        ic.textContent = c.i;
+        const ms = document.createElement('span');
+        ms.textContent = msg;
+        t.appendChild(ic);
+        t.appendChild(ms);
         document.body.appendChild(t);
         setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3000);
     }

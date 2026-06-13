@@ -59,7 +59,18 @@ document.addEventListener('DOMContentLoaded', function() {
             border-left: 4px solid ${c.border}; font-family: 'Onest', sans-serif; font-size: 14px; font-weight: 500;
             animation: coll-slideUp 0.3s ease-out;
         `;
-        toast.innerHTML = `<span style="color: ${c.border}; font-size: 18px; font-weight: bold;">${c.icon}</span><span>${message}</span>`;
+        // NOTE (audit E-099): the slideUp CSS keyframe is neutralized by the
+        // global @media (prefers-reduced-motion: reduce) rule. If this is ever
+        // moved to JS / Web Animations, add an explicit matchMedia guard here.
+        // textContent, not innerHTML, for the server-supplied message — avoids
+        // DOM-XSS if a message ever reflects user input (audit E-095).
+        const iconSpan = document.createElement('span');
+        iconSpan.style.cssText = `color: ${c.border}; font-size: 18px; font-weight: bold;`;
+        iconSpan.textContent = c.icon;
+        const msgSpan = document.createElement('span');
+        msgSpan.textContent = message;
+        toast.appendChild(iconSpan);
+        toast.appendChild(msgSpan);
         document.body.appendChild(toast);
 
         setTimeout(() => {
