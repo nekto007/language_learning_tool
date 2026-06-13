@@ -111,8 +111,10 @@ def _strict_text_match(user_answer, candidates):
     """
     Strict grading for fill-in-blank / translation answers.
 
-    Exact match after normalization. For single-word candidates, allow
-    Levenshtein distance ≤1 (typo tolerance). Multi-word answers require
+    Exact match after normalization. For single-word candidates of **≥4
+    characters**, allow Levenshtein distance ≤1 (typo tolerance); shorter
+    tokens require exact match (a 1-edit window on 2-3 letter words admits
+    substantively different words, e.g. "is"/"in"). Multi-word answers require
     exact match — overlap heuristics are intentionally not used.
     """
     user_normalized = _normalize_answer(user_answer)
@@ -172,6 +174,76 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
     return sorted(user_keys) == sorted(correct_keys)
 
 
+def _pair_left(p) -> str:
+    """Extract the left/prompt side of a matching pair across content schemas.
+
+    Content payloads vary: ``{left, right}`` (user submissions), ``{english,
+    russian}`` and ``{word, translation}``/``{term, match}`` (authored content).
+    Treat all shapes as equivalent so matching graders don't ``KeyError`` on
+    authored pairs (audit E-033/E-035/E-036)."""
+    if not isinstance(p, dict):
+        return ''
+    return str(
+        p.get('left') or p.get('english')
+        or p.get('word') or p.get('term') or ''
+    )
+
+
+def _pair_right(p) -> str:
+    """Extract the right/answer side of a matching pair across content schemas.
+
+    See :func:`_pair_left`."""
+    if not isinstance(p, dict):
+        return ''
+    return str(
+        p.get('right') or p.get('russian')
+        or p.get('translation') or p.get('match') or ''
+    )
+
+
+def _coerce_to_index(value, options):
+    """Resolve an answer to an option index across content schemas.
+
+    Accepts an int index, a digit string ("2"), or the option text itself
+    (matched against ``options`` exactly then case-insensitively). Returns the
+    resolved index, or -1 when unresolvable. Mirrors the multiple-choice
+    resolution in :func:`process_quiz_submission` so final-test MC questions
+    grade identically (audit E-031)."""
+    if value is None or isinstance(value, bool):
+        return -1
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        s = value.strip()
+        if s.isdigit() or (s.startswith('-') and s[1:].isdigit()):
+            return int(s)
+        opts = options or []
+        stripped = [o.strip() if isinstance(o, str) else o for o in opts]
+        if s in stripped:
+            return stripped.index(s)
+        s_lower = s.lower()
+        for idx, option in enumerate(stripped):
+            option_lower = option.lower() if isinstance(option, str) else str(option).lower()
+            if option_lower == s_lower:
+                return idx
+    return -1
+
+
+def _coerce_bool(value) -> bool:
+    """Normalize a true/false answer that may arrive as bool, string or number.
+
+    Authored content sometimes stores ``"true"`` (string) rather than a JSON
+    bool; without coercion ``True == "true"`` is False and the correct answer
+    is marked wrong (audit E-032)."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ('true', '1', 'yes')
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return False
+
+
 def _normalize_for_dictation(text: str) -> str:
     """Normalize dictation text: strip, lower, collapse whitespace, remove punctuation except apostrophes."""
     if not text:
@@ -218,6 +290,9 @@ def grade_dictation(
             "word_results": [],
         }
 
+    # Positional word-by-word comparison (audit E-045): intentionally strict —
+    # an inserted/deleted word shifts subsequent positions and lowers the score.
+    # This rewards accurate transcription; LCS/alignment is deliberately not used.
     correct_words = 0
     word_results = []
     for i, correct_word in enumerate(transcript_words):
@@ -515,6 +590,12 @@ def grade_collocation_matching(
 ) -> dict:
     """Grade a collocation matching exercise with partial scoring.
 
+    NOTE (audit E-044): this is **intentionally** partial-scored (fraction of
+    correct pairs), unlike ``_grade_matching_pairs`` which is all-or-nothing.
+    Collocation drills reward each correct association; the done-today 70%
+    threshold is therefore reachable with a partial set here but not in plain
+    matching. The divergence is by design — do not "unify" without product sign-off.
+
     Args:
         user_pairs: List of {phrase, translation} dicts submitted by the user.
         correct_pairs: List of {phrase, translation} dicts from lesson content.
@@ -706,7 +787,7 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
             user_match_display = {}
             correct_match_display = {}
             for idx, pair in enumerate(pairs):
-                correct_match_display[pair['left']] = pair['right']
+                correct_match_display[_pair_left(pair)] = _pair_right(pair)
 
             if len(user_matches) != len(pairs):
                 is_correct = False
@@ -720,9 +801,9 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
                             is_correct = False
                             continue
 
-                        left_value = pairs[left_idx]['left']
-                        user_right_value = pairs[right_idx]['right']
-                        correct_right_value = pairs[left_idx]['right']
+                        left_value = _pair_left(pairs[left_idx])
+                        user_right_value = _pair_right(pairs[right_idx])
+                        correct_right_value = _pair_right(pairs[left_idx])
 
                         user_match_display[left_value] = user_right_value
                         if user_right_value != correct_right_value:
@@ -1000,7 +1081,8 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
                 else:
                     user_bool = bool(user_answer)
 
-                is_correct = user_bool == correct_answer
+                # Normalize string/numeric correct_answer ("true") to bool (E-032).
+                is_correct = user_bool == _coerce_bool(correct_answer)
 
             except (ValueError, TypeError):
                 is_correct = False
@@ -1147,23 +1229,10 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
 
             elif question_type == 'matching':
                 # For matching questions, format pairs as readable text.
-                # Content schemas vary: some carry ``left``/``right``, older
-                # ones use ``english``/``russian`` or ``word``/``translation``.
-                # Detail review handles all three — mirror that here so the
-                # short "Что повторить" summary doesn't degrade to a row of
-                # bare " → " arrows when the pair fields don't match.
-                def _pair_left(p: dict) -> str:
-                    return str(
-                        p.get('left') or p.get('english')
-                        or p.get('word') or p.get('term') or ''
-                    )
-
-                def _pair_right(p: dict) -> str:
-                    return str(
-                        p.get('right') or p.get('russian')
-                        or p.get('translation') or p.get('match') or ''
-                    )
-
+                # Pair-field shapes vary across content; module-level
+                # _pair_left/_pair_right handle left/right, english/russian and
+                # word/translation so this summary doesn't degrade to bare
+                # " → " arrows.
                 pairs_src = None
                 if isinstance(correct_answer, list):
                     pairs_src = correct_answer
@@ -1211,16 +1280,19 @@ def process_matching_submission(pairs: list, user_matches: dict) -> dict:
     incorrect_matches = {}
 
     for i, pair in enumerate(pairs):
-        left = pair['left']
-        right = pair['right']
+        left = _pair_left(pair)
+        right = _pair_right(pair)
 
         # Two formats accepted: index-based {'0': 1} or value-based {'hello': 'привет'}
-        user_match_index = user_matches.get(str(i)) or user_matches.get(i)
+        # None-aware lookup: a valid index 0 must not be treated as "missing".
+        user_match_index = user_matches.get(str(i))
+        if user_match_index is None:
+            user_match_index = user_matches.get(i)
 
         if user_match_index is not None:
             try:
                 user_match_index = int(user_match_index)
-                user_matched_right = pairs[user_match_index]['right'] if 0 <= user_match_index < len(pairs) else None
+                user_matched_right = _pair_right(pairs[user_match_index]) if 0 <= user_match_index < len(pairs) else None
             except (ValueError, IndexError):
                 user_matched_right = None
         else:
@@ -1290,34 +1362,39 @@ def process_final_test_submission(
         qtype = question.get('type', '')
         if qtype == 'multiple_choice':
             if user_answer is not None:
-                try:
-                    user_idx = int(user_answer)
-                    is_correct = user_idx == correct_answer
-                except (ValueError, TypeError):
-                    is_correct = False
+                # Resolve both sides to option indices so string-digit ("2"),
+                # int, and option-text ``correct_answer`` all grade correctly
+                # (parity with process_quiz_submission — audit E-031).
+                options = question.get('options')
+                user_idx = _coerce_to_index(user_answer, options)
+                correct_idx = _coerce_to_index(correct_answer, options)
+                is_correct = correct_idx != -1 and user_idx == correct_idx
 
         elif qtype == 'true_false':
             if user_answer in ['true', 'false']:
                 user_bool = user_answer == 'true'
-                is_correct = user_bool == correct_answer
+                is_correct = user_bool == _coerce_bool(correct_answer)
 
         elif qtype in ['fill_in_blank', 'translation']:
-            if user_answer:
-                user_normalized = normalize_text(user_answer)
-
+            if user_answer and correct_answer is not None:
+                # Strict match with alternatives + single-word typo tolerance,
+                # same as quiz fill-in-blank (audit E-034).
                 if isinstance(correct_answer, list):
-                    for ans in correct_answer:
-                        ans_normalized = normalize_text(ans)
-                        if user_normalized == ans_normalized:
-                            is_correct = True
-                            break
+                    candidates = list(correct_answer)
                 else:
-                    correct_normalized = normalize_text(correct_answer)
-                    is_correct = user_normalized == correct_normalized
+                    candidates = [correct_answer]
+                    candidates.extend(question.get('alternative_answers', []) or [])
+                    candidates.extend(question.get('acceptable_answers', []) or [])
+                is_correct = _strict_text_match(user_answer, candidates)
 
         elif qtype == 'matching':
             if isinstance(user_answer, dict):
-                correct_pairs = {pair['left']: pair['right'] for pair in question.get('pairs', [])}
+                # Multi-shape pair extraction so {english,russian}/{word,
+                # translation} content doesn't KeyError → 500 (audit E-033).
+                correct_pairs = {
+                    _pair_left(p): _pair_right(p)
+                    for p in question.get('pairs', []) if isinstance(p, dict)
+                }
                 matches_correct = all(
                     user_answer.get(left) == right
                     for left, right in correct_pairs.items()
@@ -1328,7 +1405,8 @@ def process_final_test_submission(
         elif qtype == 'reorder':
             if user_answer:
                 user_normalized = normalize_text(user_answer)
-                correct_normalized = normalize_text(correct_answer)
+                # str() guards list-shaped correct_answer (audit E-034).
+                correct_normalized = normalize_text(str(correct_answer))
                 is_correct = user_normalized == correct_normalized
 
         if is_correct:
