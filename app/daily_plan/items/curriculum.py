@@ -22,7 +22,11 @@ from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTAT
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.items import PlanItem
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
-from app.daily_plan.linear.progression import find_next_lesson_linear
+from app.daily_plan.linear.progression import (
+    _user_min_level_order,
+    find_next_lesson_linear,
+    get_spine_upcoming,
+)
 from app.daily_plan.linear.xp import (
     LESSON_TYPE_TO_SOURCE,
     LINEAR_XP_EVENT_TYPE,
@@ -526,6 +530,102 @@ def build_curriculum_item(
         completion_signal='lesson_completed',
         data=data,
     )
+
+
+def build_curriculum_queue(
+    user_id: int,
+    db: Any,
+    *,
+    anchor_lesson: Lessons,
+    limit: int,
+    exclude_lesson_ids: Optional[set[int]] = None,
+    section: str = 'optional',
+) -> list[PlanItem]:
+    """Build a continuation queue of upcoming spine lessons after ``anchor_lesson``.
+
+    Returns a list of *pending* PlanItems for the next lessons on the
+    curriculum spine (crossing module / level boundaries), in spine order.
+    This powers the Duolingo-style «Дальше по курсу» section: after the
+    required minimum, the user sees a long list of upcoming lessons they may
+    keep working through.
+
+    The queue is kept intentionally light — it does **not** run the expensive
+    weak-grammar / adaptive-hint computations that ``build_curriculum_item``
+    runs for the single active lesson; those signals only matter for the
+    lesson the user is about to start, not for every entry in a long list.
+
+    ``get_spine_upcoming`` already excludes the anchor and completed lessons
+    but does **not** apply module prerequisite gating, so blocked modules are
+    filtered here (the route would 403/redirect them anyway, but they must not
+    dangle in the list). The prerequisite decision is resolved once per
+    ``module_id`` and cached.
+
+    ``exclude_lesson_ids`` skips lessons already represented elsewhere in the
+    plan (e.g. the required anchor or completed-today cards).
+    """
+    if anchor_lesson is None or limit <= 0:
+        return []
+
+    excluded: set[int] = set(exclude_lesson_ids or ())
+    # Over-fetch so prerequisite/exclude filtering can still yield up to
+    # ``limit`` visible lessons even when some upcoming lessons are blocked.
+    upcoming = get_spine_upcoming(user_id, anchor_lesson, db, limit=limit * 3)
+    if not upcoming:
+        return []
+
+    from app.curriculum.models import Module
+
+    min_order = _user_min_level_order(user_id, db)
+    module_access: dict[int, bool] = {}
+    items: list[PlanItem] = []
+    position = 0
+    for lesson in upcoming:
+        if lesson.id in excluded or lesson.id == anchor_lesson.id:
+            continue
+        module_id = lesson.module_id
+        accessible = module_access.get(module_id)
+        if accessible is None:
+            module = db.session.get(Module, module_id)
+            accessible = True
+            if module is not None:
+                ok, _reasons = module.check_prerequisites(
+                    user_id, min_level_order=min_order,
+                )
+                accessible = bool(ok)
+            module_access[module_id] = accessible
+        if not accessible:
+            continue
+
+        position += 1
+        module = lesson.module
+        level = module.level if module is not None else None
+        items.append(
+            PlanItem(
+                id=f'curriculum:lesson:{lesson.id}',
+                section=section,  # type: ignore[arg-type]
+                kind='curriculum',
+                title=lesson.title,
+                subtitle=_lesson_subtitle(lesson),
+                lesson_type=lesson.type,
+                eta_minutes=_eta_minutes(lesson.type),
+                url=_lesson_url(lesson),
+                completed=False,
+                completion_signal='lesson_completed',
+                data={
+                    'lesson_id': lesson.id,
+                    'lesson_number': lesson.number,
+                    'module_id': lesson.module_id,
+                    'module_number': module.number if module is not None else None,
+                    'module_title': module.title if module is not None else None,
+                    'level_code': level.code if level is not None else None,
+                    'queue_position': position,
+                },
+            )
+        )
+        if len(items) >= limit:
+            break
+
+    return items
 
 
 def _lesson_subtitle(lesson: Lessons) -> Optional[str]:

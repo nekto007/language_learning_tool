@@ -928,6 +928,136 @@ class TestGraduatedDaySecured:
         )
 
 
+# ── Task 1: continuation queue (build_curriculum_queue) ──────────────────────
+
+
+class TestBuildCurriculumQueue:
+    """Unit tests for build_curriculum_queue — the Duolingo-style continuation
+    queue of upcoming spine lessons after the required anchor lesson."""
+
+    def test_queue_returns_n_lessons_in_spine_order(self, db_session):
+        """Queue returns the next ``limit`` lessons after the anchor, in order."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=30)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        l3 = _make_lesson(db_session, module, number=3, type_='vocabulary')
+        l4 = _make_lesson(db_session, module, number=4, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=2,
+        )
+
+        assert [it.data['lesson_id'] for it in items] == [l2.id, l3.id]
+        # queue_position is 1-based and sequential.
+        assert [it.data['queue_position'] for it in items] == [1, 2]
+        assert all(it.section == 'optional' for it in items)
+        assert all(it.kind == 'curriculum' for it in items)
+        assert all(it.completed is False for it in items)
+        assert l4.id not in {it.data['lesson_id'] for it in items}
+
+    def test_queue_does_not_include_anchor(self, db_session):
+        """The anchor lesson never appears in its own continuation queue."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=31)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        assert anchor.id not in {it.data['lesson_id'] for it in items}
+
+    def test_queue_crosses_module_and_level_boundary(self, db_session):
+        """Queue spans module / level boundaries like the spine itself."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=32)
+        level2 = _make_level(db_session, order=33)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)
+        m3 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert ids == [l_m2.id, l_m3.id], (
+            'Queue must cross module and level boundaries in spine order'
+        )
+
+    def test_queue_excludes_blocked_module_lessons(self, db_session):
+        """Lessons in a module whose prerequisites are unmet are filtered out."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=34)
+        m1 = _make_module(db_session, level, number=1)
+        m2 = _make_module(db_session, level, number=2)
+        m3 = _make_module(db_session, level, number=3)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        # m2 is gated on completing m1 (anchor is incomplete → blocked).
+        m2.prerequisites = [{'type': 'module', 'id': m1.id}]
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = {it.data['lesson_id'] for it in items}
+        assert l_m2.id not in ids, 'Blocked-module lesson must not appear in queue'
+        assert l_m3.id in ids, 'Accessible later-module lesson should still appear'
+
+    def test_queue_respects_exclude_lesson_ids(self, db_session):
+        """exclude_lesson_ids removes specific lessons from the queue."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=35)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        l3 = _make_lesson(db_session, module, number=3, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+            exclude_lesson_ids={l2.id},
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert l2.id not in ids
+        assert ids == [l3.id]
+
+    def test_queue_empty_when_single_remaining_lesson(self, db_session):
+        """When anchor is the last lesson, the queue is empty."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=36)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        assert items == []
+
+
 # ── SRS deck-quiz placement vs card lesson (finding #13) ─────────────────────
 
 
