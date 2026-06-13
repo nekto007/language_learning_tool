@@ -178,8 +178,9 @@ def record_plan_completion(
     """
     from app.achievements.models import StreakEvent, UserStatistics
     from app.utils.db import db
+    from app.utils.time_utils import get_user_local_date
 
-    today = for_date or date.today()
+    today = for_date or get_user_local_date(user_id)  # user-local default (E-069)
 
     if _has_plan_completion_marker(user_id, today):
         return None
@@ -283,7 +284,8 @@ def days_at_current_rank(user_id: int, today: Optional[date] = None) -> int:
     if not history:
         return 0
     latest = history[-1]
-    anchor = today or date.today()
+    from app.utils.time_utils import get_user_local_date
+    anchor = today or get_user_local_date(user_id)  # user-local default (E-069)
     delta = (anchor - latest.achieved_on).days
     return max(0, delta)
 

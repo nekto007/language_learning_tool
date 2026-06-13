@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.achievements.models import StreakCoins, StreakEvent
 from app.utils.db import db
+from app.utils.time_utils import get_user_local_date
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
@@ -291,8 +292,8 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     scoreboard for the user is updated from the current plan view — points
     stay in sync with completed phases without a separate round trip.
     """
+    from app.auth.models import User
     from app.telegram.queries import get_current_streak, has_activity_today
-    from app.utils.time_utils import get_user_local_date
 
     # Dedup-даты (монета, plan_completed, phase XP, perfect day) ключуются
     # по User.timezone, а не по клиентскому ``tz``: два запроса с разными
@@ -305,7 +306,14 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     # words, books, book-courses).  steps_done can be positive from
     # auto-completed plan steps (e.g. words 'all_reviewed' when nothing
     # is due), which should not count as real study.
-    real_activity = has_activity_today(user_id, tz=tz)
+    #
+    # Activity window is keyed on User.timezone (same basis as user_today),
+    # NOT the client ``tz`` param — a divergent client tz would make the
+    # activity-day and the dedup-day belong to different calendar days
+    # (audit E-003).
+    _u = db.session.get(User, user_id)
+    _user_tz = getattr(_u, 'timezone', None) or DEFAULT_TIMEZONE
+    real_activity = has_activity_today(user_id, tz=_user_tz)
 
     xp_level_up: dict | None = None
     perfect_day_info: dict | None = None
@@ -596,7 +604,7 @@ def check_streak_milestone(user_id: int, current_streak: int,
     if already and already.details and already.details.get('streak') == current_streak:
         return None
 
-    today = for_date or date.today()
+    today = for_date or get_user_local_date(user_id)  # user-local default (E-005)
     coins = get_or_create_coins(user_id)
     coins.earn(reward)
     db.session.add(StreakEvent(
@@ -797,7 +805,7 @@ def save_daily_completion(user_id: int, steps_done: int, steps_total: int,
     If no earned_daily event exists yet, creates one (without coin award —
     coin is awarded separately via earn_daily_coin).
     """
-    today = for_date or date.today()
+    today = for_date or get_user_local_date(user_id)  # user-local default (E-005)
     event = StreakEvent.query.filter_by(
         user_id=user_id, event_type='earned_daily', event_date=today
     ).first()
@@ -820,7 +828,7 @@ def earn_daily_coin(user_id: int, for_date: date | None = None,
     Uses FOR UPDATE on the StreakCoins row to serialize concurrent
     requests for the same user, preventing duplicate earned_daily rows.
     """
-    today = for_date or date.today()
+    today = for_date or get_user_local_date(user_id)  # user-local default (E-005)
 
     # Lock user's coin row first to serialize concurrent attempts
     coins = StreakCoins.query.filter_by(user_id=user_id).with_for_update().first()
@@ -870,7 +878,9 @@ def has_repair_for_date(user_id: int, target_date: date) -> bool:
 
 def get_repair_cost(user_id: int) -> int:
     """Sliding repair cost: 1st/month=3, 2nd=5, 3rd+=10."""
-    month_start = date.today().replace(day=1)
+    # User-local month boundary, consistent with the rest of streak math
+    # (audit E-004); server-UTC date.today() would mis-window near month edges.
+    month_start = get_user_local_date(user_id).replace(day=1)
     repairs_count = StreakEvent.query.filter(
         StreakEvent.user_id == user_id,
         StreakEvent.event_type == 'spent_repair',
@@ -920,7 +930,9 @@ def apply_paid_repair(user_id: int, missed_date: date) -> dict:
     if has_repair_for_date(user_id, missed_date):
         return {'success': False, 'cost': 0, 'balance': 0, 'error': 'already_repaired'}
 
-    if (date.today() - missed_date).days > 2:
+    # User-local "today" so the 2-day repair window doesn't shift by the UTC
+    # offset at day edges (audit E-004).
+    if (get_user_local_date(user_id) - missed_date).days > 2:
         return {'success': False, 'cost': 0, 'balance': 0, 'error': 'expired'}
 
     cost = get_repair_cost(user_id)

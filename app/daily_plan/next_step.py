@@ -69,19 +69,14 @@ def _check_recovery(user_id: int, db) -> Optional[NextStep]:
     """Suggest recovery when yesterday's plan was not secured."""
     from datetime import timedelta
 
-    import pytz
-
-    from app.auth.models import User
     from app.daily_plan.models import DailyPlanLog
 
     try:
-        user = User.query.get(user_id)
-        tz_name = (user.timezone if user else None) or 'UTC'
-        try:
-            tz_obj = pytz.timezone(tz_name)
-        except pytz.UnknownTimeZoneError:
-            tz_obj = pytz.utc
-        yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+        # Use the same ZoneInfo-based resolver as the rest of the app instead
+        # of a separate pytz stack, so "yesterday" can't diverge for zone
+        # strings the two libraries disagree on (audit E-026).
+        from app.utils.time_utils import get_user_local_date
+        yesterday = get_user_local_date(user_id) - timedelta(days=1)
         log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
     except Exception:
         return None

@@ -163,8 +163,11 @@ class StatisticsService:
         current_count = getattr(stats, grade_field, 0)
         setattr(stats, grade_field, current_count + 1)
 
-        # Update streak
-        today = date.today()
+        # Update streak. User-local date so this counter agrees with the
+        # user-local streak in process_streak_on_activity and the milestone/
+        # weekly-XP gates fed from it (audit E-067).
+        from app.utils.time_utils import get_user_local_date
+        today = get_user_local_date(user_id)
         if stats.last_activity_date:
             days_diff = (today - stats.last_activity_date).days
             if days_diff == 1:
@@ -697,12 +700,23 @@ class AchievementService:
         if has_streak or historical_streak5:
             codes_to_award.add('quiz_streak_5')
 
-        # early_bird / night_owl: time of earliest/latest quiz session
-        now = datetime.now(timezone.utc)
+        # early_bird / night_owl: hour-of-day in the USER's timezone, not the
+        # server's UTC (audit E-066). date_achieved is naive UTC, so interpret
+        # it as UTC then convert to the user's zone before extracting the hour.
+        from app.auth.models import User
+        from app.utils.time_utils import get_user_local_hour
+        user = db.session.get(User, user_id)
+        user_tz = getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
+        local_hour = func.extract(
+            'hour',
+            func.timezone(user_tz, func.timezone('UTC', GameScore.date_achieved)),
+        )
+        local_now_hour = get_user_local_hour(user_id)
+
         early_row = db.session.query(GameScore.date_achieved).filter(
             GameScore.user_id == user_id,
             GameScore.game_type == 'quiz',
-            func.extract('hour', GameScore.date_achieved) < 8,
+            local_hour < 8,
         ).first()
         if early_row:
             codes_to_award.add('early_bird')
@@ -710,15 +724,15 @@ class AchievementService:
         night_row = db.session.query(GameScore.date_achieved).filter(
             GameScore.user_id == user_id,
             GameScore.game_type == 'quiz',
-            func.extract('hour', GameScore.date_achieved) >= 23,
+            local_hour >= 23,
         ).first()
         if night_row:
             codes_to_award.add('night_owl')
 
         # Also check current invocation time for first-quiz context
-        if not early_row and time_taken is not None and now.hour < 8:
+        if not early_row and time_taken is not None and local_now_hour < 8:
             codes_to_award.add('early_bird')
-        if not night_row and time_taken is not None and now.hour >= 23:
+        if not night_row and time_taken is not None and local_now_hour >= 23:
             codes_to_award.add('night_owl')
 
         return AchievementService._award_badges(user_id, codes_to_award)

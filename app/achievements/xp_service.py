@@ -267,12 +267,24 @@ def award_perfect_day_xp_idempotent(
     if already:
         return None
 
-    # Determine consecutive perfect day count
-    yesterday = for_date - timedelta(days=1)
+    # Determine consecutive perfect day count. Paused days are streak-neutral
+    # (a plan_pause StreakEvent is written per paused day), so walk back over
+    # them transparently — otherwise returning from a pause would reset the
+    # perfect-day multiplier even though the streak is preserved (audit E-006).
+    probe = for_date - timedelta(days=1)
+    for _ in range(60):
+        is_paused = StreakEvent.query.filter_by(
+            user_id=user_id,
+            event_type='plan_pause',
+            event_date=probe,
+        ).first() is not None
+        if not is_paused:
+            break
+        probe -= timedelta(days=1)
     had_yesterday = StreakEvent.query.filter_by(
         user_id=user_id,
         event_type='xp_perfect_day',
-        event_date=yesterday,
+        event_date=probe,
     ).first() is not None
 
     stats = UserStatistics.query.filter_by(user_id=user_id).first()
@@ -602,11 +614,18 @@ def award_linear_xp(
     return award_xp(user_id, base, source, score=score)
 
 
-def get_today_xp(user_id: int, for_date: date) -> int:
-    """Sum all XP awarded to a user on a given date from StreakEvents."""
+def get_today_xp(user_id: int, for_date: date | None = None) -> int:
+    """Sum all XP awarded to a user on a given date from StreakEvents.
+
+    ``for_date`` defaults to the user's LOCAL today (audit E-014) so callers
+    can't accidentally sum the wrong calendar day by passing a server-UTC date.
+    """
     from sqlalchemy import Integer, func
 
     from app.achievements.models import StreakEvent
+    if for_date is None:
+        from app.utils.time_utils import get_user_local_date
+        for_date = get_user_local_date(user_id)
 
     total = (
         StreakEvent.query
