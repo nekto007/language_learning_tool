@@ -24,6 +24,7 @@ from app.daily_plan.items.challenge import build_challenge_item
 from app.daily_plan.items.curriculum import (
     build_curriculum_completed_item,
     build_curriculum_item,
+    build_curriculum_queue,
     get_curriculum_lessons_completed_today,
     has_completed_history,
 )
@@ -44,7 +45,13 @@ from app.daily_plan.items.srs import build_srs_item
 
 logger = logging.getLogger(__name__)
 
-OPTIONAL_MAX = 10
+OPTIONAL_MAX = 15
+
+# Length of the Duolingo-style continuation queue of upcoming spine lessons
+# surfaced in the optional section after the required minimum. Kept below
+# ``OPTIONAL_MAX`` so completed-today cards and the other practice sources
+# (SRS, reading, …) still fit under the overall cap.
+CONTINUATION_QUEUE_LIMIT = 12
 
 # Items that must wait for the curriculum slot to complete — skipping
 # curriculum locks them too. Listening is intentionally NOT in this set;
@@ -115,10 +122,11 @@ def _annotate_unified_skip_quota(
         data['slot_skip_allowed'] = skips_remaining > 0
         data['slot_skips_remaining'] = skips_remaining
 
-# Priority order for building optional items. Items already present in
-# required (matched by ``id``) are skipped to avoid duplication.
+# Priority order for building the non-curriculum optional sources. The
+# curriculum continuation queue is built separately (``build_curriculum_queue``)
+# and rendered BEFORE these. Items already present in required (matched by
+# ``id``) are skipped to avoid duplication.
 _OPTIONAL_PRIORITY = (
-    'curriculum',
     'srs',
     'reading',
     'listening',
@@ -313,26 +321,56 @@ def build_optional(
             if cli_lid is not None:
                 seen_lesson_ids.add(cli_lid)
 
-    # Build candidate items per source. Each source contributes at most one
-    # optional item (subsequent extension comes from rebuild after activity).
+    # Active candidates, in render order: the curriculum continuation queue
+    # first (Duolingo-style «Дальше по курсу» — a long list of upcoming spine
+    # lessons), then the other practice sources (SRS, reading, …).
     active_candidates: list[PlanItem] = []
+
+    def _accept(candidate: Optional[PlanItem]) -> bool:
+        if candidate is None or candidate.id in seen_ids:
+            return False
+        candidate_lid = _item_lesson_id(candidate)
+        if candidate_lid is not None and candidate_lid in seen_lesson_ids:
+            # Same underlying lesson already represented (e.g. surfaced as
+            # a completed curriculum card) — drop the duplicate.
+            return False
+        active_candidates.append(candidate)
+        seen_ids.add(candidate.id)
+        if candidate_lid is not None:
+            seen_lesson_ids.add(candidate_lid)
+        return True
+
+    # Curriculum continuation queue: anchor on the required curriculum lesson
+    # and walk the spine forward. The anchor (and any lesson already seen) is
+    # excluded; the queue is intentionally light (no weak-grammar/adaptive
+    # hints). Graduated users have no curriculum anchor — they skip the queue.
+    # Over-fetch one extra lesson so we can tell the dashboard there is more
+    # spine beyond the displayed cap (``queue_truncated`` → has_more).
+    queue_truncated = False
+    if required_curriculum_lesson_id is not None:
+        from app.curriculum.models import Lessons
+
+        anchor_lesson = db.session.get(Lessons, required_curriculum_lesson_id)
+        if anchor_lesson is not None:
+            queue_items = build_curriculum_queue(
+                user_id, db,
+                anchor_lesson=anchor_lesson,
+                limit=CONTINUATION_QUEUE_LIMIT + 1,
+                exclude_lesson_ids=set(seen_lesson_ids),
+                section='optional',
+            )
+            queue_truncated = len(queue_items) > CONTINUATION_QUEUE_LIMIT
+            for queue_item in queue_items[:CONTINUATION_QUEUE_LIMIT]:
+                _accept(queue_item)
+
+    # Other practice sources. Each contributes at most one optional item.
     for kind in _OPTIONAL_PRIORITY:
         candidate = _build_optional_candidate(
             user_id, db, kind, focus,
             exclude_curriculum_ids=exclude_curriculum_ids,
             graduated=graduated,
         )
-        if candidate is None or candidate.id in seen_ids:
-            continue
-        candidate_lid = _item_lesson_id(candidate)
-        if candidate_lid is not None and candidate_lid in seen_lesson_ids:
-            # Same underlying lesson already represented (e.g. surfaced as
-            # a completed curriculum card) — drop the duplicate.
-            continue
-        active_candidates.append(candidate)
-        seen_ids.add(candidate.id)
-        if candidate_lid is not None:
-            seen_lesson_ids.add(candidate_lid)
+        _accept(candidate)
 
     # Active candidates take priority over completed cards — drop accumulated
     # completions first if the section would otherwise overflow.
@@ -341,7 +379,8 @@ def build_optional(
     completed_subset = completed_curriculum_items[:completed_slots]
     items = completed_subset + active_subset
     has_more = (
-        len(completed_curriculum_items) > len(completed_subset)
+        queue_truncated
+        or len(completed_curriculum_items) > len(completed_subset)
         or len(active_candidates) > len(active_subset)
     )
     # ``has_more`` is a soft hint; the dashboard simply re-fetches on demand.
@@ -356,11 +395,6 @@ def _build_optional_candidate(
     exclude_curriculum_ids: Optional[set[int]] = None,
     graduated: bool = False,
 ) -> Optional[PlanItem]:
-    if kind == 'curriculum':
-        return build_curriculum_item(
-            user_id, db, section='optional',
-            exclude_lesson_ids=exclude_curriculum_ids,
-        )
     if kind == 'srs':
         return build_srs_item(
             user_id, db, section='optional',

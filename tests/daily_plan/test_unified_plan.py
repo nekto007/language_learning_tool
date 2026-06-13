@@ -1058,6 +1058,109 @@ class TestBuildCurriculumQueue:
         assert items == []
 
 
+# ── Task 2: continuation queue wired into build_optional ─────────────────────
+
+
+class TestOptionalContinuationQueue:
+    """Optional now carries a continuation queue of upcoming spine lessons
+    (Task 2) instead of a single next-lesson curriculum candidate."""
+
+    def test_optional_has_multiple_curriculum_lessons_in_order(self, db_session):
+        """≥3 pending lessons → optional lists the upcoming lessons in spine order."""
+        level = _make_level(db_session, order=40)
+        module = _make_module(db_session, level)
+        l1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        l3 = _make_lesson(db_session, module, number=3, type_='vocabulary')
+        l4 = _make_lesson(db_session, module, number=4, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        required_curriculum = [it for it in plan['required'] if it['kind'] == 'curriculum']
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == l1.id
+
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        ids = [it['data']['lesson_id'] for it in optional_curriculum]
+        # Queue starts after the required anchor (L1), in spine order.
+        assert ids == [l2.id, l3.id, l4.id], (
+            'Optional must carry the upcoming lessons in spine order'
+        )
+
+    def test_optional_queue_does_not_duplicate_required(self, db_session):
+        """No curriculum id appears in both required and optional."""
+        level = _make_level(db_session, order=41)
+        module = _make_module(db_session, level)
+        for n in range(1, 6):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        required_ids = {it['id'] for it in plan['required']}
+        optional_ids = {it['id'] for it in plan['optional']}
+        assert required_ids.isdisjoint(optional_ids)
+
+    def test_has_more_optional_is_boolean_with_queue(self, db_session):
+        """has_more_optional remains a bool when a long queue is present."""
+        level = _make_level(db_session, order=42)
+        module = _make_module(db_session, level)
+        for n in range(1, 6):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+        assert isinstance(plan['has_more_optional'], bool)
+
+    def test_queue_capped_at_continuation_limit(self, db_session):
+        """A very long spine is capped at CONTINUATION_QUEUE_LIMIT in optional."""
+        from app.daily_plan.plan import CONTINUATION_QUEUE_LIMIT
+
+        level = _make_level(db_session, order=43)
+        module = _make_module(db_session, level)
+        for n in range(1, CONTINUATION_QUEUE_LIMIT + 6):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        assert len(optional_curriculum) <= CONTINUATION_QUEUE_LIMIT
+        # has_more must signal there is content beyond the cap.
+        assert plan['has_more_optional'] is True
+
+    def test_day_secured_independent_of_queue_length(self, db_session):
+        """day_secured is recomputed from required only — queue length is irrelevant."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        level = _make_level(db_session, order=44)
+        module = _make_module(db_session, level)
+        for n in range(1, 8):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        # Mark every required item complete; optional queue stays incomplete.
+        completion = {it['id']: True for it in payload['required']}
+        assert compute_day_secured_from_activity(payload, completion) is True
+        # The long optional queue does not affect the secured verdict.
+
+    def test_single_remaining_lesson_empty_queue(self, db_session):
+        """Only one lesson → no continuation queue in optional."""
+        level = _make_level(db_session, order=45)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        assert optional_curriculum == []
+
+
 # ── SRS deck-quiz placement vs card lesson (finding #13) ─────────────────────
 
 
