@@ -1315,39 +1315,41 @@ def check_weekly_milestone_achievements(user_id: int, streak_days: int, db_sessi
     """
     from app.achievements.xp_service import award_xp
 
-    if streak_days not in _WEEKLY_MILESTONE_MAP:
-        return []
+    # Gate by threshold CROSSING, not exact equality (audit E-070): a streak
+    # that jumps over a milestone (repair restoring 6→8, backfill) must still
+    # grant it. grant_achievement is idempotent, so re-checking every crossed
+    # milestone is safe and self-healing.
+    newly: List[Achievement] = []
+    for threshold, (code, bonus_xp) in sorted(_WEEKLY_MILESTONE_MAP.items()):
+        if streak_days < threshold:
+            continue
+        achievement = Achievement.query.filter_by(code=code).first()
+        if achievement is None:
+            continue
+        _, is_new = grant_achievement(user_id, achievement.id)
+        if not is_new:
+            continue
 
-    code, bonus_xp = _WEEKLY_MILESTONE_MAP[streak_days]
-    weeks = streak_days // 7
-
-    achievement = Achievement.query.filter_by(code=code).first()
-    if achievement is None:
-        return []
-
-    _, is_new = grant_achievement(user_id, achievement.id)
-    if not is_new:
-        return []
-
-    award_xp(user_id, bonus_xp, source=f'milestone_{code}')
-
-    try:
-        from app.notifications.services import create_notification
-        create_notification(
-            user_id, 'achievement',
-            title=f'Серия {weeks} {_week_label(weeks)}! +{bonus_xp} XP',
-            message=f'Вы занимаетесь {streak_days} дней подряд!',
-            icon=achievement.icon,
-            link='/study/stats',
-        )
-    except Exception:
-        logger.exception(
-            "Failed to send weekly milestone notification for user %s (streak=%s)",
-            user_id, streak_days,
-        )
+        award_xp(user_id, bonus_xp, source=f'milestone_{code}')
+        weeks = threshold // 7
+        try:
+            from app.notifications.services import create_notification
+            create_notification(
+                user_id, 'achievement',
+                title=f'Серия {weeks} {_week_label(weeks)}! +{bonus_xp} XP',
+                message=f'Вы занимаетесь {streak_days} дней подряд!',
+                icon=achievement.icon,
+                link='/study/stats',
+            )
+        except Exception:
+            logger.exception(
+                "Failed to send weekly milestone notification for user %s (streak=%s)",
+                user_id, streak_days,
+            )
+        newly.append(achievement)
 
     (db_session if db_session is not None else db.session).flush()
-    return [achievement]
+    return newly
 
 
 def check_challenge_achievements(user_id: int, db_session=None) -> List[Achievement]:

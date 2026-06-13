@@ -230,6 +230,8 @@ class TestCheckSrsDue:
                 MockUCD.next_review = _make_col_mock()
                 MockUCD.direction = _make_col_mock()
                 MockUCD.user_word_id = _make_col_mock()
+                MockUCD.state = _make_col_mock()
+                MockUCD.buried_until = _make_col_mock()
 
                 step = _check_srs_due(1, db)
 
@@ -261,6 +263,8 @@ class TestCheckSrsDue:
                 MockUCD.next_review = _make_col_mock()
                 MockUCD.direction = _make_col_mock()
                 MockUCD.user_word_id = _make_col_mock()
+                MockUCD.state = _make_col_mock()
+                MockUCD.buried_until = _make_col_mock()
 
                 step = _check_srs_due(1, db)
 
@@ -822,18 +826,16 @@ class TestCheckRecovery:
             from app.daily_plan.next_step import _check_recovery
             from datetime import date, timedelta
 
-            mock_user = MagicMock()
-            mock_user.timezone = 'Europe/Moscow'
-
             mock_log = MagicMock()
             mock_log.secured_at = None
             mock_log.mission_type = None
 
             db = _make_mock_db()
 
-            with patch('app.auth.models.User') as MockUser, \
+            # _check_recovery resolves "yesterday" via get_user_local_date now
+            # (audit E-026); patch it for determinism.
+            with patch('app.utils.time_utils.get_user_local_date', return_value=date(2026, 6, 13)), \
                  patch('app.daily_plan.models.DailyPlanLog') as MockLog:
-                MockUser.query.get.return_value = mock_user
                 MockLog.query.filter_by.return_value.first.return_value = mock_log
 
                 step = _check_recovery(1, db)
@@ -850,17 +852,15 @@ class TestCheckRecovery:
             from app.daily_plan.next_step import _check_recovery
             from datetime import datetime, timezone
 
-            mock_user = MagicMock()
-            mock_user.timezone = 'UTC'
+            from datetime import date
 
             mock_log = MagicMock()
             mock_log.secured_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
             db = _make_mock_db()
 
-            with patch('app.auth.models.User') as MockUser, \
+            with patch('app.utils.time_utils.get_user_local_date', return_value=date(2026, 6, 13)), \
                  patch('app.daily_plan.models.DailyPlanLog') as MockLog:
-                MockUser.query.get.return_value = mock_user
                 MockLog.query.filter_by.return_value.first.return_value = mock_log
 
                 step = _check_recovery(1, db)
@@ -871,15 +871,12 @@ class TestCheckRecovery:
         """Returns None when user has no DailyPlanLog for yesterday."""
         with app.app_context():
             from app.daily_plan.next_step import _check_recovery
-
-            mock_user = MagicMock()
-            mock_user.timezone = 'UTC'
+            from datetime import date
 
             db = _make_mock_db()
 
-            with patch('app.auth.models.User') as MockUser, \
+            with patch('app.utils.time_utils.get_user_local_date', return_value=date(2026, 6, 13)), \
                  patch('app.daily_plan.models.DailyPlanLog') as MockLog:
-                MockUser.query.get.return_value = mock_user
                 MockLog.query.filter_by.return_value.first.return_value = None
 
                 step = _check_recovery(1, db)
@@ -972,6 +969,8 @@ class TestEstimatedMinutesBounds:
                 MockSS.get_settings.return_value = mock_settings
                 MockUCD.next_review = _make_col_mock()
                 MockUCD.user_word_id = _make_col_mock()
+                MockUCD.state = _make_col_mock()
+                MockUCD.buried_until = _make_col_mock()
                 step = _check_srs_due(1, db)
 
             assert step is not None

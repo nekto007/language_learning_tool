@@ -81,29 +81,21 @@ _ADAPTIVE_HIGH_THRESHOLD = 90.0
 _ADAPTIVE_HINT_WINDOW = 5
 
 
-def _passing_score_clause():
-    """SQL predicate: a curriculum lesson counts as *done today* when it is a
-    completion-only type, OR a score-based type that met its per-type passing
-    threshold. Thresholds mirror ``get_lesson_passing_score`` type defaults:
-    ``dictation`` → 80 (``PASSING_SCORE_DICTATION``), everything else → 70
-    (``PASSING_SCORE_DEFAULT``). Per-lesson ``passing_score`` content overrides
-    are enforced at grading time (they decide ``LessonProgress`` outcome), not
-    re-evaluated here. Previously this hardcoded 70 for all score-based types,
-    so a dictation passed at e.g. 72% (its real bar is 80%) was wrongly counted
-    as done and the plan never re-offered it.
+def _lesson_meets_passing(lesson: Any, score: Optional[float]) -> bool:
+    """True when a completed lesson counts as *done today*.
+
+    Completion-only types always count; score-based types must have met their
+    REAL per-lesson passing threshold via ``get_lesson_passing_score`` — which
+    honors a content ``passing_score_percent`` override (audit E-043). Doing
+    this in Python guarantees consistency with the canonical resolver instead
+    of re-deriving thresholds (and the dictation=80 default) in SQL. Previously
+    a hardcoded 70 floor re-offered a lesson with a lower content threshold
+    (passed at 55 vs bar 50) whenever its XP StreakEvent didn't land.
     """
-    return or_(
-        Lessons.type.notin_(tuple(_SCORE_BASED_LESSON_TYPES)),
-        and_(
-            Lessons.type == 'dictation',
-            LessonProgress.score >= PASSING_SCORE_DICTATION,
-        ),
-        and_(
-            Lessons.type.in_(tuple(_SCORE_BASED_LESSON_TYPES)),
-            Lessons.type != 'dictation',
-            LessonProgress.score >= PASSING_SCORE_DEFAULT,
-        ),
-    )
+    from app.curriculum.constants import get_lesson_passing_score
+    if (getattr(lesson, 'type', '') or '') not in _SCORE_BASED_LESSON_TYPES:
+        return True
+    return (score or 0) >= get_lesson_passing_score(lesson)
 
 
 def _eta_minutes(lesson_type: Optional[str]) -> int:
@@ -134,8 +126,8 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
         return True
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
-    return db.session.query(
-        db.session.query(LessonProgress)
+    rows = (
+        db.session.query(LessonProgress.score, Lessons)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -144,10 +136,10 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
-            _passing_score_clause(),
         )
-        .exists()
-    ).scalar() or False
+        .all()
+    )
+    return any(_lesson_meets_passing(lesson, score) for score, lesson in rows)
 
 
 def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
@@ -218,7 +210,7 @@ def get_curriculum_lessons_completed_today(
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     fallback_rows = (
-        db.session.query(LessonProgress.lesson_id)
+        db.session.query(LessonProgress.lesson_id, LessonProgress.score, Lessons)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -227,13 +219,14 @@ def get_curriculum_lessons_completed_today(
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
-            _passing_score_clause(),
         )
         .order_by(LessonProgress.completed_at.asc())
         .all()
     )
-    for (lesson_id,) in fallback_rows:
+    for lesson_id, score, lesson in fallback_rows:
         if lesson_id in excluded or lesson_id in seen_ids:
+            continue
+        if not _lesson_meets_passing(lesson, score):  # honor per-lesson bar (E-043)
             continue
         seen_ids.add(lesson_id)
         ordered_ids.append(lesson_id)
@@ -324,6 +317,7 @@ def _get_weak_grammar_topic_ids(
     min_attempts: int = _WEAK_MIN_ATTEMPTS,
     max_accuracy: float = _WEAK_ACCURACY_MAX,
 ) -> dict[int, dict[str, Any]]:
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.grammar_lab.models import (
         GrammarExercise,
         GrammarTopic,
@@ -344,7 +338,12 @@ def _get_weak_grammar_topic_ids(
         )
         .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
         .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
-        .filter(UserGrammarExercise.user_id == user_id)
+        .filter(
+            UserGrammarExercise.user_id == user_id,
+            # Public CEFR levels only — match the sibling grammar-SRS consumers
+            # so a non-public/draft topic can't surface as a weak hint (E-042).
+            GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+        )
         .group_by(GrammarTopic.id, GrammarTopic.title)
         .having(total_sum >= min_attempts)
         .all()
@@ -380,6 +379,7 @@ def _get_weak_grammar_topic_ids(
         .filter(
             LessonAttempt.user_id == user_id,
             Lessons.type == 'grammar',
+            GrammarTopic.level.in_(PUBLIC_CEFR_CODES),  # public levels only (E-042)
         )
         .group_by(GrammarTopic.id, GrammarTopic.title)
         .having(c_total >= min_attempts)

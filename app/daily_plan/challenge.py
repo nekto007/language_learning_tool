@@ -53,8 +53,11 @@ def get_challenge_streak(user_id: int, db) -> int:
     from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
     from app.utils.time_utils import get_user_local_date
 
+    # Window generous enough that a real multi-year streak isn't undercounted
+    # by the loop bound (audit E-029); cutoff and the walk below share it.
+    _STREAK_WINDOW_DAYS = 3660
     today = get_user_local_date(user_id, db)
-    cutoff = today - timedelta(days=365)
+    cutoff = today - timedelta(days=_STREAK_WINDOW_DAYS)
 
     rows = (
         db.session.query(DailyChallenge.challenge_date)
@@ -69,7 +72,7 @@ def get_challenge_streak(user_id: int, db) -> int:
     active_dates = {row[0] for row in rows if row[0] is not None}
 
     streak = 0
-    for offset in range(365):
+    for offset in range(_STREAK_WINDOW_DAYS + 1):
         check_date = today - timedelta(days=offset)
         if check_date in active_dates:
             streak += 1

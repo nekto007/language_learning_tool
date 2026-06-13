@@ -282,6 +282,11 @@ def _check_writing_suggestion(user_id: int, db) -> Optional[NextStep]:
         LessonProgress.status == 'completed',
     ).subquery()
 
+    # NB (audit E-025): this picks the globally-first incomplete writing lesson
+    # by id and does not re-apply module prerequisite / level gating. The route
+    # (check_module_access) still 403-guards a gated lesson, so a gated pick is
+    # at worst a dead hint, not an access bypass. A spine-aware pick would need
+    # the find_next_lesson navigation machinery.
     writing_lesson = (
         db.session.query(Lessons)
         .filter(
@@ -379,7 +384,21 @@ def _check_reading_progress(user_id: int, db) -> Optional[NextStep]:
     if not started_book_ids:
         return None
 
-    book = Book.query.get(started_book_ids[0])
+    # Pick the most-recent started book the user can STILL access — skip drafts
+    # and books whose license lapsed / module was removed, so continuation
+    # doesn't surface a book that 403s on open (audit E-025).
+    from app.auth.models import User
+    from app.books.access import can_user_access_book
+    user = db.session.get(User, user_id)
+    book = None
+    for bid in started_book_ids:
+        candidate = Book.query.get(bid)
+        if candidate is None or not getattr(candidate, 'is_published', True):
+            continue
+        if not can_user_access_book(user, candidate):
+            continue
+        book = candidate
+        break
     if not book:
         return None
 
