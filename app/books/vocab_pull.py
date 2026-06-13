@@ -56,6 +56,11 @@ def extract_chapter_vocab(
     if chapter is None or not chapter.text_raw:
         return []
 
+    # NOTE (audit E-053): offset_pct is a RENDERED-scroll fraction, mapped here
+    # directly onto raw-text character positions. These don't align exactly
+    # (markup, images, font metrics), so the slice is an APPROXIMATION of the
+    # read region — acceptable for vocab sampling, not an exact boundary. If
+    # precise alignment is ever needed, store character progress separately.
     text = chapter.text_raw
     start_char = int(start_offset * len(text))
     end_char = int(end_offset * len(text))

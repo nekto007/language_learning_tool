@@ -82,6 +82,11 @@ def accessible_books_filter(user) -> Any:
         # Admin: every row.
         return Book.id == Book.id
 
+    # Anonymous users have no book access — mirror can_user_access_book so a
+    # listing without @login_required can't expose the catalog (audit E-050).
+    if not getattr(user, 'is_authenticated', False):
+        return Book.id.is_(None)
+
     public_domain = Book.rights_status == 'public_domain'
     if _user_has_books_module(user):
         licensed_ok = or_(

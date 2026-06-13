@@ -335,6 +335,28 @@ def read_book(book_id):
     return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 
 
+def _apply_allowed_text_percent(book, text):
+    """Truncate ``text`` to ``book.allowed_text_percent`` of its length.
+
+    Returns ``(text, was_truncated)``. Backs off to a paragraph or whitespace
+    boundary near the cut so a word isn't split. Enforces the licensed text
+    allowance for non-public-domain books (audit E-047).
+    """
+    pct = getattr(book, 'allowed_text_percent', None)
+    if pct is None or pct >= 100 or not text:
+        return text, False
+    pct = max(0, min(100, int(pct)))
+    cut = max(1, int(len(text) * pct / 100))
+    if cut >= len(text):
+        return text, False
+    truncated = text[:cut]
+    boundary = truncated.rfind('\n\n')
+    if boundary <= cut * 0.5:
+        sp = truncated.rfind(' ')
+        boundary = sp if sp > 0 else cut
+    return truncated[:boundary], True
+
+
 @books.route('/books/<string:book_slug>/chapter/<int:chapter_num>')
 @books.route('/books/<string:book_slug>/reader')
 @books.route('/reader/<string:book_slug>/<int:chapter_num>')
@@ -407,10 +429,21 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         else:
             back_url = url_for('books.book_details', book_id=book_id)
 
+    # Enforce per-book licensed text allowance (audit E-047): a licensed /
+    # companion_only book with allowed_text_percent < 100 serves only that
+    # fraction of each chapter to non-admins. Public-domain books and admins
+    # always get the full text.
+    chapter_text = current_chapter.text_raw
+    text_truncated = False
+    if not current_user.is_admin and getattr(book, 'rights_status', None) != 'public_domain':
+        chapter_text, text_truncated = _apply_allowed_text_percent(book, chapter_text)
+
     return render_template('books/reader_simple.html',
                            book=book,
                            chapters=chapters,
                            current_chapter=current_chapter,
+                           chapter_text=chapter_text,
+                           text_truncated=text_truncated,
                            chapter_progress=chapter_progress,
                            back_url=back_url
                            )
