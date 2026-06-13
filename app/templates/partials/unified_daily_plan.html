@@ -493,7 +493,7 @@
     <div class="daily-plan__section daily-plan__section--optional{% if u_optional_locked %} daily-plan__section--optional-locked{% endif %}"
          data-section="optional">
       <div class="daily-plan__section-header">
-        <h3 class="daily-plan__section-title">Дополнительно</h3>
+        <h3 class="daily-plan__section-title">Дальше по курсу</h3>
         {% if u_optional_locked %}
           <p class="daily-plan__section-hint">Откроется после дневного минимума</p>
         {% endif %}
@@ -520,8 +520,8 @@
               {% set _label = kind_section_labels[_kind] %}
           {% endif %}
           {% set _kind_glyph = kind_icons.get(_kind, '') %}
-          {# No "(N/M)" suffix in optional — duplicates are rare and the
-             "БОНУС" badge already differentiates the section. #}
+          {# No "(N/M)" suffix in optional — curriculum queue items carry a
+             step badge (📚 + queue_position), bonus practice keeps «Бонус». #}
           {% set _kind_total = 0 %}
           {% set _kind_seen = 0 %}
           <li class="plan-item plan-item--{{ _kind }} plan-item--optional{% if _is_locked_any %} plan-item--optional-locked{% endif %}{% if _completed %} plan-item--compact{% endif %}"
@@ -530,8 +530,9 @@
               data-item-kind="{{ _kind }}"
               data-locked="{{ 'true' if _is_locked_any else 'false' }}"
               {% if _is_challenge %}data-challenge="true"{% endif %}>
-            <span class="plan-item__badge">
-              {% if _completed %}&#10003;{% elif _is_challenge and _bonus %}+{{ _bonus }} XP{% else %}Бонус{% endif %}
+            {% set _queue_pos = _data.get('queue_position') %}
+            <span class="plan-item__badge plan-item__badge--{{ _kind }}">
+              {% if _completed %}&#10003;{% elif _is_challenge and _bonus %}+{{ _bonus }} XP{% elif _kind == 'curriculum' %}<span class="plan-item__badge-icon" aria-hidden="true">📚</span>{% if _queue_pos %}<span class="plan-item__badge-step">{{ _queue_pos }}</span>{% endif %}{% else %}Бонус{% endif %}
             </span>
             <div class="plan-item__body">
               {% if _label %}
@@ -584,7 +585,7 @@
                 class="daily-plan__load-more{% if u_day_secured %} daily-plan__load-more--primary{% endif %}"
                 data-action="reload-plan"
                 {% if u_optional_locked %}disabled aria-disabled="true"{% endif %}>
-          {% if u_day_secured %}Продолжить обучение{% else %}Показать ещё задания{% endif %}
+          {% if u_day_secured %}Продолжить обучение{% else %}Показать ещё уроки{% endif %}
         </button>
       {% endif %}
     </div>

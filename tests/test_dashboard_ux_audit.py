@@ -225,3 +225,76 @@ class TestNullSafetyJS:
         env = _build_env()
         html = _render_partial(env, _base_plan(total_estimated_minutes=0))
         assert 'daily-plan__eta' not in html
+
+
+class TestContinuationQueueSection:
+    """Optional section renders a Duolingo-style «Дальше по курсу» queue."""
+
+    def _queue_plan(self, **overrides) -> dict:
+        """Day-secured plan with a multi-lesson curriculum continuation queue."""
+        optional = [
+            {
+                'id': f'curriculum:lesson:{n}',
+                'kind': 'curriculum',
+                'title': f'Урок очереди {n}',
+                'url': f'/lesson/{n}',
+                'completed': False,
+                'lesson_type': 'vocabulary',
+                'data': {'lesson_id': n, 'queue_position': i + 1},
+            }
+            for i, n in enumerate((10, 11, 12))
+        ]
+        plan = _base_plan(day_secured=True, optional=optional)
+        plan.update(overrides)
+        return plan
+
+    def test_section_title_renamed_to_continue_course(self):
+        env = _build_env()
+        html = _render_partial(env, self._queue_plan())
+        assert 'Дальше по курсу' in html
+        assert 'Дополнительно' not in html
+
+    def test_multiple_curriculum_items_present(self):
+        env = _build_env()
+        html = _render_partial(env, self._queue_plan())
+        # Several curriculum lessons are queued; titles all render even though
+        # sequential unlock keeps only the first clickable.
+        for n in (10, 11, 12):
+            assert f'Урок очереди {n}' in html
+        assert html.count('plan-item--curriculum') >= 3
+        # The first (current) queue lesson is a live link.
+        assert '/lesson/10' in html
+
+    def test_curriculum_items_use_step_badge_not_bonus(self):
+        env = _build_env()
+        html = _render_partial(env, self._queue_plan())
+        # Curriculum queue items get the neutral 📚 step marker, not «Бонус».
+        assert 'plan-item__badge--curriculum' in html
+        assert 'plan-item__badge-step' in html
+        # No «Бонус» label leaks onto curriculum queue items.
+        assert 'Бонус' not in html
+
+    def test_challenge_keeps_xp_badge(self):
+        env = _build_env()
+        plan = self._queue_plan(optional=[{
+            'id': 'challenge:1', 'kind': 'curriculum', 'title': 'Челлендж',
+            'url': '/challenge', 'completed': False, 'lesson_type': 'quiz',
+            'data': {'is_challenge': True, 'bonus_xp': 30},
+        }])
+        html = _render_partial(env, plan)
+        assert '+30 XP' in html
+
+    def test_load_more_label_for_lessons(self):
+        env = _build_env()
+        plan = self._queue_plan(has_more_optional=True, day_secured=False)
+        html = _render_partial(env, plan)
+        assert 'Показать ещё уроки' in html
+
+    def test_bonus_label_remains_for_non_curriculum_practice(self):
+        env = _build_env()
+        plan = _base_plan(day_secured=True, optional=[{
+            'id': 'o-srs', 'kind': 'srs', 'title': 'Повторение слов',
+            'url': '/study', 'completed': False, 'data': {},
+        }])
+        html = _render_partial(env, plan)
+        assert 'Бонус' in html

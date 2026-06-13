@@ -17657,6 +17657,22 @@ a.daily-plan__position--link:focus {
     background: #fed7aa;
     color: #c2410c;
 }
+/* Curriculum queue step badge — neutral «📚 N» marker (not «Бонус»):
+   the optional section is now a course-continuation queue, not bonus content. */
+.plan-item__badge--curriculum {
+    gap: 3px;
+    text-transform: none;
+    letter-spacing: 0;
+    background: var(--color-surface-muted, #f1f5f9);
+    color: var(--color-text-muted, #64748b);
+}
+.plan-item__badge-icon {
+    font-size: 0.8125rem;
+    line-height: 1;
+}
+.plan-item__badge-step {
+    font-variant-numeric: tabular-nums;
+}
 
 /* Primary load-more after day_secured: «Продолжить обучение» */
 .daily-plan__load-more--primary {
