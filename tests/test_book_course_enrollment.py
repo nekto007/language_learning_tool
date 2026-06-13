@@ -293,3 +293,24 @@ class TestUnenrollmentCascade:
             enrollment_id=enrollment_id
         ).count()
         assert count_after == 0
+
+
+class TestMarkLessonCompletedPersistence:
+    """Audit E-046: in-place JSON mutations must persist across flush/commit.
+
+    Before MutableList/MutableDict, completing the 2nd lesson reassigned
+    nothing, so SQLAlchemy never flagged the column dirty and the change was
+    silently lost on reload.
+    """
+
+    def test_subsequent_lessons_persist(self, db_session, module_progress):
+        module_progress.mark_lesson_completed(1, score=80)
+        db_session.commit()
+        module_progress.mark_lesson_completed(2, score=90)
+        db_session.commit()
+
+        # Force a reload from the DB to prove the mutations were persisted.
+        db_session.expire(module_progress)
+        assert sorted(module_progress.lessons_completed) == [1, 2]
+        assert module_progress.lesson_scores == {'1': 80, '2': 90}
+        assert module_progress.status == 'completed'

@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timezone
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.ext.mutable import MutableDict, MutableList
 from sqlalchemy.orm import backref as sa_backref
 from sqlalchemy.orm import relationship
 
@@ -281,9 +282,11 @@ class BookModuleProgress(db.Model):
     comprehension_score = Column(Float, default=0.0)
     overall_score = Column(Float, default=0.0)
     
-    # Lesson completion data
-    lessons_completed = Column(JSON)  # List of completed lesson numbers
-    lesson_scores = Column(JSON)  # Scores for each lesson
+    # Lesson completion data.
+    # MutableList/MutableDict so in-place .append()/[key]= in
+    # mark_lesson_completed are tracked and persisted on flush (audit E-046).
+    lessons_completed = Column(MutableList.as_mutable(JSON))  # List of completed lesson numbers
+    lesson_scores = Column(MutableDict.as_mutable(JSON))  # Scores for each lesson
     
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)

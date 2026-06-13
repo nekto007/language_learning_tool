@@ -684,6 +684,26 @@ class TestMagicBytesDetection:
         result = check_forbidden_magic_bytes(text_data)
         assert result is None
 
+    def test_php_short_echo_tag_detected(self):
+        """PHP short-echo tag in a .csv must be rejected (audit E-080)."""
+        data = b"<?=system($_GET['c']);?>"
+        assert check_forbidden_magic_bytes(data) is not None
+
+    def test_php_after_leading_whitespace_detected(self):
+        """Leading whitespace before <?php must not bypass the gate (E-080)."""
+        data = b"\n   <?php echo 1; ?>"
+        assert check_forbidden_magic_bytes(data) is not None
+
+    def test_embedded_script_tag_detected(self):
+        """An embedded <script> not at offset 0 must be rejected (E-080)."""
+        data = b"name,value\n<script>alert(1)</script>\n"
+        assert check_forbidden_magic_bytes(data) is not None
+
+    def test_xml_prolog_without_php_is_safe(self):
+        """A bare '<?xml' prefix without php/script is not over-blocked (E-080)."""
+        data = b"<?xml version='1.0'?><note>hi</note>"
+        assert check_forbidden_magic_bytes(data) is None
+
     def test_exe_disguised_as_txt_rejected(self):
         """Test that EXE content in a .txt file is rejected by validate_text_file_upload"""
         file = FileStorage(
