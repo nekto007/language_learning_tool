@@ -357,7 +357,6 @@ def build_optional(
                 anchor_lesson=anchor_lesson,
                 limit=CONTINUATION_QUEUE_LIMIT + 1,
                 exclude_lesson_ids=set(seen_lesson_ids),
-                section='optional',
             )
             queue_truncated = len(queue_items) > CONTINUATION_QUEUE_LIMIT
             for queue_item in queue_items[:CONTINUATION_QUEUE_LIMIT]:

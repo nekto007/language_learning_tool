@@ -539,7 +539,6 @@ def build_curriculum_queue(
     anchor_lesson: Lessons,
     limit: int,
     exclude_lesson_ids: Optional[set[int]] = None,
-    section: str = 'optional',
 ) -> list[PlanItem]:
     """Build a continuation queue of upcoming spine lessons after ``anchor_lesson``.
 
@@ -597,7 +596,7 @@ def build_curriculum_queue(
         items.append(
             PlanItem(
                 id=f'curriculum:lesson:{lesson.id}',
-                section=section,  # type: ignore[arg-type]
+                section='optional',
                 kind='curriculum',
                 title=lesson.title,
                 subtitle=_lesson_subtitle(lesson),

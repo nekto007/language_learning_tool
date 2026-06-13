@@ -276,8 +276,10 @@ class TestContinuationQueueSection:
 
     def test_challenge_keeps_xp_badge(self):
         env = _build_env()
+        # Real challenge items carry kind='challenge' (not 'curriculum'); the
+        # XP badge must win over the curriculum step-marker branch.
         plan = self._queue_plan(optional=[{
-            'id': 'challenge:1', 'kind': 'curriculum', 'title': 'Челлендж',
+            'id': 'challenge:1', 'kind': 'challenge', 'title': 'Челлендж',
             'url': '/challenge', 'completed': False, 'lesson_type': 'quiz',
             'data': {'is_challenge': True, 'bonus_xp': 30},
         }])

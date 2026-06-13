@@ -555,10 +555,15 @@ class TestGetDailyPlanUnifiedEdgeCases:
 
     def test_plan_paused_until_past_does_not_block_plan(self, db_session):
         """When plan_paused_until is yesterday, the plan is NOT paused."""
-        yesterday = date.today() - timedelta(days=1)
-        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=yesterday)
-
         from app.daily_plan.service import get_daily_plan_unified
+        from app.utils.time_utils import get_user_local_date
+
+        user = _make_user(db_session, onboarding_level='A1')
+        # Anchor on the user-local date the service compares against — using
+        # server-local date.today() flakes near midnight when the server tz
+        # leads the user's (UTC fallback) tz.
+        user.plan_paused_until = get_user_local_date(user.id) - timedelta(days=1)
+        db_session.flush()
         payload = get_daily_plan_unified(user.id)
 
         assert payload.get('mode') != 'paused', (
@@ -567,10 +572,12 @@ class TestGetDailyPlanUnifiedEdgeCases:
 
     def test_plan_paused_until_today_does_not_block_plan(self, db_session):
         """When plan_paused_until is today (not strictly > today), plan is active."""
-        today = date.today()
-        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=today)
-
         from app.daily_plan.service import get_daily_plan_unified
+        from app.utils.time_utils import get_user_local_date
+
+        user = _make_user(db_session, onboarding_level='A1')
+        user.plan_paused_until = get_user_local_date(user.id)
+        db_session.flush()
         payload = get_daily_plan_unified(user.id)
 
         assert payload.get('mode') != 'paused', (
@@ -579,10 +586,12 @@ class TestGetDailyPlanUnifiedEdgeCases:
 
     def test_plan_paused_until_future_returns_paused_payload(self, db_session):
         """When plan_paused_until is tomorrow, mode=paused is returned."""
-        tomorrow = date.today() + timedelta(days=1)
-        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=tomorrow)
-
         from app.daily_plan.service import get_daily_plan_unified
+        from app.utils.time_utils import get_user_local_date
+
+        user = _make_user(db_session, onboarding_level='A1')
+        user.plan_paused_until = get_user_local_date(user.id) + timedelta(days=1)
+        db_session.flush()
         payload = get_daily_plan_unified(user.id)
 
         assert payload.get('mode') == 'paused'
@@ -1113,6 +1122,27 @@ class TestBuildCurriculumQueue:
         assert by_lesson[l_m2.id].data['level_code'] == level2.code
         assert all(it.url for it in items)
         assert all(it.eta_minutes is not None for it in items)
+
+    def test_queue_caps_at_limit_when_more_available(self, db_session):
+        """With more pending lessons than ``limit``, the builder returns exactly
+        ``limit`` items (the over-fetch detector relies on this boundary)."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=40)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        # 5 pending lessons after the anchor, ask for 3.
+        for n in range(2, 7):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=3,
+        )
+
+        assert len(items) == 3
+        # queue_position is 1-based and contiguous up to the cap.
+        assert [it.data['queue_position'] for it in items] == [1, 2, 3]
 
 
 # ── Task 2: continuation queue wired into build_optional ─────────────────────
