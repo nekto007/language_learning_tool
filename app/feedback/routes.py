@@ -239,6 +239,9 @@ def submit_feedback():
             _notify_admins_of_feedback(row)
             db.session.commit()
         except Exception:
+            # Roll back the (uncommitted) notification adds so they don't
+            # surface on a later commit in this request scope (audit E-074).
+            db.session.rollback()
             logger.exception('feedback_notify_failed feedback_id=%s', row.id)
     except Exception:
         db.session.rollback()
@@ -318,6 +321,7 @@ def submit_user_reply(feedback_id: int):
             _notify_admins_of_reply(row, reply, reopened=was_resolved)
             db.session.commit()
         except Exception:
+            db.session.rollback()  # drop half-added notification rows (E-074)
             logger.exception('feedback_reply_notify_admins_failed id=%s', row.id)
 
     return jsonify({

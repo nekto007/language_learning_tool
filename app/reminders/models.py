@@ -11,6 +11,9 @@ class ReminderLog(db.Model):
     template = db.Column(db.String(64), nullable=False)
     subject = db.Column(db.String(255), nullable=False)
     sent_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    # User-local-day dedup key. Unique (user_id, sent_on) prevents concurrent
+    # /admin/reminders/send requests from double-emailing a user (audit E-079).
+    sent_on = db.Column(db.Date, nullable=True)
     sent_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     # Tracking.

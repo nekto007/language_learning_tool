@@ -183,34 +183,48 @@ def award_linear_slot_xp_idempotent(
     if _already_awarded(user_id, source, when, db_obj):
         return None
 
-    result = award_linear_xp(user_id, source, score=score)
-    details: dict = {'source': source, 'xp': result.xp_awarded}
-    if extra_details:
-        details.update(extra_details)
-    db_obj.session.add(StreakEvent(
-        user_id=user_id,
-        event_type=LINEAR_XP_EVENT_TYPE,
-        event_date=when,
-        coins_delta=0,
-        details=details,
-    ))
+    from sqlalchemy.exc import IntegrityError
+
     from app.daily_plan.models import DailyPlanEvent
 
     # step_kind is VARCHAR(40); strip the redundant "linear_" prefix so
     # long sources (e.g. linear_curriculum_dialogue_completion_quiz, 43)
     # still fit.
     step_kind = source[len('linear_'):] if source.startswith('linear_') else source
-    db_obj.session.add(DailyPlanEvent(
-        user_id=user_id,
-        event_type='linear_slot_completed',
-        plan_date=when,
-        step_kind=step_kind,
-    ))
-
-    # Accumulate study minutes for the day.
     minutes = _SOURCE_MINUTES.get(source)
     if minutes is None and source.startswith('linear_curriculum_'):
         minutes = _CURRICULUM_MINUTES
+
+    # Race-safe: do the XP write + ledger insert inside a savepoint so a
+    # concurrent award that wins uq_streak_events_xp_linear_source raises
+    # IntegrityError here (not in the caller's commit) and the XP increment
+    # rolls back with it (audit E-001). Mirrors write_secured_at.
+    try:
+        with db_obj.session.begin_nested():
+            result = award_linear_xp(user_id, source, score=score)
+            details: dict = {'source': source, 'xp': result.xp_awarded}
+            if extra_details:
+                details.update(extra_details)
+            db_obj.session.add(StreakEvent(
+                user_id=user_id,
+                event_type=LINEAR_XP_EVENT_TYPE,
+                event_date=when,
+                coins_delta=0,
+                details=details,
+            ))
+            db_obj.session.add(DailyPlanEvent(
+                user_id=user_id,
+                event_type='linear_slot_completed',
+                plan_date=when,
+                step_kind=step_kind,
+            ))
+            db_obj.session.flush()
+    except IntegrityError:
+        # Lost the race — the other transaction already awarded this slot.
+        return None
+
+    # Accumulate study minutes for the day (best-effort, outside the dedup
+    # savepoint; not part of the uniqueness guarantee).
     if minutes:
         try:
             from app.curriculum.models import add_study_minutes

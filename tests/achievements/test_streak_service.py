@@ -316,6 +316,13 @@ class TestStreakFreezeProtection:
     @pytest.mark.smoke
     def test_free_repair_records_details(self, db_session, user_id):
         missed = date.today() - timedelta(days=1)
+        # apply_free_repair is idempotent (no-ops if a repair already exists),
+        # so clear any leaked free_repair row for this (user, date) first to
+        # keep the assertion order-independent under the shared-DB fixture.
+        StreakEvent.query.filter_by(
+            user_id=user_id, event_type='free_repair', event_date=missed
+        ).delete()
+        db_session.flush()
         apply_free_repair(user_id, missed, steps_done=3, steps_total=4)
         db_session.flush()
         event = StreakEvent.query.filter_by(

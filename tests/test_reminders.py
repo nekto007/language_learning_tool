@@ -100,6 +100,7 @@ class TestWasRecentlyReminded:
             subject='Test',
             sent_by=user.id,
             sent_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            token='tok_recent',
         )
         db_session.add(log)
         db_session.commit()
@@ -115,6 +116,7 @@ class TestWasRecentlyReminded:
             subject='Test',
             sent_by=user.id,
             sent_at=datetime.now(timezone.utc) - timedelta(hours=48),
+            token='tok_old',
         )
         db_session.add(log)
         db_session.commit()
@@ -256,6 +258,7 @@ class TestSendRemindersEndpoint:
             subject='Recent',
             sent_by=admin_user.id,
             sent_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            token='tok_skip',
         )
         db_session.add(log)
         db_session.commit()

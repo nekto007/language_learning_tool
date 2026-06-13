@@ -1189,9 +1189,15 @@ def reading_session_end():
     from app.books.models import UserChapterProgress
     from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
 
+    # Lock the chapter-progress row (as save_reading_position does) so a
+    # concurrent /save-reading-position closing the same chapter can't race
+    # this pre/post snapshot — fixes double counter increments and the
+    # lost-update on completion effects (audit E-049 / E-059). The lock is
+    # held until the commit below; the concurrent path blocks until then.
     pre_progress = (
         db.session.query(UserChapterProgress)
         .filter_by(user_id=current_user.id, chapter_id=existing.chapter_id)
+        .with_for_update()
         .first()
     )
     pre_offset = pre_progress.offset_pct if pre_progress else 0.0

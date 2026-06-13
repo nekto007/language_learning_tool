@@ -363,6 +363,26 @@ def get_or_create_race(user_id: int, race_date: date_cls) -> RaceCohort:
             raise
         return _build_cohort(race)
 
+    # Capacity guard (audit E-064): _find_matching_race counted humans without
+    # a row lock, so a concurrent joiner may have pushed this race over
+    # RACE_MAX_PARTICIPANTS between the check and our insert. If we're the
+    # overflow, move to a fresh race (ghosts fill it in _build_cohort).
+    human_count = (
+        db.session.query(DailyRaceParticipant)
+        .filter(
+            DailyRaceParticipant.race_id == race.id,
+            DailyRaceParticipant.user_id.isnot(None),
+        )
+        .count()
+    )
+    if human_count > RACE_MAX_PARTICIPANTS:
+        new_race = DailyRace(race_date=race_date)
+        db.session.add(new_race)
+        db.session.flush()
+        participant.race_id = new_race.id
+        db.session.flush()
+        race = new_race
+
     return _build_cohort(race)
 
 
