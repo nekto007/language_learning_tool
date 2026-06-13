@@ -268,3 +268,33 @@ class TestUnsubscribeFlow:
         response = client.get('/unsubscribe')
         # Missing token → 400 error page (no silent failure).
         assert response.status_code == 400
+
+
+class TestReengagementDedup:
+    """Audit E-087: each (user, campaign) is sent at most once per local day,
+    so the hourly cadence can't produce duplicates."""
+
+    def test_job_does_not_resend_same_campaign_same_day(self, inactive_3day_user):
+        from unittest.mock import patch
+        from app import email_scheduler
+
+        with patch.object(email_scheduler, 'send_day3_email', return_value=True) as m3, \
+             patch.object(email_scheduler, 'send_day7_email', return_value=True), \
+             patch.object(email_scheduler, 'send_day30_email', return_value=True), \
+             patch.object(email_scheduler, 'is_delivery_window', return_value=True):
+            email_scheduler.run_reengagement_job()
+            first_calls = m3.call_count
+            # Second hourly run the same day must not re-send.
+            email_scheduler.run_reengagement_job()
+            assert m3.call_count == first_calls
+
+        # The target user was emailed exactly once across the two runs.
+        sent_users = [c.args[0].id for c in m3.call_args_list]
+        assert sent_users.count(inactive_3day_user.id) == 1
+
+    def test_claim_is_idempotent(self, inactive_3day_user):
+        from app.email_scheduler import _claim_reengagement
+        assert _claim_reengagement(inactive_3day_user.id, 'day3') is True
+        assert _claim_reengagement(inactive_3day_user.id, 'day3') is False
+        # Different campaign is independent.
+        assert _claim_reengagement(inactive_3day_user.id, 'day7') is True
