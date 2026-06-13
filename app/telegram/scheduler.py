@@ -66,11 +66,14 @@ def init_scheduler(app) -> None:
 
     from app.utils.db import db
     try:
-        conn = db.engine.connect()
-        got = conn.execute(
-            text('SELECT pg_try_advisory_lock(:k)'),
-            {'k': _SCHEDULER_LOCK_KEY},
-        ).scalar()
+        # app_context is needed only to resolve db.engine (flask_sqlalchemy
+        # reads current_app); the Connection and its advisory lock outlive it.
+        with app.app_context():
+            conn = db.engine.connect()
+            got = conn.execute(
+                text('SELECT pg_try_advisory_lock(:k)'),
+                {'k': _SCHEDULER_LOCK_KEY},
+            ).scalar()
     except Exception:
         logger.exception('Could not acquire scheduler advisory lock — skipping')
         return
