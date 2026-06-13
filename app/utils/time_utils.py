@@ -45,6 +45,23 @@ def _get_user_timezone(user_id: int, db_session: Any = None):
         return timezone.utc
 
 
+def get_user_timezone_name(user_id: int, db_session: Any = None) -> str:
+    """Return the user's IANA timezone NAME (string), DEFAULT_TIMEZONE fallback.
+
+    Distinct from :func:`_get_user_timezone`, which returns a ZoneInfo OBJECT.
+    Callers that pass ``tz=`` to plan/summary builders need the string form;
+    this is the single canonical source for it (audit E-007).
+    """
+    from app.auth.models import User
+    from app.utils.db import db
+    from config.settings import DEFAULT_TIMEZONE
+
+    db_obj = db_session if db_session is not None else db
+    session_obj = db_obj.session if hasattr(db_obj, 'session') else db_obj
+    user = session_obj.get(User, user_id)
+    return getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
+
+
 def get_user_local_date(
     user_id: int,
     db_session: Any = None,

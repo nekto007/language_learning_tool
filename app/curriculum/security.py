@@ -274,15 +274,27 @@ def check_module_access(module_id: int) -> bool:
         level_id=module.level_id
     ).order_by(Module.number).first()
 
-    if module.id == first_module.id:
+    # Guard against an empty level (no modules) — first_module can be None
+    # (audit E-039).
+    #
+    # NB (audit E-038): the first module of ANY level is auto-accessible, which
+    # does NOT verify the previous CEFR level is complete. This is intentional
+    # for placement users (onboarding floor lets them start mid-spine without a
+    # 403 — see _user_min_level_order). The safeguard against a B1 user jumping
+    # to C2's first module is that higher-level ENTRY modules must carry
+    # Module.prerequisites; adding a hard previous-level check here would
+    # re-break placement access, so it is deliberately left to prereqs data.
+    if first_module is not None and module.id == first_module.id:
         return True
 
-    # Check if user has completed previous module (80% threshold)
-    if module.number > 1:
-        prev_module = Module.query.filter_by(
-            level_id=module.level_id,
-            number=module.number - 1
-        ).first()
+    # Check if user has completed the previous module (80% threshold). Find it
+    # by the greatest number < this one rather than strictly number-1, so a gap
+    # in module numbering (1,2,4) doesn't make module 4 unreachable (E-039).
+    if module.number and module.number > 1:
+        prev_module = Module.query.filter(
+            Module.level_id == module.level_id,
+            Module.number < module.number,
+        ).order_by(Module.number.desc()).first()
 
         if prev_module:
             # Check completion percentage of previous module
@@ -442,17 +454,18 @@ def validate_file_upload(file, max_size_mb: int = 10, allowed_extensions: set = 
         safe_filename = file.filename.rsplit('/', 1)[-1]
         safe_filename = safe_filename.rsplit('\\', 1)[-1]
 
-        # Check for suspicious patterns
-        suspicious_patterns = [
-            '..',  # Directory traversal
-            '<', '>',  # HTML tags
-            'script',  # JavaScript
-            '.exe', '.bat', '.cmd',  # Executables
-        ]
-
-        for pattern in suspicious_patterns:
-            if pattern in safe_filename.lower():
+        # Check for suspicious patterns. NB: a bare 'script' substring was
+        # removed (audit E-040) — it false-rejected legit names like
+        # transcript.mp3 / manuscript.txt. '<'/'>' still block <script> tags;
+        # dangerous executables/scripts are matched by EXTENSION below.
+        lowered = safe_filename.lower()
+        for pattern in ('..', '<', '>'):
+            if pattern in lowered:
                 return False, f"Filename contains suspicious pattern: {pattern}"
+
+        dangerous_exts = ('.exe', '.bat', '.cmd', '.js', '.sh', '.php')
+        if lowered.endswith(dangerous_exts):
+            return False, "Filename has a disallowed executable/script extension"
 
     return True, None
 

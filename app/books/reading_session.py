@@ -332,8 +332,7 @@ def end_session(
 
 def _user_local_day_window_utc(user_id: int, db_session: Any) -> tuple[datetime, datetime]:
     """Return (start_utc, end_utc) bracketing the user's local day."""
-    from app.daily_plan.linear.xp import _get_user_timezone
-    from app.utils.time_utils import get_user_local_date
+    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
 
     try:
         from zoneinfo import ZoneInfo
@@ -341,7 +340,7 @@ def _user_local_day_window_utc(user_id: int, db_session: Any) -> tuple[datetime,
         from backports.zoneinfo import ZoneInfo  # type: ignore
 
     today = get_user_local_date(user_id, db_session)
-    tz_name = _get_user_timezone(user_id, db_session)
+    tz_name = get_user_timezone_name(user_id, db_session)
     try:
         tz = ZoneInfo(tz_name)
     except Exception:  # noqa: BLE001

@@ -65,6 +65,7 @@ class TestRobustness:
         assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': 150})) == PASSING_SCORE_DEFAULT
         assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': -10})) == PASSING_SCORE_DEFAULT
 
-    def test_zero_threshold_honoured(self):
-        """An explicit zero is a valid (if permissive) configuration."""
-        assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': 0})) == 0
+    def test_zero_threshold_treated_as_malformed(self):
+        """An explicit 0 would disable the threshold (every attempt passes), so
+        it's treated as malformed and falls through to the type default (E-041)."""
+        assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': 0})) == PASSING_SCORE_DEFAULT

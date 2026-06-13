@@ -86,16 +86,6 @@ _SOURCE_MINUTES: dict[str, int] = {
 }
 
 
-def _get_user_timezone(user_id: int, db_session: Any = None) -> str:
-    from app.auth.models import User
-    from app.utils.db import db
-    from config.settings import DEFAULT_TIMEZONE
-
-    db_obj = db_session if db_session is not None else db
-    user = db_obj.session.get(User, user_id)
-    return getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
-
-
 def get_linear_event_local_date(
     user_id: int,
     db_session: Any = None,
@@ -570,8 +560,9 @@ def maybe_award_linear_perfect_day(
     )
     from app.telegram.queries import get_daily_summary
 
+    from app.utils.time_utils import get_user_timezone_name
     when = for_date or get_linear_event_local_date(user_id, db_session)
-    tz = _get_user_timezone(user_id, db_session)
+    tz = get_user_timezone_name(user_id, db_session)
 
     try:
         plan = get_daily_plan_unified(user_id, tz=tz)

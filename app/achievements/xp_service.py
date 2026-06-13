@@ -306,8 +306,15 @@ def award_perfect_day_xp_idempotent(
 
     perfect_mult = get_perfect_day_multiplier(new_consecutive)
     bonus_base_xp = PERFECT_DAY_BONUS_XP_LINEAR if is_linear else PERFECT_DAY_BONUS_XP
-    adjusted_base = max(1, int(bonus_base_xp * perfect_mult))
+    # round() (not int()/floor) to match award_xp / apply_score_to_base — the
+    # floor here systematically under-credited the perfect-day bonus (E-009).
+    adjusted_base = max(1, round(bonus_base_xp * perfect_mult))
 
+    # COMPOUNDING (audit E-015): the bonus is multiplied by perfect_mult HERE
+    # and again by the streak multiplier inside award_xp. Theoretical ceiling =
+    # base * MAX_PERFECT_DAY_MULTIPLIER(2.5) * MAX_STREAK_MULTIPLIER(2.0) =
+    # base * 5 (e.g. linear base 25 → 125 XP). Intentional, but keep this in
+    # view when tuning the economy so the cap isn't silently blown past.
     result = award_xp(user_id, adjusted_base, 'perfect_day')
 
     db.session.add(StreakEvent(
