@@ -665,3 +665,43 @@ class TestComputeStudyMinutesUnit:
 
             assert get_minutes_today(test_user.id, d1, db) == 20
             assert get_minutes_today(test_user.id, d2, db) == 8
+
+
+class TestRankProgressionOnSecuredDay:
+    """Audit follow-up: a secured unified day must record plan completion and
+    advance rank. record_plan_completion was previously only reachable from
+    dead mission/phase paths, freezing plans_completed_total at 0."""
+
+    def test_secured_day_increments_plans_completed_total(
+        self, authenticated_client, db_session, test_user,
+    ):
+        from app.achievements.models import UserStatistics
+
+        plan = _linear_plan()
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.telegram.queries.get_daily_summary', return_value=_empty_summary()), \
+             patch('app.daily_plan.service.compute_day_secured_from_activity', return_value=True), \
+             patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'):
+            resp = authenticated_client.get('/api/daily-status')
+            assert resp.status_code == 200
+
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats is not None
+        assert stats.plans_completed_total == 1
+        assert stats.current_rank  # rank code set (was never written before)
+
+    def test_secured_day_is_idempotent(
+        self, authenticated_client, db_session, test_user,
+    ):
+        from app.achievements.models import UserStatistics
+
+        plan = _linear_plan()
+        with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan), \
+             patch('app.telegram.queries.get_daily_summary', return_value=_empty_summary()), \
+             patch('app.daily_plan.service.compute_day_secured_from_activity', return_value=True), \
+             patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'):
+            authenticated_client.get('/api/daily-status')
+            authenticated_client.get('/api/daily-status')
+
+        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
+        assert stats.plans_completed_total == 1  # not double-counted

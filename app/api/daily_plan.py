@@ -354,6 +354,21 @@ def daily_status():
             emit_minimum_completed(user_id, None, today)
             write_secured_at(user_id, today, None)
             try:
+                # Record plan completion → rank progression + rank-up notif.
+                # record_plan_completion (sole writer of plans_completed_total /
+                # current_rank) was only reachable from dead mission/phase paths,
+                # so ranks were frozen at Novice for unified users. Gate on the
+                # already-computed day_secured (the unified predicate); the
+                # unified plan has no baseline_slots, so the linear helper can't
+                # be used here. Idempotent per local day via its StreakEvent marker.
+                from app.achievements.ranks import record_plan_completion
+                rank_up = record_plan_completion(user_id, for_date=today)
+                if rank_up is not None:
+                    from app.notifications.services import notify_rank_up
+                    notify_rank_up(user_id, rank_up.new_name)
+            except Exception:
+                logger.warning("plan-completion / rank-up recording failed for user %s", user_id, exc_info=True)
+            try:
                 from app.achievements.services import check_immersion_achievement
                 check_immersion_achievement(user_id, today, db.session, tz=tz)
             except Exception:
