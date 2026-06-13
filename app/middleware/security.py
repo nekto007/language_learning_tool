@@ -120,7 +120,10 @@ def add_security_headers(app: Flask):
     @app.after_request
     def set_static_cache_headers(response):
         """Set Cache-Control headers for static file responses."""
-        if request.endpoint == 'static':
+        # Only cache successful responses. A 404 (missing asset during a bad
+        # deploy) or 3xx must NOT get immutable max-age=1y, or browsers/CDNs
+        # pin the broken result for a year even after the file returns (E-082).
+        if request.endpoint == 'static' and 200 <= response.status_code < 300:
             if request.args.get('v'):
                 # Versioned assets are immutable — safe to cache for 1 year
                 response.cache_control.public = True

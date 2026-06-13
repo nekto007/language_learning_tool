@@ -311,7 +311,9 @@ def get_engagement_metrics() -> dict:
 
     def _trend(current: int, previous: int) -> tuple:
         if previous == 0:
-            return ('up', '+100%') if current > 0 else ('', '')
+            # Don't fabricate a percentage from a zero base (0→1 and 0→50 both
+            # rendered "+100%"). Show the absolute delta instead (audit E-077).
+            return ('up', f'+{current}') if current > 0 else ('', '')
         diff = current - previous
         pct = round(abs(diff) / previous * 100)
         if diff > 0:

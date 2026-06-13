@@ -20,6 +20,11 @@ from typing import Any, Optional
 from app.utils.request_cache import request_memoize
 
 
+# Memoized by user_id only (NOT db_session) — audit E-011. This relies on the
+# one-session-per-request invariant: a user's timezone is stable within a
+# request, so the first resolved value is reused regardless of which session
+# object later callers pass. Tests that drive multiple sessions/users inside a
+# single request scope must not assume a fresh lookup per session.
 @request_memoize(key_fn=lambda user_id, *_a, **_k: user_id)
 def _get_user_timezone(user_id: int, db_session: Any = None):
     from zoneinfo import ZoneInfo

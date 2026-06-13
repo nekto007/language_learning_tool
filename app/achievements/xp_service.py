@@ -164,12 +164,19 @@ def get_level_info(total_xp: int) -> LevelInfo:
     if total_xp is None or total_xp < 0:
         total_xp = 0
 
-    level = 1
-    while True:
-        next_threshold = xp_for_level(level + 1)
-        if total_xp < next_threshold:
-            break
-        level += 1
+    # Binary search for the largest level whose threshold <= total_xp
+    # (was a linear O(√xp) scan on every award_xp — audit E-012). Uses
+    # xp_for_level directly so it stays correct if the curve changes.
+    lo, hi = 1, 2
+    while xp_for_level(hi) <= total_xp:
+        hi *= 2
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if xp_for_level(mid) <= total_xp:
+            lo = mid
+        else:
+            hi = mid - 1
+    level = lo
 
     level_start = xp_for_level(level)
     level_end = xp_for_level(level + 1)
@@ -393,7 +400,9 @@ def award_xp(
         from app.words.routes import invalidate_leaderboard_cache
         invalidate_leaderboard_cache()
     except Exception:
-        pass
+        # Don't swallow silently — a failed invalidation serves a stale
+        # leaderboard until TTL with no trace (audit E-010).
+        logger.warning("leaderboard cache invalidation failed after level-up", exc_info=True)
 
     return XPAward(
         xp_awarded=awarded,

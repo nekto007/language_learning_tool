@@ -50,9 +50,15 @@ class TestRequestIdMiddleware:
         response = client.get('/', headers={'X-Request-ID': incoming_id})
         assert response.headers.get('X-Request-ID') == incoming_id
 
+    def test_incoming_uppercase_request_id_is_preserved(self, client):
+        """A valid 32-char UPPERCASE hex id is preserved, keeping cross-service
+        traces linked (audit E-085) — case-insensitive match."""
+        incoming_id = 'ABCDEF1234567890ABCDEF1234567890'
+        response = client.get('/', headers={'X-Request-ID': incoming_id})
+        assert response.headers.get('X-Request-ID') == incoming_id
+
     @pytest.mark.parametrize('bad_id', [
         'not-a-uuid',
-        'ABCDEF1234567890ABCDEF1234567890',  # uppercase — not matched by [0-9a-f]
         '',
         'abcdef' * 7,  # 42 chars — too long
         'abcdef',      # too short
