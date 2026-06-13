@@ -952,6 +952,12 @@ class AchievementService:
             return []
 
         achievements = Achievement.query.filter(Achievement.code.in_(codes)).all()
+        # Surface seed↔check drift: a code requested here but absent in the DB
+        # means a badge silently never gets awarded (audit E-075). Log it so the
+        # mismatch is diagnosable instead of invisible.
+        missing = codes - {a.code for a in achievements}
+        if missing:
+            logger.warning("achievement codes missing in DB (never granted): %s", sorted(missing))
         if not achievements:
             return []
 

@@ -175,8 +175,6 @@ def submit_feedback():
             400,
         )
 
-    urgent = str(source.get('urgent') or '').strip().lower() in ('1', 'true', 'yes', 'on')
-
     message = (source.get('message') or '').strip()
     if not message:
         return api_error('empty_message', 'message is required', 400)
@@ -201,7 +199,10 @@ def submit_feedback():
             logger.warning('feedback_screenshot_save_failed', exc_info=True)
             screenshot_rel, screenshot_reject_reason = None, 'process_failed'
 
-    priority = 'high' if urgent or (category == 'bug' and screenshot_rel) else 'normal'
+    # Priority is NOT client-controllable (audit E-072): a user could spam
+    # urgent=1 to flood the triage queue with 'high'. Only a server-derived
+    # signal (a bug report carrying a screenshot) raises it; admins triage the rest.
+    priority = 'high' if (category == 'bug' and screenshot_rel) else 'normal'
 
     # Auto-context: server-side URL parsing for lesson/book ids, plus the
     # client's optional ``context`` blob (recent JS errors, route name, SPA
@@ -315,7 +316,6 @@ def submit_user_reply(feedback_id: int):
         return api_error('save_failed', 'could not save reply', 500)
 
     # Notify after commit so a notification failure never rolls back the reply.
-    # Skip self-fan-out when the author is an admin.
     if not current_user.is_admin:
         try:
             _notify_admins_of_reply(row, reply, reopened=was_resolved)
@@ -323,6 +323,15 @@ def submit_user_reply(feedback_id: int):
         except Exception:
             db.session.rollback()  # drop half-added notification rows (E-074)
             logger.exception('feedback_reply_notify_admins_failed id=%s', row.id)
+    else:
+        # An admin can reply through this user endpoint too; notify the thread
+        # owner so an admin answer here isn't silently dropped (audit E-071).
+        try:
+            notify_user_of_admin_reply(row, reply)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception('feedback_reply_notify_user_failed id=%s', row.id)
 
     return jsonify({
         'success': True,

@@ -309,6 +309,22 @@ def daily_status():
     day_secured = compute_day_secured_from_activity(plan, plan_completion)
     plan['day_secured'] = day_secured
 
+    # Keep the daily-race scoreboard in sync with the user's actual plan
+    # progress. update_race_points_from_linear_plan previously had ZERO callers,
+    # so live participants stayed on 0 points while only ghosts scored — the
+    # feature was broken for humans (audit E-061). No-ops for non-enrolled users.
+    try:
+        from app.achievements.daily_race import update_race_points_from_linear_plan
+        from app.utils.time_utils import get_user_local_date as _race_local_date
+        _race_slots = plan.get('baseline_slots') or plan.get('slots') or []
+        if _race_slots:
+            update_race_points_from_linear_plan(
+                user_id, _race_local_date(user_id, db.session),
+                _race_slots, plan_completion,
+            )
+    except Exception:
+        logger.warning("race points update failed for user %s", user_id, exc_info=True)
+
     if effective_mode == 'unified':
         _sync_unified_route_steps(user_id, plan, plan_completion)
 

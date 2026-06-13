@@ -266,6 +266,11 @@ def _find_matching_race(
             continue
         if any(p.user_id == user_id for p in humans):
             continue
+        # All-pairwise at join (audit E-073): the joiner must be within
+        # tolerance of EVERY existing human, not just an anchor — so a cohort
+        # can't drift to 2×tolerance via chained A~B~C joins. (Residual: a
+        # member's stats can drift over the day after they joined; bounding
+        # that would need re-matching and is out of scope.)
         if humans and not all(
             _is_similar(_user_stats_snapshot(p.user_id), user_stats)
             for p in humans
