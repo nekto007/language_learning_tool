@@ -573,19 +573,16 @@ def build_curriculum_queue(
     if not upcoming:
         return []
 
-    from app.curriculum.models import Module
-
     min_order = _user_min_level_order(user_id, db)
     module_access: dict[int, bool] = {}
     items: list[PlanItem] = []
-    position = 0
     for lesson in upcoming:
         if lesson.id in excluded or lesson.id == anchor_lesson.id:
             continue
         module_id = lesson.module_id
+        module = lesson.module
         accessible = module_access.get(module_id)
         if accessible is None:
-            module = db.session.get(Module, module_id)
             accessible = True
             if module is not None:
                 ok, _reasons = module.check_prerequisites(
@@ -596,8 +593,6 @@ def build_curriculum_queue(
         if not accessible:
             continue
 
-        position += 1
-        module = lesson.module
         level = module.level if module is not None else None
         items.append(
             PlanItem(
@@ -618,7 +613,7 @@ def build_curriculum_queue(
                     'module_number': module.number if module is not None else None,
                     'module_title': module.title if module is not None else None,
                     'level_code': level.code if level is not None else None,
-                    'queue_position': position,
+                    'queue_position': len(items) + 1,
                 },
             )
         )

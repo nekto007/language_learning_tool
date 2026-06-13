@@ -1062,6 +1062,58 @@ class TestBuildCurriculumQueue:
 
         assert items == []
 
+    def test_queue_empty_when_anchor_is_none(self, db_session):
+        """A None anchor (graduated user) yields an empty queue, not an error."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        user = _make_user(db_session)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=None, limit=10,
+        )
+
+        assert items == []
+
+    def test_queue_empty_when_limit_non_positive(self, db_session):
+        """A non-positive limit yields an empty queue without touching the DB."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=37)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        assert build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=0,
+        ) == []
+        assert build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=-5,
+        ) == []
+
+    def test_queue_items_carry_url_and_level_code(self, db_session):
+        """Queue items populate url/eta and the level_code flips at a boundary."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=38)
+        level2 = _make_level(db_session, order=39)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        l_m1 = _make_lesson(db_session, m1, number=2, type_='vocabulary')
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        by_lesson = {it.data['lesson_id']: it for it in items}
+        assert by_lesson[l_m1.id].data['level_code'] == level1.code
+        assert by_lesson[l_m2.id].data['level_code'] == level2.code
+        assert all(it.url for it in items)
+        assert all(it.eta_minutes is not None for it in items)
+
 
 # ── Task 2: continuation queue wired into build_optional ─────────────────────
 
