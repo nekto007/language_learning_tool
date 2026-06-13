@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.telegram.models import TelegramUser
+from app.telegram.models import TelegramNotificationLog, TelegramUser
 from app.telegram.notifications import (
     format_evening_summary,
     format_mission_morning_reminder,
@@ -68,8 +68,18 @@ def init_scheduler(app) -> None:
     try:
         # app_context is needed only to resolve db.engine (flask_sqlalchemy
         # reads current_app); the Connection and its advisory lock outlive it.
+        #
+        # AUTOCOMMIT is critical: without it SQLAlchemy 2.0 autobegins a
+        # transaction on the first execute, leaving the held connection
+        # idle-in-transaction. db_config sets idle_in_transaction_session_timeout
+        # = 60s per connection, so Postgres would terminate the session after
+        # a minute and RELEASE the session-level advisory lock — then a process
+        # that starts >60s later (e.g. a staggered container) re-acquires the
+        # freed lock and spins up a SECOND scheduler → duplicate notifications.
+        # AUTOCOMMIT leaves no open transaction, so the connection stays plain-
+        # idle and holds the lock for the whole process lifetime.
         with app.app_context():
-            conn = db.engine.connect()
+            conn = db.engine.connect().execution_options(isolation_level='AUTOCOMMIT')
             got = conn.execute(
                 text('SELECT pg_try_advisory_lock(:k)'),
                 {'k': _SCHEDULER_LOCK_KEY},
@@ -169,15 +179,23 @@ def _hourly_check(app) -> None:
 
             local_time = now_utc.astimezone(tz)
             local_hour = local_time.hour
+            local_date = local_time.date()
             is_sunday = local_time.weekday() == 6
 
             try:
-                _process_user(tg_user, local_hour, is_sunday, site_url)
+                _process_user(tg_user, local_hour, local_date, is_sunday, site_url)
+                # Persist the send claims made in _process_user so concurrent
+                # scheduler processes see them and can't re-send. Per-user commit
+                # keeps the window small and isolates failures.
+                from app.utils.db import db
+                db.session.commit()
             except Exception:
+                from app.utils.db import db
+                db.session.rollback()
                 logger.exception('Error processing user %s', tg_user.telegram_id)
 
 
-def _process_user(tg_user: TelegramUser, local_hour: int,
+def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
                   is_sunday: bool, site_url: str) -> None:
     """Send appropriate notification based on user's local hour and preferences."""
     from app.auth.models import User
@@ -185,6 +203,17 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
 
     user_id = tg_user.user_id
     chat_id = tg_user.telegram_id
+
+    def _guarded_send(kind: str, *args, **kwargs) -> None:
+        """Send only if this (user, kind, local_date) hasn't been claimed yet.
+
+        The claim is atomic against the UNIQUE constraint, so even if several
+        scheduler processes hit this branch at once, exactly one sends.
+        Claim-before-send means a failed send won't be retried today — for
+        these reminders, no-duplicate is preferred over guaranteed re-delivery.
+        """
+        if TelegramNotificationLog.claim(user_id, kind, local_date):
+            send_message(*args, **kwargs)
 
     user = User.query.get(user_id)
     name = user.username if user else 'друг'
@@ -201,7 +230,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
         else:
             text, reply_markup = format_morning_reminder(
                 name, streak, plan, site_url, cards_url=cards_url)
-        send_message(chat_id, text, reply_markup=reply_markup)
+        _guarded_send('tgn_morning', chat_id, text, reply_markup=reply_markup)
 
     # Word of the Day (1 hour after morning reminder)
     elif local_hour == (tg_user.morning_hour or 8) + 1 and tg_user.morning_reminder:
@@ -210,7 +239,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
         if word_data:
             text, keyboard = format_word_of_day(word_data, site_url)
             if text:
-                send_message(chat_id, text, reply_markup=keyboard)
+                _guarded_send('tgn_wotd', chat_id, text, reply_markup=keyboard)
 
     # Nudge (user's custom hour, only if no activity today and has a quick action)
     elif local_hour == tg_user.nudge_hour and tg_user.nudge_enabled:
@@ -220,13 +249,13 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
                 text = format_nudge(name, site_url,
                                     quick_action=quick_action,
                                     cards_url=cards_url)
-                send_message(chat_id, text)
+                _guarded_send('tgn_nudge', chat_id, text)
 
     # Sunday weekly report (1 hour before evening summary)
     elif local_hour == max(tg_user.evening_hour - 1, 0) and is_sunday and tg_user.evening_summary:
         report = get_weekly_report(user_id, tz=user_tz)
         text = format_weekly_report(report, site_url)
-        send_message(chat_id, text)
+        _guarded_send('tgn_weekly', chat_id, text)
 
     # Evening summary (user's custom hour, only if there was activity)
     elif local_hour == tg_user.evening_hour and tg_user.evening_summary:
@@ -238,7 +267,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
                 name, summary, streak, site_url, tomorrow=tomorrow,
                 user_id=user_id,
             )
-            send_message(chat_id, text, reply_markup=reply_markup)
+            _guarded_send('tgn_evening', chat_id, text, reply_markup=reply_markup)
 
     # Streak alert (user's custom hour, only if no activity and streak > 0)
     elif local_hour == tg_user.streak_hour and tg_user.streak_alert:
@@ -249,7 +278,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
                 text = format_streak_alert(name, streak, site_url,
                                            quick_action=quick_action,
                                            cards_url=cards_url)
-                send_message(chat_id, text)
+                _guarded_send('tgn_streak', chat_id, text)
             else:
                 # Streak is 0 — check if there's a repairable missed date
                 from app.achievements.streak_service import (
@@ -290,4 +319,4 @@ def _process_user(tg_user: TelegramUser, local_hour: int,
                         text, reply_markup = format_streak_repair_alert(
                             name, old_streak, cost, coins.balance, site_url,
                         )
-                        send_message(chat_id, text, reply_markup=reply_markup)
+                        _guarded_send('tgn_repair', chat_id, text, reply_markup=reply_markup)

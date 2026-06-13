@@ -1,11 +1,28 @@
 """Telegram bot models: user linking and temporary codes."""
+import logging
 import secrets
+from datetime import date as date_cls
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Index, Integer, SmallInteger, String
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
+
+logger = logging.getLogger(__name__)
 
 
 class TelegramUser(db.Model):
@@ -62,6 +79,51 @@ class TelegramUser(db.Model):
             'linked_at': self.linked_at.isoformat() if self.linked_at else None,
             'is_active': self.is_active,
         }
+
+
+class TelegramNotificationLog(db.Model):
+    """Idempotency marker: one scheduled notification per (user, kind, local day).
+
+    The scheduler may briefly run in more than one process — across gunicorn
+    workers, the dedicated scheduler container, or transiently during a deploy
+    when an old and new container overlap. The advisory lock in
+    ``init_scheduler`` keeps that to one in steady state, but this table is the
+    hard guarantee: ``claim()`` does a race-safe insert against the UNIQUE
+    constraint, so only the first caller for a given (user, kind, date) gets to
+    send. ``sent_on`` is the user's LOCAL date (notification times are
+    user-local), so the marker lines up with what the user actually sees.
+    """
+
+    __tablename__ = 'telegram_notification_log'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    kind = Column(String(20), nullable=False)  # tgn_morning, tgn_wotd, ...
+    sent_on = Column(Date, nullable=False)      # user-local date
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'kind', 'sent_on', name='uq_tg_notif_user_kind_date'),
+        Index('idx_tg_notif_user_date', 'user_id', 'sent_on'),
+    )
+
+    @classmethod
+    def claim(cls, user_id: int, kind: str, local_date: 'date_cls') -> bool:
+        """Atomically claim the right to send (user_id, kind, local_date).
+
+        Returns True exactly once per key — the caller that gets True should
+        send; everyone else gets False and must skip. Race-safe via the UNIQUE
+        constraint + savepoint, so concurrent scheduler processes can't both
+        send. Flush only — the caller commits.
+        """
+        try:
+            with db.session.begin_nested():
+                db.session.add(cls(user_id=user_id, kind=kind, sent_on=local_date))
+                db.session.flush()
+            return True
+        except IntegrityError:
+            # Someone already claimed this (user, kind, day).
+            return False
 
 
 class TelegramLinkCode(db.Model):
