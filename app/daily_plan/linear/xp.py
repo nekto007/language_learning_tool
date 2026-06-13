@@ -86,16 +86,6 @@ _SOURCE_MINUTES: dict[str, int] = {
 }
 
 
-def _get_user_timezone(user_id: int, db_session: Any = None) -> str:
-    from app.auth.models import User
-    from app.utils.db import db
-    from config.settings import DEFAULT_TIMEZONE
-
-    db_obj = db_session if db_session is not None else db
-    user = db_obj.session.get(User, user_id)
-    return getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
-
-
 def get_linear_event_local_date(
     user_id: int,
     db_session: Any = None,
@@ -183,34 +173,48 @@ def award_linear_slot_xp_idempotent(
     if _already_awarded(user_id, source, when, db_obj):
         return None
 
-    result = award_linear_xp(user_id, source, score=score)
-    details: dict = {'source': source, 'xp': result.xp_awarded}
-    if extra_details:
-        details.update(extra_details)
-    db_obj.session.add(StreakEvent(
-        user_id=user_id,
-        event_type=LINEAR_XP_EVENT_TYPE,
-        event_date=when,
-        coins_delta=0,
-        details=details,
-    ))
+    from sqlalchemy.exc import IntegrityError
+
     from app.daily_plan.models import DailyPlanEvent
 
     # step_kind is VARCHAR(40); strip the redundant "linear_" prefix so
     # long sources (e.g. linear_curriculum_dialogue_completion_quiz, 43)
     # still fit.
     step_kind = source[len('linear_'):] if source.startswith('linear_') else source
-    db_obj.session.add(DailyPlanEvent(
-        user_id=user_id,
-        event_type='linear_slot_completed',
-        plan_date=when,
-        step_kind=step_kind,
-    ))
-
-    # Accumulate study minutes for the day.
     minutes = _SOURCE_MINUTES.get(source)
     if minutes is None and source.startswith('linear_curriculum_'):
         minutes = _CURRICULUM_MINUTES
+
+    # Race-safe: do the XP write + ledger insert inside a savepoint so a
+    # concurrent award that wins uq_streak_events_xp_linear_source raises
+    # IntegrityError here (not in the caller's commit) and the XP increment
+    # rolls back with it (audit E-001). Mirrors write_secured_at.
+    try:
+        with db_obj.session.begin_nested():
+            result = award_linear_xp(user_id, source, score=score)
+            details: dict = {'source': source, 'xp': result.xp_awarded}
+            if extra_details:
+                details.update(extra_details)
+            db_obj.session.add(StreakEvent(
+                user_id=user_id,
+                event_type=LINEAR_XP_EVENT_TYPE,
+                event_date=when,
+                coins_delta=0,
+                details=details,
+            ))
+            db_obj.session.add(DailyPlanEvent(
+                user_id=user_id,
+                event_type='linear_slot_completed',
+                plan_date=when,
+                step_kind=step_kind,
+            ))
+            db_obj.session.flush()
+    except IntegrityError:
+        # Lost the race — the other transaction already awarded this slot.
+        return None
+
+    # Accumulate study minutes for the day (best-effort, outside the dedup
+    # savepoint; not part of the uniqueness guarantee).
     if minutes:
         try:
             from app.curriculum.models import add_study_minutes
@@ -483,54 +487,6 @@ def maybe_award_writing_xp(
     )
 
 
-def maybe_record_linear_plan_completion(
-    user_id: int,
-    plan: dict,
-    plan_completion: dict,
-    for_date: Optional[date_cls] = None,
-    db_session: Any = None,
-) -> Any:
-    """Record plan-completion + rank-up for a linear user when day is secured.
-
-    Returns the ``RankUp`` produced by ``record_plan_completion`` (or ``None``
-    when no threshold was crossed / the call was a duplicate). Idempotent:
-    ``record_plan_completion`` dedups via ``StreakEvent('plan_completed')``
-    per (user, date), so repeated invocations on the same day are a no-op.
-    Caller owns the commit — this helper only flushes.
-    """
-    if not is_linear_user(user_id):
-        return None
-
-    baseline_slots = plan.get('baseline_slots') or []
-    if not baseline_slots:
-        return None
-    all_done = all(
-        plan_completion.get(slot.get('kind', ''), False)
-        for slot in baseline_slots
-    )
-    if not all_done:
-        return None
-
-    from app.achievements.ranks import record_plan_completion
-    from app.utils.db import db
-
-    db_obj = db_session if db_session is not None else db
-    when = for_date or get_linear_event_local_date(user_id, db_obj)
-
-    rank_up = record_plan_completion(user_id, for_date=when)
-    db_obj.session.flush()
-    if rank_up is not None:
-        try:
-            from app.notifications.services import notify_rank_up
-            notify_rank_up(user_id, rank_up.new_name)
-        except Exception:
-            logger.warning(
-                "Failed to send rank-up notification for linear user %s",
-                user_id, exc_info=True,
-            )
-    return rank_up
-
-
 def maybe_award_linear_perfect_day(
     user_id: int,
     for_date: Optional[date_cls] = None,
@@ -556,8 +512,9 @@ def maybe_award_linear_perfect_day(
     )
     from app.telegram.queries import get_daily_summary
 
+    from app.utils.time_utils import get_user_timezone_name
     when = for_date or get_linear_event_local_date(user_id, db_session)
-    tz = _get_user_timezone(user_id, db_session)
+    tz = get_user_timezone_name(user_id, db_session)
 
     try:
         plan = get_daily_plan_unified(user_id, tz=tz)

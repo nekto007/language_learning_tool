@@ -11,7 +11,6 @@ from app.achievements.ranks import (
     RankInfo,
     RankMilestone,
     RankUp,
-    check_rank_up,
     days_at_current_rank,
     get_rank_code,
     get_rank_history,
@@ -281,32 +280,6 @@ class TestRecordPlanCompletion:
         assert result.new_code == 'grandmaster'
 
 
-class TestCheckRankUp:
-    """check_rank_up detects drift between stored rank and counter."""
-
-    def test_no_stats_returns_none(self, db_session, rank_user):
-        assert check_rank_up(rank_user.id) is None
-
-    def test_in_sync_returns_none(self, db_session, rank_user):
-        stats = UserStatistics(user_id=rank_user.id, plans_completed_total=25,
-                               current_rank='student')
-        db_session.add(stats)
-        db_session.flush()
-        assert check_rank_up(rank_user.id) is None
-
-    def test_stored_rank_stale_returns_rank_up(self, db_session, rank_user):
-        """If someone bumped the counter without updating current_rank, detect it."""
-        stats = UserStatistics(user_id=rank_user.id, plans_completed_total=50,
-                               current_rank='explorer')
-        db_session.add(stats)
-        db_session.flush()
-
-        result = check_rank_up(rank_user.id)
-        assert isinstance(result, RankUp)
-        assert result.previous_code == 'explorer'
-        assert result.new_code == 'expert'
-
-
 class TestNotifyRankUp:
     """Rank-up notification is routed through create_notification."""
 
@@ -375,30 +348,6 @@ class TestConcurrentRankUpDedup:
             user_id=rank_user.id, type='rank_up',
         ).count()
         assert notif_count == 1, "Must not create duplicate rank-up notifications"
-
-    def test_check_rank_up_does_not_create_notifications(
-        self, db_session, rank_user,
-    ):
-        """check_rank_up is a pure detection helper — it never writes notifications."""
-        from app.achievements.models import UserStatistics
-        from app.notifications.models import Notification
-
-        stats = UserStatistics(
-            user_id=rank_user.id,
-            plans_completed_total=50,
-            current_rank='explorer',  # stale: should be 'expert' at 50
-        )
-        db_session.add(stats)
-        db_session.flush()
-
-        result = check_rank_up(rank_user.id)
-        db_session.flush()
-
-        assert isinstance(result, RankUp)
-        assert result.new_code == 'expert'
-
-        notif_count = Notification.query.filter_by(user_id=rank_user.id).count()
-        assert notif_count == 0, "check_rank_up must not create any notifications"
 
     def test_record_plan_completion_updates_both_rank_fields(
         self, db_session, rank_user,

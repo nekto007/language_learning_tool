@@ -1316,6 +1316,18 @@ def _render_unified_dashboard(tz: str):
             except _pytz_sec.UnknownTimeZoneError:
                 _tz_sec = _pytz_sec.timezone(DEFAULT_TIMEZONE)
             write_secured_at(current_user.id, _dt_sec.now(_tz_sec).date())
+            try:
+                # Rank progression + rank-up notification on a secured day
+                # (idempotent per local day). Gated on the unified day_secured;
+                # record_plan_completion was previously only reachable from dead
+                # mission/phase paths, freezing ranks at Novice.
+                from app.achievements.ranks import record_plan_completion
+                _rank_up = record_plan_completion(current_user.id)
+                if _rank_up is not None:
+                    from app.notifications.services import notify_rank_up
+                    notify_rank_up(current_user.id, _rank_up.new_name)
+            except Exception:
+                logger.warning('rank-up recording failed in unified dashboard', exc_info=True)
             db.session.commit()
         except Exception:
             logger.warning('write_secured_at failed in unified dashboard', exc_info=True)

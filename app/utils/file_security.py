@@ -3,6 +3,7 @@
 """
 import logging
 import os
+import re
 import uuid
 from typing import Optional, Tuple
 
@@ -35,13 +36,12 @@ FORBIDDEN_EXTENSIONS = frozenset({
     'sql',                                # SQL dumps
 })
 
-# Magic byte signatures for dangerous file types
-# Maps (prefix_bytes, description) — prefix_bytes is checked against start of file
+# Magic byte signatures for dangerous BINARY file types.
+# (prefix_bytes, description) — binary formats are identified by a fixed
+# header at offset 0, so a prefix check is appropriate for these.
 DANGEROUS_MAGIC_SIGNATURES: list = [
     (b'MZ', 'Windows PE executable'),                   # EXE, DLL
     (b'\x7fELF', 'ELF executable'),                    # Linux binary
-    (b'<?php', 'PHP script'),
-    (b'#!/', 'Shell script (shebang)'),
     (b'\xca\xfe\xba\xbe', 'Mach-O fat binary'),        # macOS executable
     (b'\xfe\xed\xfa\xce', 'Mach-O binary (LE)'),
     (b'\xce\xfa\xed\xfe', 'Mach-O binary (BE)'),
@@ -49,6 +49,17 @@ DANGEROUS_MAGIC_SIGNATURES: list = [
     (b'Rar!', 'RAR archive'),
     (b'\x1f\x8b', 'GZIP archive'),
 ]
+
+# Textual script/exec markers are dangerous ANYWHERE near the start, not only
+# at offset 0: PHP short tag (<?=), leading whitespace/BOM before <?php, an
+# embedded <script>, or a shebang. Prefix-only matching let .csv/text uploads
+# like ``<?=system($_GET['c']);?>`` slip through (audit E-080). Best-effort
+# defence — never a substitute for not serving uploaded files as executables.
+_DANGEROUS_TEXT_RE = re.compile(
+    rb'<\?=|<\?\s*php|<script|#!/',
+    re.IGNORECASE,
+)
+_TEXT_SCAN_BYTES = 4096
 
 
 ALLOWED_AUDIO_MIME_TYPES = frozenset({'audio/mpeg', 'audio/wav'})
@@ -59,11 +70,41 @@ def check_forbidden_magic_bytes(data: bytes) -> Optional[str]:
     Check file content for dangerous magic byte signatures.
 
     Returns description of the dangerous type detected, or None if safe.
+    Binary formats are matched at offset 0; PHP/script/shebang markers are
+    scanned across a leading window so they can't hide behind whitespace or a
+    short tag (audit E-080).
     """
     for signature, description in DANGEROUS_MAGIC_SIGNATURES:
         if data[:len(signature)] == signature:
             return description
+    if _DANGEROUS_TEXT_RE.search(data[:_TEXT_SCAN_BYTES]):
+        return 'PHP/script/executable content'
     return None
+
+
+def _is_valid_mpeg_frame_header(data: bytes) -> bool:
+    """Validate a 4-byte MPEG audio frame header (audit E-081).
+
+    Two-byte sync matching accepted any ``0xFF 0xEx`` prefix as audio/mpeg.
+    A real frame header constrains version, layer, bitrate and sample-rate
+    fields — reserved/free values are rejected so arbitrary binary doesn't
+    masquerade as MP3.
+    """
+    if len(data) < 4:
+        return False
+    b0, b1, b2 = data[0], data[1], data[2]
+    if b0 != 0xFF or (b1 & 0xE0) != 0xE0:  # 11-bit frame sync
+        return False
+    if ((b1 >> 3) & 0x03) == 0x01:  # reserved MPEG version
+        return False
+    if ((b1 >> 1) & 0x03) == 0x00:  # reserved layer
+        return False
+    bitrate_idx = (b2 >> 4) & 0x0F
+    if bitrate_idx in (0x00, 0x0F):  # free / bad bitrate
+        return False
+    if ((b2 >> 2) & 0x03) == 0x03:  # reserved sample rate
+        return False
+    return True
 
 
 def check_audio_mime_type(data: bytes) -> Optional[str]:
@@ -80,8 +121,8 @@ def check_audio_mime_type(data: bytes) -> Optional[str]:
     # MP3 with ID3v2 tag
     if data[:3] == b'ID3':
         return 'audio/mpeg'
-    # MP3 without ID3 tag (MPEG sync bytes: 0xff + 0b111xxxxx)
-    if len(data) >= 2 and data[0] == 0xff and (data[1] & 0xe0) == 0xe0:
+    # MP3 without ID3 tag: require a valid MPEG frame header (not just 2 bytes)
+    if _is_valid_mpeg_frame_header(data):
         return 'audio/mpeg'
     return None
 

@@ -20,6 +20,11 @@ from typing import Any, Optional
 from app.utils.request_cache import request_memoize
 
 
+# Memoized by user_id only (NOT db_session) — audit E-011. This relies on the
+# one-session-per-request invariant: a user's timezone is stable within a
+# request, so the first resolved value is reused regardless of which session
+# object later callers pass. Tests that drive multiple sessions/users inside a
+# single request scope must not assume a fresh lookup per session.
 @request_memoize(key_fn=lambda user_id, *_a, **_k: user_id)
 def _get_user_timezone(user_id: int, db_session: Any = None):
     from zoneinfo import ZoneInfo
@@ -38,6 +43,23 @@ def _get_user_timezone(user_id: int, db_session: Any = None):
         return ZoneInfo(tz_name)
     except Exception:
         return timezone.utc
+
+
+def get_user_timezone_name(user_id: int, db_session: Any = None) -> str:
+    """Return the user's IANA timezone NAME (string), DEFAULT_TIMEZONE fallback.
+
+    Distinct from :func:`_get_user_timezone`, which returns a ZoneInfo OBJECT.
+    Callers that pass ``tz=`` to plan/summary builders need the string form;
+    this is the single canonical source for it (audit E-007).
+    """
+    from app.auth.models import User
+    from app.utils.db import db
+    from config.settings import DEFAULT_TIMEZONE
+
+    db_obj = db_session if db_session is not None else db
+    session_obj = db_obj.session if hasattr(db_obj, 'session') else db_obj
+    user = session_obj.get(User, user_id)
+    return getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
 
 
 def get_user_local_date(

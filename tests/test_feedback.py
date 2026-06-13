@@ -62,14 +62,16 @@ class TestFeedbackApi:
         row = Feedback.query.get(resp.get_json()['id'])
         assert row.priority == 'normal'
 
-    def test_post_marks_urgent_as_high_priority(self, authenticated_client, db_session):
+    def test_client_urgent_flag_does_not_set_high_priority(self, authenticated_client, db_session):
+        # Client-supplied urgent must NOT raise priority (audit E-072) — only a
+        # server-derived signal (bug + screenshot) or admin triage can.
         resp = authenticated_client.post(
             '/api/feedback',
             json={'category': 'bug', 'message': 'не могу продолжить урок', 'urgent': '1'},
         )
         assert resp.status_code == 201
         row = Feedback.query.get(resp.get_json()['id'])
-        assert row.priority == 'high'
+        assert row.priority == 'normal'
 
     def test_post_reports_rejected_screenshot(self, authenticated_client, db_session):
         resp = authenticated_client.post(

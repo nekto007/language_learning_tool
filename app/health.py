@@ -28,12 +28,16 @@ def health():
     db_status = 'ok'
     http_status = 200
     try:
-        # Set a per-statement timeout so a slow DB does not stall the load
-        # balancer check for 30 s.  The SET is local to this statement batch;
-        # the subsequent SELECT 1 will raise OperationalError if it exceeds
-        # the limit.
-        db.session.execute(db.text('SET LOCAL statement_timeout = ' + str(_DB_TIMEOUT_MS)))
-        db.session.execute(db.text('SELECT 1'))
+        # Use a dedicated connection with an explicit transaction so
+        # SET LOCAL statement_timeout actually scopes the SELECT (under the
+        # codebase's AUTOCOMMIT isolation, SET LOCAL on the shared session
+        # would apply to only that one statement). A fresh connection also
+        # keeps a DB failure from leaving the request-scoped db.session in an
+        # aborted state for the next request on this connection (audit E-083).
+        with db.engine.connect() as conn:
+            with conn.begin():
+                conn.execute(db.text('SET LOCAL statement_timeout = ' + str(_DB_TIMEOUT_MS)))
+                conn.execute(db.text('SELECT 1'))
     except Exception:
         logger.exception('Health check: database connectivity failure')
         db_status = 'error'

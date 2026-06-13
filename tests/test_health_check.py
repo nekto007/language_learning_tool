@@ -27,9 +27,11 @@ class TestHealthCheck:
 
     def test_health_returns_503_when_db_disconnected(self, app):
         with app.test_client() as test_client:
+            # Health now pings via a dedicated engine connection (audit E-083),
+            # so simulate the failure at engine.connect().
             with patch.object(
-                app.extensions['sqlalchemy'].session,
-                'execute',
+                app.extensions['sqlalchemy'].engine,
+                'connect',
                 side_effect=OperationalError('', '', Exception('connection refused')),
             ):
                 response = test_client.get('/health')
@@ -57,21 +59,22 @@ class TestHealthCheck:
 
     def test_health_db_timeout_path_does_not_stall(self, app):
         """Simulate statement_timeout firing: health must return 503, not hang."""
-        with app.test_client() as test_client:
-            call_count = 0
+        from unittest.mock import MagicMock
 
+        with app.test_client() as test_client:
             def mock_execute(stmt, *args, **kwargs):
-                nonlocal call_count
-                call_count += 1
-                # First call is SET LOCAL statement_timeout — succeeds.
-                # Second call is SELECT 1 — raises timeout-like error.
-                if call_count >= 2:
+                # SET LOCAL succeeds; SELECT 1 raises a timeout-like error.
+                if 'SELECT 1' in str(stmt):
                     raise OperationalError('canceling statement due to statement timeout', '', Exception())
 
+            mock_conn = MagicMock()
+            mock_conn.__enter__.return_value = mock_conn  # `with engine.connect() as conn`
+            mock_conn.execute.side_effect = mock_execute
+
             with patch.object(
-                app.extensions['sqlalchemy'].session,
-                'execute',
-                side_effect=mock_execute,
+                app.extensions['sqlalchemy'].engine,
+                'connect',
+                return_value=mock_conn,
             ):
                 response = test_client.get('/health')
                 assert response.status_code == 503

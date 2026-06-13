@@ -220,11 +220,18 @@ def build_required(
         if listening_item is not None:
             items.append(listening_item)
 
-    # Difficulty caps for required.
-    if difficulty == 'light':
-        items = items[:2]
-    elif difficulty == 'normal':
-        items = items[:4]
+    # Difficulty caps for required. Always preserve the curriculum item: it
+    # gates curriculum-dependent skills, so truncating it out would let the day
+    # be "secured" without the lesson (audit E-027). Cap the OTHER items around
+    # it, keeping original priority order.
+    cap = 2 if difficulty == 'light' else (4 if difficulty == 'normal' else None)
+    if cap is not None:
+        if cur_item is not None and cur_item in items:
+            others = [it for it in items if it is not cur_item]
+            keep = set(id(it) for it in others[:max(0, cap - 1)]) | {id(cur_item)}
+            items = [it for it in items if id(it) in keep]
+        else:
+            items = items[:cap]
     # intensive: no cap
 
     return items

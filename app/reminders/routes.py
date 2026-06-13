@@ -678,7 +678,10 @@ def send_reminders():
     success_count = 0
     skipped_recent = 0
 
+    from sqlalchemy.exc import IntegrityError
+
     now = datetime.now(timezone.utc)
+    today = now.date()
 
     for user in users:
         if _was_recently_reminded(user.id):
@@ -692,23 +695,38 @@ def send_reminders():
         import secrets
         tracking_token = secrets.token_hex(16)
 
+        # Claim the per-(user, day) slot BEFORE sending so two concurrent
+        # /send requests can't both pass the cooldown and double-email
+        # (audit E-079). uq_reminder_logs_user_sent_on enforces it at the DB.
+        log = ReminderLog(
+            user_id=user.id,
+            template=reminder_template,
+            subject=custom_subject,
+            sent_by=current_user.id,
+            token=tracking_token,
+            sent_on=today,
+        )
+        db.session.add(log)
+        try:
+            with db.session.begin_nested():
+                db.session.flush()
+        except IntegrityError:
+            logger.info(f"Skipping reminder for user {user.id}: already claimed for {today}")
+            skipped_recent += 1
+            continue
+
         html_content = _render_reminder_template(
             reminder_template, user, now, unsubscribe_token,
             tracking_token=tracking_token,
         )
 
-        # Отправляем письмо
         if send_email(user.email, custom_subject, html_content):
-            # Записываем лог отправки
-            log = ReminderLog(
-                user_id=user.id,
-                template=reminder_template,
-                subject=custom_subject,
-                sent_by=current_user.id,
-                token=tracking_token,
-            )
-            db.session.add(log)
             success_count += 1
+        else:
+            # Release the claim so a later legitimate retry isn't blocked by a
+            # transient SMTP failure.
+            db.session.delete(log)
+            db.session.flush()
 
     # Сохраняем изменения в базе данных
     db.session.commit()

@@ -69,19 +69,14 @@ def _check_recovery(user_id: int, db) -> Optional[NextStep]:
     """Suggest recovery when yesterday's plan was not secured."""
     from datetime import timedelta
 
-    import pytz
-
-    from app.auth.models import User
     from app.daily_plan.models import DailyPlanLog
 
     try:
-        user = User.query.get(user_id)
-        tz_name = (user.timezone if user else None) or 'UTC'
-        try:
-            tz_obj = pytz.timezone(tz_name)
-        except pytz.UnknownTimeZoneError:
-            tz_obj = pytz.utc
-        yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+        # Use the same ZoneInfo-based resolver as the rest of the app instead
+        # of a separate pytz stack, so "yesterday" can't diverge for zone
+        # strings the two libraries disagree on (audit E-026).
+        from app.utils.time_utils import get_user_local_date
+        yesterday = get_user_local_date(user_id) - timedelta(days=1)
         log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
     except Exception:
         return None
@@ -223,11 +218,27 @@ def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
     else:
         user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
 
+    # Match count_due_cards: only LEARNING/RELEARNING/REVIEW (NEW cards have
+    # next_review at today's midnight but aren't "due review"), and exclude
+    # buried (leech-suspended) cards — otherwise continuation claims cards are
+    # due that _get_due_cards won't actually serve (audit E-019).
+    from sqlalchemy import or_
+
+    from app.srs.constants import CardState
     raw_due = (
         db.session.query(func.count(UserCardDirection.id))
         .filter(
             UserCardDirection.user_word_id.in_(user_word_subq),
+            UserCardDirection.state.in_((
+                CardState.LEARNING.value,
+                CardState.RELEARNING.value,
+                CardState.REVIEW.value,
+            )),
             UserCardDirection.next_review <= now,
+            or_(
+                UserCardDirection.buried_until.is_(None),
+                UserCardDirection.buried_until <= now,
+            ),
         )
         .scalar() or 0
     )
@@ -271,6 +282,11 @@ def _check_writing_suggestion(user_id: int, db) -> Optional[NextStep]:
         LessonProgress.status == 'completed',
     ).subquery()
 
+    # NB (audit E-025): this picks the globally-first incomplete writing lesson
+    # by id and does not re-apply module prerequisite / level gating. The route
+    # (check_module_access) still 403-guards a gated lesson, so a gated pick is
+    # at worst a dead hint, not an access bypass. A spine-aware pick would need
+    # the find_next_lesson navigation machinery.
     writing_lesson = (
         db.session.query(Lessons)
         .filter(
@@ -368,7 +384,21 @@ def _check_reading_progress(user_id: int, db) -> Optional[NextStep]:
     if not started_book_ids:
         return None
 
-    book = Book.query.get(started_book_ids[0])
+    # Pick the most-recent started book the user can STILL access — skip drafts
+    # and books whose license lapsed / module was removed, so continuation
+    # doesn't surface a book that 403s on open (audit E-025).
+    from app.auth.models import User
+    from app.books.access import can_user_access_book
+    user = db.session.get(User, user_id)
+    book = None
+    for bid in started_book_ids:
+        candidate = Book.query.get(bid)
+        if candidate is None or not getattr(candidate, 'is_published', True):
+            continue
+        if not can_user_access_book(user, candidate):
+            continue
+        book = candidate
+        break
     if not book:
         return None
 

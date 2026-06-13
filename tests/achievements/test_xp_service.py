@@ -17,7 +17,6 @@ from app.achievements.xp_service import (
     award_game_xp_idempotent,
     award_linear_xp,
     award_xp,
-    award_phase_xp_idempotent,
     award_perfect_day_xp_idempotent,
     get_level_info,
     get_linear_xp_amount,
@@ -353,87 +352,6 @@ class TestAwardXp:
 
 
 # ---------------------------------------------------------------------------
-# award_phase_xp_idempotent
-# ---------------------------------------------------------------------------
-
-class TestAwardPhaseXpIdempotent:
-    def _ensure_stats(self, db_session, user_id):
-        from app.achievements.models import UserStatistics
-        from app.utils.db import db
-        stats = UserStatistics.query.filter_by(user_id=user_id).first()
-        if stats is None:
-            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
-            db.session.add(stats)
-            db.session.flush()
-        return stats
-
-    def test_awards_xp_for_phase(self, db_session, test_user):
-        self._ensure_stats(db_session, test_user.id)
-        today = date.today()
-        result = award_phase_xp_idempotent(test_user.id, 'phase_1', 'learn', today)
-        assert result is not None
-        assert result.xp_awarded >= PHASE_XP['learn']
-
-    def test_uses_phase_xp_map(self, db_session, test_user):
-        self._ensure_stats(db_session, test_user.id)
-        today = date.today()
-        for mode, expected_base in PHASE_XP.items():
-            phase_id = f'phase_{mode}'
-            result = award_phase_xp_idempotent(test_user.id, phase_id, mode, today)
-            assert result is not None
-            assert result.xp_awarded >= expected_base
-
-    def test_idempotent_returns_none_on_second_call(self, db_session, test_user):
-        self._ensure_stats(db_session, test_user.id)
-        today = date.today()
-        first = award_phase_xp_idempotent(test_user.id, 'phase_dup', 'recall', today)
-        assert first is not None
-        second = award_phase_xp_idempotent(test_user.id, 'phase_dup', 'recall', today)
-        assert second is None
-
-    def test_different_phases_both_awarded(self, db_session, test_user):
-        self._ensure_stats(db_session, test_user.id)
-        today = date.today()
-        r1 = award_phase_xp_idempotent(test_user.id, 'phase_a', 'recall', today)
-        r2 = award_phase_xp_idempotent(test_user.id, 'phase_b', 'learn', today)
-        assert r1 is not None
-        assert r2 is not None
-
-    def test_applies_streak_multiplier(self, db_session, test_user):
-        from app.achievements.models import UserStatistics
-        from app.utils.db import db
-        stats = self._ensure_stats(db_session, test_user.id)
-        stats.current_streak_days = 50  # 2x multiplier
-        db.session.flush()
-        today = date.today()
-        result = award_phase_xp_idempotent(test_user.id, 'phase_mult', 'learn', today)
-        assert result is not None
-        assert result.multiplier == 2.0
-        assert result.xp_awarded == PHASE_XP['learn'] * 2
-
-    def test_unknown_mode_falls_back_to_check(self, db_session, test_user):
-        self._ensure_stats(db_session, test_user.id)
-        today = date.today()
-        result = award_phase_xp_idempotent(test_user.id, 'phase_unk', 'unknown_mode', today)
-        assert result is not None
-        assert result.xp_awarded >= PHASE_XP['check']
-
-    def test_level_up_detected(self, db_session, test_user):
-        from app.achievements.models import UserStatistics
-        from app.utils.db import db
-        stats = self._ensure_stats(db_session, test_user.id)
-        stats.total_xp = 90
-        stats.current_level = 1
-        stats.current_streak_days = 0
-        db.session.flush()
-        today = date.today()
-        result = award_phase_xp_idempotent(test_user.id, 'phase_lvlup', 'learn', today)
-        assert result is not None
-        assert result.leveled_up is True
-        assert result.new_level == 2
-
-
-# ---------------------------------------------------------------------------
 # award_perfect_day_xp_idempotent
 # ---------------------------------------------------------------------------
 
@@ -484,172 +402,6 @@ class TestAwardPerfectDayXpIdempotent:
         assert result is not None
         assert result.multiplier == 2.0
         assert result.xp_awarded == PERFECT_DAY_BONUS_XP * 2
-
-
-# ---------------------------------------------------------------------------
-# Integration: process_streak_on_activity awards XP
-# ---------------------------------------------------------------------------
-
-class TestProcessStreakActivityXp:
-    def _make_phases(self):
-        return [
-            {'id': 'phase_recall', 'phase': 'recall', 'mode': 'srs_review', 'required': True},
-            {'id': 'phase_learn', 'phase': 'learn', 'mode': 'curriculum_lesson', 'required': True},
-        ]
-
-    def _ensure_stats(self, db_session, user_id):
-        from app.achievements.models import UserStatistics
-        from app.utils.db import db
-        stats = UserStatistics.query.filter_by(user_id=user_id).first()
-        if stats is None:
-            stats = UserStatistics(user_id=user_id, total_xp=0, current_streak_days=0)
-            db.session.add(stats)
-            db.session.flush()
-        return stats
-
-    def test_xp_awarded_for_completed_phases(self, db_session, test_user):
-        from app.achievements.streak_service import process_streak_on_activity
-        from app.achievements.models import UserStatistics, StreakEvent
-        from app.utils.db import db
-        self._ensure_stats(db_session, test_user.id)
-        phases = self._make_phases()
-        plan_completion = {'phase_recall': True, 'phase_learn': True}
-        daily_plan = {'phases': phases}
-
-        with patch('app.telegram.queries.has_activity_today', return_value=True), \
-             patch('app.telegram.queries.get_current_streak', return_value=3):
-            process_streak_on_activity(
-                test_user.id, 2, 2,
-                daily_plan=daily_plan,
-                plan_completion=plan_completion,
-            )
-
-        stats = UserStatistics.query.filter_by(user_id=test_user.id).first()
-        assert stats.total_xp > 0
-        xp_events = StreakEvent.query.filter_by(
-            user_id=test_user.id, event_type='xp_phase'
-        ).all()
-        assert len(xp_events) == 2
-        awarded = {event.details['phase_id']: event.details['xp'] for event in xp_events}
-        assert awarded['phase_recall'] == PHASE_XP['recall']
-        assert awarded['phase_learn'] == PHASE_XP['learn']
-
-    def test_perfect_day_bonus_awarded_when_all_done(self, db_session, test_user):
-        from app.achievements.streak_service import process_streak_on_activity
-        from app.achievements.models import UserStatistics, StreakEvent
-        self._ensure_stats(db_session, test_user.id)
-        phases = self._make_phases()
-        plan_completion = {'phase_recall': True, 'phase_learn': True}
-        daily_plan = {'phases': phases}
-
-        with patch('app.telegram.queries.has_activity_today', return_value=True), \
-             patch('app.telegram.queries.get_current_streak', return_value=1):
-            process_streak_on_activity(
-                test_user.id, 2, 2,
-                daily_plan=daily_plan,
-                plan_completion=plan_completion,
-            )
-
-        perfect_event = StreakEvent.query.filter_by(
-            user_id=test_user.id, event_type='xp_perfect_day'
-        ).first()
-        assert perfect_event is not None
-
-    def test_perfect_day_bonus_not_awarded_when_partial(self, db_session, test_user):
-        from app.achievements.streak_service import process_streak_on_activity
-        from app.achievements.models import UserStatistics, StreakEvent
-        self._ensure_stats(db_session, test_user.id)
-        phases = self._make_phases()
-        plan_completion = {'phase_recall': True, 'phase_learn': False}
-        daily_plan = {'phases': phases}
-
-        with patch('app.telegram.queries.has_activity_today', return_value=True), \
-             patch('app.telegram.queries.get_current_streak', return_value=1):
-            process_streak_on_activity(
-                test_user.id, 1, 2,
-                daily_plan=daily_plan,
-                plan_completion=plan_completion,
-            )
-
-        perfect_event = StreakEvent.query.filter_by(
-            user_id=test_user.id, event_type='xp_perfect_day'
-        ).first()
-        assert perfect_event is None
-
-    def test_xp_not_awarded_twice_on_repeat_call(self, db_session, test_user):
-        from app.achievements.streak_service import process_streak_on_activity
-        from app.achievements.models import UserStatistics, StreakEvent
-        self._ensure_stats(db_session, test_user.id)
-        phases = self._make_phases()
-        plan_completion = {'phase_recall': True, 'phase_learn': True}
-        daily_plan = {'phases': phases}
-
-        with patch('app.telegram.queries.has_activity_today', return_value=True), \
-             patch('app.telegram.queries.get_current_streak', return_value=1):
-            process_streak_on_activity(
-                test_user.id, 2, 2,
-                daily_plan=daily_plan, plan_completion=plan_completion,
-            )
-            process_streak_on_activity(
-                test_user.id, 2, 2,
-                daily_plan=daily_plan, plan_completion=plan_completion,
-            )
-
-        xp_events = StreakEvent.query.filter_by(
-            user_id=test_user.id, event_type='xp_phase'
-        ).all()
-        assert len(xp_events) == 2
-
-    def test_bonus_phase_awards_xp_once_completed(self, db_session, test_user):
-        from app.achievements.streak_service import process_streak_on_activity
-        from app.achievements.models import StreakEvent
-        self._ensure_stats(db_session, test_user.id)
-        phases = [
-            {'id': 'phase_learn', 'phase': 'learn', 'mode': 'curriculum_lesson', 'required': True},
-            {'id': 'phase_bonus', 'phase': 'bonus', 'mode': 'fun_fact_quiz', 'required': False},
-        ]
-        plan_completion = {'phase_learn': True, 'phase_bonus': True}
-        daily_plan = {'phases': phases}
-
-        with patch('app.telegram.queries.has_activity_today', return_value=True), \
-             patch('app.telegram.queries.get_current_streak', return_value=0):
-            process_streak_on_activity(
-                test_user.id, 1, 1,
-                daily_plan=daily_plan, plan_completion=plan_completion,
-            )
-
-        xp_events = StreakEvent.query.filter_by(
-            user_id=test_user.id, event_type='xp_phase'
-        ).all()
-        awarded = {event.details['phase_id']: event.details['xp'] for event in xp_events}
-        assert awarded['phase_learn'] == PHASE_XP['learn']
-        assert awarded['phase_bonus'] == PHASE_XP['fun_fact_quiz']
-
-    def test_level_up_notification_sent(self, db_session, test_user):
-        from app.achievements.streak_service import process_streak_on_activity
-        from app.achievements.models import UserStatistics
-        from app.utils.db import db
-        stats = self._ensure_stats(db_session, test_user.id)
-        stats.total_xp = 90
-        stats.current_level = 1
-        stats.current_streak_days = 0
-        db.session.flush()
-
-        phases = [{'id': 'phase_big', 'mode': 'learn', 'required': True}]
-        plan_completion = {'phase_big': True}
-        daily_plan = {'phases': phases}
-
-        with patch('app.telegram.queries.has_activity_today', return_value=True), \
-             patch('app.telegram.queries.get_current_streak', return_value=0), \
-             patch('app.notifications.services.notify_level_up') as mock_notify:
-            result = process_streak_on_activity(
-                test_user.id, 1, 1,
-                daily_plan=daily_plan, plan_completion=plan_completion,
-            )
-
-        assert result.get('xp_level_up') is not None
-        assert result['xp_level_up']['new_level'] == 2
-        mock_notify.assert_called_once_with(test_user.id, 2)
 
 
 # ---------------------------------------------------------------------------
@@ -911,28 +663,7 @@ class TestProcessStreakPerfectDayInfo:
             db.session.flush()
         return stats
 
-    def test_perfect_day_info_in_result_when_all_done(self, db_session, test_user):
-        from app.achievements.streak_service import process_streak_on_activity
-        self._ensure_stats(db_session, test_user.id)
-        phases = [
-            {'id': 'p1', 'mode': 'learn', 'required': True},
-            {'id': 'p2', 'mode': 'recall', 'required': True},
-        ]
-        plan_completion = {'p1': True, 'p2': True}
-        daily_plan = {'phases': phases}
-
-        with patch('app.telegram.queries.has_activity_today', return_value=True), \
-             patch('app.telegram.queries.get_current_streak', return_value=1):
-            result = process_streak_on_activity(
-                test_user.id, 2, 2,
-                daily_plan=daily_plan, plan_completion=plan_completion,
-            )
-
-        assert 'perfect_day_info' in result
-        assert result['perfect_day_info'] is not None
-        assert result['perfect_day_info']['consecutive_days'] >= 1
-
-    def test_perfect_day_info_none_when_no_phases(self, db_session, test_user):
+    def test_perfect_day_info_none_for_unified_plan(self, db_session, test_user):
         from app.achievements.streak_service import process_streak_on_activity
         self._ensure_stats(db_session, test_user.id)
 
@@ -940,7 +671,8 @@ class TestProcessStreakPerfectDayInfo:
              patch('app.telegram.queries.get_current_streak', return_value=1):
             result = process_streak_on_activity(test_user.id, 1, 2)
 
-        # No phases in daily_plan → perfect_day_info should be None
+        # The legacy phase/perfect-day block was removed from
+        # process_streak_on_activity; perfect_day_info is always None now.
         assert result.get('perfect_day_info') is None
 
 

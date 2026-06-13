@@ -121,3 +121,37 @@ class TestCheckLessonAchievements:
         assert 'first_lesson' in codes
         assert 'lessons_5' in codes
         assert 'lessons' in result, "check_all_achievements must include 'lessons' key"
+
+
+class TestFlushOnlyCommitContract:
+    """Audit E-068: check_all_achievements and the family checks invoked from it
+    must be flush-only so the lesson-submit handler owns a single atomic commit.
+    Default commit=True is preserved for the standalone endpoint callers."""
+
+    def test_check_all_achievements_does_not_commit(self, db_session, lesson_user, lesson_badges):
+        from unittest.mock import patch
+        from app.utils.db import db
+
+        _make_stats(db_session, lesson_user.id, 5)  # qualifies for first_lesson + lessons_5
+        with patch.object(db.session, 'commit') as mock_commit:
+            result = AchievementService.check_all_achievements(lesson_user.id)
+        assert result['all'], "expected at least one new badge"
+        mock_commit.assert_not_called()
+
+    def test_family_commit_false_does_not_commit(self, db_session, lesson_user, lesson_badges):
+        from unittest.mock import patch
+        from app.utils.db import db
+
+        stats = _make_stats(db_session, lesson_user.id, 5)
+        with patch.object(db.session, 'commit') as mock_commit:
+            AchievementService.check_lesson_achievements(lesson_user.id, stats, commit=False)
+        mock_commit.assert_not_called()
+
+    def test_family_default_commits_for_standalone_callers(self, db_session, lesson_user, lesson_badges):
+        from unittest.mock import patch
+        from app.utils.db import db
+
+        stats = _make_stats(db_session, lesson_user.id, 5)
+        with patch.object(db.session, 'commit') as mock_commit:
+            AchievementService.check_lesson_achievements(lesson_user.id, stats)  # default commit=True
+        mock_commit.assert_called()

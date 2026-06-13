@@ -537,7 +537,12 @@ function loadNotifications() {
             list.textContent = '';
             data.notifications.forEach(function(n) {
                 var a = document.createElement('a');
-                a.href = n.link || '#';
+                // Allowlist link schemes so a javascript:/data: link in n.link
+                // can't execute on click (audit E-096). Only same-origin paths
+                // and http(s) URLs are honored; anything else falls back to '#'.
+                var rawLink = n.link || '#';
+                var safeLink = (/^(\/(?!\/)|https?:\/\/)/i).test(rawLink) ? rawLink : '#';
+                a.href = safeLink;
                 // align-items:flex-start so the icon sits at the top of a
                 // wrapping title (was center → icon floated mid-line when
                 // the title spanned two lines on iPad/tablet).

@@ -274,6 +274,10 @@ def serve_chapter_audio(book_id: int, chapter_num: int):
     from app.books.access import can_user_access_book
     if not can_user_access_book(current_user, book):
         return 'Not found', 404
+    # Audio has its own rights flag: even a public-domain text may have no
+    # audio rights. can_user_access_book only checks TEXT rights (audit E-048).
+    if getattr(book, 'audio_rights_status', None) == 'none' and not current_user.is_admin:
+        return 'No audio available', 404
     if not chapter.audio_url:
         return 'No audio available', 404
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1189,9 +1193,15 @@ def reading_session_end():
     from app.books.models import UserChapterProgress
     from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
 
+    # Lock the chapter-progress row (as save_reading_position does) so a
+    # concurrent /save-reading-position closing the same chapter can't race
+    # this pre/post snapshot — fixes double counter increments and the
+    # lost-update on completion effects (audit E-049 / E-059). The lock is
+    # held until the commit below; the concurrent path blocks until then.
     pre_progress = (
         db.session.query(UserChapterProgress)
         .filter_by(user_id=current_user.id, chapter_id=existing.chapter_id)
+        .with_for_update()
         .first()
     )
     pre_offset = pre_progress.offset_pct if pre_progress else 0.0
@@ -1328,8 +1338,11 @@ def reading_session_end():
         try:
             from app.books.vocab_pull import pull_chapter_vocab_once
 
-            start_off = state['earliest_start_offset'] if state is not None else 0.0
-            end_off = state['current_offset'] if state is not None else 1.0
+            # daily_target_met_today is only set True in the is_preference_book
+            # branch above, which also computes `state`, so state is never None
+            # here — the old `else 0.0/1.0` fallback was dead (audit E-057).
+            start_off = state['earliest_start_offset']
+            end_off = state['current_offset']
             queued_vocab_count = pull_chapter_vocab_once(
                 current_user.id, session.chapter_id, start_off, end_off, db,
             )

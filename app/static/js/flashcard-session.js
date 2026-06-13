@@ -1278,6 +1278,11 @@ class FlashcardSession {
      * Confetti animation.
      */
     launchConfetti() {
+        // Respect the OS "reduce motion" setting — a canvas RAF burst isn't
+        // covered by the global CSS @media guard (audit E-093).
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return;
+        }
         const canvas = document.getElementById('confetti-canvas');
         if (!canvas) return;
 

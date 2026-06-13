@@ -59,12 +59,47 @@ class WordTranslator {
 
     _processContent() {
         const elements = this.container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, .listening-content-text, .prose-container, .reading-line-text, div.dialogue-line-text');
+        const SKIP_TAGS = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, INPUT: 1, BUTTON: 1, A: 1 };
+        const hasWord = /[a-zA-Z]{2,}/;
+        const wordRe = /[a-zA-Z]{2,}/g;
         elements.forEach(el => {
             if (el.getAttribute('data-wt-processed')) return;
-            el.innerHTML = el.innerHTML.replace(
-                /\b([a-zA-Z]{2,})\b(?![^<]*>|[^<>]*<\/)/g,
-                '<span class="wt-word" data-word="$1">$1</span>'
-            );
+            // Walk text nodes and wrap words via the DOM instead of rebuilding
+            // innerHTML (audit E-097): innerHTML rebuild dropped listeners/input
+            // state on child nodes and the regex lookahead corrupted nested
+            // markup / entities. Snapshot nodes first (we mutate the tree).
+            const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+            const targets = [];
+            let node;
+            while ((node = walker.nextNode())) {
+                const parent = node.parentNode;
+                if (!parent) continue;
+                if (parent.classList && parent.classList.contains('wt-word')) continue;
+                if (SKIP_TAGS[parent.nodeName]) continue;
+                if (hasWord.test(node.nodeValue || '')) targets.push(node);
+            }
+            targets.forEach(textNode => {
+                const text = textNode.nodeValue;
+                const frag = document.createDocumentFragment();
+                let last = 0;
+                wordRe.lastIndex = 0;
+                let m;
+                while ((m = wordRe.exec(text)) !== null) {
+                    if (m.index > last) {
+                        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+                    }
+                    const span = document.createElement('span');
+                    span.className = 'wt-word';
+                    span.setAttribute('data-word', m[0]);
+                    span.textContent = m[0];
+                    frag.appendChild(span);
+                    last = m.index + m[0].length;
+                }
+                if (last < text.length) {
+                    frag.appendChild(document.createTextNode(text.slice(last)));
+                }
+                textNode.parentNode.replaceChild(frag, textNode);
+            });
             el.setAttribute('data-wt-processed', 'true');
         });
     }

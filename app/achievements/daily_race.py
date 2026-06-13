@@ -1,8 +1,8 @@
 """Daily race models and service helpers.
 
 A daily race groups 3-5 users into a small competitive cohort for a given
-calendar date. Points accrue from completed daily-plan mission phases using
-the same point values defined in `app/words/routes.py::_MISSION_PHASE_POINTS`.
+calendar date. Points accrue from completed unified-plan baseline slots via
+`update_race_points_from_linear_plan` using the `LINEAR_SLOT_POINTS` table.
 
 This module also exposes `get_or_create_race`, the matchmaking entrypoint
 used when a user visits their dashboard: it either finds an existing cohort
@@ -57,18 +57,6 @@ RACE_MIN_PARTICIPANTS = 3
 RACE_MAX_PARTICIPANTS = 5
 CHALLENGE_BONUS_POINTS = 10
 
-# Points awarded per mission phase type. Kept in sync with
-# `_MISSION_PHASE_POINTS` in app/words/routes.py so that the race scoreboard
-# and the dashboard point counter never drift apart.
-MISSION_PHASE_POINTS: Mapping[str, int] = {
-    'recall': 8,
-    'learn': 22,
-    'use': 18,
-    'read': 20,
-    'check': 12,
-    'close': 0,
-}
-
 # Points awarded per linear plan slot kind. Curriculum is the most valuable
 # since it drives the spine; SRS and reading are supporting activities.
 LINEAR_SLOT_POINTS: Mapping[str, int] = {
@@ -80,13 +68,6 @@ LINEAR_SLOT_POINTS: Mapping[str, int] = {
     'writing': 14,
     'error_review': 10,
 }
-
-
-def phase_points(phase: str | None) -> int:
-    """Return points awarded for a completed mission phase kind."""
-    if not phase:
-        return 0
-    return MISSION_PHASE_POINTS.get(phase, 0)
 
 
 def linear_slot_points(kind: str | None) -> int:
@@ -266,6 +247,11 @@ def _find_matching_race(
             continue
         if any(p.user_id == user_id for p in humans):
             continue
+        # All-pairwise at join (audit E-073): the joiner must be within
+        # tolerance of EVERY existing human, not just an anchor — so a cohort
+        # can't drift to 2×tolerance via chained A~B~C joins. (Residual: a
+        # member's stats can drift over the day after they joined; bounding
+        # that would need re-matching and is out of scope.)
         if humans and not all(
             _is_similar(_user_stats_snapshot(p.user_id), user_stats)
             for p in humans
@@ -363,36 +349,32 @@ def get_or_create_race(user_id: int, race_date: date_cls) -> RaceCohort:
             raise
         return _build_cohort(race)
 
+    # Capacity guard (audit E-064): _find_matching_race counted humans without
+    # a row lock, so a concurrent joiner may have pushed this race over
+    # RACE_MAX_PARTICIPANTS between the check and our insert. If we're the
+    # overflow, move to a fresh race (ghosts fill it in _build_cohort).
+    human_count = (
+        db.session.query(DailyRaceParticipant)
+        .filter(
+            DailyRaceParticipant.race_id == race.id,
+            DailyRaceParticipant.user_id.isnot(None),
+        )
+        .count()
+    )
+    if human_count > RACE_MAX_PARTICIPANTS:
+        new_race = DailyRace(race_date=race_date)
+        db.session.add(new_race)
+        db.session.flush()
+        participant.race_id = new_race.id
+        db.session.flush()
+        race = new_race
+
     return _build_cohort(race)
 
 
 # ---------------------------------------------------------------------------
 # Point updates
 # ---------------------------------------------------------------------------
-
-
-def _points_from_plan(
-    phases: Iterable[Mapping], plan_completion: Mapping[str, bool],
-) -> tuple[int, bool]:
-    """Sum points for completed phases and report whether all required are done.
-
-    Returns (total_points, all_required_done).
-    """
-    total = 0
-    all_required_done = True
-    saw_required = False
-    for phase in phases:
-        phase_id = phase.get('id')
-        done = bool(plan_completion.get(phase_id, False))
-        if phase.get('required', True):
-            saw_required = True
-            if not done:
-                all_required_done = False
-        if done:
-            total += phase_points(phase.get('phase'))
-    if not saw_required:
-        all_required_done = False
-    return total, all_required_done
 
 
 def update_race_points(
@@ -421,36 +403,6 @@ def update_race_points(
     if finished and participant.finished_at is None:
         participant.finished_at = now_utc or datetime.now(timezone.utc)
     return participant
-
-
-def update_race_points_from_plan(
-    user_id: int,
-    race_date: date_cls,
-    phases: Iterable[Mapping],
-    plan_completion: Mapping[str, bool],
-    *,
-    challenge_bonus: int = 0,
-    now_utc: datetime | None = None,
-) -> Optional[DailyRaceParticipant]:
-    """Recompute participant points from the current plan+completion view.
-
-    Called on every dashboard/API request that rebuilds the plan, so point
-    totals stay in sync with whichever phases have been completed today.
-    ``challenge_bonus`` adds a flat bonus (default 0) for completing the daily
-    challenge — callers should pass ``CHALLENGE_BONUS_POINTS`` when the user
-    has completed today's challenge.
-    """
-    if not is_daily_race_enabled():
-        return None
-    phase_list = list(phases)
-    total, all_required_done = _points_from_plan(phase_list, plan_completion)
-    return update_race_points(
-        user_id,
-        race_date,
-        total + max(0, challenge_bonus),
-        finished=all_required_done,
-        now_utc=now_utc,
-    )
 
 
 def update_race_points_from_linear_plan(

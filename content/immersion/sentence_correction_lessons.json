@@ -19,10 +19,10 @@
       "error_type": "article",
       "explanation": "Use 'an' before words that start with a vowel sound (a, e, i, o, u). 'Animal' starts with 'a', so we write 'an animal'.",
       "options": [
-        "It is a animal.",
-        "It is an animal.",
-        "It is the animal.",
-        "It is animal."
+        "I have a dog. It is a animal.",
+        "I have a dog. It is an animal.",
+        "I have a dog. It is the animal.",
+        "I have a dog. It is animal."
       ]
     },
     "module_number": 1

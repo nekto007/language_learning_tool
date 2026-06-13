@@ -18,7 +18,16 @@ logger = logging.getLogger(__name__)
 # ── Update-ID deduplication (Telegram retries protection) ───────────
 
 class _BoundedUpdateSet:
-    """Thread-safe bounded set for deduplicating Telegram update_ids."""
+    """Thread-safe bounded set for deduplicating Telegram update_ids.
+
+    BEST-EFFORT, PER-WORKER ONLY (audit E-091): this set lives in one process's
+    memory. A Telegram retry of the same update_id routed to a DIFFERENT gunicorn
+    worker is NOT seen as a duplicate, and the set resets on deploy/restart and
+    evicts the oldest ids past ``maxlen``. Therefore webhook handlers MUST be
+    idempotent on their own (e.g. account-link by code, not blind insert) — do
+    not rely on this set as the sole dedup. A DB/Redis marker keyed on update_id
+    would make it cross-worker durable if stronger guarantees are needed.
+    """
 
     def __init__(self, maxlen: int = 1000) -> None:
         self._maxlen = maxlen

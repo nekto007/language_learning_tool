@@ -70,13 +70,11 @@ def notify_level_up(user_id: int, new_level: int) -> Notification | None:
     Multiple concurrent XP awards that both trigger the same level-up will
     produce at most one notification row.
     """
-    from datetime import timezone as _tz
     title = f'Уровень {new_level}!'
-    day_start = (
-        datetime.now(_tz.utc)
-        .replace(hour=0, minute=0, second=0, microsecond=0)
-        .replace(tzinfo=None)
-    )
+    # Dedup against the user's LOCAL day (naive-UTC bounds), not UTC midnight,
+    # so the window matches the rest of the app at day edges (audit E-065).
+    from app.utils.time_utils import get_user_local_day_bounds
+    day_start, _ = get_user_local_day_bounds(user_id)
     existing = Notification.query.filter(
         Notification.user_id == user_id,
         Notification.type == 'level_up',
@@ -134,9 +132,10 @@ def check_plan_streak_milestone_notification(
     """
     if current_streak not in PLAN_STREAK_MILESTONE_DAYS:
         return
-    # Notification.created_at stores naive UTC; dedup against UTC midnight.
-    from datetime import timezone as _tz
-    day_start = datetime.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0).replace(tzinfo=None)
+    # created_at is naive UTC; dedup against the user's LOCAL day bounds
+    # (also naive UTC) so the window doesn't shift at day edges (audit E-065).
+    from app.utils.time_utils import get_user_local_day_bounds
+    day_start, _ = get_user_local_day_bounds(user_id)
     existing = Notification.query.filter(
         Notification.user_id == user_id,
         Notification.type == 'plan_streak_milestone',

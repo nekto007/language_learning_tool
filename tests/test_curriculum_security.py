@@ -557,15 +557,17 @@ class TestValidateFileUpload:
         assert is_valid is False
         assert ".bat" in error
 
-    def test_script_word_in_filename_rejected(self):
-        """Security: Test that 'script' in filename is flagged"""
+    def test_script_word_in_filename_accepted(self):
+        """A 'script' substring in a benign filename is NOT rejected (audit
+        E-040) — it false-rejected transcript.mp3/manuscript.txt. Rejection is
+        by dangerous EXTENSION, not by the word 'script'."""
         file = FileStorage(
             stream=io.BytesIO(b"content"),
             filename='my_script_file.txt'
         )
         is_valid, error = validate_file_upload(file)
-        assert is_valid is False
-        assert "script" in error.lower()
+        assert is_valid is True, error
+        assert error is None
 
     def test_windows_path_separator_stripped(self):
         """Test that Windows path separators are handled"""

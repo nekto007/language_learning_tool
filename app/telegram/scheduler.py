@@ -65,6 +65,7 @@ def init_scheduler(app) -> None:
     from sqlalchemy import text
 
     from app.utils.db import db
+    conn = None
     try:
         # app_context is needed only to resolve db.engine (flask_sqlalchemy
         # reads current_app); the Connection and its advisory lock outlive it.
@@ -86,6 +87,14 @@ def init_scheduler(app) -> None:
             ).scalar()
     except Exception:
         logger.exception('Could not acquire scheduler advisory lock — skipping')
+        # Close a connection opened before execute() raised, or it leaks
+        # (advisory lock is best-effort; TelegramNotificationLog.claim is the
+        # authoritative dedup) — audit E-089.
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                logger.warning('failed to close scheduler lock conn after error', exc_info=True)
         return
 
     if not got:
@@ -232,8 +241,13 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
                 name, streak, plan, site_url, cards_url=cards_url)
         _guarded_send('tgn_morning', chat_id, text, reply_markup=reply_markup)
 
-    # Word of the Day (1 hour after morning reminder)
-    elif local_hour == (tg_user.morning_hour or 8) + 1 and tg_user.morning_reminder:
+    # Word of the Day (1 hour after morning reminder). Independent `if` (not
+    # `elif`) so a notification whose hour collides with another type isn't
+    # silently dropped — each _guarded_send is claim-idempotent per kind/day
+    # (audit E-090). morning_hour is nullable=False default 9; use it directly
+    # (the old `or 8` mistreated a valid 0 and disagreed with the line above).
+    _morning_hour = tg_user.morning_hour if tg_user.morning_hour is not None else 9
+    if local_hour == _morning_hour + 1 and tg_user.morning_reminder:
         from app.study.word_of_day import get_word_of_day
         word_data = get_word_of_day(user_id)
         if word_data:
@@ -242,7 +256,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
                 _guarded_send('tgn_wotd', chat_id, text, reply_markup=keyboard)
 
     # Nudge (user's custom hour, only if no activity today and has a quick action)
-    elif local_hour == tg_user.nudge_hour and tg_user.nudge_enabled:
+    if local_hour == tg_user.nudge_hour and tg_user.nudge_enabled:
         if not has_activity_today(user_id, tz=user_tz):
             quick_action = get_quickest_action(user_id, tz=user_tz)
             if quick_action:
@@ -252,13 +266,13 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
                 _guarded_send('tgn_nudge', chat_id, text)
 
     # Sunday weekly report (1 hour before evening summary)
-    elif local_hour == max(tg_user.evening_hour - 1, 0) and is_sunday and tg_user.evening_summary:
+    if local_hour == max(tg_user.evening_hour - 1, 0) and is_sunday and tg_user.evening_summary:
         report = get_weekly_report(user_id, tz=user_tz)
         text = format_weekly_report(report, site_url)
         _guarded_send('tgn_weekly', chat_id, text)
 
     # Evening summary (user's custom hour, only if there was activity)
-    elif local_hour == tg_user.evening_hour and tg_user.evening_summary:
+    if local_hour == tg_user.evening_hour and tg_user.evening_summary:
         if has_activity_today(user_id, tz=user_tz):
             summary = get_daily_summary(user_id, tz=user_tz)
             streak = get_current_streak(user_id, tz=user_tz)
@@ -270,7 +284,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
             _guarded_send('tgn_evening', chat_id, text, reply_markup=reply_markup)
 
     # Streak alert (user's custom hour, only if no activity and streak > 0)
-    elif local_hour == tg_user.streak_hour and tg_user.streak_alert:
+    if local_hour == tg_user.streak_hour and tg_user.streak_alert:
         if not has_activity_today(user_id, tz=user_tz):
             streak = get_current_streak(user_id, tz=user_tz)
             if streak > 0:
