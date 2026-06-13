@@ -218,11 +218,27 @@ def _check_srs_due(user_id: int, db) -> Optional[NextStep]:
     else:
         user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
 
+    # Match count_due_cards: only LEARNING/RELEARNING/REVIEW (NEW cards have
+    # next_review at today's midnight but aren't "due review"), and exclude
+    # buried (leech-suspended) cards — otherwise continuation claims cards are
+    # due that _get_due_cards won't actually serve (audit E-019).
+    from sqlalchemy import or_
+
+    from app.srs.constants import CardState
     raw_due = (
         db.session.query(func.count(UserCardDirection.id))
         .filter(
             UserCardDirection.user_word_id.in_(user_word_subq),
+            UserCardDirection.state.in_((
+                CardState.LEARNING.value,
+                CardState.RELEARNING.value,
+                CardState.REVIEW.value,
+            )),
             UserCardDirection.next_review <= now,
+            or_(
+                UserCardDirection.buried_until.is_(None),
+                UserCardDirection.buried_until <= now,
+            ),
         )
         .scalar() or 0
     )
