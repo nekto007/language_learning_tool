@@ -432,7 +432,6 @@ setTimeout(updateProgress, 100);
     const chapterId = {{ current_chapter.id }};
     const HEARTBEAT_INTERVAL_MS = 60000;        // close+reopen session every 60s
     const IDLE_THRESHOLD_MS = 60000;            // auto-pause after 60s no activity
-    const SNOOZE_MS = 5 * 60 * 1000;            // "Ещё 5 минут" hide duration
     const DAILY_TARGET_SECONDS = 300;           // mirror of server DAILY_READING_TARGET_SECONDS
 
     let sessionId = null;
@@ -445,9 +444,9 @@ setTimeout(updateProgress, 100);
     let activeSecondsToday = 0;                  // client-tracked active reading time (ticks on resume)
     let activeTickAnchor = null;                 // Date.now() when most recent active state began
     let displayTickerInterval = null;            // 1Hz interval for timer display refresh
-    let snoozeUntil = 0;                         // banner suppressed (epoch ms) when user picks "Ещё 5 минут"
+    let nextCheckpoint = DAILY_TARGET_SECONDS;   // active-seconds boundary for the next banner (300/600/900…)
+    let lastBannerData = null;                   // latest server end-response carrying a banner_state + CTA urls
     let didSeedFromServer = false;               // first /start response seeds today-total once
-    let targetReached = false;                   // true once elapsed >= DAILY_TARGET_SECONDS; freezes display
 
     function _currentOffsetPct() {
         // Must match ``computeReadingProgress`` — the offset_pct hint sent
@@ -497,6 +496,10 @@ setTimeout(updateProgress, 100);
                 ) {
                     didSeedFromServer = true;
                     activeSecondsToday = data.book_seconds_today;
+                    // Следующий чекпоинт — ближайшая граница, кратная 5 мин,
+                    // выше уже прочитанного сегодня: открыв читалку с добитой
+                    // нормой, юзер не получит мгновенный баннер.
+                    nextCheckpoint = (Math.floor(activeSecondsToday / DAILY_TARGET_SECONDS) + 1) * DAILY_TARGET_SECONDS;
                     _renderTimer();
                 }
             });
@@ -536,11 +539,25 @@ setTimeout(updateProgress, 100);
         // activeTickAnchor; we do NOT add data.duration_seconds here
         // because the heartbeat path closes a session without moving
         // the anchor, and adding both would double-count.
-        if (bannerShown) return;
-        if (!data.banner_state || data.banner_state === 'none') return;
-        if (Date.now() < snoozeUntil) return;   // user snoozed via "Ещё 5 минут"
+        //
+        // Кэшируем последний осмысленный payload баннера (state + CTA-url).
+        // КОГДА его показать, решает 1-секундный тик — на каждой границе
+        // 5 минут активного чтения (300/600/900…), а не по wall-clock.
+        if (data.banner_state && data.banner_state !== 'none') {
+            lastBannerData = data;
+        }
+        _maybeShowCheckpointBanner();
+    }
+
+    function _maybeShowCheckpointBanner() {
+        if (bannerShown || !lastBannerData) return;
+        let elapsed = activeSecondsToday;
+        if (state === 'active' && activeTickAnchor !== null) {
+            elapsed += Math.floor((Date.now() - activeTickAnchor) / 1000);
+        }
+        if (elapsed < nextCheckpoint) return;
         bannerShown = true;
-        _showBanner(data);
+        _showBanner(lastBannerData);
     }
 
     function _formatTime(seconds) {
@@ -561,13 +578,9 @@ setTimeout(updateProgress, 100);
         elapsedEl.textContent = _formatTime(elapsed);
         bar.classList.toggle('is-target-met', elapsed >= DAILY_TARGET_SECONDS);
         bar.classList.toggle('is-paused', state === 'paused' || manualPause);
-        if (elapsed >= DAILY_TARGET_SECONDS && !targetReached && displayTickerInterval) {
-            targetReached = true;
-            activeSecondsToday = DAILY_TARGET_SECONDS;
-            activeTickAnchor = null;
-            _stopDisplayTicker();
-            return;
-        }
+        // Таймер не замораживается — идёт непрерывно (5→10→15…). Баннер
+        // всплывает на каждой границе nextCheckpoint, снуз сдвигает её на +5 мин.
+        _maybeShowCheckpointBanner();
     }
 
     function _startDisplayTicker() {
@@ -635,7 +648,9 @@ setTimeout(updateProgress, 100);
         snooze.addEventListener('click', function () {
             banner.hidden = true;
             bannerShown = false;
-            snoozeUntil = Date.now() + SNOOZE_MS;
+            // "Ещё 5 минут" — следующий баннер через ещё 5 минут активного
+            // чтения. Таймер не трогаем, он и так идёт дальше (5→10→15…).
+            nextCheckpoint += DAILY_TARGET_SECONDS;
         });
         ctaArea.appendChild(snooze);
 
@@ -675,16 +690,8 @@ setTimeout(updateProgress, 100);
     function _resume() {
         if (state === 'active') return;
         manualPause = false;
-        if (targetReached) {
-            // Target already met — resume session tracking but keep display frozen
-            state = 'active';
-            _openSession().then(() => {
-                _scheduleHeartbeat();
-                _scheduleIdleCheck();
-                _updatePauseBtn();
-            });
-            return;
-        }
+        // Таймер больше не замораживается на чекпоинтах, поэтому resume всегда
+        // идёт обычным путём _start (переоткрывает сессию + перезапускает тик).
         _start();
     }
 
