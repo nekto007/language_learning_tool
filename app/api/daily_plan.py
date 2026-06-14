@@ -313,14 +313,24 @@ def daily_status():
     # progress. update_race_points_from_linear_plan previously had ZERO callers,
     # so live participants stayed on 0 points while only ghosts scored — the
     # feature was broken for humans (audit E-061). No-ops for non-enrolled users.
+    #
+    # The unified payload exposes required items under ``required`` (keyed by
+    # item ``id`` in ``plan_completion``), not the legacy ``baseline_slots``/
+    # ``slots`` shape (keyed by ``kind``). Build slot dicts + a kind-keyed
+    # completion map from the required items so the scorer sees real progress.
     try:
         from app.achievements.daily_race import update_race_points_from_linear_plan
         from app.utils.time_utils import get_user_local_date as _race_local_date
-        _race_slots = plan.get('baseline_slots') or plan.get('slots') or []
+        _required_items = plan.get('required') or []
+        _race_slots = [{'kind': it.get('kind', '')} for it in _required_items]
+        _race_completion = {
+            it.get('kind', ''): bool(plan_completion.get(it.get('id', ''), False))
+            for it in _required_items
+        }
         if _race_slots:
             update_race_points_from_linear_plan(
                 user_id, _race_local_date(user_id, db.session),
-                _race_slots, plan_completion,
+                _race_slots, _race_completion,
             )
     except Exception:
         logger.warning("race points update failed for user %s", user_id, exc_info=True)

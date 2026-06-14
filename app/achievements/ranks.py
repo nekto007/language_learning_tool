@@ -176,6 +176,8 @@ def record_plan_completion(
     for a given date. Updates `UserStatistics.current_rank` and returns a
     `RankUp` describing the promotion if the threshold was crossed.
     """
+    from sqlalchemy.exc import IntegrityError
+
     from app.achievements.models import StreakEvent, UserStatistics
     from app.utils.db import db
     from app.utils.time_utils import get_user_local_date
@@ -196,19 +198,30 @@ def record_plan_completion(
     new_count = previous_count + 1
     new_info = get_user_rank(new_count)
 
+    # Race-safe insert of the per-day marker. The check above is best-effort;
+    # the partial unique index uq_streak_events_plan_completed (migration
+    # 20260624) is the real guard against two concurrent callers (dashboard
+    # render + /api/daily-status XHR) both crediting a completion. Wrap in a
+    # savepoint so an IntegrityError from the loser doesn't poison the caller's
+    # transaction, and back out the counter increment when we lost the race.
+    try:
+        with db.session.begin_nested():
+            db.session.add(StreakEvent(
+                user_id=user_id,
+                event_type='plan_completed',
+                coins_delta=0,
+                event_date=today,
+                details={
+                    'plans_completed_total': new_count,
+                    'rank_code': new_info.code,
+                },
+            ))
+    except IntegrityError:
+        # A concurrent call already recorded today's completion; no-op.
+        return None
+
     stats.plans_completed_total = new_count
     stats.current_rank = new_info.code
-
-    db.session.add(StreakEvent(
-        user_id=user_id,
-        event_type='plan_completed',
-        coins_delta=0,
-        event_date=today,
-        details={
-            'plans_completed_total': new_count,
-            'rank_code': new_info.code,
-        },
-    ))
 
     if new_info.code != previous_info.code:
         return RankUp(
