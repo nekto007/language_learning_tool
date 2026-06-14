@@ -42,16 +42,19 @@ _SCHEDULER_LOCK_KEY = 0x7E1E6004
 def init_scheduler(app) -> None:
     """Initialize APScheduler within Flask app context.
 
-    Holds a PostgreSQL session-level advisory lock so that EXACTLY ONE
-    scheduler runs across the whole deployment. Every gunicorn worker AND
-    every container (web + the dedicated `scheduler` container) imports
-    run.py → create_app() → init_scheduler(), so without a cross-process lock
-    each container would spawn its own _hourly_check and users get duplicate
-    notifications. A file lock can't coordinate across containers (separate
-    /tmp); a Postgres advisory lock can — only the connection that wins
-    pg_try_advisory_lock starts the jobs. The lock is held for as long as
-    `_lock_conn` stays open (process lifetime); if the process dies the
-    connection drops and Postgres releases it so another process can take over.
+    Called from exactly one place in production — the dedicated `scheduler`
+    container (`flask start-email-scheduler`) — plus `flask start-bot` in dev.
+    It is NOT auto-started in gunicorn workers anymore: workers get recycled, so
+    the scheduler would die and respawn elsewhere, and two could briefly coexist
+    → duplicate notifications. Keeping it in one stable single-process container
+    is the real fix.
+
+    The PostgreSQL session-level advisory lock remains as a cheap backstop: if a
+    second scheduler process ever starts (e.g. a misconfigured extra container,
+    or deploy overlap), only the one that wins pg_try_advisory_lock runs the
+    jobs. The lock is held while `_lock_conn` stays open (process lifetime); if
+    the process dies the connection drops and Postgres releases it. The
+    authoritative no-duplicate guarantee is TelegramNotificationLog.claim().
     """
     global _scheduler, _lock_conn
 
