@@ -540,12 +540,13 @@ def _is_management_command() -> bool:
     command (db upgrade, seed, warm-cache, start-email-scheduler, ...) rather
     than a served web app (gunicorn or ``flask run``).
 
-    Background services and per-worker cache warming must NOT start in these
-    processes: management commands are short-lived (a scheduler thread would
-    die the moment the command finishes) or single-purpose (the dedicated
-    `scheduler` container runs ``flask start-email-scheduler`` and must not also
-    spin up the Telegram scheduler — that was a source of duplicate
-    notifications). Only the serving process runs them.
+    AUTO-started background services (``_start_background_services``) and
+    per-worker cache warming must NOT run in these processes: a short-lived
+    ``flask <cmd>`` would spin up a scheduler thread that dies the moment the
+    command finishes. The long-lived ``flask start-email-scheduler`` (the
+    dedicated scheduler container) is the exception — it starts the Telegram +
+    email schedulers EXPLICITLY in its command body, which is their single
+    stable home.
     """
     import sys
     prog = os.path.basename(sys.argv[0] or '')
@@ -557,23 +558,22 @@ def _is_management_command() -> bool:
 
 
 def _start_background_services(app) -> None:
-    """Single home for runtime services that belong to a serving web process.
+    """Single home for runtime services that belong to a SERVING web process
+    (gunicorn / ``flask run``). Skipped in tests and management commands.
 
-    Skipped in tests and in one-off management commands. Cross-process
-    singletons (the Telegram scheduler) additionally coordinate via a Postgres
-    advisory lock so exactly one runs across all workers and containers. Add
-    future background services here — keep the gating in one place rather than
-    inline in create_app().
+    The Telegram scheduler deliberately does NOT run here. It used to auto-start
+    inside whichever gunicorn worker won an advisory lock, but gunicorn recycles
+    workers (timeout/memory): the lock-holder dies, a restarted worker grabs the
+    freed lock, and you end up with TWO _hourly_check loops → duplicate
+    notifications. It now lives in exactly one stable, single-process place — the
+    dedicated ``scheduler`` container, which starts it explicitly in
+    ``start-email-scheduler``. Add future serving-process background services
+    here; keep the gating in one place rather than inline in create_app().
     """
     if app.config.get('TESTING') or app.config.get('IS_MANAGEMENT_COMMAND'):
         return
-
-    if app.config.get('TELEGRAM_BOT_TOKEN'):
-        try:
-            from app.telegram.scheduler import init_scheduler
-            init_scheduler(app)
-        except Exception:
-            logger.exception('Auto-init of Telegram scheduler failed')
+    # No serving-process background services at the moment — the Telegram
+    # scheduler runs in the dedicated scheduler container (see above).
 
 
 def _register_cli_commands(app):
@@ -630,9 +630,19 @@ def _register_cli_commands(app):
 
     @app.cli.command('start-email-scheduler')
     def start_email_scheduler_cmd():
-        """Start the email re-engagement scheduler. Blocks until SIGTERM
-        so the daemon scheduler thread keeps running in a Docker container.
+        """Run the dedicated scheduler process: Telegram notifications + email
+        re-engagement. The `scheduler` container runs this — it is the SINGLE,
+        stable home for the Telegram scheduler (off the volatile gunicorn
+        workers), so a second scheduler can't appear and users never get
+        duplicate notifications. Blocks until SIGTERM so the daemon threads keep
+        running in the container.
         """
+        if app.config.get('TELEGRAM_BOT_TOKEN'):
+            # Non-blocking BackgroundScheduler thread; the email scheduler below
+            # blocks the main thread and keeps the process (and this thread) alive.
+            from app.telegram.scheduler import init_scheduler
+            init_scheduler(app)
+            click.echo('Telegram scheduler started.')
         from app.email_scheduler import init_email_scheduler
         click.echo('Email scheduler started; waiting for jobs (SIGTERM to stop).')
         init_email_scheduler(app, blocking=True)
