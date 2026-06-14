@@ -78,6 +78,31 @@ def _session_credit_seconds(
     return min(elapsed, OPEN_SESSION_GRACE_SECONDS)
 
 
+def _sum_session_credit(
+    rows, now: datetime, start_utc: datetime, end_utc: datetime
+) -> int:
+    """Total credited seconds for a day window, with two safeguards:
+
+    - Closed sessions are CLIPPED to [start_utc, end_utc) so a session that
+      began before local midnight only credits today's portion (audit E-052).
+    - Aggregate open-session grace is capped to ONE OPEN_SESSION_GRACE_SECONDS
+      window total, not per session — several abandoned tabs on different
+      chapters can't stack N×90s of phantom credit (audit E-055).
+    """
+    closed_total = 0
+    open_elapsed = 0
+    for r in rows:
+        if r.ended_at is not None and r.started_at is not None:
+            lo = max(r.started_at, start_utc)
+            hi = min(r.ended_at, end_utc)
+            closed_total += max(0, int((hi - lo).total_seconds()))
+        elif r.started_at is not None:
+            lo = max(r.started_at, start_utc)
+            hi = min(now, end_utc)
+            open_elapsed += max(0, int((hi - lo).total_seconds()))
+    return closed_total + min(open_elapsed, OPEN_SESSION_GRACE_SECONDS)
+
+
 def _sessions_in_local_day_filter(start_utc: datetime, end_utc: datetime) -> Any:
     """SQLAlchemy predicate matching closed sessions by ``ended_at`` AND
     open sessions by ``started_at`` within the user's local-day window.
@@ -307,8 +332,7 @@ def end_session(
 
 def _user_local_day_window_utc(user_id: int, db_session: Any) -> tuple[datetime, datetime]:
     """Return (start_utc, end_utc) bracketing the user's local day."""
-    from app.daily_plan.linear.xp import _get_user_timezone
-    from app.utils.time_utils import get_user_local_date
+    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
 
     try:
         from zoneinfo import ZoneInfo
@@ -316,7 +340,7 @@ def _user_local_day_window_utc(user_id: int, db_session: Any) -> tuple[datetime,
         from backports.zoneinfo import ZoneInfo  # type: ignore
 
     today = get_user_local_date(user_id, db_session)
-    tz_name = _get_user_timezone(user_id, db_session)
+    tz_name = get_user_timezone_name(user_id, db_session)
     try:
         tz = ZoneInfo(tz_name)
     except Exception:  # noqa: BLE001
@@ -352,7 +376,7 @@ def get_session_duration(
         .all()
     )
     now = _utcnow()
-    return sum(_session_credit_seconds(r, now) for r in rows)
+    return _sum_session_credit(rows, now, start_utc, end_utc)
 
 
 def get_book_reading_seconds_today(
@@ -382,7 +406,7 @@ def get_book_reading_seconds_today(
         .all()
     )
     now = _utcnow()
-    return sum(_session_credit_seconds(r, now) for r in rows)
+    return _sum_session_credit(rows, now, start_utc, end_utc)
 
 
 def has_min_reading_time_today(
@@ -412,42 +436,8 @@ def has_min_reading_time_today(
         .all()
     )
     now = _utcnow()
-    total = sum(_session_credit_seconds(r, now) for r in rows)
+    total = _sum_session_credit(rows, now, start_utc, end_utc)
     return total >= minimum_seconds
-
-
-def has_qualifying_reading_session_today(
-    user_id: int,
-    book_id: int,
-    db_session: Any = db,
-    minimum_seconds: int = MIN_READING_SECONDS,
-    minimum_offset_delta: float = 0.05,
-) -> bool:
-    """Return True iff at least one closed session today on a chapter of
-    ``book_id`` met BOTH duration and per-visit offset-delta thresholds.
-
-    Per-session enforcement (vs. summing across sessions) closes the
-    bypass where a user spends 60s in one visit, reopens later, nudges
-    the scroll by a tiny amount, and still trips the slot — the second
-    visit's session would not itself qualify.
-    """
-    from app.books.models import Chapter
-
-    start_utc, end_utc = _user_local_day_window_utc(user_id, db_session)
-    rows = (
-        db_session.session.query(UserReadingSession)
-        .join(Chapter, Chapter.id == UserReadingSession.chapter_id)
-        .filter(
-            UserReadingSession.user_id == user_id,
-            Chapter.book_id == book_id,
-            UserReadingSession.ended_at.isnot(None),
-            UserReadingSession.ended_at >= start_utc,
-            UserReadingSession.ended_at < end_utc,
-            UserReadingSession.offset_delta >= minimum_offset_delta,
-        )
-        .all()
-    )
-    return any(r.duration_seconds() >= minimum_seconds for r in rows)
 
 
 def compute_chapter_daily_target_state(

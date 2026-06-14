@@ -44,7 +44,11 @@ def is_delivery_window(user: User) -> bool:
 
 def get_inactive_users(days_inactive: int, tolerance_hours: int = 12) -> list[User]:
     """Find users inactive for exactly `days_inactive` days (within tolerance)."""
-    now = datetime.now(timezone.utc)
+    # Build bounds as NAIVE UTC to match the naive User.last_login column;
+    # comparing aware bounds to a naive column drifts by the server session TZ
+    # offset (audit E-086). End is exclusive so a user on the boundary isn't
+    # selected on two consecutive runs (audit E-087).
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     target = now - timedelta(days=days_inactive)
     window_start = target - timedelta(hours=tolerance_hours)
     window_end = target + timedelta(hours=tolerance_hours)
@@ -54,9 +58,50 @@ def get_inactive_users(days_inactive: int, tolerance_hours: int = 12) -> list[Us
         User.email_opted_out == False,
         User.notify_email_reminders == True,
         User.last_login.isnot(None),
-        User.last_login.between(window_start, window_end),
+        User.last_login >= window_start,
+        User.last_login < window_end,
         User.email.isnot(None),
     ).all()
+
+
+_REENGAGEMENT_EVENT_TYPE = 'reengagement_email'
+
+
+def _claim_reengagement(user_id: int, campaign: str) -> bool:
+    """Claim today's (user, campaign) re-engagement slot. True if newly claimed.
+
+    Race-safe across processes via uq_streak_events_reengagement: the loser of
+    a concurrent claim gets IntegrityError and returns False. Prevents the same
+    campaign email from being sent twice in a day / across hourly runs
+    (audit E-087). Caller commits.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.achievements.models import StreakEvent
+    from app.utils.time_utils import get_user_local_date
+
+    today = get_user_local_date(user_id)
+    exists = StreakEvent.query.filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type == _REENGAGEMENT_EVENT_TYPE,
+        StreakEvent.event_date == today,
+        StreakEvent.details['campaign'].astext == campaign,
+    ).first()
+    if exists is not None:
+        return False
+    try:
+        with db.session.begin_nested():
+            db.session.add(StreakEvent(
+                user_id=user_id,
+                event_type=_REENGAGEMENT_EVENT_TYPE,
+                coins_delta=0,
+                event_date=today,
+                details={'campaign': campaign},
+            ))
+            db.session.flush()
+    except IntegrityError:
+        return False
+    return True
 
 
 def ensure_unsubscribe_token(user: User) -> str:
@@ -124,30 +169,37 @@ def send_day30_email(user: User) -> bool:
 
 
 def run_reengagement_job() -> None:
-    """Main job: check for inactive users and send appropriate emails."""
+    """Main job: check for inactive users and send appropriate emails.
+
+    Runs hourly so every timezone's delivery window is reached (audit E-088).
+    Each (user, campaign) is claimed before sending so the hourly cadence can't
+    produce duplicates (audit E-087); the claim is committed per user.
+    """
     logger.info('Running re-engagement email job')
 
+    # Resolved at call time so the senders stay patchable in tests.
+    campaigns = (
+        (3, 'day3', send_day3_email),
+        (7, 'day7', send_day7_email),
+        (30, 'day30', send_day30_email),
+    )
+
     sent = 0
-    for user in get_inactive_users(3):
-        if not is_delivery_window(user):
-            logger.debug(f'Skipping user {user.id}: outside delivery window in their timezone')
-            continue
-        if send_day3_email(user):
-            sent += 1
-
-    for user in get_inactive_users(7):
-        if not is_delivery_window(user):
-            logger.debug(f'Skipping user {user.id}: outside delivery window in their timezone')
-            continue
-        if send_day7_email(user):
-            sent += 1
-
-    for user in get_inactive_users(30):
-        if not is_delivery_window(user):
-            logger.debug(f'Skipping user {user.id}: outside delivery window in their timezone')
-            continue
-        if send_day30_email(user):
-            sent += 1
+    for days_inactive, campaign, sender in campaigns:
+        for user in get_inactive_users(days_inactive):
+            if not is_delivery_window(user):
+                logger.debug('Skipping user %s: outside delivery window', user.id)
+                continue
+            if not _claim_reengagement(user.id, campaign):
+                continue  # already sent this campaign today
+            try:
+                ok = sender(user)
+            except Exception:
+                logger.exception('re-engagement send failed user=%s campaign=%s', user.id, campaign)
+                ok = False
+            if ok:
+                sent += 1
+            db.session.commit()
 
     logger.info(f'Re-engagement emails sent: {sent}')
 
@@ -206,11 +258,14 @@ def init_email_scheduler(app, *, blocking: bool = False) -> None:
             except Exception as e:
                 logger.error(f'lesson_progress reconcile job failed: {e}')
 
-    # Run daily at 10:00 UTC
+    # Run hourly: a single daily 10:00-UTC fire never overlaps the local
+    # 8-20 delivery window for far-east/west timezones, so those users would
+    # never be emailed (audit E-088). Per-(user, campaign, day) claim keeps the
+    # hourly cadence duplicate-free.
     _scheduler.add_job(
         job_wrapper,
         'cron',
-        hour=10,
+        hour='*',
         minute=0,
         id='reengagement_emails',
         replace_existing=True,

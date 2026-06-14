@@ -642,7 +642,11 @@ class UnifiedSRSService:
             current_state = progress.state or CardState.NEW.value
             current_step = progress.step_index or 0
 
-            # Calculate new parameters using state machine
+            # Capture first-review flag before state changes.
+            is_first_review = progress.first_reviewed is None
+
+            # Calculate new parameters using state machine. Pass the leech-bury
+            # counter so leech suspension escalates like word cards (E-017).
             update_result = self.calculate_sm2_update(
                 rating=rating,
                 state=current_state,
@@ -650,7 +654,8 @@ class UnifiedSRSService:
                 repetitions=progress.repetitions or 0,
                 interval=progress.interval or 0,
                 ease_factor=progress.ease_factor or DEFAULT_EASE_FACTOR,
-                lapses=progress.lapses or 0
+                lapses=progress.lapses or 0,
+                consecutive_leech_burials=getattr(progress, 'consecutive_leech_burials', 0) or 0,
             )
 
             # Update progress with new values
@@ -660,17 +665,20 @@ class UnifiedSRSService:
             progress.interval = update_result['interval']
             progress.ease_factor = update_result['ease_factor']
             progress.lapses = update_result['lapses']
-            from app.utils.time_utils import day_to_naive_utc, minutes_to_day_offset
-            today_midnight = day_to_naive_utc(user_id, db, days_ahead=0)
-            progress.last_reviewed = today_midnight
 
-            bury_days = update_result.get('bury_days')
-            if bury_days:
-                progress.buried_until = day_to_naive_utc(user_id, db, days_ahead=bury_days)
-
-            # Set first_reviewed on first review
-            if progress.first_reviewed is None:
-                progress.first_reviewed = today_midnight
+            # Day-anchored timestamps + next_review via the SAME shared helper
+            # as word cards (E-016/E-017/E-018/E-030): intra-day learning steps
+            # use real near-future time (not a midnight snap), leech burials
+            # escalate, and REVIEW intervals get the capped ±10% variance.
+            apply_review_schedule(
+                progress,
+                update_result,
+                rating=rating,
+                is_first_review=is_first_review,
+                user_id=user_id,
+                db=db,
+            )
+            requeue_minutes = update_result['requeue_minutes']
 
             # Update correct/incorrect count
             if rating >= RATING_DOUBT:
@@ -680,24 +688,6 @@ class UnifiedSRSService:
 
             # Increment session_attempts
             progress.session_attempts = (progress.session_attempts or 0) + 1
-
-            # Calculate next_review based on state
-            requeue_minutes = update_result['requeue_minutes']
-            days_until_review = update_result['days_until_review']
-
-            if progress.state == CardState.REVIEW.value and days_until_review > 0:
-                # Add ±10% variance to prevent review cliff
-                variance = random.uniform(0.9, 1.1)
-                adjusted_days = max(1, round(days_until_review * variance))
-                progress.next_review = day_to_naive_utc(user_id, db, days_ahead=adjusted_days)
-            elif requeue_minutes:
-                # Intra-day learning steps stay today; cross-midnight steps
-                # schedule for the next day. Intra-session order handled by
-                # requeue_position / session_attempts, not next_review.
-                day_offset = minutes_to_day_offset(user_id, db, minutes=requeue_minutes)
-                progress.next_review = day_to_naive_utc(user_id, db, days_ahead=day_offset)
-            else:
-                progress.next_review = today_midnight
 
             db.session.flush()  # caller commits
 
@@ -1070,10 +1060,8 @@ class UnifiedSRSService:
                 db.or_(
                     UserCardDirection.state == CardState.NEW.value,
                     UserCardDirection.state.is_(None),
-                    db.and_(
-                        UserCardDirection.repetitions == 0,
-                        UserCardDirection.state.is_(None)
-                    )
+                    # (removed dead third branch: and_(repetitions==0, state IS
+                    # NULL) is a strict subset of `state IS NULL` above — audit E-021)
                 )
             ).order_by(
                 UserCardDirection.id.asc()  # Oldest first for consistency

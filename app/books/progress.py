@@ -30,6 +30,10 @@ def _progress_from_records(records: Iterable, total_chapters: int) -> float:
             completed += 1
         elif pct > max_partial:
             max_partial = pct
+    # NOTE (audit E-054): only the single largest partial chapter is added on
+    # top of completed ones — intentionally conservative. Summing every partial
+    # chapter's fraction would over-credit scattered skimming; this under-counts
+    # diffuse reading instead, which is the safer direction for a progress %.
     progress = (completed + max_partial) / total_chapters
     return max(0.0, min(progress * 100.0, 100.0))
 

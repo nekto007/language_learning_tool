@@ -2,8 +2,6 @@
 
 Covers:
 - `update_race_points` writes totals onto the participant row
-- `update_race_points_from_plan` sums phase points via the completion map
-- `finished_at` is set when all required phases are done
 - `compute_ghost_points` is deterministic and time-based
 - `get_race_standings` assembles sorted entries with ranks and ghost fillers
 """
@@ -22,7 +20,6 @@ from app.achievements.daily_race import (
     get_or_create_race,
     get_race_standings,
     update_race_points,
-    update_race_points_from_plan,
     _ghost_target_points,
     _progress_fraction,
 )
@@ -101,73 +98,6 @@ class TestUpdateRacePoints:
         )
         assert participant.points == 30
         assert participant.finished_at == first_stamp
-
-
-class TestUpdateRacePointsFromPlan:
-    def test_sums_points_for_completed_phases(self, db_session):
-        user = _make_user(db_session)
-        race_date = date(2026, 4, 17)
-        get_or_create_race(user.id, race_date)
-
-        phases = [
-            {'id': 'p1', 'phase': 'recall', 'required': True},   # 8
-            {'id': 'p2', 'phase': 'learn',  'required': True},   # 22
-            {'id': 'p3', 'phase': 'check',  'required': True},   # 12
-        ]
-        completion = {'p1': True, 'p2': True, 'p3': False}
-
-        result = update_race_points_from_plan(
-            user.id, race_date, phases, completion,
-        )
-        assert result is not None
-        assert result.points == 8 + 22
-        assert result.finished_at is None
-
-    def test_all_required_done_sets_finished(self, db_session):
-        user = _make_user(db_session)
-        race_date = date(2026, 4, 17)
-        get_or_create_race(user.id, race_date)
-
-        phases = [
-            {'id': 'a', 'phase': 'recall', 'required': True},
-            {'id': 'b', 'phase': 'learn', 'required': True},
-            {'id': 'c', 'phase': 'close', 'required': False},
-        ]
-        completion = {'a': True, 'b': True, 'c': False}
-
-        result = update_race_points_from_plan(
-            user.id, race_date, phases, completion,
-        )
-        assert result is not None
-        assert result.finished_at is not None
-        assert result.points == 8 + 22
-
-    def test_empty_phase_list_not_finished(self, db_session):
-        user = _make_user(db_session)
-        race_date = date(2026, 4, 17)
-        get_or_create_race(user.id, race_date)
-
-        result = update_race_points_from_plan(user.id, race_date, [], {})
-        assert result is not None
-        assert result.points == 0
-        assert result.finished_at is None
-
-    def test_idempotent_recompute_does_not_drift(self, db_session):
-        user = _make_user(db_session)
-        race_date = date(2026, 4, 17)
-        get_or_create_race(user.id, race_date)
-
-        phases = [
-            {'id': 'a', 'phase': 'recall', 'required': True},
-            {'id': 'b', 'phase': 'learn', 'required': True},
-        ]
-        completion = {'a': True, 'b': False}
-
-        for _ in range(3):
-            result = update_race_points_from_plan(
-                user.id, race_date, phases, completion,
-            )
-        assert result.points == 8
 
 
 class TestGhostPointsCalculation:

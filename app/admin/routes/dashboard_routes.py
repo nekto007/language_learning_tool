@@ -152,6 +152,12 @@ def get_active_user_dates(start_date, end_date) -> dict:
     Powers DAU/WAU/MAU and the 30-day activity chart without N+1 round trips:
     one UNION query, in-Python aggregation instead of one query per day or one
     per metric.
+
+    NOTE (audit E-076): buckets are UTC-calendar days (``func.date`` over naive
+    UTC columns), NOT user-local days like the streak/XP "today". This is a
+    deliberate simplification for a single-timezone, <10-user product — it is
+    internally consistent across all activity sources. Do not read these
+    numbers as user-local day counts.
     """
     rows = _build_active_user_date_pairs_query(start_date, end_date).all()
     bucket: dict = {}
@@ -305,7 +311,9 @@ def get_engagement_metrics() -> dict:
 
     def _trend(current: int, previous: int) -> tuple:
         if previous == 0:
-            return ('up', '+100%') if current > 0 else ('', '')
+            # Don't fabricate a percentage from a zero base (0→1 and 0→50 both
+            # rendered "+100%"). Show the absolute delta instead (audit E-077).
+            return ('up', f'+{current}') if current > 0 else ('', '')
         diff = current - previous
         pct = round(abs(diff) / previous * 100)
         if diff > 0:

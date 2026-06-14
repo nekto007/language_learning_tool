@@ -8,9 +8,10 @@ mission-plan (`app/daily_plan/assembler.py`), linear-plan
 Design:
 - All DateTime columns (`next_review`, `first_reviewed`, `last_reviewed`)
   are naive UTC. We normalize `now` to naive UTC before comparison.
-- `count_due_cards` includes state IN (learning, relearning, review) and
-  filters out `UserWord.status IN ('new','learning','review')` and
-  buried cards. No mix filter — we count all due cards the user has.
+- `count_due_cards` includes `UserCardDirection.state IN (learning,
+  relearning, review)` and excludes buried cards. It deliberately does NOT
+  filter on the derived `UserWord.status` (that field lags direction grades
+  and caused counter drift). No mix filter — we count all due cards.
 - `today_start` is the user's local-day midnight projected to naive UTC
   (matches XP/StreakEvent idempotency, prevents UTC-boundary skew).
 """
@@ -151,7 +152,14 @@ def get_due_card_budget(user_id: int, db: Any = _db, now_utc: Optional[datetime]
     (no auto-create — avoids committing a fresh row inside a grade txn).
     """
     settings = StudySettings.query.filter_by(user_id=user_id).first()
-    base_reviews = (settings.reviews_per_day if settings else 0) or 0
+    # Fall back to the model default (20) only when NO settings row exists yet,
+    # so a row-less user isn't frozen out of due cards with a 0 budget
+    # (audit E-022). An explicit reviews_per_day=0 (user opted out) is respected.
+    # Read-only — still no auto-create inside a grade txn.
+    if settings is None:
+        base_reviews = 20  # StudySettings.reviews_per_day model default
+    else:
+        base_reviews = settings.reviews_per_day or 0
     rev_today = count_reviews_today(user_id, db, now_utc=now_utc)
     return max(0, base_reviews - rev_today)
 
@@ -204,7 +212,14 @@ def count_pending_new(user_id: int, db: Any = _db) -> int:
 
 
 def count_reviews_today(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
-    """Count card reviews that happened today excluding first-time reviews."""
+    """Count card reviews that happened today excluding first-time reviews.
+
+    NOTE (audit E-023): a card first seen today (first_reviewed >= today_start)
+    is intentionally NOT counted even if it cycled NEW→LEARNING→REVIEW and was
+    re-graded the same day. This is by design — the daily review cap governs
+    cards carried over from prior days; same-day churn of freshly-activated
+    cards is expected and not double-counted against the cap.
+    """
     today_start = _today_start_naive(user_id, db, now_utc)
     user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
     return int(

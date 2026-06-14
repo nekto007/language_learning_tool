@@ -176,10 +176,13 @@ def record_plan_completion(
     for a given date. Updates `UserStatistics.current_rank` and returns a
     `RankUp` describing the promotion if the threshold was crossed.
     """
+    from sqlalchemy.exc import IntegrityError
+
     from app.achievements.models import StreakEvent, UserStatistics
     from app.utils.db import db
+    from app.utils.time_utils import get_user_local_date
 
-    today = for_date or date.today()
+    today = for_date or get_user_local_date(user_id)  # user-local default (E-069)
 
     if _has_plan_completion_marker(user_id, today):
         return None
@@ -195,19 +198,30 @@ def record_plan_completion(
     new_count = previous_count + 1
     new_info = get_user_rank(new_count)
 
+    # Race-safe insert of the per-day marker. The check above is best-effort;
+    # the partial unique index uq_streak_events_plan_completed (migration
+    # 20260624) is the real guard against two concurrent callers (dashboard
+    # render + /api/daily-status XHR) both crediting a completion. Wrap in a
+    # savepoint so an IntegrityError from the loser doesn't poison the caller's
+    # transaction, and back out the counter increment when we lost the race.
+    try:
+        with db.session.begin_nested():
+            db.session.add(StreakEvent(
+                user_id=user_id,
+                event_type='plan_completed',
+                coins_delta=0,
+                event_date=today,
+                details={
+                    'plans_completed_total': new_count,
+                    'rank_code': new_info.code,
+                },
+            ))
+    except IntegrityError:
+        # A concurrent call already recorded today's completion; no-op.
+        return None
+
     stats.plans_completed_total = new_count
     stats.current_rank = new_info.code
-
-    db.session.add(StreakEvent(
-        user_id=user_id,
-        event_type='plan_completed',
-        coins_delta=0,
-        event_date=today,
-        details={
-            'plans_completed_total': new_count,
-            'rank_code': new_info.code,
-        },
-    ))
 
     if new_info.code != previous_info.code:
         return RankUp(
@@ -283,47 +297,7 @@ def days_at_current_rank(user_id: int, today: Optional[date] = None) -> int:
     if not history:
         return 0
     latest = history[-1]
-    anchor = today or date.today()
+    from app.utils.time_utils import get_user_local_date
+    anchor = today or get_user_local_date(user_id)  # user-local default (E-069)
     delta = (anchor - latest.achieved_on).days
     return max(0, delta)
-
-
-def check_rank_up(user_id: int) -> Optional[RankUp]:
-    """Compare stored rank on UserStatistics against the rank derived from
-    the current `plans_completed_total`. Returns a `RankUp` when they drift
-    (e.g., after an admin backfill) or None when in sync.
-    """
-    from app.achievements.models import UserStatistics
-
-    stats = UserStatistics.query.filter_by(user_id=user_id).first()
-    if stats is None:
-        return None
-
-    plans = int(stats.plans_completed_total or 0)
-    stored_code = stats.current_rank or 'novice'
-    current_info = get_user_rank(plans)
-
-    if stored_code == current_info.code:
-        return None
-
-    previous_info = next(
-        (
-            RankInfo(
-                code=code, name=name, threshold=threshold,
-                plans_completed=plans,
-                next_code=None, next_name=None, next_threshold=None,
-                progress_percent=0.0, plans_to_next=None,
-            )
-            for threshold, code, name in RANK_THRESHOLDS
-            if code == stored_code
-        ),
-        get_user_rank(0),
-    )
-
-    return RankUp(
-        previous_code=previous_info.code,
-        previous_name=previous_info.name,
-        new_code=current_info.code,
-        new_name=current_info.name,
-        plans_completed=plans,
-    )

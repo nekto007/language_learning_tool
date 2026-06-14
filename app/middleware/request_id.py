@@ -16,7 +16,10 @@ from flask import request as flask_request
 
 logger = logging.getLogger(__name__)
 
-_HEX32_RE = re.compile(r'^[0-9a-f]{32}$')
+# Case-insensitive so a valid 32-char uppercase X-Request-ID from an upstream
+# proxy is preserved rather than discarded, keeping cross-service traces linked
+# (audit E-085). CR/LF/':' still can't pass, so header injection stays blocked.
+_HEX32_RE = re.compile(r'^[0-9a-f]{32}$', re.IGNORECASE)
 
 
 class RequestIdFilter(logging.Filter):

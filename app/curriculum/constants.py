@@ -42,7 +42,10 @@ def get_lesson_passing_score(lesson: Any) -> int:
             value = int(explicit)
         except (TypeError, ValueError):
             value = None
-        if value is not None and 0 <= value <= 100:
+        # Lower bound is 1, not 0 (audit E-041): a 0 override would make every
+        # attempt "passing", disabling the threshold — treat it as malformed and
+        # fall through to the type default, matching this docstring's promise.
+        if value is not None and 1 <= value <= 100:
             return value
     if (getattr(lesson, 'type', '') or '') == 'dictation':
         return PASSING_SCORE_DICTATION

@@ -164,12 +164,19 @@ def get_level_info(total_xp: int) -> LevelInfo:
     if total_xp is None or total_xp < 0:
         total_xp = 0
 
-    level = 1
-    while True:
-        next_threshold = xp_for_level(level + 1)
-        if total_xp < next_threshold:
-            break
-        level += 1
+    # Binary search for the largest level whose threshold <= total_xp
+    # (was a linear O(√xp) scan on every award_xp — audit E-012). Uses
+    # xp_for_level directly so it stays correct if the curve changes.
+    lo, hi = 1, 2
+    while xp_for_level(hi) <= total_xp:
+        hi *= 2
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if xp_for_level(mid) <= total_xp:
+            lo = mid
+        else:
+            hi = mid - 1
+    level = lo
 
     level_start = xp_for_level(level)
     level_end = xp_for_level(level + 1)
@@ -202,43 +209,6 @@ class XPAward:
     leveled_up: bool
 
 
-def award_phase_xp_idempotent(
-    user_id: int,
-    phase_id: str,
-    phase_mode: str,
-    for_date: date,
-) -> XPAward | None:
-    """Award XP for a completed phase, idempotent (once per phase per day).
-
-    Returns XPAward if awarded, None if already awarded for this phase today.
-    Caller must commit the session.
-    """
-    from app.achievements.models import StreakEvent
-    from app.utils.db import db
-
-    already = StreakEvent.query.filter_by(
-        user_id=user_id,
-        event_type='xp_phase',
-        event_date=for_date,
-    ).filter(
-        StreakEvent.details['phase_id'].astext == phase_id
-    ).first()
-    if already:
-        return None
-
-    base = PHASE_XP.get(phase_mode, PHASE_XP.get('check', 25))
-    result = award_xp(user_id, base, f'phase:{phase_mode}')
-
-    db.session.add(StreakEvent(
-        user_id=user_id,
-        event_type='xp_phase',
-        event_date=for_date,
-        coins_delta=0,
-        details={'phase_id': phase_id, 'mode': phase_mode, 'xp': result.xp_awarded},
-    ))
-    return result
-
-
 def award_perfect_day_xp_idempotent(
     user_id: int,
     for_date: date,
@@ -267,12 +237,24 @@ def award_perfect_day_xp_idempotent(
     if already:
         return None
 
-    # Determine consecutive perfect day count
-    yesterday = for_date - timedelta(days=1)
+    # Determine consecutive perfect day count. Paused days are streak-neutral
+    # (a plan_pause StreakEvent is written per paused day), so walk back over
+    # them transparently — otherwise returning from a pause would reset the
+    # perfect-day multiplier even though the streak is preserved (audit E-006).
+    probe = for_date - timedelta(days=1)
+    for _ in range(60):
+        is_paused = StreakEvent.query.filter_by(
+            user_id=user_id,
+            event_type='plan_pause',
+            event_date=probe,
+        ).first() is not None
+        if not is_paused:
+            break
+        probe -= timedelta(days=1)
     had_yesterday = StreakEvent.query.filter_by(
         user_id=user_id,
         event_type='xp_perfect_day',
-        event_date=yesterday,
+        event_date=probe,
     ).first() is not None
 
     stats = UserStatistics.query.filter_by(user_id=user_id).first()
@@ -287,8 +269,15 @@ def award_perfect_day_xp_idempotent(
 
     perfect_mult = get_perfect_day_multiplier(new_consecutive)
     bonus_base_xp = PERFECT_DAY_BONUS_XP_LINEAR if is_linear else PERFECT_DAY_BONUS_XP
-    adjusted_base = max(1, int(bonus_base_xp * perfect_mult))
+    # round() (not int()/floor) to match award_xp / apply_score_to_base — the
+    # floor here systematically under-credited the perfect-day bonus (E-009).
+    adjusted_base = max(1, round(bonus_base_xp * perfect_mult))
 
+    # COMPOUNDING (audit E-015): the bonus is multiplied by perfect_mult HERE
+    # and again by the streak multiplier inside award_xp. Theoretical ceiling =
+    # base * MAX_PERFECT_DAY_MULTIPLIER(2.5) * MAX_STREAK_MULTIPLIER(2.0) =
+    # base * 5 (e.g. linear base 25 → 125 XP). Intentional, but keep this in
+    # view when tuning the economy so the cap isn't silently blown past.
     result = award_xp(user_id, adjusted_base, 'perfect_day')
 
     db.session.add(StreakEvent(
@@ -381,7 +370,9 @@ def award_xp(
         from app.words.routes import invalidate_leaderboard_cache
         invalidate_leaderboard_cache()
     except Exception:
-        pass
+        # Don't swallow silently — a failed invalidation serves a stale
+        # leaderboard until TTL with no trace (audit E-010).
+        logger.warning("leaderboard cache invalidation failed after level-up", exc_info=True)
 
     return XPAward(
         xp_awarded=awarded,
@@ -602,11 +593,18 @@ def award_linear_xp(
     return award_xp(user_id, base, source, score=score)
 
 
-def get_today_xp(user_id: int, for_date: date) -> int:
-    """Sum all XP awarded to a user on a given date from StreakEvents."""
+def get_today_xp(user_id: int, for_date: date | None = None) -> int:
+    """Sum all XP awarded to a user on a given date from StreakEvents.
+
+    ``for_date`` defaults to the user's LOCAL today (audit E-014) so callers
+    can't accidentally sum the wrong calendar day by passing a server-UTC date.
+    """
     from sqlalchemy import Integer, func
 
     from app.achievements.models import StreakEvent
+    if for_date is None:
+        from app.utils.time_utils import get_user_local_date
+        for_date = get_user_local_date(user_id)
 
     total = (
         StreakEvent.query

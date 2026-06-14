@@ -309,6 +309,32 @@ def daily_status():
     day_secured = compute_day_secured_from_activity(plan, plan_completion)
     plan['day_secured'] = day_secured
 
+    # Keep the daily-race scoreboard in sync with the user's actual plan
+    # progress. update_race_points_from_linear_plan previously had ZERO callers,
+    # so live participants stayed on 0 points while only ghosts scored — the
+    # feature was broken for humans (audit E-061). No-ops for non-enrolled users.
+    #
+    # The unified payload exposes required items under ``required`` (keyed by
+    # item ``id`` in ``plan_completion``), not the legacy ``baseline_slots``/
+    # ``slots`` shape (keyed by ``kind``). Build slot dicts + a kind-keyed
+    # completion map from the required items so the scorer sees real progress.
+    try:
+        from app.achievements.daily_race import update_race_points_from_linear_plan
+        from app.utils.time_utils import get_user_local_date as _race_local_date
+        _required_items = plan.get('required') or []
+        _race_slots = [{'kind': it.get('kind', '')} for it in _required_items]
+        _race_completion = {
+            it.get('kind', ''): bool(plan_completion.get(it.get('id', ''), False))
+            for it in _required_items
+        }
+        if _race_slots:
+            update_race_points_from_linear_plan(
+                user_id, _race_local_date(user_id, db.session),
+                _race_slots, _race_completion,
+            )
+    except Exception:
+        logger.warning("race points update failed for user %s", user_id, exc_info=True)
+
     if effective_mode == 'unified':
         _sync_unified_route_steps(user_id, plan, plan_completion)
 
@@ -337,6 +363,21 @@ def daily_status():
                 logger.warning("daily_plan_completed milestone emit failed", exc_info=True)
             emit_minimum_completed(user_id, None, today)
             write_secured_at(user_id, today, None)
+            try:
+                # Record plan completion → rank progression + rank-up notif.
+                # record_plan_completion (sole writer of plans_completed_total /
+                # current_rank) was only reachable from dead mission/phase paths,
+                # so ranks were frozen at Novice for unified users. Gate on the
+                # already-computed day_secured (the unified predicate); the
+                # unified plan has no baseline_slots, so the linear helper can't
+                # be used here. Idempotent per local day via its StreakEvent marker.
+                from app.achievements.ranks import record_plan_completion
+                rank_up = record_plan_completion(user_id, for_date=today)
+                if rank_up is not None:
+                    from app.notifications.services import notify_rank_up
+                    notify_rank_up(user_id, rank_up.new_name)
+            except Exception:
+                logger.warning("plan-completion / rank-up recording failed for user %s", user_id, exc_info=True)
             try:
                 from app.achievements.services import check_immersion_achievement
                 check_immersion_achievement(user_id, today, db.session, tz=tz)
@@ -1102,7 +1143,6 @@ def challenge_complete():
 
     Returns completion status. Idempotent — repeated calls return already_completed=True.
     """
-    from app.achievements.xp_service import award_xp
     from app.daily_plan.challenge import complete_challenge
 
     body = request.get_json(silent=True) or {}
@@ -1152,6 +1192,8 @@ def challenge_complete():
         return api_error('challenge_error', 'Challenge validation failed', 500)
 
     try:
+        # complete_challenge awards bonus XP atomically with the completion
+        # row (E-028); no separate XP step here.
         result = complete_challenge(
             user_id=current_user.id,
             challenge_id=challenge_id,
@@ -1161,16 +1203,10 @@ def challenge_complete():
         )
     except ValueError as e:
         return api_error('not_found', str(e), 404)
-
-    if not result.get('already_completed'):
-        bonus_xp = result.get('bonus_xp', 0)
-        if bonus_xp:
-            try:
-                with db.session.begin_nested():
-                    award_xp(current_user.id, bonus_xp, 'daily_challenge')
-            except Exception as xp_err:
-                logger.warning("Challenge XP award failed for user %s: %s", current_user.id, xp_err)
-                result['bonus_xp'] = 0
+    except Exception:
+        logger.exception("complete_challenge failed for user %s", current_user.id)
+        db.session.rollback()
+        return api_error('challenge_error', 'Failed to record challenge completion', 500)
 
     try:
         db.session.commit()

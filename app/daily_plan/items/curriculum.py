@@ -16,13 +16,16 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import func
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.items import PlanItem
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
-from app.daily_plan.linear.progression import find_next_lesson_linear
+from app.daily_plan.linear.progression import (
+    _user_min_level_order,
+    find_next_lesson_linear,
+    get_spine_upcoming,
+)
 from app.daily_plan.linear.xp import (
     LESSON_TYPE_TO_SOURCE,
     LINEAR_XP_EVENT_TYPE,
@@ -81,29 +84,21 @@ _ADAPTIVE_HIGH_THRESHOLD = 90.0
 _ADAPTIVE_HINT_WINDOW = 5
 
 
-def _passing_score_clause():
-    """SQL predicate: a curriculum lesson counts as *done today* when it is a
-    completion-only type, OR a score-based type that met its per-type passing
-    threshold. Thresholds mirror ``get_lesson_passing_score`` type defaults:
-    ``dictation`` → 80 (``PASSING_SCORE_DICTATION``), everything else → 70
-    (``PASSING_SCORE_DEFAULT``). Per-lesson ``passing_score`` content overrides
-    are enforced at grading time (they decide ``LessonProgress`` outcome), not
-    re-evaluated here. Previously this hardcoded 70 for all score-based types,
-    so a dictation passed at e.g. 72% (its real bar is 80%) was wrongly counted
-    as done and the plan never re-offered it.
+def _lesson_meets_passing(lesson: Any, score: Optional[float]) -> bool:
+    """True when a completed lesson counts as *done today*.
+
+    Completion-only types always count; score-based types must have met their
+    REAL per-lesson passing threshold via ``get_lesson_passing_score`` — which
+    honors a content ``passing_score_percent`` override (audit E-043). Doing
+    this in Python guarantees consistency with the canonical resolver instead
+    of re-deriving thresholds (and the dictation=80 default) in SQL. Previously
+    a hardcoded 70 floor re-offered a lesson with a lower content threshold
+    (passed at 55 vs bar 50) whenever its XP StreakEvent didn't land.
     """
-    return or_(
-        Lessons.type.notin_(tuple(_SCORE_BASED_LESSON_TYPES)),
-        and_(
-            Lessons.type == 'dictation',
-            LessonProgress.score >= PASSING_SCORE_DICTATION,
-        ),
-        and_(
-            Lessons.type.in_(tuple(_SCORE_BASED_LESSON_TYPES)),
-            Lessons.type != 'dictation',
-            LessonProgress.score >= PASSING_SCORE_DEFAULT,
-        ),
-    )
+    from app.curriculum.constants import get_lesson_passing_score
+    if (getattr(lesson, 'type', '') or '') not in _SCORE_BASED_LESSON_TYPES:
+        return True
+    return (score or 0) >= get_lesson_passing_score(lesson)
 
 
 def _eta_minutes(lesson_type: Optional[str]) -> int:
@@ -134,8 +129,8 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
         return True
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
-    return db.session.query(
-        db.session.query(LessonProgress)
+    rows = (
+        db.session.query(LessonProgress.score, Lessons)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -144,10 +139,10 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
-            _passing_score_clause(),
         )
-        .exists()
-    ).scalar() or False
+        .all()
+    )
+    return any(_lesson_meets_passing(lesson, score) for score, lesson in rows)
 
 
 def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
@@ -218,7 +213,7 @@ def get_curriculum_lessons_completed_today(
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     fallback_rows = (
-        db.session.query(LessonProgress.lesson_id)
+        db.session.query(LessonProgress.lesson_id, LessonProgress.score, Lessons)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -227,13 +222,14 @@ def get_curriculum_lessons_completed_today(
             LessonProgress.completed_at >= today_start,
             LessonProgress.completed_at < today_end,
             Lessons.type.in_(tuple(_CURRICULUM_LESSON_TYPES)),
-            _passing_score_clause(),
         )
         .order_by(LessonProgress.completed_at.asc())
         .all()
     )
-    for (lesson_id,) in fallback_rows:
+    for lesson_id, score, lesson in fallback_rows:
         if lesson_id in excluded or lesson_id in seen_ids:
+            continue
+        if not _lesson_meets_passing(lesson, score):  # honor per-lesson bar (E-043)
             continue
         seen_ids.add(lesson_id)
         ordered_ids.append(lesson_id)
@@ -324,6 +320,7 @@ def _get_weak_grammar_topic_ids(
     min_attempts: int = _WEAK_MIN_ATTEMPTS,
     max_accuracy: float = _WEAK_ACCURACY_MAX,
 ) -> dict[int, dict[str, Any]]:
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.grammar_lab.models import (
         GrammarExercise,
         GrammarTopic,
@@ -344,7 +341,12 @@ def _get_weak_grammar_topic_ids(
         )
         .join(GrammarExercise, GrammarExercise.topic_id == GrammarTopic.id)
         .join(UserGrammarExercise, UserGrammarExercise.exercise_id == GrammarExercise.id)
-        .filter(UserGrammarExercise.user_id == user_id)
+        .filter(
+            UserGrammarExercise.user_id == user_id,
+            # Public CEFR levels only — match the sibling grammar-SRS consumers
+            # so a non-public/draft topic can't surface as a weak hint (E-042).
+            GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+        )
         .group_by(GrammarTopic.id, GrammarTopic.title)
         .having(total_sum >= min_attempts)
         .all()
@@ -380,6 +382,7 @@ def _get_weak_grammar_topic_ids(
         .filter(
             LessonAttempt.user_id == user_id,
             Lessons.type == 'grammar',
+            GrammarTopic.level.in_(PUBLIC_CEFR_CODES),  # public levels only (E-042)
         )
         .group_by(GrammarTopic.id, GrammarTopic.title)
         .having(c_total >= min_attempts)
@@ -526,6 +529,202 @@ def build_curriculum_item(
         completion_signal='lesson_completed',
         data=data,
     )
+
+
+def _module_accessible_for_user(
+    user_id: int, module: Any, db: Any, min_order: int,
+) -> bool:
+    """Queue-side replica of ``check_module_access`` (``app/curriculum/security.py``).
+
+    The route gate reads the request-scoped ``current_user`` and cannot be
+    called at plan-assembly time, so its full rule set is mirrored here for a
+    given ``user_id``. ``check_prerequisites`` alone (explicit
+    ``Module.prerequisites`` JSON) is **not** sufficient: most modules carry no
+    explicit prereqs and rely entirely on the implicit *previous module ≥80%*
+    rule. Gating on prereqs only would let the queue surface next-module
+    lessons that ``check_module_access`` then 403s on click (dead links).
+    Rules, in route order: explicit prereqs satisfied → has progress in module
+    → first module of its level → previous module ≥80% complete.
+    """
+    from app.curriculum.models import Module
+
+    if module is None:
+        return True
+
+    # 1. Explicit prerequisites (declared in Module.prerequisites JSON) — uses
+    #    the placement floor so a placement-test user isn't gated on below-floor
+    #    prereqs (matches the route and find_next_lesson_linear).
+    if getattr(module, 'prerequisites', None):
+        ok, _reasons = module.check_prerequisites(user_id, min_level_order=min_order)
+        if not ok:
+            return False
+
+    # 2. User already has progress in this module → accessible.
+    has_progress = db.session.query(LessonProgress.id).join(
+        Lessons, LessonProgress.lesson_id == Lessons.id,
+    ).filter(
+        LessonProgress.user_id == user_id,
+        Lessons.module_id == module.id,
+    ).first() is not None
+    if has_progress:
+        return True
+
+    # 3. First module in its level is auto-accessible (forward preview).
+    first_module = Module.query.filter_by(
+        level_id=module.level_id,
+    ).order_by(Module.number).first()
+    if first_module is not None and module.id == first_module.id:
+        return True
+
+    # 4. Previous module (greatest number < this one) must be ≥80% complete.
+    if module.number and module.number > 1:
+        prev_module = Module.query.filter(
+            Module.level_id == module.level_id,
+            Module.number < module.number,
+        ).order_by(Module.number.desc()).first()
+        if prev_module is not None:
+            total_lessons = Lessons.query.filter_by(
+                module_id=prev_module.id,
+            ).count()
+            if total_lessons > 0:
+                completed_count = LessonProgress.query.filter_by(
+                    user_id=user_id, status='completed',
+                ).join(Lessons).filter(
+                    Lessons.module_id == prev_module.id,
+                ).count()
+                if (completed_count / total_lessons * 100) >= 80:
+                    return True
+
+    return False
+
+
+def build_curriculum_queue(
+    user_id: int,
+    db: Any,
+    *,
+    anchor_lesson: Lessons,
+    limit: int,
+    exclude_lesson_ids: Optional[set[int]] = None,
+) -> list[PlanItem]:
+    """Build a continuation queue of upcoming spine lessons after ``anchor_lesson``.
+
+    Returns a list of *pending* PlanItems for the next lessons on the
+    curriculum spine (crossing module / level boundaries), in spine order.
+    This powers the Duolingo-style «Дальше по курсу» section: after the
+    required minimum, the user sees a long list of upcoming lessons they may
+    keep working through.
+
+    The queue is kept intentionally light — it does **not** run the expensive
+    weak-grammar / adaptive-hint computations that ``build_curriculum_item``
+    runs for the single active lesson; those signals only matter for the
+    lesson the user is about to start, not for every entry in a long list.
+
+    ``get_spine_upcoming`` already excludes the anchor and completed lessons
+    but does **not** apply module prerequisite gating, so blocked modules are
+    filtered here (the route would 403/redirect them anyway, but they must not
+    dangle in the list). The prerequisite decision is resolved once per
+    ``module_id`` and cached.
+
+    Filtering mirrors the route's ``check_module_access`` gate, not just the
+    explicit ``check_prerequisites`` data: once a module within a level is
+    hard-blocked, **every later module in that same level is dropped too**.
+    The route gates a non-first module on the *previous* module reaching 80%
+    completion; a hard-blocked module can never reach 80%, so its same-level
+    successors are transitively unreachable and would 403 if shown. Scanning
+    resumes on the next CEFR level, whose first module is auto-accessible
+    (legitimate forward preview under the template's sequential unlock).
+
+    ``exclude_lesson_ids`` skips lessons already represented elsewhere in the
+    plan (e.g. the required anchor or completed-today cards).
+    """
+    if anchor_lesson is None or limit <= 0:
+        return []
+
+    excluded: set[int] = set(exclude_lesson_ids or ())
+    min_order = _user_min_level_order(user_id, db)
+    module_access: dict[int, bool] = {}
+    # CEFR level whose remaining modules are dropped after a hard block.
+    # Cleared when the spine (monotonic by level order) advances to a new
+    # level — see docstring.
+    blocked_level_id: Optional[int] = None
+    items: list[PlanItem] = []
+
+    # Page through the spine rather than fetching a single fixed window. A
+    # hard-blocked module drops *every* later module in its level (see
+    # docstring), so on a large CEFR level the rejected lessons can exceed any
+    # static over-fetch and starve the queue before it reaches the next level's
+    # accessible first module. We keep pulling batches (advancing the cursor to
+    # the last lesson seen) until ``limit`` lessons are accepted or the spine is
+    # exhausted (a short batch means no more lessons exist).
+    cursor: Lessons = anchor_lesson
+    batch_size = max(limit * 3, 30)
+    # Defensive bound on iterations — the cursor advances monotonically over a
+    # finite spine, so this only guards against a pathological non-advancing
+    # batch (e.g. a duplicate-id data anomaly), never normal operation.
+    max_batches = 50
+    for _ in range(max_batches):
+        upcoming = get_spine_upcoming(user_id, cursor, db, limit=batch_size)
+        if not upcoming:
+            break
+
+        for lesson in upcoming:
+            if lesson.id in excluded or lesson.id == anchor_lesson.id:
+                continue
+            module_id = lesson.module_id
+            module = lesson.module
+            level = module.level if module is not None else None
+            level_id = level.id if level is not None else None
+
+            if blocked_level_id is not None:
+                if level_id == blocked_level_id:
+                    # Same level as hard-blocked module → transitively gated.
+                    continue
+                # Spine advanced to a later level; the block no longer applies.
+                blocked_level_id = None
+
+            accessible = module_access.get(module_id)
+            if accessible is None:
+                accessible = _module_accessible_for_user(
+                    user_id, module, db, min_order,
+                )
+                module_access[module_id] = accessible
+            if not accessible:
+                if level_id is not None:
+                    blocked_level_id = level_id
+                continue
+
+            items.append(
+                PlanItem(
+                    id=f'curriculum:lesson:{lesson.id}',
+                    section='optional',
+                    kind='curriculum',
+                    title=lesson.title,
+                    subtitle=_lesson_subtitle(lesson),
+                    lesson_type=lesson.type,
+                    eta_minutes=_eta_minutes(lesson.type),
+                    url=_lesson_url(lesson),
+                    completed=False,
+                    completion_signal='lesson_completed',
+                    data={
+                        'lesson_id': lesson.id,
+                        'lesson_number': lesson.number,
+                        'module_id': lesson.module_id,
+                        'module_number': module.number if module is not None else None,
+                        'module_title': module.title if module is not None else None,
+                        'level_code': level.code if level is not None else None,
+                        'queue_position': len(items) + 1,
+                    },
+                )
+            )
+            if len(items) >= limit:
+                return items
+
+        if len(upcoming) < batch_size:
+            # Short batch → spine exhausted, no further lessons to page in.
+            break
+        cursor = upcoming[-1]
+
+    return items
 
 
 def _lesson_subtitle(lesson: Lessons) -> Optional[str]:

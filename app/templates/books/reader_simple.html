@@ -103,8 +103,14 @@
       <h1>Глава {{ current_chapter.chap_num }}: {{ current_chapter.title }}</h1>
 
       <div id="chapterContent" class="text-size-18">
-        {{ current_chapter.text_raw | format_chapter_text }}
+        {{ (chapter_text if chapter_text is defined else current_chapter.text_raw) | format_chapter_text }}
       </div>
+
+      {% if text_truncated %}
+      <div class="rdr-license-notice">
+        Показан ознакомительный фрагмент главы согласно лицензии на эту книгу.
+      </div>
+      {% endif %}
 
       <div class="rdr-end-spacer" aria-hidden="true"></div>
 
@@ -300,7 +306,10 @@ function computeReadingProgress() {
     }
     const chapterTop = chapter.offsetTop;
     const chapterHeight = chapter.offsetHeight;
-    if (chapterHeight <= 0) return 1;
+    // Not yet measured / zero-height chapter: nothing scrolled ≠ fully read.
+    // Returning 1 here let an unmeasured/empty chapter auto-save offset_pct=1.0
+    // and be counted "read" without reading (audit E-098).
+    if (chapterHeight <= 0) return 0;
     const scrolled = Math.max(0, readerBody.scrollTop - chapterTop);
     return Math.min(scrolled / chapterHeight, 1);
 }

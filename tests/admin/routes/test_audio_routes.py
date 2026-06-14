@@ -632,8 +632,18 @@ class TestAudioMimeValidation:
 
     def test_check_audio_mime_type_mp3_sync(self):
         from app.utils.file_security import check_audio_mime_type
-        data = b'\xff\xfb' + b'\x00' * 100
+        # Realistic MPEG-1 Layer III frame header (0xFFFB sync, bitrate idx 9,
+        # samplerate idx 0). Free-bitrate junk (0xFB 0x00) is now rejected per
+        # the full frame-header validation (audit E-081).
+        data = b'\xff\xfb\x90\x00' + b'\x00' * 100
         assert check_audio_mime_type(data) == 'audio/mpeg'
+
+    def test_check_audio_mime_type_rejects_fake_mp3_sync(self):
+        from app.utils.file_security import check_audio_mime_type
+        # Two-byte sync match used to accept these; full frame validation
+        # rejects the free/zero bitrate field (audit E-081).
+        assert check_audio_mime_type(b'\xff\xff\x00\x00' + b'\x00' * 100) is None
+        assert check_audio_mime_type(b'\xff\xfb\x00\x00' + b'\x00' * 100) is None
 
     def test_check_audio_mime_type_wav(self):
         from app.utils.file_security import check_audio_mime_type

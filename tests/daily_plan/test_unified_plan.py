@@ -253,22 +253,23 @@ class TestOptional:
 
 
 class TestOptionalCurriculumStability:
-    """Tests for the optional curriculum item not duplicating or disappearing.
+    """Tests for the optional curriculum continuation queue.
 
-    Bug: when done_today=False, both required and optional builders call
-    find_next_lesson_linear() and get the same lesson id. The optional
-    candidate collides with required and is silently dropped. Fix: pass
-    exclude_lesson_ids={required_lesson_id} to the optional builder.
+    Optional now carries a Duolingo-style queue of upcoming spine lessons
+    starting strictly AFTER the required anchor lesson (in spine order),
+    never duplicating the required item. These tests assert the queue
+    invariants on small spines (the head of the queue = next lesson after
+    required); ``TestOptionalContinuationQueue`` covers longer spines.
     """
 
     def test_optional_curriculum_differs_from_required_not_done_today(
         self, db_session,
     ):
-        """With two pending lessons, optional curriculum returns L2, not L1.
+        """With two pending lessons, the optional queue starts at L2, not L1.
 
-        Before the fix, both builders resolved to L1 and the optional item
-        was dropped by the de-dup check. After the fix, optional uses
-        exclude_lesson_ids to skip L1 and find L2.
+        Required anchors on L1 (first pending lesson). The continuation queue
+        begins strictly after the anchor, so its head is L2 — never a
+        duplicate of the required item.
         """
         level = _make_level(db_session, order=5)
         module = _make_module(db_session, level)
@@ -285,20 +286,18 @@ class TestOptionalCurriculumStability:
         assert required_curriculum[0]['data']['lesson_id'] == lesson1.id, (
             'Required curriculum should be the first pending lesson'
         )
-        assert len(optional_curriculum) == 1, (
-            'Optional curriculum item should exist (second lesson available)'
-        )
-        assert optional_curriculum[0]['data']['lesson_id'] == lesson2.id, (
-            'Optional curriculum should be the second lesson, not a duplicate of required'
+        # Queue starts after the required anchor (L1), in spine order.
+        queue_ids = [it['data']['lesson_id'] for it in optional_curriculum]
+        assert queue_ids == [lesson2.id], (
+            'Optional queue head should be the next lesson after required'
         )
 
     def test_optional_curriculum_after_done_today_returns_next(self, db_session):
-        """When L1 is done today, optional curriculum should offer L2.
+        """When L1 is done today, the optional queue head is L2.
 
-        Required shows L1 as done_today (id=curriculum:lesson:L1).
-        Optional should resolve to L2 (next on the spine) with exclude_lesson_ids
-        ensuring L1 is skipped even though done_today path already filters it out
-        via LessonProgress. This test verifies the happy path remains correct.
+        Required shows L1 as done_today (id=curriculum:lesson:L1, completed).
+        The continuation queue anchors on that required lesson and offers L2
+        (the next lesson on the spine) as its head.
         """
         level = _make_level(db_session, order=6)
         module = _make_module(db_session, level)
@@ -315,10 +314,10 @@ class TestOptionalCurriculumStability:
         assert len(required_curriculum) == 1
         assert required_curriculum[0]['data']['lesson_id'] == lesson1.id
         assert required_curriculum[0]['completed'] is True
-        assert len(optional_curriculum) == 1, (
-            'Optional curriculum should offer the next lesson after the one done today'
+        queue_ids = [it['data']['lesson_id'] for it in optional_curriculum]
+        assert queue_ids == [lesson2.id], (
+            'Optional queue head should be the next lesson after the one done today'
         )
-        assert optional_curriculum[0]['data']['lesson_id'] == lesson2.id
 
     def test_single_remaining_lesson_no_phantom_optional_curriculum(
         self, db_session,
@@ -343,12 +342,16 @@ class TestOptionalCurriculumStability:
         )
 
     def test_optional_curriculum_ids_distinct_from_required(self, db_session):
-        """General invariant: no curriculum id appears in both required and optional."""
+        """General invariant: no curriculum id appears in both required and optional.
+
+        With three pending lessons the queue lists L2, L3 in spine order, all
+        distinct from the required anchor L1.
+        """
         level = _make_level(db_session, order=8)
         module = _make_module(db_session, level)
-        _make_lesson(db_session, module, number=1, type_='vocabulary')
-        _make_lesson(db_session, module, number=2, type_='vocabulary')
-        _make_lesson(db_session, module, number=3, type_='vocabulary')
+        l1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        l3 = _make_lesson(db_session, module, number=3, type_='vocabulary')
         user = _make_user(db_session, onboarding_level=level.code)
 
         plan = get_daily_plan(user.id, real_db)
@@ -356,12 +359,14 @@ class TestOptionalCurriculumStability:
         required_curriculum_ids = {
             it['id'] for it in plan['required'] if it['kind'] == 'curriculum'
         }
-        optional_curriculum_ids = {
-            it['id'] for it in plan['optional'] if it['kind'] == 'curriculum'
-        }
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        optional_curriculum_ids = {it['id'] for it in optional_curriculum}
         assert required_curriculum_ids.isdisjoint(optional_curriculum_ids), (
             'Curriculum item id must not appear in both required and optional'
         )
+        # Queue carries the upcoming spine lessons in order, after the anchor.
+        assert [it['data']['lesson_id'] for it in optional_curriculum] == [l2.id, l3.id]
+        assert l1.id not in {it['data']['lesson_id'] for it in optional_curriculum}
 
 
 # ── Payload contract ─────────────────────────────────────────────────
@@ -550,10 +555,15 @@ class TestGetDailyPlanUnifiedEdgeCases:
 
     def test_plan_paused_until_past_does_not_block_plan(self, db_session):
         """When plan_paused_until is yesterday, the plan is NOT paused."""
-        yesterday = date.today() - timedelta(days=1)
-        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=yesterday)
-
         from app.daily_plan.service import get_daily_plan_unified
+        from app.utils.time_utils import get_user_local_date
+
+        user = _make_user(db_session, onboarding_level='A1')
+        # Anchor on the user-local date the service compares against — using
+        # server-local date.today() flakes near midnight when the server tz
+        # leads the user's (UTC fallback) tz.
+        user.plan_paused_until = get_user_local_date(user.id) - timedelta(days=1)
+        db_session.flush()
         payload = get_daily_plan_unified(user.id)
 
         assert payload.get('mode') != 'paused', (
@@ -562,10 +572,12 @@ class TestGetDailyPlanUnifiedEdgeCases:
 
     def test_plan_paused_until_today_does_not_block_plan(self, db_session):
         """When plan_paused_until is today (not strictly > today), plan is active."""
-        today = date.today()
-        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=today)
-
         from app.daily_plan.service import get_daily_plan_unified
+        from app.utils.time_utils import get_user_local_date
+
+        user = _make_user(db_session, onboarding_level='A1')
+        user.plan_paused_until = get_user_local_date(user.id)
+        db_session.flush()
         payload = get_daily_plan_unified(user.id)
 
         assert payload.get('mode') != 'paused', (
@@ -574,10 +586,12 @@ class TestGetDailyPlanUnifiedEdgeCases:
 
     def test_plan_paused_until_future_returns_paused_payload(self, db_session):
         """When plan_paused_until is tomorrow, mode=paused is returned."""
-        tomorrow = date.today() + timedelta(days=1)
-        user = _make_user(db_session, onboarding_level='A1', plan_paused_until=tomorrow)
-
         from app.daily_plan.service import get_daily_plan_unified
+        from app.utils.time_utils import get_user_local_date
+
+        user = _make_user(db_session, onboarding_level='A1')
+        user.plan_paused_until = get_user_local_date(user.id) + timedelta(days=1)
+        db_session.flush()
         payload = get_daily_plan_unified(user.id)
 
         assert payload.get('mode') == 'paused'
@@ -926,6 +940,539 @@ class TestGraduatedDaySecured:
         assert meta.get('user_id') == user.id, (
             'user_id must be stamped in _plan_meta'
         )
+
+
+# ── Task 1: continuation queue (build_curriculum_queue) ──────────────────────
+
+
+class TestBuildCurriculumQueue:
+    """Unit tests for build_curriculum_queue — the Duolingo-style continuation
+    queue of upcoming spine lessons after the required anchor lesson."""
+
+    def test_queue_returns_n_lessons_in_spine_order(self, db_session):
+        """Queue returns the next ``limit`` lessons after the anchor, in order."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=30)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        l3 = _make_lesson(db_session, module, number=3, type_='vocabulary')
+        l4 = _make_lesson(db_session, module, number=4, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=2,
+        )
+
+        assert [it.data['lesson_id'] for it in items] == [l2.id, l3.id]
+        # queue_position is 1-based and sequential.
+        assert [it.data['queue_position'] for it in items] == [1, 2]
+        assert all(it.section == 'optional' for it in items)
+        assert all(it.kind == 'curriculum' for it in items)
+        assert all(it.completed is False for it in items)
+        assert l4.id not in {it.data['lesson_id'] for it in items}
+
+    def test_queue_does_not_include_anchor(self, db_session):
+        """The anchor lesson never appears in its own continuation queue."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=31)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        assert anchor.id not in {it.data['lesson_id'] for it in items}
+
+    def test_queue_crosses_module_and_level_boundary(self, db_session):
+        """Queue spans module / level boundaries like the spine itself.
+
+        Crossing into a *same-level* next module requires the previous module
+        to be ≥80% complete (the route's ``check_module_access`` rule), so m1
+        is seeded near-complete (4 done + the pending anchor = 4/5 = 80%);
+        m3 lives in the next level whose first module is always
+        auto-accessible.
+        """
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=32)
+        level2 = _make_level(db_session, order=33)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)
+        m3 = _make_module(db_session, level2, number=1)
+        user = _make_user(db_session, onboarding_level=level1.code)
+        # Seed m1 to 80% complete so m2 (same level) is route-accessible.
+        for n in range(1, 5):
+            _complete_lesson(
+                db_session, user,
+                _make_lesson(db_session, m1, number=n, type_='vocabulary'),
+            )
+        anchor = _make_lesson(db_session, m1, number=5, type_='vocabulary')
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert ids == [l_m2.id, l_m3.id], (
+            'Queue must cross module and level boundaries in spine order'
+        )
+
+    def test_queue_excludes_next_module_gated_by_implicit_80pct(self, db_session):
+        """A same-level next module with NO explicit prereqs is still gated.
+
+        Most modules carry no ``Module.prerequisites`` and rely entirely on the
+        route's implicit *previous module ≥80%* rule. While the anchor module
+        (m1) is mid-progress (<80%), m2's lessons would 403 on click, so they
+        must not dangle in the queue even though ``check_prerequisites`` returns
+        accessible for a prereq-less module. A later level's first module stays
+        eligible (auto-accessible forward preview).
+        """
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=48)
+        level2 = _make_level(db_session, order=49)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)  # no explicit prereqs
+        m3 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert l_m2.id not in ids, (
+            'Next same-level module (prev <80%) must not surface a dead link'
+        )
+        assert ids == [l_m3.id], (
+            "Only the next level's auto-accessible first module should preview"
+        )
+
+    def test_queue_excludes_blocked_module_lessons(self, db_session):
+        """A hard-blocked module drops the rest of its level from the queue.
+
+        The route's ``check_module_access`` gates a non-first module on the
+        *previous* module reaching 80% completion. A hard-blocked module can
+        never reach 80%, so its same-level successor (``m3`` here) is
+        transitively unreachable and would 403 if previewed — it must not
+        dangle in the queue even though it carries no explicit prerequisites.
+        """
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=34)
+        m1 = _make_module(db_session, level, number=1)
+        m2 = _make_module(db_session, level, number=2)
+        m3 = _make_module(db_session, level, number=3)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        # m2 is gated on completing m1 (anchor is incomplete → blocked).
+        m2.prerequisites = [{'type': 'module', 'id': m1.id}]
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = {it.data['lesson_id'] for it in items}
+        assert l_m2.id not in ids, 'Blocked-module lesson must not appear in queue'
+        assert l_m3.id not in ids, (
+            'Same-level module after a hard block is transitively gated by the '
+            "route's previous-module 80% rule and must not dangle in the queue"
+        )
+
+    def test_queue_resumes_on_new_level_after_block(self, db_session):
+        """A hard block stops the current level but not a later level's first module."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=37)
+        level2 = _make_level(db_session, order=38)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)
+        m3 = _make_module(db_session, level1, number=3)
+        n1 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        # m2 hard-blocked → m2 and same-level m3 are dropped, but level2's
+        # first module is auto-accessible and should still preview.
+        m2.prerequisites = [{'type': 'module', 'id': m1.id}]
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+        l_n1 = _make_lesson(db_session, n1, number=1, type_='vocabulary')
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert l_m2.id not in ids
+        assert l_m3.id not in ids
+        assert ids == [l_n1.id], (
+            'Queue should resume at the next level’s first module after a block'
+        )
+
+    def test_queue_pages_past_large_blocked_level(self, db_session):
+        """A blocked level larger than one fetch window still resumes next level.
+
+        The same-level hard-block fix drops every later module of a blocked
+        level. On a realistic CEFR level (dozens of lessons) those rejected
+        lessons exceed any single over-fetch window, so the builder must *page*
+        the spine — not fetch once — or it returns an empty queue and a false
+        ``has_more_optional`` even though the next level's first module is
+        eligible. The dropped block here spans more lessons than the internal
+        batch size, exercising the multi-batch path.
+        """
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=41)
+        level2 = _make_level(db_session, order=42)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)
+        m3 = _make_module(db_session, level1, number=3)
+        n1 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        # m2 hard-blocked → m2 and same-level m3 are dropped. m3 alone carries
+        # more lessons than a single fetch batch, so a one-shot over-fetch
+        # would never reach level2.
+        m2.prerequisites = [{'type': 'module', 'id': m1.id}]
+        _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        for n in range(1, 41):  # 40 dropped same-level lessons (> batch size)
+            _make_lesson(db_session, m3, number=n, type_='vocabulary')
+        l_n1 = _make_lesson(db_session, n1, number=1, type_='vocabulary')
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=2,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert ids == [l_n1.id], (
+            'Queue must page past a large blocked level and resume at the next '
+            "level's first module instead of starving on the dropped window"
+        )
+
+    def test_queue_respects_exclude_lesson_ids(self, db_session):
+        """exclude_lesson_ids removes specific lessons from the queue."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=35)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        l3 = _make_lesson(db_session, module, number=3, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+            exclude_lesson_ids={l2.id},
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert l2.id not in ids
+        assert ids == [l3.id]
+
+    def test_queue_empty_when_single_remaining_lesson(self, db_session):
+        """When anchor is the last lesson, the queue is empty."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=36)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        assert items == []
+
+    def test_queue_empty_when_anchor_is_none(self, db_session):
+        """A None anchor (graduated user) yields an empty queue, not an error."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        user = _make_user(db_session)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=None, limit=10,
+        )
+
+        assert items == []
+
+    def test_queue_empty_when_limit_non_positive(self, db_session):
+        """A non-positive limit yields an empty queue without touching the DB."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=37)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        assert build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=0,
+        ) == []
+        assert build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=-5,
+        ) == []
+
+    def test_queue_items_carry_url_and_level_code(self, db_session):
+        """Queue items populate url/eta and the level_code flips at a boundary."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=38)
+        level2 = _make_level(db_session, order=39)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        l_m1 = _make_lesson(db_session, m1, number=2, type_='vocabulary')
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        by_lesson = {it.data['lesson_id']: it for it in items}
+        assert by_lesson[l_m1.id].data['level_code'] == level1.code
+        assert by_lesson[l_m2.id].data['level_code'] == level2.code
+        assert all(it.url for it in items)
+        assert all(it.eta_minutes is not None for it in items)
+
+    def test_queue_caps_at_limit_when_more_available(self, db_session):
+        """With more pending lessons than ``limit``, the builder returns exactly
+        ``limit`` items (the over-fetch detector relies on this boundary)."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level = _make_level(db_session, order=40)
+        module = _make_module(db_session, level)
+        anchor = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        # 5 pending lessons after the anchor, ask for 3.
+        for n in range(2, 7):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=3,
+        )
+
+        assert len(items) == 3
+        # queue_position is 1-based and contiguous up to the cap.
+        assert [it.data['queue_position'] for it in items] == [1, 2, 3]
+
+
+# ── Task 2: continuation queue wired into build_optional ─────────────────────
+
+
+class TestOptionalContinuationQueue:
+    """Optional now carries a continuation queue of upcoming spine lessons
+    (Task 2) instead of a single next-lesson curriculum candidate."""
+
+    def test_optional_has_multiple_curriculum_lessons_in_order(self, db_session):
+        """≥3 pending lessons → optional lists the upcoming lessons in spine order."""
+        level = _make_level(db_session, order=40)
+        module = _make_module(db_session, level)
+        l1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        l3 = _make_lesson(db_session, module, number=3, type_='vocabulary')
+        l4 = _make_lesson(db_session, module, number=4, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        required_curriculum = [it for it in plan['required'] if it['kind'] == 'curriculum']
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == l1.id
+
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        ids = [it['data']['lesson_id'] for it in optional_curriculum]
+        # Queue starts after the required anchor (L1), in spine order.
+        assert ids == [l2.id, l3.id, l4.id], (
+            'Optional must carry the upcoming lessons in spine order'
+        )
+
+    def test_optional_queue_does_not_duplicate_required(self, db_session):
+        """No curriculum id appears in both required and optional."""
+        level = _make_level(db_session, order=41)
+        module = _make_module(db_session, level)
+        for n in range(1, 6):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        required_ids = {it['id'] for it in plan['required']}
+        optional_ids = {it['id'] for it in plan['optional']}
+        assert required_ids.isdisjoint(optional_ids)
+
+    def test_has_more_optional_is_boolean_with_queue(self, db_session):
+        """has_more_optional remains a bool when a long queue is present."""
+        level = _make_level(db_session, order=42)
+        module = _make_module(db_session, level)
+        for n in range(1, 6):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+        assert isinstance(plan['has_more_optional'], bool)
+
+    def test_queue_capped_at_continuation_limit(self, db_session):
+        """A very long spine is capped at CONTINUATION_QUEUE_LIMIT in optional."""
+        from app.daily_plan.plan import CONTINUATION_QUEUE_LIMIT
+
+        level = _make_level(db_session, order=43)
+        module = _make_module(db_session, level)
+        for n in range(1, CONTINUATION_QUEUE_LIMIT + 6):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        assert len(optional_curriculum) <= CONTINUATION_QUEUE_LIMIT
+        # has_more must signal there is content beyond the cap.
+        assert plan['has_more_optional'] is True
+
+    def test_day_secured_independent_of_queue_length(self, db_session):
+        """day_secured is recomputed from required only — queue length is irrelevant."""
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        level = _make_level(db_session, order=44)
+        module = _make_module(db_session, level)
+        for n in range(1, 8):
+            _make_lesson(db_session, module, number=n, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        from app.daily_plan.service import get_daily_plan_unified
+        payload = get_daily_plan_unified(user.id)
+
+        # Mark every required item complete; optional queue stays incomplete.
+        completion = {it['id']: True for it in payload['required']}
+        assert compute_day_secured_from_activity(payload, completion) is True
+        # The long optional queue does not affect the secured verdict.
+
+    def test_single_remaining_lesson_empty_queue(self, db_session):
+        """Only one lesson → no continuation queue in optional."""
+        level = _make_level(db_session, order=45)
+        module = _make_module(db_session, level)
+        _make_lesson(db_session, module, number=1, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        plan = get_daily_plan(user.id, real_db)
+
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        assert optional_curriculum == []
+
+    def test_queue_suppressed_when_curriculum_skipped(self, db_session):
+        """Skipping the required curriculum lesson suppresses the queue.
+
+        The template unlocks optional via ``u_required_settled`` (a skip
+        counts as settled), but every queue lesson is route-gated on the
+        previous lesson being completed (``check_lesson_access``). A skipped
+        anchor is never completed, so the first queue lesson would 403 — the
+        queue must not surface those dead links.
+        """
+        from datetime import date
+
+        from app.daily_plan.models import DailyPlanEvent
+        from app.utils.time_utils import get_user_local_date
+
+        level = _make_level(db_session, order=46)
+        module = _make_module(db_session, level)
+        l1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        _make_lesson(db_session, module, number=3, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        # Sanity: without a skip the queue is present.
+        plan_before = get_daily_plan(user.id, real_db)
+        assert [it for it in plan_before['optional'] if it['kind'] == 'curriculum']
+
+        # Skip the required curriculum slot for today.
+        today = get_user_local_date(user.id, real_db)
+        db_session.add(DailyPlanEvent(
+            user_id=user.id,
+            event_type='slot_skipped',
+            plan_date=today,
+            step_kind='curriculum',
+        ))
+        db_session.commit()
+
+        plan = get_daily_plan(user.id, real_db)
+
+        # The required curriculum anchor is still L1, now marked skipped.
+        required_curriculum = [it for it in plan['required'] if it['kind'] == 'curriculum']
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == l1.id
+        assert required_curriculum[0].get('skipped') is True
+
+        # No curriculum continuation queue while the anchor is skipped.
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        assert optional_curriculum == []
+
+    def test_queue_reappears_when_skipped_lesson_later_completed(self, db_session):
+        """Completing the skipped lesson re-opens the queue (same day).
+
+        Suppression keys on the required curriculum item still being
+        incomplete, not on the raw skip event. Once the user returns via the
+        «Вернуться» CTA and completes the skipped lesson, the required anchor
+        flips to the done-today card (``completed=True``) and the next spine
+        lesson is route-open — so the continuation queue must reappear even
+        though the day's slot_skipped event still exists.
+        """
+        from app.daily_plan.models import DailyPlanEvent
+        from app.utils.time_utils import get_user_local_date
+
+        level = _make_level(db_session, order=47)
+        module = _make_module(db_session, level)
+        l1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        _make_lesson(db_session, module, number=3, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        # Skip the required curriculum slot for today.
+        today = get_user_local_date(user.id, real_db)
+        db_session.add(DailyPlanEvent(
+            user_id=user.id,
+            event_type='slot_skipped',
+            plan_date=today,
+            step_kind='curriculum',
+        ))
+        db_session.commit()
+
+        # Queue suppressed while skipped + incomplete.
+        plan_skipped = get_daily_plan(user.id, real_db)
+        assert [it for it in plan_skipped['optional'] if it['kind'] == 'curriculum'] == []
+
+        # User returns and completes the previously-skipped lesson today; the
+        # slot_skipped event is left in place.
+        _complete_lesson(db_session, user, l1)
+
+        plan_after = get_daily_plan(user.id, real_db)
+
+        # Required curriculum now shows L1 as the done-today anchor.
+        required_curriculum = [it for it in plan_after['required'] if it['kind'] == 'curriculum']
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == l1.id
+        assert required_curriculum[0].get('completed') is True
+
+        # The continuation queue reappears, anchored after L1 → next is L2.
+        optional_curriculum = [it for it in plan_after['optional'] if it['kind'] == 'curriculum']
+        assert optional_curriculum, 'Queue must reappear once the lesson is completed'
+        assert optional_curriculum[0]['data']['lesson_id'] == l2.id
 
 
 # ── SRS deck-quiz placement vs card lesson (finding #13) ─────────────────────

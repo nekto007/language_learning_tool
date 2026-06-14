@@ -131,10 +131,15 @@ class TestTimezoneEdgeCases:
         assert events[0].steps_done == 3
 
     def test_process_streak_uses_user_timezone(self, db_session, streak_user):
-        """process_streak_on_activity passes tz to activity checker — smoke test via mock."""
+        """Activity checker is keyed on User.timezone, NOT the client tz param.
+
+        Regression (audit E-003): real_activity must use the user's own zone so
+        the activity-day and dedup-day stay on the same calendar day.
+        """
         from app.achievements.streak_service import process_streak_on_activity
 
-        tz = 'Asia/Tokyo'
+        streak_user.timezone = 'Asia/Tokyo'
+        db_session.flush()
         # has_activity_today is imported locally inside process_streak_on_activity
         # from app.telegram.queries, so we patch it there.
         with patch('app.telegram.queries.has_activity_today', return_value=False) as mock_has, \
@@ -144,11 +149,11 @@ class TestTimezoneEdgeCases:
                  'required_steps': 1, 'steps_total': 4,
              }), \
              patch('app.achievements.streak_service.find_missed_date', return_value=None), \
-             patch('app.achievements.streak_service.check_streak_milestone', return_value=None), \
-             patch('app.achievements.streak_service.db'):
-            process_streak_on_activity(streak_user.id, steps_done=0, steps_total=4, tz=tz)
+             patch('app.achievements.streak_service.check_streak_milestone', return_value=None):
+            # Client passes a DIFFERENT (spoofed) tz — it must be ignored.
+            process_streak_on_activity(streak_user.id, steps_done=0, steps_total=4, tz='Pacific/Kiritimati')
 
-        mock_has.assert_called_with(streak_user.id, tz=tz)
+        mock_has.assert_called_with(streak_user.id, tz='Asia/Tokyo')
 
     def test_award_date_ignores_client_tz_param(self, db_session, streak_user):
         """Award dedup dates come from User.timezone, not the client tz param.
@@ -316,6 +321,13 @@ class TestStreakFreezeProtection:
     @pytest.mark.smoke
     def test_free_repair_records_details(self, db_session, user_id):
         missed = date.today() - timedelta(days=1)
+        # apply_free_repair is idempotent (no-ops if a repair already exists),
+        # so clear any leaked free_repair row for this (user, date) first to
+        # keep the assertion order-independent under the shared-DB fixture.
+        StreakEvent.query.filter_by(
+            user_id=user_id, event_type='free_repair', event_date=missed
+        ).delete()
+        db_session.flush()
         apply_free_repair(user_id, missed, steps_done=3, steps_total=4)
         db_session.flush()
         event = StreakEvent.query.filter_by(

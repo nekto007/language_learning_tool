@@ -110,6 +110,13 @@ def admin_audit_required(
                 return resp
             except Exception:
                 logger.exception('admin_audit_required failed to stage log for action=%s', action)
+                # Roll back so a failed audit-commit doesn't return the
+                # request-scoped session to the pool in an aborted state,
+                # poisoning the next request on this connection (audit E-078).
+                try:
+                    db.session.rollback()
+                except Exception:
+                    logger.exception('admin_audit_required rollback failed for action=%s', action)
                 return response
 
         return admin_required(wrapped_view)

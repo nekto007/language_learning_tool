@@ -510,14 +510,25 @@ def create_app(config_class=Config):
         try:
             from app.admin.site_settings import get_public_settings
             fresh = get_public_settings()
-            ttl = _SITE_SETTINGS_TTL
         except Exception:
+            # On failure NEVER overwrite a populated cache with {} — a single
+            # slow/erroring load would blank contacts/feature-flags for everyone
+            # until TTL (audit E-084). Serve stale-good if we have it; otherwise
+            # cache empty only briefly so we retry soon.
             logger.exception('Failed to load public site settings')
-            fresh = {}
-            ttl = 5  # retry quickly on DB failure rather than hammering every request
+            with _site_settings_cache['lock']:
+                existing = _site_settings_cache['data']
+                if existing is not None:
+                    _site_settings_cache['expires'] = time.time() + _SITE_SETTINGS_TTL
+                else:
+                    existing = {}
+                    _site_settings_cache['expires'] = time.time() + 5
+            g._site_settings_cached = existing
+            return {'site_settings': existing}
+
         with _site_settings_cache['lock']:
             _site_settings_cache['data'] = fresh
-            _site_settings_cache['expires'] = time.time() + ttl
+            _site_settings_cache['expires'] = time.time() + _SITE_SETTINGS_TTL
 
         g._site_settings_cached = fresh
         return {'site_settings': fresh}

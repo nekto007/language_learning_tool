@@ -4,7 +4,7 @@ Prevents duplicate XP awards when ``complete_lesson`` is invoked more than
 once for the same user/lesson/day (e.g. page reload, client retry, or the
 callsite is reached twice in the same flow). Uses ``StreakEvent`` with
 ``event_type='xp_curriculum_lesson'`` as the dedup ledger, matching the
-pattern used by ``award_phase_xp_idempotent`` / linear slot XP helpers.
+pattern used by the linear slot XP helpers.
 
 Callers own the outer commit; this helper only flushes the StreakEvent
 row so the dedup check is visible to a subsequent call inside the same
@@ -49,14 +49,23 @@ def award_curriculum_lesson_xp_idempotent(
     if already is not None:
         return None
 
-    result = award_xp(user_id, CURRICULUM_LESSON_XP, 'curriculum_lesson')
+    from sqlalchemy.exc import IntegrityError
 
-    db_obj.session.add(StreakEvent(
-        user_id=user_id,
-        event_type=CURRICULUM_LESSON_EVENT_TYPE,
-        event_date=for_date,
-        coins_delta=0,
-        details={'lesson_id': lesson_id, 'xp': result.xp_awarded},
-    ))
-    db_obj.session.flush()
+    # Race-safe: XP write + ledger insert in a savepoint so a concurrent award
+    # that wins uq_streak_events_xp_curriculum_lesson raises IntegrityError here
+    # and the XP increment rolls back with it (audit E-002).
+    try:
+        with db_obj.session.begin_nested():
+            result = award_xp(user_id, CURRICULUM_LESSON_XP, 'curriculum_lesson')
+            db_obj.session.add(StreakEvent(
+                user_id=user_id,
+                event_type=CURRICULUM_LESSON_EVENT_TYPE,
+                event_date=for_date,
+                coins_delta=0,
+                details={'lesson_id': lesson_id, 'xp': result.xp_awarded},
+            ))
+            db_obj.session.flush()
+    except IntegrityError:
+        return None
+
     return result

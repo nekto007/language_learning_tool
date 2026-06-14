@@ -163,8 +163,11 @@ class StatisticsService:
         current_count = getattr(stats, grade_field, 0)
         setattr(stats, grade_field, current_count + 1)
 
-        # Update streak
-        today = date.today()
+        # Update streak. User-local date so this counter agrees with the
+        # user-local streak in process_streak_on_activity and the milestone/
+        # weekly-XP gates fed from it (audit E-067).
+        from app.utils.time_utils import get_user_local_date
+        today = get_user_local_date(user_id)
         if stats.last_activity_date:
             days_diff = (today - stats.last_activity_date).days
             if days_diff == 1:
@@ -219,7 +222,7 @@ class AchievementService:
     """Service for checking and awarding achievements based on statistics"""
 
     @staticmethod
-    def check_grade_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_grade_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """
         Check and award grade-based achievements
 
@@ -263,14 +266,17 @@ class AchievementService:
                         logger.exception("Failed to send achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
             # Update badge statistics
-            StatisticsService.update_badge_stats(user_id)
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_streak_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_streak_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """
         Check and award streak-based achievements
 
@@ -310,13 +316,16 @@ class AchievementService:
                         logger.exception("Failed to send streak achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_lesson_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_lesson_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """Check and award lesson-count-based achievements.
 
         Codes must match seed.py: first_lesson, lessons_5, lessons_10,
@@ -350,13 +359,16 @@ class AchievementService:
                         logger.exception("Failed to send lesson achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_book_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_book_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """Check and award book-reading achievements.
 
         Codes must match seed.py: first_book, books_5, books_10, chapter_marathon.
@@ -388,13 +400,16 @@ class AchievementService:
                         logger.exception("Failed to send book achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
     @staticmethod
-    def check_card_achievements(user_id: int, stats: UserStatistics) -> List[Achievement]:
+    def check_card_achievements(user_id: int, stats: UserStatistics, commit: bool = True) -> List[Achievement]:
         """Check and award SRS card-review achievements.
 
         Codes must match seed.py: cards_100, cards_500, cards_1000.
@@ -425,8 +440,11 @@ class AchievementService:
                         logger.exception("Failed to send card achievement notification for user %s: %s", user_id, e)
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
@@ -528,6 +546,7 @@ class AchievementService:
         user_id: int,
         score_percentage: Optional[float] = None,
         duration_sec: Optional[int] = None,
+        commit: bool = True,
     ) -> List[Achievement]:
         """Check and award matching-game achievements.
 
@@ -608,8 +627,11 @@ class AchievementService:
                         )
 
         if newly_awarded:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=commit)
 
         return newly_awarded
 
@@ -697,12 +719,23 @@ class AchievementService:
         if has_streak or historical_streak5:
             codes_to_award.add('quiz_streak_5')
 
-        # early_bird / night_owl: time of earliest/latest quiz session
-        now = datetime.now(timezone.utc)
+        # early_bird / night_owl: hour-of-day in the USER's timezone, not the
+        # server's UTC (audit E-066). date_achieved is naive UTC, so interpret
+        # it as UTC then convert to the user's zone before extracting the hour.
+        from app.auth.models import User
+        from app.utils.time_utils import get_user_local_hour
+        user = db.session.get(User, user_id)
+        user_tz = getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
+        local_hour = func.extract(
+            'hour',
+            func.timezone(user_tz, func.timezone('UTC', GameScore.date_achieved)),
+        )
+        local_now_hour = get_user_local_hour(user_id)
+
         early_row = db.session.query(GameScore.date_achieved).filter(
             GameScore.user_id == user_id,
             GameScore.game_type == 'quiz',
-            func.extract('hour', GameScore.date_achieved) < 8,
+            local_hour < 8,
         ).first()
         if early_row:
             codes_to_award.add('early_bird')
@@ -710,15 +743,15 @@ class AchievementService:
         night_row = db.session.query(GameScore.date_achieved).filter(
             GameScore.user_id == user_id,
             GameScore.game_type == 'quiz',
-            func.extract('hour', GameScore.date_achieved) >= 23,
+            local_hour >= 23,
         ).first()
         if night_row:
             codes_to_award.add('night_owl')
 
         # Also check current invocation time for first-quiz context
-        if not early_row and time_taken is not None and now.hour < 8:
+        if not early_row and time_taken is not None and local_now_hour < 8:
             codes_to_award.add('early_bird')
-        if not night_row and time_taken is not None and now.hour >= 23:
+        if not night_row and time_taken is not None and local_now_hour >= 23:
             codes_to_award.add('night_owl')
 
         return AchievementService._award_badges(user_id, codes_to_award)
@@ -787,157 +820,18 @@ class AchievementService:
         return AchievementService._award_badges(user_id, codes_to_award)
 
     @staticmethod
-    def check_mission_achievements(
-        user_id: int,
-        mission_type: str,
-        completion_time: Optional[datetime] = None,
-        duration_minutes: Optional[int] = None,
-        tz: str = DEFAULT_TIMEZONE,
-    ) -> List[Achievement]:
-        """Award daily-plan mission-specific achievements after a plan completion.
-
-        Evaluates:
-        - mission_first: first-ever full plan completion
-        - mission_progress_5 / mission_repair_5 / mission_reading_5:
-          5 completions of the corresponding mission type
-        - mission_week_perfect: 7 consecutive days of plan completions
-        - mission_early_bird: plan completed before 09:00 local time
-        - mission_night_owl: plan completed at or after 22:00 local time
-        - mission_variety_3: all three mission types completed within last 7 days
-        - mission_speed_demon: duration from first to last phase < 30 minutes
-
-        Idempotent: never re-awards an existing badge (UserAchievement unique
-        constraint on user_id + achievement_id is respected).
-        """
-        import pytz
-
-        if completion_time is None:
-            completion_time = datetime.now(timezone.utc)
-        elif completion_time.tzinfo is None:
-            completion_time = completion_time.replace(tzinfo=timezone.utc)
-
-        try:
-            tz_obj = pytz.timezone(tz)
-        except pytz.UnknownTimeZoneError:
-            tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
-
-        local_dt = completion_time.astimezone(tz_obj)
-        today_local = local_dt.date()
-
-        codes_to_award: set[str] = {'mission_first'}
-
-        type_counts = AchievementService._count_mission_completions_by_type(user_id)
-        if type_counts.get('progress', 0) >= 5:
-            codes_to_award.add('mission_progress_5')
-        if type_counts.get('repair', 0) >= 5:
-            codes_to_award.add('mission_repair_5')
-        if type_counts.get('reading', 0) >= 5:
-            codes_to_award.add('mission_reading_5')
-
-        if AchievementService._is_perfect_week(user_id, today_local):
-            codes_to_award.add('mission_week_perfect')
-
-        if local_dt.hour < 9:
-            codes_to_award.add('mission_early_bird')
-        if local_dt.hour >= 22:
-            codes_to_award.add('mission_night_owl')
-
-        recent_types = AchievementService._get_recent_mission_types(
-            user_id, today_local, days=7,
-        )
-        if recent_types >= {'progress', 'repair', 'reading'}:
-            codes_to_award.add('mission_variety_3')
-
-        if duration_minutes is not None and duration_minutes < 30:
-            codes_to_award.add('mission_speed_demon')
-
-        return AchievementService._award_badges(user_id, codes_to_award)
-
-    @staticmethod
-    def _count_mission_completions_by_type(user_id: int) -> Dict[str, int]:
-        """Count completed plans per mission type.
-
-        Joins `plan_completed` StreakEvents to `mission_selected` events by
-        date. Returns a dict like {'progress': 7, 'repair': 3, 'reading': 1}.
-        """
-        from app.achievements.models import StreakEvent
-
-        completed_dates = {
-            e.event_date
-            for e in StreakEvent.query.filter_by(
-                user_id=user_id, event_type='plan_completed',
-            )
-        }
-        if not completed_dates:
-            return {}
-
-        counts: Dict[str, int] = {}
-        selected_events = StreakEvent.query.filter(
-            StreakEvent.user_id == user_id,
-            StreakEvent.event_type == 'mission_selected',
-            StreakEvent.event_date.in_(completed_dates),
-        )
-        for event in selected_events:
-            mt = (event.details or {}).get('mission_type')
-            if mt:
-                counts[mt] = counts.get(mt, 0) + 1
-        return counts
-
-    @staticmethod
-    def _is_perfect_week(user_id: int, today_local: date) -> bool:
-        """Return True if a plan was completed on each of the last 7 days."""
-        from app.achievements.models import StreakEvent
-
-        required_dates = {today_local - timedelta(days=i) for i in range(7)}
-        completed_dates = {
-            e.event_date
-            for e in StreakEvent.query.filter(
-                StreakEvent.user_id == user_id,
-                StreakEvent.event_type == 'plan_completed',
-                StreakEvent.event_date.in_(required_dates),
-            )
-        }
-        return required_dates.issubset(completed_dates)
-
-    @staticmethod
-    def _get_recent_mission_types(
-        user_id: int, today_local: date, days: int = 7,
-    ) -> set[str]:
-        """Return the set of mission types completed in the last `days` days."""
-        from app.achievements.models import StreakEvent
-
-        from_date = today_local - timedelta(days=days - 1)
-
-        completed_dates = {
-            e.event_date
-            for e in StreakEvent.query.filter(
-                StreakEvent.user_id == user_id,
-                StreakEvent.event_type == 'plan_completed',
-                StreakEvent.event_date >= from_date,
-                StreakEvent.event_date <= today_local,
-            )
-        }
-        if not completed_dates:
-            return set()
-
-        types: set[str] = set()
-        for event in StreakEvent.query.filter(
-            StreakEvent.user_id == user_id,
-            StreakEvent.event_type == 'mission_selected',
-            StreakEvent.event_date.in_(completed_dates),
-        ):
-            mt = (event.details or {}).get('mission_type')
-            if mt:
-                types.add(mt)
-        return types
-
-    @staticmethod
     def _award_badges(user_id: int, codes: set[str]) -> List[Achievement]:
         """Award each listed badge if not already owned. Flushes on change."""
         if not codes:
             return []
 
         achievements = Achievement.query.filter(Achievement.code.in_(codes)).all()
+        # Surface seed↔check drift: a code requested here but absent in the DB
+        # means a badge silently never gets awarded (audit E-075). Log it so the
+        # mismatch is diagnosable instead of invisible.
+        missing = codes - {a.code for a in achievements}
+        if missing:
+            logger.warning("achievement codes missing in DB (never granted): %s", sorted(missing))
         if not achievements:
             return []
 
@@ -1043,14 +937,18 @@ class AchievementService:
         """
         stats = StatisticsService.get_or_create_statistics(user_id)
 
-        grade_achievements = AchievementService.check_grade_achievements(user_id, stats)
-        streak_achievements = AchievementService.check_streak_achievements(user_id, stats)
-        lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats)
-        book_achievements = AchievementService.check_book_achievements(user_id, stats)
-        card_achievements = AchievementService.check_card_achievements(user_id, stats)
+        # Sub-checks run flush-only (commit=False) so the whole batch is atomic
+        # under the caller's single commit — no mid-handler partial commits when
+        # invoked from process_lesson_completion (audit E-068). The flush-only
+        # families (level/words/quiz/perfect_*/listening/...) already don't commit.
+        grade_achievements = AchievementService.check_grade_achievements(user_id, stats, commit=False)
+        streak_achievements = AchievementService.check_streak_achievements(user_id, stats, commit=False)
+        lesson_achievements = AchievementService.check_lesson_achievements(user_id, stats, commit=False)
+        book_achievements = AchievementService.check_book_achievements(user_id, stats, commit=False)
+        card_achievements = AchievementService.check_card_achievements(user_id, stats, commit=False)
         level_achievements = AchievementService.check_level_achievements(user_id, stats)
         words_achievements = AchievementService.check_words_learned_achievements(user_id)
-        matching_achievements = AchievementService.check_matching_achievements(user_id)
+        matching_achievements = AchievementService.check_matching_achievements(user_id, commit=False)
         quiz_achievements = AchievementService.check_quiz_achievements(user_id)
         perfect_quiz_achievements = AchievementService.check_perfect_quiz_achievements(user_id)
         perfect_session_achievements = AchievementService.check_perfect_session_achievements(user_id)
@@ -1070,8 +968,11 @@ class AchievementService:
                    + writing_achievements + speaking_achievements
                    + challenge_achievements + weekly_milestone_achievements)
         if all_new:
-            db.session.commit()
-            StatisticsService.update_badge_stats(user_id)
+            # Flush-only — the caller (process_lesson_completion → lesson submit
+            # handler) owns the commit so the achievement grants are atomic with
+            # the rest of the handler's work (audit E-068).
+            db.session.flush()
+            StatisticsService.update_badge_stats(user_id, commit=False)
         return {
             'grade': grade_achievements,
             'streak': streak_achievements,
@@ -1301,39 +1202,41 @@ def check_weekly_milestone_achievements(user_id: int, streak_days: int, db_sessi
     """
     from app.achievements.xp_service import award_xp
 
-    if streak_days not in _WEEKLY_MILESTONE_MAP:
-        return []
+    # Gate by threshold CROSSING, not exact equality (audit E-070): a streak
+    # that jumps over a milestone (repair restoring 6→8, backfill) must still
+    # grant it. grant_achievement is idempotent, so re-checking every crossed
+    # milestone is safe and self-healing.
+    newly: List[Achievement] = []
+    for threshold, (code, bonus_xp) in sorted(_WEEKLY_MILESTONE_MAP.items()):
+        if streak_days < threshold:
+            continue
+        achievement = Achievement.query.filter_by(code=code).first()
+        if achievement is None:
+            continue
+        _, is_new = grant_achievement(user_id, achievement.id)
+        if not is_new:
+            continue
 
-    code, bonus_xp = _WEEKLY_MILESTONE_MAP[streak_days]
-    weeks = streak_days // 7
-
-    achievement = Achievement.query.filter_by(code=code).first()
-    if achievement is None:
-        return []
-
-    _, is_new = grant_achievement(user_id, achievement.id)
-    if not is_new:
-        return []
-
-    award_xp(user_id, bonus_xp, source=f'milestone_{code}')
-
-    try:
-        from app.notifications.services import create_notification
-        create_notification(
-            user_id, 'achievement',
-            title=f'Серия {weeks} {_week_label(weeks)}! +{bonus_xp} XP',
-            message=f'Вы занимаетесь {streak_days} дней подряд!',
-            icon=achievement.icon,
-            link='/study/stats',
-        )
-    except Exception:
-        logger.exception(
-            "Failed to send weekly milestone notification for user %s (streak=%s)",
-            user_id, streak_days,
-        )
+        award_xp(user_id, bonus_xp, source=f'milestone_{code}')
+        weeks = threshold // 7
+        try:
+            from app.notifications.services import create_notification
+            create_notification(
+                user_id, 'achievement',
+                title=f'Серия {weeks} {_week_label(weeks)}! +{bonus_xp} XP',
+                message=f'Вы занимаетесь {streak_days} дней подряд!',
+                icon=achievement.icon,
+                link='/study/stats',
+            )
+        except Exception:
+            logger.exception(
+                "Failed to send weekly milestone notification for user %s (streak=%s)",
+                user_id, streak_days,
+            )
+        newly.append(achievement)
 
     (db_session if db_session is not None else db.session).flush()
-    return [achievement]
+    return newly
 
 
 def check_challenge_achievements(user_id: int, db_session=None) -> List[Achievement]:

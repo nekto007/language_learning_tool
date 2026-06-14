@@ -399,6 +399,9 @@ class UserGrammarExercise(SRSFieldsMixin, db.Model):
     last_reviewed = Column(DateTime, nullable=True)
     first_reviewed = Column(DateTime, nullable=True)  # When exercise was first studied
     buried_until = Column(DateTime, nullable=True)  # Card won't be shown until this timestamp
+    # Progressive leech-bury counter (audit E-017), parity with UserCardDirection
+    # so grammar leech burials escalate 7→14→21 days like word cards.
+    consecutive_leech_burials = Column(Integer, default=0, nullable=False)
 
     # Stats
     correct_count = Column(Integer, default=0, nullable=False)

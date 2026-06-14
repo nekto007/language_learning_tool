@@ -812,3 +812,33 @@ def validate_request_data(schema_class: Schema, data: Dict) -> tuple[bool, Optio
             else:
                 error_messages.append(f"{field}: {errors}")
         return False, "; ".join(error_messages), None
+
+
+def validate_sentence_correction_content(content: Optional[Dict[str, Any]]) -> list:
+    """Validate single-item sentence_correction content integrity.
+
+    For a single-item lesson the selectable ``options`` must include the
+    ``correct_sentence`` (after normalization); otherwise the options UI is
+    structurally unpassable — the correct option never matches the canonical
+    sentence (audit E-092). Multi-item content (``items`` present) is exempt,
+    and content without ``options`` is free-text and exempt too.
+
+    Returns a list of human-readable error strings (empty == valid).
+    """
+    from app.curriculum.grading import _normalize_answer
+
+    errors: list = []
+    if not isinstance(content, dict):
+        return ["content must be a mapping"]
+    if content.get('items'):
+        return errors  # multi-item handled per-item by its own grader
+    options = content.get('options')
+    correct = content.get('correct_sentence')
+    if options and correct is not None:
+        normalized_options = {_normalize_answer(o) for o in options}
+        if _normalize_answer(correct) not in normalized_options:
+            errors.append(
+                "correct_sentence is not among options (after normalization) — "
+                "options UI would be unpassable"
+            )
+    return errors

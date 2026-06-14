@@ -37,9 +37,8 @@ def _grammar_reviewed_today(user_id: int, db: Any) -> bool:
     otherwise a non-UTC user practising near local midnight is either
     missed (review fell into yesterday-UTC) or credited on the wrong day.
     """
-    from app.daily_plan.linear.xp import _get_user_timezone
     from app.grammar_lab.models import UserGrammarExercise
-    from app.utils.time_utils import get_user_local_date
+    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
 
     try:
         from zoneinfo import ZoneInfo
@@ -47,7 +46,7 @@ def _grammar_reviewed_today(user_id: int, db: Any) -> bool:
         from backports.zoneinfo import ZoneInfo  # type: ignore
 
     today = get_user_local_date(user_id, db)
-    tz_name = _get_user_timezone(user_id, db)
+    tz_name = get_user_timezone_name(user_id, db)
     try:
         tz = ZoneInfo(tz_name)
     except Exception:  # noqa: BLE001
