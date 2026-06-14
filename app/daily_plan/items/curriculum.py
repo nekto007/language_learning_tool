@@ -16,9 +16,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import func
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.items import PlanItem
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
@@ -532,6 +531,73 @@ def build_curriculum_item(
     )
 
 
+def _module_accessible_for_user(
+    user_id: int, module: Any, db: Any, min_order: int,
+) -> bool:
+    """Queue-side replica of ``check_module_access`` (``app/curriculum/security.py``).
+
+    The route gate reads the request-scoped ``current_user`` and cannot be
+    called at plan-assembly time, so its full rule set is mirrored here for a
+    given ``user_id``. ``check_prerequisites`` alone (explicit
+    ``Module.prerequisites`` JSON) is **not** sufficient: most modules carry no
+    explicit prereqs and rely entirely on the implicit *previous module ≥80%*
+    rule. Gating on prereqs only would let the queue surface next-module
+    lessons that ``check_module_access`` then 403s on click (dead links).
+    Rules, in route order: explicit prereqs satisfied → has progress in module
+    → first module of its level → previous module ≥80% complete.
+    """
+    from app.curriculum.models import Module
+
+    if module is None:
+        return True
+
+    # 1. Explicit prerequisites (declared in Module.prerequisites JSON) — uses
+    #    the placement floor so a placement-test user isn't gated on below-floor
+    #    prereqs (matches the route and find_next_lesson_linear).
+    if getattr(module, 'prerequisites', None):
+        ok, _reasons = module.check_prerequisites(user_id, min_level_order=min_order)
+        if not ok:
+            return False
+
+    # 2. User already has progress in this module → accessible.
+    has_progress = db.session.query(LessonProgress.id).join(
+        Lessons, LessonProgress.lesson_id == Lessons.id,
+    ).filter(
+        LessonProgress.user_id == user_id,
+        Lessons.module_id == module.id,
+    ).first() is not None
+    if has_progress:
+        return True
+
+    # 3. First module in its level is auto-accessible (forward preview).
+    first_module = Module.query.filter_by(
+        level_id=module.level_id,
+    ).order_by(Module.number).first()
+    if first_module is not None and module.id == first_module.id:
+        return True
+
+    # 4. Previous module (greatest number < this one) must be ≥80% complete.
+    if module.number and module.number > 1:
+        prev_module = Module.query.filter(
+            Module.level_id == module.level_id,
+            Module.number < module.number,
+        ).order_by(Module.number.desc()).first()
+        if prev_module is not None:
+            total_lessons = Lessons.query.filter_by(
+                module_id=prev_module.id,
+            ).count()
+            if total_lessons > 0:
+                completed_count = LessonProgress.query.filter_by(
+                    user_id=user_id, status='completed',
+                ).join(Lessons).filter(
+                    Lessons.module_id == prev_module.id,
+                ).count()
+                if (completed_count / total_lessons * 100) >= 80:
+                    return True
+
+    return False
+
+
 def build_curriculum_queue(
     user_id: int,
     db: Any,
@@ -618,12 +684,9 @@ def build_curriculum_queue(
 
             accessible = module_access.get(module_id)
             if accessible is None:
-                accessible = True
-                if module is not None:
-                    ok, _reasons = module.check_prerequisites(
-                        user_id, min_level_order=min_order,
-                    )
-                    accessible = bool(ok)
+                accessible = _module_accessible_for_user(
+                    user_id, module, db, min_order,
+                )
                 module_access[module_id] = accessible
             if not accessible:
                 if level_id is not None:

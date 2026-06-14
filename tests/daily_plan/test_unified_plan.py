@@ -990,13 +990,57 @@ class TestBuildCurriculumQueue:
         assert anchor.id not in {it.data['lesson_id'] for it in items}
 
     def test_queue_crosses_module_and_level_boundary(self, db_session):
-        """Queue spans module / level boundaries like the spine itself."""
+        """Queue spans module / level boundaries like the spine itself.
+
+        Crossing into a *same-level* next module requires the previous module
+        to be ≥80% complete (the route's ``check_module_access`` rule), so m1
+        is seeded near-complete (4 done + the pending anchor = 4/5 = 80%);
+        m3 lives in the next level whose first module is always
+        auto-accessible.
+        """
         from app.daily_plan.items.curriculum import build_curriculum_queue
 
         level1 = _make_level(db_session, order=32)
         level2 = _make_level(db_session, order=33)
         m1 = _make_module(db_session, level1, number=1)
         m2 = _make_module(db_session, level1, number=2)
+        m3 = _make_module(db_session, level2, number=1)
+        user = _make_user(db_session, onboarding_level=level1.code)
+        # Seed m1 to 80% complete so m2 (same level) is route-accessible.
+        for n in range(1, 5):
+            _complete_lesson(
+                db_session, user,
+                _make_lesson(db_session, m1, number=n, type_='vocabulary'),
+            )
+        anchor = _make_lesson(db_session, m1, number=5, type_='vocabulary')
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert ids == [l_m2.id, l_m3.id], (
+            'Queue must cross module and level boundaries in spine order'
+        )
+
+    def test_queue_excludes_next_module_gated_by_implicit_80pct(self, db_session):
+        """A same-level next module with NO explicit prereqs is still gated.
+
+        Most modules carry no ``Module.prerequisites`` and rely entirely on the
+        route's implicit *previous module ≥80%* rule. While the anchor module
+        (m1) is mid-progress (<80%), m2's lessons would 403 on click, so they
+        must not dangle in the queue even though ``check_prerequisites`` returns
+        accessible for a prereq-less module. A later level's first module stays
+        eligible (auto-accessible forward preview).
+        """
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=48)
+        level2 = _make_level(db_session, order=49)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)  # no explicit prereqs
         m3 = _make_module(db_session, level2, number=1)
         anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
         l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
@@ -1008,8 +1052,11 @@ class TestBuildCurriculumQueue:
         )
 
         ids = [it.data['lesson_id'] for it in items]
-        assert ids == [l_m2.id, l_m3.id], (
-            'Queue must cross module and level boundaries in spine order'
+        assert l_m2.id not in ids, (
+            'Next same-level module (prev <80%) must not surface a dead link'
+        )
+        assert ids == [l_m3.id], (
+            "Only the next level's auto-accessible first module should preview"
         )
 
     def test_queue_excludes_blocked_module_lessons(self, db_session):
