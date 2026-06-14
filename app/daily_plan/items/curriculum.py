@@ -559,6 +559,15 @@ def build_curriculum_queue(
     dangle in the list). The prerequisite decision is resolved once per
     ``module_id`` and cached.
 
+    Filtering mirrors the route's ``check_module_access`` gate, not just the
+    explicit ``check_prerequisites`` data: once a module within a level is
+    hard-blocked, **every later module in that same level is dropped too**.
+    The route gates a non-first module on the *previous* module reaching 80%
+    completion; a hard-blocked module can never reach 80%, so its same-level
+    successors are transitively unreachable and would 403 if shown. Scanning
+    resumes on the next CEFR level, whose first module is auto-accessible
+    (legitimate forward preview under the template's sequential unlock).
+
     ``exclude_lesson_ids`` skips lessons already represented elsewhere in the
     plan (e.g. the required anchor or completed-today cards).
     """
@@ -566,58 +575,91 @@ def build_curriculum_queue(
         return []
 
     excluded: set[int] = set(exclude_lesson_ids or ())
-    # Over-fetch so prerequisite/exclude filtering can still yield up to
-    # ``limit`` visible lessons even when some upcoming lessons are blocked.
-    upcoming = get_spine_upcoming(user_id, anchor_lesson, db, limit=limit * 3)
-    if not upcoming:
-        return []
-
     min_order = _user_min_level_order(user_id, db)
     module_access: dict[int, bool] = {}
+    # CEFR level whose remaining modules are dropped after a hard block.
+    # Cleared when the spine (monotonic by level order) advances to a new
+    # level — see docstring.
+    blocked_level_id: Optional[int] = None
     items: list[PlanItem] = []
-    for lesson in upcoming:
-        if lesson.id in excluded or lesson.id == anchor_lesson.id:
-            continue
-        module_id = lesson.module_id
-        module = lesson.module
-        accessible = module_access.get(module_id)
-        if accessible is None:
-            accessible = True
-            if module is not None:
-                ok, _reasons = module.check_prerequisites(
-                    user_id, min_level_order=min_order,
-                )
-                accessible = bool(ok)
-            module_access[module_id] = accessible
-        if not accessible:
-            continue
 
-        level = module.level if module is not None else None
-        items.append(
-            PlanItem(
-                id=f'curriculum:lesson:{lesson.id}',
-                section='optional',
-                kind='curriculum',
-                title=lesson.title,
-                subtitle=_lesson_subtitle(lesson),
-                lesson_type=lesson.type,
-                eta_minutes=_eta_minutes(lesson.type),
-                url=_lesson_url(lesson),
-                completed=False,
-                completion_signal='lesson_completed',
-                data={
-                    'lesson_id': lesson.id,
-                    'lesson_number': lesson.number,
-                    'module_id': lesson.module_id,
-                    'module_number': module.number if module is not None else None,
-                    'module_title': module.title if module is not None else None,
-                    'level_code': level.code if level is not None else None,
-                    'queue_position': len(items) + 1,
-                },
-            )
-        )
-        if len(items) >= limit:
+    # Page through the spine rather than fetching a single fixed window. A
+    # hard-blocked module drops *every* later module in its level (see
+    # docstring), so on a large CEFR level the rejected lessons can exceed any
+    # static over-fetch and starve the queue before it reaches the next level's
+    # accessible first module. We keep pulling batches (advancing the cursor to
+    # the last lesson seen) until ``limit`` lessons are accepted or the spine is
+    # exhausted (a short batch means no more lessons exist).
+    cursor: Lessons = anchor_lesson
+    batch_size = max(limit * 3, 30)
+    # Defensive bound on iterations — the cursor advances monotonically over a
+    # finite spine, so this only guards against a pathological non-advancing
+    # batch (e.g. a duplicate-id data anomaly), never normal operation.
+    max_batches = 50
+    for _ in range(max_batches):
+        upcoming = get_spine_upcoming(user_id, cursor, db, limit=batch_size)
+        if not upcoming:
             break
+
+        for lesson in upcoming:
+            if lesson.id in excluded or lesson.id == anchor_lesson.id:
+                continue
+            module_id = lesson.module_id
+            module = lesson.module
+            level = module.level if module is not None else None
+            level_id = level.id if level is not None else None
+
+            if blocked_level_id is not None:
+                if level_id == blocked_level_id:
+                    # Same level as hard-blocked module → transitively gated.
+                    continue
+                # Spine advanced to a later level; the block no longer applies.
+                blocked_level_id = None
+
+            accessible = module_access.get(module_id)
+            if accessible is None:
+                accessible = True
+                if module is not None:
+                    ok, _reasons = module.check_prerequisites(
+                        user_id, min_level_order=min_order,
+                    )
+                    accessible = bool(ok)
+                module_access[module_id] = accessible
+            if not accessible:
+                if level_id is not None:
+                    blocked_level_id = level_id
+                continue
+
+            items.append(
+                PlanItem(
+                    id=f'curriculum:lesson:{lesson.id}',
+                    section='optional',
+                    kind='curriculum',
+                    title=lesson.title,
+                    subtitle=_lesson_subtitle(lesson),
+                    lesson_type=lesson.type,
+                    eta_minutes=_eta_minutes(lesson.type),
+                    url=_lesson_url(lesson),
+                    completed=False,
+                    completion_signal='lesson_completed',
+                    data={
+                        'lesson_id': lesson.id,
+                        'lesson_number': lesson.number,
+                        'module_id': lesson.module_id,
+                        'module_number': module.number if module is not None else None,
+                        'module_title': module.title if module is not None else None,
+                        'level_code': level.code if level is not None else None,
+                        'queue_position': len(items) + 1,
+                    },
+                )
+            )
+            if len(items) >= limit:
+                return items
+
+        if len(upcoming) < batch_size:
+            # Short batch → spine exhausted, no further lessons to page in.
+            break
+        cursor = upcoming[-1]
 
     return items
 

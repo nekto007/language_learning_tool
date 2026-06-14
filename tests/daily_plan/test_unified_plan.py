@@ -1013,7 +1013,14 @@ class TestBuildCurriculumQueue:
         )
 
     def test_queue_excludes_blocked_module_lessons(self, db_session):
-        """Lessons in a module whose prerequisites are unmet are filtered out."""
+        """A hard-blocked module drops the rest of its level from the queue.
+
+        The route's ``check_module_access`` gates a non-first module on the
+        *previous* module reaching 80% completion. A hard-blocked module can
+        never reach 80%, so its same-level successor (``m3`` here) is
+        transitively unreachable and would 403 if previewed — it must not
+        dangle in the queue even though it carries no explicit prerequisites.
+        """
         from app.daily_plan.items.curriculum import build_curriculum_queue
 
         level = _make_level(db_session, order=34)
@@ -1034,7 +1041,82 @@ class TestBuildCurriculumQueue:
 
         ids = {it.data['lesson_id'] for it in items}
         assert l_m2.id not in ids, 'Blocked-module lesson must not appear in queue'
-        assert l_m3.id in ids, 'Accessible later-module lesson should still appear'
+        assert l_m3.id not in ids, (
+            'Same-level module after a hard block is transitively gated by the '
+            "route's previous-module 80% rule and must not dangle in the queue"
+        )
+
+    def test_queue_resumes_on_new_level_after_block(self, db_session):
+        """A hard block stops the current level but not a later level's first module."""
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=37)
+        level2 = _make_level(db_session, order=38)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)
+        m3 = _make_module(db_session, level1, number=3)
+        n1 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        # m2 hard-blocked → m2 and same-level m3 are dropped, but level2's
+        # first module is auto-accessible and should still preview.
+        m2.prerequisites = [{'type': 'module', 'id': m1.id}]
+        l_m2 = _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        l_m3 = _make_lesson(db_session, m3, number=1, type_='vocabulary')
+        l_n1 = _make_lesson(db_session, n1, number=1, type_='vocabulary')
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=10,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert l_m2.id not in ids
+        assert l_m3.id not in ids
+        assert ids == [l_n1.id], (
+            'Queue should resume at the next level’s first module after a block'
+        )
+
+    def test_queue_pages_past_large_blocked_level(self, db_session):
+        """A blocked level larger than one fetch window still resumes next level.
+
+        The same-level hard-block fix drops every later module of a blocked
+        level. On a realistic CEFR level (dozens of lessons) those rejected
+        lessons exceed any single over-fetch window, so the builder must *page*
+        the spine — not fetch once — or it returns an empty queue and a false
+        ``has_more_optional`` even though the next level's first module is
+        eligible. The dropped block here spans more lessons than the internal
+        batch size, exercising the multi-batch path.
+        """
+        from app.daily_plan.items.curriculum import build_curriculum_queue
+
+        level1 = _make_level(db_session, order=41)
+        level2 = _make_level(db_session, order=42)
+        m1 = _make_module(db_session, level1, number=1)
+        m2 = _make_module(db_session, level1, number=2)
+        m3 = _make_module(db_session, level1, number=3)
+        n1 = _make_module(db_session, level2, number=1)
+        anchor = _make_lesson(db_session, m1, number=1, type_='vocabulary')
+        # m2 hard-blocked → m2 and same-level m3 are dropped. m3 alone carries
+        # more lessons than a single fetch batch, so a one-shot over-fetch
+        # would never reach level2.
+        m2.prerequisites = [{'type': 'module', 'id': m1.id}]
+        _make_lesson(db_session, m2, number=1, type_='vocabulary')
+        for n in range(1, 41):  # 40 dropped same-level lessons (> batch size)
+            _make_lesson(db_session, m3, number=n, type_='vocabulary')
+        l_n1 = _make_lesson(db_session, n1, number=1, type_='vocabulary')
+        db_session.commit()
+        user = _make_user(db_session, onboarding_level=level1.code)
+
+        items = build_curriculum_queue(
+            user.id, real_db, anchor_lesson=anchor, limit=2,
+        )
+
+        ids = [it.data['lesson_id'] for it in items]
+        assert ids == [l_n1.id], (
+            'Queue must page past a large blocked level and resume at the next '
+            "level's first module instead of starving on the dropped window"
+        )
 
     def test_queue_respects_exclude_lesson_ids(self, db_session):
         """exclude_lesson_ids removes specific lessons from the queue."""
@@ -1246,6 +1328,104 @@ class TestOptionalContinuationQueue:
 
         optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
         assert optional_curriculum == []
+
+    def test_queue_suppressed_when_curriculum_skipped(self, db_session):
+        """Skipping the required curriculum lesson suppresses the queue.
+
+        The template unlocks optional via ``u_required_settled`` (a skip
+        counts as settled), but every queue lesson is route-gated on the
+        previous lesson being completed (``check_lesson_access``). A skipped
+        anchor is never completed, so the first queue lesson would 403 — the
+        queue must not surface those dead links.
+        """
+        from datetime import date
+
+        from app.daily_plan.models import DailyPlanEvent
+        from app.utils.time_utils import get_user_local_date
+
+        level = _make_level(db_session, order=46)
+        module = _make_module(db_session, level)
+        l1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        _make_lesson(db_session, module, number=2, type_='vocabulary')
+        _make_lesson(db_session, module, number=3, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        # Sanity: without a skip the queue is present.
+        plan_before = get_daily_plan(user.id, real_db)
+        assert [it for it in plan_before['optional'] if it['kind'] == 'curriculum']
+
+        # Skip the required curriculum slot for today.
+        today = get_user_local_date(user.id, real_db)
+        db_session.add(DailyPlanEvent(
+            user_id=user.id,
+            event_type='slot_skipped',
+            plan_date=today,
+            step_kind='curriculum',
+        ))
+        db_session.commit()
+
+        plan = get_daily_plan(user.id, real_db)
+
+        # The required curriculum anchor is still L1, now marked skipped.
+        required_curriculum = [it for it in plan['required'] if it['kind'] == 'curriculum']
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == l1.id
+        assert required_curriculum[0].get('skipped') is True
+
+        # No curriculum continuation queue while the anchor is skipped.
+        optional_curriculum = [it for it in plan['optional'] if it['kind'] == 'curriculum']
+        assert optional_curriculum == []
+
+    def test_queue_reappears_when_skipped_lesson_later_completed(self, db_session):
+        """Completing the skipped lesson re-opens the queue (same day).
+
+        Suppression keys on the required curriculum item still being
+        incomplete, not on the raw skip event. Once the user returns via the
+        «Вернуться» CTA and completes the skipped lesson, the required anchor
+        flips to the done-today card (``completed=True``) and the next spine
+        lesson is route-open — so the continuation queue must reappear even
+        though the day's slot_skipped event still exists.
+        """
+        from app.daily_plan.models import DailyPlanEvent
+        from app.utils.time_utils import get_user_local_date
+
+        level = _make_level(db_session, order=47)
+        module = _make_module(db_session, level)
+        l1 = _make_lesson(db_session, module, number=1, type_='vocabulary')
+        l2 = _make_lesson(db_session, module, number=2, type_='vocabulary')
+        _make_lesson(db_session, module, number=3, type_='vocabulary')
+        user = _make_user(db_session, onboarding_level=level.code)
+
+        # Skip the required curriculum slot for today.
+        today = get_user_local_date(user.id, real_db)
+        db_session.add(DailyPlanEvent(
+            user_id=user.id,
+            event_type='slot_skipped',
+            plan_date=today,
+            step_kind='curriculum',
+        ))
+        db_session.commit()
+
+        # Queue suppressed while skipped + incomplete.
+        plan_skipped = get_daily_plan(user.id, real_db)
+        assert [it for it in plan_skipped['optional'] if it['kind'] == 'curriculum'] == []
+
+        # User returns and completes the previously-skipped lesson today; the
+        # slot_skipped event is left in place.
+        _complete_lesson(db_session, user, l1)
+
+        plan_after = get_daily_plan(user.id, real_db)
+
+        # Required curriculum now shows L1 as the done-today anchor.
+        required_curriculum = [it for it in plan_after['required'] if it['kind'] == 'curriculum']
+        assert len(required_curriculum) == 1
+        assert required_curriculum[0]['data']['lesson_id'] == l1.id
+        assert required_curriculum[0].get('completed') is True
+
+        # The continuation queue reappears, anchored after L1 → next is L2.
+        optional_curriculum = [it for it in plan_after['optional'] if it['kind'] == 'curriculum']
+        assert optional_curriculum, 'Queue must reappear once the lesson is completed'
+        assert optional_curriculum[0]['data']['lesson_id'] == l2.id
 
 
 # ── SRS deck-quiz placement vs card lesson (finding #13) ─────────────────────

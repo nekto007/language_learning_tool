@@ -293,9 +293,11 @@ def build_optional(
     # Extract the required curriculum lesson id so the optional builder skips
     # it and offers the NEXT lesson on the spine instead.
     required_curriculum_lesson_id: Optional[int] = None
+    required_curriculum_completed = False
     for it in required_items:
         if it.kind == 'curriculum':
             required_curriculum_lesson_id = _item_lesson_id(it)
+            required_curriculum_completed = bool(it.completed)
             break
     exclude_curriculum_ids: Optional[set[int]] = (
         {required_curriculum_lesson_id} if required_curriculum_lesson_id is not None else None
@@ -346,8 +348,28 @@ def build_optional(
     # hints). Graduated users have no curriculum anchor — they skip the queue.
     # Over-fetch one extra lesson so we can tell the dashboard there is more
     # spine beyond the displayed cap (``queue_truncated`` → has_more).
+    #
+    # Suppress the queue entirely when the required curriculum lesson was
+    # *skipped* today AND is still incomplete. The queue is a "continue the
+    # course" preview whose lessons unlock in lockstep with completing the
+    # anchor: every entry sits behind ``check_lesson_access`` (previous lesson
+    # in the module must be completed). A skipped, still-incomplete anchor is
+    # never completed, so the template unlocks optional via ``u_required_settled``
+    # (skip counts as settled) while the route still 403s the first queue lesson
+    # — leaving the user a dead link. But once the user returns via the
+    # «Вернуться» CTA and *completes* the skipped lesson, the required item flips
+    # to the done-today anchor (``completed=True``); the next spine lesson is now
+    # route-open, so the queue must reappear — keying suppression on the raw skip
+    # event alone would hide it for the rest of the day. The other optional
+    # sources (SRS, reading, …) stay regardless; they have no such ordering
+    # dependency.
+    curriculum_skipped = (
+        required_curriculum_lesson_id is not None
+        and not required_curriculum_completed
+        and 'curriculum' in _get_unified_skipped_kinds(user_id, db)
+    )
     queue_truncated = False
-    if required_curriculum_lesson_id is not None:
+    if required_curriculum_lesson_id is not None and not curriculum_skipped:
         from app.curriculum.models import Lessons
 
         anchor_lesson = db.session.get(Lessons, required_curriculum_lesson_id)
