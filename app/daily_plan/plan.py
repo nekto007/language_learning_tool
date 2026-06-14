@@ -36,11 +36,6 @@ from app.daily_plan.items.setup import (
     build_setup_book_item,
     build_setup_level_item,
 )
-from app.daily_plan.items.skills import (
-    build_listening_item,
-    build_speaking_item,
-    build_writing_item,
-)
 from app.daily_plan.items.srs import build_srs_item
 
 logger = logging.getLogger(__name__)
@@ -125,13 +120,12 @@ def _annotate_unified_skip_quota(
 # Priority order for building the non-curriculum optional sources. The
 # curriculum continuation queue is built separately (``build_curriculum_queue``)
 # and rendered BEFORE these. Items already present in required (matched by
-# ``id``) are skipped to avoid duplication.
+# ``id``) are skipped to avoid duplication. Skill kinds were removed: their
+# slot builders are gone (see app/daily_plan/items/skills.py) and skill
+# practice surfaces naturally through curriculum lessons.
 _OPTIONAL_PRIORITY = (
     'srs',
     'reading',
-    'listening',
-    'speaking',
-    'writing',
     'error_review',
     'grammar_review',
     'challenge',
@@ -223,10 +217,13 @@ def build_required(
         if reading_item is not None:
             items.append(reading_item)
 
-    if difficulty != 'light':
-        listening_item = build_listening_item(user_id, db, section='required')
-        if listening_item is not None:
-            items.append(listening_item)
+    # Skill slots (listening/speaking/writing) are intentionally NOT added
+    # here. The legacy builders piggybacked on the curriculum slot when the
+    # spine's next lesson was itself a skill type (e.g. audio_fill_blank
+    # closed BOTH the curriculum slot AND the listening slot), inflating
+    # required from 3 real actions to 4 and double-paying XP. The v2
+    # snapshot path drops skill slots entirely; this legacy branch follows
+    # the same rule so v1 fallback also benefits when the flag is off.
 
     # Difficulty caps for required. Always preserve the curriculum item: it
     # gates curriculum-dependent skills, so truncating it out would let the day
@@ -426,12 +423,6 @@ def _build_optional_candidate(
             user_id, db, section='optional',
             focus=focus,
         )
-    if kind == 'listening':
-        return build_listening_item(user_id, db, section='optional')
-    if kind == 'speaking':
-        return build_speaking_item(user_id, db, section='optional')
-    if kind == 'writing':
-        return build_writing_item(user_id, db, section='optional')
     if kind == 'error_review':
         section = determine_section(user_id, db)
         if section != 'optional':
@@ -502,7 +493,27 @@ def get_daily_plan(
     # Force optional to include SRS/reading/grammar_review even if daily caps reached.
     graduated = next_lesson is None and has_completed_history(user_id, session)
 
-    required = build_required(user_id, session, difficulty=difficulty, focus=focus, graduated=graduated)
+    # v2 = static snapshot composed at 00:00 user-local + live completion overlay.
+    # Default OFF (legacy live-rebuild via build_required). Graduated users skip
+    # v2 because their required=[] by design and the snapshot resolver would
+    # write an empty snapshot every day.
+    from app.daily_plan.snapshot import is_snapshot_v2_enabled
+    use_v2 = not graduated and is_snapshot_v2_enabled(session)
+
+    if use_v2:
+        from app.daily_plan.snapshot import overlay_completion, resolve_snapshot_for_today
+        from app.utils.time_utils import get_user_local_date
+
+        today_local = get_user_local_date(user_id, session)
+        snapshot = resolve_snapshot_for_today(user_id, today_local, session)
+        required_dicts_v2 = overlay_completion(user_id, snapshot, session)
+        # Hydrate PlanItem objects for build_optional (it reads .id/.kind/.data/.completed).
+        required = [PlanItem(**d) for d in required_dicts_v2]
+    else:
+        required = build_required(
+            user_id, session, difficulty=difficulty, focus=focus, graduated=graduated,
+        )
+
     optional, has_more_optional = build_optional(
         user_id, session, required_items=required, focus=focus, graduated=graduated,
     )
@@ -524,29 +535,36 @@ def get_daily_plan(
             user_id, [it.kind for it in setup],
         )
 
-    required_dicts = [it.to_dict() for it in required]
     optional_dicts = [it.to_dict() for it in optional]
 
-    # Pin the required composition to the day's snapshot so the plan the user
-    # saw in the morning is the plan they close in the evening. Fresh items
-    # whose kind appeared mid-day get demoted to optional instead of growing
-    # required. Graduated users have required=[] by design — nothing to pin.
-    if not graduated:
-        from app.daily_plan.snapshot import reconcile_required_with_snapshot
+    if use_v2:
+        # required_dicts_v2 already carries live ``completed`` flags from
+        # ``overlay_completion``; the snapshot is the canonical composition,
+        # nothing to reconcile against.
+        required_dicts = required_dicts_v2
+    else:
+        required_dicts = [it.to_dict() for it in required]
+        # Pin the required composition to the day's snapshot so the plan the
+        # user saw in the morning is the plan they close in the evening. Fresh
+        # items whose kind appeared mid-day get demoted to optional instead of
+        # growing required. Graduated users have required=[] by design —
+        # nothing to pin.
+        if not graduated:
+            from app.daily_plan.snapshot import reconcile_required_with_snapshot
 
-        required_dicts, demoted = reconcile_required_with_snapshot(
-            user_id, required_dicts, session,
-        )
-        if demoted:
-            optional_ids = {it.get('id') for it in optional_dicts}
-            for item in demoted:
-                if item.get('id') in optional_ids:
-                    continue
-                item['section'] = 'optional'
-                optional_dicts.insert(0, item)
-            if len(optional_dicts) > OPTIONAL_MAX:
-                optional_dicts = optional_dicts[:OPTIONAL_MAX]
-                has_more_optional = True
+            required_dicts, demoted = reconcile_required_with_snapshot(
+                user_id, required_dicts, session,
+            )
+            if demoted:
+                optional_ids = {it.get('id') for it in optional_dicts}
+                for item in demoted:
+                    if item.get('id') in optional_ids:
+                        continue
+                    item['section'] = 'optional'
+                    optional_dicts.insert(0, item)
+                if len(optional_dicts) > OPTIONAL_MAX:
+                    optional_dicts = optional_dicts[:OPTIONAL_MAX]
+                    has_more_optional = True
 
     # ETA from the reconciled list — carried/completed slots cost 0 minutes.
     total_estimated_minutes = sum(

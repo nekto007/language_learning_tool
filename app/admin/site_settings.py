@@ -19,6 +19,11 @@ SETTING_DEFAULTS: dict[str, str] = {
     # Feature flags
     'daily_race_enabled': 'true',
     'streak_shield_enabled': 'true',
+    # Static daily-plan snapshot v2 (kill switch). OFF by default; flip ON
+    # after smoke testing on prod. When ON: required is built from a
+    # day-frozen snapshot, listening/speaking/writing slots vanish, and
+    # roll-over preserves yesterday's plan on zero-activity days.
+    'daily_plan_snapshot_v2': 'false',
     # SEO defaults
     # site_title intentionally empty — templates fall back to their built-in
     # default copy when no admin has configured a value yet (prevents a silent
@@ -77,6 +82,15 @@ SETTING_META: dict[str, dict[str, str]] = {
     'streak_shield_enabled': {
         'type': 'bool',
         'description': 'Включает защиту streak: пропущенный день не сбрасывает серию, если щит активен.',
+    },
+    'daily_plan_snapshot_v2': {
+        'type': 'bool',
+        'description': (
+            'Статичный план дня v2: required-секция фиксируется снимком в 00:00 '
+            'локального времени ученика, listening/speaking/writing-слоты убраны '
+            'из обязательной части, при нулевой активности вчера сегодняшний '
+            'план = вчерашнему. OFF = legacy live-rebuild с lecture-slot bug.'
+        ),
     },
     'site_title': {
         'type': 'str',

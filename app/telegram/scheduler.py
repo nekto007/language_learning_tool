@@ -137,6 +137,19 @@ def init_scheduler(app) -> None:
         id='telegram_channel_queue_refill',
         replace_existing=True,
     )
+    # Static daily-plan snapshot generation. Runs hourly and picks up the
+    # subset of users whose user-local time is currently 00:00. Idempotent
+    # via uq_daily_plan_log_user_date — if the lazy path already created
+    # today's snapshot from a 00:01 GET, the cron job becomes a no-op.
+    _scheduler.add_job(
+        _generate_daily_plans_hourly,
+        'cron',
+        minute=5,
+        args=[app],
+        id='daily_plan_generation',
+        max_instances=1,
+        replace_existing=True,
+    )
     _scheduler.start()
     logger.info('Telegram scheduler started (pid=%s)', os.getpid())
 
@@ -337,3 +350,68 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
                             name, old_streak, cost, coins.balance, site_url,
                         )
                         _guarded_send('tgn_repair', chat_id, text, reply_markup=reply_markup)
+
+
+def _generate_daily_plans_hourly(app) -> None:
+    """Build today's v2 daily-plan snapshot for users whose local hour is 00.
+
+    Runs hourly. For each active user, converts ``now_utc`` to the user's
+    timezone and only proceeds when the local hour is 0 (the post-midnight
+    window). Skips paused-plan users — their snapshot is generated when the
+    pause lifts. Idempotent via the unique ``(user_id, plan_date)`` row in
+    ``daily_plan_log``: if the lazy path already wrote today's snapshot from
+    a fresh GET, the resolver returns the existing row without rewriting.
+
+    Per-user commit + rollback isolates failures (matches ``_hourly_check``).
+    No-op when the v2 feature flag is OFF.
+    """
+    with app.app_context():
+        from app.auth.models import User
+        from app.daily_plan.snapshot import (
+            is_snapshot_v2_enabled,
+            resolve_snapshot_for_today,
+        )
+        from app.utils.db import db
+        from app.utils.time_utils import get_user_local_date
+
+        if not is_snapshot_v2_enabled(db):
+            logger.debug('daily_plan_generation: v2 flag OFF, skipping')
+            return
+
+        now_utc = datetime.now(timezone.utc)
+        users = User.query.filter(User.active.is_(True)).all()
+        generated = 0
+        skipped = 0
+        errors = 0
+
+        for user in users:
+            try:
+                tz = pytz.timezone(user.timezone or DEFAULT_TIMEZONE)
+            except pytz.UnknownTimeZoneError:
+                tz = pytz.timezone(DEFAULT_TIMEZONE)
+
+            local_dt = now_utc.astimezone(tz)
+            if local_dt.hour != 0:
+                continue
+
+            today_local = local_dt.date()
+            if user.plan_paused_until and user.plan_paused_until > today_local:
+                skipped += 1
+                continue
+
+            try:
+                resolve_snapshot_for_today(user.id, today_local, db)
+                db.session.commit()
+                generated += 1
+            except Exception:
+                db.session.rollback()
+                errors += 1
+                logger.exception(
+                    'daily_plan_generation failed for user %s', user.id,
+                )
+
+        if generated or errors or skipped:
+            logger.info(
+                'daily_plan_generation hour=%d users_generated=%d skipped=%d errors=%d',
+                now_utc.hour, generated, skipped, errors,
+            )
