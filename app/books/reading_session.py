@@ -35,7 +35,31 @@ MIN_READING_SECONDS = 300
 # Aggregated across all of today's sessions on the same chapter — so
 # pause/resume cycles (which split a long read into many short sessions) are
 # summed honestly.
+#
+# 5/10 alternation: odd days of the month → 5 minutes, even → 10 minutes
+# (see ``get_daily_reading_target_seconds``). The legacy constant remains
+# at the lower bound for backward compat with code paths that haven't
+# migrated to the function yet, and as the minimum credible engagement
+# session length.
 DAILY_READING_TARGET_SECONDS = 300
+DAILY_READING_TARGET_SECONDS_LONG = 600
+
+
+def get_daily_reading_target_seconds(today: 'date | None' = None) -> int:
+    """Return today's reading target, alternating 300/600 by day-of-month.
+
+    Odd days (1, 3, 5, …) → 300 seconds (5 min).
+    Even days (2, 4, 6, …) → 600 seconds (10 min).
+
+    ``today`` defaults to today in UTC; callers that care about
+    user-local day should pass the user-local date so the target rolls
+    over with the user's local midnight (matches snapshot v2 / streak /
+    book-reading aggregation, all of which key on local date).
+    """
+    from datetime import date as _date
+    if today is None:
+        today = _date.today()
+    return DAILY_READING_TARGET_SECONDS if today.day % 2 == 1 else DAILY_READING_TARGET_SECONDS_LONG
 # Per-chapter offset-advance gate for the daily reading target. Set to 0 so
 # the slot completes on time alone: idle-pause (60s no activity → no time
 # accrued) + 60s heartbeat + ``OPEN_SESSION_GRACE_SECONDS`` cap already
@@ -493,8 +517,12 @@ def compute_chapter_daily_target_state(
         and earliest_start < CHAPTER_COMPLETION_THRESHOLD
         and current_offset >= CHAPTER_COMPLETION_THRESHOLD
     )
+    from app.utils.time_utils import get_user_local_date
+
+    today_local = get_user_local_date(user_id, db_session)
+    target_seconds = get_daily_reading_target_seconds(today_local)
     daily_target_met = (
-        active_seconds >= DAILY_READING_TARGET_SECONDS
+        active_seconds >= target_seconds
         and offset_advance >= DAILY_CHAPTER_ADVANCE_MIN
     )
     return {
@@ -512,7 +540,7 @@ def is_daily_reading_target_met_today(
     book_id: int,
     db_session: Any = db,
 ) -> bool:
-    """Return True iff the user spent ``DAILY_READING_TARGET_SECONDS`` total
+    """Return True iff the user spent the day's reading-target seconds
     reading any chapter of ``book_id`` today. Used by the unified daily
     plan reading slot to decide completion.
 
@@ -520,11 +548,18 @@ def is_daily_reading_target_met_today(
     chapter of the book), not per-chapter: when the user advances to the
     next chapter mid-read, the accumulated time would otherwise split
     between two chapters and never reach the per-chapter target despite
-    a qualifying book-level total. Matches the slot's "Прочитано N сек /
-    300 сек" progress bar (also book-level) and ``has_min_reading_time_today``
-    (which gates the XP award). Open sessions count up to one heartbeat
-    window so a sendBeacon close that hasn't committed yet does not flip
-    the slot back to incomplete.
+    a qualifying book-level total. Matches the slot's progress bar (also
+    book-level) and ``has_min_reading_time_today`` (which gates the XP
+    award). Open sessions count up to one heartbeat window so a
+    sendBeacon close that hasn't committed yet does not flip the slot
+    back to incomplete.
+
+    Target alternates 5↔10 minutes by day-of-month parity (see
+    ``get_daily_reading_target_seconds``).
     """
+    from app.utils.time_utils import get_user_local_date
+
+    today_local = get_user_local_date(user_id, db_session)
+    target_seconds = get_daily_reading_target_seconds(today_local)
     total_seconds = get_book_reading_seconds_today(user_id, book_id, db_session)
-    return total_seconds >= DAILY_READING_TARGET_SECONDS
+    return total_seconds >= target_seconds

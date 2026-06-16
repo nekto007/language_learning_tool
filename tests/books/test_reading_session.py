@@ -1,16 +1,16 @@
 """Tests for the reading-slot time gate (Task 11)."""
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from app.achievements.models import StreakEvent
 from app.books.reading_session import (
     DAILY_CHAPTER_ADVANCE_MIN,
-    DAILY_READING_TARGET_SECONDS,
     MIN_READING_SECONDS,
     UserReadingSession,
     compute_chapter_daily_target_state,
     end_session,
+    get_daily_reading_target_seconds,
     get_session_duration,
     has_min_reading_time_today,
     is_daily_reading_target_met_today,
@@ -19,6 +19,12 @@ from app.books.reading_session import (
 from app.daily_plan.linear.models import UserReadingPreference
 from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
 from app.utils.db import db
+
+
+# Today's reading target accounts for the 5/10-min day-of-month alternation
+# (odd days = 300s, even = 600s). Tests should use this so they remain green
+# regardless of which day they run.
+DAILY_READING_TARGET_SECONDS = get_daily_reading_target_seconds(date.today())
 
 
 def _close_session_with_duration(session: UserReadingSession, seconds: int) -> None:
@@ -150,7 +156,7 @@ class TestSaveReadingPositionTimeGate:
     ):
         self._enable_linear_with_pref(db_session, test_user, test_book)
         s = start_session(test_user.id, test_chapter.id, db)
-        _close_session_with_duration(s, MIN_READING_SECONDS + 10)
+        _close_session_with_duration(s, DAILY_READING_TARGET_SECONDS + 10)
         s.offset_delta = 0.1
         db_session.commit()
 
@@ -178,7 +184,7 @@ class TestSaveReadingPositionTimeGate:
         """
         self._enable_linear_with_pref(db_session, test_user, test_book)
         s = start_session(test_user.id, test_chapter.id, db)
-        _close_session_with_duration(s, MIN_READING_SECONDS + 10)
+        _close_session_with_duration(s, DAILY_READING_TARGET_SECONDS + 10)
         db_session.commit()
 
         r = authenticated_client.post(
@@ -468,7 +474,7 @@ class TestReadingSessionEndpoints:
         db_session.commit()
 
         s = start_session(test_user.id, test_chapter.id, db)
-        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=MIN_READING_SECONDS + 10)
+        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=DAILY_READING_TARGET_SECONDS + 10)
         # No chapter-progress update between start and end → server-side
         # delta is 0 even if the client lies in the request body.
         db_session.commit()
@@ -544,7 +550,7 @@ class TestReadingSessionEndpoints:
         db_session.commit()
 
         s = start_session(test_user.id, test_chapter.id, db)
-        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=MIN_READING_SECONDS + 10)
+        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=DAILY_READING_TARGET_SECONDS + 10)
         db_session.commit()
 
         # Persisted offset still 0.0 (debounce hasn't fired); client sends hint.
@@ -576,7 +582,7 @@ class TestReadingSessionEndpoints:
         db_session.commit()
 
         s = start_session(test_user.id, test_chapter.id, db)
-        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=MIN_READING_SECONDS + 10)
+        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=DAILY_READING_TARGET_SECONDS + 10)
         db_session.commit()
 
         # Persisted offset is still 0.0 at end-time (debounce hasn't fired);
@@ -649,7 +655,7 @@ class TestReadingSessionEndpoints:
         db_session.commit()
 
         s = start_session(test_user.id, test_chapter.id, db)
-        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=MIN_READING_SECONDS + 10)
+        s.started_at = datetime.now(timezone.utc) - timedelta(seconds=DAILY_READING_TARGET_SECONDS + 10)
         progress.offset_pct = 0.5
         db_session.commit()
 
@@ -959,19 +965,20 @@ class TestDailyReadingTarget:
         """Multiple short sessions on the same chapter today sum honestly.
         This is the pause/resume model: each pause closes a session and
         resume opens a new one. Their durations must add up to satisfy
-        the 5min threshold.
+        today's threshold (5 or 10 min depending on day-of-month parity).
         """
-        # Two sessions of 200s each = 400s aggregated (>300)
+        # Two equal sessions whose sum reaches just over today's target.
+        chunk = DAILY_READING_TARGET_SECONDS // 2 + 10
         s1 = start_session(test_user.id, test_chapter.id, db)
-        _close_session_with_duration(s1, 200)
+        _close_session_with_duration(s1, chunk)
         db_session.commit()
         s2 = start_session(test_user.id, test_chapter.id, db)
-        _close_session_with_duration(s2, 200)
+        _close_session_with_duration(s2, chunk)
         db_session.commit()
         self._set_chapter_progress(db_session, test_user, test_chapter, 0.10)
 
         state = compute_chapter_daily_target_state(test_user.id, test_chapter.id, db)
-        assert state['active_seconds'] == 400
+        assert state['active_seconds'] == chunk * 2
         assert state['daily_target_met'] is True
 
     def test_chapter_completed_detected(self, db_session, test_user, test_chapter):

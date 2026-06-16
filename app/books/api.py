@@ -1112,14 +1112,25 @@ def reading_session_start():
         )
         db.session.rollback()
 
+    # 5/10 alternation: today's reading target in seconds (300 odd days, 600
+    # even). The client uses this for the initial checkpoint AND the snooze
+    # increment so «Ещё 5 минут» on a 10-min day reads «Ещё 10 минут».
+    from app.books.reading_session import get_daily_reading_target_seconds
+    from app.utils.time_utils import get_user_local_date
+    today_target_seconds = get_daily_reading_target_seconds(
+        get_user_local_date(current_user.id, db)
+    )
+
     logger.info(
-        "reading-session/start user=%s chapter=%s book=%s session=%s book_seconds_today=%s",
+        "reading-session/start user=%s chapter=%s book=%s session=%s book_seconds_today=%s target=%s",
         current_user.id, chapter_id, chapter.book_id, session.id, book_seconds_today,
+        today_target_seconds,
     )
     return jsonify({
         'success': True,
         'session_id': session.id,
         'book_seconds_today': book_seconds_today,
+        'today_target_seconds': today_target_seconds,
     })
 
 

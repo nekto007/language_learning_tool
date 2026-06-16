@@ -317,6 +317,7 @@ def is_srs_slot_completed_today(
         count_due_by_states,
         count_new_cards_today,
         count_pending_new,
+        get_due_card_budget,
         count_reviews_today,
         get_new_card_budget,
     )
@@ -334,10 +335,12 @@ def is_srs_slot_completed_today(
         user_id, db_obj, states=(CardState.REVIEW.value,),
     )
     remaining_new, remaining_reviews = get_new_card_budget(user_id, db_obj)
+    due_budget = get_due_card_budget(user_id, db_obj)
+    learning_show = min(learning_due, due_budget)
     pool = (
         min(new_pending, remaining_new)
-        + learning_due
-        + min(review_due, remaining_reviews)
+        + learning_show
+        + min(review_due, max(0, due_budget - learning_show), remaining_reviews)
     )
     if pool > 0:
         return False
@@ -386,9 +389,13 @@ def maybe_award_book_reading_xp(
     if not is_linear_user(user_id):
         return None
 
-    from app.books.reading_session import has_min_reading_time_today
+    from app.books.reading_session import (
+        get_daily_reading_target_seconds,
+        has_min_reading_time_today,
+    )
     from app.daily_plan.linear.slots.reading_slot import get_user_reading_preference
     from app.utils.db import db
+    from app.utils.time_utils import get_user_local_date
 
     db_obj = db_session if db_session is not None else db
 
@@ -396,7 +403,15 @@ def maybe_award_book_reading_xp(
     if preference is None or preference.book_id is None:
         return None
 
-    if not has_min_reading_time_today(user_id, int(preference.book_id), db_obj):
+    # Honour the 5/10-min day-of-month alternation: XP fires only when the
+    # user reached today's TRUE target, not the static 5-min floor. Without
+    # this, a 10-min day would award XP at 5 min while the UI still claims
+    # the slot needs 10 min — slot would flicker between done/not-done.
+    target_today = get_daily_reading_target_seconds(get_user_local_date(user_id, db_obj))
+    if not has_min_reading_time_today(
+        user_id, int(preference.book_id), db_obj,
+        minimum_seconds=target_today,
+    ):
         return None
 
     # Record book_id so the reading-slot completion check is book-scoped:

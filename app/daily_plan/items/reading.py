@@ -131,18 +131,27 @@ def build_reading_item(
 
     completed = _read_today(user_id, book.id, db)
 
-    from app.books.reading_session import MIN_READING_SECONDS, get_book_reading_seconds_today
+    from app.books.reading_session import (
+        get_book_reading_seconds_today,
+        get_daily_reading_target_seconds,
+    )
+    from app.utils.time_utils import get_user_local_date
 
+    today_target_seconds = get_daily_reading_target_seconds(
+        get_user_local_date(user_id, db)
+    )
     time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
-    gate_reached = time_spent_seconds >= MIN_READING_SECONDS
+    gate_reached = time_spent_seconds >= today_target_seconds
 
     priority = focus == 'reading'
 
+    target_minutes = today_target_seconds // 60
     subtitle_parts: list[str] = []
     if chapter_num is not None:
         subtitle_parts.append(f'Глава {chapter_num}')
     if chapter_title:
         subtitle_parts.append(chapter_title)
+    subtitle_parts.append(f'Норма дня — {target_minutes} мин')
 
     return PlanItem(
         id=f'reading:book:{book.id}',
@@ -154,7 +163,7 @@ def build_reading_item(
         # label above the book name.
         subtitle=' · '.join(subtitle_parts) if subtitle_parts else None,
         lesson_type=None,
-        eta_minutes=_READING_ITEM_ETA_MINUTES,
+        eta_minutes=target_minutes,
         url=build_slot_url(f'/read/{book.id}', LinearSlotKind.BOOK),
         completed=completed,
         completion_signal='reading_gate',
@@ -167,7 +176,7 @@ def build_reading_item(
             'current_chapter_title': chapter_title,
             'priority': priority,
             'time_spent_seconds': time_spent_seconds,
-            'gate_seconds': MIN_READING_SECONDS,
+            'gate_seconds': today_target_seconds,
             'gate_reached': gate_reached,
         },
     )

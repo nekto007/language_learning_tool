@@ -432,19 +432,21 @@ setTimeout(updateProgress, 100);
     const chapterId = {{ current_chapter.id }};
     const HEARTBEAT_INTERVAL_MS = 60000;        // close+reopen session every 60s
     const IDLE_THRESHOLD_MS = 60000;            // auto-pause after 60s no activity
-    const DAILY_TARGET_SECONDS = 300;           // mirror of server DAILY_READING_TARGET_SECONDS
+    const TARGET_FALLBACK_SECONDS = 300;        // used until /start response brings today's real target
 
+    let dailyTargetSeconds = TARGET_FALLBACK_SECONDS;  // updated from /start (5/10-min day-of-month alternation)
     let sessionId = null;
     let state = 'idle';                          // 'idle' | 'active' | 'paused'
     let heartbeatTimer = null;
     let idleTimer = null;
     let manualPause = false;
+    let checkpointPause = false;                 // auto-pause at every dailyTargetSeconds boundary
     let bannerShown = false;
     let beaconUsed = false;                      // suppress duplicate sends from pagehide+beforeunload
     let activeSecondsToday = 0;                  // client-tracked active reading time (ticks on resume)
     let activeTickAnchor = null;                 // Date.now() when most recent active state began
     let displayTickerInterval = null;            // 1Hz interval for timer display refresh
-    let nextCheckpoint = DAILY_TARGET_SECONDS;   // active-seconds boundary for the next banner (300/600/900…)
+    let nextCheckpoint = TARGET_FALLBACK_SECONDS; // active-seconds boundary for the next banner
     let lastBannerData = null;                   // latest server end-response carrying a banner_state + CTA urls
     let didSeedFromServer = false;               // first /start response seeds today-total once
 
@@ -485,6 +487,14 @@ setTimeout(updateProgress, 100);
                 if (data && data.session_id) {
                     sessionId = data.session_id;
                 }
+                // Pick up today's reading target (5/10-min alternation by
+                // day-of-month). Updated on every /start so a midnight
+                // rollover during a long read shifts to the new day's
+                // target on the next heartbeat.
+                if (data && typeof data.today_target_seconds === 'number'
+                    && data.today_target_seconds > 0) {
+                    dailyTargetSeconds = data.today_target_seconds;
+                }
                 // Seed today's accumulated reading time from server on the
                 // very first /start of this page load. Heartbeat-driven
                 // re-opens of subsequent sessions do not re-seed (we already
@@ -496,10 +506,10 @@ setTimeout(updateProgress, 100);
                 ) {
                     didSeedFromServer = true;
                     activeSecondsToday = data.book_seconds_today;
-                    // Следующий чекпоинт — ближайшая граница, кратная 5 мин,
-                    // выше уже прочитанного сегодня: открыв читалку с добитой
-                    // нормой, юзер не получит мгновенный баннер.
-                    nextCheckpoint = (Math.floor(activeSecondsToday / DAILY_TARGET_SECONDS) + 1) * DAILY_TARGET_SECONDS;
+                    // Следующий чекпоинт — ближайшая граница цели выше уже
+                    // прочитанного сегодня: открыв читалку с добитой нормой,
+                    // юзер не получит мгновенный баннер.
+                    nextCheckpoint = (Math.floor(activeSecondsToday / dailyTargetSeconds) + 1) * dailyTargetSeconds;
                     _renderTimer();
                 }
             });
@@ -541,23 +551,40 @@ setTimeout(updateProgress, 100);
         // the anchor, and adding both would double-count.
         //
         // Кэшируем последний осмысленный payload баннера (state + CTA-url).
-        // КОГДА его показать, решает 1-секундный тик — на каждой границе
-        // 5 минут активного чтения (300/600/900…), а не по wall-clock.
+        // Время показа решает 1-секундный тик — на каждой границе цели
+        // (300/600/900…), а не по wall-clock.
         if (data.banner_state && data.banner_state !== 'none') {
+            const replacingFallback = bannerShown && !lastBannerData;
             lastBannerData = data;
+            if (replacingFallback) {
+                // Checkpoint-pause already rendered a generic "5 минут
+                // пройдено" fallback because /end was still in flight;
+                // replace it with the proper completion banner now.
+                _showBanner(data);
+                return;
+            }
         }
         _maybeShowCheckpointBanner();
     }
 
     function _maybeShowCheckpointBanner() {
-        if (bannerShown || !lastBannerData) return;
+        if (bannerShown) return;
         let elapsed = activeSecondsToday;
         if (state === 'active' && activeTickAnchor !== null) {
             elapsed += Math.floor((Date.now() - activeTickAnchor) / 1000);
         }
         if (elapsed < nextCheckpoint) return;
+        // When the checkpoint pause kicked in but the server reply hasn't
+        // surfaced banner data (e.g. user reads a non-preference book, or
+        // /end races a network hiccup), synthesise a minimal banner so the
+        // user always knows why the timer froze and how to continue.
+        const data = lastBannerData || {
+            banner_state: 'checkpoint_only',
+            next_slot_url: null,
+            dashboard_url: '/dashboard',
+        };
         bannerShown = true;
-        _showBanner(lastBannerData);
+        _showBanner(data);
     }
 
     function _formatTime(seconds) {
@@ -576,10 +603,18 @@ setTimeout(updateProgress, 100);
             elapsed += Math.floor((Date.now() - activeTickAnchor) / 1000);
         }
         elapsedEl.textContent = _formatTime(elapsed);
-        bar.classList.toggle('is-target-met', elapsed >= DAILY_TARGET_SECONDS);
-        bar.classList.toggle('is-paused', state === 'paused' || manualPause);
-        // Таймер не замораживается — идёт непрерывно (5→10→15…). Баннер
-        // всплывает на каждой границе nextCheckpoint, снуз сдвигает её на +5 мин.
+        bar.classList.toggle('is-target-met', elapsed >= dailyTargetSeconds);
+        bar.classList.toggle('is-paused', state === 'paused' || manualPause || checkpointPause);
+        // Auto-pause at every dailyTargetSeconds boundary. The /end call
+        // inside _pause() commits the session, the server replies with
+        // banner_state, and _handleEndResponse fires the banner. The user
+        // sees a frozen timer + banner and has to click «Ещё N минут» to
+        // continue — no more "did the system register my 5 minutes?"
+        // confusion.
+        if (state === 'active' && !checkpointPause && elapsed >= nextCheckpoint) {
+            _checkpointPause();
+            return;
+        }
         _maybeShowCheckpointBanner();
     }
 
@@ -603,6 +638,7 @@ setTimeout(updateProgress, 100);
         const ctaArea = banner.querySelector('.reading-banner__cta');
         if (!titleEl || !ctaArea) return;
 
+        const checkpointMinutes = Math.max(1, Math.floor(dailyTargetSeconds / 60));
         let title = '';
         if (data.banner_state === 'both') {
             title = '🎉 Глава прочитана и дневная норма выполнена!';
@@ -610,6 +646,11 @@ setTimeout(updateProgress, 100);
             title = '🎉 Дневная норма по чтению выполнена';
         } else if (data.banner_state === 'chapter_completed') {
             title = '✓ Глава прочитана! Норма дня ещё не выполнена — продолжи в следующей главе.';
+        } else {
+            // checkpoint_only fallback: server isn't crediting the daily
+            // plan slot (e.g. non-preference book), but the user still
+            // crossed the active-reading boundary.
+            title = '☕ ' + checkpointMinutes + ' минут пройдено. Сделай вдох и продолжай, если хочешь.';
         }
         titleEl.textContent = title;
 
@@ -638,23 +679,41 @@ setTimeout(updateProgress, 100);
             ctaArea.appendChild(secondary);
         }
 
-        // Snooze: hide for 5 minutes. On the next heartbeat after the
-        // snooze window, banner re-appears (the server still reports
-        // banner_state for the same session-end ticks).
+        // Continue button: extends the checkpoint by one more target window
+        // (5 or 10 minutes, matching today's parity) and resumes the timer.
+        // The session was actually paused on the checkpoint hit, so we need
+        // to reopen it via _extendCheckpoint, not just hide the banner.
+        const snoozeMinutes = Math.max(1, Math.floor(dailyTargetSeconds / 60));
         const snooze = document.createElement('button');
         snooze.type = 'button';
         snooze.className = 'reading-banner__btn reading-banner__btn--ghost';
-        snooze.textContent = 'Ещё 5 минут';
+        snooze.textContent = 'Ещё ' + snoozeMinutes + ' минут';
         snooze.addEventListener('click', function () {
-            banner.hidden = true;
-            bannerShown = false;
-            // "Ещё 5 минут" — следующий баннер через ещё 5 минут активного
-            // чтения. Таймер не трогаем, он и так идёт дальше (5→10→15…).
-            nextCheckpoint += DAILY_TARGET_SECONDS;
+            _extendCheckpoint();
         });
         ctaArea.appendChild(snooze);
 
         banner.hidden = false;
+    }
+
+    function _checkpointPause() {
+        if (checkpointPause) return;
+        checkpointPause = true;
+        // Reset bannerShown so _handleEndResponse can show the banner again
+        // for this fresh checkpoint cycle (previous show was a different one).
+        bannerShown = false;
+        _pause();
+    }
+
+    function _extendCheckpoint() {
+        if (!checkpointPause) return;
+        checkpointPause = false;
+        nextCheckpoint += dailyTargetSeconds;
+        bannerShown = false;
+        const banner = document.getElementById('reading-completion-banner');
+        if (banner) banner.hidden = true;
+        manualPause = false;
+        _start();
     }
 
     // ---- State machine ----
@@ -689,9 +748,13 @@ setTimeout(updateProgress, 100);
 
     function _resume() {
         if (state === 'active') return;
+        // Checkpoint pause is sticky: only an explicit «Ещё N минут» click
+        // (banner snooze button or the pause-button override in
+        // checkpointPause mode) calls _extendCheckpoint to clear the flag.
+        // Otherwise idle activity / visibility change must not silently
+        // unfreeze the timer and skip the completion gate.
+        if (checkpointPause) return;
         manualPause = false;
-        // Таймер больше не замораживается на чекпоинтах, поэтому resume всегда
-        // идёт обычным путём _start (переоткрывает сессию + перезапускает тик).
         _start();
     }
 
@@ -725,7 +788,7 @@ setTimeout(updateProgress, 100);
         };
         ['scroll', 'keypress', 'mousemove', 'touchstart', 'click'].forEach(function (evt) {
             document.addEventListener(evt, function () {
-                if (state === 'paused' && !manualPause && !document.hidden) {
+                if (state === 'paused' && !manualPause && !checkpointPause && !document.hidden) {
                     _resume();
                 }
                 resetIdle();
@@ -739,7 +802,7 @@ setTimeout(updateProgress, 100);
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) {
             _pause();
-        } else if (!manualPause) {
+        } else if (!manualPause && !checkpointPause) {
             _resume();
         }
     });
@@ -756,7 +819,11 @@ setTimeout(updateProgress, 100);
     function _updatePauseBtn() {
         const btn = document.getElementById('reading-pause-btn');
         if (!btn) return;
-        if (state === 'paused' || manualPause) {
+        if (checkpointPause) {
+            const m = Math.max(1, Math.floor(dailyTargetSeconds / 60));
+            btn.innerHTML = '▶️ Ещё ' + m + ' мин';
+            btn.setAttribute('aria-pressed', 'true');
+        } else if (state === 'paused' || manualPause) {
             btn.innerHTML = '▶️ Продолжить';
             btn.setAttribute('aria-pressed', 'true');
         } else {
@@ -769,6 +836,12 @@ setTimeout(updateProgress, 100);
         const btn = document.getElementById('reading-pause-btn');
         if (btn) {
             btn.addEventListener('click', function () {
+                if (checkpointPause) {
+                    // Pause button doubles as the «Ещё N минут» override
+                    // while the session sits at a checkpoint boundary.
+                    _extendCheckpoint();
+                    return;
+                }
                 if (state === 'active') {
                     manualPause = true;
                     _pause();
