@@ -711,7 +711,6 @@ class TestQuizSubmission:
     ):
         """Client option indexes are stale if POST sanitization reshuffles choices."""
         _, module = level_and_module
-        test_user.use_linear_plan = True
         db_session.commit()
         lesson = Lessons(
             title='Quiz With Shuffled Options',

@@ -1,7 +1,6 @@
 """Linear daily plan assembly.
 
-Assembles the linear-plan payload returned to dashboards/API when
-``User.use_linear_plan`` is enabled: header position, level progress,
+Assembles the linear-plan payload (header position, level progress,
 baseline slots (curriculum / SRS / reading / optional error review),
 the continuation preview, and a ``day_secured`` flag derived from slot
 completion. Each slot is computed at request time from authoritative

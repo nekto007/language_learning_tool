@@ -92,22 +92,3 @@ class TestLearningGoalsRoute:
             data={'daily_word_goal': '10', 'weekly_lesson_goal': '5'},
         )
         assert resp.status_code in (302, 401)
-
-    def test_settings_page_shows_goal_form(self, app, db_session, test_user, client):
-        _login(client, test_user)
-        test_user.use_linear_plan = True
-        db_session.commit()
-        resp = client.get('/study/settings')
-        assert resp.status_code == 200
-        data = resp.data.decode('utf-8')
-        assert 'daily_word_goal' in data
-        assert 'weekly_lesson_goal' in data
-
-    def test_settings_goal_form_hidden_without_linear_plan(self, app, db_session, test_user, client):
-        _login(client, test_user)
-        test_user.use_linear_plan = False
-        db_session.commit()
-        resp = client.get('/study/settings')
-        assert resp.status_code == 200
-        data = resp.data.decode('utf-8')
-        assert 'settings_goals' not in data

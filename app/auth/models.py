@@ -62,14 +62,6 @@ class User(db.Model, UserMixin):
     # The router no longer reads it; unified plan is the only active mode.
     use_mission_plan = Column(Boolean, default=False, nullable=False, server_default='false')
 
-    # Daily plan: legacy linear (curriculum spine) feature flag.
-    # Deprecated — kept for backward compat with existing rows and admin UI.
-    # The router no longer reads it; unified plan is the only active mode.
-    use_linear_plan = Column(Boolean, default=False, nullable=False, server_default='false')
-
-    # Daily plan: unified required/optional/setup model. The only active mode now.
-    use_unified_plan = Column(Boolean, default=True, nullable=False, server_default='true')
-
     # Age gating: used to determine adult status for rival strip (Phase 3).
     # Null = unknown age (treated as adult for backward compatibility).
     birth_year = Column(Integer, nullable=True)

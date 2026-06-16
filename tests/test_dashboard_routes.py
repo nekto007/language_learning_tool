@@ -3,11 +3,9 @@ Tests for the main dashboard route
 Ensures template rendering works correctly with all expected data.
 
 NOTE: These tests target the legacy `dashboard.html` template path, which is
-only reached when `use_unified_plan=False` AND `use_linear_plan=False`. Since
-all users default to unified mode after the dead-code cleanup pass, the dashboard
-route always renders `dashboard_unified.html` instead — so this entire suite is
-skipped. The new unified dashboard is covered by smoke tests and the dedicated
-unified dashboard render tests elsewhere.
+no longer rendered — the dashboard route always renders `dashboard_unified.html`
+now, so this entire suite is skipped. The new unified dashboard is covered by
+smoke tests and the dedicated unified dashboard render tests elsewhere.
 """
 import time
 import pytest

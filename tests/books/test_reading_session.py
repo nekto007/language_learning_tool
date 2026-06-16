@@ -107,7 +107,6 @@ class TestSaveReadingPositionTimeGate:
     """
 
     def _enable_linear_with_pref(self, db_session, user, book):
-        user.use_linear_plan = True
         pref = UserReadingPreference(user_id=user.id, book_id=book.id)
         db_session.add(pref)
         db_session.commit()
@@ -423,7 +422,6 @@ class TestReadingSessionEndpoints:
         """
         from app.books.models import UserChapterProgress
 
-        test_user.use_linear_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         # Snapshot offset at start: 0.5 (already past the 5% threshold).
         progress = UserChapterProgress(
@@ -463,7 +461,6 @@ class TestReadingSessionEndpoints:
         """
         from app.books.models import UserChapterProgress
 
-        test_user.use_linear_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         db_session.add(UserChapterProgress(
             user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.5,
@@ -496,7 +493,6 @@ class TestReadingSessionEndpoints:
         """
         from app.books.models import UserChapterProgress
 
-        test_user.use_linear_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         progress = UserChapterProgress(
             user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.0,
@@ -541,7 +537,6 @@ class TestReadingSessionEndpoints:
         """
         from app.books.models import UserChapterProgress
 
-        test_user.use_linear_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         db_session.add(UserChapterProgress(
             user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.0,
@@ -574,7 +569,6 @@ class TestReadingSessionEndpoints:
         """
         from app.books.models import UserChapterProgress
 
-        test_user.use_linear_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         db_session.add(UserChapterProgress(
             user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.0,
@@ -607,7 +601,6 @@ class TestReadingSessionEndpoints:
         """
         from app.books.models import UserChapterProgress
 
-        test_user.use_linear_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         progress = UserChapterProgress(
             user_id=test_user.id, chapter_id=test_chapter.id, offset_pct=0.0,
@@ -646,7 +639,6 @@ class TestReadingSessionEndpoints:
     ):
         from app.books.models import UserChapterProgress
 
-        test_user.use_linear_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         # Start with offset=0; user scrolls during the visit so the server
         # observes a real per-visit delta.
@@ -1072,7 +1064,6 @@ class TestReadingSessionEndBannerState:
     def test_banner_state_daily_target(
         self, authenticated_client, db_session, test_user, test_book, test_chapter,
     ):
-        test_user.use_unified_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         db_session.commit()
 
@@ -1144,7 +1135,6 @@ class TestReadingSessionEndBannerState:
         self, authenticated_client, db_session, test_user, test_book, test_chapter,
     ):
         """Long session that finishes the chapter — combined banner."""
-        test_user.use_unified_plan = True
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=test_book.id))
         db_session.commit()
 

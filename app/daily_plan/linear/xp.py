@@ -5,8 +5,8 @@ lesson grading, SRS session complete, book reading progress, error review)
 and the shared XP service. Responsibilities:
 
 - Map curriculum ``Lesson.type`` values onto the ``LINEAR_XP`` source keys.
-- Gate awards on ``User.use_linear_plan`` so mission-flow users are never
-  double-credited with both phase and linear XP.
+- Credit every active user once per slot — the legacy mission/linear plan
+  gate has been removed, so all users share the unified XP wiring.
 - Persist one ``StreakEvent(event_type='xp_linear')`` per user+date+source
   so repeated grade submissions are idempotent for the day.
 - Trigger the linear perfect-day bonus once all baseline slots complete.
@@ -103,8 +103,8 @@ def get_linear_event_local_date(
 def is_linear_user(user_id: int) -> bool:
     """Compat shim: linear and unified users get the same XP wiring.
 
-    Previously gated XP awards on ``use_linear_plan``. After the unified
-    refactor every active user receives these XP credits, so this just
+    Previously gated XP awards on a per-user plan flag (now removed). After
+    the unified refactor every active user receives these XP credits, so this just
     confirms the user exists. Kept under the old name so existing call
     sites (XP helpers, slot completion endpoints) need no rename.
     """

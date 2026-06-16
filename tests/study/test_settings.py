@@ -90,25 +90,6 @@ class TestFocusAreaRoute:
         )
         assert resp.status_code in (302, 401)
 
-    def test_settings_page_shows_focus_form(self, app, db_session, test_user, client):
-        _login(client, test_user)
-        test_user.use_linear_plan = True
-        db_session.commit()
-        resp = client.get('/study/settings')
-        assert resp.status_code == 200
-        data = resp.data.decode('utf-8')
-        assert 'onboarding_focus' in data
-        assert 'Акцент обучения' in data
-
-    def test_settings_focus_form_hidden_without_linear_plan(self, app, db_session, test_user, client):
-        _login(client, test_user)
-        test_user.use_linear_plan = False
-        db_session.commit()
-        resp = client.get('/study/settings')
-        assert resp.status_code == 200
-        data = resp.data.decode('utf-8')
-        assert 'settings_focus' not in data
-
     def test_focus_change_reflected_in_plan(self, app, db_session, test_user, client):
         from app.daily_plan.linear.plan import _get_user_focus
         _login(client, test_user)

@@ -51,7 +51,6 @@ def grammar_exercise(db_session, grammar_topic):
 class TestGrammarLabXPCoordination:
     def test_legacy_user_earns_topic_xp(self, app, db_session, test_user, grammar_exercise):
         """Mission/legacy user: submit_answer awards XP to topic status."""
-        test_user.use_linear_plan = False
         db_session.commit()
 
         service = GrammarLabService()
@@ -72,7 +71,6 @@ class TestGrammarLabXPCoordination:
 
     def test_linear_user_does_not_earn_direct_xp(self, app, db_session, test_user, grammar_exercise):
         """Linear user: submit_answer returns 0 XP, topic status not credited."""
-        test_user.use_linear_plan = True
         db_session.commit()
 
         service = GrammarLabService()
@@ -94,7 +92,6 @@ class TestGrammarLabXPCoordination:
 
     def test_linear_user_wrong_answer_still_zero_xp(self, app, db_session, test_user, grammar_exercise):
         """Linear user: wrong answer path also awards no XP (baseline)."""
-        test_user.use_linear_plan = True
         db_session.commit()
 
         service = GrammarLabService()

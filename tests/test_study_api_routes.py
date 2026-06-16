@@ -627,7 +627,6 @@ class TestCompleteSession:
         self, authenticated_client, study_session, test_user, db_session,
     ):
         """Linear users should not close the plan SRS slot from standalone cards."""
-        test_user.use_linear_plan = True
         db_session.commit()
 
         with patch('app.daily_plan.linear.xp.maybe_award_srs_global_xp') as mock_linear_award:
@@ -645,7 +644,6 @@ class TestCompleteSession:
         self, authenticated_client, study_session, test_user, db_session,
     ):
         """The SRS plan slot stays open while plan-available due cards remain."""
-        test_user.use_linear_plan = True
         db_session.commit()
 
         # Universal pool model (Раздел 5): slot stays open while ANY of
@@ -675,7 +673,6 @@ class TestCompleteSession:
         self, authenticated_client, study_session, test_user, db_session,
     ):
         """The SRS plan slot can award XP after the available due queue is empty."""
-        test_user.use_linear_plan = True
         db_session.commit()
 
         with patch(
@@ -1062,7 +1059,6 @@ class TestCompleteQuiz:
         from app.daily_plan.linear.slots.srs_slot import build_srs_slot
         from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
 
-        test_user.use_linear_plan = True
         db_session.commit()
 
         response = authenticated_client.post('/study/api/complete-quiz', json={
