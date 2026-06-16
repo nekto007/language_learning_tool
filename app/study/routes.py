@@ -360,81 +360,8 @@ def settings():
         return redirect(url_for('study.index'))
 
     bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', 'llt_englishbot')
-    plan_difficulty = getattr(current_user, 'plan_difficulty', 'normal') or 'normal'
-    onboarding_focus = getattr(current_user, 'onboarding_focus', None) or 'all'
-    if onboarding_focus and ',' in onboarding_focus:
-        onboarding_focus = onboarding_focus.split(',')[0].strip() or 'all'
     return render_template('study/settings.html', form=form,
-                           telegram_bot_username=bot_username,
-                           plan_difficulty=plan_difficulty,
-                           onboarding_focus=onboarding_focus)
-
-
-_VALID_DIFFICULTIES = {'light', 'normal', 'intensive'}
-
-
-@study.route('/settings/difficulty', methods=['POST'])
-@login_required
-@module_required('study')
-def settings_difficulty():
-    """Update plan_difficulty for the current user."""
-    from app.auth.models import User as AuthUser
-    difficulty = request.form.get('plan_difficulty', 'normal')
-    if difficulty not in _VALID_DIFFICULTIES:
-        flash(_('Неверный режим сложности'), 'danger')
-        return redirect(url_for('study.settings'))
-    user = db.session.get(AuthUser, current_user.id)
-    if user is not None:
-        user.plan_difficulty = difficulty
-        db.session.commit()
-    flash(_('Режим плана обновлён'), 'success')
-    return redirect(url_for('study.settings'))
-
-
-@study.route('/settings/goals', methods=['POST'])
-@login_required
-@module_required('study')
-def settings_goals():
-    """Update daily_word_goal and weekly_lesson_goal for the current user."""
-    from app.auth.models import User as AuthUser
-    try:
-        daily_word_goal = int(request.form.get('daily_word_goal', 10))
-        weekly_lesson_goal = int(request.form.get('weekly_lesson_goal', 5))
-    except (TypeError, ValueError):
-        flash(_('Неверные значения целей'), 'danger')
-        return redirect(url_for('study.settings'))
-
-    daily_word_goal = max(1, min(50, daily_word_goal))
-    weekly_lesson_goal = max(1, min(30, weekly_lesson_goal))
-
-    user = db.session.get(AuthUser, current_user.id)
-    if user is not None:
-        user.daily_word_goal = daily_word_goal
-        user.weekly_lesson_goal = weekly_lesson_goal
-        db.session.commit()
-    flash(_('Цели обновлены'), 'success')
-    return redirect(url_for('study.settings'))
-
-
-_VALID_FOCUSES = {'all', 'grammar', 'vocabulary', 'reading', 'speaking'}
-
-
-@study.route('/settings/focus', methods=['POST'])
-@login_required
-@module_required('study')
-def settings_focus():
-    """Update onboarding_focus for the current user without re-onboarding."""
-    from app.auth.models import User as AuthUser
-    focus = request.form.get('onboarding_focus', 'all')
-    if focus not in _VALID_FOCUSES:
-        flash(_('Неверное значение акцента обучения'), 'danger')
-        return redirect(url_for('study.settings'))
-    user = db.session.get(AuthUser, current_user.id)
-    if user is not None:
-        user.onboarding_focus = focus if focus != 'all' else None
-        db.session.commit()
-    flash(_('Акцент обучения обновлён'), 'success')
-    return redirect(url_for('study.settings'))
+                           telegram_bot_username=bot_username)
 
 
 def _get_custom_list_word_ids(list_id: int, user_id: int):
