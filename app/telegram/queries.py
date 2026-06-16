@@ -1536,10 +1536,6 @@ def get_cards_url(user_id: int, site_url: str) -> str:
 
 
 def get_daily_plan_for_telegram(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
-    """Return daily plan payload, using mission plan when flag is on.
-
-    When user has use_mission_plan=True and mission plan builds successfully,
-    returns mission-based payload. Otherwise returns legacy plan.
-    """
+    """Return the unified daily plan payload for the telegram bot."""
     from app.daily_plan.service import get_daily_plan_unified
     return get_daily_plan_unified(user_id, tz)
