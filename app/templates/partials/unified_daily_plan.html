@@ -161,13 +161,20 @@
       </span>
     {% endif %}
 
-    {# ── Pace forecast: превращает streak в видимое движение к цели.
-       Рендерится только при достаточной velocity-уверенности (роут отдаёт
-       None при confidence=low, чтобы дата не прыгала день ото дня). #}
-    {% if level_forecast is defined and level_forecast %}
+    {# ── До конца модуля: близкая досягаемая веха вместо далёкой даты уровня.
+       Считаем из уже готового module_progress, без отдельного velocity-расчёта. #}
+    {% if u_module.get('lessons_remaining') %}
+      {% set _rem = u_module.get('lessons_remaining') %}
+      {% set _word = 'урок' if (_rem % 10 == 1 and _rem % 100 != 11)
+                     else ('урока' if (_rem % 10 in [2, 3, 4] and _rem % 100 not in [12, 13, 14])
+                           else 'уроков') %}
       <p class="daily-plan__forecast">
         <span class="daily-plan__forecast-icon" aria-hidden="true">📈</span>
-        В этом темпе выйдешь на <strong>{{ level_forecast.next_level }}</strong> примерно к {{ level_forecast.date_text }}
+        {% if _rem == 1 %}
+          Остался последний урок модуля — финишная прямая!
+        {% else %}
+          Ещё <strong>{{ _rem }}</strong> {{ _word }} до конца модуля
+        {% endif %}
       </p>
     {% endif %}
 

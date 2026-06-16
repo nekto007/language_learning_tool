@@ -937,41 +937,6 @@ _RU_MONTHS_GEN = {
 }
 
 
-def _build_level_forecast(user_id: int, tz: str) -> dict | None:
-    """Forecast «выйдешь на следующий уровень ≈ к дате» for the plan header.
-
-    Hidden when velocity data is too thin (confidence=low) or the estimate
-    is unavailable — a jumping date demotivates more than no date at all.
-    """
-    from datetime import datetime, timedelta
-
-    import pytz
-
-    from app.study.insights_service import get_level_eta
-
-    eta = get_level_eta(user_id)
-    if not eta or eta.get('confidence') == 'low':
-        return None
-    weeks = eta.get('weeks_estimate')
-    if not weeks or weeks <= 0 or not eta.get('next_level'):
-        return None
-    try:
-        tzinfo = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tzinfo = pytz.timezone(DEFAULT_TIMEZONE)
-    today_local = datetime.now(tzinfo).date()
-    target = today_local + timedelta(weeks=weeks)
-    date_text = f'{target.day} {_RU_MONTHS_GEN[target.month]}'
-    if target.year != today_local.year:
-        date_text += f' {target.year}'
-    return {
-        'current_level': eta.get('current_level'),
-        'next_level': eta.get('next_level'),
-        'weeks': weeks,
-        'date_text': date_text,
-    }
-
-
 def _build_weekly_report() -> dict | None:
     """Monday recap card: last calendar week stats, dismissible per ISO week.
 
@@ -1213,8 +1178,6 @@ def _render_unified_dashboard(tz: str):
     #   - rank_info → full-width band above the plan
     #   - achievements_by_category → right rail, below week rhythm
     #   - xp_leaderboard → left column, below «Показать ещё задания»
-    level_forecast = _safe_widget_call(
-        'level_forecast', _build_level_forecast, current_user.id, tz, default=None)
     weekly_report = _build_weekly_report()
 
     rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
@@ -1242,7 +1205,6 @@ def _render_unified_dashboard(tz: str):
         focus=focus,
         week_rhythm=week_rhythm,
         challenge_card=challenge_card,
-        level_forecast=level_forecast,
         weekly_report=weekly_report,
         rank_info=rank_info,
         xp_leaderboard=xp_leaderboard,
