@@ -23,7 +23,6 @@ from app.daily_plan.items import PlanItem
 from app.daily_plan.items.challenge import build_challenge_item
 from app.daily_plan.items.curriculum import (
     build_curriculum_completed_item,
-    build_curriculum_item,
     build_curriculum_queue,
     get_curriculum_lessons_completed_today,
     has_completed_history,
@@ -32,7 +31,6 @@ from app.daily_plan.items.error_review import build_error_review_item, determine
 from app.daily_plan.items.grammar_review import build_grammar_review_item
 from app.daily_plan.items.reading import build_reading_item, get_user_reading_preference
 from app.daily_plan.items.setup import (
-    book_selected_today,
     build_setup_book_item,
     build_setup_level_item,
 )
@@ -47,13 +45,6 @@ OPTIONAL_MAX = 15
 # ``OPTIONAL_MAX`` so completed-today cards and the other practice sources
 # (SRS, reading, …) still fit under the overall cap.
 CONTINUATION_QUEUE_LIMIT = 12
-
-# Items that must wait for the curriculum slot to complete — skipping
-# curriculum locks them too. Listening is intentionally NOT in this set;
-# it walks the spine independently. Optional curriculum is also not blocked
-# so users can still complete a bonus lesson after skipping required.
-_CURRICULUM_DEPENDENT_KINDS = frozenset({'speaking', 'writing'})
-
 
 def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
     """Return the kinds of required items the user skipped today."""
@@ -77,29 +68,20 @@ def _apply_unified_skip_state(
     required_dicts: list[dict[str, Any]],
     skipped_kinds: set[str],
 ) -> None:
-    """Mark skipped items + lock curriculum-dependents after a curriculum skip.
+    """Mark skipped items.
 
     Mutates ``required_dicts`` in place. Idempotent; safe to call multiple
-    times. Items that are already completed are never marked skipped or
-    blocked — completion always wins.
+    times. Items that are already completed are never marked skipped:
+    completion always wins.
     """
     if not skipped_kinds:
         return
-    curriculum_skipped = False
     for item in required_dicts:
         if item.get('completed', False):
             continue
         kind = item.get('kind', '')
         if kind in skipped_kinds:
             item['skipped'] = True
-            if kind == 'curriculum':
-                curriculum_skipped = True
-            continue
-        if curriculum_skipped and kind in _CURRICULUM_DEPENDENT_KINDS:
-            item['blocked'] = True
-            item.setdefault('data', {})['locked_reason'] = (
-                'Сначала завершите урок курса'
-            )
 
 
 def _annotate_unified_skip_quota(
@@ -130,116 +112,6 @@ _OPTIONAL_PRIORITY = (
     'grammar_review',
     'challenge',
 )
-
-
-_CARD_LESSON_TYPES = frozenset({'card', 'flashcards'})
-
-
-def build_required(
-    user_id: int,
-    db: Any,
-    *,
-    difficulty: str,
-    focus: Optional[str],
-    graduated: bool = False,
-) -> list[PlanItem]:
-    """Assemble the required-section items in caskade order.
-
-    Order: error_review (acute) → SRS (if due > 0 AND not already implied by
-    a card-type curriculum lesson) → curriculum → reading → listening.
-
-    SRS de-duplication: when the next curriculum lesson itself is a card /
-    flashcards lesson, a plain SRS-cards slot in required would mean the user
-    faces two flashcards sessions in a row. To avoid that the required SRS slot
-    is swapped for a deck-quiz (a different form factor over the user's custom
-    decks) — but ONLY when the user actually has deck words. Without decks the
-    deck-quiz would be a dead "no words" placeholder while the real SRS card
-    review reappears in optional as ``srs:global`` (a different id the optional
-    de-dup can't collapse). So with no decks we keep the ordinary ``srs:global``
-    in required, and the optional duplicate then collapses by id.
-
-    Setup items NEVER appear here. Empty list is valid (orchestrator
-    reports day not secured and surfaces setup hints).
-
-    Graduated users (all curriculum exhausted, has history) receive an empty
-    required list — their work lives entirely in optional (SRS, reading,
-    grammar_review with ignore_daily_budget=True).
-    """
-    if graduated:
-        return []
-
-    items: list[PlanItem] = []
-
-    err_section = determine_section(user_id, db)
-    if err_section == 'required':
-        item = build_error_review_item(user_id, db, section='required')
-        if item is not None:
-            items.append(item)
-
-    # Resolve curriculum first so we can decide SRS placement based on
-    # the upcoming lesson type. The builder is cheap and idempotent.
-    cur_item = build_curriculum_item(user_id, db, section='required')
-    next_is_card_lesson = (
-        cur_item is not None
-        and cur_item.lesson_type in _CARD_LESSON_TYPES
-        and not cur_item.completed
-    )
-
-    # SRS placement rules:
-    #   curriculum is NOT card-lesson         → SRS as standard card review
-    #   card-lesson pending AND user has decks → SRS as deck quiz (different
-    #       form factor over the user's decks, avoids «cards twice today»)
-    #   card-lesson pending AND no decks       → standard SRS card review
-    #       (a deck quiz would be a dead placeholder, and the real SRS would
-    #       otherwise resurface in optional as a non-collapsible duplicate)
-    #   card-lesson done                       → SRS as standard card review
-    use_deck_quiz = next_is_card_lesson
-    if use_deck_quiz:
-        from app.daily_plan.linear.slots.srs_slot import _count_user_deck_quiz_words
-        use_deck_quiz = _count_user_deck_quiz_words(user_id, db) > 0
-    srs_item = build_srs_item(
-        user_id, db, section='required',
-        as_deck_quiz=use_deck_quiz,
-    )
-    if srs_item is not None:
-        items.append(srs_item)
-
-    if cur_item is not None:
-        items.append(cur_item)
-
-    # Reading joins required only when a book is selected AND the selection
-    # is NOT from today — otherwise a mid-day book pick would retroactively
-    # void an already-secured day. The freshly-picked book lives in optional
-    # today and joins required tomorrow.
-    pref = get_user_reading_preference(user_id, db)
-    if pref is not None and not book_selected_today(user_id, db):
-        reading_item = build_reading_item(user_id, db, section='required', focus=focus)
-        if reading_item is not None:
-            items.append(reading_item)
-
-    # Skill slots (listening/speaking/writing) are intentionally NOT added
-    # here. The legacy builders piggybacked on the curriculum slot when the
-    # spine's next lesson was itself a skill type (e.g. audio_fill_blank
-    # closed BOTH the curriculum slot AND the listening slot), inflating
-    # required from 3 real actions to 4 and double-paying XP. The v2
-    # snapshot path drops skill slots entirely; this legacy branch follows
-    # the same rule so v1 fallback also benefits when the flag is off.
-
-    # Difficulty caps for required. Always preserve the curriculum item: it
-    # gates curriculum-dependent skills, so truncating it out would let the day
-    # be "secured" without the lesson (audit E-027). Cap the OTHER items around
-    # it, keeping original priority order.
-    cap = 2 if difficulty == 'light' else (4 if difficulty == 'normal' else None)
-    if cap is not None:
-        if cur_item is not None and cur_item in items:
-            others = [it for it in items if it is not cur_item]
-            keep = set(id(it) for it in others[:max(0, cap - 1)]) | {id(cur_item)}
-            items = [it for it in items if id(it) in keep]
-        else:
-            items = items[:cap]
-    # intensive: no cap
-
-    return items
 
 
 def build_optional(
@@ -466,7 +338,6 @@ def get_daily_plan(
     db_session: Any = None,
 ) -> dict[str, Any]:
     """Assemble the unified daily plan payload for the user."""
-    from app.daily_plan.linear.chain import _get_plan_difficulty
     from app.daily_plan.linear.plan import (
         _get_user_focus,
         _level_progress_to_dict,
@@ -486,33 +357,24 @@ def get_daily_plan(
     next_lesson = find_next_lesson_linear(user_id, session)
     level_progress = get_user_level_progress(user_id, session, next_lesson=next_lesson)
     focus = _get_user_focus(user_id, session)
-    difficulty = _get_plan_difficulty(user_id, session)
     module_progress = _compute_module_progress(user_id, session, next_lesson)
 
     # Graduated state: no more curriculum lessons but user has completed history.
     # Force optional to include SRS/reading/grammar_review even if daily caps reached.
     graduated = next_lesson is None and has_completed_history(user_id, session)
 
-    # v2 = static snapshot composed at 00:00 user-local + live completion overlay.
-    # Default OFF (legacy live-rebuild via build_required). Graduated users skip
-    # v2 because their required=[] by design and the snapshot resolver would
-    # write an empty snapshot every day.
-    from app.daily_plan.snapshot import is_snapshot_v2_enabled
-    use_v2 = not graduated and is_snapshot_v2_enabled(session)
-
-    if use_v2:
+    if graduated:
+        required_dicts = []
+        required: list[PlanItem] = []
+    else:
         from app.daily_plan.snapshot import overlay_completion, resolve_snapshot_for_today
         from app.utils.time_utils import get_user_local_date
 
         today_local = get_user_local_date(user_id, session)
         snapshot = resolve_snapshot_for_today(user_id, today_local, session)
-        required_dicts_v2 = overlay_completion(user_id, snapshot, session)
+        required_dicts = overlay_completion(user_id, snapshot, session)
         # Hydrate PlanItem objects for build_optional (it reads .id/.kind/.data/.completed).
-        required = [PlanItem(**d) for d in required_dicts_v2]
-    else:
-        required = build_required(
-            user_id, session, difficulty=difficulty, focus=focus, graduated=graduated,
-        )
+        required = [PlanItem(**d) for d in required_dicts]
 
     optional, has_more_optional = build_optional(
         user_id, session, required_items=required, focus=focus, graduated=graduated,
@@ -524,8 +386,8 @@ def get_daily_plan(
     day_secured = False
 
     logger.info(
-        "unified_plan_assemble user=%s done req=%d opt=%d setup=%d intensity=%s focus=%s",
-        user_id, len(required), len(optional), len(setup), difficulty, focus or 'none',
+        "unified_plan_assemble user=%s done req=%d opt=%d setup=%d focus=%s",
+        user_id, len(required), len(optional), len(setup), focus or 'none',
     )
 
     if not required:
@@ -536,35 +398,6 @@ def get_daily_plan(
         )
 
     optional_dicts = [it.to_dict() for it in optional]
-
-    if use_v2:
-        # required_dicts_v2 already carries live ``completed`` flags from
-        # ``overlay_completion``; the snapshot is the canonical composition,
-        # nothing to reconcile against.
-        required_dicts = required_dicts_v2
-    else:
-        required_dicts = [it.to_dict() for it in required]
-        # Pin the required composition to the day's snapshot so the plan the
-        # user saw in the morning is the plan they close in the evening. Fresh
-        # items whose kind appeared mid-day get demoted to optional instead of
-        # growing required. Graduated users have required=[] by design —
-        # nothing to pin.
-        if not graduated:
-            from app.daily_plan.snapshot import reconcile_required_with_snapshot
-
-            required_dicts, demoted = reconcile_required_with_snapshot(
-                user_id, required_dicts, session,
-            )
-            if demoted:
-                optional_ids = {it.get('id') for it in optional_dicts}
-                for item in demoted:
-                    if item.get('id') in optional_ids:
-                        continue
-                    item['section'] = 'optional'
-                    optional_dicts.insert(0, item)
-                if len(optional_dicts) > OPTIONAL_MAX:
-                    optional_dicts = optional_dicts[:OPTIONAL_MAX]
-                    has_more_optional = True
 
     # ETA from the reconciled list — carried/completed slots cost 0 minutes.
     total_estimated_minutes = sum(

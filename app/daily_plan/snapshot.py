@@ -1,29 +1,19 @@
-"""Daily required-plan snapshot: «железный» состав плана на день.
+"""Daily required-plan snapshot: the fixed plan composition for a day.
 
-Two coexisting formats, gated by ``SiteSettings['daily_plan_snapshot_v2']``:
+This is the only required-plan path. It freezes full item dicts (id, kind,
+title, url, eta, data, completion_signal) at user-local midnight or on the
+first lazy build after midnight. Required composition is fixed for the day;
+only ``completed`` is overlaid live from real activity. Skill slots are
+intentionally absent: the day is closed by curriculum, SRS, reading, and
+final-test prep items sized by the user's tier (see ``tier.py``).
 
-- **v1 (legacy)** — ``reconcile_required_with_snapshot``. Freezes only
-  composition metadata (id, kind, title, eta, frozen SRS goal); URLs,
-  completed flags, and live counters are still recomputed by the
-  builders on every request. Skill slots (listening / speaking /
-  writing) participate. Required is reconciled with whatever the live
-  builder returns — kind-matched, with carried-completed cards for
-  slots that disappeared mid-day.
+Roll-over: when ``has_learning_activity`` was False for yesterday, today's
+snapshot is a verbatim copy of yesterday's so the user picks up where they
+left off.
 
-- **v2** — ``resolve_snapshot_for_today`` + ``overlay_completion``.
-  Freezes the FULL item dicts (id, kind, title, url, eta, data,
-  completion_signal) at 00:00 user-local (or at the first lazy build
-  after midnight). Required composition is fixed for the day; only
-  ``completed`` is overlaid live from real activity. Skill slots are
-  intentionally absent — the day is closed by ``[curriculum, SRS,
-  book, …]`` exclusively, sized by the user's tier (see ``tier.py``).
-  Roll-over: when ``has_learning_activity`` was False for yesterday,
-  today's snapshot is a verbatim copy of yesterday's — the user picks
-  up from where they left off.
-
-Both paths write via :func:`_get_or_create_log_row` — flush-only, race-safe
-against ``uq_daily_plan_log_user_date`` so two concurrent generators
-(scheduler + first GET after midnight) end up with one shared row.
+Writes go through :func:`_get_or_create_log_row` — flush-only, race-safe
+against ``uq_daily_plan_log_user_date`` so scheduler and first dashboard GET
+share one row.
 """
 from __future__ import annotations
 
@@ -32,68 +22,7 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# v1 = legacy reconcile; v2 = static snapshot with live overlay.
-SNAPSHOT_VERSION = 1
-SNAPSHOT_VERSION_V2 = 2
-
-
-def _srs_goal_total(data: dict[str, Any]) -> Optional[int]:
-    """Frozen daily SRS goal = ещё показываемое + уже сделанное сегодня."""
-    if 'total_show' in data:
-        total = (
-            int(data.get('total_show') or 0)
-            + int(data.get('reviews_today') or 0)
-            + int(data.get('new_today') or 0)
-        )
-        return total if total > 0 else None
-    if 'word_limit' in data:  # deck-quiz variant
-        limit = int(data.get('word_limit') or 0)
-        return limit if limit > 0 else None
-    return None
-
-
-def _slot_from_item(item: dict[str, Any]) -> dict[str, Any]:
-    data = item.get('data') or {}
-    slot: dict[str, Any] = {
-        'id': item.get('id'),
-        'kind': item.get('kind'),
-        'title': item.get('title'),
-        'subtitle': item.get('subtitle'),
-        'lesson_type': item.get('lesson_type'),
-        'eta_minutes': int(item.get('eta_minutes') or 0),
-    }
-    if item.get('kind') == 'srs':
-        slot['srs_goal_total'] = _srs_goal_total(data)
-    return slot
-
-
-def _carried_item(slot: dict[str, Any]) -> dict[str, Any]:
-    """Completed-карточка для слота, исчезнувшего из свежей сборки."""
-    return {
-        'id': slot.get('id'),
-        'section': 'required',
-        'kind': slot.get('kind'),
-        'title': slot.get('title'),
-        'subtitle': slot.get('subtitle'),
-        'lesson_type': slot.get('lesson_type'),
-        'eta_minutes': 0,
-        'url': None,
-        'completed': True,
-        'completion_signal': 'none',
-        'data': {'snapshot_carried': True},
-    }
-
-
-def _valid_snapshot(raw: Any) -> Optional[dict[str, Any]]:
-    if not isinstance(raw, dict) or raw.get('version') != SNAPSHOT_VERSION:
-        return None
-    slots = raw.get('slots')
-    if not isinstance(slots, list) or not slots:
-        return None
-    for slot in slots:
-        if not isinstance(slot, dict) or not slot.get('id') or not slot.get('kind'):
-            return None
-    return raw
+SNAPSHOT_VERSION = 2
 
 
 def _get_or_create_log_row(user_id: int, plan_date: Any, db: Any):
@@ -122,99 +51,9 @@ def _get_or_create_log_row(user_id: int, plan_date: Any, db: Any):
     return log
 
 
-def reconcile_required_with_snapshot(
-    user_id: int,
-    required_dicts: list[dict[str, Any]],
-    db: Any,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Pin состава required к дневному снапшоту.
-
-    Возвращает ``(required, demoted)``: required в составе/порядке снапшота
-    и свежие items, не вошедшие в него (caller добавляет их в optional).
-    Best-effort: любая ошибка → исходный required без изменений.
-    """
-    try:
-        from app.utils.time_utils import get_user_local_date
-
-        today = get_user_local_date(user_id, db)
-        log = _get_or_create_log_row(user_id, today, db)
-        if log is None:  # обе попытки get-or-create не удались
-            return required_dicts, []
-
-        snap = _valid_snapshot(log.plan_json)
-        if snap is None:
-            if not required_dicts:
-                # Пустой required не фиксируем: план мог собраться в
-                # вырожденном состоянии (нет контента/онбординг не завершён),
-                # снапшот зафиксировал бы пустой день навсегда.
-                return required_dicts, []
-            slots = [_slot_from_item(it) for it in required_dicts]
-            log.plan_json = {
-                'version': SNAPSHOT_VERSION,
-                'date': today.isoformat(),
-                'slots': slots,
-            }
-            db.session.flush()
-            # goal_total доступен с первого же запроса дня, не только после
-            # повторной сборки — иначе «12 из 30» появлялось бы со 2-го визита.
-            for slot, item in zip(slots, required_dicts):
-                if slot.get('kind') == 'srs' and slot.get('srs_goal_total'):
-                    item.setdefault('data', {})['goal_total'] = slot['srs_goal_total']
-            return required_dicts, []
-
-        fresh_by_id: dict[str, dict[str, Any]] = {
-            it['id']: it for it in required_dicts if it.get('id')
-        }
-        consumed: set[str] = set()
-        reconciled: list[dict[str, Any]] = []
-
-        def _match(slot: dict[str, Any]) -> Optional[dict[str, Any]]:
-            item = fresh_by_id.get(slot['id'])
-            if item is not None and item['id'] not in consumed:
-                return item
-            for candidate in required_dicts:
-                if candidate.get('id') in consumed:
-                    continue
-                if candidate.get('kind') == slot.get('kind'):
-                    return candidate
-            return None
-
-        for slot in snap['slots']:
-            item = _match(slot)
-            if item is not None:
-                consumed.add(item['id'])
-                if slot.get('kind') == 'srs' and slot.get('srs_goal_total'):
-                    item.setdefault('data', {})['goal_total'] = slot['srs_goal_total']
-                reconciled.append(item)
-            else:
-                reconciled.append(_carried_item(slot))
-
-        demoted = [
-            it for it in required_dicts
-            if it.get('id') and it['id'] not in consumed
-        ]
-        if demoted:
-            logger.info(
-                "plan_snapshot user=%s demoted=%s — required не растёт среди дня",
-                user_id, [it['id'] for it in demoted],
-            )
-        return reconciled, demoted
-    except Exception:
-        logger.warning(
-            "plan_snapshot reconcile failed for user=%s — using fresh plan",
-            user_id, exc_info=True,
-        )
-        return required_dicts, []
-
-
-# ---------------------------------------------------------------------------
-# v2: static snapshot + live overlay
-# ---------------------------------------------------------------------------
-
-
-def _valid_snapshot_v2(raw: Any) -> Optional[dict[str, Any]]:
-    """Return the raw payload if it is a well-formed v2 snapshot, else None."""
-    if not isinstance(raw, dict) or raw.get('version') != SNAPSHOT_VERSION_V2:
+def _valid_snapshot(raw: Any) -> Optional[dict[str, Any]]:
+    """Return the raw payload if it is a well-formed snapshot, else None."""
+    if not isinstance(raw, dict) or raw.get('version') != SNAPSHOT_VERSION:
         return None
     items = raw.get('items')
     if not isinstance(items, list):
@@ -230,11 +69,11 @@ def resolve_snapshot_for_today(
     today_local: Any,
     db: Any,
 ) -> dict[str, Any]:
-    """Return the v2 snapshot for ``today_local``, building/rolling as needed.
+    """Return the snapshot for ``today_local``, building/rolling as needed.
 
     Order of operations:
-      1. If today's row already has a v2 snapshot, return it.
-      2. Else if yesterday's row has a v2 snapshot AND
+      1. If today's row already has a snapshot, return it.
+      2. Else if yesterday's row has a snapshot AND
          ``has_learning_activity(yesterday)`` is False, copy yesterday's
          items into today's row verbatim. The user gets the same plan
          to finish.
@@ -251,7 +90,7 @@ def resolve_snapshot_for_today(
     if log is None:
         return _empty_snapshot(today_local)
 
-    existing = _valid_snapshot_v2(log.plan_json)
+    existing = _valid_snapshot(log.plan_json)
     if existing is not None:
         return existing
 
@@ -270,7 +109,7 @@ def resolve_snapshot_for_today(
 
 def _empty_snapshot(today_local: Any) -> dict[str, Any]:
     return {
-        'version': SNAPSHOT_VERSION_V2,
+        'version': SNAPSHOT_VERSION,
         'date': today_local.isoformat(),
         'tier': None,
         'rolled_over_from': None,
@@ -290,11 +129,11 @@ def _build_fresh_snapshot(
     tier = compute_user_tier(user_id, db)
     items = build_required_snapshot(user_id, tier, db)
     logger.info(
-        "snapshot_v2 user=%s date=%s tier=%s items=%d fresh",
+        "daily_plan_snapshot user=%s date=%s tier=%s items=%d fresh",
         user_id, today_local, tier, len(items),
     )
     return {
-        'version': SNAPSHOT_VERSION_V2,
+        'version': SNAPSHOT_VERSION,
         'date': today_local.isoformat(),
         'tier': tier,
         'rolled_over_from': None,
@@ -311,7 +150,7 @@ def _try_rollover_from_yesterday(
     """Return a rolled-over snapshot, or None when roll-over does not apply.
 
     Roll-over fires only when ALL hold:
-      - yesterday has a v2 snapshot row with non-empty items
+      - yesterday has a snapshot row with non-empty items
       - the user had zero learning activity in yesterday's user-local
         day window (``has_learning_activity`` over the 24h naive-UTC
         bounds derived from yesterday's user-local midnight)
@@ -327,29 +166,47 @@ def _try_rollover_from_yesterday(
     )
     if y_row is None:
         return None
-    y_snap = _valid_snapshot_v2(y_row.plan_json)
+    y_snap = _valid_snapshot(y_row.plan_json)
     if y_snap is None or not y_snap.get('items'):
         return None
 
     from app.utils.activity_tracker import has_learning_activity
-    from app.utils.time_utils import day_to_naive_utc
-
-    y_start = day_to_naive_utc(user_id, db, days_ahead=-1)
+    y_start = _local_date_start_naive_utc(user_id, yesterday, db)
     y_end = y_start + timedelta(days=1)
+
     if has_learning_activity(user_id, y_start, y_end, db.session):
         return None
 
     logger.info(
-        "snapshot_v2 user=%s date=%s rolled_over_from=%s items=%d",
+        "daily_plan_snapshot user=%s date=%s rolled_over_from=%s items=%d",
         user_id, today_local, yesterday, len(y_snap['items']),
     )
     return {
-        'version': SNAPSHOT_VERSION_V2,
+        'version': SNAPSHOT_VERSION,
         'date': today_local.isoformat(),
         'tier': y_snap.get('tier'),
         'rolled_over_from': yesterday.isoformat(),
         'items': list(y_snap['items']),
     }
+
+
+def _local_date_start_naive_utc(user_id: int, local_date: Any, db: Any):
+    """Return UTC-naive midnight for an explicit user-local date."""
+    from datetime import datetime, time, timezone
+
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:  # pragma: no cover
+        from backports.zoneinfo import ZoneInfo  # type: ignore
+
+    from app.utils.time_utils import get_user_timezone_name
+
+    try:
+        tz = ZoneInfo(get_user_timezone_name(user_id, db))
+    except Exception:  # noqa: BLE001
+        tz = timezone.utc
+    local_midnight = datetime.combine(local_date, time.min, tzinfo=tz)
+    return local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def overlay_completion(
@@ -573,22 +430,3 @@ def _grammar_topic_practiced_today(
     if module_id is not None:
         curric_q = curric_q.filter(Lessons.module_id == module_id)
     return bool(db.session.query(curric_q.exists()).scalar() or False)
-
-
-def is_snapshot_v2_enabled(db: Any) -> bool:
-    """Read the ``daily_plan_snapshot_v2`` feature flag.
-
-    Default OFF. Returns False on any error so the legacy path remains
-    the safe fallback.
-    """
-    try:
-        from app.admin.site_settings import get_site_setting
-        raw = get_site_setting(
-            'daily_plan_snapshot_v2', 'false', db_session=db.session,
-        )
-        return str(raw).strip().lower() == 'true'
-    except Exception:
-        logger.warning(
-            "is_snapshot_v2_enabled failed — defaulting OFF", exc_info=True,
-        )
-        return False

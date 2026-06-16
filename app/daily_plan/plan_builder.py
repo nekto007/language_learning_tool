@@ -197,8 +197,8 @@ def _srs_item_dict(
 ) -> Optional[dict[str, Any]]:
     """Build the SRS PlanItem dict, or None when SRS has nothing to show.
 
-    The deck-quiz swap mirrors the legacy ``build_required`` rule: a
-    deck quiz only replaces ``srs:global`` when the user actually has
+    The deck-quiz swap keeps the old user-facing rule: a deck quiz only
+    replaces ``srs:global`` when the user actually has
     deck words (otherwise the slot would be a dead placeholder).
     """
     if as_deck_quiz:

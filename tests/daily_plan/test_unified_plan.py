@@ -20,7 +20,9 @@ import pytest
 
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.daily_plan.plan import build_optional, build_required, build_setup, get_daily_plan
+from app.daily_plan.items import PlanItem
+from app.daily_plan.plan import build_optional, build_setup, get_daily_plan
+from app.daily_plan.plan_builder import build_required_snapshot
 from app.utils.db import db as real_db
 from tests.conftest import unique_level_code
 
@@ -1515,7 +1517,8 @@ class TestSrsDeckQuizPlacement:
         user = _make_user(db_session, onboarding_level='A1')
         _make_due_review_card(db_session, user.id)
 
-        required = build_required(user.id, real_db, difficulty='intensive', focus=None)
+        required_dicts = build_required_snapshot(user.id, 'intensive', real_db)
+        required = [PlanItem(**dict(it, completed=False)) for it in required_dicts]
         srs_required = [it for it in required if it.kind == 'srs']
         assert len(srs_required) == 1
         assert srs_required[0].id == 'srs:global'
@@ -1539,7 +1542,7 @@ class TestSrsDeckQuizPlacement:
             lambda uid, db: 5,
         )
 
-        required = build_required(user.id, real_db, difficulty='intensive', focus=None)
-        srs_required = [it for it in required if it.kind == 'srs']
+        required_dicts = build_required_snapshot(user.id, 'intensive', real_db)
+        srs_required = [it for it in required_dicts if it['kind'] == 'srs']
         assert len(srs_required) == 1
-        assert srs_required[0].id == 'srs:deck_quiz'
+        assert srs_required[0]['id'] == 'srs:deck_quiz'

@@ -11,18 +11,16 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
 
 from app.achievements.models import StreakEvent
-from app.admin.site_settings import set_site_setting
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.models import DailyPlanLog
 from app.daily_plan.snapshot import (
-    SNAPSHOT_VERSION_V2,
-    is_snapshot_v2_enabled,
+    SNAPSHOT_VERSION,
     overlay_completion,
     resolve_snapshot_for_today,
 )
@@ -73,7 +71,7 @@ class TestResolveSnapshot:
         today = date.today()
         snap = resolve_snapshot_for_today(user.id, today, real_db)
 
-        assert snap['version'] == SNAPSHOT_VERSION_V2
+        assert snap['version'] == SNAPSHOT_VERSION
         assert snap['date'] == today.isoformat()
         assert snap['tier'] in ('calm', 'normal', 'intensive')
         assert snap['rolled_over_from'] is None
@@ -105,7 +103,7 @@ class TestRollover:
 
         # Pre-seed yesterday's snapshot with one item.
         prior = {
-            'version': SNAPSHOT_VERSION_V2,
+            'version': SNAPSHOT_VERSION,
             'date': yesterday.isoformat(),
             'tier': 'calm',
             'rolled_over_from': None,
@@ -142,7 +140,7 @@ class TestRollover:
         yesterday = today - timedelta(days=1)
 
         prior = {
-            'version': SNAPSHOT_VERSION_V2,
+            'version': SNAPSHOT_VERSION,
             'date': yesterday.isoformat(),
             'tier': 'calm',
             'rolled_over_from': None,
@@ -178,6 +176,46 @@ class TestRollover:
         # Items reflect today's fresh build, not yesterday's copy.
         assert all(it.get('id') != 'curriculum:lesson:888' for it in snap['items'])
 
+    def test_rollover_activity_window_uses_requested_plan_date(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        user.timezone = 'UTC'
+        today = date.today() - timedelta(days=10)
+        yesterday = today - timedelta(days=1)
+
+        prior = {
+            'version': SNAPSHOT_VERSION,
+            'date': yesterday.isoformat(),
+            'tier': 'calm',
+            'rolled_over_from': None,
+            'items': [{
+                'id': 'curriculum:lesson:777',
+                'section': 'required',
+                'kind': 'curriculum',
+                'title': 'Old requested-date lesson',
+                'subtitle': None,
+                'lesson_type': 'vocabulary',
+                'eta_minutes': 8,
+                'url': '/learn/777/',
+                'completion_signal': 'lesson_completed',
+                'data': {'lesson_id': 777},
+            }],
+        }
+        db_session.add(DailyPlanLog(
+            user_id=user.id, plan_date=yesterday, plan_json=prior,
+        ))
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='in_progress',
+            last_activity=datetime.combine(yesterday, time(hour=10)),
+        ))
+        db_session.commit()
+
+        snap = resolve_snapshot_for_today(user.id, today, real_db)
+
+        assert snap['rolled_over_from'] is None
+        assert all(it.get('id') != 'curriculum:lesson:777' for it in snap['items'])
+
 
 class TestOverlayCompletion:
 
@@ -210,24 +248,3 @@ class TestOverlayCompletion:
         # Other slots remain uncompleted (no SRS/reading activity today).
         non_cur = [it for it in overlaid if it['kind'] != 'curriculum']
         assert all(not it.get('completed') for it in non_cur)
-
-
-class TestFeatureFlag:
-
-    def test_default_is_off(self, db_session):
-        # Without ever setting the value, the resolver picks up the
-        # SETTING_DEFAULTS ('false') value.
-        assert is_snapshot_v2_enabled(real_db) is False
-
-    def test_flag_can_be_turned_on(self, db_session):
-        set_site_setting(
-            'daily_plan_snapshot_v2', 'true', db_session=db_session,
-        )
-        db_session.commit()
-        try:
-            assert is_snapshot_v2_enabled(real_db) is True
-        finally:
-            set_site_setting(
-                'daily_plan_snapshot_v2', 'false', db_session=db_session,
-            )
-            db_session.commit()

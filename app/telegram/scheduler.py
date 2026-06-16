@@ -363,20 +363,14 @@ def _generate_daily_plans_hourly(app) -> None:
     a fresh GET, the resolver returns the existing row without rewriting.
 
     Per-user commit + rollback isolates failures (matches ``_hourly_check``).
-    No-op when the v2 feature flag is OFF.
+    Daily-plan snapshots are the only required-plan path, so this job always
+    runs for midnight-local active users.
     """
     with app.app_context():
         from app.auth.models import User
-        from app.daily_plan.snapshot import (
-            is_snapshot_v2_enabled,
-            resolve_snapshot_for_today,
-        )
+        from app.daily_plan.snapshot import resolve_snapshot_for_today
         from app.utils.db import db
         from app.utils.time_utils import get_user_local_date
-
-        if not is_snapshot_v2_enabled(db):
-            logger.debug('daily_plan_generation: v2 flag OFF, skipping')
-            return
 
         now_utc = datetime.now(timezone.utc)
         users = User.query.filter(User.active.is_(True)).all()

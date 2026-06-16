@@ -83,16 +83,16 @@ class TestSafeWidgetCallExceptionLogging:
             assert result == 'good_value'
 
 
-class TestDashboardPytzFallback:
-    """Dashboard uses UTC fallback and logs warning on timezone error."""
+class TestDashboardUnifiedOnly:
+    """Dashboard route is a thin unified-only dispatcher."""
 
-    def test_pytz_exception_handler_uses_specific_type(self):
-        """Verify source uses pytz.exceptions.UnknownTimeZoneError not bare Exception."""
+    def test_dashboard_no_longer_contains_legacy_fallback_body(self):
         import inspect
         from app.words import routes
         source = inspect.getsource(routes.dashboard)
-        assert 'pytz.exceptions.UnknownTimeZoneError' in source
-        assert 'logger.warning' in source
+        assert 'return _render_unified_dashboard(tz)' in source
+        assert 'falling back to legacy' not in source
+        assert 'pytz.exceptions.UnknownTimeZoneError' not in source
 
 
 # ---------------------------------------------------------------------------
