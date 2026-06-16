@@ -318,6 +318,39 @@ class TestCreateGrammarSection:
             assert result is None
 
 
+class TestCreateCompletionSection:
+    """Test _create_completion_section method"""
+
+    def test_skips_low_context_cloze_gaps(self, generator, mock_block):
+        task = Mock()
+        task.payload = {
+            'gaps': [
+                {'context': 'Question 1', 'answer': 'the', 'position': 1},
+                {'context': 'I have ___ book on the table.', 'answer': 'a', 'position': 2},
+            ]
+        }
+
+        result = generator._create_completion_section(mock_block, {'open_cloze': task})
+
+        assert result is not None
+        assert len(result['questions']) == 1
+        assert '___' in result['questions'][0]['question']
+        assert result['questions'][0]['answer'] == 'a'
+
+    def test_returns_none_when_all_cloze_gaps_are_guesswork(self, generator, mock_block):
+        task = Mock()
+        task.payload = {
+            'gaps': [
+                {'context': 'Question 1', 'answer': 'the'},
+                {'context': '', 'answer': 'a'},
+            ]
+        }
+
+        result = generator._create_completion_section(mock_block, {'open_cloze': task})
+
+        assert result is None
+
+
 class TestCreateScoringSystem:
     """Test _create_scoring_system method"""
 

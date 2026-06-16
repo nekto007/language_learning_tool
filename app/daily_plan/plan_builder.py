@@ -301,7 +301,7 @@ def _grammar_prep_item_dict(
 
     final_test_url = f'/lesson/{int(final_test_lesson.id)}/final_test'
     prep_url = (
-        f'/grammar-lab/practice/topic/{int(topic.id)}'
+        f'/grammar-lab/topic/{topic.slug}'
         f'?return_url={final_test_url}'
     )
 

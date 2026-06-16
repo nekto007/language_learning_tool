@@ -13,6 +13,9 @@ from app.curriculum.grading import (
     check_final_test_attempts_exhausted,
 )
 from app.curriculum.models import CEFRLevel, LessonAttempt, Lessons, Module
+from app.curriculum.routes.grammar_quiz_lessons import (
+    _filter_final_test_questions_for_student,
+)
 from tests.conftest import unique_level_code
 
 
@@ -69,6 +72,18 @@ def _add_attempt(db_session, user_id: int, lesson_id: int, hours_ago: float, sco
     db_session.add(attempt)
     db_session.commit()
     return attempt
+
+
+def test_final_test_filter_drops_free_input_cloze_without_visible_blank():
+    questions = [
+        {'type': 'fill_blank', 'question': 'Guess the missing word', 'answer': 'the'},
+        {'type': 'fill_blank', 'question': 'I have ___ book.', 'answer': 'a'},
+        {'type': 'fill_blank', 'question': 'Choose the word', 'options': ['a', 'the'], 'answer': 'a'},
+    ]
+
+    filtered = _filter_final_test_questions_for_student(questions, lesson_id=123)
+
+    assert filtered == questions[1:]
 
 
 def test_attempt_limit_allows_under_max(db_session):

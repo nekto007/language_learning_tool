@@ -142,6 +142,10 @@ def topic_detail(slug):
             .all()
         )
 
+    from app.auth.routes import get_safe_redirect_url
+    raw_return_url = request.args.get('return_url', '')
+    return_url = get_safe_redirect_url(raw_return_url, fallback='grammar_lab.topics') if raw_return_url else ''
+
     return render_template(
         'grammar_lab/topic_detail.html',
         topic=topic,
@@ -150,6 +154,7 @@ def topic_detail(slug):
         related_words=related_words,
         prev_topic=adjacent['prev'],
         next_topic=adjacent['next'],
+        return_url=return_url,
     )
 
 

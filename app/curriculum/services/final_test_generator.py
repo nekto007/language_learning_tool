@@ -285,12 +285,23 @@ class FinalTestGenerator:
         questions = []
         gaps = cloze_data.get('gaps', [])
 
-        for i, gap in enumerate(gaps[:8]):  # Take up to 8 gaps
+        for gap in gaps:
+            if len(questions) >= 8:
+                break
+            context = str(gap.get('context') or '').strip()
+            answer = str(gap.get('answer') or '').strip()
+            if not self._is_usable_cloze_context(context) or not answer:
+                logger.warning(
+                    "Skipping low-context final-test cloze gap block=%s position=%s",
+                    getattr(block, 'id', None), gap.get('position'),
+                )
+                continue
+            i = len(questions)
             question = {
                 'id': f"cloze_{i + 1}",
                 'type': 'fill_blank',
-                'question': f"Fill in the blank:\n\n{gap.get('context', '')}",
-                'answer': gap.get('answer', ''),
+                'question': f"Fill in the blank:\n\n{context}",
+                'answer': answer,
                 'points': 1,
                 'position': gap.get('position', i + 1)
             }
@@ -305,6 +316,15 @@ class FinalTestGenerator:
             'instructions': 'Fill in each blank with ONE word only.',
             'questions': questions
         }
+
+    @staticmethod
+    def _is_usable_cloze_context(context: str) -> bool:
+        """Return True only when the prompt shows a real blank in context."""
+        if len(context.strip()) < 12:
+            return False
+        lowered = context.lower()
+        blank_markers = ('___', '____', '[blank]', '(blank)', '{blank}', '...')
+        return any(marker in lowered for marker in blank_markers)
 
     def _create_word_formation_section(self, block: Block, task_map: Dict[str, Task]) -> Optional[Dict[str, Any]]:
         """Create word formation section"""

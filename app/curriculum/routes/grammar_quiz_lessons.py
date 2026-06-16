@@ -91,6 +91,54 @@ def _collect_quiz_form_answers(questions: list[dict]) -> dict:
     return answers
 
 
+_FILL_BLANK_TYPES = frozenset({'fill_blank', 'fill_in_blank'})
+_BLANK_MARKERS = ('___', '____', '[blank]', '(blank)', '{blank}', '...')
+
+
+def _has_visible_blank_context(question: dict) -> bool:
+    """True when a free-input blank question gives the learner a real gap."""
+    text_parts = [
+        question.get('question'),
+        question.get('prompt'),
+        question.get('context'),
+        question.get('sentence'),
+    ]
+    text = '\n'.join(str(part or '') for part in text_parts).strip().lower()
+    return len(text) >= 12 and any(marker in text for marker in _BLANK_MARKERS)
+
+
+def _filter_final_test_questions_for_student(
+    questions: list[dict],
+    *,
+    lesson_id: int,
+) -> list[dict]:
+    """Drop legacy final-test free-input cloze items that are pure guessing.
+
+    Multiple-choice cloze questions remain valid because options constrain the
+    task. Free-input cloze questions must show the sentence/context with an
+    explicit blank marker; otherwise the student only sees "guess the missing
+    word" with no meaningful clue.
+    """
+    filtered: list[dict] = []
+    dropped = 0
+    for question in questions:
+        q_type = question.get('type')
+        if (
+            q_type in _FILL_BLANK_TYPES
+            and not question.get('options')
+            and not _has_visible_blank_context(question)
+        ):
+            dropped += 1
+            continue
+        filtered.append(question)
+    if dropped:
+        logger.warning(
+            "final_test: dropped %d low-context cloze questions lesson=%s",
+            dropped, lesson_id,
+        )
+    return filtered
+
+
 def render_grammar_lesson(lesson):
     """Рендер grammar урока"""
     if lesson.type != 'grammar':
@@ -579,6 +627,9 @@ def render_final_test_lesson(lesson):
         else:
             questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
             all_questions = cleaned_content.get(questions_field, [])
+        all_questions = _filter_final_test_questions_for_student(
+            all_questions, lesson_id=lesson.id,
+        )
 
         result = process_quiz_submission(all_questions, answers)
         passing_score = get_lesson_passing_score(lesson)
@@ -649,6 +700,9 @@ def render_final_test_lesson(lesson):
             questions.extend(section.get('exercises') or section.get('questions') or [])
     else:
         questions = cleaned_content.get('exercises', cleaned_content.get('questions', []))
+    questions = _filter_final_test_questions_for_student(
+        questions, lesson_id=lesson.id,
+    )
 
     return render_template(
         'curriculum/lessons/final_test.html',
@@ -1068,10 +1122,13 @@ def final_test_lesson(lesson_id):
         all_questions = []
         if 'test_sections' in cleaned_content:
             for section in cleaned_content['test_sections']:
-                all_questions.extend(section.get('exercises', []))
+                all_questions.extend(section.get('exercises') or section.get('questions') or [])
         else:
             questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
             all_questions = cleaned_content.get(questions_field, [])
+        all_questions = _filter_final_test_questions_for_student(
+            all_questions, lesson_id=lesson.id,
+        )
 
         # For matching questions: if we collected pairs_<i> sidecar, package
         # them in the JSON shape the grader's matching branch expects so it
@@ -1157,9 +1214,12 @@ def final_test_lesson(lesson_id):
     if 'test_sections' in cleaned_content:
         questions = []
         for section in cleaned_content.get('test_sections', []):
-            questions.extend(section.get('exercises', []))
+            questions.extend(section.get('exercises') or section.get('questions') or [])
     else:
         questions = cleaned_content.get('exercises', cleaned_content.get('questions', []))
+    questions = _filter_final_test_questions_for_student(
+        questions, lesson_id=lesson.id,
+    )
 
     return render_template(
         'curriculum/lessons/final_test.html',

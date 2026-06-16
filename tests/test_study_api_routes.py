@@ -700,6 +700,45 @@ class TestCompleteSession:
         mock_linear_award.assert_called_once()
         mock_perfect_day.assert_called_once()
 
+    def test_linear_srs_completion_uses_daily_due_budget_for_learning_cards(
+        self, authenticated_client, study_session, test_user, db_session,
+    ):
+        """Learning backlog beyond today's budget must not keep the slot open."""
+        db_session.commit()
+
+        def due_counts(*args, **kwargs):
+            states = kwargs.get('states') or ()
+            if 'learning' in states or 'relearning' in states:
+                return 5
+            return 0
+
+        with patch(
+            'app.srs.counting.count_pending_new', return_value=0,
+        ), patch(
+            'app.srs.counting.count_due_by_states', side_effect=due_counts,
+        ), patch(
+            'app.srs.counting.get_new_card_budget', return_value=(0, 0),
+        ), patch(
+            'app.srs.counting.get_due_card_budget', return_value=0,
+        ), patch(
+            'app.daily_plan.linear.xp.maybe_award_srs_global_xp',
+            return_value=object(),
+        ) as mock_linear_award, patch(
+            'app.daily_plan.linear.xp.maybe_award_linear_perfect_day',
+        ) as mock_perfect_day:
+            response = authenticated_client.post('/study/api/complete-session', json={
+                'session_id': study_session.id,
+                'source': 'linear_plan',
+                'from': 'linear_plan',
+                'slot': 'srs',
+            })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        mock_linear_award.assert_called_once()
+        mock_perfect_day.assert_called_once()
+
     def test_invalid_session_id(self, authenticated_client):
         """Test with invalid session ID"""
         response = authenticated_client.post('/study/api/complete-session', json={

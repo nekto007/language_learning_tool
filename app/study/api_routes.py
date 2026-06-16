@@ -724,6 +724,7 @@ def complete_session():
                 from app.srs.counting import (
                     count_due_by_states,
                     count_pending_new,
+                    get_due_card_budget,
                     get_new_card_budget,
                 )
                 from app.srs.constants import CardState as _CS
@@ -740,8 +741,11 @@ def complete_session():
                     current_user.id, db,
                     states=(_CS.LEARNING.value, _CS.RELEARNING.value),
                 )
+                due_budget = get_due_card_budget(current_user.id, db)
+                learning_remaining = min(learning_remaining, due_budget)
                 review_remaining = min(
                     count_due_by_states(current_user.id, db, states=(_CS.REVIEW.value,)),
+                    max(0, due_budget - learning_remaining),
                     remaining_reviews,
                 )
                 total_remaining = new_remaining + learning_remaining + review_remaining

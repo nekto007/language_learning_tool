@@ -247,6 +247,8 @@ class TestFinalTestLayout:
         prep = items[gr_idx]
         assert prep['data']['topic_id'] == topic.id
         assert prep['data']['pre_final_test'] is True
+        assert prep['url'].startswith(f'/grammar-lab/topic/{topic.slug}')
+        assert 'return_url=/lesson/' in prep['url']
 
     def test_final_test_first_warmup_layout(
         self, db_session, user_with_book, book_with_chapter,
@@ -284,4 +286,5 @@ class TestFinalTestLayout:
         kinds = [it['kind'] for it in items]
         # Warmup layout: SRS → grammar_review → reading → curriculum(FT).
         assert kinds == ['srs', 'grammar_review', 'reading', 'curriculum']
+        assert items[1]['url'].startswith(f'/grammar-lab/topic/{topic.slug}')
         assert items[-1]['lesson_type'] == 'final_test'
