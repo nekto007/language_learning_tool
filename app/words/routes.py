@@ -1209,8 +1209,7 @@ def _render_unified_dashboard(tz: str):
     week_rhythm = _build_week_rhythm(current_user.id, tz)
 
     # Social-row widgets: rank (титул), leaderboard, achievements.
-    # All three reuse the legacy dashboard.html markup, so they live next
-    # to the unified plan but in dedicated layout slots:
+    # All three live next to the unified plan in dedicated layout slots:
     #   - rank_info → full-width band above the plan
     #   - achievements_by_category → right rail, below week rhythm
     #   - xp_leaderboard → left column, below «Показать ещё задания»

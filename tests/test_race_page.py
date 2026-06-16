@@ -23,9 +23,6 @@ import re
 from jinja2 import ChainableUndefined, Environment, FileSystemLoader
 
 
-_TEMPLATE_PATH = os.path.join(
-    os.path.dirname(__file__), '..', 'app', 'templates', 'dashboard.html'
-)
 _RACE_TEMPLATE_PATH = os.path.join(
     os.path.dirname(__file__), '..', 'app', 'templates', 'race', 'today.html'
 )
@@ -209,14 +206,6 @@ def _make_env():
     return env
 
 
-def _render_dashboard(daily_race=None):
-    tpl_source = _read_template(_TEMPLATE_PATH)
-    block_html = _extract_content_block(tpl_source)
-    env = _make_env()
-    tpl = env.from_string(block_html)
-    return _strip_inline_style(tpl.render(**_base_ctx(daily_race=daily_race)))
-
-
 def _render_race_page(daily_race=None, dashboard_url='/dashboard'):
     tpl_source = _read_template(_RACE_TEMPLATE_PATH)
     block_html = _extract_content_block(tpl_source)
@@ -280,76 +269,6 @@ def _daily_race_complete(rank=1, total=5, score=95, place_class='gold'):
     payload = _daily_race_in_progress(rank=rank, total=total, score=score, place_class=place_class)
     payload['is_complete'] = True
     return payload
-
-
-# =========================================================================
-# Dashboard compact strip
-# =========================================================================
-
-
-class TestDashboardCompactStrip:
-    """Task 14: dashboard shows only the compact strip — no full race block."""
-
-    def test_strip_renders_when_daily_race_present(self):
-        markup = _render_dashboard(daily_race=_daily_race_in_progress())
-        assert 'data-race-strip="true"' in markup
-        assert 'dash-race-strip' in markup
-
-    def test_strip_links_to_race_page(self):
-        markup = _render_dashboard(daily_race=_daily_race_in_progress())
-        # Anchor must point at /race (url_for('race.today'))
-        m = re.search(
-            r'<a[^>]+class="dash-race-strip[^"]*"[^>]+href="([^"]+)"',
-            markup,
-            flags=re.DOTALL,
-        )
-        assert m, 'compact strip anchor missing'
-        assert m.group(1) == '/race'
-
-    def test_strip_shows_place_and_score_in_progress(self):
-        markup = _render_dashboard(
-            daily_race=_daily_race_in_progress(rank=2, total=4, score=40)
-        )
-        text = _decode_entities(markup)
-        assert 'Место 2/4' in text
-        assert '40 очк' in text
-        assert 'Подробнее' in text
-
-    def test_strip_uses_place_class_badge(self):
-        markup = _render_dashboard(
-            daily_race=_daily_race_in_progress(place_class='silver')
-        )
-        assert 'dash-race__badge--silver' in markup
-
-    def test_strip_complete_state_shows_rank_and_summary_cta(self):
-        markup = _render_dashboard(
-            daily_race=_daily_race_complete(rank=1, score=95)
-        )
-        text = _decode_entities(markup)
-        assert 'dash-race-strip--complete' in markup
-        assert '1-е место' in text
-        assert '95 очк' in text
-        assert 'Итоги' in text
-        # In-progress placeholders must be absent on the finished strip
-        assert 'Подробнее' not in text
-        assert 'Место 1/' not in text
-
-    def test_strip_hidden_without_daily_race(self):
-        markup = _render_dashboard(daily_race=None)
-        assert 'data-race-strip' not in markup
-        assert 'dash-race-strip' not in markup
-
-    def test_dashboard_no_longer_renders_full_race_ux(self):
-        """The full 3-tasks/leaderboard UX now only lives on /race."""
-        markup = _render_dashboard(daily_race=_daily_race_in_progress())
-        # These markers belong on /race, not the dashboard
-        assert 'dash-race__tasks' not in markup
-        assert 'dash-race__nudge' not in markup
-        assert 'dash-race__board' not in markup
-        assert 'dash-race__list' not in markup
-        assert 'dash-race__stats' not in markup
-        assert 'dash-race__final' not in markup
-        assert 'dash-race__hero' not in markup
 
 
 # =========================================================================
