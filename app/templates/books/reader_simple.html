@@ -85,7 +85,7 @@
     <span class="rdr-timer-bar__text">
       <span id="reading-timer-elapsed">00:00</span>
       <span class="rdr-timer-bar__sep">/</span>
-      <span class="rdr-timer-bar__target">05:00</span>
+      <span class="rdr-timer-bar__target" id="reading-timer-target">05:00</span>
     </span>
     <button id="reading-pause-btn" type="button" class="rdr-timer-bar__pause"
             aria-label="Пауза таймера чтения" aria-pressed="false">⏸️ Пауза</button>
@@ -597,12 +597,14 @@ setTimeout(updateProgress, 100);
     function _renderTimer() {
         const bar = document.getElementById('reading-timer-bar');
         const elapsedEl = document.getElementById('reading-timer-elapsed');
+        const targetEl = document.getElementById('reading-timer-target');
         if (!bar || !elapsedEl) return;
         let elapsed = activeSecondsToday;
         if (state === 'active' && activeTickAnchor !== null) {
             elapsed += Math.floor((Date.now() - activeTickAnchor) / 1000);
         }
         elapsedEl.textContent = _formatTime(elapsed);
+        if (targetEl) targetEl.textContent = _formatTime(dailyTargetSeconds);
         bar.classList.toggle('is-target-met', elapsed >= dailyTargetSeconds);
         bar.classList.toggle('is-paused', state === 'paused' || manualPause || checkpointPause);
         // Auto-pause at every dailyTargetSeconds boundary. The /end call

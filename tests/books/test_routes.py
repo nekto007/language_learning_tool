@@ -178,6 +178,9 @@ class TestChapterPagination:
                 f'/read/{published_book.id}/chapters?chapter=1'
             )
         assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'id="reading-timer-target"' in html
+        assert 'targetEl.textContent = _formatTime(dailyTargetSeconds)' in html
 
     def test_first_chapter_accessible(self, authenticated_client, published_book):
         with patch(
