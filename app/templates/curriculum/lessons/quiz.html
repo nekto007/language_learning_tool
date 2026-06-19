@@ -680,13 +680,12 @@ function addWordToSentence(questionIndex, word, button) {
   // Add word to sentence
   sentenceDiv.appendChild(wordElement);
   
-  // Add space after word (except for punctuation)
-  if (!word.match(/[.,!?;:]/)) {
-    const space = document.createElement('span');
-    space.textContent = ' ';
-    space.className = 'word-space';
-    sentenceDiv.appendChild(space);
-  }
+  // Keep a real text separator between chips. Punctuation is already attached
+  // to tokens like "lamp,", but textContent still needs "lamp, it".
+  const space = document.createElement('span');
+  space.textContent = ' ';
+  space.className = 'word-space';
+  sentenceDiv.appendChild(space);
   
   // Disable the word button
   button.disabled = true;
@@ -694,6 +693,8 @@ function addWordToSentence(questionIndex, word, button) {
 }
 
 function removeWordFromSentence(wordElement, originalButton) {
+  const sentenceDiv = wordElement.parentElement;
+
   // Re-enable the original button
   originalButton.disabled = false;
   originalButton.classList.remove('used');
@@ -706,8 +707,7 @@ function removeWordFromSentence(wordElement, originalButton) {
   wordElement.remove();
   
   // Add placeholder if sentence is empty
-  const sentenceDiv = wordElement.parentElement;
-  if (!sentenceDiv.textContent.trim()) {
+  if (sentenceDiv && !sentenceDiv.textContent.trim()) {
     const placeholder = document.createElement('span');
     placeholder.className = 'placeholder-text';
     placeholder.textContent = '{{ _("Нажмите на слова выше, чтобы составить предложение") }}';
@@ -1881,4 +1881,3 @@ document.addEventListener('click', function(e) {
 });
 </script>
 {% endblock %}
-

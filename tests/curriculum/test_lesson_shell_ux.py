@@ -176,6 +176,14 @@ class TestResultBadgeClearedOnRetry:
         assert "_setFeedback(idx, 'correct'" in src
         assert "_setFeedback(idx, 'wrong'" in src
 
+    def test_ordering_keeps_space_after_punctuated_tokens(self):
+        src = (TEMPLATES_LESSONS / "quiz.html").read_text(encoding="utf-8")
+        # Regression: "Turn on the lamp, it is dark." was displayed correctly,
+        # but textContent became "Turn on the lamp,it is dark." because the
+        # separator was skipped for tokens containing punctuation.
+        assert "word.match(/[.,!?;:]/)" not in src
+        assert "textContent = ' '" in src
+
 
 # ---------------------------------------------------------------------------
 # 3. input--checking does not hang on network error
