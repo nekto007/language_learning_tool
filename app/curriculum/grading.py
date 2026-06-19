@@ -569,7 +569,13 @@ def grade_sentence_completion(
     for i, item in enumerate(items):
         user_answer = user_answers[i] if i < len(user_answers) else ''
         correct_answer = item.get('answer', '')
-        is_correct = _strict_text_match(user_answer, [correct_answer])
+        # collocation / transformation modes carry several valid surface forms
+        # (e.g. "may have missed" / "might have missed", "reached"/"struck") in
+        # acceptable_answers; gap-fill items just have the single canonical answer.
+        candidates = [correct_answer] + [
+            a for a in (item.get('acceptable_answers') or []) if str(a).strip()
+        ]
+        is_correct = _strict_text_match(user_answer, candidates)
         if is_correct:
             correct += 1
         item_results.append({

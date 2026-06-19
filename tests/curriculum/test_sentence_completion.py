@@ -537,3 +537,31 @@ class TestSentenceCompletionCheckItem:
         _login(client, test_user)
         r = client.post(self.URL.format(test_lesson_vocabulary.id), json={'index': 0, 'answer': 'x'})
         assert r.status_code == 400
+
+
+class TestSentenceCompletionAcceptableAnswers:
+    """collocation / transformation modes accept multiple valid surface forms."""
+
+    def _items(self):
+        return [{'prompt': 'They finally', 'answer': 'reached', 'prompt_after': 'a deal.',
+                 'acceptable_answers': ['struck', 'closed'], 'mode': 'collocation'}]
+
+    def test_grader_accepts_alternative(self):
+        res = grade_sentence_completion(['struck'], self._items())
+        assert res['correct_items'] == 1
+        assert res['item_results'][0]['correct'] is True
+
+    def test_grader_canonical_still_correct(self):
+        res = grade_sentence_completion(['reached'], self._items())
+        assert res['correct_items'] == 1
+
+    def test_grader_rejects_invalid(self):
+        res = grade_sentence_completion(['did'], self._items())
+        assert res['correct_items'] == 0
+
+    def test_check_item_accepts_alternative(self, app, db_session, test_user, client):
+        lesson = _make_sentence_completion_lesson(db_session, items=self._items())
+        _login(client, test_user)
+        r = client.post(f"/curriculum/api/lesson/{lesson.id}/check-item",
+                        json={'index': 0, 'answer': 'closed'})
+        assert r.get_json()['correct'] is True

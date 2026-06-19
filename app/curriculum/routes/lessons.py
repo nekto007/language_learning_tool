@@ -391,9 +391,12 @@ def check_sentence_completion_item(lesson_id):
         return jsonify({'success': False, 'error': 'index_out_of_range'}), 400
 
     from app.curriculum.grading import _strict_text_match
-    canonical = str(items[idx].get('answer', ''))
+    item = items[idx]
+    canonical = str(item.get('answer', ''))
+    # accept all valid surface forms for collocation/transformation modes
+    candidates = [canonical] + [str(a) for a in (item.get('acceptable_answers') or []) if str(a).strip()]
     user_answer = str(data.get('answer', ''))
-    is_correct = _strict_text_match(user_answer, [canonical])
+    is_correct = _strict_text_match(user_answer, candidates)
     resp = {'success': True, 'correct': is_correct}
     if is_correct or bool(data.get('final')):
         resp['answer'] = canonical
