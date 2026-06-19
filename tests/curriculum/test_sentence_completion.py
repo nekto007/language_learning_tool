@@ -479,3 +479,61 @@ class TestSentenceCompletionSubmitRoute:
             json={"answers": ["test"], "lesson_type": "sentence_completion"},
         )
         assert resp.status_code in (302, 401, 403)
+
+
+class TestSentenceCompletionCheckItem:
+    """Server-side per-item validation endpoint — answers are no longer in the DOM."""
+
+    URL = "/curriculum/api/lesson/{}/check-item"
+
+    def _items(self):
+        return [{'prompt': 'The cat sat on the', 'answer': 'mat'},
+                {'prompt': 'I drink', 'answer': 'water'}]
+
+    def test_no_answer_in_rendered_page(self, app, db_session, test_user, client):
+        lesson = _make_sentence_completion_lesson(db_session, items=self._items())
+        _login(client, test_user)
+        html = client.get(f"/curriculum/lesson/{lesson.id}/sentence-completion").get_data(as_text=True)
+        assert 'data-answer' not in html  # no passive DOM leak
+
+    def test_correct_returns_answer(self, app, db_session, test_user, client):
+        lesson = _make_sentence_completion_lesson(db_session, items=self._items())
+        _login(client, test_user)
+        r = client.post(self.URL.format(lesson.id), json={'index': 0, 'answer': 'mat'})
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data['correct'] is True
+        assert data['answer'] == 'mat'
+
+    def test_wrong_without_final_hides_answer(self, app, db_session, test_user, client):
+        lesson = _make_sentence_completion_lesson(db_session, items=self._items())
+        _login(client, test_user)
+        r = client.post(self.URL.format(lesson.id), json={'index': 0, 'answer': 'rug'})
+        data = r.get_json()
+        assert data['correct'] is False
+        assert 'answer' not in data  # pending-item answer is NOT leaked
+
+    def test_wrong_with_final_reveals_answer(self, app, db_session, test_user, client):
+        lesson = _make_sentence_completion_lesson(db_session, items=self._items())
+        _login(client, test_user)
+        r = client.post(self.URL.format(lesson.id), json={'index': 0, 'answer': 'rug', 'final': True})
+        data = r.get_json()
+        assert data['correct'] is False
+        assert data['answer'] == 'mat'  # revealed only on give-up
+
+    def test_typo_tolerated(self, app, db_session, test_user, client):
+        lesson = _make_sentence_completion_lesson(db_session, items=self._items())
+        _login(client, test_user)
+        r = client.post(self.URL.format(lesson.id), json={'index': 1, 'answer': 'watar'})
+        assert r.get_json()['correct'] is True  # Levenshtein <= 1
+
+    def test_index_out_of_range_400(self, app, db_session, test_user, client):
+        lesson = _make_sentence_completion_lesson(db_session, items=self._items())
+        _login(client, test_user)
+        r = client.post(self.URL.format(lesson.id), json={'index': 99, 'answer': 'x'})
+        assert r.status_code == 400
+
+    def test_wrong_lesson_type_400(self, app, db_session, test_user, client, test_lesson_vocabulary):
+        _login(client, test_user)
+        r = client.post(self.URL.format(test_lesson_vocabulary.id), json={'index': 0, 'answer': 'x'})
+        assert r.status_code == 400

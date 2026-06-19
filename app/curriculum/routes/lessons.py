@@ -364,6 +364,42 @@ def update_lesson_progress(lesson_id):
         return jsonify({'success': False, 'error': 'Server error'}), 500
 
 
+@lessons_bp.route('/api/lesson/<int:lesson_id>/check-item', methods=['POST'])
+@login_required
+@limiter.limit("120 per minute", key_func=get_authenticated_user_key)
+@require_lesson_access
+def check_sentence_completion_item(lesson_id):
+    """Server-side per-item validation for sentence_completion.
+
+    The expected answer is NOT sent to the client in the page (no data-answer
+    attribute). The client posts {index, answer, final} on each blur/Enter and
+    this endpoint returns {correct: bool}. The canonical answer is included ONLY
+    when the learner already solved it (correct) or signalled give-up
+    (``final=true`` after MAX_ATTEMPTS) — a pending item's answer is never leaked.
+    Rate-limited to blunt brute-force extraction via crafted requests.
+    """
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'sentence_completion':
+        return jsonify({'success': False, 'error': 'invalid_lesson_type'}), 400
+    items = lesson.content.get('items', []) if isinstance(lesson.content, dict) else []
+    data = request.get_json(silent=True) or {}
+    try:
+        idx = int(data.get('index'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'bad_index'}), 400
+    if idx < 0 or idx >= len(items):
+        return jsonify({'success': False, 'error': 'index_out_of_range'}), 400
+
+    from app.curriculum.grading import _strict_text_match
+    canonical = str(items[idx].get('answer', ''))
+    user_answer = str(data.get('answer', ''))
+    is_correct = _strict_text_match(user_answer, [canonical])
+    resp = {'success': True, 'correct': is_correct}
+    if is_correct or bool(data.get('final')):
+        resp['answer'] = canonical
+    return jsonify(resp)
+
+
 @lessons_bp.route('/api/lesson/<int:lesson_id>/submit', methods=['POST'])
 @login_required
 @limiter.limit("30 per minute", key_func=get_authenticated_user_key)

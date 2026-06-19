@@ -37,11 +37,11 @@
       {% endif %}
       <div class="sentence-completion-prompt-row">
         <label class="sentence-completion-prompt" for="answer-{{ loop.index0 }}">{{ item.prompt }}</label>
-        {# Free-text input. The expected answer is exposed via data-answer
-           so the client can validate every blur/Enter without a network
-           roundtrip. For a teaching exercise this answer-leak is
-           acceptable — the goal is feedback latency, not testing
-           rigour. #}
+        {# Free-text input. The expected answer is NOT rendered into the page —
+           each blur/Enter is validated server-side via
+           /api/lesson/<id>/check-item, which returns the canonical answer only
+           once the item is solved or given-up. `placeholder` shows a masked
+           hint (first letter + length), not the answer. #}
         <input
           type="text"
           class="sentence-completion-input{% if item.prompt_after %} sentence-completion-input--short{% endif %}"
@@ -51,7 +51,6 @@
           autocorrect="off"
           spellcheck="false"
           data-index="{{ loop.index0 }}"
-          data-answer="{{ item.answer }}"
         />
         {% if item.prompt_after %}
           <span class="sentence-completion-prompt-after">{{ item.prompt_after }}</span>
@@ -107,6 +106,10 @@ const DAILY_PLAN_CTX = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_
 // failed tries). Wrong-attempts are tracked for the error-dots column.
 const itemState = {};   // {idx: 'pending'|'correct'|'given-up'}
 const itemAttempts = {}; // {idx: [wrong_value, ...]}
+// Canonical answer per item — populated from the server ONLY once an item is
+// terminal (correct / given-up). Never holds a pending item's answer, so the
+// page never carries answers the learner hasn't earned.
+const itemAnswers = {};
 
 function _normalize(s) {
   return (s || '').trim().toLowerCase()
@@ -251,25 +254,45 @@ function _showCorrection(idx, userValue, expected) {
   feedbackEl.appendChild(wrap);
 }
 
-function checkItem(idx) {
+async function checkItem(idx) {
   if (itemState[idx] === 'correct' || itemState[idx] === 'given-up') return;
   const input = document.getElementById('answer-' + idx);
   if (!input) return;
   const value = (input.value || '').trim();
   if (!value) return;
-  const expected = input.getAttribute('data-answer') || '';
-  if (_matches(value, expected)) {
+  // This is the learner's final try if they've already missed MAX_ATTEMPTS-1
+  // times — tell the server so it may reveal the canonical answer for the
+  // correction block. Pending-item answers are never returned otherwise.
+  const isFinalTry = (itemAttempts[idx] || []).length + 1 >= MAX_ATTEMPTS;
+  let resp = null;
+  try {
+    const r = await fetch('/curriculum/api/lesson/' + lessonId + '/check-item', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+      body: JSON.stringify({index: idx, answer: value, final: isFinalTry}),
+    });
+    resp = r.ok ? await r.json() : null;
+  } catch (e) { resp = null; }
+  if (!resp || resp.success === false) {
+    // Network/validation hiccup — don't burn the attempt; let them retry.
+    _showItemFeedback(idx, 'incorrect', '{{ _("Не удалось проверить. Попробуй ещё раз.") }}');
+    return;
+  }
+  // Input may have been locked by a concurrent check while awaiting.
+  if (itemState[idx] === 'correct' || itemState[idx] === 'given-up') return;
+  if (resp.correct) {
     itemState[idx] = 'correct';
-    _lockCorrect(idx, expected);
+    itemAnswers[idx] = resp.answer || value;
+    _lockCorrect(idx, itemAnswers[idx]);
     _showItemFeedback(idx, 'correct', '{{ _("Правильно!") }}');
   } else {
     if (!itemAttempts[idx]) itemAttempts[idx] = [];
     itemAttempts[idx].push(value);
-    _addErrorDot(idx, value);
     if (itemAttempts[idx].length >= MAX_ATTEMPTS) {
       itemState[idx] = 'given-up';
+      itemAnswers[idx] = resp.answer || '';
       _lockGivenUp(idx);
-      _showCorrection(idx, value, expected);
+      _showCorrection(idx, value, itemAnswers[idx]);
     } else {
       const remaining = MAX_ATTEMPTS - itemAttempts[idx].length;
       _shake(input);
@@ -358,11 +381,16 @@ async function _saveState() {
   const snapshot = {items: []};
   for (let i = 0; i < itemCount; i++) {
     const el = document.getElementById('answer-' + i);
-    snapshot.items.push({
-      state: itemState[i] || 'pending',
+    const st = itemState[i] || 'pending';
+    const entry = {
+      state: st,
       attempts: itemAttempts[i] ? itemAttempts[i].slice() : [],
       value: el ? (el.value || '') : '',
-    });
+    };
+    // Persist the canonical answer ONLY for terminal items (already revealed to
+    // the learner), so reload can replay them without re-exposing pending answers.
+    if (st === 'correct' || st === 'given-up') entry.answer = itemAnswers[i] || '';
+    snapshot.items.push(entry);
   }
   try {
     await fetch('/curriculum/api/lesson/' + lessonId + '/progress', {
@@ -400,14 +428,16 @@ function _restoreState() {
       }
       if (saved.state === 'correct') {
         itemState[i] = 'correct';
-        const expected = input.getAttribute('data-answer') || '';
+        const expected = saved.answer || saved.value || '';
+        itemAnswers[i] = expected;
         _lockCorrect(i, expected);
         _showItemFeedback(i, 'correct', '{{ _("Правильно!") }}');
       } else if (saved.state === 'given-up') {
         itemState[i] = 'given-up';
         input.value = saved.value || '';
+        const expected = saved.answer || '';
+        itemAnswers[i] = expected;
         _lockGivenUp(i);
-        const expected = input.getAttribute('data-answer') || '';
         _showCorrection(i, saved.value || '', expected);
       } else if (saved.value) {
         input.value = saved.value;
@@ -429,7 +459,8 @@ function _restoreCompleted(grading) {
     if (i >= itemCount) return;
     const input = document.getElementById('answer-' + i);
     if (!input) return;
-    const expected = res.answer || input.getAttribute('data-answer') || '';
+    const expected = res.answer || '';
+    itemAnswers[i] = expected;
     if (res.correct) {
       itemState[i] = 'correct';
       _lockCorrect(i, expected);
