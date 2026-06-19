@@ -426,20 +426,8 @@
         .then(function () {
           completeBtn.style.display = 'none';
           if (statusEl) statusEl.textContent = '';
-          var ctx = window.linearPlanContext;
-          // Plan-aware CTA swap: when we arrived via `?from=linear_plan&slot=error_review`
-          // the helper queries `/api/daily-plan/next-slot` and either points
-          // at the next baseline slot or redirects to `/dashboard?day_secured=1`
-          // for the «День сохранён» banner. Outside of plan context the helper
-          // is a no-op and we fall back to the server-rendered partial.
-          var applied = false;
-          if (ctx && typeof ctx.applyErrorReviewPlanAwareCompletion === 'function') {
-            try {
-              ctx.applyErrorReviewPlanAwareCompletion(container);
-              applied = true;
-            } catch (_e) { applied = false; }
-          }
-          if (!applied) {
+
+          function revealFallback() {
             var actions = document.getElementById('error-review-results-actions');
             if (actions) {
               actions.hidden = false;
@@ -448,6 +436,32 @@
               window.location.href = '/dashboard';
             }
           }
+
+          // Plan-aware CTA swap: when we arrived via `?from=linear_plan&slot=error_review`
+          // the helper queries `/api/daily-plan/next-slot` and either points
+          // at the next baseline slot or redirects to `/dashboard?day_secured=1`
+          // for the «День сохранён» banner.
+          //
+          // The helper RESOLVES (async) to 'plan' only when it actually
+          // rendered plan CTAs; on any 'standalone' resolution (no plan
+          // context / slot mismatch / next-slot fetch failed or returned null)
+          // it leaves the DOM untouched. We MUST await that promise and reveal
+          // the fallback ourselves — the old code set ``applied = true``
+          // synchronously right after the (un-awaited) call, so the fallback
+          // never ran and the user was stranded on a dead-end screen (complete
+          // button hidden, status cleared, no CTAs).
+          var ctx = window.linearPlanContext;
+          var planPromise;
+          try {
+            planPromise = (ctx && typeof ctx.applyErrorReviewPlanAwareCompletion === 'function')
+              ? ctx.applyErrorReviewPlanAwareCompletion(container)
+              : Promise.resolve('standalone');
+          } catch (_e) {
+            planPromise = Promise.resolve('standalone');
+          }
+          Promise.resolve(planPromise).then(function (mode) {
+            if (mode !== 'plan') revealFallback();
+          }).catch(revealFallback);
         })
         .catch(function () {
           if (statusEl) statusEl.textContent = 'Не удалось сохранить. Попробуйте ещё раз.';

@@ -66,9 +66,20 @@ class TestLinearPlanContextSrsHelper:
     def test_helper_hides_legacy_cta_buttons(self):
         # The legacy "Ещё карточки" link must be hidden in plan mode.
         assert "#session-extra-study-link" in JS_SRC
-        # And the stock continue button (#fc-continue-btn) is hidden so it
-        # doesn't render alongside the plan CTAs.
-        assert "#fc-continue-btn" in JS_SRC
+
+    def test_helper_updates_server_ctas_in_place(self):
+        # The helper REUSES the server-rendered [data-plan-cta] anchors (emitted
+        # by the _lesson_completion_actions partial on both the card-lesson and
+        # /study/cards SRS surfaces) and refreshes the next-slot href IN PLACE —
+        # it must NOT delete + rebuild. The old rebuild dropped the partial's
+        # .lsn-btn styling, re-created unstyled btn-plan-* anchors, and clobbered
+        # the identical in-place update flashcard-session.js already performs
+        # from the inline complete-response ctx.
+        assert '[data-plan-cta="next-slot"]' in JS_SRC
+        assert '[data-plan-cta="dashboard"]' in JS_SRC
+        # The synthesise-when-absent fallback uses the shared .lsn-btn styling
+        # (never the undefined btn-plan-* classes).
+        assert 'lsn-btn--plan-equal' in JS_SRC
 
 
 class TestFlashcardSessionTemplateWiring:

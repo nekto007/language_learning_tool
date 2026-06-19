@@ -535,8 +535,14 @@
     </div>
   </div>
 
-  <!-- Daily Plan Next Step (after content, before footer) -->
+  {# Daily Plan Next Step (after content, before footer). Only rendered when
+     the legacy banner/modal script is actually loaded (book-reader surfaces
+     set ``daily_plan_next_enabled``). Curriculum lessons drive completion via
+     showLessonCompletion + the plan-aware partial, so it is gated out here.
+     Jinja comment (stripped from output) so the dead-code note never ships. #}
+  {% if daily_plan_next_enabled|default(false) %}
   <div id="daily-plan-next-step" style="max-width:800px;margin:0.75rem auto 0;padding:0 1rem;"></div>
+  {% endif %}
 
   <!-- Navigation Footer -->
   <div class="lsn-footer" id="lesson-footer">
@@ -731,7 +737,14 @@ window.showLessonCompletion = function(opts) {
   });
 };
 </script>
+{% if daily_plan_next_enabled|default(false) %}
+{# Legacy daily-plan banner + auto-redirect modal. Gated OFF for curriculum
+   lessons: it self-activates only on ?from=daily_plan (produced solely by the
+   book-reader / book-details pages), so on a lesson (?from=linear_plan) it
+   downloads + parses but can never bind. Reader pages include this script
+   directly, not via lesson_base. #}
 <script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
+{% endif %}
 <script nonce="{{ csp_nonce }}">
 // Dispatch daily plan event when lesson completion buttons become visible
 (function() {

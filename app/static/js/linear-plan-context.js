@@ -268,39 +268,50 @@
         extra.setAttribute('aria-hidden', 'true');
       }
 
-      // Drop any previously-injected plan CTAs (defensive: re-entry).
-      var existing = container.querySelectorAll('[data-plan-cta]');
-      Array.prototype.forEach.call(existing, function(node) {
-        if (node.parentNode) node.parentNode.removeChild(node);
-      });
+      // Prefer the server-rendered plan CTAs: the _lesson_completion_actions
+      // partial emits styled [data-plan-cta] anchors whenever the page has
+      // daily_plan_ctx.is_daily_plan (true for both the card-lesson and the
+      // /study/cards SRS surfaces). Refresh the next-slot href IN PLACE from
+      // the post-completion result — do NOT delete + rebuild.
+      //
+      // The old delete+rebuild dropped the partial's .lsn-btn styling and
+      // re-created unstyled btn-plan-* anchors (no CSS), AND clobbered the
+      // identical in-place update flashcard-session.js already performs from
+      // the inline complete-response ctx — a non-deterministic, worse-looking
+      // result. Updating in place keeps one styled, consistent CTA pair.
+      var nextAnchor = container.querySelector('[data-plan-cta="next-slot"]');
+      var dashAnchor = container.querySelector('[data-plan-cta="dashboard"]');
 
-      var continueBtn = container.querySelector('#fc-continue-btn');
-      var continueWrapper = continueBtn ? continueBtn.parentNode : container;
+      if (nextAnchor || dashAnchor) {
+        if (nextAnchor) {
+          nextAnchor.setAttribute('href', data.next.url);
+          nextAnchor.style.display = '';
+        }
+        if (dashAnchor) {
+          dashAnchor.style.display = '';
+        }
+        return 'plan';
+      }
 
+      // Fallback: the page rendered no server-side plan CTAs (e.g. the catalog
+      // branch of the partial). Synthesise them with the SHARED .lsn-btn
+      // styling so they don't render unstyled.
       var primary = document.createElement('a');
-      primary.className = 'btn-back-home btn-plan-next';
+      primary.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
       primary.setAttribute('data-plan-cta', 'next-slot');
-      primary.href = data.next.url;
-      var primaryTitle = data.next.title
+      primary.setAttribute('href', data.next.url);
+      primary.textContent = data.next.title
         ? 'Следующий слот плана · ' + data.next.title
         : 'Следующий слот плана';
-      primary.textContent = primaryTitle;
 
       var secondary = document.createElement('a');
-      secondary.className = 'btn-back-home btn-plan-dashboard';
+      secondary.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
       secondary.setAttribute('data-plan-cta', 'dashboard');
-      secondary.href = '/dashboard';
+      secondary.setAttribute('href', '/dashboard');
       secondary.textContent = 'На дашборд';
 
-      if (continueBtn) {
-        continueBtn.style.display = 'none';
-        continueBtn.setAttribute('aria-hidden', 'true');
-        continueWrapper.insertBefore(primary, continueBtn);
-        continueWrapper.insertBefore(secondary, continueBtn);
-      } else {
-        container.appendChild(primary);
-        container.appendChild(secondary);
-      }
+      container.appendChild(primary);
+      container.appendChild(secondary);
       return 'plan';
     }).catch(function() {
       return 'standalone';
