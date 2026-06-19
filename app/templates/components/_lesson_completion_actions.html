@@ -31,9 +31,9 @@ Catalog flow (default, no plan context):
      class="lsn-btn lsn-btn--primary lsn-btn--plan-equal"
      data-plan-cta="dashboard">
     {% if _dp.day_secured and not _dp.next_slot_url %}
-      День завершён · на дашборд
+      {{ _('День завершён · на дашборд') }}
     {% else %}
-      На дашборд
+      {{ _('На дашборд') }}
     {% endif %}
   </a>
   {% if _dp.next_slot_url %}
@@ -42,7 +42,7 @@ Catalog flow (default, no plan context):
        data-plan-cta="next-slot"
        data-plan-next-slot-url="{{ _dp.next_slot_url }}"
        data-plan-next-slot-title="{{ _dp.next_slot_title or '' }}">
-      Следующий урок плана
+      {{ _('Следующий урок плана') }}
       <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
     </a>
   {% endif %}

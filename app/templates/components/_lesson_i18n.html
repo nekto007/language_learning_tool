@@ -1,0 +1,17 @@
+{# JS i18n bridge.
+
+Exposes server-localized completion strings to external JS modules
+(lesson-completion.js now; linear-plan-context.js / flashcard-session.js from
+stage 3) which cannot call Jinja's _(). Object.assign so repeated includes merge
+rather than clobber. Keys MUST match the labels rendered by
+components/_lesson_completion_actions.html so the server-rendered CTA and any
+JS-set CTA read identically.
+
+See docs/design/lesson-completion-contract.md §2.4. #}
+<script nonce="{{ csp_nonce }}">
+window.I18N = Object.assign(window.I18N || {}, {
+  plan_next: {{ _('Следующий урок плана')|tojson }},
+  dashboard: {{ _('На дашборд')|tojson }},
+  day_done: {{ _('День завершён · на дашборд')|tojson }}
+});
+</script>

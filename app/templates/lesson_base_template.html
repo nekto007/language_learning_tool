@@ -592,6 +592,8 @@
 <!-- CSRF Token Meta -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
+{% include 'components/_lesson_i18n.html' %}
+<script src="{{ url_for('static', filename='js/lesson-completion.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 // Auto-save toast helper
 window.showSaveToast = function() {
@@ -604,137 +606,14 @@ window.showSaveToast = function() {
   }, 2000);
 };
 
-// Lesson completion helper.
-// Two paths:
-//   1. plan-aware: when linearPlanContext.isActive() returns true the helper
-//      calls fetchNextSlot() to ask the server for the next baseline slot
-//      (or whether the day is secured) and renders «Следующий слот плана» /
-//      «На дашборд» CTAs (data-plan-cta). On day_secured it redirects to
-//      /dashboard?day_secured=1 so the banner takes over.
-//   2. standalone: opts.daily_plan_ctx-driven refresh of server-rendered
-//      CTAs, or — when neither path applies — _revealCompletion('standalone')
-//      simply unhides the standalone completion block.
+// Lesson completion is owned by window.LessonCompletion (lesson-completion.js).
+// Kept as a thin shim so the many per-lesson templates that call
+// showLessonCompletion(...) keep working unchanged. Stage 3 migrates call-sites
+// to LessonCompletion.show directly; stage 4 removes this shim.
 window.showLessonCompletion = function(opts) {
-  opts = opts || {};
-  var el = document.getElementById('lesson-completion');
-  if (!el) return;
-  var gradeEl = document.getElementById('completion-grade');
-  var scoreEl = document.getElementById('completion-score');
-  if (gradeEl && opts.grade_name) {
-    gradeEl.textContent = opts.grade_name;
+  if (window.LessonCompletion && typeof window.LessonCompletion.show === 'function') {
+    return window.LessonCompletion.show(opts);
   }
-  if (scoreEl && opts.score !== undefined) {
-    scoreEl.textContent = Math.round(opts.score) + '%';
-  }
-
-  function _hideLegacyFooter() {
-    var legacyFooter = document.getElementById('lesson-footer');
-    if (legacyFooter) {
-      legacyFooter.classList.remove('lsn-footer--visible');
-      legacyFooter.style.display = 'none';
-    }
-    var legacyDailyPlan = document.getElementById('daily-plan-next-step');
-    if (legacyDailyPlan) {
-      legacyDailyPlan.style.display = 'none';
-    }
-  }
-
-  function _revealCompletion(mode) {
-    el.setAttribute('data-completion-mode', mode);
-    el.style.display = 'block';
-    if (mode === 'plan') {
-      _hideLegacyFooter();
-    }
-    if (!opts.silent) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    document.dispatchEvent(new Event('dailyPlanStepComplete'));
-  }
-
-  function _renderPlanCtas(nextUrl, nextTitle, dashboardUrl) {
-    var actions = document.getElementById('completion-actions');
-    if (!actions) return;
-    var nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
-    if (nextBtn && nextUrl) {
-      nextBtn.setAttribute('href', nextUrl);
-      var label = 'Следующий урок плана';
-      var firstText = nextBtn.firstChild;
-      while (firstText && firstText.nodeType !== Node.TEXT_NODE) {
-        firstText = firstText.nextSibling;
-      }
-      if (firstText) {
-        firstText.nodeValue = label + ' ';
-      } else {
-        nextBtn.insertBefore(document.createTextNode(label + ' '), nextBtn.firstChild);
-      }
-      nextBtn.style.display = '';
-    }
-    var dashBtn = actions.querySelector('[data-plan-cta="dashboard"]');
-    if (dashBtn) {
-      if (dashboardUrl) {
-        dashBtn.setAttribute('href', dashboardUrl);
-      }
-      var dashFirst = dashBtn.firstChild;
-      while (dashFirst && dashFirst.nodeType !== Node.TEXT_NODE) {
-        dashFirst = dashFirst.nextSibling;
-      }
-      if (dashFirst) {
-        dashFirst.nodeValue = 'На дашборд ';
-      }
-      dashBtn.style.display = '';
-    }
-  }
-
-  var ctx = window.linearPlanContext;
-  var inPlanContext = !!(ctx && typeof ctx.isActive === 'function' && ctx.isActive());
-
-  // Prefer the refreshed daily_plan_ctx from the submit response when the
-  // caller hands one over — it's already keyed to the just-completed lesson
-  // and saves an extra HTTP round-trip versus fetchNextSlot(). This also
-  // covers the in-plan path where the page-load CTA still points at the
-  // about-to-be-completed lesson (which would otherwise be the fallback
-  // for a fetchNextSlot failure).
-  if (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) {
-    var dp = opts.daily_plan_ctx;
-    if (dp.day_secured && !dp.next_slot_url) {
-      try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
-      window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
-      return;
-    }
-    _renderPlanCtas(dp.next_slot_url, dp.next_slot_title, dp.dashboard_url);
-    _revealCompletion('plan');
-    return;
-  }
-
-  if (!inPlanContext) {
-    _revealCompletion('standalone');
-    return;
-  }
-
-  // Plan-aware branch — ask the server which baseline slot comes next.
-  var fetcher = (ctx && typeof ctx.fetchNextSlot === 'function')
-    ? ctx.fetchNextSlot
-    : null;
-  if (!fetcher) {
-    _revealCompletion('standalone');
-    return;
-  }
-  fetcher().then(function(data) {
-    if (!data) {
-      _revealCompletion('standalone');
-      return;
-    }
-    if (data.day_secured && !data.next) {
-      try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
-      window.location.href = '/dashboard?day_secured=1';
-      return;
-    }
-    var next = data.next || {};
-    _renderPlanCtas(next.url, next.title, '/dashboard');
-    _revealCompletion('plan');
-  }).catch(function() {
-    _revealCompletion('standalone');
-  });
 };
 </script>
 {% if daily_plan_next_enabled|default(false) %}

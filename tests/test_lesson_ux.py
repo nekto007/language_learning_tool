@@ -250,39 +250,38 @@ class TestPlanAwareCompletion:
         self, mock_sec_module, mock_sec_lesson,
         authenticated_client, empty_content_lesson, db_session,
     ):
-        """``showLessonCompletion`` must check ``linearPlanContext.isActive()``
-        and fall through to the API when active. We pin the symbol names so
-        accidental rename of the JS helper breaks this test immediately."""
+        """The completion renderer (lesson-completion.js) must branch on
+        ``linearPlanContext.isActive()`` and fall through to ``fetchNextSlot``
+        when active. The lesson page loads the module + the i18n bridge; the
+        logic is pinned in the module source so a rename breaks immediately."""
+        from pathlib import Path
         response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
         assert response.status_code == 200
         html = response.data.decode()
-        # Plan-aware branch uses linearPlanContext + fetchNextSlot.
-        assert 'linearPlanContext' in html
-        assert 'fetchNextSlot' in html
-        # Secured-redirect target for the dashboard banner handoff.
-        assert '/dashboard?day_secured=1' in html
-        # Plan CTA labels appear in the helper source (Russian copy pinned).
-        assert 'Следующий слот плана' in html
-        assert 'На дашборд' in html
-        # data-plan-cta markers are the hook the helper uses to insert/remove
-        # dynamic CTAs — must exist in the JS so tests like the one above can
-        # recognise the plan-aware branch.
-        assert 'data-plan-cta' in html
+        # The page loads the renderer module, the plan-context script, and the
+        # i18n bridge that feeds the renderer its server-localized labels.
+        assert 'js/lesson-completion.js' in html
+        assert 'js/linear-plan-context.js' in html
+        # The i18n bridge is on the page (its label values are |tojson-escaped).
+        assert 'window.I18N' in html
+        # The plan-aware logic lives in the module source.
+        js = (Path(__file__).resolve().parent.parent
+              / 'app' / 'static' / 'js' / 'lesson-completion.js').read_text(encoding='utf-8')
+        assert 'linearPlanContext' in js
+        assert 'fetchNextSlot' in js
+        assert '/dashboard?day_secured=1' in js
+        # data-plan-cta markers are the hook the renderer updates in place.
+        assert 'data-plan-cta' in js
 
-    @patch('app.curriculum.security.check_lesson_access', return_value=True)
-    @patch('app.curriculum.security.check_module_access', return_value=True)
-    def test_helper_has_standalone_fallback(
-        self, mock_sec_module, mock_sec_lesson,
-        authenticated_client, empty_content_lesson, db_session,
-    ):
-        """If context is inactive OR the API errors, the helper must render
+    def test_helper_has_standalone_fallback(self):
+        """If context is inactive OR the API errors, the renderer must reveal
         the standalone completion block — otherwise curriculum-direct users
-        (no plan flag) would see a stuck spinner."""
-        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
-        html = response.data.decode()
-        # "_revealCompletion('standalone')" invoked in both the non-plan
-        # early return and the ``.catch()`` fallback.
-        assert "_revealCompletion('standalone')" in html
+        (no plan flag) would see a stuck spinner. ``_revealCompletion('standalone')``
+        is invoked in both the non-plan early return and the ``.catch()``."""
+        from pathlib import Path
+        js = (Path(__file__).resolve().parent.parent
+              / 'app' / 'static' / 'js' / 'lesson-completion.js').read_text(encoding='utf-8')
+        assert "_revealCompletion('standalone')" in js
 
     def test_fetch_next_slot_helper_exposed_on_context(self):
         """The helper at `app/static/js/linear-plan-context.js` must expose
@@ -330,21 +329,17 @@ class TestPlanContextHidesCurriculumNext:
         # Plan mode hides legacy standalone CTAs inside the completion block.
         assert '#lesson-completion[data-completion-mode="plan"] [data-standalone-cta]' in html
 
-    @patch('app.curriculum.security.check_lesson_access', return_value=True)
-    @patch('app.curriculum.security.check_module_access', return_value=True)
-    def test_plan_branch_js_hides_footer_inline(
-        self, mock_sec_module, mock_sec_lesson,
-        authenticated_client, empty_content_lesson, db_session,
-    ):
-        """JS fallback: ``showLessonCompletion`` plan branch must strip the
-        ``lsn-footer--visible`` class and force ``display: none`` on the
-        footer and the daily-plan widget, so lesson templates that set inline
-        ``display: inline-flex`` on footer buttons cannot beat the CSS rule."""
-        response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
-        html = response.data.decode()
-        assert 'legacyFooter.classList.remove(\'lsn-footer--visible\')' in html
-        assert "legacyFooter.style.display = 'none'" in html
-        assert "legacyDailyPlan.style.display = 'none'" in html
+    def test_plan_branch_js_hides_footer_inline(self):
+        """The renderer's plan branch must strip the ``lsn-footer--visible``
+        class and force ``display: none`` on the footer + daily-plan widget, so
+        lesson templates that set inline ``display: inline-flex`` on footer
+        buttons cannot beat the CSS rule."""
+        from pathlib import Path
+        js = (Path(__file__).resolve().parent.parent
+              / 'app' / 'static' / 'js' / 'lesson-completion.js').read_text(encoding='utf-8')
+        assert "legacyFooter.classList.remove('lsn-footer--visible')" in js
+        assert "legacyFooter.style.display = 'none'" in js
+        assert "legacyDailyPlan.style.display = 'none'" in js
 
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)
