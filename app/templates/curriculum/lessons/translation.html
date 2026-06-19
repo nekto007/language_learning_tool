@@ -457,7 +457,7 @@ function showResults(data) {
   if (passed) {
     // Перешли порог — глобальная плашка завершения, переход к next-lesson.
     if (typeof window.showLessonCompletion === 'function') {
-      window.showLessonCompletion({score: score});
+      window.showLessonCompletion({score: score, daily_plan_ctx: data.daily_plan_ctx});
     }
   } else {
     // Не перешли — НЕ показываем глобальный финал «Урок завершён».

@@ -135,21 +135,65 @@ class TestSubmitLessonReturnsDailyPlanCtx:
         assert set(data['daily_plan_ctx'].keys()) == DTO_KEYS
 
 
-class TestNextSlotApiCurrentShape:
-    """Pin the CURRENT nested shape so a later stage flattens it deliberately.
+class TestNextSlotUnifiedShape:
+    """Stage 3.1 — /api/daily-plan/next-slot now returns the flat completion DTO
+    (same shape as the inline submit channel) PLUS a back-compat nested ``next``
+    (dropped in stage 4)."""
 
-    Today /api/daily-plan/next-slot returns ``{day_secured, next:{kind,url,title}}``
-    — a DIFFERENT shape than the flat DTO the inline channel uses. The migration
-    plan unifies them; this test documents the starting point.
-    """
-
-    def test_next_slot_returns_nested_next_envelope(self, authenticated_client):
+    def test_next_slot_returns_flat_dto_and_legacy_next(self, authenticated_client):
         resp = authenticated_client.get('/api/daily-plan/next-slot')
         assert resp.status_code == 200
         data = resp.get_json()
-        # Nested envelope (NOT the flat DTO) — current contract.
+        # Flat DTO fields (the unified contract).
+        assert 'next_slot_url' in data
+        assert 'next_slot_kind' in data
+        assert 'dashboard_url' in data
+        assert 'is_daily_plan' in data
         assert 'day_secured' in data
+        # Back-compat nested envelope + transport flag.
         assert 'next' in data
+        assert 'success' in data
+
+
+class TestUpdateProgressReturnsDailyPlanCtx:
+    """Stage 3.2 — the non-graded completion endpoint (used by text/vocabulary/
+    matching/grammar-theory) now also carries the inline DTO, so those call-sites
+    can render plan CTAs without a fetchNextSlot round-trip (audit A4)."""
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_progress_endpoint_carries_dto(
+        self, _mock_access, db_session, authenticated_client,
+    ):
+        # vocabulary is not server-graded so it completes via the progress
+        # endpoint; the patch satisfies @require_lesson_access.
+        lesson = _make_vocabulary_lesson(db_session)
+        resp = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/progress',
+            json={'status': 'completed', 'score': 100},
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert 'daily_plan_ctx' in data
+        assert set(data['daily_plan_ctx'].keys()) == DTO_KEYS
+
+
+class TestCurriculumForwardsDailyPlanCtx:
+    """A4: the live completion handlers forward the inline daily_plan_ctx from
+    the submit response into showLessonCompletion (no redundant fetchNextSlot)."""
+
+    @pytest.mark.parametrize('tpl,token', [
+        ('translation.html', 'daily_plan_ctx: data.daily_plan_ctx'),
+        ('audio_fill_blank.html', 'daily_plan_ctx: data.daily_plan_ctx'),
+        ('shadow_reading.html', 'daily_plan_ctx: data.daily_plan_ctx'),
+        ('text.html', 'daily_plan_ctx: responseData.daily_plan_ctx'),
+    ])
+    def test_template_forwards_ctx(self, tpl, token):
+        src = (
+            REPO_ROOT / 'app' / 'templates' / 'curriculum' / 'lessons' / tpl
+        ).read_text(encoding='utf-8')
+        assert 'showLessonCompletion' in src
+        assert token in src
 
 
 class TestLessonCompletionPartialRendersPlanCtas:

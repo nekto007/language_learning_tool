@@ -441,7 +441,7 @@ async function submitShadowReading() {
       body: JSON.stringify({ self_assessed: true, rating: assessRating, lesson_type: 'shadow_reading' }),
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    await resp.json();
+    const data = await resp.json();
 
     _setPhaseState('phase-3', 'done');
     document.getElementById('phase-3-num').innerHTML = '<i class="fas fa-check"></i>';
@@ -454,7 +454,7 @@ async function submitShadowReading() {
     if (actions) actions.hidden = true;
 
     if (typeof window.showLessonCompletion === 'function') {
-      window.showLessonCompletion({ score: 100 });
+      window.showLessonCompletion({ score: 100, daily_plan_ctx: data.daily_plan_ctx });
     }
     if (typeof showSaveToast === 'function') showSaveToast();
   } catch (err) {

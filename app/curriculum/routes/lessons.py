@@ -356,6 +356,17 @@ def update_lesson_progress(lesson_id):
             response_data['grade_name'] = completion_result['grade_name']
             response_data['new_achievements'] = completion_result['new_achievements']
 
+        # Attach a refreshed daily_plan_ctx so the client completion helper can
+        # render plan CTAs inline (no extra fetchNextSlot round-trip), matching
+        # submit_lesson. Safe: is_daily_plan=False when not on the plan.
+        try:
+            from app.daily_plan.linear.lesson_context import build_lesson_context
+            response_data['daily_plan_ctx'] = build_lesson_context(
+                current_user.id, db, current_lesson_id=lesson_id
+            ).to_dict()
+        except Exception as ctx_err:
+            logger.warning("daily_plan_ctx attach failed for lesson %s: %s", lesson_id, ctx_err)
+
         return jsonify(response_data)
 
     except Exception as e:

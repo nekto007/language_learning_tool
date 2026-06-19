@@ -506,7 +506,7 @@ function showResults(data) {
       ' / <span data-progress-total>' + totalItemsResp + '</span>';
   }
   if (typeof window.showLessonCompletion === 'function') {
-    window.showLessonCompletion({ score: score });
+    window.showLessonCompletion({ score: score, daily_plan_ctx: data.daily_plan_ctx });
   }
 }
 

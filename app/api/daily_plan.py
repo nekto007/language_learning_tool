@@ -623,8 +623,10 @@ def daily_plan_next_slot():
 
     Consumed by the in-lesson completion celebration (and the SRS / book /
     error-review completion screens) via ``linearPlanContext.fetchNextSlot``.
-    Expected response shape:
-        {success, day_secured, next: {kind, url, title} | null}
+    Response shape (flat completion DTO + legacy nested ``next``):
+        {success, is_daily_plan, slot_kind, next_slot_url, next_slot_title,
+         next_slot_kind, day_secured, dashboard_url,
+         next: {kind, url, title} | null}
 
     ``current`` query param identifies the slot the caller is currently
     inside (e.g. ``curriculum``, ``srs``, ``reading``); ``lesson_id`` (only
@@ -663,11 +665,14 @@ def daily_plan_next_slot():
             'title': ctx.next_slot_title or '',
         }
 
-    return jsonify({
-        'success': True,
-        'day_secured': bool(ctx.day_secured),
-        'next': next_payload,
-    })
+    # Flat completion DTO (the single contract — same shape as the inline
+    # submit-response daily_plan_ctx and the page-load context) PLUS the legacy
+    # nested ``next`` envelope kept for back-compat. The nested form is dropped
+    # in stage 4 once every consumer reads the flat next_slot_* fields.
+    payload = ctx.to_dict()
+    payload['success'] = True
+    payload['next'] = next_payload
+    return jsonify(payload)
 
 
 @api_daily_plan.route('/daily-plan/continuation')

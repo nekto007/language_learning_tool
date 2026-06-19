@@ -1302,7 +1302,7 @@ function initReadingProgress() {
           const responseData = await response.json();
           if (responseData.success) {
             if (typeof showSaveToast === 'function') showSaveToast();
-            if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
+            if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100, daily_plan_ctx: responseData.daily_plan_ctx });
 
             // Показываем результаты завершения
             showCompletionResults();
