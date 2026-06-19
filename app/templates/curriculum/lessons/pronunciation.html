@@ -356,21 +356,14 @@ async function finishLesson() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
 
-    _renderBadge('pronunciation-result-badge', 'correct',
-      '<i class="fas fa-star"></i>', '{{ _("Урок завершён!") }}');
-
-    const nextArea = document.getElementById('pronunciation-next-area');
-    if (data.next_lesson_url) {
-      nextArea.innerHTML = `
-        <a href="${data.next_lesson_url}" class="btn btn-success">
-          <i class="fas fa-arrow-right"></i> {{ _("Следующий урок") }}
-        </a>`;
-    }
-
-    const area = document.getElementById('pronunciation-result-area');
-    area.hidden = false;
-    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Hand off to the unified completion block (plan-aware CTAs + day_secured
+    // redirect + feedback widget) instead of a bespoke "Следующий урок" anchor
+    // that ignored the daily plan. pronunciation extends lesson_base, so
+    // #lesson-completion + showLessonCompletion are available.
     btn.style.display = 'none';
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({ score: data.score, daily_plan_ctx: data.daily_plan_ctx });
+    }
   } catch (err) {
     console.error('Pronunciation finish error:', err);
     btn.disabled = false;

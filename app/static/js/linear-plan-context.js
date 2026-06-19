@@ -479,8 +479,12 @@
       wrapper.className = 'error-review__plan-ctas';
       wrapper.setAttribute('data-plan-cta-wrapper', 'error-review');
 
+      // Use error_review.html's own button classes (btn--primary / btn--outline);
+      // the page extends base.html and has no .lsn-btn, and the old
+      // btn-plan-* / btn--secondary classes have no CSS (audit A13) so the
+      // dashboard CTA rendered unstyled.
       var primary = document.createElement('a');
-      primary.className = 'btn btn--primary btn-plan-next';
+      primary.className = 'btn btn--primary';
       primary.setAttribute('data-plan-cta', 'next-slot');
       primary.href = data.next.url;
       primary.textContent = data.next.title
@@ -489,7 +493,7 @@
       wrapper.appendChild(primary);
 
       var secondary = document.createElement('a');
-      secondary.className = 'btn btn--secondary btn-plan-dashboard';
+      secondary.className = 'btn btn--outline';
       secondary.setAttribute('data-plan-cta', 'dashboard');
       secondary.href = '/dashboard';
       secondary.textContent = 'На дашборд';

@@ -187,6 +187,9 @@ class TestCurriculumForwardsDailyPlanCtx:
         ('audio_fill_blank.html', 'daily_plan_ctx: data.daily_plan_ctx'),
         ('shadow_reading.html', 'daily_plan_ctx: data.daily_plan_ctx'),
         ('text.html', 'daily_plan_ctx: responseData.daily_plan_ctx'),
+        # pronunciation now routes through showLessonCompletion instead of a
+        # bespoke next-lesson anchor (Stage 3.3).
+        ('pronunciation.html', 'daily_plan_ctx: data.daily_plan_ctx'),
     ])
     def test_template_forwards_ctx(self, tpl, token):
         src = (
@@ -194,6 +197,27 @@ class TestCurriculumForwardsDailyPlanCtx:
         ).read_text(encoding='utf-8')
         assert 'showLessonCompletion' in src
         assert token in src
+
+
+class TestErrorReviewCtaStyling:
+    """Stage 3.4 / audit A13 — the error_review plan CTAs use error_review's own
+    btn classes (btn--primary / btn--outline); the dead btn-plan-* classes (and
+    the unstyled btn--secondary dashboard CTA) are gone from the shared JS."""
+
+    def _js(self):
+        return (
+            REPO_ROOT / 'app' / 'static' / 'js' / 'linear-plan-context.js'
+        ).read_text(encoding='utf-8')
+
+    def test_no_dead_btn_plan_classes(self):
+        js = self._js()
+        assert 'btn-plan-next' not in js
+        assert 'btn-plan-dashboard' not in js
+
+    def test_error_review_uses_page_native_btn_classes(self):
+        js = self._js()
+        assert "'btn btn--primary'" in js
+        assert "'btn btn--outline'" in js
 
 
 class TestLessonCompletionPartialRendersPlanCtas:
