@@ -516,7 +516,10 @@ class SentenceCompletionItemSchema(Schema):
     class Meta:
         unknown = INCLUDE
 
-    prompt = fields.Str(required=True, validate=validate.Length(min=1))
+    # prompt may be empty for transformation items whose answer starts the target
+    # sentence (e.g. cleft/inversion: "[What we need] is more time." -> prompt="").
+    # The key must still be present (required), only the min-length is relaxed.
+    prompt = fields.Str(required=True, validate=validate.Length(min=0))
     answer = fields.Str(required=True, validate=validate.Length(min=1))
     context = fields.Str(required=False, load_default=None, allow_none=True)
 

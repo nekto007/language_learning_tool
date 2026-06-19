@@ -565,3 +565,20 @@ class TestSentenceCompletionAcceptableAnswers:
         r = client.post(f"/curriculum/api/lesson/{lesson.id}/check-item",
                         json={'index': 0, 'answer': 'closed'})
         assert r.get_json()['correct'] is True
+
+
+class TestSentenceCompletionEmptyPromptForTransformation:
+    """Transformation items whose answer starts the sentence have an empty prompt."""
+
+    def test_empty_prompt_validates(self):
+        # cleft: "[What we need] is more time." -> prompt is empty, answer leads.
+        ok, err, _ = LessonContentValidator.validate('sentence_completion', {
+            'items': [{'mode': 'transformation', 'prompt': '', 'answer': 'What we need',
+                       'prompt_after': 'is more time.', 'acceptable_answers': []}]
+        })
+        assert ok is True, err
+
+    def test_missing_prompt_key_still_fails(self):
+        from marshmallow import ValidationError
+        with pytest.raises((ValidationError, Exception)):
+            LessonContentValidator.validate('sentence_completion', {'items': [{'answer': 'x'}]})
