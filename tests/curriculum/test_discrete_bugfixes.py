@@ -237,3 +237,61 @@ class TestStudyMatchingGameJsValid:
         resp = authenticated_client.get('/study/matching')
         assert resp.status_code == 200
         _assert_inline_js_valid(resp.data.decode(), 'difficultyMultiplier')
+
+
+class TestAudioFillBlankA6:
+    """A6: audio_fill_blank no longer ships answers in the DOM; per-item checking
+    is server-side via /check-item, which reveals the answer only when correct or
+    on the final try."""
+
+    def _make(self, db_session):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        content = {'items': [
+            {'answer': 'cat', 'options': ['cat', 'dog', 'sun']},
+            {'answer': 'moon'},
+        ]}
+        lesson = Lessons(module_id=module.id, number=1, title='AFB',
+                         type='audio_fill_blank', content=content)
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_answer_not_in_dom_and_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make(db_session)
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        # The canonical answers must NOT be markered in the DOM.
+        assert 'data-answer="cat"' not in html
+        assert 'data-answer="moon"' not in html
+        _assert_inline_js_valid(html, 'checkInputAnswer')
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_check_item_hides_pending_reveals_on_correct_or_final(
+        self, _a, db_session, authenticated_client,
+    ):
+        lesson = self._make(db_session)
+
+        def post(idx, ans, final):
+            return authenticated_client.post(
+                f'/curriculum/api/lesson/{lesson.id}/check-item',
+                json={'index': idx, 'answer': ans, 'final': final},
+            ).get_json()
+
+        # wrong, not final → answer is NOT leaked
+        r = post(0, 'dog', False)
+        assert r['correct'] is False and 'answer' not in r
+        # correct → answer returned
+        r = post(0, 'cat', False)
+        assert r['correct'] is True and r['answer'] == 'cat'
+        # wrong but final try → answer revealed for the correction block
+        r = post(1, 'zzz', True)
+        assert r['correct'] is False and r['answer'] == 'moon'

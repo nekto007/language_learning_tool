@@ -380,7 +380,7 @@ def update_lesson_progress(lesson_id):
 @limiter.limit("120 per minute", key_func=get_authenticated_user_key)
 @require_lesson_access
 def check_sentence_completion_item(lesson_id):
-    """Server-side per-item validation for sentence_completion.
+    """Server-side per-item validation for sentence_completion / audio_fill_blank.
 
     The expected answer is NOT sent to the client in the page (no data-answer
     attribute). The client posts {index, answer, final} on each blur/Enter and
@@ -390,7 +390,7 @@ def check_sentence_completion_item(lesson_id):
     Rate-limited to blunt brute-force extraction via crafted requests.
     """
     lesson = Lessons.query.get_or_404(lesson_id)
-    if lesson.type != 'sentence_completion':
+    if lesson.type not in ('sentence_completion', 'audio_fill_blank'):
         return jsonify({'success': False, 'error': 'invalid_lesson_type'}), 400
     items = lesson.content.get('items', []) if isinstance(lesson.content, dict) else []
     data = request.get_json(silent=True) or {}

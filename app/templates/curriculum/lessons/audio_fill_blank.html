@@ -64,9 +64,11 @@
        опции, а не урока, и onclick дёргал бы чужой item. #}
     {% for item in items %}
     {% set item_idx = loop.index0 %}
+    {# A6: no data-answer here — the answer is NOT shipped to the DOM. Per-item
+       checking goes through POST /api/lesson/<id>/check-item, which returns the
+       canonical answer only when the learner solved it or used the last try. #}
     <article class="lesson-shell__card afb-item" id="afb-item-{{ item_idx }}"
              data-index="{{ item_idx }}"
-             data-answer="{{ item.answer }}"
              data-mode="{{ 'options' if item.options else 'input' }}">
       <header class="afb-item__header">
         <span class="afb-item__num">{{ loop.index }}</span>
@@ -375,31 +377,52 @@ function _markTryAgain(idx, remaining) {
     `<span class="afb-item__attempts">{{ _("Попыток осталось:") }} ${remaining}</span>`);
 }
 
-function checkInputAnswer(idx) {
+// A6: per-item grading is server-side — the answer is never in the DOM.
+// POST {index, answer, final}; the endpoint returns {correct, answer?} and
+// reveals `answer` only when correct or on the final try.
+async function _serverCheck(idx, value, isFinalTry) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/curriculum/api/lesson/' + lessonId + '/check-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ index: idx, answer: value, final: isFinalTry }),
+    });
+    return r.ok ? await r.json() : null;
+  } catch (e) { return null; }
+}
+
+async function checkInputAnswer(idx) {
   if (itemState[idx] !== 'pending') return;
   const itemEl = document.getElementById('afb-item-' + idx);
   const inp = document.getElementById('afb-answer-' + idx);
   if (!itemEl || !inp) return;
   const val = String(inp.value || '').trim();
   if (!val) return;  // ничего не введено — не дёргаемся
-  const expected = itemEl.dataset.answer || '';
-  if (_matches(val, expected)) {
-    _showCorrect(idx, expected);
+  const isFinalTry = (itemAttempts[idx] + 1) >= MAX_ATTEMPTS;
+  const res = await _serverCheck(idx, val, isFinalTry);
+  if (!res || res.success === false) {
+    // Сеть/валидация подвели — не сжигаем попытку, даём повторить.
+    _setFeedback(idx, 'wrong', '{{ _("Не удалось проверить. Попробуйте ещё раз.") }}');
+    return;
+  }
+  if (itemState[idx] !== 'pending') return;  // залочено параллельной проверкой
+  if (res.correct) {
+    _showCorrect(idx, res.answer || val);
     return;
   }
   itemAttempts[idx] += 1;
   if (itemAttempts[idx] >= MAX_ATTEMPTS) {
-    _showGivenUp(idx, val, expected);
+    _showGivenUp(idx, val, res.answer || '');
   } else {
     _markTryAgain(idx, MAX_ATTEMPTS - itemAttempts[idx]);
   }
 }
 
-function selectOption(itemIdx, option) {
+async function selectOption(itemIdx, option) {
   if (itemState[itemIdx] !== 'pending') return;
   const itemEl = document.getElementById('afb-item-' + itemIdx);
   if (!itemEl) return;
-  const expected = itemEl.dataset.answer || '';
   const inp = document.getElementById('afb-answer-' + itemIdx);
   if (inp) inp.value = option;
   const container = document.getElementById('afb-options-' + itemIdx);
@@ -414,8 +437,15 @@ function selectOption(itemIdx, option) {
       clicked.setAttribute('aria-pressed', 'true');
     }
   }
-  if (_matches(option, expected)) {
-    _showCorrect(itemIdx, expected);
+  const isFinalTry = (itemAttempts[itemIdx] + 1) >= MAX_ATTEMPTS;
+  const res = await _serverCheck(itemIdx, option, isFinalTry);
+  if (!res || res.success === false) {
+    _setFeedback(itemIdx, 'wrong', '{{ _("Не удалось проверить. Попробуйте ещё раз.") }}');
+    return;
+  }
+  if (itemState[itemIdx] !== 'pending') return;
+  if (res.correct) {
+    _showCorrect(itemIdx, res.answer || option);
   } else {
     itemAttempts[itemIdx] += 1;
     const wrongBtn = container && container.querySelector(`.option-btn[data-option="${CSS.escape(option)}"]`);
@@ -424,7 +454,7 @@ function selectOption(itemIdx, option) {
       wrongBtn.disabled = true;
     }
     if (itemAttempts[itemIdx] >= MAX_ATTEMPTS) {
-      _showGivenUp(itemIdx, option, expected);
+      _showGivenUp(itemIdx, option, res.answer || '');
     } else {
       _setFeedback(itemIdx, 'wrong',
         `{{ _("Не то слово. Послушайте ещё раз.") }} ` +
