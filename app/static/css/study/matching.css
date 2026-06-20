@@ -465,3 +465,28 @@
     justify-content: center;
   }
 }
+
+/* ── Flashcard popup audio button ───────────────────────────────────────────
+   The shared `.audio-btn` is declared twice in design-system.css: one rule
+   makes it a 36×36 icon-circle with color: var(--text-inverse) (white), the
+   other gives it a white background. Combined, the speaker icon + the
+   "Произношение" label render white-on-white (an invisible empty box) and the
+   fixed 36px width clips the text. Scope the fix to this button's id (id beats
+   class) so the shared `.audio-btn` used on other pages is untouched. */
+#flashcard-audio-btn {
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary-600);
+  background-color: #fff;
+  border: 1px solid var(--border-default);
+}
+
+#flashcard-audio-btn:hover {
+  background-color: var(--gray-50);
+  color: var(--primary-700);
+}
