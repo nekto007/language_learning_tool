@@ -125,7 +125,7 @@
                onchange="onSelfAssessChange()">
         <span>{{ _('Я внимательно прослушал(а) диалог') }}</span>
       </label>
-      <p class="listening-gate-hint{% if is_completed %} listening-gate-hint--ready{% endif %}" id="listening-gate-hint">
+      <p class="listening-gate-hint{% if is_completed %} listening-gate-hint--ready{% endif %}" id="listening-gate-hint" role="status" aria-live="polite" aria-atomic="true">
         {% if is_completed %}
           <i class="fas fa-check-circle"></i>
           {{ _('Урок выполнен ранее. Можно прослушать ещё раз или сразу завершить.') }}

@@ -658,7 +658,7 @@ function showResultsAndNavigation(data) {
   const isPassed = score >= 70;
   
   resultsDiv.innerHTML = `
-    <div class="results-summary ${isPassed ? 'success' : 'warning'}">
+    <div class="results-summary ${isPassed ? 'success' : 'warning'}" role="status" aria-live="polite" aria-atomic="true">
       <h3>{{ _('Результаты упражнений') }}</h3>
       <div class="score-display">
         <i class="fas fa-${isPassed ? 'check' : 'exclamation'}-circle"></i>

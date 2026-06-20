@@ -119,6 +119,28 @@ class TestFetchErrorHandlingBatch:
         assert 'checkTranslationItem(idx, consume)' in s
 
 
+class TestAriaLiveResultRegions:
+    """A7/A10: result/feedback regions announce to screen readers."""
+
+    def test_shared_completion_block_has_aria_live(self):
+        s = (REPO / 'app' / 'templates' / 'lesson_base_template.html').read_text(encoding='utf-8')
+        assert 'id="lesson-completion" data-completion-mode="standalone" role="status" aria-live="polite"' in s
+
+    @pytest.mark.parametrize('name,marker', [
+        ('dictation.html', 'id="dictation-results" role="status" aria-live="polite"'),
+        ('quiz.html', 'class="quiz-results-compact" role="status" aria-live="polite"'),
+        ('grammar.html', "'warning'}\" role=\"status\" aria-live=\"polite\""),
+        ('final_test.html', 'class="question-feedback" role="status" aria-live="polite"'),
+        ('listening_immersion.html', 'id="listening-gate-hint" role="status" aria-live="polite"'),
+    ])
+    def test_lesson_result_region_aria_live(self, name, marker):
+        assert marker in (LESSONS / name).read_text(encoding='utf-8')
+
+    def test_error_review_aria_live(self):
+        s = (REPO / 'app' / 'templates' / 'curriculum' / 'error_review.html').read_text(encoding='utf-8')
+        assert 'id="error-review-container" role="status" aria-live="polite"' in s
+
+
 class TestRoutePatchBatch:
     def test_card_examples_projected(self):
         s = (REPO / 'app' / 'curriculum' / 'routes' / 'card_lessons.py').read_text(encoding='utf-8')

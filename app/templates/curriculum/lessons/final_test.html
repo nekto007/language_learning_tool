@@ -338,7 +338,7 @@
           {% endif %}
 
           <!-- Обратная связь -->
-          <div class="question-feedback" id="feedback-{{ question_index }}" style="display: none;">
+          <div class="question-feedback" role="status" aria-live="polite" aria-atomic="true" id="feedback-{{ question_index }}" style="display: none;">
             <div class="feedback-content">
               <div class="feedback-icon"></div>
               <div class="feedback-text"></div>
