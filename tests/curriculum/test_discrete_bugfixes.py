@@ -5,10 +5,39 @@ isolated P1/P2 fixes applied from the frontend audit.
 """
 from __future__ import annotations
 
+import os
+import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+
+def _assert_inline_js_valid(html, must_contain):
+    """node --check the first inline (non-src) <script> that contains a marker.
+
+    Catches dangling/orphaned JS (e.g. an object literal + `)` with no opening
+    `(`) that a presence-only template assertion would miss. Skips when node is
+    unavailable.
+    """
+    scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, re.S)
+    target = next((s for s in scripts if must_contain in s), None)
+    assert target, f'inline script containing {must_contain!r} not found'
+    node = shutil.which('node')
+    if not node:
+        import pytest as _pt
+        _pt.skip('node not available for JS syntax check')
+    f = tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8')
+    f.write(target)
+    f.close()
+    try:
+        r = subprocess.run([node, '--check', f.name], capture_output=True, text=True)
+        assert r.returncode == 0, f'inline JS has a syntax error:\n{r.stderr}'
+    finally:
+        os.unlink(f.name)
 
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from tests.conftest import unique_level_code
@@ -196,3 +225,15 @@ class TestBatch3StateAndA5Tail:
         s = (REPO / 'app' / 'curriculum' / 'routes' / 'card_lessons.py').read_text(encoding='utf-8')
         assert 'def _lesson_deck_size' in s
         assert 'min_required = min(min_required, deck_size)' in s
+
+
+class TestStudyMatchingGameJsValid:
+    """/study/matching is a STANDALONE game (study/matching.html), separate from
+    the curriculum matching lesson. Its game JS had an orphaned debug call (an
+    object literal + `);` with no opening `(`) that broke the whole page with
+    `expected expression, got ')'`. node --check the rendered game script."""
+
+    def test_study_matching_inline_js_parses(self, authenticated_client, study_settings):
+        resp = authenticated_client.get('/study/matching')
+        assert resp.status_code == 200
+        _assert_inline_js_valid(resp.data.decode(), 'difficultyMultiplier')

@@ -668,18 +668,10 @@
             };
             const difficultyMultiplier = difficultyMultiplierMap[difficulty] ?? 1;
 
-            // 4. Предварительный лог
-                {
-                    difficulty,
-                    timeLimit,
-                    gameSeconds,
-                    timeBonus,
-                    totalPairs,
-                    moves,
-                    moveEfficiency,
-                    difficultyMultiplier
-                }
-            );
+            // 4. Предварительный лог удалён: его `console.*(` открытие было
+            // потеряно при правке, остались только аргументы-объект и `);` —
+            // висячий `{ } )` без `(` ронял ВЕСЬ скрипт страницы
+            // (Uncaught SyntaxError: expected expression, got ')').
 
             // 5. Финальный расчёт score
             let score = 0;
