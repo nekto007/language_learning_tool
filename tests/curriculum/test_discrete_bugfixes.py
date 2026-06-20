@@ -55,6 +55,13 @@ class TestMatchingLessonP0Renders:
         assert 'function initGame' in html
         assert 'const gameConfig' in html
         assert 'async function startGame' in html
+        # Regression guard: the game <script> MUST close. A missing </script>
+        # makes the browser parse the page markup (nav/footer) as JS — a fatal
+        # SyntaxError that kills the whole game. The slice from the game config
+        # to the next </script> must contain no page markup.
+        start = html.index('const gameConfig')
+        seg = html[start:html.index('</script>', start)]
+        assert '<nav' not in seg and '<script' not in seg, 'game <script> not closed'
 
 
 class TestTemplatePatchBatch:
