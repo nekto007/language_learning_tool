@@ -90,6 +90,35 @@ class TestTemplatePatchBatch:
         assert 'delete card.dataset.checking' in s
 
 
+class TestFetchErrorHandlingBatch:
+    """A5: lessons must not show 'completed' + XP when the submit fetch failed
+    server-side (fetch() resolves on 4xx/5xx), plus a couple isolated P2s."""
+
+    def _src(self, name):
+        return (LESSONS / name).read_text(encoding='utf-8')
+
+    def test_collocation_checks_resp_ok(self):
+        s = self._src('collocation_matching.html')
+        assert 'renderSubmitError' in s
+        assert '!resp.ok || data.success === false' in s
+
+    def test_sentence_correction_no_fabricated_summary(self):
+        s = self._src('sentence_correction.html')
+        assert '_scShowSubmitError' in s
+        assert 'if (!data || data.success === false)' in s
+
+    def test_vocabulary_checks_resp_ok(self):
+        assert "throw new Error('Save failed" in self._src('vocabulary.html')
+
+    def test_listening_immersion_shows_visible_error(self):
+        assert 'li-submit-error' in self._src('listening_immersion.html')
+
+    def test_translation_blur_does_not_burn_attempt(self):
+        s = self._src('translation.html')
+        assert '_commitOnBlur' in s
+        assert 'checkTranslationItem(idx, consume)' in s
+
+
 class TestRoutePatchBatch:
     def test_card_examples_projected(self):
         s = (REPO / 'app' / 'curriculum' / 'routes' / 'card_lessons.py').read_text(encoding='utf-8')

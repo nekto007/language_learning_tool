@@ -467,7 +467,7 @@ async function completeLesson() {
 
   // Save progress
   try {
-    await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+    const resp = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -483,10 +483,23 @@ async function completeLesson() {
       })
     });
 
+    if (!resp.ok) {
+      throw new Error('Save failed: ' + resp.status);
+    }
+
     if (typeof showSaveToast === 'function') showSaveToast();
     if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
   } catch (error) {
     console.error('Error completing lesson:', error);
+    cardsState.allViewed = false;
+    noCardsMessage.style.display = 'none';
+    cards.forEach(card => { card.style.display = ''; });
+    document.getElementById('cards-navigation').style.display = '';
+    if (typeof showSaveError === 'function') {
+      showSaveError('{{ _("Не удалось сохранить прогресс. Попробуйте ещё раз.") }}');
+    } else {
+      alert('{{ _("Не удалось сохранить прогресс. Попробуйте ещё раз.") }}');
+    }
   }
 }
 

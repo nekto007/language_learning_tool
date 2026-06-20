@@ -576,7 +576,7 @@ async function _scSubmit() {
     const el = document.getElementById('sc-answer-' + i);
     answers.push(el ? (el.value || '') : '');
   }
-  let data = {};
+  let data = null;
   try {
     const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
       method: 'POST',
@@ -586,9 +586,56 @@ async function _scSubmit() {
     if (resp.ok) data = await resp.json();
   } catch (e) {
     console.error('sentence_correction multi submit error', e);
+  }
+  if (!data || data.success === false) {
+    // Server never confirmed the result — do NOT render a fabricated
+    // success summary. Surface a visible inline error and allow retry.
     _scFinalizing = false;
+    _scShowSubmitError();
+    return;
   }
   _scShowSummary(data);
+}
+
+function _scShowSubmitError() {
+  const resultArea = document.getElementById('correction-result');
+  if (!resultArea) return;
+  const resultBadge = document.getElementById('result-badge');
+  if (resultBadge) {
+    resultBadge.innerHTML = '';
+    const badge = document.createElement('div');
+    badge.className = 'result-badge result-badge--incorrect';
+    const ic = document.createElement('i');
+    ic.className = 'fas fa-times-circle';
+    badge.appendChild(ic);
+    const t = document.createElement('span');
+    t.textContent = ' {{ _("Не удалось сохранить результат. Проверьте соединение и попробуйте ещё раз.") }}';
+    badge.appendChild(t);
+    resultBadge.appendChild(badge);
+  }
+  const expReveal = document.getElementById('explanation-reveal');
+  if (expReveal) expReveal.style.display = 'none';
+  const corrReveal = document.getElementById('correct-answer-reveal');
+  if (corrReveal) corrReveal.style.display = 'none';
+  const nextArea = document.getElementById('correction-next-area');
+  if (nextArea) {
+    nextArea.innerHTML = '';
+    nextArea.style.display = 'flex';
+    nextArea.style.gap = '0.75rem';
+    nextArea.style.marginTop = '1rem';
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'lsn-btn lsn-btn--primary';
+    retry.innerHTML = '<i class="fas fa-redo"></i> {{ _("Повторить отправку") }}';
+    retry.addEventListener('click', function() {
+      if (_scFinalizing) return;
+      _scFinalizing = true;
+      _scSubmit();
+    });
+    nextArea.appendChild(retry);
+  }
+  resultArea.hidden = false;
+  resultArea.scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 
 function _scShowSummary(data) {

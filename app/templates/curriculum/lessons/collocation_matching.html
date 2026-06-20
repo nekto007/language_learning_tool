@@ -384,6 +384,30 @@ function renderFinalState(nextLessonUrl, dailyPlanCtx) {
   // "Урок завершён!" block would otherwise stack a duplicate finalisation.
 }
 
+function renderSubmitError() {
+  // Submit failed on the server (4xx/5xx) or the network dropped: do NOT show
+  // the completed state — nothing persisted, so a success UI would be a lie and
+  // the daily plan would re-surface this lesson. Surface a visible inline error
+  // and let the user retry by matching the last pair again.
+  interactionLocked = false;
+  const resultDiv = document.getElementById('matching-result');
+  const summaryDiv = document.getElementById('result-summary');
+  if (!resultDiv || !summaryDiv) return;
+  summaryDiv.textContent = '';
+  const badge = document.createElement('div');
+  badge.className = 'result-badge result-badge--incorrect';
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'result-badge__icon';
+  iconSpan.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+  badge.appendChild(iconSpan);
+  const label = document.createElement('span');
+  label.textContent = '{{ _("Не удалось сохранить результат. Проверь соединение и попробуй ещё раз.") }}';
+  badge.appendChild(label);
+  summaryDiv.appendChild(badge);
+  resultDiv.hidden = false;
+  resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 async function finalizeLesson() {
   // The user assembled all 6 correct pairs through live matching. Submit the
   // full set to the server so progress is marked completed, XP is awarded,
@@ -400,9 +424,17 @@ async function finalizeLesson() {
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
       body: JSON.stringify({ user_pairs: userPairs, lesson_type: 'collocation_matching' }),
     });
-    data = await resp.json();
+    data = await resp.json().catch(() => ({}));
+    // fetch() resolves on 4xx/5xx — only resp.ok + data.success mean the
+    // server actually persisted completion + XP. Otherwise show an error.
+    if (!resp.ok || data.success === false) {
+      renderSubmitError();
+      return;
+    }
   } catch (err) {
     console.error('Submit error:', err);
+    renderSubmitError();
+    return;
   }
 
   renderFinalState(data.next_lesson_url, data.daily_plan_ctx);

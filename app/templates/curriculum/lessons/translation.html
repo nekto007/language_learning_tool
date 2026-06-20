@@ -369,7 +369,7 @@ function _markTryAgain(idx, remaining) {
     `{{ _("Не то, попробуйте ещё.") }} <span class="translation-item__attempts">{{ _("Попыток осталось:") }} ${remaining}</span>`);
 }
 
-function checkTranslationItem(idx) {
+function checkTranslationItem(idx, consume) {
   if (itemState[idx] !== 'pending') return;
   const itemEl = document.getElementById('tr-item-' + idx);
   const inp = document.getElementById('tr-answer-' + idx);
@@ -383,6 +383,10 @@ function checkTranslationItem(idx) {
     _showCorrect(idx, expected);
     return;
   }
+  // Incidental blur (consume !== true): пользователь кликнул вне инпута,
+  // чтобы перечитать исходник — не сжигаем попытку и не раскрываем ответ.
+  // Попытку тратит только явный commit (Enter), см. focusout-обработчик.
+  if (consume !== true) return;
   itemAttempts[idx] += 1;
   if (itemAttempts[idx] >= MAX_ATTEMPTS) {
     _showGivenUp(idx, val, expected);
@@ -573,13 +577,18 @@ function _softRetryGivenUp() {
 }
 
 // Live-input wiring
+// `_commitOnBlur` отмечает, что предстоящий blur — это явный commit
+// (Enter), а не случайный уход фокуса. Только commit тратит попытку.
+let _commitOnBlur = false;
 document.addEventListener('focusout', function(e) {
   const el = e.target;
   if (!el.classList || !el.classList.contains('translation-input')) return;
-  if (el.readOnly || el.disabled) return;
+  if (el.readOnly || el.disabled) { _commitOnBlur = false; return; }
   const idx = parseInt(el.getAttribute('data-index') || '-1');
-  if (idx < 0) return;
-  checkTranslationItem(idx);
+  if (idx < 0) { _commitOnBlur = false; return; }
+  const consume = _commitOnBlur;
+  _commitOnBlur = false;
+  checkTranslationItem(idx, consume);
 });
 
 document.addEventListener('keydown', function(e) {
@@ -587,6 +596,7 @@ document.addEventListener('keydown', function(e) {
   const el = e.target;
   if (!el.classList || !el.classList.contains('translation-input')) return;
   e.preventDefault();
+  _commitOnBlur = true;
   el.blur();
 });
 

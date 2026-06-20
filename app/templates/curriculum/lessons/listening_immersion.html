@@ -350,6 +350,17 @@ async function finishLesson() {
     console.error('Listening immersion finish error:', err);
     btn.disabled = false;
     btn.classList.remove('btn--loading');
+    let errBox = document.getElementById('li-submit-error');
+    if (!errBox) {
+      errBox = document.createElement('p');
+      errBox.id = 'li-submit-error';
+      errBox.className = 'alert alert--form-error';
+      errBox.setAttribute('role', 'alert');
+      const actions = btn.closest('.lesson-shell__actions');
+      if (actions) actions.appendChild(errBox);
+    }
+    errBox.hidden = false;
+    errBox.textContent = '{{ _("Не удалось завершить урок. Проверьте соединение и попробуйте ещё раз.") }}';
   }
 }
 
