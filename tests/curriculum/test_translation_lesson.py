@@ -127,9 +127,27 @@ class TestTranslationTemplate:
         tpl = _read_translation_template()
         assert "Enter" in tpl
 
-    def test_chip_insert_function(self):
+    def test_chips_are_reference_only(self):
+        """Hint chips are a static vocabulary scaffold, NOT a tap-to-build
+        word bank: no insert-on-click handler, no clickable affordance.
+        The learner types the answer; chips only show key words."""
         tpl = _read_translation_template()
-        assert "function insertChip(" in tpl
+        assert "function insertChip(" not in tpl
+        assert "chip--clickable" not in tpl
+        assert "translation-chip--static" in tpl
+
+    def test_hints_hidden_behind_button_in_all_modes(self):
+        """Опорные слова скрыты по умолчанию во всех режимах и раскрываются
+        только по кнопке (active recall) — toggle рендерится безусловно."""
+        tpl = _read_translation_template()
+        assert "translation-chips-section--collapsed" in tpl
+        assert "toggleHints(" in tpl
+
+    def test_near_miss_hint_on_first_error(self):
+        """Near-miss diff («Не хватает: …») показывается уже на первой
+        ошибке, а не только после исчерпания попыток."""
+        tpl = _read_translation_template()
+        assert "_showNearMissHint(" in tpl
 
 
 # ---------------------------------------------------------------------------

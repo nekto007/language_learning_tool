@@ -330,7 +330,8 @@ class TestResultBadgeTaxonomy:
 
 
 # ---------------------------------------------------------------------------
-# Translation hint chips taxonomy — uses `.chip.chip--clickable`.
+# Translation hint chips taxonomy — reference-only `.translation-chip--static`
+# behind a force-reveal toggle (not a tap-to-build word bank).
 # ---------------------------------------------------------------------------
 
 class TestTranslationChipTaxonomy:
@@ -347,8 +348,10 @@ class TestTranslationChipTaxonomy:
         resp = client.get(f"/curriculum/lesson/{lesson.id}/translation")
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
-        assert "chip--clickable" in html
-        assert 'aria-pressed="false"' in html
+        # Reference-only chips: static, non-clickable, hidden behind toggle.
+        assert "translation-chip--static" in html
+        assert "chip--clickable" not in html
+        assert "translation-chips-section--collapsed" in html
 
 
 # ---------------------------------------------------------------------------

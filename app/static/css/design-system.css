@@ -14101,6 +14101,17 @@ button.nav-section-title {
     opacity: 0.45;
     pointer-events: none;
 }
+/* Reference-only chips: key words shown for support, NOT tap-to-insert.
+   No pointer cursor, no hover inversion — the learner types the answer. */
+.translation-chip--static {
+    cursor: default;
+    background: var(--color-surface-raised, #f9fafb);
+    border-style: dashed;
+}
+.translation-chip--static:hover {
+    background: var(--color-surface-raised, #f9fafb);
+    color: var(--color-primary, #dc2626);
+}
 .translation-input-section {
     background: #fff;
     border-radius: 1rem;

@@ -3,10 +3,10 @@
 {% set component_name = _('Перевод') %}
 {% set _mode = mode | default('guided') %}
 {% if _mode == 'guided' %}
-  {% set instruction_text = _('Переведите предложения с русского на английский. На каждое — 3 попытки. Подсказки помогут собрать правильный вариант.') %}
-  {% set block_description = _('Тренировка письменного перевода с подсказками') %}
+  {% set instruction_text = _('Переведите предложения с русского на английский и впишите ответ. Сначала попробуйте сами; если нужна поддержка — нажмите «Показать опорные слова» (это ключевая лексика, а не готовый ответ). На каждое — 3 попытки.') %}
+  {% set block_description = _('Тренировка письменного перевода с опорными словами') %}
 {% elif _mode == 'open' %}
-  {% set instruction_text = _('Переведите предложения с русского на английский. Подсказки скрыты — нажмите «Показать подсказки», если нужна поддержка. На каждое — 3 попытки.') %}
+  {% set instruction_text = _('Переведите предложения с русского на английский и впишите ответ. Опорные слова скрыты — нажмите «Показать подсказки», если нужна поддержка. На каждое — 3 попытки.') %}
   {% set block_description = _('Перевод с минимальной опорой — для B1+') %}
 {% else %}
   {% set instruction_text = _('Переведите тексты с русского на английский. Учитывайте стиль и регистр; принимаются разные правильные варианты.') %}
@@ -48,34 +48,26 @@
         </div>
 
         {% if item.hint_words %}
-        {# В `open`-режиме (B1+) подсказки скрыты за toggle-кнопкой.
-           В `guided` (A1/A2) — открыты сразу. `rubric` (C1+) обычно идёт
-           без hint_words в контенте, но если они есть — тоже за toggle. #}
-        <div class="translation-chips-section{% if _mode != 'guided' %} translation-chips-section--collapsed{% endif %}"
+        {# Опорные слова скрыты во ВСЕХ режимах и раскрываются только по
+           кнопке — сначала пробуем сам (active recall), подсматриваем
+           лексику лишь при необходимости. Так одинаково для guided/open/rubric. #}
+        <div class="translation-chips-section translation-chips-section--collapsed"
              data-item="{{ item_idx }}">
-          {% if _mode != 'guided' %}
           <button class="translation-chips-toggle" type="button"
                   aria-expanded="false"
                   onclick="toggleHints({{ item_idx }}, this)">
             <i class="fas fa-lightbulb"></i>
-            <span>{{ _('Показать подсказки') }}</span>
+            <span>{{ _('Показать опорные слова') }}</span>
           </button>
-          {% endif %}
-          <div class="translation-chips-body" {% if _mode != 'guided' %}hidden{% endif %}>
+          <div class="translation-chips-body" hidden>
             <div class="translation-chips-label">
-              <i class="fas fa-lightbulb"></i> {{ _('Слова-подсказки:') }}
+              <i class="fas fa-lightbulb"></i> {{ _('Опорные слова (впишите перевод сами):') }}
             </div>
             <div class="translation-chips">
               {% for word in item.hint_words %}
-              <button
-                class="chip chip--clickable translation-chip"
-                type="button"
-                aria-pressed="false"
-                data-item="{{ item_idx }}"
-                data-word="{{ word }}"
-                onclick='insertChip({{ item_idx }}, {{ word | tojson }}, this)'>
-                {{ word }}
-              </button>
+              {# Опорный словарь, НЕ конструктор: некликабельные подсказки.
+                 Перемешаны на сервере, ответ печатается вручную. #}
+              <span class="chip translation-chip translation-chip--static">{{ word }}</span>
               {% endfor %}
             </div>
           </div>
@@ -172,26 +164,13 @@ function toggleHints(itemIdx, btn) {
     section.classList.remove('translation-chips-section--collapsed');
     btn.setAttribute('aria-expanded', 'true');
     const lbl = btn.querySelector('span');
-    if (lbl) lbl.textContent = '{{ _("Скрыть подсказки") }}';
+    if (lbl) lbl.textContent = '{{ _("Скрыть опорные слова") }}';
   } else {
     body.setAttribute('hidden', '');
     section.classList.add('translation-chips-section--collapsed');
     btn.setAttribute('aria-expanded', 'false');
     const lbl = btn.querySelector('span');
-    if (lbl) lbl.textContent = '{{ _("Показать подсказки") }}';
-  }
-}
-
-function insertChip(itemIdx, word, btn) {
-  if (itemState[itemIdx] !== 'pending') return;
-  const inp = document.getElementById('tr-answer-' + itemIdx);
-  if (!inp) return;
-  const current = inp.value;
-  inp.value = current ? current.trimEnd() + ' ' + word : word;
-  inp.focus();
-  if (btn) {
-    btn.classList.add('chip--used', 'translation-chip--used');
-    btn.setAttribute('aria-pressed', 'true');
+    if (lbl) lbl.textContent = '{{ _("Показать опорные слова") }}';
   }
 }
 
@@ -305,6 +284,41 @@ function _diffWords(userVal, canonical) {
   return { missing, extra };
 }
 
+// Подсказка на НЕфинальной ошибке (остались попытки): объясняем «почему
+// неверно», не раскрывая полный эталон. Для near-miss (≤2 missing, ≤1 extra)
+// показываем конкретные слова — отвечает на «почему ошибка?» сразу, но
+// сохраняет вызов. Для большого расхождения — без спойлеров (общий фидбэк).
+function _showNearMissHint(idx, userVal, canonical) {
+  const reveal = document.getElementById('tr-reveal-' + idx);
+  if (!reveal) return;
+  reveal.innerHTML = '';
+  reveal.classList.remove('visible', 'translation-item__reveal--tip');
+  const diff = _diffWords(userVal || '', canonical || '');
+  const minor = (diff.missing.length <= 2 && diff.extra.length <= 1
+    && (diff.missing.length + diff.extra.length) > 0);
+  if (!minor) return;
+  reveal.classList.add('visible', 'translation-item__reveal--tip');
+  if (diff.missing.length) {
+    const lbl = document.createElement('span');
+    lbl.className = 'translation-item__reveal-label';
+    lbl.textContent = '{{ _("Не хватает:") }} ';
+    reveal.appendChild(lbl);
+    const ans = document.createElement('strong');
+    ans.textContent = diff.missing.map(w => '«' + w + '»').join(', ');
+    reveal.appendChild(ans);
+  }
+  if (diff.extra.length) {
+    if (diff.missing.length) reveal.appendChild(document.createTextNode(' · '));
+    const lbl2 = document.createElement('span');
+    lbl2.className = 'translation-item__reveal-label';
+    lbl2.textContent = '{{ _("Лишнее:") }} ';
+    reveal.appendChild(lbl2);
+    const ex = document.createElement('strong');
+    ex.textContent = diff.extra.map(w => '«' + w + '»').join(', ');
+    reveal.appendChild(ex);
+  }
+}
+
 function _showGivenUp(idx, userVal, canonical) {
   itemState[idx] = 'given-up';
   const itemEl = document.getElementById('tr-item-' + idx);
@@ -393,6 +407,7 @@ function checkTranslationItem(idx, consume) {
   } else {
     inp.classList.add('input--wrong');
     _markTryAgain(idx, MAX_ATTEMPTS - itemAttempts[idx]);
+    _showNearMissHint(idx, val, expected);
   }
 }
 
@@ -545,13 +560,6 @@ function _softRetryGivenUp() {
     // может обращаться, пока вводит исправленный ответ. Финальный
     // showCorrect его перерисует на «Совет:…» (если есть стилистика)
     // или просто проигнорирует.
-    // Подсказки-чипы становятся снова активными: убираем chip--used
-    // у всех chip'ов, относящихся к этому item.
-    document.querySelectorAll('.translation-chips-section[data-item="' + i + '"] .translation-chip, .translation-chip[data-item="' + i + '"]')
-      .forEach(function(chip) {
-        chip.classList.remove('chip--used', 'translation-chip--used');
-        chip.setAttribute('aria-pressed', 'false');
-      });
     resetAny = true;
   }
   if (!resetAny) return;
@@ -608,6 +616,10 @@ document.addEventListener('input', function(e) {
   el.classList.remove('input--wrong');
   const fb = document.getElementById('tr-feedback-' + idx);
   if (fb) {fb.className = 'translation-item__feedback'; fb.innerHTML = '';}
+  // Снять near-miss подсказку («Не хватает: …») при правке — в pending-стейте
+  // reveal может быть только нашим tip'ом (given-up уводит из pending).
+  const rv = document.getElementById('tr-reveal-' + idx);
+  if (rv) { rv.innerHTML = ''; rv.classList.remove('visible', 'translation-item__reveal--tip'); }
 });
 
 _updateProgress();

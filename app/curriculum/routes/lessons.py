@@ -1156,6 +1156,18 @@ def translation_lesson(lesson_id: int):
     content = lesson.content or {}
     items = _translation_items_from_content(content)
 
+    # Чипы-подсказки — это опорный словарь, а НЕ конструктор ответа: они
+    # некликабельны (ученик печатает сам). Перемешиваем, чтобы убрать
+    # ловушку «слова стоят в порядке ответа → натыкал слева направо».
+    # Порядок ответа не утекает; на грейдинг (по item.english) не влияет.
+    import random as _random
+    for _it in items:
+        _hw = _it.get('hint_words')
+        if isinstance(_hw, list) and len(_hw) > 1:
+            _shuffled = list(_hw)
+            _random.shuffle(_shuffled)
+            _it['hint_words'] = _shuffled
+
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
