@@ -500,7 +500,22 @@ class FlashcardSession {
                 url += (url.includes('?') ? '&' : '?') + qs;
             }
 
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' },
+            });
+
+            // Auth/session loss: a 302 -> login serves HTML with ok=true, so
+            // response.ok alone isn't enough. Detect 401/403 and non-JSON
+            // bodies and surface a reload prompt instead of the misleading
+            // empty-cards screen.
+            const contentType = response.headers.get('content-type') || '';
+            if (response.status === 401 || response.status === 403 || !contentType.includes('application/json')) {
+                console.warn('fetchCards: non-JSON / unauthorized response', response.status, contentType);
+                this._showSessionExpiredMessage();
+                this._noCardsMessageShown = true;
+                return [];
+            }
 
             if (!response.ok) {
                 throw new Error('Failed to fetch cards');
@@ -1095,14 +1110,32 @@ class FlashcardSession {
 
             const response = await fetch(this.config.completeUrl, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
+                    'Accept': 'application/json',
                     'Content-Type': 'application/json',
                     ...(csrfToken && { 'X-CSRFToken': csrfToken })
                 },
                 body: JSON.stringify(body),
             });
 
+            // A 302 -> login serves HTML with ok=true, so guard on content-type
+            // before parsing. On non-JSON / non-OK responses don't abandon the
+            // finished session — surface a retryable error.
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok || !contentType.includes('application/json')) {
+                console.warn('completeSession: non-JSON / error response', response.status, contentType);
+                alert('Не удалось завершить сессию. Попробуйте ещё раз.');
+                return;
+            }
+
             const data = await response.json();
+
+            if (!data.success) {
+                console.warn('completeSession: server reported failure', data);
+                alert((data && data.message) || 'Не удалось завершить сессию. Попробуйте ещё раз.');
+                return;
+            }
 
             if (data.success) {
                 const stats = data.stats || {};
@@ -1163,8 +1196,11 @@ class FlashcardSession {
                 document.dispatchEvent(new Event('dailyPlanStepComplete'));
             }
         } catch (error) {
-            console.error('Error completing session:', error);
-            window.location.href = this.config.backUrl;
+            // Don't blind-redirect away from a finished session on a transient
+            // network/parse error — that abandons the user's completed work.
+            // Warn and let them retry the «Завершить» action.
+            console.warn('Error completing session:', error);
+            alert('Не удалось завершить сессию. Попробуйте ещё раз.');
         }
     }
 
@@ -1434,6 +1470,18 @@ class FlashcardSession {
         if (this.els.loadingSpinner) this.els.loadingSpinner.style.display = 'none';
         if (this.els.flashcardView) this.els.flashcardView.style.display = 'block';
         if (this.els.noCardsMessage) this.els.noCardsMessage.style.display = 'block';
+    }
+
+    /**
+     * Session/auth was lost while loading cards (e.g. a 302 -> login served
+     * HTML). Show a reload prompt instead of the misleading empty-cards
+     * screen so the learner can re-authenticate and continue.
+     */
+    _showSessionExpiredMessage() {
+        if (this.els.loadingSpinner) this.els.loadingSpinner.style.display = 'none';
+        if (this.els.flashcardView) this.els.flashcardView.style.display = 'block';
+        if (this.els.noCardsMessage) this.els.noCardsMessage.style.display = 'block';
+        alert('Сессия истекла. Перезагрузите страницу.');
     }
 
     _showDailyLimitMessage(stats) {

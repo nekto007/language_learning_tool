@@ -1569,7 +1569,12 @@ window.QuizApp = {
         'X-Requested-With': 'XMLHttpRequest'
       }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+      return response.json();
+    })
     .then(data => {
       if (data.success) {
         // Override server data with client-side calculation
@@ -1590,6 +1595,9 @@ window.QuizApp = {
 
         // Show results at the bottom of the page
         this.showResultsAndNavigation(data);
+      } else {
+        // Save did not persist - do NOT proceed to results/reload
+        throw new Error(data.error || data.message || 'save_failed');
       }
     })
     .catch(error => {

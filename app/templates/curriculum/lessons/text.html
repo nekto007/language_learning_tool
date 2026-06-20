@@ -1411,7 +1411,14 @@ function showCompletionResults() {
 }
 
 // Восстановление сохранённых ответов при загрузке страницы
+// DEPRECATED: _restoreReadingAnswers — единственный источник правды.
+// Эта функция оставлена как no-op, если уже есть reading_answers,
+// чтобы не затирать более богатое состояние (верные + неверные ответы).
 function restoreSavedAnswers() {
+  if (_readingAnswers && typeof _readingAnswers === 'object'
+      && Object.keys(_readingAnswers).length > 0) {
+    return;
+  }
   {% if saved_comprehension %}
   const savedData = {{ saved_comprehension | tojson }};
 
@@ -1868,8 +1875,10 @@ function initTranscriptToggle() {
 
 // Вызываем при загрузке
 document.addEventListener('DOMContentLoaded', function() {
-  // Даём время на загрузку DOM
-  setTimeout(restoreSavedAnswers, 500);
+  // restoreSavedAnswers больше не вызывается: _restoreReadingAnswers
+  // (setTimeout 0мс) — единственный источник правды по ответам, он
+  // восстанавливает и верные, и неверные ответы с полным состоянием.
+  // Старый 500мс-таймер затирал это более бедным «только верные».
 
   // Initialize auto-play if controller exists
   if (document.getElementById('play-all-btn')) {

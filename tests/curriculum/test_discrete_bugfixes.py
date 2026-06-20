@@ -150,3 +150,42 @@ class TestRoutePatchBatch:
         s = (REPO / 'app' / 'curriculum' / 'routes' / 'lessons.py').read_text(encoding='utf-8')
         assert 'Failed to record idiom completion' in s
         assert "result.get('error') == 'grading_failed'" in s
+
+
+class TestBatch3StateAndA5Tail:
+    """A5 tail (quiz/grammar/flashcard) + isolated state-bug P2s."""
+
+    def _lsrc(self, name):
+        return (LESSONS / name).read_text(encoding='utf-8')
+
+    def test_quiz_submit_checks_resp_ok(self):
+        s = self._lsrc('quiz.html')
+        assert "throw new Error('HTTP ' + response.status)" in s
+        assert "save_failed" in s
+
+    def test_sentence_completion_restores_grading_shape_on_reload(self):
+        assert 'if (Array.isArray(SAVED_STATE.item_results)) {' in self._lsrc('sentence_completion.html')
+
+    def test_grammar_theory_checks_resp_ok(self):
+        assert 'HTTP error! status:' in self._lsrc('grammar.html')
+
+    def test_final_test_resume_drops_current_answer(self):
+        assert 'this.state.answers[this.state.currentQuestion] = undefined;' in self._lsrc('final_test.html')
+
+    def test_text_restore_single_source(self):
+        s = self._lsrc('text.html')
+        assert 'setTimeout(restoreSavedAnswers, 500)' not in s
+        assert 'Object.keys(_readingAnswers).length > 0' in s
+
+    def test_vocabulary_keydown_guards_editable_target(self):
+        assert "t.tagName === 'TEXTAREA'" in self._lsrc('vocabulary.html')
+
+    def test_flashcard_session_expired_and_complete_guards(self):
+        s = (REPO / 'app' / 'static' / 'js' / 'flashcard-session.js').read_text(encoding='utf-8')
+        assert '_showSessionExpiredMessage' in s
+        assert "contentType.includes('application/json')" in s
+
+    def test_card_deck_size_caps_threshold(self):
+        s = (REPO / 'app' / 'curriculum' / 'routes' / 'card_lessons.py').read_text(encoding='utf-8')
+        assert 'def _lesson_deck_size' in s
+        assert 'min_required = min(min_required, deck_size)' in s

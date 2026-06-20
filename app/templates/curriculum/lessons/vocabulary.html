@@ -443,6 +443,10 @@ function addSwipeSupport() {
   // Keyboard navigation
   document.addEventListener('keydown', (e) => {
     if (cardsState.allViewed) return;
+    // Don't hijack Space/Arrow while typing in an editable field (e.g. the
+    // card-back annotation textarea) — let the caret move / space insert.
+    const t = e.target;
+    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)) return;
 
     if (e.key === 'ArrowLeft') {
       prevCard();

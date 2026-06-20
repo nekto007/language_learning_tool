@@ -671,6 +671,22 @@ window.FinalTestApp = {
         );
         this.state.answers = savedData.answers || [];
         this.state.correctCount = savedData.correct_answers || 0;
+        // showQuestion() unconditionally clears the current card's DOM
+        // (inputs/buttons/feedback), so any restored answer for the
+        // current question is wiped from screen while still living in
+        // state.answers. That desync makes the user re-answer a question
+        // that already counted: correctCount was restored WITH it, and
+        // re-answering increments again (double-count) or advancing
+        // re-submits the stale value. Drop the current question's saved
+        // answer so DOM and state agree; decrement correctCount if it was
+        // a correct one so the restored tally stays consistent.
+        const restored = this.state.answers[this.state.currentQuestion];
+        if (restored) {
+          if (restored.correct) {
+            this.state.correctCount = Math.max(0, this.state.correctCount - 1);
+          }
+          this.state.answers[this.state.currentQuestion] = undefined;
+        }
       }
     {% endif %}
 

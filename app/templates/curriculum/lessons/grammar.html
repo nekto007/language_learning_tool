@@ -876,6 +876,10 @@ async function autoCompleteTheoryLesson() {
       })
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
 
     if (data.success) {
@@ -886,9 +890,12 @@ async function autoCompleteTheoryLesson() {
       if (prompt) prompt.remove();
       if (typeof showSaveToast === 'function') showSaveToast();
       if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
+    } else {
+      showNotification('{{ _("Ошибка при сохранении результатов") }}', 'error');
     }
   } catch (error) {
     console.error('Error completing lesson:', error);
+    showNotification('{{ _("Ошибка при сохранении результатов") }}', 'error');
   }
 }
 

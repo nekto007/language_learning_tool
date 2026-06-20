@@ -413,7 +413,14 @@ async function _saveState() {
 function _restoreState() {
   if (!SAVED_STATE) return;
 
-  if (IS_COMPLETED && Array.isArray(SAVED_STATE.item_results)) {
+  // A grading-shaped payload (item_results array) may be persisted even while
+  // status is still 'in_progress' — when every item went terminal but the run
+  // fell below the passing score, _maybeFinalize() POSTs /submit and the server
+  // stores the grade (item_results, no .items) without marking the lesson
+  // completed. Detect that shape independent of IS_COMPLETED and replay it via
+  // the completed-restore path; otherwise the .items branch (which this payload
+  // lacks) is dead and the learner reloads to a blank board.
+  if (Array.isArray(SAVED_STATE.item_results)) {
     _restoreCompleted(SAVED_STATE);
     return;
   }

@@ -708,6 +708,72 @@ def card_lesson(lesson_id):
     )
 
 
+def _lesson_deck_size(lesson) -> int:
+    """Count distinct cards available for this lesson's SRS session.
+
+    Mirrors the ``word_ids`` derivation in :func:`render_card_lesson`
+    (collection link -> embedded content cards -> previous-lesson
+    fallback) but returns only the distinct count. Used to cap the
+    completion threshold so a legit deck with fewer than the default
+    ``min_cards_required`` cards can still complete once fully studied.
+    Returns ``0`` when the deck size cannot be determined (caller then
+    falls back to the configured ``min_cards_required``).
+    """
+    from app.words.models import CollectionWordLink
+
+    word_ids: set[int] = set()
+
+    if lesson.collection_id:
+        links = CollectionWordLink.query.filter_by(
+            collection_id=lesson.collection_id
+        ).all()
+        word_ids.update(link.word_id for link in links)
+
+    if lesson.content:
+        try:
+            content = (
+                json.loads(lesson.content)
+                if isinstance(lesson.content, str)
+                else lesson.content
+            )
+            if isinstance(content, dict) and 'cards' in content:
+                for card in content['cards']:
+                    if isinstance(card, dict) and 'word_id' in card:
+                        word_ids.add(card['word_id'])
+        except Exception:
+            logger.exception("deck_size: failed to parse lesson content")
+
+    if not word_ids and lesson.module_id and lesson.number is not None:
+        previous_lessons = Lessons.query.filter(
+            Lessons.module_id == lesson.module_id,
+            Lessons.number < lesson.number,
+            Lessons.type.in_(['vocabulary', 'card', 'flashcards'])
+        ).all()
+        for prev_lesson in previous_lessons:
+            if prev_lesson.collection_id:
+                links = CollectionWordLink.query.filter_by(
+                    collection_id=prev_lesson.collection_id
+                ).all()
+                word_ids.update(link.word_id for link in links)
+            elif prev_lesson.content:
+                try:
+                    prev_content = (
+                        json.loads(prev_lesson.content)
+                        if isinstance(prev_lesson.content, str)
+                        else prev_lesson.content
+                    )
+                    if isinstance(prev_content, dict) and 'cards' in prev_content:
+                        for card in prev_content['cards']:
+                            if isinstance(card, dict) and 'word_id' in card:
+                                word_ids.add(card['word_id'])
+                except Exception:
+                    logger.exception(
+                        "deck_size: failed to parse prev lesson content"
+                    )
+
+    return len(word_ids)
+
+
 @lessons_bp.route('/lessons/<int:lesson_id>/complete-srs', methods=['POST'])
 @login_required
 @require_lesson_access
@@ -745,6 +811,14 @@ def complete_srs_session(lesson_id):
         # still persist their stats in ``progress.data`` so the next
         # open resumes correctly; the status simply stays `in_progress`.
         min_required = max(1, int(getattr(lesson, 'min_cards_required', 0) or 10))
+        # Cap the threshold by the real deck size: a legit lesson with
+        # fewer than ``min_cards_required`` distinct cards can be fully
+        # studied yet would otherwise never flip to 'completed', stranding
+        # it in the daily plan. Fall back to ``min_required`` when the
+        # deck size cannot be determined (deck_size == 0).
+        deck_size = _lesson_deck_size(lesson)
+        if deck_size > 0:
+            min_required = min(min_required, deck_size)
         threshold_met = cards_studied >= min_required
         newly_completed = False
         from sqlalchemy.orm.attributes import flag_modified
