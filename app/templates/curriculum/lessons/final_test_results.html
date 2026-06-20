@@ -289,6 +289,7 @@
                     {# Фоллбэк: показываем правильные пары как образец, если
                        клиент не передал собранные пользователем. Структуры в
                        контенте: {english, russian} ИЛИ {left, right}. #}
+                    <span class="answer-label">{{ _('Правильные пары:') }}</span>
                     {% for pair in question.pairs %}
                       {% set _l = pair.english or pair.left or pair.word or '' %}
                       {% set _r = pair.russian or pair.right or pair.translation or '' %}

@@ -445,7 +445,12 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">
-// Функция retryLesson перенесена в базовый шаблон
+// Перезапуск урока: роут грамматики обрабатывает ?reset=true (сбрасывает
+// LessonProgress в in_progress). Базовый шаблон вызывает retryLesson()
+// через data-action="retry-lesson", но саму функцию определяем здесь.
+function retryLesson() {
+  window.location.href = window.location.pathname + '?reset=true';
+}
 
 // Глобальная переменная для упражнений
 const exercises = {{ exercises|tojson|safe }};
@@ -469,6 +474,12 @@ function checkAnswers() {
   let allAnswered = true;
 
   exercises.forEach((exercise, index) => {
+    // Тип 'match' рендерит плейсхолдер «в разработке» без поля answer_N —
+    // пропускаем, чтобы он не давал userAnswer=null и не блокировал submit.
+    if (exercise.type === 'match') {
+      return;
+    }
+
     const answerInput = document.querySelector(`[name="answer_${index}"]`);
     let userAnswer = null;
 

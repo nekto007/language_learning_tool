@@ -939,7 +939,7 @@ function submitOrderingAnswer(questionIndex) {
   const wordButtons = wordsContainer.querySelectorAll('.word-button');
   wordButtons.forEach(button => button.disabled = true);
 
-  const submitBtn = questionBlock.querySelector('button[onclick*="submitOrderingAnswer"]');
+  const submitBtn = questionBlock.querySelector('button[data-action="submit-ordering-answer"]');
   if (submitBtn) submitBtn.disabled = true;
 
   // Disable sentence clearing
@@ -1240,7 +1240,7 @@ function initReadingProgress() {
     const documentHeight = document.documentElement.scrollHeight;
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
-    const progress = Math.min(100, (scrollTop / (documentHeight - windowHeight)) * 100);
+    const progress = Math.min(100, (scrollTop / Math.max(1, documentHeight - windowHeight)) * 100);
     progressBar.style.width = progress + '%';
 
     if (scrollTop + windowHeight >= documentHeight - 100) {

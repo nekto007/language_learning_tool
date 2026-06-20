@@ -1,0 +1,101 @@
+"""Discrete audit bugfixes — regression guards.
+
+Covers the matching.html P0 (whole game was dropped by Jinja) plus the batch of
+isolated P1/P2 fixes applied from the frontend audit.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from app.curriculum.models import CEFRLevel, Lessons, Module
+from tests.conftest import unique_level_code
+
+pytestmark = pytest.mark.smoke
+
+REPO = Path(__file__).resolve().parent.parent.parent
+LESSONS = REPO / 'app' / 'templates' / 'curriculum' / 'lessons'
+
+
+def _make_matching_lesson(db_session):
+    level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+    db_session.add(level)
+    db_session.commit()
+    module = Module(level_id=level.id, number=1, title='M', description='d',
+                    raw_content={'module': {'id': 1}})
+    db_session.add(module)
+    db_session.commit()
+    pairs = [
+        {'left': 'cat', 'right': 'кот'},
+        {'left': 'dog', 'right': 'собака'},
+        {'left': 'sun', 'right': 'солнце'},
+        {'left': 'moon', 'right': 'луна'},
+    ]
+    lesson = Lessons(module_id=module.id, number=1, title='Matching',
+                     type='matching', content={'pairs': pairs})
+    db_session.add(lesson)
+    db_session.commit()
+    return lesson
+
+
+class TestMatchingLessonP0Renders:
+    """P0: the game lived in {% block lesson_script %} (rendered by NOTHING —
+    base exposes scripts/extra_js, lesson_base exposes lesson_content). Now it
+    lives in {% block scripts %} and must actually reach the page."""
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_game_js_reaches_the_page(self, _ml, _mm, db_session, authenticated_client):
+        lesson = _make_matching_lesson(db_session)
+        resp = authenticated_client.get(f'/learn/{lesson.id}/')
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert 'function initGame' in html
+        assert 'const gameConfig' in html
+        assert 'async function startGame' in html
+
+
+class TestTemplatePatchBatch:
+    def _src(self, name):
+        return (LESSONS / name).read_text(encoding='utf-8')
+
+    def test_grammar_defines_retrylesson(self):
+        s = self._src('grammar.html')
+        assert 'function retryLesson()' in s
+        assert '?reset=true' in s
+
+    def test_grammar_skips_match_in_checkanswers(self):
+        s = self._src('grammar.html')
+        assert "if (exercise.type === 'match')" in s
+
+    def test_final_test_results_labels_correct_pairs(self):
+        assert 'Правильные пары' in self._src('final_test_results.html')
+
+    def test_text_ordering_selector_and_progress_guard(self):
+        s = self._src('text.html')
+        assert 'button[data-action="submit-ordering-answer"]' in s
+        assert 'Math.max(1, documentHeight - windowHeight)' in s
+
+    def test_quiz_dead_block_and_fake_xp_removed(self):
+        s = self._src('quiz.html')
+        assert 'isPassed = score >= 80' not in s   # dead score>=80 contradiction
+        assert 'resultsDiv.innerHTML' not in s      # dead innerHTML builder
+        assert '* 10))|int' not in s                # fabricated XP*10 fallback
+
+    def test_dictation_inflight_guard(self):
+        s = self._src('dictation.html')
+        assert "card.dataset.checking === '1'" in s
+        assert 'delete card.dataset.checking' in s
+
+
+class TestRoutePatchBatch:
+    def test_card_examples_projected(self):
+        s = (REPO / 'app' / 'curriculum' / 'routes' / 'card_lessons.py').read_text(encoding='utf-8')
+        assert "'examples': c.get('examples'" in s
+
+    def test_idiom_grading_failed_guard(self):
+        s = (REPO / 'app' / 'curriculum' / 'routes' / 'lessons.py').read_text(encoding='utf-8')
+        assert 'Failed to record idiom completion' in s
+        assert "result.get('error') == 'grading_failed'" in s

@@ -251,6 +251,13 @@ async function checkDictationWord(index) {
   const input = getGapInput(index);
   if (!card || !input || input.disabled) return;
 
+  // In-flight guard: Enter (onkeydown) and the subsequent blur (onblur) can
+  // both fire checkDictationWord for the same gap before the first fetch
+  // resolves — and since the input isn't disabled until the response lands,
+  // both reads see the same attempts count and POST twice, burning two
+  // attempts on one wrong answer. Bail out if a check is already in flight.
+  if (card.dataset.checking === '1') return;
+
   const answer = input.value.trim();
   if (!answer) {
     setGapFeedback(index, '!', 'wrong');
@@ -258,6 +265,7 @@ async function checkDictationWord(index) {
     return;
   }
 
+  card.dataset.checking = '1';
   const attempt = Number(card.dataset.attempts || '0') + 1;
   card.classList.add('dictation-gap--checking');
 
@@ -301,6 +309,7 @@ async function checkDictationWord(index) {
     console.error('Dictation word check error:', err);
     setGapFeedback(index, '!', 'wrong');
   } finally {
+    delete card.dataset.checking;
     card.classList.remove('dictation-gap--checking');
     updateDictationInputState();
   }

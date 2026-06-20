@@ -511,6 +511,8 @@ def submit_lesson(lesson_id):
                 return jsonify(result), 400
         elif lesson.type == 'idiom':
             result = _process_idiom_submission(lesson, current_user.id, data)
+            if not result.get('success') and result.get('error') == 'grading_failed':
+                return jsonify(result), 500
         else:
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
@@ -2378,8 +2380,18 @@ def _process_idiom_submission(lesson: 'Lessons', user_id: int, data: dict) -> di
         db.session.add(progress)
     try:
         db.session.commit()
-    except Exception:
+    except Exception as commit_err:
+        # Persisting completion failed → LessonProgress is rolled back. We must
+        # NOT fall through and return completed:True: the UI would show the
+        # completion plaque while the DB has nothing, and the plan would
+        # re-surface the lesson. Surface the failure so the client can retry.
+        logger.warning(f"Failed to record idiom completion for lesson {lesson.id}: {commit_err}")
         db.session.rollback()
+        return {
+            'success': False,
+            'error': 'grading_failed',
+            'message': 'Не удалось сохранить результат урока. Попробуйте ещё раз.',
+        }
 
     try:
         from app.daily_plan.linear.xp import maybe_award_curriculum_xp

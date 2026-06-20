@@ -202,14 +202,24 @@
 </audio>
 {% endblock %}
 
-{% block lesson_script %}
+{# The game JS previously lived in {% block lesson_script %} (singular), which
+   NO base template renders (lesson_base exposes lesson_content/action_buttons;
+   base.html exposes scripts/extra_js) — so Jinja silently dropped the entire
+   game and the lesson was non-functional. Render it via the real `scripts`
+   block, wrapped in a nonced <script>. #}
+{% block scripts %}
+{{ super() }}
+<script nonce="{{ csp_nonce }}">
 // Конфигурация игры
 const gameConfig = {
   lessonId: {{ lesson.id }},
   playAudio: {{ settings.include_audio|default(true)|tojson|safe }},
   showTranslations: {{ settings.include_translations|default(true)|tojson|safe }},
   showExamples: {{ settings.include_examples|default(true)|tojson|safe }},
-  isCompleted: {{ is_completed|tojson|safe }}
+  {# `is_completed` is {% set %} inside the lesson_content block, so it is NOT
+     in scope here in the scripts block — derive it from the route's `progress`
+     (a global) instead, otherwise Undefined|tojson 500s the page. #}
+  isCompleted: {{ (progress is not none and progress.status == 'completed')|tojson|safe }}
 };
 
 // Настройки сложности
