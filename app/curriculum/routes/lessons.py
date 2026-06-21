@@ -390,7 +390,8 @@ def check_sentence_completion_item(lesson_id):
     Rate-limited to blunt brute-force extraction via crafted requests.
     """
     lesson = Lessons.query.get_or_404(lesson_id)
-    if lesson.type not in ('sentence_completion', 'audio_fill_blank', 'translation'):
+    if lesson.type not in ('sentence_completion', 'audio_fill_blank',
+                           'translation', 'sentence_correction'):
         return jsonify({'success': False, 'error': 'invalid_lesson_type'}), 400
     items = lesson.content.get('items', []) if isinstance(lesson.content, dict) else []
     data = request.get_json(silent=True) or {}
@@ -405,8 +406,12 @@ def check_sentence_completion_item(lesson_id):
     item = items[idx]
     # Field names differ by lesson type: sentence_completion / audio_fill_blank
     # use `answer` (+ acceptable_answers); translation uses `english`
-    # (+ alternatives). Accept all valid surface forms.
-    canonical = str(item.get('answer') or item.get('english') or '')
+    # (+ alternatives); sentence_correction uses `correct_sentence`. Accept all
+    # valid surface forms.
+    canonical = str(
+        item.get('answer') or item.get('english')
+        or item.get('correct_sentence') or ''
+    )
     extra = list(item.get('acceptable_answers') or []) + list(item.get('alternatives') or [])
     candidates = [canonical] + [str(a) for a in extra if str(a).strip()]
     user_answer = str(data.get('answer', ''))
@@ -414,6 +419,11 @@ def check_sentence_completion_item(lesson_id):
     resp = {'success': True, 'correct': is_correct}
     if is_correct or bool(data.get('final')):
         resp['answer'] = canonical
+        # sentence_correction reveals a per-item explanation alongside the
+        # answer; other types have no `explanation` field so this is omitted.
+        explanation = item.get('explanation')
+        if explanation:
+            resp['explanation'] = str(explanation)
     return jsonify(resp)
 
 

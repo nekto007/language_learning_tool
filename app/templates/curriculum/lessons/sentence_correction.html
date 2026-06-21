@@ -67,10 +67,11 @@
             <i class="fas fa-list-ul"></i>
             {{ _('Выберите правильный вариант:') }}
           </div>
+          {# A6: correct_sentence + explanation are NOT shipped to the DOM.
+             Each pick is graded by POST /api/lesson/<id>/check-item, which
+             reveals the answer only when correct or on the final attempt. #}
           <div class="sentence-correction-options"
-               id="sc-options-{{ _i }}" data-index="{{ _i }}"
-               data-correct="{{ item.correct_sentence | e }}"
-               data-explanation="{{ item.explanation | e }}">
+               id="sc-options-{{ _i }}" data-index="{{ _i }}">
             {% for opt in (item.options or []) %}
               <button type="button"
                       class="option-btn sentence-correction-option-btn"
@@ -400,9 +401,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 const _scItemState = {};   // {idx: 'pending'|'correct'|'given-up'}
 const _scItemAttempts = {}; // {idx: [wrongValue, ...]}
+const _scRevealed = {};     // {idx: {answer, explanation}} — set once an item terminally reveals
+const _scInflight = {};     // {idx: true} — one server check per item at a time
 
-function _scNormalize(s) {
-  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+// A6: per-item grading is server-side — the correct option is never in the DOM.
+// POST {index, answer, final}; the endpoint returns {correct, answer?, explanation?}
+// and reveals the answer only when correct or on the final (give-up) attempt.
+async function _serverCheck(idx, value, isFinalTry) {
+  try {
+    const r = await fetch('/curriculum/api/lesson/' + lessonId + '/check-item', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+      body: JSON.stringify({index: idx, answer: value, final: isFinalTry}),
+    });
+    return r.ok ? await r.json() : null;
+  } catch (e) { return null; }
 }
 
 function _scCorrectCount() {
@@ -438,14 +451,22 @@ function _scShowCorrection(idx, expected, explanation) {
   const fb = document.getElementById('sc-feedback-' + idx);
   if (!fb) return;
   fb.innerHTML = '';
+  // A6: a legacy pre-deploy snapshot may restore a given-up item without a
+  // persisted answer — don't render an empty "Правильно:" box in that case.
+  if (!expected && !explanation) {
+    fb.style.display = 'none';
+    return;
+  }
   fb.style.display = 'block';
   const wrap = document.createElement('div');
   wrap.className = 'sentence-completion-correction';
-  const right = document.createElement('div');
-  right.className = 'sentence-completion-correction__right';
-  right.innerHTML = '<span class="sentence-completion-correction__label">{{ _("Правильно:") }}</span> ' +
-    '<span class="sentence-completion-correction__value">' + expected + '</span>';
-  wrap.appendChild(right);
+  if (expected) {
+    const right = document.createElement('div');
+    right.className = 'sentence-completion-correction__right';
+    right.innerHTML = '<span class="sentence-completion-correction__label">{{ _("Правильно:") }}</span> ' +
+      '<span class="sentence-completion-correction__value">' + expected + '</span>';
+    wrap.appendChild(right);
+  }
   if (explanation) {
     const exp = document.createElement('div');
     exp.className = 'sentence-correction-explanation-text';
@@ -486,11 +507,19 @@ async function _scSaveState() {
   const snapshot = {items: []};
   for (let i = 0; i < ITEM_COUNT; i++) {
     const el = document.getElementById('sc-answer-' + i);
-    snapshot.items.push({
+    const entry = {
       state: _scItemState[i] || 'pending',
       attempts: _scItemAttempts[i] ? _scItemAttempts[i].slice() : [],
       value: el ? (el.value || '') : '',
-    });
+    };
+    // A6: persist the revealed answer/explanation only for items the learner
+    // already exhausted (given-up) — the server had already shown it. Pending
+    // items never carry an answer, so a fresh page never leaks one.
+    if (_scRevealed[i]) {
+      entry.correctSentence = _scRevealed[i].answer || '';
+      entry.explanation = _scRevealed[i].explanation || '';
+    }
+    snapshot.items.push(entry);
   }
   try {
     await fetch('/curriculum/api/lesson/' + lessonId + '/progress', {
@@ -501,13 +530,27 @@ async function _scSaveState() {
   } catch (e) { console.warn('sentence_correction: state save failed', e); }
 }
 
-function _scCheckItem(idx, chosenValue) {
+async function _scCheckItem(idx, chosenValue) {
   if (_scItemState[idx] === 'correct' || _scItemState[idx] === 'given-up') return;
+  if (_scInflight[idx]) return;
   const optionsEl = document.getElementById('sc-options-' + idx);
   if (!optionsEl) return;
-  const expected = optionsEl.getAttribute('data-correct') || '';
-  const explanation = optionsEl.getAttribute('data-explanation') || '';
-  const isCorrect = _scNormalize(chosenValue) === _scNormalize(expected);
+
+  // This pick exhausts the budget → ask the server to reveal the correction.
+  const priorWrong = _scItemAttempts[idx] ? _scItemAttempts[idx].length : 0;
+  const isFinalTry = (priorWrong + 1) >= MAX_ATTEMPTS;
+
+  _scInflight[idx] = true;
+  let res;
+  try {
+    res = await _serverCheck(idx, chosenValue, isFinalTry);
+  } finally {
+    _scInflight[idx] = false;
+  }
+  // Network/validation failed — don't consume the attempt, let the user retry.
+  if (!res || res.success === false) return;
+  // A concurrent check may have already terminated this item.
+  if (_scItemState[idx] === 'correct' || _scItemState[idx] === 'given-up') return;
 
   // Reset wrong-flash on every button before applying new state.
   optionsEl.querySelectorAll('.sentence-correction-option-btn').forEach(function(b) {
@@ -517,9 +560,10 @@ function _scCheckItem(idx, chosenValue) {
   const hidden = document.getElementById('sc-answer-' + idx);
   if (hidden) hidden.value = chosenValue;
 
-  if (isCorrect) {
+  if (res.correct) {
     _scItemState[idx] = 'correct';
-    _scLockCorrect(idx, expected);
+    // A correct pick IS the canonical answer — lock it green by its own value.
+    _scLockCorrect(idx, chosenValue);
     _scShowFeedback(idx, 'correct', '{{ _("Правильно!") }}');
   } else {
     if (!_scItemAttempts[idx]) _scItemAttempts[idx] = [];
@@ -533,6 +577,10 @@ function _scCheckItem(idx, chosenValue) {
     });
     if (_scItemAttempts[idx].length >= MAX_ATTEMPTS) {
       _scItemState[idx] = 'given-up';
+      // Server reveals answer + explanation only on the final try.
+      const expected = res.answer || '';
+      const explanation = res.explanation || '';
+      _scRevealed[idx] = {answer: expected, explanation: explanation};
       _scLockGivenUp(idx, expected, chosenValue);
       _scShowCorrection(idx, expected, explanation);
     } else {
@@ -721,6 +769,9 @@ function _scRetryGivenUp() {
     if (_scItemState[i] !== 'given-up') continue;
     _scItemState[i] = 'pending';
     _scItemAttempts[i] = [];
+    // A6: drop the revealed answer so _scSaveState does NOT re-persist it for a
+    // now-pending item (which would re-ship it into SAVED_STATE on next load).
+    delete _scRevealed[i];
     document.querySelectorAll('.sentence-correction-option-btn[data-index="' + i + '"]').forEach(function(b) {
       b.disabled = false;
       b.classList.remove(
@@ -748,9 +799,10 @@ function _scRestoreState() {
   if (IS_COMPLETED && Array.isArray(SAVED_STATE.item_results)) {
     SAVED_STATE.item_results.forEach(function(res, i) {
       if (i >= ITEM_COUNT) return;
-      const optionsEl = document.getElementById('sc-options-' + i);
-      const expected = (optionsEl && optionsEl.getAttribute('data-correct')) || res.correct_sentence || '';
-      const explanation = (optionsEl && optionsEl.getAttribute('data-explanation')) || res.explanation || '';
+      // A6: the answer is no longer in the DOM — the grader saved it in
+      // item_results (server-authoritative), so restore reads it from there.
+      const expected = res.correct_sentence || '';
+      const explanation = res.explanation || '';
       const hidden = document.getElementById('sc-answer-' + i);
       if (hidden) hidden.value = res.user_answer || '';
       if (res.correct) {
@@ -772,17 +824,21 @@ function _scRestoreState() {
     SAVED_STATE.items.forEach(function(saved, i) {
       if (i >= ITEM_COUNT) return;
       if (Array.isArray(saved.attempts)) _scItemAttempts[i] = saved.attempts.slice();
-      const optionsEl = document.getElementById('sc-options-' + i);
-      const expected = optionsEl ? (optionsEl.getAttribute('data-correct') || '') : '';
-      const explanation = optionsEl ? (optionsEl.getAttribute('data-explanation') || '') : '';
       const hidden = document.getElementById('sc-answer-' + i);
       if (saved.state === 'correct') {
         _scItemState[i] = 'correct';
+        // A6: for a correct item the saved value IS the correct option text.
+        const expected = saved.value || '';
         if (hidden) hidden.value = expected;
         _scLockCorrect(i, expected);
         _scShowFeedback(i, 'correct', '{{ _("Правильно!") }}');
       } else if (saved.state === 'given-up') {
         _scItemState[i] = 'given-up';
+        // A6: the revealed answer/explanation were persisted when the learner
+        // exhausted attempts (snapshot only carries answers already shown).
+        const expected = saved.correctSentence || '';
+        const explanation = saved.explanation || '';
+        if (expected) _scRevealed[i] = {answer: expected, explanation: explanation};
         if (hidden) hidden.value = saved.value || '';
         _scLockGivenUp(i, expected, saved.value || '');
         _scShowCorrection(i, expected, explanation);

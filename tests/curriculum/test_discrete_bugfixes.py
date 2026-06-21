@@ -349,3 +349,96 @@ class TestTranslationA6:
         # wrong, final → revealed
         r = post(1, 'zzz', True)
         assert r['correct'] is False and r['answer'] == 'moon'
+
+
+class TestSentenceCorrectionA6:
+    """A6: sentence_correction (multi-item option-select) no longer ships
+    correct_sentence/explanation in the DOM; each pick is graded server-side."""
+
+    def _make(self, db_session):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        content = {'items': [
+            {
+                'incorrect_sentence': 'I has a cat.',
+                'options': ['I have a cat.', 'I haves a cat.',
+                            'I had a cat have.', 'I a cat have.'],
+                'correct_sentence': 'I have a cat.',
+                'explanation': 'Use "have" with the subject "I".',
+            },
+            {
+                'incorrect_sentence': 'She go home.',
+                'options': ['She goes home.', 'She going home.',
+                            'She gone home.', 'She go to home.'],
+                'correct_sentence': 'She goes home.',
+                'explanation': 'Third person singular adds -es.',
+            },
+        ]}
+        lesson = Lessons(module_id=module.id, number=1, title='SC',
+                         type='sentence_correction', content=content)
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_answer_not_in_dom_and_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make(db_session)
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        # The correct option / explanation must not be embedded as data-attrs.
+        assert 'data-correct=' not in html
+        assert 'data-explanation=' not in html
+        # And the canonical answer text itself must not leak via attributes.
+        # (It appears once as a visible <button> option, which is expected;
+        #  what matters is no data-* attribute reveals WHICH option is right.)
+        _assert_inline_js_valid(html, '_scCheckItem')
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_check_item_grades_sentence_correction(self, _a, db_session, authenticated_client):
+        lesson = self._make(db_session)
+
+        def post(idx, ans, final):
+            return authenticated_client.post(
+                f'/curriculum/api/lesson/{lesson.id}/check-item',
+                json={'index': idx, 'answer': ans, 'final': final},
+            ).get_json()
+
+        # wrong, not final → no leak of answer or explanation
+        r = post(0, 'I haves a cat.', False)
+        assert r['correct'] is False and 'answer' not in r and 'explanation' not in r
+        # correct pick → answer + explanation revealed
+        r = post(0, 'I have a cat.', False)
+        assert r['correct'] is True
+        assert r['answer'] == 'I have a cat.'
+        assert r['explanation'] == 'Use "have" with the subject "I".'
+        # wrong, final → revealed for the correction block
+        r = post(1, 'She going home.', True)
+        assert r['correct'] is False
+        assert r['answer'] == 'She goes home.'
+        assert r['explanation'] == 'Third person singular adds -es.'
+
+    def test_retry_clears_revealed_answer(self):
+        """Retrying a given-up item must drop its revealed answer so
+        _scSaveState does not re-persist it for a now-pending item (which
+        would re-ship the answer into SAVED_STATE on the next load)."""
+        src = (LESSONS / 'sentence_correction.html').read_text(encoding='utf-8')
+        m = re.search(r'function _scRetryGivenUp\(\)\s*\{(.*?)\n\}', src, re.S)
+        assert m, '_scRetryGivenUp function not found'
+        body = m.group(1)
+        assert 'delete _scRevealed[i]' in body, (
+            '_scRetryGivenUp must delete _scRevealed[i] when resetting an item '
+            'to pending — otherwise the answer leaks back into the snapshot.'
+        )
+        # And the snapshot writer must only persist the answer behind the
+        # _scRevealed guard (never for an unconditional/pending item).
+        save = re.search(r'async function _scSaveState\(\)\s*\{(.*?)\n\}', src, re.S)
+        assert save and 'if (_scRevealed[i])' in save.group(1), (
+            '_scSaveState must gate correctSentence persistence on _scRevealed[i].'
+        )
