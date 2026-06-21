@@ -390,7 +390,7 @@ def check_sentence_completion_item(lesson_id):
     Rate-limited to blunt brute-force extraction via crafted requests.
     """
     lesson = Lessons.query.get_or_404(lesson_id)
-    if lesson.type not in ('sentence_completion', 'audio_fill_blank'):
+    if lesson.type not in ('sentence_completion', 'audio_fill_blank', 'translation'):
         return jsonify({'success': False, 'error': 'invalid_lesson_type'}), 400
     items = lesson.content.get('items', []) if isinstance(lesson.content, dict) else []
     data = request.get_json(silent=True) or {}
@@ -403,9 +403,12 @@ def check_sentence_completion_item(lesson_id):
 
     from app.curriculum.grading import _strict_text_match
     item = items[idx]
-    canonical = str(item.get('answer', ''))
-    # accept all valid surface forms for collocation/transformation modes
-    candidates = [canonical] + [str(a) for a in (item.get('acceptable_answers') or []) if str(a).strip()]
+    # Field names differ by lesson type: sentence_completion / audio_fill_blank
+    # use `answer` (+ acceptable_answers); translation uses `english`
+    # (+ alternatives). Accept all valid surface forms.
+    canonical = str(item.get('answer') or item.get('english') or '')
+    extra = list(item.get('acceptable_answers') or []) + list(item.get('alternatives') or [])
+    candidates = [canonical] + [str(a) for a in extra if str(a).strip()]
     user_answer = str(data.get('answer', ''))
     is_correct = _strict_text_match(user_answer, candidates)
     resp = {'success': True, 'correct': is_correct}

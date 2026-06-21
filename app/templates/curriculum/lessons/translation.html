@@ -35,10 +35,11 @@
     <div class="tr-items" id="tr-items">
       {% for item in items %}
       {% set item_idx = loop.index0 %}
+      {# A6: answer + alternatives are NOT shipped to the DOM. Per-item checking
+         goes through POST /api/lesson/<id>/check-item, which returns the
+         canonical answer only when the learner solved it or used the last try. #}
       <article class="lesson-shell__card translation-item" id="tr-item-{{ item_idx }}"
-               data-index="{{ item_idx }}"
-               data-answer="{{ item.english }}"
-               data-alternatives="{{ (item.alternatives or [])|tojson }}">
+               data-index="{{ item_idx }}">
         <header class="translation-item__head">
           <span class="translation-item__num">{{ loop.index }}</span>
           <span class="translation-item__label">{{ _('Переведите на английский') }}</span>
@@ -383,31 +384,52 @@ function _markTryAgain(idx, remaining) {
     `{{ _("Не то, попробуйте ещё.") }} <span class="translation-item__attempts">{{ _("Попыток осталось:") }} ${remaining}</span>`);
 }
 
-function checkTranslationItem(idx, consume) {
+// A6: per-item grading is server-side — the answer is never in the DOM.
+// POST {index, answer, final}; the endpoint returns {correct, answer?} and
+// reveals `answer` only when correct or on the final try.
+async function _serverCheck(idx, value, isFinalTry) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/curriculum/api/lesson/' + lessonId + '/check-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ index: idx, answer: value, final: isFinalTry }),
+    });
+    return r.ok ? await r.json() : null;
+  } catch (e) { return null; }
+}
+
+async function checkTranslationItem(idx, consume) {
   if (itemState[idx] !== 'pending') return;
   const itemEl = document.getElementById('tr-item-' + idx);
   const inp = document.getElementById('tr-answer-' + idx);
   if (!itemEl || !inp) return;
   const val = String(inp.value || '').trim();
   if (!val) return;
-  const expected = itemEl.dataset.answer || '';
-  let alternatives = [];
-  try { alternatives = JSON.parse(itemEl.dataset.alternatives || '[]'); } catch (e) {}
-  if (_matches(val, expected, alternatives)) {
-    _showCorrect(idx, expected);
+  // Final try only when the user is committing (Enter) AND has used the earlier
+  // attempts — only then does the server reveal the answer for the correction.
+  const isFinalTry = consume === true && (itemAttempts[idx] + 1) >= MAX_ATTEMPTS;
+  const res = await _serverCheck(idx, val, isFinalTry);
+  if (!res || res.success === false) {
+    // Сеть/валидация подвели — не сжигаем попытку, даём повторить.
     return;
   }
-  // Incidental blur (consume !== true): пользователь кликнул вне инпута,
-  // чтобы перечитать исходник — не сжигаем попытку и не раскрываем ответ.
-  // Попытку тратит только явный commit (Enter), см. focusout-обработчик.
+  if (itemState[idx] !== 'pending') return;  // залочено параллельной проверкой
+  if (res.correct) {
+    _showCorrect(idx, res.answer || val);
+    return;
+  }
+  // Incidental blur (consume !== true): пользователь кликнул вне инпута, чтобы
+  // перечитать исходник — не сжигаем попытку. Попытку тратит только commit (Enter).
+  // (Near-miss-подсказка убрана: для неё нужен был клиентский ответ, которого
+  //  больше нет в DOM — A6. Полный ответ показывается на последней попытке.)
   if (consume !== true) return;
   itemAttempts[idx] += 1;
   if (itemAttempts[idx] >= MAX_ATTEMPTS) {
-    _showGivenUp(idx, val, expected);
+    _showGivenUp(idx, val, res.answer || '');
   } else {
     inp.classList.add('input--wrong');
     _markTryAgain(idx, MAX_ATTEMPTS - itemAttempts[idx]);
-    _showNearMissHint(idx, val, expected);
   }
 }
 

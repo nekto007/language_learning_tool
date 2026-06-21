@@ -295,3 +295,57 @@ class TestAudioFillBlankA6:
         # wrong but final try → answer revealed for the correction block
         r = post(1, 'zzz', True)
         assert r['correct'] is False and r['answer'] == 'moon'
+
+
+class TestTranslationA6:
+    """A6: translation no longer ships english/alternatives in the DOM; per-item
+    checking is server-side via the shared check-item endpoint."""
+
+    def _make(self, db_session):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        content = {'items': [
+            {'russian': 'кот', 'english': 'cat', 'alternatives': ['the cat']},
+            {'russian': 'луна', 'english': 'moon'},
+        ]}
+        lesson = Lessons(module_id=module.id, number=1, title='TR',
+                         type='translation', content=content)
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_answer_not_in_dom_and_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make(db_session)
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        assert 'data-answer=' not in html
+        assert 'data-alternatives=' not in html
+        _assert_inline_js_valid(html, 'checkTranslationItem')
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_check_item_grades_translation(self, _a, db_session, authenticated_client):
+        lesson = self._make(db_session)
+
+        def post(idx, ans, final):
+            return authenticated_client.post(
+                f'/curriculum/api/lesson/{lesson.id}/check-item',
+                json={'index': idx, 'answer': ans, 'final': final},
+            ).get_json()
+
+        # wrong, not final → no leak
+        r = post(0, 'dog', False)
+        assert r['correct'] is False and 'answer' not in r
+        # accepted alternative grades correct
+        r = post(0, 'the cat', False)
+        assert r['correct'] is True and r['answer'] == 'cat'
+        # wrong, final → revealed
+        r = post(1, 'zzz', True)
+        assert r['correct'] is False and r['answer'] == 'moon'
