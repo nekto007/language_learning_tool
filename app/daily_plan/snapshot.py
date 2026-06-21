@@ -22,7 +22,10 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-SNAPSHOT_VERSION = 2
+# v3: bumped to invalidate v2 snapshots that froze a broken grammar-prep
+# return_url (/lesson/<id>/final_test, missing the /curriculum prefix → 404).
+# Bumping forces a fresh rebuild with the corrected URL on next plan load.
+SNAPSHOT_VERSION = 3
 
 
 def _get_or_create_log_row(user_id: int, plan_date: Any, db: Any):
@@ -81,7 +84,7 @@ def resolve_snapshot_for_today(
 
     Persistence is flush-only via :func:`_get_or_create_log_row`; the
     caller commits. Returns an empty snapshot
-    (``{'version': 2, 'date': ..., 'items': []}``) when no curriculum
+    (``{'version': SNAPSHOT_VERSION, 'date': ..., 'items': []}``) when no curriculum
     content is available — graduated / fresh-with-no-content users.
     """
     from datetime import timedelta

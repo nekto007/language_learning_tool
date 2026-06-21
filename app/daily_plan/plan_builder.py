@@ -18,14 +18,16 @@ required list; the orchestrator separately surfaces ``setup_book``.
 
 Final-test guard:
 - When a ``final_test`` lesson is the FIRST curriculum lesson in the
-  set, the order rearranges to ``[SRS, grammar_prep, reading, FT]`` —
-  warmup before the heavy test.
+  set, the order rearranges to ``[SRS, reading, grammar_prep, FT]`` —
+  warmup directly before the heavy test (prep returns to the test via
+  ``return_url``, so it must be adjacent or the in-between slot is skipped).
 - When ``final_test`` is the 2nd/3rd curriculum lesson, ``grammar_prep``
   is inserted immediately BEFORE it without reordering other items.
 - ``grammar_prep`` resolves the first ``type='grammar'`` lesson of the
   final test's module (ordered by ``Lessons.number``) with a non-null
-  ``grammar_topic_id`` and points at
-  ``/grammar-lab/practice/topic/<topic_id>?return_url=<final_test_url>``.
+  ``grammar_topic_id`` and points at the grammar-lab topic with
+  ``?return_url=/curriculum/lesson/<id>/final_test`` (the final_test route
+  lives under the ``/curriculum`` blueprint prefix).
 - If the module has no grammar topic, the prep step is skipped.
 
 Skill kinds (listening / speaking / writing) are intentionally absent
@@ -96,7 +98,12 @@ def build_required_snapshot(
     final_test_lesson, ft_position = _find_final_test(curriculum_lessons)
 
     if final_test_lesson is not None and ft_position == 0:
-        # Warmup layout: SRS → grammar_prep → reading → final_test.
+        # Warmup layout: SRS → reading → grammar_prep → final_test.
+        # grammar_prep must sit IMMEDIATELY before the final test: finishing
+        # the prep practice returns the user via ``return_url`` straight to
+        # the final test, so any slot placed between them (e.g. reading)
+        # would be silently skipped by that jump. Keeping reading ahead of
+        # the prep makes the list order match the actual navigation.
         # Override the curriculum slot type since the first lesson IS
         # the final test, and the deck-quiz swap (first_is_card) cannot
         # apply because final_test is not a card lesson.
@@ -104,12 +111,12 @@ def build_required_snapshot(
         if srs_item is not None:
             items.append(srs_item)
 
+        if reading_item is not None:
+            items.append(reading_item)
+
         prep_item = _grammar_prep_item_dict(db, final_test_lesson)
         if prep_item is not None:
             items.append(prep_item)
-
-        if reading_item is not None:
-            items.append(reading_item)
 
         items.append(curriculum_item)  # the final_test itself
         return items
@@ -299,7 +306,11 @@ def _grammar_prep_item_dict(
     if topic is None:
         return None
 
-    final_test_url = f'/lesson/{int(final_test_lesson.id)}/final_test'
+    # lessons_bp is registered with url_prefix='/curriculum'
+    # (app/curriculum/__init__.py), so the final_test route resolves at
+    # /curriculum/lesson/<id>/final_test. Omitting the prefix here sent the
+    # grammar-prep return_url to a non-existent /lesson/<id>/final_test → 404.
+    final_test_url = f'/curriculum/lesson/{int(final_test_lesson.id)}/final_test'
     prep_url = (
         f'/grammar-lab/topic/{topic.slug}'
         f'?return_url={final_test_url}'

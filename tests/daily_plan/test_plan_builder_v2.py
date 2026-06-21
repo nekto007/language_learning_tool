@@ -248,12 +248,18 @@ class TestFinalTestLayout:
         assert prep['data']['topic_id'] == topic.id
         assert prep['data']['pre_final_test'] is True
         assert prep['url'].startswith(f'/grammar-lab/topic/{topic.slug}')
-        assert 'return_url=/lesson/' in prep['url']
+        # return_url must carry the /curriculum prefix — the final_test route
+        # lives under the curriculum blueprint, so a bare /lesson/... 404s.
+        assert 'return_url=/curriculum/lesson/' in prep['url']
 
     def test_final_test_first_warmup_layout(
         self, db_session, user_with_book, book_with_chapter,
     ):
-        """final_test as 1st curriculum → SRS, prep, reading, FT order."""
+        """final_test as 1st curriculum → SRS, reading, prep, FT order.
+
+        Prep sits immediately before the final test so its return_url jump
+        back to the test does not skip the reading slot.
+        """
         _seed_due_srs_card(db_session, user_with_book.id)
 
         suffix = uuid.uuid4().hex[:6]
@@ -284,7 +290,11 @@ class TestFinalTestLayout:
 
         items = build_required_snapshot(user_with_book.id, 'calm', real_db)
         kinds = [it['kind'] for it in items]
-        # Warmup layout: SRS → grammar_review → reading → curriculum(FT).
-        assert kinds == ['srs', 'grammar_review', 'reading', 'curriculum']
-        assert items[1]['url'].startswith(f'/grammar-lab/topic/{topic.slug}')
+        # Warmup layout: SRS → reading → grammar_review (prep) → curriculum(FT).
+        # Prep is adjacent to the final test so its return_url jump can't skip
+        # the reading slot.
+        assert kinds == ['srs', 'reading', 'grammar_review', 'curriculum']
+        prep = items[2]
+        assert prep['url'].startswith(f'/grammar-lab/topic/{topic.slug}')
+        assert 'return_url=/curriculum/lesson/' in prep['url']
         assert items[-1]['lesson_type'] == 'final_test'
