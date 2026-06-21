@@ -92,11 +92,17 @@ def emit_module_completed(user_id: int, module_id: int, db: Any) -> bool:
     from app.curriculum.models import Module
     from app.notifications.services import create_notification
 
-    link = f'/learn/module/{module_id}'
+    # learn_bp exposes the module view at /learn/<level_code>/module-<number>/
+    # (see learn.learn_by_module). The old /learn/module/<id> shape matched no
+    # route → the notification link 404'd. Resolve the module first to build it.
+    module = db.session.get(Module, module_id)
+    if module is not None and module.level is not None:
+        link = f'/learn/{module.level.code.lower()}/module-{module.number}/'
+    else:
+        link = '/learn/'
     if _notification_exists(user_id, link, db):
         return False
 
-    module = db.session.get(Module, module_id)
     title = f'Модуль пройден: {module.title}' if module is not None else 'Модуль пройден'
 
     create_notification(
@@ -118,7 +124,9 @@ def emit_level_completed(user_id: int, level_code: str, db: Any) -> bool:
     """
     from app.notifications.services import create_notification
 
-    link = f'/learn/level/{level_code}'
+    # learn_bp exposes the level view at /learn/<level_code>/ (learn.learn_by_level).
+    # The old /learn/level/<code> shape matched no route → 404 on click.
+    link = f'/learn/{level_code.lower()}/'
     if _notification_exists(user_id, link, db):
         return False
 
