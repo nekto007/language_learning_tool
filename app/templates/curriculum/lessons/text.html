@@ -490,7 +490,11 @@
     <form method="POST" action="{{ url_for('curriculum_lessons.update_lesson_progress', lesson_id=lesson.id) }}" id="text-completion-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="status" value="completed">
-      <input type="hidden" name="score" value="100" id="completion-score">
+      {# No id here: the completion banner in lesson_base_template.html owns
+         id="completion-score". A duplicate id made document.getElementById
+         resolve to this hidden input, so the banner score never rendered.
+         FormData reads this field by name, so dropping the id is safe. #}
+      <input type="hidden" name="score" value="100">
       <input type="hidden" name="comprehension_results" value="" id="comprehension-results">
       <button type="submit" class="btn btn-success btn-lg" id="mark-read-btn" disabled>
         <i class="fas fa-check-circle"></i>
@@ -1302,7 +1306,9 @@ function initReadingProgress() {
           const responseData = await response.json();
           if (responseData.success) {
             if (typeof showSaveToast === 'function') showSaveToast();
-            if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100, daily_plan_ctx: responseData.daily_plan_ctx });
+            // Show the REAL persisted comprehension score (100 when the text has
+            // no questions), not a hardcoded 100.
+            if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: comprehensionResults.score, daily_plan_ctx: responseData.daily_plan_ctx });
 
             // Показываем результаты завершения
             showCompletionResults();

@@ -640,52 +640,49 @@ function showResults(data) {
   const dpSource = (data && data.daily_plan_ctx) ? data.daily_plan_ctx : DAILY_PLAN_CTX;
   const dp = (dpSource && dpSource.is_daily_plan) ? dpSource : null;
 
-  if (isPerfect && (data.next_lesson_url || dp)) {
-    if (dp) {
-      const dashLink = document.createElement('a');
-      dashLink.href = dp.dashboard_url + (dp.day_secured ? '?day_secured=1' : '');
-      dashLink.className = 'lsn-btn lsn-btn--outline';
-      dashLink.textContent = (dp.day_secured && !dp.next_slot_url) ? 'День завершён · на дашборд' : 'На дашборд';
-      nextArea.appendChild(dashLink);
-      if (dp.next_slot_url) {
-        const planNext = document.createElement('a');
-        planNext.href = dp.next_slot_url;
-        planNext.className = 'lsn-btn lsn-btn--primary';
-        planNext.innerHTML = 'Следующий урок плана <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
-        nextArea.appendChild(planNext);
-      }
-    } else {
-      // Catalog flow — usual pair: К списку уроков (outline) + Следующий урок (primary).
-      const secondary = document.createElement('a');
-      secondary.href = window.__moduleUrl || '/learn/';
-      secondary.className = 'lsn-btn lsn-btn--outline';
-      secondary.textContent = '{{ _("К списку уроков") }}';
-      nextArea.appendChild(secondary);
-      const primary = document.createElement('a');
-      primary.href = data.next_lesson_url;
-      primary.className = 'lsn-btn lsn-btn--primary';
-      primary.innerHTML = '{{ _("Следующий урок") }} <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
-      nextArea.appendChild(primary);
-    }
-  } else {
-    // Has at least one given-up item — offer a retry path that unlocks
-    // those rows and lets the learner have another go.
+  // Forward follows the server's authoritative `passed` (score >= passing), NOT
+  // perfect-only: a passing 4/5 was being stranded on "retry" while the server
+  // had already marked the lesson completed + awarded XP. The retry drill loop
+  // stays available whenever the learner missed an item (any non-perfect run).
+  const passed = !!data.passed;
+  const forwardHref = dp ? dp.next_slot_url : (data.next_lesson_url || CACHED_NEXT_LESSON_URL);
+
+  if (!isPerfect) {
     const retry = document.createElement('button');
     retry.type = 'button';
-    retry.className = 'lsn-btn lsn-btn--primary';
+    retry.className = 'lsn-btn lsn-btn--outline';
     retry.innerHTML = '<i class="fas fa-redo"></i> {{ _("Исправить ошибку") }}';
     retry.addEventListener('click', _retryGivenUp);
     nextArea.appendChild(retry);
-    const secondary = document.createElement('a');
+  }
+
+  const _escapeLink = () => {
+    const esc = document.createElement('a');
+    esc.className = 'lsn-btn lsn-btn--outline';
     if (dp) {
-      secondary.href = dp.dashboard_url;
-      secondary.textContent = 'На дашборд';
+      esc.href = dp.dashboard_url + (passed && dp.day_secured ? '?day_secured=1' : '');
+      esc.textContent = (dp.day_secured && !dp.next_slot_url) ? 'День завершён · на дашборд' : 'На дашборд';
     } else {
-      secondary.href = window.__moduleUrl || '/learn/';
-      secondary.textContent = '{{ _("К списку уроков") }}';
+      esc.href = window.__moduleUrl || '/learn/';
+      esc.textContent = '{{ _("К списку уроков") }}';
     }
-    secondary.className = 'lsn-btn lsn-btn--outline';
-    nextArea.appendChild(secondary);
+    nextArea.appendChild(esc);
+  };
+
+  if (passed) {
+    // Show a dedicated escape link only when retry isn't already filling the
+    // secondary slot (perfect run) or when there is no forward target.
+    if (isPerfect || !forwardHref) _escapeLink();
+    if (forwardHref) {
+      const primary = document.createElement('a');
+      primary.href = forwardHref;
+      primary.className = 'lsn-btn lsn-btn--primary';
+      primary.innerHTML = (dp ? 'Следующий урок плана' : '{{ _("Следующий урок") }}') + ' <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+      nextArea.appendChild(primary);
+    }
+  } else {
+    // Genuine fail (<70%) → keep them in the drill: retry (added above) + escape.
+    _escapeLink();
   }
 
   const resultArea = document.getElementById('completion-result');

@@ -2181,6 +2181,10 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
         ).first()
         if progress:
             progress.status = 'completed'
+            # Honor-system completion → 100% (mirrors the listening_immersion
+            # sibling). Without this progress.score stayed NULL while the UI
+            # banner showed 100%, an internal mismatch.
+            progress.score = 100.0
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
@@ -2189,6 +2193,7 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
                 user_id=user_id,
                 lesson_id=lesson.id,
                 status='completed',
+                score=100.0,
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
@@ -2388,7 +2393,13 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp
             with db.session.begin_nested():
-                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=pron_score)
+                # score=None → full base XP (not score-scaled). Self-assess users
+                # without a working mic log matched=False → pron_score 0, which
+                # would otherwise halve XP for honest learners; the Web Speech API
+                # is unreliable cross-browser, so completion earns full XP like the
+                # shadow_reading / listening_immersion honor-system siblings.
+                # progress.score keeps the real pron_score for display/analytics.
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
             db.session.commit()
         except Exception as xp_err:
             db.session.rollback()

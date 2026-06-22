@@ -280,8 +280,12 @@ class TestSentenceCompletionTemplate:
 
     def test_daily_plan_uses_plan_next_slot(self):
         tpl = _read_template()
-        assert "planNext.href = dp.next_slot_url" in tpl
+        # Forward CTA uses the plan's next-slot URL (var renamed to forwardHref
+        # when the gate moved from perfect-only to server `data.passed`).
+        assert "dp.next_slot_url" in tpl
         assert "Следующий урок плана" in tpl
+        # Forward is gated on the server's passed flag, not a client perfect-check.
+        assert "const passed = !!data.passed" in tpl
 
     def test_context_conditional_block(self):
         tpl = _read_template()

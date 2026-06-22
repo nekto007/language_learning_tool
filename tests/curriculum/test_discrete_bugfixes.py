@@ -718,3 +718,98 @@ class TestMatchingScoreForgery:
         assert 'function calculateScore' not in html
         assert '/progress' not in html or 'saveGameResults' in html  # game posts to /submit
         _assert_inline_js_valid(html, 'saveGameResults')
+
+
+class TestScoreXpFindings:
+    """Score/XP correctness batch from the 2026-06-19 audit."""
+
+    def _src(self, name):
+        return (LESSONS / name).read_text(encoding='utf-8')
+
+    def test_sentence_completion_forward_on_passed(self):
+        s = self._src('sentence_completion.html')
+        assert 'const passed = !!data.passed' in s
+        # The perfect-only forward gate is gone (it stranded a passing 4/5).
+        assert 'if (isPerfect && (data.next_lesson_url' not in s
+
+    def test_sentence_correction_forward_on_passed(self):
+        s = self._src('sentence_correction.html')
+        assert 'const passed = !!data.passed' in s
+        assert 'if (isPerfect && (data.next_lesson_url' not in s
+        # Restore replays graded result regardless of IS_COMPLETED (failed run
+        # no longer reloads to a blank board) and derives passed from the verdict.
+        assert 'if (Array.isArray(SAVED_STATE.item_results))' in s
+        assert 'passed: !!SAVED_STATE.passed' in s
+
+    def test_text_no_duplicate_completion_score_id_and_real_score(self):
+        s = self._src('text.html')
+        # The hidden form input must not steal the banner div's id (duplicate id
+        # hid the banner score entirely). Check the actual input attribute form.
+        assert 'value="100" id="completion-score"' not in s
+        assert 'showLessonCompletion({ score: comprehensionResults.score' in s
+
+    def test_quiz_fabricated_xp_card_removed(self):
+        s = self._src('quiz.html')
+        # The fabricated "+0" XP stat-card was removed (no points stat, no label).
+        assert 'stat-card points' not in s
+        assert 'XP получено' not in s
+
+    def test_pronunciation_xp_not_score_scaled(self):
+        src = (REPO / 'app' / 'curriculum' / 'routes' / 'lessons.py').read_text(encoding='utf-8')
+        m = re.search(r'def _process_pronunciation_submission.*?(?=\n\ndef )', src, re.S)
+        assert m, '_process_pronunciation_submission not found'
+        body = m.group(0)
+        # Honest no-mic self-assess (pron_score 0) must not halve XP.
+        assert 'score=pron_score)' not in body
+        assert 'db_session=db, score=None)' in body
+
+    def _make_typed(self, db_session, lesson_type, content):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        lesson = Lessons(module_id=module.id, number=1, title='X',
+                         type=lesson_type, content=content)
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_shadow_reading_persists_score_100(self, _a, db_session, authenticated_client):
+        lesson = self._make_typed(db_session, 'shadow_reading',
+                                  {'text': 'Hello world.', 'audio_url': ''})
+        r = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'shadow_reading', 'self_assessed': True},
+        )
+        assert r.status_code == 200
+        from app.curriculum.models import LessonProgress
+        prog = LessonProgress.query.filter_by(lesson_id=lesson.id).first()
+        # progress.score now matches the banner's 100% (was NULL before).
+        assert prog.status == 'completed' and prog.score == 100.0
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_sentence_completion_rendered_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make_typed(db_session, 'sentence_completion', {'items': [
+            {'prompt': 'The cat sat on the', 'answer': 'mat'},
+            {'prompt': 'She loves to read', 'answer': 'books'},
+        ]})
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        _assert_inline_js_valid(resp.data.decode(), 'showResults')
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_sentence_correction_rendered_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make_typed(db_session, 'sentence_correction', {'items': [
+            {'incorrect_sentence': 'I has a cat.',
+             'options': ['I have a cat.', 'I haves a cat.', 'I had a cat have.'],
+             'correct_sentence': 'I have a cat.', 'explanation': 'Use have with I.'},
+        ]})
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        _assert_inline_js_valid(resp.data.decode(), '_scShowSummary')

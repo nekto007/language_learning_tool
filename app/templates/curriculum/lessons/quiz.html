@@ -73,12 +73,10 @@
     <div class="quiz-results-compact" role="status" aria-live="polite" aria-atomic="true">
       <!-- Статистика в виде карточек -->
       <div class="quiz-stats-cards">
-        <div class="stat-card points">
-          <div class="stat-icon">⭐</div>
-          <div class="stat-value">+{{ (previous_data.get('points_earned') or 0)|int }}</div>
-          <div class="stat-label">{{ _('XP получено') }}</div>
-        </div>
-
+        {# XP card removed: `points_earned` is never persisted (progress.data
+           only carries correct_answers/total/score/feedback), so it always read
+           "+0". Real quiz XP lives in UserStatistics.total_xp (idempotent,
+           score-scaled) and isn't surfaced here. #}
         <div class="stat-card percentage">
           <div class="stat-icon">🎯</div>
           <div class="stat-value">{{ (previous_data.get('score', 0))|round(0)|int }}%</div>

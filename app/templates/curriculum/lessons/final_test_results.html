@@ -270,10 +270,15 @@
                собранные пользователем. #}
             {% set _is_matching = (question.type == 'matching') %}
             {% if _is_matching %}
+              {% set _user_pairs = feedback_item.user_pairs if feedback_item and feedback_item.user_pairs else [] %}
               <div class="user-answer-section" style="flex-direction: column; align-items: flex-start;">
+                {# Only label "Ваши пары:" when we actually have the learner's
+                   pairs; the fallback below renders correct pairs under its own
+                   "Правильные пары:" label (no dangling empty heading). #}
+                {% if _user_pairs %}
                 <span class="answer-label">{{ _('Ваши пары:') }}</span>
+                {% endif %}
                 <div class="matching-pairs-list">
-                  {% set _user_pairs = feedback_item.user_pairs if feedback_item and feedback_item.user_pairs else [] %}
                   {% if _user_pairs %}
                     {% for p in _user_pairs %}
                       <div class="matching-pair-row {% if p.correct %}matching-pair-row--correct{% else %}matching-pair-row--wrong{% endif %}">

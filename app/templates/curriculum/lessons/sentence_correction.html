@@ -722,42 +722,50 @@ function _scShowSummary(data) {
 
   const dpSource = (data && data.daily_plan_ctx) ? data.daily_plan_ctx : DAILY_PLAN_CTX;
   const dp = (dpSource && dpSource.is_daily_plan) ? dpSource : null;
-  if (isPerfect && (data.next_lesson_url || CACHED_NEXT_LESSON_URL || dp)) {
-    const secondary = document.createElement('a');
-    secondary.className = 'lsn-btn lsn-btn--outline';
+
+  // Forward follows the server's authoritative `passed` (score >= passing), NOT
+  // perfect-only — a passing-but-imperfect run was stranded on retry while the
+  // server had already completed the lesson + awarded XP. Retry stays available
+  // on any non-perfect run (the correction drill loop).
+  const passed = !!data.passed;
+  const forwardHref = dp ? dp.next_slot_url : (data.next_lesson_url || CACHED_NEXT_LESSON_URL);
+
+  if (!isPerfect) {
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'lsn-btn lsn-btn--outline';
+    retry.innerHTML = '<i class="fas fa-redo"></i> {{ _("Исправить ошибку") }}';
+    retry.addEventListener('click', _scRetryGivenUp);
+    nextArea.appendChild(retry);
+  }
+
+  const _scEscapeLink = () => {
+    const esc = document.createElement('a');
+    esc.className = 'lsn-btn lsn-btn--outline';
     if (dp) {
-      secondary.href = dp.dashboard_url + (dp.day_secured ? '?day_secured=1' : '');
-      secondary.textContent = (dp.day_secured && !dp.next_slot_url) ? 'День завершён · на дашборд' : 'На дашборд';
+      esc.href = dp.dashboard_url + (passed && dp.day_secured ? '?day_secured=1' : '');
+      esc.textContent = (dp.day_secured && !dp.next_slot_url) ? 'День завершён · на дашборд' : 'На дашборд';
     } else {
-      secondary.href = window.__moduleUrl || '/learn/';
-      secondary.textContent = '{{ _("К списку уроков") }}';
+      esc.href = window.__moduleUrl || '/learn/';
+      esc.textContent = '{{ _("К списку уроков") }}';
     }
-    nextArea.appendChild(secondary);
-    const primaryHref = dp ? dp.next_slot_url : (data.next_lesson_url || CACHED_NEXT_LESSON_URL);
-    if (primaryHref) {
+    nextArea.appendChild(esc);
+  };
+
+  if (passed) {
+    // Dedicated escape only when retry isn't filling the secondary slot
+    // (perfect run) or there's no forward target.
+    if (isPerfect || !forwardHref) _scEscapeLink();
+    if (forwardHref) {
       const primary = document.createElement('a');
-      primary.href = primaryHref;
+      primary.href = forwardHref;
       primary.className = 'lsn-btn lsn-btn--primary';
       primary.innerHTML = (dp ? 'Следующий урок плана' : '{{ _("Следующий урок") }}') + ' <svg class="lsn-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
       nextArea.appendChild(primary);
     }
   } else {
-    const retry = document.createElement('button');
-    retry.type = 'button';
-    retry.className = 'lsn-btn lsn-btn--primary';
-    retry.innerHTML = '<i class="fas fa-redo"></i> {{ _("Исправить ошибку") }}';
-    retry.addEventListener('click', _scRetryGivenUp);
-    nextArea.appendChild(retry);
-    const secondary = document.createElement('a');
-    secondary.className = 'lsn-btn lsn-btn--outline';
-    if (dp) {
-      secondary.href = dp.dashboard_url;
-      secondary.textContent = 'На дашборд';
-    } else {
-      secondary.href = window.__moduleUrl || '/learn/';
-      secondary.textContent = '{{ _("К списку уроков") }}';
-    }
-    nextArea.appendChild(secondary);
+    // Genuine fail (<70%) → retry (added above) + escape.
+    _scEscapeLink();
   }
   resultArea.hidden = false;
   resultArea.scrollIntoView({behavior: 'smooth', block: 'nearest'});
@@ -795,8 +803,12 @@ function _scRetryGivenUp() {
 
 function _scRestoreState() {
   if (!SAVED_STATE) return;
-  // Completed: progress.data holds grading result (item_results array).
-  if (IS_COMPLETED && Array.isArray(SAVED_STATE.item_results)) {
+  // Replay a graded result (item_results) regardless of IS_COMPLETED: a FAILED
+  // run (score < passing) keeps status='in_progress' yet update_progress_with_grading
+  // overwrote progress.data with the grade shape (item_results, no .items key).
+  // Gating on IS_COMPLETED here left such a reload with a blank board and no CTA.
+  // Mirrors sentence_completion's restore.
+  if (Array.isArray(SAVED_STATE.item_results)) {
     SAVED_STATE.item_results.forEach(function(res, i) {
       if (i >= ITEM_COUNT) return;
       // A6: the answer is no longer in the DOM — the grader saved it in
@@ -816,7 +828,9 @@ function _scRestoreState() {
       }
     });
     _scFinalizing = true;
-    _scShowSummary({next_lesson_url: CACHED_NEXT_LESSON_URL});
+    // Derive passed from the persisted grade verdict (not a hardcode): a passed
+    // reload shows forward, a failed reload shows retry+escape — never a dead-end.
+    _scShowSummary({next_lesson_url: CACHED_NEXT_LESSON_URL, passed: !!SAVED_STATE.passed});
     return;
   }
   // Mid-lesson live-state replay.
