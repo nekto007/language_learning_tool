@@ -753,8 +753,10 @@ function submitReorderAnswer(questionIndex) {
   const question = window.quizData.questions[questionIndex];
   const correctAnswer = question.correct_answer || question.correct || question.answer || '';
 
-  // Normalize for comparison
-  const normalize = (text) => text ? text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim() : '';
+  // Normalize for comparison. Keep Cyrillic: bare \w is ASCII-only, so the old
+  // /[^\w\s]/g stripped а-я and mangled Russian reorder previews (false "wrong"
+  // in-session). Matches the Cyrillic-aware normalizer used elsewhere in this file.
+  const normalize = (text) => text ? text.toLowerCase().replace(/[^\w\sа-яёА-ЯЁ]/g, '').replace(/\s+/g, ' ').trim() : '';
   const isCorrect = normalize(sentence) === normalize(correctAnswer);
 
   QuizApp.state.answers[questionIndex].correct = isCorrect;

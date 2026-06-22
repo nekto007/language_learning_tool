@@ -437,7 +437,7 @@ function showResults(data) {
 
     let html = `
       <div class="d-flex flex-wrap gap-2 align-items-center">
-        <button class="btn btn-primary" type="button" onclick="window.location.reload()">
+        <button class="btn btn-primary" type="button" onclick="var u=new URL(location.href);u.searchParams.set('reset','true');location.assign(u);">
           <i class="fas fa-redo"></i> {{ _("Начать заново") }}
         </button>`;
     if (nextSlotUrl) {

@@ -813,3 +813,35 @@ class TestScoreXpFindings:
         resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
         assert resp.status_code == 200
         _assert_inline_js_valid(resp.data.decode(), '_scShowSummary')
+
+
+class TestP3FunctionalFixes:
+    """Real functional bugs hiding in the audit's P3 tail (A9/A11/A12)."""
+
+    def _src(self, name):
+        return (LESSONS / name).read_text(encoding='utf-8')
+
+    def test_quiz_reorder_normalize_keeps_cyrillic(self):
+        # A9: the reorder in-session preview normalizer must not strip Cyrillic
+        # (bare \w is ASCII). Both reorder (757) + matching (910) now Cyrillic-aware.
+        s = self._src('quiz.html')
+        assert s.count('а-яёА-ЯЁ') >= 2
+
+    def test_final_test_word_button_apostrophe_safe(self):
+        # A11: read the Jinja-escaped data-word, not an apostrophe-breaking arg.
+        s = self._src('final_test.html')
+        assert 'addWordToSentence({{ question_index }}, this.dataset.word, this)' in s
+        assert "'{{ word }}'" not in s
+
+    def test_grammar_selected_word_apostrophe_safe(self):
+        # A11: no inline onclick carrying the raw word (broke on don't / I'm).
+        s = self._src('grammar.html')
+        assert "removeSelectedWord(${exerciseIndex}, '${word}'" not in s
+        assert "removeBtn.addEventListener('click'" in s
+
+    def test_dictation_retry_actually_resets(self):
+        # A12: retry must reset progress (?reset=true), not just reload the
+        # completed view (which never re-opened a fresh attempt).
+        s = self._src('dictation.html')
+        assert "searchParams.set('reset','true')" in s
+        assert 'onclick="window.location.reload()"' not in s
