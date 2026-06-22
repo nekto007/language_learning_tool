@@ -452,8 +452,16 @@ function retryLesson() {
   window.location.href = window.location.pathname + '?reset=true';
 }
 
-// Глобальная переменная для упражнений
-const exercises = {{ exercises|tojson|safe }};
+// A6: the client only needs each exercise's `type` (to collect answers and run
+// the reorder UI). Answer keys (answer / correct / correct_answer / correct_order
+// / correct_sentence / pairs) and alternative_answers are NOT shipped to the page.
+// Grading is server-side; explanations + alternatives come back in the feedback
+// response and are rendered post-grade.
+const exercises = [
+  {% for exercise in exercises %}
+  { type: {{ exercise.type | tojson }} }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
 
 // Enter key for text inputs — submit or move to next field
 document.querySelectorAll('#grammarForm input.form-control').forEach((input, idx, inputs) => {
@@ -559,15 +567,17 @@ function submitResults() {
 
         if (exerciseData.status === 'correct') {
           statusEl.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
-          
-          // Получаем объяснение из упражнения
-          const exercise = exercises[parseInt(index)];
+
+          // A6: explanation + alternatives come from the server feedback
+          // (exerciseData), not a client-side answer key.
           let explanationHtml = '';
-          if (exercise && exercise.explanation) {
-            explanationHtml = `<p class="explanation"><strong>{{ _('Пояснение:') }}</strong> ${exercise.explanation}</p>`;
+          if (exerciseData.explanation) {
+            explanationHtml = `<p class="explanation"><strong>{{ _('Пояснение:') }}</strong> ${exerciseData.explanation}</p>`;
           }
-          if (exercise && exercise.alternative_answers) {
-            explanationHtml = `<p class="alternative_answers"><strong>{{ _('Дополнительные варианты ответа:') }}</strong> ${exercise.alternative_answers}</p>`;
+          if (exerciseData.alternative_answers) {
+            // += (not =): an exercise can carry BOTH an explanation and
+            // alternatives — keep both instead of overwriting the explanation.
+            explanationHtml += `<p class="alternative_answers"><strong>{{ _('Дополнительные варианты ответа:') }}</strong> ${exerciseData.alternative_answers}</p>`;
           }
 
           feedbackEl.innerHTML = `
@@ -582,12 +592,11 @@ function submitResults() {
           exerciseEl.classList.add('correct');
         } else {
           statusEl.innerHTML = '<i class="fas fa-times-circle text-danger"></i>';
-          
-          // Получаем объяснение из упражнения
-          const exercise = exercises[parseInt(index)];
+
+          // A6: explanation comes from the server feedback (exerciseData).
           let explanationHtml = '';
-          if (exercise && exercise.explanation) {
-            explanationHtml = `<p class="explanation"><strong>{{ _('Объяснение:') }}</strong> ${exercise.explanation}</p>`;
+          if (exerciseData.explanation) {
+            explanationHtml = `<p class="explanation"><strong>{{ _('Объяснение:') }}</strong> ${exerciseData.explanation}</p>`;
           }
           
           feedbackEl.innerHTML = `

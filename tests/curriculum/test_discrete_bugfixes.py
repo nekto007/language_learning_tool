@@ -513,3 +513,80 @@ class TestCollocationMatchingA6:
         # crafted {index,final:true} would dump the whole answer key.
         r = post(1, 'мимо', final=True)
         assert r['correct'] is False and 'answer' not in r
+
+
+class TestGrammarA6:
+    """A6: grammar no longer dumps the full exercise objects (answer keys +
+    explanations) into the page. The client JS carries only each exercise's
+    `type`; grading is server-side and explanations come back post-grade."""
+
+    # Sentinels that must never appear on an in-progress page (not visible
+    # question text — only answer-key / explanation fields).
+    ANS = 'ZZSENTINELANSWER'
+    ALT = 'ZZSENTINELALT'
+    EXP1 = 'ZZSENTINELEXPLAINONE'
+    EXP2 = 'ZZSENTINELEXPLAINTWO'
+
+    def _make(self, db_session):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        content = {
+            'title': 'Present Simple',
+            'description': 'A grammar lesson.',
+            'exercises': [
+                {'type': 'fill_in_blank', 'prompt': 'Fill the blank: ___',
+                 'answer': self.ANS, 'alternative_answers': [self.ALT],
+                 'explanation': self.EXP1},
+                {'type': 'multiple_choice', 'question': 'Pick one:',
+                 'options': ['optionAlpha', 'optionBeta'], 'correct_answer': 0,
+                 'explanation': self.EXP2},
+            ],
+        }
+        lesson = Lessons(module_id=module.id, number=1, title='GR',
+                         type='grammar', content=content)
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_answer_keys_not_in_dom_and_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make(db_session)
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        # In-progress page must not leak answers OR explanations anywhere.
+        assert self.ANS not in html
+        assert self.ALT not in html
+        assert self.EXP1 not in html
+        assert self.EXP2 not in html
+        # The client `const exercises` array must carry only `type`.
+        m = re.search(r'const exercises = (\[.*?\]);', html, re.S)
+        assert m, 'const exercises array not found'
+        arr = m.group(1)
+        assert 'type:' in arr
+        for leaked in ('answer', 'correct', 'explanation', 'alternative_answers', 'options'):
+            assert leaked not in arr, f'{leaked!r} leaked into client exercises array'
+        _assert_inline_js_valid(html, 'checkAnswers')
+
+    def test_grader_returns_explanation_in_feedback(self):
+        # Server feedback must carry explanation + alternatives so the client can
+        # render them post-grade (they are no longer shipped to the page upfront).
+        from app.curriculum.grading import process_grammar_submission
+        exercises = [{
+            'type': 'fill_in_blank', 'prompt': 'x', 'answer': 'am',
+            'explanation': self.EXP1, 'alternative_answers': [self.ALT],
+        }]
+        ok = process_grammar_submission(exercises, {'0': 'am'})['feedback']['0']
+        assert ok['status'] == 'correct'
+        assert ok['explanation'] == self.EXP1
+        assert ok['alternative_answers'] == [self.ALT]
+        # Explanation also accompanies an incorrect verdict (server reveals it).
+        bad = process_grammar_submission(exercises, {'0': 'wrong'})['feedback']['0']
+        assert bad['status'] == 'incorrect'
+        assert bad['explanation'] == self.EXP1

@@ -988,6 +988,21 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
                 'correct_answer': correct_answer
             }
 
+    # A6: surface each exercise's explanation + alternative answers in the
+    # feedback so the client can render them AFTER grading. grammar.html ships
+    # only the exercise `type` to the page (not the answer key), so these
+    # post-grade fields must come from the server response, not the DOM.
+    for i, exercise in enumerate(exercises):
+        fb = feedback.get(str(i))
+        if not fb:
+            continue
+        explanation = exercise.get('explanation')
+        if explanation:
+            fb['explanation'] = explanation
+        alternative_answers = exercise.get('alternative_answers')
+        if alternative_answers:
+            fb['alternative_answers'] = alternative_answers
+
     score = round((correct_count / total_count) * 100) if total_count > 0 else 0
 
     return {
