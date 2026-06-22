@@ -391,9 +391,15 @@ def check_sentence_completion_item(lesson_id):
     """
     lesson = Lessons.query.get_or_404(lesson_id)
     if lesson.type not in ('sentence_completion', 'audio_fill_blank',
-                           'translation', 'sentence_correction'):
+                           'translation', 'sentence_correction',
+                           'collocation_matching'):
         return jsonify({'success': False, 'error': 'invalid_lesson_type'}), 400
-    items = lesson.content.get('items', []) if isinstance(lesson.content, dict) else []
+    content = lesson.content if isinstance(lesson.content, dict) else {}
+    # collocation_matching stores its rows under `pairs`; the per-item lesson
+    # types use `items`. The phrase column is rendered in `pairs` order, so the
+    # phrase index maps directly onto items[index].
+    items_key = 'pairs' if lesson.type == 'collocation_matching' else 'items'
+    items = content.get(items_key, [])
     data = request.get_json(silent=True) or {}
     try:
         idx = int(data.get('index'))
@@ -402,22 +408,44 @@ def check_sentence_completion_item(lesson_id):
     if idx < 0 or idx >= len(items):
         return jsonify({'success': False, 'error': 'index_out_of_range'}), 400
 
-    from app.curriculum.grading import _strict_text_match
+    from app.curriculum.grading import _strict_text_match, _normalize_answer
     item = items[idx]
-    # Field names differ by lesson type: sentence_completion / audio_fill_blank
-    # use `answer` (+ acceptable_answers); translation uses `english`
-    # (+ alternatives); sentence_correction uses `correct_sentence`. Accept all
-    # valid surface forms.
-    canonical = str(
-        item.get('answer') or item.get('english')
-        or item.get('correct_sentence') or ''
-    )
-    extra = list(item.get('acceptable_answers') or []) + list(item.get('alternatives') or [])
+    is_collocation = lesson.type == 'collocation_matching'
+    # Canonical answer field varies by lesson type. collocation_matching grades
+    # a (phrase, translation) pair: the canonical is the phrase's `translation`
+    # (kept separate from the chain below because sentence_correction items also
+    # carry an unrelated `translation` field).
+    if is_collocation:
+        canonical = str(item.get('translation') or '')
+        extra = []
+    else:
+        # sentence_completion / audio_fill_blank use `answer` (+ acceptable_answers);
+        # translation uses `english` (+ alternatives); sentence_correction uses
+        # `correct_sentence`. Accept all valid surface forms.
+        canonical = str(
+            item.get('answer') or item.get('english')
+            or item.get('correct_sentence') or ''
+        )
+        extra = list(item.get('acceptable_answers') or []) + list(item.get('alternatives') or [])
     candidates = [canonical] + [str(a) for a in extra if str(a).strip()]
     user_answer = str(data.get('answer', ''))
-    is_correct = _strict_text_match(user_answer, candidates)
+    if is_collocation:
+        # A matching game has a CLOSED answer set, so grade by exact normalized
+        # equality (matching the authoritative /submit grader). _strict_text_match's
+        # Levenshtein-1 tolerance could mark a near-duplicate wrong translation
+        # "correct", consuming the real one and soft-locking the lesson.
+        is_correct = bool(user_answer.strip()) and (
+            _normalize_answer(user_answer) == _normalize_answer(canonical)
+        )
+    else:
+        is_correct = _strict_text_match(user_answer, candidates)
     resp = {'success': True, 'correct': is_correct}
-    if is_correct or bool(data.get('final')):
+    # Reveal the canonical answer when solved, or on a final (give-up) try. The
+    # `final` give-up reveal does NOT apply to collocation_matching: that client
+    # never sends `final` and has no give-up UX, so honoring it would just leak
+    # the whole phrase→translation key. Collocation corrections come from /submit.
+    reveal = is_correct or (bool(data.get('final')) and not is_collocation)
+    if reveal:
         resp['answer'] = canonical
         # sentence_correction reveals a per-item explanation alongside the
         # answer; other types have no `explanation` field so this is omitted.
@@ -1941,6 +1969,11 @@ def collocation_matching_lesson(lesson_id: int):
         pairs=pairs,
         shuffled_pairs=shuffled_pairs,
         is_completed=is_completed,
+        # A6: the correct phrase→translation mapping is shipped to the page ONLY
+        # for an already-completed lesson (to replay the matched state). An
+        # in-progress page never carries the mapping, so the answer key cannot be
+        # read from the DOM — each pair is graded server-side via /check-item.
+        completed_pairs=(pairs if is_completed else []),
         next_lesson_url=next_lesson_url,
         module_url=module_url,
     )

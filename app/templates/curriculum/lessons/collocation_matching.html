@@ -109,15 +109,13 @@ const DAILY_PLAN_CTX = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_
 // (kept distinct from the global /learn/ index).
 const moduleUrl = {{ module_url | tojson }};
 
-// phraseData carries the correct translation alongside the phrase so the
-// client can validate every (phrase, translation) click instantly without
-// a network round-trip. The answer key already lives in the rendered DOM
-// (the translation column is built from the same pairs list, just shuffled);
-// embedding it on the phrase side does not weaken honesty further but makes
-// the live matching loop much snappier.
+// A6: phraseData carries ONLY the phrase text — the correct translation is no
+// longer embedded, so the phrase→translation answer key cannot be read from the
+// DOM. Each pick is validated server-side via POST /check-item. The translation
+// column is shuffled and exposes only translation text (no link to its phrase).
 const phraseData = [
   {% for pair in pairs %}
-  { phrase: {{ pair.phrase | tojson }}, correctTranslation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
+  { phrase: {{ pair.phrase | tojson }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 ];
 
@@ -126,6 +124,26 @@ const translationData = [
   { translation: {{ pair.translation | tojson }} }{% if not loop.last %},{% endif %}
   {% endfor %}
 ];
+
+// Correct phrase→translation pairs — populated by the server ONLY when the
+// lesson is already completed (to replay the matched state on reload). Empty []
+// for an in-progress lesson, so a fresh page never ships the answer key.
+const completedPairs = {{ completed_pairs | tojson }};
+
+// A6: server-side per-pair grading. Posts {index: phraseIndex, answer: chosen
+// translation text}; the endpoint compares against pairs[index].translation and
+// returns {correct}. Returns null on network/HTTP failure (caller retries).
+async function _serverCheckPair(phraseIdx, translationText) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+  try {
+    const r = await fetch('/curriculum/api/lesson/' + lessonId + '/check-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ index: phraseIdx, answer: translationText }),
+    });
+    return r.ok ? await r.json() : null;
+  } catch (e) { return null; }
+}
 
 // matched[phraseIdx] = transIdx — only correct matches end up here.
 const matched = {};
@@ -202,15 +220,32 @@ function selectTranslation(idx) {
   if (selectedPhrase !== null) tryPair();
 }
 
-function tryPair() {
+async function tryPair() {
+  if (interactionLocked) return;
   const pi = selectedPhrase;
   const ti = selectedTrans;
   const phrase = phraseData[pi];
   const trans = translationData[ti];
   if (!phrase || !trans) return;
-  const isCorrect = trans.translation === phrase.correctTranslation;
 
-  if (isCorrect) {
+  // Lock immediately so a second click can't fire a parallel check while the
+  // server round-trip is in flight. handleCorrect/handleWrong keep the lock and
+  // release it from their own animation timeouts.
+  interactionLocked = true;
+  const res = await _serverCheckPair(pi, trans.translation);
+
+  if (!res || res.success === false) {
+    // Network/validation failed — clear the selection and let the user retry.
+    // No penalty: nothing was wrong, the check just didn't complete.
+    interactionLocked = false;
+    _setBtnPressed(document.getElementById('phrase-' + pi), false);
+    _setBtnPressed(document.getElementById('trans-' + ti), false);
+    selectedPhrase = null;
+    selectedTrans = null;
+    return;
+  }
+
+  if (res.correct) {
     handleCorrect(pi, ti);
   } else {
     handleWrong(pi, ti);
@@ -446,15 +481,21 @@ async function finalizeLesson() {
 // "Готовые пары" list and show the final actions row. No re-submit happens —
 // LessonProgress already carries status='completed' from the original run.
 function restoreCompletedState() {
-  phraseData.forEach((p, pi) => {
-    const ti = translationData.findIndex(t => t.translation === p.correctTranslation);
-    if (ti === -1) return;
-    matched[pi] = ti;
-    appendMatchedRow(p.phrase, p.correctTranslation);
+  // A6: the correct mapping comes from the server (completedPairs), shipped only
+  // because this lesson is already done — never present on an in-progress page.
+  // completedPairs is shipped in `pairs` order, identical to phraseData's order,
+  // so the loop index IS the phrase row index — robust even if two phrases share
+  // text (a text findIndex would collapse them onto one row).
+  completedPairs.forEach((pair, pi) => {
+    appendMatchedRow(pair.phrase, pair.translation);
+    const ti = translationData.findIndex(t => t.translation === pair.translation);
+    matched[pi] = (ti !== -1 ? ti : true);
     const pRow = document.getElementById('phrase-row-' + pi);
     if (pRow) pRow.style.display = 'none';
-    const tBtn = document.getElementById('trans-' + ti);
-    if (tBtn) tBtn.style.display = 'none';
+    if (ti !== -1) {
+      const tBtn = document.getElementById('trans-' + ti);
+      if (tBtn) tBtn.style.display = 'none';
+    }
   });
   _updateProgress();
   renderFinalState(cachedNextLessonUrl);

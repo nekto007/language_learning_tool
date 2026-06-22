@@ -261,11 +261,17 @@ class TestCollocationMatchingTemplate:
         assert "id=\"submit-btn\"" not in tpl
         assert "id=\"reset-btn\"" not in tpl
 
-    def test_correct_translation_embedded_for_client_check(self):
-        # phraseData carries the canonical answer so tryPair() can validate
-        # a (phrase, translation) click without a network round-trip.
+    def test_answer_key_not_embedded_grades_server_side(self):
+        # A6: the phrase→translation answer key is NOT shipped to the DOM.
+        # phraseData carries only the phrase; each pair is validated server-side
+        # via /check-item. The correct mapping is sent only for a completed
+        # lesson (completedPairs), to replay the matched state on reload.
         tpl = _read_template()
-        assert "correctTranslation:" in tpl
+        assert "correctTranslation" not in tpl
+        assert "async function tryPair" in tpl
+        assert "_serverCheckPair(" in tpl
+        assert "check-item" in tpl
+        assert "completedPairs" in tpl
 
     def test_uses_lesson_shell(self):
         tpl = _read_template()

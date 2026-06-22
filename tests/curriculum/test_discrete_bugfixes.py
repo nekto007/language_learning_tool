@@ -442,3 +442,74 @@ class TestSentenceCorrectionA6:
         assert save and 'if (_scRevealed[i])' in save.group(1), (
             '_scSaveState must gate correctSentence persistence on _scRevealed[i].'
         )
+
+
+class TestCollocationMatchingA6:
+    """A6: collocation_matching (a matching game) no longer embeds the
+    phrase→translation answer key in the DOM; each pair is graded server-side."""
+
+    def _make(self, db_session):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        content = {'pairs': [
+            {'phrase': 'make a decision', 'translation': 'принять решение'},
+            {'phrase': 'take a break', 'translation': 'сделать перерыв'},
+            {'phrase': 'pay attention', 'translation': 'обратить внимание'},
+        ]}
+        lesson = Lessons(module_id=module.id, number=1, title='CM',
+                         type='collocation_matching', content=content)
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_answer_key_not_in_dom_and_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make(db_session)
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        # The phrase→translation mapping must not be embedded anywhere.
+        assert 'correctTranslation' not in html
+        # In-progress page ships NO completed mapping.
+        assert 'const completedPairs = [];' in html
+        _assert_inline_js_valid(html, 'tryPair')
+
+    def test_source_grades_server_side(self):
+        s = (LESSONS / 'collocation_matching.html').read_text(encoding='utf-8')
+        # phraseData must carry only the phrase (no answer field).
+        assert 'correctTranslation' not in s
+        # tryPair must go through the server check, not a local comparison.
+        assert 'async function tryPair' in s
+        assert '_serverCheckPair(' in s
+        assert 'check-item' in s
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_check_item_grades_pairs(self, _a, db_session, authenticated_client):
+        lesson = self._make(db_session)
+
+        def post(idx, ans, final=False):
+            return authenticated_client.post(
+                f'/curriculum/api/lesson/{lesson.id}/check-item',
+                json={'index': idx, 'answer': ans, 'final': final},
+            ).get_json()
+
+        # correct pair → correct, answer echoed
+        r = post(0, 'принять решение')
+        assert r['correct'] is True and r['answer'] == 'принять решение'
+        # wrong pair, not final → no answer leaked
+        r = post(0, 'сделать перерыв')
+        assert r['correct'] is False and 'answer' not in r
+        # another correct pair
+        r = post(2, 'обратить внимание')
+        assert r['correct'] is True
+        # A6 blocker guard: the collocation client never sends final=true and
+        # has no give-up UX, so the endpoint must NOT honor it — otherwise a
+        # crafted {index,final:true} would dump the whole answer key.
+        r = post(1, 'мимо', final=True)
+        assert r['correct'] is False and 'answer' not in r
