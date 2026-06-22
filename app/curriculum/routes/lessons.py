@@ -23,7 +23,6 @@ from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import (
     process_final_test_submission,
     process_grammar_submission,
-    process_matching_submission,
     process_quiz_submission,
 )
 from app.curriculum.validators import ProgressUpdateSchema, validate_request_data
@@ -223,6 +222,7 @@ def update_lesson_progress(lesson_id):
         _SERVER_GRADED_TYPES = frozenset((
             'dictation', 'audio_fill_blank', 'translation',
             'sentence_correction', 'sentence_completion', 'collocation_matching',
+            'matching',
             'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
             'dialogue_completion_quiz',
             'writing_prompt', 'shadow_reading', 'pronunciation',
@@ -490,8 +490,13 @@ def submit_lesson(lesson_id):
             _content = lesson.content if isinstance(lesson.content, dict) else {}
             result = process_grammar_submission(_content.get('exercises', []), data.get('answers', {}))
         elif lesson.type == 'matching':
-            _content = lesson.content if isinstance(lesson.content, dict) else {}
-            result = process_matching_submission(_content.get('pairs', []), data.get('answers', {}))
+            # Memory-game matching: words are dynamic (study.get_matching_words),
+            # so there is no content answer key. Score is recomputed server-side
+            # from the reported game stats with sanity checks; completion requires
+            # all pairs matched. Client-sent score/status are never trusted.
+            result = _process_matching_game_submission(lesson, current_user.id, data)
+            if result.get('success') is False:
+                return jsonify(result), 400
         elif lesson.type == 'final_test':
             rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
             if rate_limit is not None:
@@ -2020,6 +2025,97 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     if grade.get('passed') and next_lesson:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
+    return result
+
+
+# Difficulty → expected pair count for the matching memory game. The game words
+# are dynamic, so this is the only "shape" we can sanity-check against.
+_MATCHING_DIFFICULTY_PAIRS = {'easy': 6, 'medium': 8, 'hard': 12}
+
+
+def _matching_game_explanation(game_score: int) -> str:
+    """Server-side results blurb (was client-generated, now authoritative)."""
+    if game_score >= 80:
+        return 'Отличный результат! Вы показали превосходную память и скорость.'
+    if game_score >= 60:
+        return 'Хороший результат! Продолжайте тренироваться для улучшения скорости.'
+    if game_score >= 40:
+        return 'Неплохо! Попробуйте использовать меньше подсказок и работать быстрее.'
+    return 'Продолжайте практиковаться! Со временем вы улучшите свои результаты.'
+
+
+def _process_matching_game_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Server-grade the matching memory game.
+
+    The game words are dynamic (``study.get_matching_words``), so there is no
+    content answer key to grade against. Instead the *score* is recomputed
+    server-side from the reported game stats with the same sanity floor as the
+    standalone game endpoint, and the lesson is only marked completed when every
+    pair was actually matched. This closes the client-score forgery (a raw
+    ``POST {score:100, status:'completed'}`` with no gameplay) — the client's
+    own score/status are never trusted; only plausibility-checked stats are.
+    """
+    from app.study.game_routes import _calculate_matching_score
+    from app.curriculum.services.progress_service import ProgressService
+
+    difficulty = data.get('difficulty', 'easy')
+    if difficulty not in _MATCHING_DIFFICULTY_PAIRS:
+        difficulty = 'easy'
+    try:
+        pairs_matched = max(0, min(int(data.get('pairs_matched', 0)), 200))
+        total_pairs = max(0, min(int(data.get('total_pairs', 0)), 200))
+        moves = max(0, int(data.get('moves', 0)))
+        time_taken = max(0, int(data.get('time_taken', 0)))
+    except (ValueError, TypeError):
+        return {'success': False, 'error': 'invalid_game_data'}
+
+    # Reject implausible / degenerate stats. This is a malformed-data guard, not
+    # proof of gameplay — a no-secret memory game can't be fully forgery-proofed
+    # client-side. `total_pairs` is pinned to the declared difficulty's pair count
+    # (the client always fetches exactly that many words via get_matching_words),
+    # which removes the degenerate 1-pair instant-complete; and `moves` is counted
+    # per flip, so a real game has at least two flips per matched pair.
+    if (total_pairs != _MATCHING_DIFFICULTY_PAIRS[difficulty]
+            or pairs_matched > total_pairs
+            or moves < pairs_matched * 2):
+        return {'success': False, 'error': 'invalid_game_data'}
+
+    game_score = int(_calculate_matching_score(
+        difficulty, pairs_matched, total_pairs, time_taken, moves
+    ))
+    # Completion requires a full game AND a non-zero server score, so the
+    # completion decision shares the anti-forgery floor rather than trusting
+    # score_percentage alone (a genuinely completed game always scores > 0).
+    completed_all = pairs_matched == total_pairs and game_score > 0
+    score_percentage = round(pairs_matched / total_pairs * 100) if total_pairs else 0
+
+    result = {
+        'success': True,
+        'passed': completed_all,
+        'score': score_percentage,       # 0-100 → grading + XP scaling
+        'game_score': game_score,        # 0-500 → "Очков" display
+        'pairs_matched': pairs_matched,
+        'total_pairs': total_pairs,
+        'moves': moves,
+        'time_taken': time_taken,
+        'difficulty': difficulty,
+        'explanation': _matching_game_explanation(game_score),
+    }
+
+    # Persist via the shared grader. Completion requires a perfect (all-pairs)
+    # game, so grade against passing_score=100: a partial / early-quit game stays
+    # in_progress and awards no XP. update_progress_with_grading handles the
+    # idempotent curriculum XP + perfect-day award on completion.
+    ProgressService.update_progress_with_grading(
+        user_id=user_id,
+        lesson=lesson,
+        result=result,
+        passing_score=100,
+    )
+
+    next_lesson = _get_next_lesson_for_completion(lesson)
+    if completed_all and next_lesson:
+        result['next_lesson_url'] = _lesson_completion_url(next_lesson)
     return result
 
 

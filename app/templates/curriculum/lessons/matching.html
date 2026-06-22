@@ -27,7 +27,7 @@
           <div class="stat-card">
             <i class="fas fa-trophy"></i>
             <div class="stat-content">
-              <span class="stat-value">{{ previous_data.score|default(0) }}</span>
+              <span class="stat-value">{{ previous_data.game_score|default(previous_data.score)|default(0) }}</span>
               <span class="stat-label">{{ _('Очков') }}</span>
             </div>
           </div>
@@ -456,16 +456,20 @@ function flipCard(cardElement, index) {
   
   // Переворачиваем карточку
   cardElement.classList.add('flipped');
-  
+
+  // Считаем КАЖДЫЙ переворот карты (2 на попытку). Серверная проверка
+  // _calculate_matching_score ожидает ходы в этой конвенции (moves >= pairs*2),
+  // иначе идеальная игра по-старому (1 ход на пару) отклонялась бы как форджери.
+  gameState.moves++;
+  updateMovesCounter();
+
   if (!gameState.firstCard) {
     gameState.firstCard = { element: cardElement, index: index };
     return;
   }
-  
+
   gameState.secondCard = { element: cardElement, index: index };
-  gameState.moves++;
-  updateMovesCounter();
-  
+
   checkForMatch();
 }
 
@@ -647,12 +651,10 @@ function completeGame() {
   
   // Воспроизводим звук успеха
   playSound(elements.successSound);
-  
-  // Вычисляем очки
-  const score = calculateScore();
-  
-  // Сохраняем результаты
-  saveGameResults(score);
+
+  // Счёт считает сервер по статистике игры — клиент его не вычисляет
+  // (иначе можно было бы отправить score:100 без игры).
+  saveGameResults();
 }
 
 // Принудительное завершение игры
@@ -676,82 +678,54 @@ function endGame(userInitiated = true) {
   completeGame();
 }
 
-// Расчет очков
-function calculateScore() {
-  const settings = difficultySettings[gameState.difficulty];
-  const timeLimit = settings.timeLimit;
-  
-  // Бонус за время
-  const timeBonus = Math.max(0, timeLimit - gameState.gameSeconds);
-  
-  // Эффективность ходов
-  let moveEfficiency = 0;
-  if (gameState.moves > 0) {
-    moveEfficiency = Math.min(1, (gameState.totalPairs * 2) / gameState.moves);
-  }
-  
-  // Множитель сложности
-  const difficultyMultipliers = { easy: 1, medium: 1.5, hard: 2 };
-  const difficultyMultiplier = difficultyMultipliers[gameState.difficulty] || 1;
-  
-  // Итоговый счет
-  const score = Math.round((
-    (gameState.totalPairs * 5) +
-    (timeBonus * 5) +
-    (moveEfficiency * 10)
-  ) * difficultyMultiplier);
-  
-  return Math.max(0, score);
-}
-
-// Сохранение результатов игры
-async function saveGameResults(score) {
+// Сохранение результатов игры — сервер пересчитывает счёт и решает завершение
+async function saveGameResults() {
   try {
-    const response = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+    const response = await fetch('{{ url_for("curriculum_lessons.submit_lesson", lesson_id=lesson.id) }}', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRFToken': '{{ csrf_token() }}'
       },
+      // Только статистика игры — НЕ счёт и НЕ статус. Сервер считает счёт
+      // через _calculate_matching_score и завершает урок лишь при всех парах.
       body: JSON.stringify({
-        score: Math.min(100, Math.round(score)),
-        status: 'completed',
-        data: {
-          score: score,
-          difficulty: gameState.difficulty,
-          pairs_matched: gameState.matchedPairs,
-          total_pairs: gameState.totalPairs,
-          moves: gameState.moves,
-          time_taken: gameState.gameSeconds,
-          explanation: generateExplanation(score)
-        }
+        lesson_type: 'matching',
+        difficulty: gameState.difficulty,
+        pairs_matched: gameState.matchedPairs,
+        total_pairs: gameState.totalPairs,
+        moves: gameState.moves,
+        time_taken: gameState.gameSeconds
       })
     });
-    
-    if (response.ok) {
-      if (typeof showSaveToast === 'function') showSaveToast();
-      if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: Math.round(score) });
-      showCompletionResults(score);
-      showNavigationButtons();
-    } else {
-      throw new Error('Failed to save results');
+
+    const data = await response.json().catch(() => ({}));
+
+    // fetch() резолвится на 4xx/5xx — успех только при ok + success!=false.
+    if (!response.ok || data.success === false) {
+      showError(data.error === 'invalid_game_data'
+        ? '{{ _("Не удалось засчитать игру. Сыграйте ещё раз, не пропуская пары.") }}'
+        : '{{ _("Ошибка при сохранении результатов") }}');
+      return;
     }
+
+    // Сервер завершает урок только когда собраны ВСЕ пары. Досрочный выход
+    // (по таймеру или вручную) урок не засчитывает — предлагаем сыграть снова.
+    if (!data.passed) {
+      showError('{{ _("Игра не завершена — нужно собрать все пары. Попробуйте ещё раз.") }}');
+      showNavigationButtons();
+      return;
+    }
+
+    if (typeof showSaveToast === 'function') showSaveToast();
+    if (typeof showLessonCompletion === 'function') {
+      showLessonCompletion({ score: data.score || 0, daily_plan_ctx: data.daily_plan_ctx });
+    }
+    showCompletionResults(data.game_score || 0);
+    showNavigationButtons();
   } catch (error) {
     console.error('Error saving game results:', error);
     showError('{{ _("Ошибка при сохранении результатов") }}');
-  }
-}
-
-// Генерация объяснения результатов
-function generateExplanation(score) {
-  if (score >= 80) {
-    return '{{ _("Отличный результат! Вы показали превосходную память и скорость.") }}';
-  } else if (score >= 60) {
-    return '{{ _("Хороший результат! Продолжайте тренироваться для улучшения скорости.") }}';
-  } else if (score >= 40) {
-    return '{{ _("Неплохо! Попробуйте использовать меньше подсказок и работать быстрее.") }}';
-  } else {
-    return '{{ _("Продолжайте практиковаться! Со временем вы улучшите свои результаты.") }}';
   }
 }
 

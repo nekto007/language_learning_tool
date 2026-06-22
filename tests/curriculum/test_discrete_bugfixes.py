@@ -590,3 +590,131 @@ class TestGrammarA6:
         bad = process_grammar_submission(exercises, {'0': 'wrong'})['feedback']['0']
         assert bad['status'] == 'incorrect'
         assert bad['explanation'] == self.EXP1
+
+
+class TestMatchingScoreForgery:
+    """Matching memory-game completion is server-graded: the client's score and
+    'completed' status are not trusted. Completion requires all pairs matched
+    plus plausible stats; the score is recomputed server-side."""
+
+    def _make(self, db_session, content=None):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        lesson = Lessons(module_id=module.id, number=1, title='MG',
+                         type='matching', content=(content if content is not None else {}))
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_progress_endpoint_strips_client_score_and_status(self, _a, db_session, authenticated_client):
+        # The forgery: POST score:100 + completed straight to the progress endpoint.
+        lesson = self._make(db_session)
+        r = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/progress',
+            json={'score': 100, 'status': 'completed'},
+        )
+        assert r.status_code == 200
+        from app.curriculum.models import LessonProgress
+        prog = LessonProgress.query.filter_by(lesson_id=lesson.id).first()
+        # matching is now in _SERVER_GRADED_TYPES → score + completed are stripped.
+        assert prog is None or (prog.status != 'completed' and (prog.score or 0) != 100)
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_submit_full_game_server_scores_and_completes(self, _a, db_session, authenticated_client):
+        lesson = self._make(db_session)
+        r = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'matching', 'difficulty': 'easy',
+                  'pairs_matched': 6, 'total_pairs': 6, 'moves': 12, 'time_taken': 30},
+        )
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data['passed'] is True
+        assert data['score'] == 100          # correctness % → XP scaling
+        assert data['game_score'] > 0        # server-computed gamey score
+        from app.curriculum.models import LessonProgress
+        prog = LessonProgress.query.filter_by(lesson_id=lesson.id).first()
+        assert prog.status == 'completed' and prog.score == 100
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_submit_rejects_degenerate_stats(self, _a, db_session, authenticated_client):
+        # moves < pairs*2 is physically impossible → forgery signature → 400.
+        lesson = self._make(db_session)
+        r = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'matching', 'difficulty': 'easy',
+                  'pairs_matched': 6, 'total_pairs': 6, 'moves': 0, 'time_taken': 0},
+        )
+        assert r.status_code == 400
+        assert r.get_json()['error'] == 'invalid_game_data'
+        from app.curriculum.models import LessonProgress
+        prog = LessonProgress.query.filter_by(lesson_id=lesson.id).first()
+        assert prog is None or prog.status != 'completed'
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_submit_rejects_difficulty_pair_mismatch(self, _a, db_session, authenticated_client):
+        # total_pairs is pinned to the declared difficulty (easy=6). A degenerate
+        # 1-pair "game" — or easy claiming 8 pairs — is rejected, closing the
+        # instant-complete bypass the adversarial review found.
+        lesson = self._make(db_session)
+        r1 = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'matching', 'difficulty': 'easy',
+                  'pairs_matched': 1, 'total_pairs': 1, 'moves': 2, 'time_taken': 0},
+        )
+        assert r1.status_code == 400 and r1.get_json()['error'] == 'invalid_game_data'
+        r2 = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'matching', 'difficulty': 'easy',
+                  'pairs_matched': 8, 'total_pairs': 8, 'moves': 16, 'time_taken': 5},
+        )
+        assert r2.status_code == 400 and r2.get_json()['error'] == 'invalid_game_data'
+        from app.curriculum.models import LessonProgress
+        prog = LessonProgress.query.filter_by(lesson_id=lesson.id).first()
+        assert prog is None or prog.status != 'completed'
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_submit_medium_difficulty_completes_with_matching_count(self, _a, db_session, authenticated_client):
+        # Non-easy difficulties still complete when total_pairs matches (medium=8).
+        lesson = self._make(db_session)
+        r = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'matching', 'difficulty': 'medium',
+                  'pairs_matched': 8, 'total_pairs': 8, 'moves': 16, 'time_taken': 40},
+        )
+        assert r.status_code == 200
+        assert r.get_json()['passed'] is True
+
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_submit_partial_game_not_completed(self, _a, db_session, authenticated_client):
+        lesson = self._make(db_session)
+        r = authenticated_client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'matching', 'difficulty': 'easy',
+                  'pairs_matched': 3, 'total_pairs': 6, 'moves': 10, 'time_taken': 30},
+        )
+        assert r.status_code == 200
+        assert r.get_json()['passed'] is False
+        from app.curriculum.models import LessonProgress
+        prog = LessonProgress.query.filter_by(lesson_id=lesson.id).first()
+        assert prog is None or prog.status != 'completed'
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_render_js_valid_and_no_client_scoring(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make(db_session, content={'pairs': [
+            {'left': 'cat', 'right': 'кот'}, {'left': 'dog', 'right': 'собака'},
+        ]})
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        html = resp.data.decode()
+        # Client no longer computes the score or posts to the progress endpoint.
+        assert 'function calculateScore' not in html
+        assert '/progress' not in html or 'saveGameResults' in html  # game posts to /submit
+        _assert_inline_js_valid(html, 'saveGameResults')
