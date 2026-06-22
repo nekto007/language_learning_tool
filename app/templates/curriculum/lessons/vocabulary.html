@@ -185,7 +185,7 @@
               <div class="word-add-to-list__dropdown">
                 {% if user_custom_lists %}
                   {% for lst in user_custom_lists %}
-                  <div class="word-add-to-list__dropdown-item" data-list-id="{{ lst.id }}">{{ lst.name }}</div>
+                  <div class="word-add-to-list__dropdown-item" role="button" tabindex="0" data-list-id="{{ lst.id }}">{{ lst.name }}</div>
                   {% endfor %}
                 {% else %}
                 <div class="word-add-to-list__dropdown-empty">{{ _('Нет списков') }}</div>
@@ -640,6 +640,13 @@ document.addEventListener('DOMContentLoaded', init);
     });
 
     dropdown.querySelectorAll('.word-add-to-list__dropdown-item').forEach(function(item) {
+      // A8: keyboard activation for the div-as-button list options.
+      item.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          item.click();
+        }
+      });
       item.addEventListener('click', function(e) {
         e.stopPropagation();
         const listId = item.getAttribute('data-list-id');

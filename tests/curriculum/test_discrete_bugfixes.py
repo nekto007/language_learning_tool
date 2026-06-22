@@ -845,3 +845,48 @@ class TestP3FunctionalFixes:
         s = self._src('dictation.html')
         assert "searchParams.set('reset','true')" in s
         assert 'onclick="window.location.reload()"' not in s
+
+
+class TestA8Keyboard:
+    """A8: div-as-button controls are keyboard-operable (role=button + tabindex
+    + Enter/Space)."""
+
+    def _src(self, name):
+        return (LESSONS / name).read_text(encoding='utf-8')
+
+    def test_matching_cards_keyboard(self):
+        s = self._src('matching.html')
+        assert "cardElement.setAttribute('role', 'button')" in s
+        assert 'cardElement.tabIndex = 0' in s
+        assert "cardElement.addEventListener('keydown'" in s
+
+    def test_quiz_right_option_keyboard(self):
+        s = self._src('quiz.html')
+        assert 'role="button" tabindex="0"' in s  # select-right-option div
+        # Delegated keydown is gated on role=button so native <button> data-action
+        # elements don't double-fire on Enter/Space.
+        assert '[data-action][role="button"]' in s
+
+    def test_vocabulary_dropdown_keyboard(self):
+        s = self._src('vocabulary.html')
+        assert 'role="button" tabindex="0" data-list-id' in s
+        assert "item.addEventListener('keydown'" in s
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_matching_keydown_js_valid(self, _a, _b, db_session, authenticated_client):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        lesson = Lessons(module_id=module.id, number=1, title='MG', type='matching',
+                         content={'pairs': [{'left': 'cat', 'right': 'кот'},
+                                            {'left': 'dog', 'right': 'собака'}]})
+        db_session.add(lesson)
+        db_session.commit()
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        _assert_inline_js_valid(resp.data.decode(), 'function flipCard')

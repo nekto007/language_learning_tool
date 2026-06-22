@@ -402,6 +402,7 @@
                   {% set right_items = question.get('shuffled_right_items', question.pairs | map(attribute='right') | list) %}
                   {% for item in right_items %}
                     <div class="matching-item right"
+                         role="button" tabindex="0"
                          data-value="{{ item }}"
                          data-action="select-right-option" data-question-index="{{ question_index }}" data-item="{{ item }}">
                       {{ item }}
@@ -1708,6 +1709,17 @@ document.addEventListener('click', function(e) {
         case 'play-question-audio':         playQuestionAudio(target.dataset.audioSrc, target); break;
         case 'quiz-next-question':          QuizApp.nextQuestion(); break;
     }
+});
+
+// A8: keyboard activation for div-as-button data-action controls. Gated on
+// role="button" so native <button> data-action elements (which already fire on
+// Enter/Space) don't double-trigger. Covers the matching right-pool options.
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    const target = e.target.closest('[data-action][role="button"]');
+    if (!target) return;
+    e.preventDefault();
+    target.click();
 });
 </script>
 {% endblock %}

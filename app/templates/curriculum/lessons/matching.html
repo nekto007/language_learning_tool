@@ -422,7 +422,12 @@ function createGameBoard() {
     const cardElement = document.createElement('div');
     cardElement.className = 'flip-card';
     cardElement.dataset.index = index;
-    
+    // A8: keyboard-operable card (was a click-only div). Generic label — the
+    // card is face-down, so we must NOT announce the hidden word to AT users.
+    cardElement.setAttribute('role', 'button');
+    cardElement.tabIndex = 0;
+    cardElement.setAttribute('aria-label', '{{ _("Карта") }}');
+
     cardElement.innerHTML = `
       <div class="flip-card-inner">
         <div class="flip-card-front">
@@ -433,8 +438,15 @@ function createGameBoard() {
         </div>
       </div>
     `;
-    
-    cardElement.addEventListener('click', () => flipCard(cardElement, index));
+
+    const _flipThis = () => flipCard(cardElement, index);
+    cardElement.addEventListener('click', _flipThis);
+    cardElement.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        _flipThis();
+      }
+    });
     elements.cardsGrid.appendChild(cardElement);
   });
   
@@ -502,7 +514,12 @@ function handleMatch(wordId) {
   // Отмечаем карточки как совпавшие
   gameState.firstCard.element.classList.add('matched');
   gameState.secondCard.element.classList.add('matched');
-  
+  // A8: matched cards leave the tab order (they vanish shortly after).
+  [gameState.firstCard.element, gameState.secondCard.element].forEach((el) => {
+    el.tabIndex = -1;
+    el.setAttribute('aria-disabled', 'true');
+  });
+
   // Обновляем счетчики
   gameState.matchedPairs++;
   updatePairsCounter();
