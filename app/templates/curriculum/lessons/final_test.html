@@ -363,6 +363,10 @@ window.finalTestData = {
   passingScore: {{ passing_score }}
 };
 
+// Results page for the XHR success path (the server returns JSON, not a redirect,
+// when we submit via fetch — so the client navigates here itself).
+const FINAL_TEST_RESULTS_URL = {{ url_for('curriculum_lessons.final_test_results', lesson_id=lesson.id) | tojson }};
+
 // Reorder exercise functions (from quiz.html)
 function addWordToSentence(questionIndex, word, button) {
   const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
@@ -999,7 +1003,39 @@ window.FinalTestApp = {
     document.getElementById('current-num').textContent = total > 0 ? currentNum : 0;
   },
 
+  _showFinalTestNotice(kind, message) {
+    const screen = document.getElementById('test-screen') || document.body;
+    let el = document.getElementById('final-test-notice');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'final-test-notice';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.setAttribute('tabindex', '-1');
+      screen.insertBefore(el, screen.firstChild);
+    }
+    el.className = 'final-test-notice final-test-notice--' + kind;
+    el.style.cssText = 'margin:0 0 1rem;padding:0.85rem 1rem;border-radius:8px;font-weight:600;' +
+      (kind === 'error'
+        ? 'background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;'
+        : 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;');
+    el.textContent = message;
+    el.focus();
+    el.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'center',
+    });
+  },
+
   submitResults() {
+    // Re-entry guard. Unlike the old form.submit() (which navigated away and
+    // unloaded the page), the fetch keeps the page interactive while in flight,
+    // so a double-click on "Показать результаты" could fire two POSTs → two
+    // LessonAttempt rows → burning the 3-per-24h final-test quota. Reset only on
+    // a retryable failure (the success path navigates away).
+    if (this._submitting) return;
+    this._submitting = true;
+
     // Cancel any pending debounced progress save: it would otherwise fire
     // after this POST and race-overwrite LessonProgress.data with a stale
     // {current_question: N+1} snapshot, stranding the user out-of-bounds
@@ -1009,45 +1045,65 @@ window.FinalTestApp = {
       this.saveProgressTimer = null;
     }
 
-    // Create a hidden form and submit it (traditional POST)
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = window.location.href;
-
-    // Add CSRF token
+    // Submit via fetch (XHR) instead of a hidden-form navigation. The server's
+    // XHR branch returns JSON: a 429 {error:'attempts_exhausted'} when the 24h
+    // attempt quota is spent, or {success:true} on a graded attempt. A plain
+    // form POST hit the non-XHR branch which, on the exhausted 4th attempt,
+    // flashed + redirected and DROPPED the result — the user saw nothing.
+    const formData = new FormData();
     const csrfToken = document.querySelector('meta[name="csrf-token"]');
-    if (csrfToken) {
-      const csrfInput = document.createElement('input');
-      csrfInput.type = 'hidden';
-      csrfInput.name = 'csrf_token';
-      csrfInput.value = csrfToken.content;
-      form.appendChild(csrfInput);
-    }
-
-    // Add all answers
+    if (csrfToken) formData.append('csrf_token', csrfToken.content);
     for (let i = 0; i < window.finalTestData.totalQuestions; i++) {
       const answer = this.state.answers[i];
       if (answer) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = `answer_${i}`;
-        input.value = answer.value;
-        form.appendChild(input);
-        // For matching: also ship raw pairs so server-side can persist them
-        // into feedback.user_pairs for the results page.
+        formData.append(`answer_${i}`, answer.value);
+        // For matching: ship raw pairs so the server persists them into
+        // feedback.user_pairs for the results page.
         if (Array.isArray(answer.pairs) && answer.pairs.length) {
-          const pairsInput = document.createElement('input');
-          pairsInput.type = 'hidden';
-          pairsInput.name = `pairs_${i}`;
-          pairsInput.value = JSON.stringify(answer.pairs);
-          form.appendChild(pairsInput);
+          formData.append(`pairs_${i}`, JSON.stringify(answer.pairs));
         }
       }
     }
 
-    // Append form to body and submit
-    document.body.appendChild(form);
-    form.submit();
+    const self = this;
+    const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken.content;  // header + form field
+    fetch(window.location.href, {
+      method: 'POST',
+      headers: headers,
+      body: formData,
+    })
+      .then((resp) => resp.json().catch(() => null).then((data) => ({ resp, data })))
+      .then(({ resp, data }) => {
+        if (resp.status === 429 || (data && data.error === 'attempts_exhausted')) {
+          self._submitting = false;
+          self._showFinalTestNotice('error',
+            '{{ _("Достигнут лимит попыток финального теста (3 за 24 часа). Попробуйте позже.") }}');
+          return;
+        }
+        if (!resp.ok || !data || data.success === false) {
+          self._submitting = false;
+          self._showFinalTestNotice('error',
+            '{{ _("Не удалось сохранить результат. Проверьте соединение и попробуйте ещё раз.") }}');
+          return;
+        }
+        // Graded + persisted server-side → go to the results page, preserving
+        // the daily-plan from/slot context so completion CTAs stay plan-aware.
+        const params = new URLSearchParams(window.location.search);
+        let url = FINAL_TEST_RESULTS_URL;
+        const from = params.get('from');
+        if (from) {
+          url += (url.indexOf('?') >= 0 ? '&' : '?') + 'from=' + encodeURIComponent(from);
+          const slot = params.get('slot');
+          if (slot) url += '&slot=' + encodeURIComponent(slot);
+        }
+        window.location.href = url;
+      })
+      .catch(() => {
+        self._submitting = false;
+        self._showFinalTestNotice('error',
+          '{{ _("Ошибка сети. Проверьте соединение и попробуйте ещё раз.") }}');
+      });
   }
 };
 

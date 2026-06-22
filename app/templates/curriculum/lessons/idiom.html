@@ -50,14 +50,17 @@
         class="btn btn-sm btn-primary"
         id="reveal-btn-{{ loop.index0 }}"
         type="button"
+        aria-expanded="false"
+        aria-controls="meaning-{{ loop.index0 }}"
         onclick="revealMeaning({{ loop.index0 }})"
       >
         <i class="fas fa-eye"></i> {{ _('Показать значение') }}
       </button>
     </div>
 
-    <!-- Animated meaning reveal -->
-    <div class="idiom-meaning-block" id="meaning-{{ loop.index0 }}">
+    <!-- Animated meaning reveal. aria-hidden until revealed so AT doesn't read
+         the answer (+ checkbox) before the learner asks for it. -->
+    <div class="idiom-meaning-block" id="meaning-{{ loop.index0 }}" aria-hidden="true">
       <div class="idiom-meaning">
         <div class="idiom-meaning-label">{{ _('Значение') }}</div>
         {{ item.meaning }}
@@ -140,9 +143,21 @@ function playAudio(idx) {
 
 function revealMeaning(idx) {
   const meaningBlock = document.getElementById('meaning-' + idx);
+  if (!meaningBlock) return;
   meaningBlock.classList.add('idiom-meaning-block--revealed');
+  meaningBlock.setAttribute('aria-hidden', 'false');
+  // Drop the max-height clip once expanded so a long meaning+example never hides
+  // the self-assess checkbox below (which would make the lesson uncompletable).
+  // Reduced-motion has no transition → unclip immediately; otherwise after it.
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) {
+    meaningBlock.style.maxHeight = 'none';
+  } else {
+    setTimeout(function() { meaningBlock.style.maxHeight = 'none'; }, 450);
+  }
 
   const revealBtn = document.getElementById('reveal-btn-' + idx);
+  revealBtn.setAttribute('aria-expanded', 'true');
   revealBtn.style.display = 'none';
 
   // Show self-assess checkbox

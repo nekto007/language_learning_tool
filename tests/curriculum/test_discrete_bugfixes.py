@@ -890,3 +890,74 @@ class TestA8Keyboard:
         resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
         assert resp.status_code == 200
         _assert_inline_js_valid(resp.data.decode(), 'function flipCard')
+
+
+class TestP3Batch2:
+    """idiom a11y reveal, final_test fetch-submit, daily-plan-next mission cleanup."""
+
+    def _src(self, name):
+        return (LESSONS / name).read_text(encoding='utf-8')
+
+    def _make_typed(self, db_session, lesson_type, content):
+        level = CEFRLevel(code=unique_level_code(), name='L', description='d', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(level_id=level.id, number=1, title='M', description='d',
+                        raw_content={'module': {'id': 1}})
+        db_session.add(module)
+        db_session.commit()
+        lesson = Lessons(module_id=module.id, number=1, title='X',
+                         type=lesson_type, content=content)
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    # --- idiom: a11y reveal + un-clip ---
+    def test_idiom_reveal_a11y_source(self):
+        s = self._src('idiom.html')
+        assert 'aria-hidden="true"' in s            # meaning block hidden from AT until reveal
+        assert 'aria-controls="meaning-' in s        # reveal button controls the block
+        assert "setAttribute('aria-hidden', 'false')" in s
+        assert "setAttribute('aria-expanded', 'true')" in s
+        assert "maxHeight = 'none'" in s             # un-clip so checkbox is reachable
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_idiom_render_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make_typed(db_session, 'idiom', {'items': [
+            {'idiom': 'break a leg', 'meaning': 'удачи', 'example': 'Break a leg!'},
+        ]})
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        _assert_inline_js_valid(resp.data.decode(), 'function revealMeaning')
+
+    # --- final_test: fetch submit instead of hidden-form navigation ---
+    def test_final_test_fetch_submit_source(self):
+        s = self._src('final_test.html')
+        assert "'X-Requested-With': 'XMLHttpRequest'" in s
+        assert '_showFinalTestNotice' in s
+        assert 'FINAL_TEST_RESULTS_URL' in s
+        assert 'attempts_exhausted' in s
+        assert "document.createElement('form')" not in s   # no more hidden-form navigation
+        # Re-entry guard: the page stays interactive during the fetch, so a
+        # double-click must not fire two POSTs (would burn the attempt quota).
+        assert 'if (this._submitting) return' in s
+        assert 'this._submitting = true' in s
+
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    def test_final_test_render_js_valid(self, _a, _b, db_session, authenticated_client):
+        lesson = self._make_typed(db_session, 'final_test', {'questions': [
+            {'type': 'multiple_choice', 'question': 'Q?', 'options': ['a', 'b'], 'correct': 0},
+        ]})
+        resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
+        assert resp.status_code == 200
+        _assert_inline_js_valid(resp.data.decode(), 'submitResults')
+
+    # --- daily-plan-next.js: dead mission code removed (file kept — live for readers) ---
+    def test_daily_plan_next_mission_code_removed(self):
+        js = (REPO / 'app' / 'static' / 'js' / 'daily-plan-next.js').read_text(encoding='utf-8')
+        assert 'var isMissionPlan' not in js
+        assert 'isMissionPlan ?' not in js           # no live ternary references
+        # File is NOT deleted — still loaded by the reader + grammar-lab pages.
+        assert (REPO / 'app' / 'static' / 'js' / 'daily-plan-next.js').exists()
