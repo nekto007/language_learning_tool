@@ -1,4 +1,5 @@
 """Tests for book catalog access control and edge cases (Task 16)."""
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -181,6 +182,20 @@ class TestChapterPagination:
         html = response.get_data(as_text=True)
         assert 'id="reading-timer-target"' in html
         assert 'targetEl.textContent = _formatTime(dailyTargetSeconds)' in html
+
+    def test_reader_dashboard_cta_requires_confirmed_daily_target(self):
+        """Checkpoint-only timer pause must not offer dashboard navigation.
+
+        The /end request can still be in flight when the checkpoint fallback
+        banner renders; dashboard / next-slot CTAs are only safe after the
+        server confirms the daily reading target.
+        """
+        template = Path('app/templates/books/reader_simple.html').read_text(
+            encoding='utf-8',
+        )
+        assert "const completionConfirmed = data.daily_target_met === true" in template
+        assert "const isPlan = completionConfirmed && !!data.next_slot_url;" in template
+        assert "if (completionConfirmed) {" in template
 
     def test_first_chapter_accessible(self, authenticated_client, published_book):
         with patch(

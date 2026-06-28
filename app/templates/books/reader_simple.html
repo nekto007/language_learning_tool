@@ -658,27 +658,35 @@ setTimeout(updateProgress, 100);
 
         ctaArea.innerHTML = '';
         const dashUrl = data.dashboard_url || '/dashboard';
-        const isPlan = !!data.next_slot_url;
+        const completionConfirmed = data.daily_target_met === true
+            || data.banner_state === 'daily_target'
+            || data.banner_state === 'both';
+        const isPlan = completionConfirmed && !!data.next_slot_url;
 
-        // Primary: next slot of plan (if from plan) or dashboard (otherwise)
-        const primary = document.createElement('a');
-        primary.className = 'reading-banner__btn reading-banner__btn--primary';
-        if (isPlan) {
-            primary.href = data.next_slot_url;
-            primary.textContent = 'Следующий урок плана';
-        } else {
-            primary.href = dashUrl;
-            primary.textContent = 'На дашборд';
-        }
-        ctaArea.appendChild(primary);
+        // Only confirmed daily-target states may offer dashboard / next-plan
+        // navigation. The checkpoint fallback can appear before /end returns,
+        // and chapter_completed explicitly means the daily reading slot is
+        // still pending.
+        if (completionConfirmed) {
+            const primary = document.createElement('a');
+            primary.className = 'reading-banner__btn reading-banner__btn--primary';
+            if (isPlan) {
+                primary.href = data.next_slot_url;
+                primary.textContent = 'Следующий урок плана';
+            } else {
+                primary.href = dashUrl;
+                primary.textContent = 'На дашборд';
+            }
+            ctaArea.appendChild(primary);
 
-        // Secondary (only when there's both a plan-next AND a dashboard link)
-        if (isPlan) {
-            const secondary = document.createElement('a');
-            secondary.className = 'reading-banner__btn reading-banner__btn--outline';
-            secondary.href = dashUrl;
-            secondary.textContent = 'На дашборд';
-            ctaArea.appendChild(secondary);
+            // Secondary (only when there's both a plan-next AND a dashboard link)
+            if (isPlan) {
+                const secondary = document.createElement('a');
+                secondary.className = 'reading-banner__btn reading-banner__btn--outline';
+                secondary.href = dashUrl;
+                secondary.textContent = 'На дашборд';
+                ctaArea.appendChild(secondary);
+            }
         }
 
         // Continue button: extends the checkpoint by one more target window
