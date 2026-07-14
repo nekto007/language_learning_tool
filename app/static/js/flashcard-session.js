@@ -137,7 +137,7 @@ class FlashcardSession {
         // If lesson already completed — skip loading the flashcard flow
         // entirely and show the celebration screen straight away using the
         // saved stats. The «Начать заново» button lets the user re-do the
-        // lesson via a confirm-modal → reset=true reload.
+        // lesson via a confirm-modal → retry=true reload.
         if (this.config.isCompleted && this.config.completedStats) {
             this._showCelebrationFromSavedStats(this.config.completedStats);
             return;
@@ -159,7 +159,7 @@ class FlashcardSession {
 
     /**
      * Bind the «Начать заново» modal — opens on retry button click and
-     * navigates to ?reset=true on confirm. Only present when
+     * navigates to ?retry=true on confirm. Only present when
      * `fc_retry_lesson_url` was supplied by the route.
      */
     _bindRetryModal() {

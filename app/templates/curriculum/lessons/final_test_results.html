@@ -119,6 +119,12 @@
           {{ _('Перейти к следующему уроку') }}
         </a>
       {% endif %}
+      {% if results.score < 100 and not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
+      <button type="button" class="action-btn secondary" onclick="retryCheckpoint()">
+        <i class="fas fa-redo"></i>
+        {{ _('Повторить ошибки') }}
+      </button>
+      {% endif %}
     {% else %}
       {# Не пройдено: всегда даём ретрай (даже в daily-plan-потоке —
          финальный тест блокирует прогрессию модуля). #}
@@ -345,10 +351,10 @@
 
 <script nonce="{{ csp_nonce }}">
 function retryCheckpoint() {
-  if (confirm('{{ _("Вы хотите пройти финальный тест заново? Предыдущие результаты будут сброшены.") }}')) {
+  if (confirm('{{ _("Вы хотите пройти финальный тест заново? Лучший результат сохранится.") }}')) {
     // Preserve daily-plan context (?from=linear_plan&slot=<kind>) across the
     // retry hop so the second attempt still ends with plan-aware CTAs.
-    var url = '{{ url_for("curriculum_lessons.final_test_lesson", lesson_id=lesson.id, reset="true") }}';
+    var url = '{{ url_for("curriculum_lessons.final_test_lesson", lesson_id=lesson.id, retry="true") }}';
     {%- if daily_plan_ctx and daily_plan_ctx.is_daily_plan %}
     url += '&from=linear_plan';
     {%- if daily_plan_ctx.slot_kind %}

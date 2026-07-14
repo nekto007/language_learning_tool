@@ -9,7 +9,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.curriculum.models import LessonProgress, Lessons
-from app.curriculum.routes.lessons import lessons_bp
+from app.curriculum.routes.lessons import lessons_bp, retry_display_progress
 from app.curriculum.security import require_lesson_access
 from app.curriculum.service import (
     get_card_session_for_lesson,
@@ -332,19 +332,9 @@ def render_card_lesson(lesson):
         lesson_id=lesson.id
     ).first()
 
-    # ?reset=true сбрасывает LessonProgress в in_progress, чтобы пользователь
-    # мог пройти карточный урок заново через confirm-модалку. SRS-state
-    # отдельных карт при этом не трогаем (живёт в UserCardDirection
-    # независимо от LessonProgress). XP не начислится дважды — там idempotent
-    # dedup через StreakEvent.
-    reset_progress = request.args.get('reset') == 'true'
-    if reset_progress and progress and progress.status == 'completed':
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
+    # A retry presents an empty lesson session but leaves the completed
+    # milestone and best score untouched. SRS state lives independently in
+    # UserCardDirection and is never reset here.
 
     next_lesson = None
     if lesson.number is not None:
@@ -483,7 +473,8 @@ def render_card_lesson(lesson):
     # Восстановление celebration на reload завершённого урока — те же
     # цифры, что показывали в финале первый раз, плюс актуальный
     # total_xp/level (могли вырасти после других уроков).
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
     completed_stats = None
     if is_completed and isinstance(progress.data, dict) and progress.data:
         from app.achievements.models import UserStatistics
@@ -502,7 +493,7 @@ def render_card_lesson(lesson):
     return render_template(
         'curriculum/lessons/card.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         cards_data=cards_data,
         next_lesson=next_lesson,
         lesson_id=lesson.id,
@@ -523,7 +514,7 @@ def render_card_lesson(lesson):
         fc_lesson_mode=True,
         fc_is_completed=is_completed,
         fc_completed_stats=completed_stats,
-        fc_retry_lesson_url=url_for('learn.lesson_by_id', lesson_id=lesson.id) + '?reset=true',
+        fc_retry_lesson_url=url_for('learn.lesson_by_id', lesson_id=lesson.id) + '?retry=true',
     )
 
 
@@ -686,7 +677,7 @@ def card_lesson(lesson_id):
     return render_template(
         'curriculum/lessons/card.html',
         lesson=lesson,
-        progress=progress,
+        progress=retry_display_progress(progress),
         cards_data=cards_data,
         next_lesson=next_lesson,
         lesson_id=lesson.id,

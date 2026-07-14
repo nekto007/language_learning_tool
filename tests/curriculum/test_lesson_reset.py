@@ -1,4 +1,4 @@
-"""Tests: единая reset-семантика кнопки «Повторить» (?reset=true)."""
+"""Tests: повтор урока не стирает завершение и лучший результат."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -6,7 +6,10 @@ from datetime import datetime, timezone
 import pytest
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
-from app.curriculum.routes.lessons import maybe_reset_lesson_progress
+from app.curriculum.routes.lessons import (
+    maybe_reset_lesson_progress,
+    retry_display_progress,
+)
 from tests.conftest import unique_level_code
 
 
@@ -49,15 +52,21 @@ def _login(client, user):
 
 @pytest.mark.smoke
 class TestMaybeResetHelper:
-    def test_resets_completed_progress(self, app, db_session, test_user, module_with_lessons):
+    def test_retry_keeps_completed_progress_and_renders_fresh_view(
+        self, app, db_session, test_user, module_with_lessons
+    ):
         _, lesson = module_with_lessons
         progress = _complete(db_session, test_user.id, lesson)
-        with app.test_request_context('/?reset=true'):
+        with app.test_request_context('/?retry=true'):
             assert maybe_reset_lesson_progress(progress) is True
-        assert progress.status == 'in_progress'
-        assert progress.score is None
-        assert progress.data is None
-        assert progress.completed_at is None
+            display = retry_display_progress(progress)
+        assert progress.status == 'completed'
+        assert progress.score == 85
+        assert progress.data == {'something': True}
+        assert progress.completed_at is not None
+        assert display.status == 'in_progress'
+        assert display.score is None
+        assert display.data is None
 
     def test_noop_without_param(self, app, db_session, test_user, module_with_lessons):
         _, lesson = module_with_lessons
@@ -67,25 +76,26 @@ class TestMaybeResetHelper:
         assert progress.status == 'completed'
 
     def test_noop_for_none_progress(self, app):
-        with app.test_request_context('/?reset=true'):
+        with app.test_request_context('/?retry=true'):
             assert maybe_reset_lesson_progress(None) is False
 
 
 @pytest.mark.smoke
 class TestResetOverHttp:
-    def test_learn_url_with_reset_clears_progress(
+    def test_learn_url_with_retry_keeps_completed_progress(
         self, app, client, db_session, test_user, module_with_lessons
     ):
         _, lesson = module_with_lessons
         progress = _complete(db_session, test_user.id, lesson)
         _login(client, test_user)
-        resp = client.get(f'/learn/{lesson.id}/?reset=true', follow_redirects=True)
+        resp = client.get(f'/learn/{lesson.id}/?retry=true', follow_redirects=True)
         assert resp.status_code == 200
         db_session.refresh(progress)
-        assert progress.status == 'in_progress'
-        assert progress.data is None
+        assert progress.status == 'completed'
+        assert progress.score == 85
+        assert progress.data == {'something': True}
 
-    def test_module_page_repeat_button_has_reset(
+    def test_module_page_repeat_button_uses_non_destructive_retry(
         self, app, client, db_session, test_user, module_with_lessons
     ):
         module, lesson = module_with_lessons
@@ -93,4 +103,4 @@ class TestResetOverHttp:
         _login(client, test_user)
         resp = client.get(f'/learn/{module.level.code.lower()}/module-{module.number}/')
         assert resp.status_code == 200
-        assert f'/learn/{lesson.id}/?reset=true'.encode() in resp.data
+        assert f'/learn/{lesson.id}/?retry=true'.encode() in resp.data

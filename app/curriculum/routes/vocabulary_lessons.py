@@ -17,7 +17,11 @@ from app.curriculum.models import (
     save_annotation,
 )
 from app.curriculum.constants import PASSING_SCORE_DEFAULT
-from app.curriculum.routes.lessons import lessons_bp, maybe_reset_lesson_progress
+from app.curriculum.routes.lessons import (
+    lessons_bp,
+    maybe_reset_lesson_progress,
+    retry_display_progress,
+)
 from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson
 from app.curriculum.services.progress_service import ProgressService
@@ -235,7 +239,7 @@ def render_vocabulary_lesson(lesson):
         'curriculum/lessons/vocabulary.html',
         lesson=lesson,
         words=words,
-        progress=progress,
+        progress=retry_display_progress(progress),
         next_lesson=next_lesson,
         user_custom_lists=user_custom_lists,
     )
@@ -279,7 +283,7 @@ def render_matching_lesson(lesson):
         lesson=lesson,
         pairs=cleaned_content['pairs'],
         settings=cleaned_content,
-        progress=progress,
+        progress=retry_display_progress(progress),
         next_lesson=next_lesson
     )
 
@@ -386,7 +390,7 @@ def render_text_lesson(lesson):
         lesson=lesson,
         text_content=cleaned_content,
         book=book,
-        progress=progress,
+        progress=retry_display_progress(progress),
         next_lesson=next_lesson,
         saved_comprehension=saved_comprehension
     )
@@ -570,7 +574,7 @@ def vocabulary_lesson(lesson_id):
         'curriculum/lessons/vocabulary.html',
         lesson=lesson,
         words=words,
-        progress=progress,
+        progress=retry_display_progress(progress),
         next_lesson=next_lesson,
         user_custom_lists=user_custom_lists,
     )
@@ -620,7 +624,7 @@ def matching_lesson(lesson_id):
         lesson=lesson,
         pairs=cleaned_content['pairs'],
         settings=cleaned_content,
-        progress=progress,
+        progress=retry_display_progress(progress),
         next_lesson=next_lesson
     )
 
@@ -696,14 +700,15 @@ def listening_immersion_lesson(lesson_id):
             logger.error(f"Error creating listening_immersion progress: {e}")
             db.session.rollback()
 
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson = get_next_lesson(lesson.id)
 
     return render_template(
         'curriculum/lessons/listening_immersion.html',
         lesson=lesson,
         text_content=cleaned_content,
-        progress=progress,
+        progress=display_progress,
         is_completed=is_completed,
         next_lesson=next_lesson,
     )
@@ -813,9 +818,10 @@ def text_lesson(lesson_id):
         from app.books.models import Book
         book = Book.query.get(lesson.book_id)
 
+    display_progress = retry_display_progress(progress)
     saved_comprehension = None
-    if progress and progress.data:
-        saved_comprehension = progress.data.get('comprehension')
+    if display_progress and display_progress.data:
+        saved_comprehension = display_progress.data.get('comprehension')
 
     vocab_js_data = _build_vocab_js_data(cleaned_content.get('vocabulary') or [])
 
@@ -824,7 +830,7 @@ def text_lesson(lesson_id):
         lesson=lesson,
         text_content=cleaned_content,
         book=book,
-        progress=progress,
+        progress=display_progress,
         next_lesson=next_lesson,
         saved_comprehension=saved_comprehension,
         vocab_js_data=vocab_js_data,

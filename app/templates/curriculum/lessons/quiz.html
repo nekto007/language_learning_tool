@@ -607,7 +607,7 @@ function _openQuizResetModal() {
     // Fallback — если модалка вдруг отсутствует в DOM (не пройденный quiz),
     // оставляем нативный confirm.
     if (confirm('{{ _("Вы уверены, что хотите пройти викторину заново? Текущие результаты будут сброшены.") }}')) {
-      window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, reset="true") }}';
+      window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, retry="true") }}';
     }
     return;
   }
@@ -638,11 +638,11 @@ function retryLesson() { _openQuizResetModal(); }
 document.addEventListener('DOMContentLoaded', function() {
   const modal = document.getElementById('quiz-reset-modal');
   if (!modal) return;
-  // Подтверждение — переход на reset=true url.
+  // Подтверждение — переход на retry=true url.
   const confirmBtn = document.getElementById('quiz-reset-confirm-btn');
   if (confirmBtn) {
     confirmBtn.addEventListener('click', function() {
-      window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, reset="true") }}';
+      window.location.href = '{{ url_for("curriculum_lessons.quiz_lesson", lesson_id=lesson.id, retry="true") }}';
     });
   }
   // Cancel — клик по backdrop, по любым [data-quiz-reset-cancel] и Esc.

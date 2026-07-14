@@ -445,11 +445,11 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">
-// Перезапуск урока: роут грамматики обрабатывает ?reset=true (сбрасывает
-// LessonProgress в in_progress). Базовый шаблон вызывает retryLesson()
+// Перезапуск урока через ?retry=true оставляет лучший результат и completed
+// milestone нетронутыми. Базовый шаблон вызывает retryLesson()
 // через data-action="retry-lesson", но саму функцию определяем здесь.
 function retryLesson() {
-  window.location.href = window.location.pathname + '?reset=true';
+  window.location.href = window.location.pathname + '?retry=true';
 }
 
 // A6: the client only needs each exercise's `type` (to collect answers and run
@@ -958,4 +958,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-

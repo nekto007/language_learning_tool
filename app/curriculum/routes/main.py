@@ -516,7 +516,7 @@ def lesson_by_id(lesson_id):
         lesson_id=lesson.id
     ).first()
 
-    # Кнопка «Повторить» (?reset=true) — единая пересдача для типов,
+    # Кнопка «Повторить» (?retry=true) — единая пересдача для типов,
     # которые рендерятся прямо здесь (канонические получают reset в
     # своих view через redirect с сохранением query string).
     from app.curriculum.routes.lessons import maybe_reset_lesson_progress

@@ -100,7 +100,7 @@ class TestTemplatePatchBatch:
     def test_grammar_defines_retrylesson(self):
         s = self._src('grammar.html')
         assert 'function retryLesson()' in s
-        assert '?reset=true' in s
+        assert '?retry=true' in s
 
     def test_grammar_skips_match_in_checkanswers(self):
         s = self._src('grammar.html')
@@ -839,11 +839,11 @@ class TestP3FunctionalFixes:
         assert "removeSelectedWord(${exerciseIndex}, '${word}'" not in s
         assert "removeBtn.addEventListener('click'" in s
 
-    def test_dictation_retry_actually_resets(self):
-        # A12: retry must reset progress (?reset=true), not just reload the
+    def test_dictation_retry_opens_fresh_attempt(self):
+        # Retry must open a fresh attempt (?retry=true), not just reload the
         # completed view (which never re-opened a fresh attempt).
         s = self._src('dictation.html')
-        assert "searchParams.set('reset','true')" in s
+        assert "searchParams.set('retry','true')" in s
         assert 'onclick="window.location.reload()"' not in s
 
 
