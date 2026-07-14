@@ -12,7 +12,11 @@ from sqlalchemy.orm import joinedload
 from app.curriculum.constants import PASSING_SCORE_DEFAULT, get_lesson_passing_score
 from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
-from app.curriculum.routes.lessons import lessons_bp
+from app.curriculum.routes.lessons import (
+    is_lesson_retry_requested,
+    lessons_bp,
+    retry_display_progress,
+)
 from app.curriculum.security import require_lesson_access, sanitize_html
 from app.curriculum.service import get_next_lesson, process_quiz_submission
 from app.curriculum.services.progress_service import ProgressService
@@ -176,20 +180,12 @@ def render_grammar_lesson(lesson):
                 for ex in cleaned_content['examples']
             ]
 
-    reset_progress = request.args.get('reset') == 'true'
+    reset_progress = is_lesson_retry_requested()
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
-
-    if reset_progress and progress:
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
 
     next_lesson = get_next_lesson(lesson.id)
 
@@ -309,7 +305,7 @@ def render_grammar_lesson(lesson):
         exercises=exercises,
         grammar_explanation=grammar_explanation,
         theory_topic=theory_topic,
-        progress=progress,
+        progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson
     )
 
@@ -435,7 +431,7 @@ def render_quiz_lesson(lesson):
 
     _sanitize_quiz_questions(cleaned_content)
 
-    reset_progress = request.args.get('reset') == 'true'
+    reset_progress = is_lesson_retry_requested()
     retry_errors = request.args.get('retry_errors') == 'true'
 
     progress = LessonProgress.query.filter_by(
@@ -457,14 +453,6 @@ def render_quiz_lesson(lesson):
         if failed_indices:
             cleaned_content['questions'] = [all_qs[i] for i in failed_indices]
             reset_progress = True
-
-    if reset_progress and progress:
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
 
     if not progress:
         progress = LessonProgress(
@@ -534,7 +522,7 @@ def render_quiz_lesson(lesson):
         lesson=lesson,
         questions=cleaned_content['questions'],
         settings=cleaned_content,
-        progress=progress,
+        progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson
     )
 
@@ -586,20 +574,12 @@ def render_final_test_lesson(lesson):
         if 'answer' in question and 'correct_answer' not in question:
             question['correct_answer'] = question['answer']
 
-    reset_progress = request.args.get('reset') == 'true'
+    reset_progress = is_lesson_retry_requested()
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
-
-    if reset_progress and progress:
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
 
     if request.method == 'POST':
         rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
@@ -710,7 +690,7 @@ def render_final_test_lesson(lesson):
         questions=questions,
         exercises=questions,
         settings=cleaned_content,
-        progress=progress,
+        progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson,
         passing_score=get_lesson_passing_score(lesson)
     )
@@ -758,20 +738,12 @@ def grammar_lesson(lesson_id):
                 for ex in cleaned_content['examples']
             ]
 
-    reset_progress = request.args.get('reset') == 'true'
+    reset_progress = is_lesson_retry_requested()
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
-
-    if reset_progress and progress:
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
 
     next_lesson = get_next_lesson(lesson.id)
 
@@ -891,7 +863,7 @@ def grammar_lesson(lesson_id):
         exercises=exercises,
         grammar_explanation=grammar_explanation,
         theory_topic=theory_topic,
-        progress=progress,
+        progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson
     )
 
@@ -925,20 +897,12 @@ def quiz_lesson(lesson_id):
 
     _sanitize_quiz_questions(cleaned_content)
 
-    reset_progress = request.args.get('reset') == 'true'
+    reset_progress = is_lesson_retry_requested()
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
-
-    if reset_progress and progress:
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
 
     if not progress:
         progress = LessonProgress(
@@ -1008,7 +972,7 @@ def quiz_lesson(lesson_id):
         lesson=lesson,
         questions=cleaned_content['questions'],
         settings=cleaned_content,
-        progress=progress,
+        progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson
     )
 
@@ -1065,20 +1029,12 @@ def final_test_lesson(lesson_id):
         if 'answer' in question and 'correct_answer' not in question:
             question['correct_answer'] = question['answer']
 
-    reset_progress = request.args.get('reset') == 'true'
+    reset_progress = is_lesson_retry_requested()
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
         lesson_id=lesson.id
     ).first()
-
-    if reset_progress and progress:
-        progress.status = 'in_progress'
-        progress.score = None
-        progress.data = None
-        progress.completed_at = None
-        progress.last_activity = datetime.now(UTC)
-        db.session.commit()
 
     if request.method == 'POST':
         rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
@@ -1227,7 +1183,7 @@ def final_test_lesson(lesson_id):
         questions=questions,
         exercises=questions,
         settings=cleaned_content,
-        progress=progress,
+        progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson,
         passing_score=get_lesson_passing_score(lesson)
     )

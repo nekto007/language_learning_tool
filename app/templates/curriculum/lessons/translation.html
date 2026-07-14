@@ -513,7 +513,7 @@ function _renderPartialPrompt(correct, total) {
   // Inline-блок: «Почти! Правильно X из N. Исправь оставшиеся.»
   // + основная кнопка «Попробовать ещё раз» (soft retry — только провальные
   // items сбрасываются, верные остаются как есть). Вторичная ссылка
-  // «Пройти урок заново» делает полный reset через ?reset=true для тех,
+  // «Пройти урок заново» открывает чистую попытку через ?retry=true для тех,
   // кто хочет начать с нуля.
   const items = document.getElementById('tr-items');
   if (!items) return;
@@ -542,7 +542,7 @@ function _renderPartialPrompt(correct, total) {
   actions.appendChild(softBtn);
   const fullReset = document.createElement('a');
   fullReset.className = 'lsn-btn lsn-btn--outline';
-  fullReset.href = window.location.pathname + '?reset=true';
+  fullReset.href = window.location.pathname + '?retry=true';
   fullReset.textContent = '{{ _("Пройти урок заново") }}';
   actions.appendChild(fullReset);
   banner.appendChild(title);

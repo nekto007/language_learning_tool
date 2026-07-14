@@ -876,7 +876,9 @@ function showError(message) {
 // Функция повтора урока
 function retryLesson() {
   if (confirm('{{ _("Вы уверены, что хотите пройти игру заново?") }}')) {
-    window.location.reload();
+    const url = new URL(window.location.href);
+    url.searchParams.set('retry', 'true');
+    window.location.assign(url.toString());
   }
 }
 
@@ -884,4 +886,3 @@ function retryLesson() {
 initGame();
 </script>
 {% endblock %}
-

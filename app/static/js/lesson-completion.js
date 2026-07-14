@@ -96,6 +96,22 @@
       }
     }
 
+    function _renderRetryCta() {
+      var actions = document.getElementById('completion-actions');
+      if (!actions || document.getElementById('completion-retry-lesson')) return;
+
+      var retryUrl = new URL(window.location.href);
+      retryUrl.searchParams.delete('reset');
+      retryUrl.searchParams.set('retry', 'true');
+
+      var retry = document.createElement('a');
+      retry.id = 'completion-retry-lesson';
+      retry.className = 'lsn-btn lsn-btn--outline';
+      retry.href = retryUrl.toString();
+      retry.textContent = _t('retry_lesson', 'Пройти ещё раз');
+      actions.insertBefore(retry, actions.firstChild);
+    }
+
     var ctx = window.linearPlanContext;
     var inPlanContext = !!(ctx && typeof ctx.isActive === 'function' && ctx.isActive());
 
@@ -115,6 +131,9 @@
     }
 
     if (!inPlanContext) {
+      if (typeof opts.score === 'number' && opts.score < 100 && opts.allowRetry !== false) {
+        _renderRetryCta();
+      }
       _revealCompletion('standalone');
       return;
     }

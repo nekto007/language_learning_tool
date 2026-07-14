@@ -4,6 +4,7 @@ import logging
 import math
 import random
 import re
+from types import SimpleNamespace
 from datetime import UTC, datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
@@ -71,25 +72,47 @@ def _count_writing_attempts_today(user_id: int) -> int:
     ).count()
 
 
-def maybe_reset_lesson_progress(progress: 'LessonProgress | None') -> bool:
-    """Обработать ``?reset=true``: сброс прогресса для пересдачи урока.
+def is_lesson_retry_requested() -> bool:
+    """Whether this request intentionally starts a fresh lesson attempt.
 
-    Единая семантика кнопки «Повторить»: status → in_progress, score/data/
-    completed_at очищаются — урок рендерится как чистая попытка. SRS-прогресс
-    слов (UserCardDirection) не трогается; XP не дублируется (idempotent
-    dedup per (lesson, date)). Возвращает True, если сброс выполнен.
+    ``reset`` remains a supported alias for bookmarked legacy URLs. Unlike the
+    old implementation, a retry must not erase a completed milestone: the
+    stored progress keeps the best score and continues to unlock later lessons.
     """
-    if request.args.get('reset') != 'true':
-        return False
-    if progress is None or progress.status not in ('completed', 'in_progress'):
-        return False
-    progress.status = 'in_progress'
-    progress.score = None
-    progress.data = None
-    progress.completed_at = None
-    progress.last_activity = datetime.now(UTC)
-    db.session.commit()
-    return True
+    return request.args.get('retry') == 'true' or request.args.get('reset') == 'true'
+
+
+def maybe_reset_lesson_progress(progress: 'LessonProgress | None') -> bool:
+    """Compatibility shim for retry-aware lesson routes.
+
+    Previous callers used this helper to persistently reset ``LessonProgress``.
+    It now only reports an eligible retry request. Rendering uses
+    :func:`retry_display_progress` so the learner gets an empty attempt while
+    the canonical completed progress remains intact.
+    """
+    return bool(progress is not None and is_lesson_retry_requested())
+
+
+def retry_display_progress(progress: 'LessonProgress | None', *, force: bool = False):
+    """Return a transient in-progress view for a requested retry.
+
+    Submission handlers still load the real row, so ``ProgressService`` keeps
+    its monotonic best-score behaviour and writes a new ``LessonAttempt``.
+    """
+    if progress is None or not (force or is_lesson_retry_requested()):
+        return progress
+
+    return SimpleNamespace(
+        id=progress.id,
+        user_id=progress.user_id,
+        lesson_id=progress.lesson_id,
+        status='in_progress',
+        score=None,
+        data=None,
+        started_at=progress.started_at,
+        completed_at=None,
+        last_activity=progress.last_activity,
+    )
 
 
 lessons_bp = Blueprint('curriculum_lessons', __name__)
@@ -854,6 +877,7 @@ def dictation_lesson(lesson_id: int):
         lesson_id=lesson.id
     ).first()
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
     completed_result = None
     completed_gap_values = []
     if not progress:
@@ -903,13 +927,14 @@ def dictation_lesson(lesson_id: int):
             flag_modified(progress, 'data')
             db.session.commit()
 
+    display_progress = retry_display_progress(progress)
     next_lesson = _get_next_lesson_for_completion(lesson)
-    is_completed = bool(progress and progress.status == 'completed')
+    is_completed = bool(display_progress and display_progress.status == 'completed')
 
     return render_template(
         'curriculum/lessons/dictation.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         audio_url=audio_url,
         transcript=transcript,
         hint_chars=hint_chars,
@@ -1042,6 +1067,7 @@ def audio_fill_blank_lesson(lesson_id: int):
         lesson_id=lesson.id
     ).first()
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -1058,12 +1084,13 @@ def audio_fill_blank_lesson(lesson_id: int):
             db.session.rollback()
 
     next_lesson = _get_next_lesson_for_completion(lesson)
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
 
     return render_template(
         'curriculum/lessons/audio_fill_blank.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         audio_url=audio_url,
         items=items,
         next_lesson=next_lesson,
@@ -1219,12 +1246,13 @@ def translation_lesson(lesson_id: int):
         lesson_id=lesson.id
     ).first()
 
-    # ?reset=true сбрасывает LessonProgress, чтобы пользователь мог
-    # перепройти урок-тренировку (после partial-score 2/3, например).
+    # ?retry=true открывает чистую попытку урока-тренировки (после
+    # partial-score 2/3, например), не стирая завершение и лучший score.
     # Прогресс отдельных слов в SRS отдельная история — он живёт в
     # UserCardDirection и не трогается. XP не дублируется (idempotent
     # dedup в maybe_award_curriculum_xp / writing_xp).
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
 
     if not progress:
         try:
@@ -1241,14 +1269,15 @@ def translation_lesson(lesson_id: int):
             logger.error(f"Error creating translation progress: {e}")
             db.session.rollback()
 
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson = _get_next_lesson_for_completion(lesson)
     mode = _translation_mode(content, items)
 
     return render_template(
         'curriculum/lessons/translation.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         items=items,
         is_completed=is_completed,
         next_lesson=next_lesson,
@@ -1365,6 +1394,7 @@ def sentence_correction_lesson(lesson_id: int):
     ).first()
 
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
 
     if not progress:
         try:
@@ -1389,7 +1419,8 @@ def sentence_correction_lesson(lesson_id: int):
             module_number=lesson.module.number,
         )
 
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson_url = None
     if is_completed:
         nxt = _get_next_lesson_for_completion(lesson)
@@ -1399,7 +1430,7 @@ def sentence_correction_lesson(lesson_id: int):
     return render_template(
         'curriculum/lessons/sentence_correction.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         items=items,
         incorrect_sentence=incorrect_sentence,
         correct_sentence=correct_sentence,
@@ -1570,6 +1601,7 @@ def writing_prompt_lesson(lesson_id: int):
     ).first()
 
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
 
     if not progress:
         try:
@@ -1586,13 +1618,14 @@ def writing_prompt_lesson(lesson_id: int):
             logger.error(f"Error creating writing_prompt progress: {e}")
             db.session.rollback()
 
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson = _get_next_lesson_for_completion(lesson)
 
     return render_template(
         'curriculum/lessons/writing_prompt.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         prompt=prompt,
         prompt_ru=prompt_ru,
         min_words=min_words,
@@ -1807,6 +1840,7 @@ def sentence_completion_lesson(lesson_id: int):
         lesson_id=lesson.id
     ).first()
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -1830,7 +1864,8 @@ def sentence_completion_lesson(lesson_id: int):
             module_number=lesson.module.number,
         )
 
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson_url = None
     if is_completed:
         next_lesson = _get_next_lesson_for_completion(lesson)
@@ -1855,7 +1890,7 @@ def sentence_completion_lesson(lesson_id: int):
     return render_template(
         'curriculum/lessons/sentence_completion.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         items=items,
         module_url=module_url,
         is_completed=is_completed,
@@ -1934,6 +1969,7 @@ def collocation_matching_lesson(lesson_id: int):
         lesson_id=lesson.id,
     ).first()
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -1949,7 +1985,8 @@ def collocation_matching_lesson(lesson_id: int):
             logger.error(f"Error creating collocation_matching progress: {e}")
             db.session.rollback()
 
-    is_completed = bool(progress and progress.status == 'completed')
+    display_progress = retry_display_progress(progress)
+    is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson_url = None
     if is_completed:
         next_lesson = _get_next_lesson_for_completion(lesson)
@@ -1970,7 +2007,7 @@ def collocation_matching_lesson(lesson_id: int):
     return render_template(
         'curriculum/lessons/collocation_matching.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         pairs=pairs,
         shuffled_pairs=shuffled_pairs,
         is_completed=is_completed,
@@ -2140,6 +2177,7 @@ def shadow_reading_lesson(lesson_id: int):
         lesson_id=lesson.id,
     ).first()
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -2155,13 +2193,14 @@ def shadow_reading_lesson(lesson_id: int):
             logger.error(f"Error creating shadow_reading progress: {e}")
             db.session.rollback()
 
+    display_progress = retry_display_progress(progress)
     next_lesson = _get_next_lesson_for_completion(lesson)
-    is_completed = bool(progress and progress.status == 'completed')
+    is_completed = bool(display_progress and display_progress.status == 'completed')
 
     return render_template(
         'curriculum/lessons/shadow_reading.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         audio_url=audio_url,
         text=text,
         translation=translation,
@@ -2310,6 +2349,7 @@ def pronunciation_lesson(lesson_id: int):
         lesson_id=lesson.id,
     ).first()
     maybe_reset_lesson_progress(progress)
+    display_progress = retry_display_progress(progress)
     if not progress:
         try:
             progress = LessonProgress(
@@ -2325,10 +2365,11 @@ def pronunciation_lesson(lesson_id: int):
             logger.error(f"Error creating pronunciation progress: {e}")
             db.session.rollback()
 
+    display_progress = retry_display_progress(progress)
     return render_template(
         'curriculum/lessons/pronunciation.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         items=items,
     )
 
@@ -2512,10 +2553,11 @@ def idiom_lesson(lesson_id: int):
             logger.error(f"Error creating idiom progress: {e}")
             db.session.rollback()
 
+    display_progress = retry_display_progress(progress)
     return render_template(
         'curriculum/lessons/idiom.html',
         lesson=lesson,
-        progress=progress,
+        progress=display_progress,
         items=items,
     )
 
