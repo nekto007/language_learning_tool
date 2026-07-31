@@ -595,6 +595,16 @@
 {% include 'components/_lesson_i18n.html' %}
 <script src="{{ url_for('static', filename='js/lesson-completion.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
+// Keep retry state server-side. The one-shot query parameter must not remain
+// in a copied or refreshed URL after the first page render.
+(function() {
+  var url = new URL(window.location.href);
+  if (!url.searchParams.has('retry') && !url.searchParams.has('reset')) return;
+  url.searchParams.delete('retry');
+  url.searchParams.delete('reset');
+  window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+})();
+
 // Auto-save toast helper
 window.showSaveToast = function() {
   var toast = document.getElementById('save-toast');

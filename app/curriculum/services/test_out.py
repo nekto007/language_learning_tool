@@ -256,7 +256,7 @@ def apply_test_out_pass(user_id: int, module: Module, score: float, db: Any = _d
             )
             db.session.add(progress)
         progress.status = 'completed'
-        progress.set_score(score)
+        progress.record_score(score)
         progress.completed_at = now
         progress.last_activity = now
         data = dict(progress.data or {})

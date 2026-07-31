@@ -396,7 +396,7 @@
                             ⚠️ {{ _('Начать урок заново?') }}
                         </h3>
                         <p class="fc-retry-modal__body">
-                            {{ _('Прогресс прохождения урока будет сброшен, и карточки покажутся снова с начала. Ваш прогресс по словам в SRS (что вы уже знаете) сохранится.') }}
+                            {{ _('Карточки покажутся снова с начала. Лучший результат урока и ваш прогресс по словам в SRS сохранятся.') }}
                         </p>
                         <div class="fc-retry-modal__actions">
                             <button type="button" class="lsn-btn lsn-btn--outline" data-fc-retry-cancel>
@@ -425,6 +425,14 @@
 <!-- Flashcard Session JS -->
 <script src="{{ url_for('static', filename='js/flashcard-session.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
+    (function() {
+        var url = new URL(window.location.href);
+        if (!url.searchParams.has('retry') && !url.searchParams.has('reset')) return;
+        url.searchParams.delete('retry');
+        url.searchParams.delete('reset');
+        window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+    })();
+
     document.addEventListener('DOMContentLoaded', function() {
         new FlashcardSession({
             cards: {{ fc_cards | tojson }},

@@ -9,7 +9,11 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.curriculum.models import LessonProgress, Lessons
-from app.curriculum.routes.lessons import lessons_bp, retry_display_progress
+from app.curriculum.routes.lessons import (
+    clear_lesson_retry,
+    lessons_bp,
+    retry_display_progress,
+)
 from app.curriculum.security import require_lesson_access
 from app.curriculum.service import (
     get_card_session_for_lesson,
@@ -826,10 +830,32 @@ def complete_srs_session(lesson_id):
             if threshold_met:
                 newly_completed = progress.status != 'completed'
                 progress.status = 'completed'
-                progress.score = round(accuracy, 2)
+                progress.record_score(accuracy)
                 progress.completed_at = datetime.now(UTC)
 
         db.session.commit()
+
+        if threshold_met:
+            clear_lesson_retry(lesson.id)
+            try:
+                from app.curriculum.models import LessonAttempt
+                attempt = LessonAttempt.create_attempt(
+                    user_id=current_user.id,
+                    lesson_id=lesson.id,
+                    lesson_progress_id=progress.id,
+                )
+                attempt.completed_at = datetime.now(UTC)
+                attempt.score = accuracy
+                attempt.passed = True
+                attempt.correct_answers = correct_for_data
+                attempt.total_questions = cards_studied
+                db.session.commit()
+            except Exception:
+                logger.warning(
+                    "Failed to record card LessonAttempt for user=%s lesson=%s",
+                    current_user.id, lesson.id, exc_info=True,
+                )
+                db.session.rollback()
 
         xp_award = None
         if newly_completed:

@@ -34,6 +34,14 @@ def _invalidate_user_progress_cache(user_id: int) -> None:
         logger.warning("Failed to invalidate user cache for user_id=%s: %s", user_id, exc)
 
 
+def _set_attempt_scores(progress: 'LessonProgress', score: float | None) -> None:
+    """Store the latest result while retaining the learner's best result."""
+    if score is None:
+        return
+
+    progress.record_score(round(float(score), 2))
+
+
 class ProgressService:
     """Service for managing user progress through curriculum"""
 
@@ -215,7 +223,7 @@ class ProgressService:
                 progress.last_activity = datetime.now(UTC)
 
             if score is not None:
-                progress.score = round(score, 2)
+                _set_attempt_scores(progress, score)
 
             if data is not None:
                 progress.data = data
@@ -224,6 +232,13 @@ class ProgressService:
                 progress.completed_at = datetime.now(UTC)
 
             db.session.commit()
+
+            if status == 'completed':
+                try:
+                    from app.curriculum.routes.lessons import clear_lesson_retry
+                    clear_lesson_retry(lesson_id)
+                except Exception:
+                    pass
             _invalidate_user_progress_cache(user_id)
             return progress
 
@@ -267,15 +282,8 @@ class ProgressService:
 
         if progress:
             was_completed = progress.status == 'completed'
-            # Score is monotonic: keep the user's best historical score.
-            # A passing-but-lower retry must not overwrite a previous higher
-            # score (downstream consumers treat `progress.score` as the
-            # canonical achievement on this lesson).
-            if was_completed:
-                if is_completed and score > (progress.score or 0):
-                    progress.score = score
-            else:
-                progress.score = score
+            _set_attempt_scores(progress, score)
+            if not was_completed:
                 progress.status = 'completed' if is_completed else 'in_progress'
             # last_activity / data are touched on every grading event so that
             # activity & streak trackers credit the user for a failed retry of
@@ -292,6 +300,8 @@ class ProgressService:
                 user_id=user_id,
                 lesson_id=lesson.id,
                 score=score,
+                best_score=score,
+                last_score=score,
                 status='completed' if is_completed else 'in_progress',
                 data=result,
                 started_at=now,
@@ -303,6 +313,14 @@ class ProgressService:
 
         db.session.commit()
         _invalidate_user_progress_cache(user_id)
+
+        try:
+            from app.curriculum.routes.lessons import clear_lesson_retry
+            clear_lesson_retry(lesson.id)
+        except Exception:
+            # This service is also used by non-request jobs; retry cleanup is
+            # helpful for browser requests but must never affect grading.
+            pass
 
         # Persist a LessonAttempt row for every grading event on server-graded
         # lesson types. Passing retries of an already-completed lesson would

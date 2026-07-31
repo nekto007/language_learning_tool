@@ -7,7 +7,10 @@ import re
 from types import SimpleNamespace
 from datetime import UTC, datetime
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint, flash, has_request_context, jsonify, redirect, render_template,
+    request, session, url_for,
+)
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import flag_modified
@@ -72,14 +75,23 @@ def _count_writing_attempts_today(user_id: int) -> int:
     ).count()
 
 
-def is_lesson_retry_requested() -> bool:
+_RETRY_SESSION_KEY_PREFIX = 'curriculum_lesson_retry_'
+
+
+def _retry_session_key(lesson_id: int) -> str:
+    return f'{_RETRY_SESSION_KEY_PREFIX}{lesson_id}'
+
+
+def is_lesson_retry_requested(lesson_id: int | None = None) -> bool:
     """Whether this request intentionally starts a fresh lesson attempt.
 
     ``reset`` remains a supported alias for bookmarked legacy URLs. Unlike the
     old implementation, a retry must not erase a completed milestone: the
     stored progress keeps the best score and continues to unlock later lessons.
     """
-    return request.args.get('retry') == 'true' or request.args.get('reset') == 'true'
+    if request.args.get('retry') == 'true' or request.args.get('reset') == 'true':
+        return True
+    return bool(lesson_id is not None and session.get(_retry_session_key(lesson_id)))
 
 
 def maybe_reset_lesson_progress(progress: 'LessonProgress | None') -> bool:
@@ -90,7 +102,44 @@ def maybe_reset_lesson_progress(progress: 'LessonProgress | None') -> bool:
     :func:`retry_display_progress` so the learner gets an empty attempt while
     the canonical completed progress remains intact.
     """
-    return bool(progress is not None and is_lesson_retry_requested())
+    if progress is None or not is_lesson_retry_requested(progress.lesson_id):
+        return False
+    session[_retry_session_key(progress.lesson_id)] = True
+    return True
+
+
+def clear_lesson_retry(lesson_id: int) -> None:
+    """End the transient retry mode after the learner submits a result."""
+    if has_request_context():
+        session.pop(_retry_session_key(lesson_id), None)
+
+
+def _record_self_assessed_attempt(lesson: 'Lessons', user_id: int, result: dict) -> None:
+    """Keep completion analytics for lesson types without a server grader."""
+    try:
+        from app.curriculum.models import LessonAttempt
+
+        progress = LessonProgress.query.filter_by(
+            user_id=user_id, lesson_id=lesson.id,
+        ).first()
+        if progress is None:
+            return
+        attempt = LessonAttempt.create_attempt(
+            user_id=user_id,
+            lesson_id=lesson.id,
+            lesson_progress_id=progress.id,
+        )
+        attempt.started_at = progress.started_at or datetime.now(UTC)
+        attempt.completed_at = datetime.now(UTC)
+        attempt.score = result.get('score')
+        attempt.passed = True
+        db.session.commit()
+    except Exception:
+        logger.warning(
+            "Failed to record self-assessed LessonAttempt for user=%s lesson=%s",
+            user_id, lesson.id, exc_info=True,
+        )
+        db.session.rollback()
 
 
 def retry_display_progress(progress: 'LessonProgress | None', *, force: bool = False):
@@ -99,8 +148,14 @@ def retry_display_progress(progress: 'LessonProgress | None', *, force: bool = F
     Submission handlers still load the real row, so ``ProgressService`` keeps
     its monotonic best-score behaviour and writes a new ``LessonAttempt``.
     """
-    if progress is None or not (force or is_lesson_retry_requested()):
+    if progress is None:
         return progress
+
+    retry_requested = is_lesson_retry_requested(progress.lesson_id)
+    if not (force or retry_requested):
+        return progress
+
+    session[_retry_session_key(progress.lesson_id)] = True
 
     return SimpleNamespace(
         id=progress.id,
@@ -108,6 +163,8 @@ def retry_display_progress(progress: 'LessonProgress | None', *, force: bool = F
         lesson_id=progress.lesson_id,
         status='in_progress',
         score=None,
+        best_score=progress.best_score if progress.best_score is not None else progress.score,
+        last_score=None,
         data=None,
         started_at=progress.started_at,
         completed_at=None,
@@ -296,7 +353,7 @@ def update_lesson_progress(lesson_id):
             progress.status = cleaned_data['status']
 
         if 'score' in cleaned_data:
-            progress.score = round(cleaned_data['score'], 2)
+            progress.record_score(cleaned_data['score'])
 
         if 'data' in cleaned_data:
             progress.data = sanitize_json_content(cleaned_data['data'])
@@ -586,6 +643,12 @@ def submit_lesson(lesson_id):
             return jsonify({'success': False, 'error': 'Invalid lesson type'}), 400
 
         if result.get('passed') or result.get('completed'):
+            clear_lesson_retry(lesson_id)
+            if lesson.type in {
+                'writing_prompt', 'shadow_reading', 'listening_immersion',
+                'pronunciation', 'idiom',
+            }:
+                _record_self_assessed_attempt(lesson, current_user.id, result)
             try:
                 from app.daily_plan.challenge import maybe_auto_complete_challenge
                 time_spent = data.get('time_spent_seconds') if isinstance(data, dict) else None
@@ -1750,7 +1813,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
         }
         if progress:
             progress.status = 'completed'
-            progress.score = writing_score
+            progress.record_score(writing_score)
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
@@ -1762,6 +1825,8 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 lesson_id=lesson.id,
                 status='completed',
                 score=writing_score,
+                best_score=writing_score,
+                last_score=writing_score,
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
@@ -2223,7 +2288,7 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
             # Honor-system completion → 100% (mirrors the listening_immersion
             # sibling). Without this progress.score stayed NULL while the UI
             # banner showed 100%, an internal mismatch.
-            progress.score = 100.0
+            progress.record_score(100.0)
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
@@ -2233,6 +2298,8 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
                 lesson_id=lesson.id,
                 status='completed',
                 score=100.0,
+                best_score=100.0,
+                last_score=100.0,
                 started_at=datetime.now(UTC),
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
@@ -2277,7 +2344,7 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
     was_already_completed = bool(progress and progress.status == 'completed')
     if progress:
         progress.status = 'completed'
-        progress.score = 100.0
+        progress.record_score(100.0)
         if not progress.completed_at:
             progress.completed_at = datetime.now(UTC)
         progress.last_activity = datetime.now(UTC)
@@ -2287,6 +2354,8 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
             lesson_id=lesson.id,
             status='completed',
             score=100.0,
+            best_score=100.0,
+            last_score=100.0,
             started_at=datetime.now(UTC),
             completed_at=datetime.now(UTC),
             last_activity=datetime.now(UTC),
@@ -2414,7 +2483,7 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
             if not progress.completed_at:
                 progress.completed_at = datetime.now(UTC)
             progress.last_activity = datetime.now(UTC)
-            progress.score = pron_score
+            progress.record_score(pron_score)
         else:
             progress = LessonProgress(
                 user_id=user_id,
@@ -2424,6 +2493,8 @@ def _process_pronunciation_submission(lesson: 'Lessons', user_id: int, data: dic
                 completed_at=datetime.now(UTC),
                 last_activity=datetime.now(UTC),
                 score=pron_score,
+                best_score=pron_score,
+                last_score=pron_score,
             )
             db.session.add(progress)
         try:
