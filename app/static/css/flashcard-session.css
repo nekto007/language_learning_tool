@@ -165,6 +165,17 @@
     color: #b91c1c;
 }
 
+.fc-recovery-hint {
+    max-width: 28rem;
+    margin: 0.5rem auto 1rem;
+    padding: 0.6rem 0.75rem;
+    border-left: 3px solid #d97706;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 0.9rem;
+    text-align: left;
+}
+
 /* Custom progress bar */
 .cards-progress-bar {
     width: 100%;
@@ -1166,4 +1177,61 @@
     color: #713f12;
     font-style: italic;
     line-height: 1.4;
+}
+
+.fc-recovery-tools {
+    margin: 0 0 1rem;
+    text-align: left;
+}
+
+.fc-recovery-tools__label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #475569;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.fc-recovery-tools__input {
+    display: block;
+    width: 100%;
+    resize: vertical;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.55rem 0.65rem;
+    color: #1e293b;
+    font: inherit;
+    line-height: 1.35;
+}
+
+.fc-recovery-tools__input:focus {
+    border-color: #6366f1;
+    outline: 2px solid rgba(99, 102, 241, 0.18);
+    outline-offset: 1px;
+}
+
+.fc-recovery-tools__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.fc-recovery-tools__exclude {
+    border: 0;
+    padding: 0.25rem 0;
+    background: transparent;
+    color: #b91c1c;
+    font: inherit;
+    font-size: 0.8125rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.fc-recovery-tools__status {
+    min-height: 1.2rem;
+    margin-top: 0.35rem;
+    color: #64748b;
+    font-size: 0.8125rem;
 }

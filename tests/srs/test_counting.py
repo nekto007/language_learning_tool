@@ -426,7 +426,7 @@ class TestGetNewCardBudget:
         assert remaining_reviews == 0  # clamped to 0, not -1
 
     def test_low_accuracy_triggers_adaptive_cap(self, db_session):
-        """70% accuracy on REVIEW cards → 'low' tier → NEW × 30%."""
+        """70% accuracy on REVIEW cards → 'low' tier → NEW × 60%."""
         user = _make_user(db_session)
         self._settings(db_session, user, new_per_day=10, reviews_per_day=50)
         now = _now_naive()
@@ -445,8 +445,8 @@ class TestGetNewCardBudget:
         db_session.commit()
 
         remaining_new, _ = get_new_card_budget(user.id, real_db)
-        # 'low' tier: NEW × 30% of base 10 = 3.
-        assert remaining_new == 3
+        # 'low' tier: NEW × 60% of base 10 = 6.
+        assert remaining_new == 6
 
 
 class TestUnifiedCountingAcrossCallsites:

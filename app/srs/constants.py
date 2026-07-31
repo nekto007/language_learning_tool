@@ -104,6 +104,18 @@ LAPSE_MINIMUM_INTERVAL = 1      # Minimum interval after lapse (days)
 LEECH_THRESHOLD = 6             # Card becomes a "leech" after 6 lapses (was 8)
 LEECH_SUSPEND_DAYS = 7          # Base bury duration at leech threshold (first bury)
 
+# =============================================================================
+# DIFFICULT CARD RECOVERY
+# =============================================================================
+
+# Difficulty is tracked per card direction, not per word. A card enters the
+# recovery mode after two meaningful failures. This is intentionally earlier
+# than the leech threshold: learning/relearning failures used to be invisible
+# until the card had already failed many long-term reviews.
+DIFFICULTY_RECOVERY_THRESHOLD = 2
+DIFFICULTY_MAX_SCORE = 10
+RECOVERY_SUCCESSFUL_RECALLS = 2
+
 # Progressive bury (Раздел 9): each consecutive bury without an intervening
 # successful review extends the next interval. ``bury_days = base * (1+n)``
 # capped at MAX_LEECH_SUSPEND_DAYS. Counter on UserCardDirection.

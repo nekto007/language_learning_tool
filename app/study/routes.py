@@ -50,6 +50,7 @@ def index():
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
         UserWord.user_id == current_user.id,
+        UserWord.srs_excluded.is_(False),
         UserCardDirection.next_review <= now_naive
     ).count()
 
@@ -57,6 +58,7 @@ def index():
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
         UserWord.user_id == current_user.id,
+        UserWord.srs_excluded.is_(False),
         UserCardDirection.state == 'new',
         or_(
             UserCardDirection.next_review.is_(None),
@@ -66,6 +68,7 @@ def index():
 
     mastered_count = db.session.query(func.count(UserWord.id)).filter(
         UserWord.user_id == current_user.id,
+        UserWord.srs_excluded.is_(False),
         UserWord.status == 'review'
     ).join(
         UserCardDirection, UserCardDirection.user_word_id == UserWord.id
@@ -75,10 +78,14 @@ def index():
 
     learning_total = UserWord.query.filter(
         UserWord.user_id == current_user.id,
+        UserWord.srs_excluded.is_(False),
         UserWord.status == 'learning'
     ).count()
 
-    all_words_count = UserWord.query.filter_by(user_id=current_user.id).count()
+    all_words_count = UserWord.query.filter(
+        UserWord.user_id == current_user.id,
+        UserWord.srs_excluded.is_(False),
+    ).count()
 
     review_total = max(0, all_words_count - learning_total - mastered_count)
 
@@ -152,6 +159,7 @@ def index():
         ).filter(
             QuizDeckWord.deck_id.in_([d.id for d in my_decks]),
             UserWord.user_id == current_user.id,
+            UserWord.srs_excluded.is_(False),
             or_(
                 UserCardDirection.state == 'new',
                 UserCardDirection.state.is_(None),

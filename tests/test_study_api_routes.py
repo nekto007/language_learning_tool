@@ -301,6 +301,82 @@ class TestGetStudyItems:
             # Due reviews should be included
             assert has_reviews or len(data['items']) == 0
 
+    def test_buried_recovery_direction_returns_in_regular_srs_session(
+        self, authenticated_client, test_user, study_settings, db_session,
+    ):
+        """A leech returns through the ordinary queue, never as a plan block."""
+        from app.srs.constants import CardState, LEECH_THRESHOLD
+        from app.words.models import CollectionWords
+
+        study_settings.reviews_per_day = 100
+        study_settings.new_words_per_day = 0
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        word = CollectionWords(
+            english_word='recovery_queue_word', russian_word='восстановление', level='A1',
+        )
+        db_session.add(word)
+        db_session.flush()
+        user_word = UserWord(user_id=test_user.id, word_id=word.id)
+        db_session.add(user_word)
+        db_session.flush()
+        card = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+        card.state = CardState.RELEARNING.value
+        card.lapses = LEECH_THRESHOLD
+        card.difficulty_score = 6
+        card.recovery_required = True
+        card.buried_until = now + timedelta(days=7)
+        card.recovery_due_at = now - timedelta(minutes=1)
+        db_session.add(card)
+        db_session.commit()
+
+        response = authenticated_client.get('/study/api/get-study-items?source=auto')
+
+        assert response.status_code == 200
+        items = response.get_json()['items']
+        served = next(item for item in items if item['id'] == card.id)
+        assert served['is_recovery'] is True
+        assert served['direction'] == 'eng-rus'
+
+    def test_excluded_word_is_not_returned_from_srs_queue(
+        self, authenticated_client, test_user, study_settings, db_session,
+    ):
+        """An excluded word stays out of the queue while other cards remain due."""
+        from app.srs.constants import CardState
+        from app.words.models import CollectionWords
+
+        study_settings.reviews_per_day = 50
+        study_settings.new_words_per_day = 0
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        def create_due_word(english_word, excluded=False):
+            word = CollectionWords(
+                english_word=english_word, russian_word='исключение', level='A1',
+            )
+            db_session.add(word)
+            db_session.flush()
+            user_word = UserWord(user_id=test_user.id, word_id=word.id)
+            user_word.srs_excluded = excluded
+            db_session.add(user_word)
+            db_session.flush()
+            card = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+            card.state = CardState.REVIEW.value
+            card.repetitions = 3
+            card.interval = 1
+            card.next_review = now - timedelta(minutes=1)
+            db_session.add(card)
+            return card
+
+        excluded_card = create_due_word('excluded_queue_word', excluded=True)
+        active_card = create_due_word('active_queue_word')
+        db_session.commit()
+
+        response = authenticated_client.get('/study/api/get-study-items?source=auto')
+
+        assert response.status_code == 200
+        served_ids = {item['id'] for item in response.get_json()['items']}
+        assert excluded_card.id not in served_ids
+        assert active_card.id in served_ids
+
     def test_userword_status_does_not_hide_due_directions(self, authenticated_client, user_words, user_card_directions, study_settings, db_session):
         """`UserWord.status` is a UI label, not a filter — even a stale
         'mastered' (or any other) status must not hide due directions from
@@ -409,6 +485,53 @@ class TestGetQuizQuestions:
         assert set(mastered_ids).issubset(question_word_ids)
 
 
+class TestCardTools:
+    """Tests for actions available on recovery cards."""
+
+    def test_saves_association_for_selected_direction(
+        self, authenticated_client, user_words, user_card_directions, db_session,
+    ):
+        forward = user_card_directions[0]
+        reverse = next(
+            card for card in user_card_directions
+            if card.user_word_id == forward.user_word_id and card.id != forward.id
+        )
+
+        response = authenticated_client.post('/study/api/card-association', json={
+            'word_id': forward.user_word.word_id,
+            'direction': forward.direction,
+            'note': 'Связываю с знакомой фразой',
+        })
+
+        assert response.status_code == 200
+        assert response.get_json() == {
+            'success': True,
+            'note': 'Связываю с знакомой фразой',
+        }
+        db_session.refresh(forward)
+        db_session.refresh(reverse)
+        assert forward.personal_association == 'Связываю с знакомой фразой'
+        assert reverse.personal_association is None
+
+    def test_excludes_word_from_srs(
+        self, authenticated_client, user_words, user_card_directions, db_session,
+    ):
+        card = user_card_directions[0]
+
+        response = authenticated_client.post('/study/api/exclude-word', json={
+            'word_id': card.user_word.word_id,
+        })
+
+        assert response.status_code == 200
+        assert response.get_json() == {
+            'success': True,
+            'word_id': card.user_word.word_id,
+        }
+        db_session.refresh(card.user_word)
+        assert card.user_word.srs_excluded is True
+        assert card.user_word.srs_excluded_at is not None
+
+
 class TestUpdateStudyItem:
     """Test /api/update-study-item POST endpoint - Lines 744-821"""
 
@@ -459,6 +582,24 @@ class TestUpdateStudyItem:
             direction='eng-rus'
         ).first()
         assert direction is not None
+
+    def test_excluded_word_cannot_be_graded(
+        self, authenticated_client, user_words, user_card_directions, db_session,
+    ):
+        """A stale client cannot put an excluded word back into SRS by grading it."""
+        direction = user_card_directions[0]
+        direction.user_word.srs_excluded = True
+        db_session.commit()
+
+        response = authenticated_client.post('/study/api/update-study-item', json={
+            'word_id': direction.user_word.word_id,
+            'direction': direction.direction,
+            'quality': 4,
+            'is_new': False,
+        })
+
+        assert response.status_code == 409
+        assert response.get_json()['error'] == 'word_excluded'
 
     def test_daily_limit_race_condition(self, authenticated_client, test_words_list, study_settings, db_session):
         """Test race condition prevention with SELECT FOR UPDATE"""

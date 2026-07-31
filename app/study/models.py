@@ -214,6 +214,12 @@ class UserWord(db.Model):
 
     # Status: new, learning, review (mastered removed - it's now a threshold)
     status = db.Column(db.String(20), default='new')
+    # A user can remove a word from their personal SRS without deleting its
+    # history. Keep the record so the word is not offered as "new" again.
+    srs_excluded = db.Column(
+        db.Boolean, default=False, nullable=False, server_default='false',
+    )
+    srs_excluded_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -269,6 +275,9 @@ class UserWord(db.Model):
         2. Else if ANY direction is in 'new' → status = 'new'
         3. Else (all directions in 'review') → status = 'review'
         """
+        if self.srs_excluded:
+            return
+
         directions_list = self.directions.all()
 
         if not directions_list:
@@ -388,6 +397,24 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     # Lapse count (number of times card went from REVIEW to RELEARNING)
     lapses = db.Column(db.Integer, default=0, nullable=False)
 
+    # Per-direction recovery state. Unlike ``lapses``, the score includes
+    # failures during LEARNING and RELEARNING, so we can intervene before a
+    # card becomes a long-term leech.
+    difficulty_score = db.Column(
+        db.Integer, default=0, nullable=False, server_default='0',
+    )
+    recovery_required = db.Column(
+        db.Boolean, default=False, nullable=False, server_default='false',
+    )
+    recovery_successes = db.Column(
+        db.Integer, default=0, nullable=False, server_default='0',
+    )
+    recovery_due_at = db.Column(db.DateTime, nullable=True)
+
+    # Learner-authored cue, scoped to the recall direction. It is surfaced
+    # only while the card is in recovery so routine reviews stay compact.
+    personal_association = db.Column(db.Text, nullable=True)
+
     # Bury until - card won't be shown until this timestamp (for session-level bury)
     buried_until = db.Column(db.DateTime, nullable=True)
 
@@ -436,6 +463,10 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         self.state = 'new'
         self.step_index = 0
         self.lapses = 0
+        self.difficulty_score = 0
+        self.recovery_required = False
+        self.recovery_successes = 0
+        self.recovery_due_at = None
         self.repetitions = 0
         self.ease_factor = DEFAULT_EASE_FACTOR
         self.interval = 0
@@ -537,6 +568,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             interval_days (int)
         """
         from app.srs.constants import DEFAULT_EASE_FACTOR, RATING_DOUBT, CardState
+        from app.srs.difficulty import update_recovery_state
         from app.srs.scheduling import apply_review_schedule
         from app.srs.service import UnifiedSRSService
 
@@ -562,9 +594,10 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
         # Delegate SM-2 math to the canonical engine. Pass the leech-bury
         # streak so progressive bury scaling matches grade_card.
+        previous_state = self.state or CardState.NEW.value
         update_result = UnifiedSRSService.calculate_sm2_update(
             rating=rating,
-            state=self.state or CardState.NEW.value,
+            state=previous_state,
             step_index=self.step_index or 0,
             repetitions=self.repetitions or 0,
             interval=self.interval or 0,
@@ -592,6 +625,12 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             is_first_review=is_first_review,
             user_id=user_id,
             db=db,
+        )
+
+        update_recovery_state(
+            self,
+            rating=rating,
+            previous_state=previous_state,
         )
 
         # Update the parent UserWord status if needed

@@ -141,6 +141,9 @@ class TestComposition:
         kinds = [it['kind'] for it in items]
         assert kinds == ['curriculum', 'srs', 'reading']
 
+        srs_item = next(item for item in items if item['kind'] == 'srs')
+        assert srs_item['data']['overdue_reviews'] == 1
+
     def test_normal_four_items_baseline(
         self, db_session, user_with_book, book_with_chapter,
     ):

@@ -142,6 +142,8 @@ class TestLeechAutoSuspend:
         delta = buried - before
         assert delta >= timedelta(days=LEECH_SUSPEND_DAYS - 1)
         assert delta <= timedelta(days=LEECH_SUSPEND_DAYS + 1)
+        assert card.recovery_required is True
+        assert card.recovery_due_at is not None
 
     def test_grade_card_does_not_bury_below_threshold(self, db_session):
         user = _make_user(db_session)
@@ -184,6 +186,66 @@ class TestLeechAutoSuspend:
 
         cards = UnifiedSRSService()._get_due_cards(user_id=user.id, limit=50)
         assert card.id in [c.id for c in cards]
+
+
+class TestCardRecovery:
+    def test_learning_failures_mark_only_that_direction_for_recovery(self, db_session):
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=0)
+        card.state = CardState.LEARNING.value
+        card.step_index = 0
+        db_session.commit()
+
+        service = UnifiedSRSService()
+        service.grade_card(card.id, RATING_DONT_KNOW, user.id)
+        service.grade_card(card.id, RATING_DONT_KNOW, user.id)
+
+        db_session.refresh(card)
+        assert card.difficulty_score == 2
+        assert card.recovery_required is True
+        assert card.lapses == 0
+
+    def test_two_successful_recovery_recalls_release_one_direction(self, db_session):
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=LEECH_THRESHOLD)
+        other_direction = UserCardDirection(
+            user_word_id=card.user_word_id,
+            direction='rus-eng',
+        )
+        now = _now_naive()
+        card.state = CardState.RELEARNING.value
+        card.step_index = 0
+        card.difficulty_score = 6
+        card.recovery_required = True
+        card.recovery_successes = 1
+        card.buried_until = now + timedelta(days=5)
+        other_direction.state = CardState.RELEARNING.value
+        other_direction.buried_until = now + timedelta(days=5)
+        db_session.add(other_direction)
+        db_session.commit()
+
+        result = UnifiedSRSService().grade_card(card.id, RATING_KNOW, user.id)
+
+        db_session.refresh(card)
+        db_session.refresh(other_direction)
+        assert result['is_recovery'] is False
+        assert card.recovery_required is False
+        assert card.buried_until is None
+        assert other_direction.buried_until is not None
+
+    def test_legacy_flashcard_grading_tracks_learning_failures(self, db_session):
+        """The regular /study flashcard path uses update_after_review."""
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=0)
+        card.state = CardState.LEARNING.value
+        card.step_index = 0
+        db_session.commit()
+
+        card.update_after_review(RATING_DONT_KNOW)
+        card.update_after_review(RATING_DONT_KNOW)
+
+        assert card.difficulty_score == 2
+        assert card.recovery_required is True
 
 
 class TestLearningStepsGraduation:
@@ -294,6 +356,47 @@ class TestAdaptiveLimitReason:
         new, reviews = SRSService.get_adaptive_limits(user.id)
         assert new == 0    # backlog "critical" → NEW capped at 0%
         assert reviews == 10  # accuracy normal → REVIEW unchanged
+
+    def test_buried_review_is_not_counted_as_actionable_debt(self, db_session):
+        user = _make_user(db_session)
+        _make_settings(db_session, user)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        word = _make_word(db_session)
+        user_word = UserWord(user_id=user.id, word_id=word.id)
+        db_session.add(user_word)
+        db_session.commit()
+        card = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+        card.state = CardState.REVIEW.value
+        card.next_review = now - timedelta(days=2)
+        card.buried_until = now + timedelta(days=3)
+        db_session.add(card)
+        db_session.commit()
+
+        assert SRSService.get_overdue_review_count(user.id) == 0
+
+    def test_accuracy_limits_are_softer_than_backlog_limits(self, db_session):
+        """Moderate accuracy loss reduces NEW, but does not stop it outright."""
+        user = _make_user(db_session)
+        _make_settings(db_session, user, new_per_day=10)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        for _ in range(5):
+            word = _make_word(db_session)
+            uw = UserWord(user_id=user.id, word_id=word.id)
+            uw.status = 'review'
+            db_session.add(uw)
+            db_session.commit()
+            card = UserCardDirection(user_word_id=uw.id, direction='eng-rus')
+            card.state = CardState.REVIEW.value
+            card.correct_count = 5
+            card.incorrect_count = 5  # 50% accuracy → critical, not collapse
+            card.last_reviewed = now
+            card.next_review = now + timedelta(days=1)
+            db_session.add(card)
+        db_session.commit()
+
+        new, reviews = SRSService.get_adaptive_limits(user.id)
+        assert new == 2
+        assert reviews == 20
 
 
 class TestAdaptiveTierLadder:

@@ -288,6 +288,8 @@ class FlashcardSession {
             reviewsStats: document.getElementById('reviews-stats'),
             stateBadge: document.getElementById('state-badge'),
             lapsesBadge: document.getElementById('lapses-badge'),
+            recoveryBadge: document.getElementById('recovery-badge'),
+            recoveryHint: document.getElementById('recovery-hint'),
             progressSection: document.querySelector('.cards-progress-section'),
             bookContext: document.getElementById('book-context'),
             bookContextText: document.getElementById('book-context-text'),
@@ -296,6 +298,11 @@ class FlashcardSession {
             cardSourceBadge: document.getElementById('card-source-badge'),
             cardNote: document.getElementById('card-note'),
             cardNoteText: document.getElementById('card-note-text'),
+            recoveryTools: document.getElementById('recovery-tools'),
+            associationInput: document.getElementById('association-input'),
+            saveAssociationBtn: document.getElementById('save-association-btn'),
+            excludeWordBtn: document.getElementById('exclude-word-btn'),
+            associationStatus: document.getElementById('association-status'),
         };
     }
 
@@ -320,6 +327,13 @@ class FlashcardSession {
             this.els.backAudioBtn.addEventListener('click', () => {
                 if (self.els.wordAudio) self.els.wordAudio.play();
             });
+        }
+
+        if (this.els.saveAssociationBtn) {
+            this.els.saveAssociationBtn.addEventListener('click', () => self.saveAssociation());
+        }
+        if (this.els.excludeWordBtn) {
+            this.els.excludeWordBtn.addEventListener('click', () => self.excludeCurrentWord());
         }
 
         // Rating buttons
@@ -361,6 +375,9 @@ class FlashcardSession {
      * Handle keyboard shortcuts.
      */
     _handleKeydown(e) {
+        if (e.target && ['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+            return;
+        }
         const { cardBack, cardFront } = this.els;
 
         // Rating shortcuts when card back is visible
@@ -765,6 +782,14 @@ class FlashcardSession {
             }
         }
 
+        if (this.els.recoveryTools) {
+            this.els.recoveryTools.style.display = card.is_recovery ? 'block' : 'none';
+            if (this.els.associationInput) {
+                this.els.associationInput.value = card.is_recovery ? (card.personal_association || '') : '';
+            }
+            if (this.els.associationStatus) this.els.associationStatus.textContent = '';
+        }
+
         // Set card content
         if (this.els.frontWord) this.els.frontWord.textContent = card.word;
         if (this.els.backWord) this.els.backWord.textContent = card.word;
@@ -832,7 +857,7 @@ class FlashcardSession {
         }
 
         // Examples
-        if (this.config.showExamples && card.examples) {
+        if ((this.config.showExamples || card.is_recovery) && card.examples) {
             const example = this._extractExampleParts(card.examples);
             if (this.els.exampleText) this.els.exampleText.textContent = example.en;
             if (this.els.exampleTranslation) this.els.exampleTranslation.textContent = example.ru;
@@ -863,6 +888,76 @@ class FlashcardSession {
                     console.log('Audio playback failed:', error);
                 });
             }, 300);
+        }
+    }
+
+    _csrfHeaders() {
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta && csrfMeta.content;
+        return {
+            'Content-Type': 'application/json',
+            ...(csrfToken && { 'X-CSRFToken': csrfToken }),
+        };
+    }
+
+    async saveAssociation() {
+        const card = this.cards[this.currentCardIndex];
+        if (!card || !card.is_recovery || !this.els.associationInput) return;
+
+        const button = this.els.saveAssociationBtn;
+        const status = this.els.associationStatus;
+        const note = this.els.associationInput.value.trim();
+        if (button) button.disabled = true;
+        if (status) status.textContent = '';
+
+        try {
+            const response = await fetch('/study/api/card-association', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: this._csrfHeaders(),
+                body: JSON.stringify({
+                    word_id: card.word_id,
+                    direction: card.direction,
+                    note,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'save failed');
+            card.personal_association = data.note || '';
+            if (status) status.textContent = note ? 'Сохранено' : 'Ассоциация удалена';
+        } catch (error) {
+            console.error('Failed to save card association:', error);
+            if (status) status.textContent = 'Не удалось сохранить';
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
+    async excludeCurrentWord() {
+        const card = this.cards[this.currentCardIndex];
+        if (!card || !card.is_recovery) return;
+        if (!window.confirm('Убрать это слово из повторений?')) return;
+
+        const button = this.els.excludeWordBtn;
+        if (button) button.disabled = true;
+        try {
+            const response = await fetch('/study/api/exclude-word', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: this._csrfHeaders(),
+                body: JSON.stringify({ word_id: card.word_id }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'exclude failed');
+
+            const currentIndex = this.currentCardIndex;
+            this.cards = this.cards.filter(item => item.word_id !== card.word_id);
+            this._recountRemaining();
+            this.showCard(currentIndex);
+        } catch (error) {
+            console.error('Failed to exclude word from SRS:', error);
+            if (this.els.associationStatus) this.els.associationStatus.textContent = 'Не удалось убрать слово';
+            if (button) button.disabled = false;
         }
     }
 
@@ -1035,7 +1130,9 @@ class FlashcardSession {
                     isRequeue: true,
                     state: newState,
                     step_index: data.step_index !== undefined ? data.step_index : card.step_index,
-                    lapses: data.lapses !== undefined ? data.lapses : card.lapses
+                    lapses: data.lapses !== undefined ? data.lapses : card.lapses,
+                    difficulty_score: data.difficulty_score !== undefined ? data.difficulty_score : card.difficulty_score,
+                    is_recovery: data.is_recovery !== undefined ? data.is_recovery : card.is_recovery,
                 };
                 const insertAt = Math.min(this.currentCardIndex + requeuePosition, this.cards.length);
                 this.cards.splice(insertAt, 0, cardCopy);
@@ -1433,6 +1530,13 @@ class FlashcardSession {
             } else {
                 this.els.lapsesBadge.style.display = 'none';
             }
+        }
+
+        if (this.els.recoveryBadge) {
+            this.els.recoveryBadge.style.display = card.is_recovery ? 'inline-block' : 'none';
+        }
+        if (this.els.recoveryHint) {
+            this.els.recoveryHint.style.display = card.is_recovery ? 'block' : 'none';
         }
     }
 

@@ -17425,6 +17425,12 @@ a.daily-plan__position--link:focus {
     font-size: 0.8125rem;
     color: var(--color-text-muted, #888);
 }
+.plan-item__srs-debt {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8125rem;
+    color: #a16207;
+}
 .plan-item__eta {
     font-size: 0.8125rem;
     color: var(--color-text-muted, #888);

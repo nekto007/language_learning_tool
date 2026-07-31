@@ -173,6 +173,7 @@ def build_srs_item(
         user_id, db, states=(CardState.LEARNING.value, CardState.RELEARNING.value),
     )
     review_due = count_due_by_states(user_id, db, states=(CardState.REVIEW.value,))
+    overdue_reviews = SRSService.get_overdue_review_count(user_id)
 
     remaining_new, remaining_reviews = get_new_card_budget(user_id, db)
     due_budget = get_due_card_budget(user_id, db)
@@ -201,9 +202,9 @@ def build_srs_item(
     reason_hint: Optional[str] = None
     if total_show > 0 and tier != 'normal':
         reason_hint = {
-            'low':      'Точность ниже 85% — нагрузка снижена',
-            'critical': 'Точность ниже 70% — новые отключены, повторений мало',
-            'collapse': 'Точность ниже 50% — только текущее изучение',
+            'low':      'Точность 65–80% — количество новых слов снижено',
+            'critical': 'Точность 45–65% — фокус на повторении',
+            'collapse': 'Точность ниже 45% — новые слова временно остановлены',
         }.get(tier)
 
     data: dict[str, Any] = {
@@ -214,6 +215,7 @@ def build_srs_item(
         'total_show': total_show,
         'new_pending': new_pending,
         'review_due': review_due,
+        'overdue_reviews': overdue_reviews,
         'new_today': new_today,
         'reviews_today': reviews_today_total,
         'remaining_new': remaining_new,

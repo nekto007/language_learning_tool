@@ -70,6 +70,7 @@ def count_due_cards(
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserCardDirection.state.in_(
                 (
                     CardState.LEARNING.value,
@@ -100,7 +101,10 @@ def count_due_cards(
 def count_new_cards_today(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
     """Count card directions first reviewed today (user-local day boundary)."""
     today_start = _today_start_naive(user_id, db, now_utc)
-    user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
+    user_word_ids_subq = db.session.query(UserWord.id).filter(
+        UserWord.user_id == user_id,
+        UserWord.srs_excluded.is_(False),
+    )
     return int(
         db.session.query(func.count(UserCardDirection.id))
         .filter(
@@ -183,6 +187,7 @@ def count_due_by_states(
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserCardDirection.state.in_(tuple(states)),
             UserCardDirection.next_review <= now,
             or_(
@@ -205,6 +210,7 @@ def count_pending_new(user_id: int, db: Any = _db) -> int:
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserCardDirection.state == CardState.NEW.value,
         )
         .scalar() or 0
@@ -221,7 +227,10 @@ def count_reviews_today(user_id: int, db: Any = _db, now_utc: Optional[datetime]
     cards is expected and not double-counted against the cap.
     """
     today_start = _today_start_naive(user_id, db, now_utc)
-    user_word_ids_subq = db.session.query(UserWord.id).filter_by(user_id=user_id)
+    user_word_ids_subq = db.session.query(UserWord.id).filter(
+        UserWord.user_id == user_id,
+        UserWord.srs_excluded.is_(False),
+    )
     return int(
         db.session.query(func.count(UserCardDirection.id))
         .filter(
@@ -268,6 +277,7 @@ def get_review_forecast(
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserCardDirection.state.in_(
                 (
                     CardState.LEARNING.value,

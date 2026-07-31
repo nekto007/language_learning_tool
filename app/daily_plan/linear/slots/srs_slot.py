@@ -168,6 +168,7 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
         user_id, db, states=(CardState.LEARNING.value, CardState.RELEARNING.value),
     )
     review_due = count_due_by_states(user_id, db, states=(CardState.REVIEW.value,))
+    overdue_reviews = SRSService.get_overdue_review_count(user_id)
 
     remaining_new, remaining_reviews = get_new_card_budget(user_id, db)
     # Combined daily ceiling across learning/relearning/review (base reviews_per_day).
@@ -191,6 +192,7 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
         'total_show': total_show,
         'new_pending': new_pending,
         'review_due': review_due,
+        'overdue_reviews': overdue_reviews,
         'new_today': new_today,
         'reviews_today': reviews_today_total,
         'remaining_new': remaining_new,

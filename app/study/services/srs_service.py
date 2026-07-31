@@ -35,7 +35,7 @@ def get_user_word_ids(user_id: int, word_ids: List[int] = None) -> Set[int]:
         Set of word_ids that the user has already started learning
     """
     query = db.session.query(UserWord.word_id).filter(
-        UserWord.user_id == user_id
+        UserWord.user_id == user_id,
     )
     if word_ids:
         query = query.filter(UserWord.word_id.in_(word_ids))
@@ -89,6 +89,7 @@ class SRSService:
             UserWord, UserCardDirection.user_word_id == UserWord.id
         ).filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserWord.word_id.in_(deck_word_ids),
             UserCardDirection.next_review <= now,
             # Filter out buried cards
@@ -115,6 +116,7 @@ class SRSService:
 
         query = query.order_by(
             priority_order,
+            UserCardDirection.recovery_required.desc(),
             UserCardDirection.next_review
         )
 
@@ -148,7 +150,10 @@ class SRSService:
         # Count new cards: first_reviewed is today (card was studied for the first time today)
         new_cards_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+                db.session.query(UserWord.id).filter(
+                    UserWord.user_id == user_id,
+                    UserWord.srs_excluded.is_(False),
+                )
             ),
             UserCardDirection.first_reviewed >= today_start,
             UserCardDirection.first_reviewed.isnot(None)
@@ -157,7 +162,10 @@ class SRSService:
         # Count reviews: last_reviewed is today BUT first_reviewed was before today
         reviews_today = db.session.query(func.count(UserCardDirection.id)).filter(
             UserCardDirection.user_word_id.in_(
-                db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+                db.session.query(UserWord.id).filter(
+                    UserWord.user_id == user_id,
+                    UserWord.srs_excluded.is_(False),
+                )
             ),
             UserCardDirection.last_reviewed >= today_start,
             UserCardDirection.first_reviewed < today_start,
@@ -189,23 +197,34 @@ class SRSService:
     # Tiers ordered worst → best. _ladder_tier climbs from floor upward.
     TIER_ORDER: Tuple[str, ...] = ('collapse', 'critical', 'low', 'normal')
 
-    # Percentages applied to user's base settings per tier.
+    # Percentages applied to user's base settings per accuracy tier.
     # LEARNING / RELEARNING are NOT capped — Anki-style commit semantics:
     # once started a card must be finished, otherwise it rots half-learned.
     TIER_PCT: Dict[str, Dict[str, float]] = {
         'normal':   {'new': 1.00, 'review': 1.00},
-        'low':      {'new': 0.30, 'review': 0.60},
-        'critical': {'new': 0.00, 'review': 0.20},
+        'low':      {'new': 0.60, 'review': 0.60},
+        'critical': {'new': 0.20, 'review': 0.20},
         'collapse': {'new': 0.00, 'review': 0.00},
+    }
+
+    # Backlog remains deliberately stricter than accuracy: admitting extra
+    # words while the learner is several days behind makes the review queue
+    # harder to recover from. Keep this independent from TIER_PCT so a softer
+    # accuracy response cannot accidentally relax backlog protection.
+    BACKLOG_NEW_PCT: Dict[str, float] = {
+        'normal': 1.00,
+        'low': 0.30,
+        'critical': 0.00,
+        'collapse': 0.00,
     }
 
     @staticmethod
     def _tier_from_accuracy(accuracy_pct: float) -> str:
-        if accuracy_pct >= 85.0:
+        if accuracy_pct >= 80.0:
             return 'normal'
-        if accuracy_pct >= 70.0:
+        if accuracy_pct >= 65.0:
             return 'low'
-        if accuracy_pct >= 50.0:
+        if accuracy_pct >= 45.0:
             return 'critical'
         return 'collapse'
 
@@ -257,7 +276,10 @@ class SRSService:
             db.session.query(UserCardDirection)
             .filter(
                 UserCardDirection.user_word_id.in_(
-                    db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+                    db.session.query(UserWord.id).filter(
+                        UserWord.user_id == user_id,
+                        UserWord.srs_excluded.is_(False),
+                    )
                 ),
                 UserCardDirection.last_reviewed.isnot(None),
                 UserCardDirection.state.in_(
@@ -275,18 +297,31 @@ class SRSService:
 
     @staticmethod
     def _overdue_review_count(user_id: int) -> int:
-        """Count REVIEW-state cards whose next_review fell before today_local."""
+        """Count actionable REVIEW cards whose next_review fell before today."""
         from app.utils.time_utils import day_to_naive_utc
         today_start = day_to_naive_utc(user_id, db, days_ahead=0)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         return int(
             db.session.query(func.count(UserCardDirection.id)).filter(
                 UserCardDirection.user_word_id.in_(
-                    db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
+                    db.session.query(UserWord.id).filter(
+                        UserWord.user_id == user_id,
+                        UserWord.srs_excluded.is_(False),
+                    )
                 ),
                 UserCardDirection.state == CardState.REVIEW.value,
                 UserCardDirection.next_review < today_start,
+                or_(
+                    UserCardDirection.buried_until.is_(None),
+                    UserCardDirection.buried_until <= now,
+                ),
             ).scalar() or 0
         )
+
+    @staticmethod
+    def get_overdue_review_count(user_id: int) -> int:
+        """Return the actionable review debt for plan and dashboard surfaces."""
+        return SRSService._overdue_review_count(user_id)
 
     @staticmethod
     def _resolve_tier(user_id: int) -> Tuple[str, bool, str, 'date | None']:
@@ -408,7 +443,7 @@ class SRSService:
         # Backlog throttle on NEW only.
         overdue = SRSService._overdue_review_count(user_id)
         backlog_tier = SRSService._tier_from_backlog(overdue, base_reviews)
-        backlog_new_pct = SRSService.TIER_PCT[backlog_tier]['new']
+        backlog_new_pct = SRSService.BACKLOG_NEW_PCT[backlog_tier]
 
         new_pct = min(accuracy_pct['new'], backlog_new_pct)
         review_pct = accuracy_pct['review']
@@ -465,15 +500,14 @@ class SRSService:
         due_count = count_due_cards(user_id, word_ids=deck_word_ids if deck_word_ids else None)
 
         if deck_word_ids:
-            # Count unstarted deck words (no UserCardDirection rows yet).
-            words_with_directions = db.session.query(UserWord.word_id).join(
-                UserCardDirection, UserWord.id == UserCardDirection.user_word_id
-            ).filter(
+            # Any UserWord record, including an excluded one, means the word
+            # must not be offered as new again.
+            existing_words = db.session.query(UserWord.word_id).filter(
                 UserWord.user_id == user_id,
                 UserWord.word_id.in_(deck_word_ids)
             ).all()
-            words_with_directions_set = {row[0] for row in words_with_directions}
-            new_count = len([wid for wid in deck_word_ids if wid not in words_with_directions_set])
+            existing_word_ids = {row[0] for row in existing_words}
+            new_count = len([wid for wid in deck_word_ids if wid not in existing_word_ids])
         else:
             # Count all available new words (no UserWord OR UserWord exists but no directions).
             words_with_directions_subquery = db.session.query(UserWord.word_id).join(
@@ -488,7 +522,10 @@ class SRSService:
             ).filter(
                 or_(
                     UserWord.id.is_(None),
-                    ~CollectionWords.id.in_(words_with_directions_subquery)
+                    and_(
+                        UserWord.srs_excluded.is_(False),
+                        ~CollectionWords.id.in_(words_with_directions_subquery),
+                    ),
                 ),
                 CollectionWords.russian_word.isnot(None),
                 CollectionWords.russian_word != ''
@@ -644,6 +681,7 @@ class SRSService:
                 joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ).filter(
                 UserWord.user_id == user_id,
+                UserWord.srs_excluded.is_(False),
                 UserWord.word_id.in_(deck_word_ids),
                 UserCardDirection.state == CardState.RELEARNING.value,
                 UserCardDirection.next_review <= now
@@ -673,6 +711,7 @@ class SRSService:
                 joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ).filter(
                 UserWord.user_id == user_id,
+                UserWord.srs_excluded.is_(False),
                 UserWord.word_id.in_(deck_word_ids),
                 UserCardDirection.state == CardState.LEARNING.value,
                 UserCardDirection.next_review <= now
@@ -702,6 +741,7 @@ class SRSService:
                 joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ).filter(
                 UserWord.user_id == user_id,
+                UserWord.srs_excluded.is_(False),
                 UserWord.word_id.in_(deck_word_ids),
                 or_(
                     UserCardDirection.state == CardState.REVIEW.value,
@@ -812,6 +852,7 @@ class SRSService:
             UserWord, UserCardDirection.user_word_id == UserWord.id
         ).filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserWord.word_id.in_(deck_word_ids),
             UserCardDirection.first_reviewed >= today_start,
             UserCardDirection.first_reviewed.isnot(None)
@@ -822,6 +863,7 @@ class SRSService:
             UserWord, UserCardDirection.user_word_id == UserWord.id
         ).filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserWord.word_id.in_(deck_word_ids),
             UserCardDirection.last_reviewed >= today_start,
             UserCardDirection.first_reviewed < today_start,

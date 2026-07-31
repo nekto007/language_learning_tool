@@ -57,6 +57,7 @@ def get_word_of_day(user_id: int) -> dict | None:
         UserCardDirection, UserCardDirection.user_word_id == UserWord.id,
     ).filter(
         UserWord.user_id == user_id,
+        UserWord.srs_excluded.is_(False),
         UserCardDirection.direction == 'eng-rus',
         UserCardDirection.next_review <= datetime.now(timezone.utc).replace(tzinfo=None),
     ).limit(20).all()

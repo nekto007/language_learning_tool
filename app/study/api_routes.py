@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from flask import jsonify, request
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
@@ -53,6 +53,7 @@ def _count_leech_suspended(user_id: int, now: datetime) -> int:
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserCardDirection.lapses >= LEECH_THRESHOLD,
             UserCardDirection.buried_until.isnot(None),
             UserCardDirection.buried_until > now,
@@ -223,6 +224,7 @@ def get_study_items():
         state = direction.state or CardState.NEW.value
         is_new = state == CardState.NEW.value
         is_leech = direction.is_leech
+        is_recovery = bool(direction.recovery_required)
 
         leech_hint = word.sentences if is_leech and word.sentences else None
 
@@ -240,6 +242,9 @@ def get_study_items():
                 'step_index': direction.step_index or 0,
                 'lapses': direction.lapses or 0,
                 'is_leech': is_leech,
+                'is_recovery': is_recovery,
+                'difficulty_score': direction.difficulty_score or 0,
+                'personal_association': direction.personal_association or '',
                 'leech_hint': leech_hint,
                 'frequency_band': word.frequency_band,
                 'source': direction.source,
@@ -258,6 +263,9 @@ def get_study_items():
                 'step_index': direction.step_index or 0,
                 'lapses': direction.lapses or 0,
                 'is_leech': is_leech,
+                'is_recovery': is_recovery,
+                'difficulty_score': direction.difficulty_score or 0,
+                'personal_association': direction.personal_association or '',
                 'leech_hint': leech_hint,
                 'frequency_band': word.frequency_band,
                 'source': direction.source,
@@ -288,6 +296,7 @@ def get_study_items():
         # derived UI label and may lag behind direction grades.
         filters = [
             UserWord.user_id == current_user.id,
+            UserWord.srs_excluded.is_(False),
             or_(
                 UserCardDirection.buried_until.is_(None),
                 UserCardDirection.buried_until <= now
@@ -308,6 +317,30 @@ def get_study_items():
             query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
         return query
 
+    def buried_recovery_query():
+        """Leeches return through the normal session one direction at a time."""
+        query = UserCardDirection.query \
+            .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
+            .options(
+                joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
+            ) \
+            .filter(
+                UserWord.user_id == current_user.id,
+                UserWord.srs_excluded.is_(False),
+                UserCardDirection.recovery_required.is_(True),
+                UserCardDirection.buried_until.isnot(None),
+                UserCardDirection.buried_until > now,
+                or_(
+                    UserCardDirection.recovery_due_at.is_(None),
+                    UserCardDirection.recovery_due_at <= now,
+                ),
+            )
+        if deck_word_ids is not None:
+            query = query.filter(UserWord.word_id.in_(deck_word_ids))
+        if exclude_card_ids:
+            query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
+        return query
+
     # PRIORITY 1: RELEARNING cards — first claim on the combined due budget.
     # Bounded by `due_budget` (base reviews_per_day) so the session can't grow
     # unbounded; the plan tile (build_srs_item) applies the same cap, so the
@@ -316,6 +349,7 @@ def get_study_items():
     relearning_query = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
         UserCardDirection.state == CardState.RELEARNING.value
     ).order_by(
+        UserCardDirection.recovery_required.desc(),
         UserCardDirection.next_review
     )
     if due_budget is None:
@@ -336,6 +370,7 @@ def get_study_items():
     learning_query = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
         UserCardDirection.state == CardState.LEARNING.value
     ).order_by(
+        UserCardDirection.recovery_required.desc(),
         UserCardDirection.next_review
     )
     if due_budget is None:
@@ -352,6 +387,28 @@ def get_study_items():
         if word and word.russian_word:
             result_items.append(format_card(direction, word, 'learning'))
 
+    # A suspended leech is not silently hidden for a week. It returns as an
+    # ordinary SRS card for recovery, after in-progress learning and before
+    # new cards. It still consumes the regular review budget.
+    recovery_cap = remaining_reviews if due_budget is None else min(
+        due_budget, remaining_reviews,
+    )
+    if recovery_cap > 0:
+        buried_recovery_cards = buried_recovery_query().order_by(
+            UserCardDirection.recovery_due_at.nullsfirst(),
+            UserCardDirection.buried_until,
+        ).limit(recovery_cap).all()
+    else:
+        buried_recovery_cards = []
+    if due_budget is not None:
+        due_budget -= len(buried_recovery_cards)
+    remaining_reviews -= len(buried_recovery_cards)
+
+    for direction in buried_recovery_cards:
+        word = direction.user_word.word
+        if word and word.russian_word:
+            result_items.append(format_card(direction, word, 'recovery'))
+
     # PRIORITY 2.5: NEW state cards (already have UserWord entries)
     if remaining_new > 0:
         new_state_query = UserCardDirection.query \
@@ -361,6 +418,7 @@ def get_study_items():
             ) \
             .filter(
                 UserWord.user_id == current_user.id,
+                UserWord.srs_excluded.is_(False),
                 UserCardDirection.state == CardState.NEW.value,
                 or_(
                     UserCardDirection.next_review.is_(None),
@@ -397,6 +455,7 @@ def get_study_items():
                 UserCardDirection.state.is_(None)
             )
         ).order_by(
+            UserCardDirection.recovery_required.desc(),
             UserCardDirection.next_review
         ).limit(review_cap).all()
 
@@ -412,7 +471,7 @@ def get_study_items():
         user_words_with_directions = db.session.query(UserWord.word_id).join(
             UserCardDirection, UserWord.id == UserCardDirection.user_word_id
         ).filter(
-            UserWord.user_id == current_user.id
+            UserWord.user_id == current_user.id,
         ).scalar_subquery()
 
         new_words_query = db.session.query(CollectionWords).outerjoin(
@@ -421,7 +480,10 @@ def get_study_items():
         ).filter(
             or_(
                 UserWord.id.is_(None),
-                ~CollectionWords.id.in_(user_words_with_directions)
+                and_(
+                    UserWord.srs_excluded.is_(False),
+                    ~CollectionWords.id.in_(user_words_with_directions),
+                ),
             ),
             CollectionWords.russian_word.isnot(None),
             CollectionWords.russian_word != ''
@@ -559,6 +621,13 @@ def update_study_item():
 
     user_word = UserWord.get_or_create(current_user.id, word_id)
 
+    if user_word.srs_excluded:
+        return jsonify({
+            'success': False,
+            'error': 'word_excluded',
+            'message': 'This word is excluded from SRS',
+        }), 409
+
     direction = UserCardDirection.query.filter_by(
         user_word_id=user_word.id,
         direction=direction_str
@@ -679,8 +748,70 @@ def update_study_item():
         'state': direction.state,
         'step_index': direction.step_index or 0,
         'lapses': direction.lapses or 0,
+        'difficulty_score': direction.difficulty_score or 0,
+        'is_recovery': bool(direction.recovery_required),
         'is_buried': is_buried
     })
+
+
+@study.route('/api/card-association', methods=['POST'])
+@login_required
+def save_card_association():
+    """Save a learner-authored cue for one recall direction."""
+    data = request.get_json(silent=True) or {}
+    word_id = data.get('word_id')
+    direction_name = data.get('direction')
+    note = data.get('note', '')
+
+    if not isinstance(word_id, int) or direction_name not in {'eng-rus', 'rus-eng'}:
+        return api_error('invalid_input', 'word_id and direction are required', 400)
+    if not isinstance(note, str):
+        return api_error('invalid_input', 'note must be a string', 400)
+    note = note.strip()
+    if len(note) > 500:
+        return api_error('invalid_input', 'note must be at most 500 characters', 400)
+
+    direction = (
+        UserCardDirection.query
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            UserWord.user_id == current_user.id,
+            UserWord.word_id == word_id,
+            UserCardDirection.direction == direction_name,
+        )
+        .with_for_update()
+        .first()
+    )
+    if not direction:
+        return api_error('not_found', 'card direction not found', 404)
+
+    direction.personal_association = note or None
+    db.session.commit()
+    return jsonify({'success': True, 'note': direction.personal_association or ''})
+
+
+@study.route('/api/exclude-word', methods=['POST'])
+@login_required
+def exclude_word_from_srs():
+    """Keep a word out of all personal SRS queues without deleting history."""
+    data = request.get_json(silent=True) or {}
+    word_id = data.get('word_id')
+    if not isinstance(word_id, int):
+        return api_error('invalid_input', 'word_id is required', 400)
+
+    user_word = (
+        UserWord.query
+        .filter_by(user_id=current_user.id, word_id=word_id)
+        .with_for_update()
+        .first()
+    )
+    if not user_word:
+        return api_error('not_found', 'word is not in the user SRS', 404)
+
+    user_word.srs_excluded = True
+    user_word.srs_excluded_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.commit()
+    return jsonify({'success': True, 'word_id': word_id})
 
 
 @study.route('/api/complete-session', methods=['POST'])

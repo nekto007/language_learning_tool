@@ -249,6 +249,8 @@
           {# Resolve kind-label + display title (overrides item.title for
              curriculum, where module.title is the human-readable «theme of the day»). #}
           {% set _item_data = item.get('data') or {} %}
+          {% set _overdue_reviews = _item_data.get('overdue_reviews', 0)|int %}
+          {% set _debt_card_word = 'карточка' if _overdue_reviews % 10 == 1 and _overdue_reviews % 100 != 11 else ('карточки' if 2 <= _overdue_reviews % 10 <= 4 and not 12 <= _overdue_reviews % 100 <= 14 else 'карточек') %}
           {% set _label = '' %}
           {% set _display_title = item.get('title') %}
           {% if _kind == 'curriculum' %}
@@ -307,6 +309,9 @@
                   {% endif %}
                 {% endif %}
                 <span class="plan-item__lock-hint">{% if _prev_label %}Откроется после шага «{{ _prev_label }}»{% else %}Откроется после предыдущего шага{% endif %}</span>
+                {% if _kind == 'srs' and _overdue_reviews > 0 %}
+                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}</span>
+                {% endif %}
               </div>
             {% elif _state == 'blocked' %}
               <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
@@ -320,6 +325,9 @@
                 {% endif %}
                 <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
                 <span class="plan-item__lock-hint">{{ _item_data.get('locked_reason') or 'Сначала завершите урок курса' }}</span>
+                {% if _kind == 'srs' and _overdue_reviews > 0 %}
+                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}</span>
+                {% endif %}
               </div>
             {% elif _state == 'skipped' %}
               <span class="plan-item__marker plan-item__marker--skipped" aria-hidden="true">⤼</span>
@@ -356,6 +364,9 @@
                     <span class="plan-item__subtitle">~{{ item.get('eta_minutes') }} мин</span>
                   {% endif %}
                 </a>
+                {% if _kind == 'srs' and _overdue_reviews > 0 %}
+                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}</span>
+                {% endif %}
                 {% if _kind == 'srs' and _item_data.get('reason_hint') %}
                   <span class="plan-item__hint" title="{{ _item_data.get('reason_hint') }}" tabindex="0">
                     <span class="plan-item__hint-icon" aria-hidden="true">ⓘ</span>

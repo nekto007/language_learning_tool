@@ -69,7 +69,10 @@ def get_difficult_words(user_id: int, db: Any = _db, limit: int = 50) -> list:
         db.session.query(UserCardDirection, UserWord, CollectionWords)
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .join(CollectionWords, UserWord.word_id == CollectionWords.id)
-        .filter(UserWord.user_id == user_id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
+        )
         .filter(
             (UserCardDirection.lapses >= DIFFICULT_LAPSES_THRESHOLD)
             | (UserCardDirection.buried_until > now)
@@ -191,6 +194,7 @@ def unbury_words(user_id: int, word_ids: list, db: Any = _db) -> int:
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserWord.word_id.in_(word_ids),
             UserCardDirection.buried_until.isnot(None),
             UserCardDirection.buried_until > now,

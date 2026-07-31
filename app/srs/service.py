@@ -47,6 +47,7 @@ from app.srs.constants import (
     CardState,
 )
 from app.srs.scheduling import apply_review_schedule
+from app.srs.difficulty import update_recovery_state
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -460,6 +461,8 @@ class UnifiedSRSService:
             # Check access
             if card.user_word.user_id != user_id:
                 return {'success': False, 'error': 'Access denied'}
+            if card.user_word.srs_excluded:
+                return {'success': False, 'error': 'Word excluded from SRS'}
 
             # Get current state (default to 'new' for legacy cards)
             current_state = card.state or CardState.NEW.value
@@ -497,6 +500,12 @@ class UnifiedSRSService:
                 is_first_review=is_first_review,
                 user_id=user_id,
                 db=db,
+            )
+
+            update_recovery_state(
+                card,
+                rating=rating,
+                previous_state=current_state,
             )
 
             # Update correct/incorrect count
@@ -570,7 +579,9 @@ class UnifiedSRSService:
                 'session_attempts': card.session_attempts,
                 'ease_factor': card.ease_factor,
                 'repetitions': card.repetitions,
-                'lapses': card.lapses
+                'lapses': card.lapses,
+                'difficulty_score': card.difficulty_score or 0,
+                'is_recovery': bool(card.recovery_required),
             }
 
         except Exception as e:
@@ -1001,7 +1012,10 @@ class UnifiedSRSService:
             q = (
                 UserCardDirection.query
                 .join(UserWord)
-                .filter(UserWord.user_id == user_id)
+                .filter(
+                    UserWord.user_id == user_id,
+                    UserWord.srs_excluded.is_(False),
+                )
                 # Filter out buried cards
                 .filter(
                     db.or_(
@@ -1027,6 +1041,7 @@ class UnifiedSRSService:
                 UserCardDirection.state == CardState.RELEARNING.value,
                 UserCardDirection.next_review <= now
             ).order_by(
+                UserCardDirection.recovery_required.desc(),
                 UserCardDirection.next_review.asc()
             ).limit(remaining).all()
             result.extend(relearning)
@@ -1038,6 +1053,7 @@ class UnifiedSRSService:
                 UserCardDirection.state == CardState.LEARNING.value,
                 UserCardDirection.next_review <= now
             ).order_by(
+                UserCardDirection.recovery_required.desc(),
                 UserCardDirection.next_review.asc()
             ).limit(remaining).all()
             result.extend(learning)
@@ -1049,6 +1065,7 @@ class UnifiedSRSService:
                 UserCardDirection.state == CardState.REVIEW.value,
                 UserCardDirection.next_review <= now
             ).order_by(
+                UserCardDirection.recovery_required.desc(),
                 UserCardDirection.next_review.asc()
             ).limit(remaining).all()
             result.extend(reviews)
@@ -1082,7 +1099,10 @@ class UnifiedSRSService:
         query = (
             UserCardDirection.query
             .join(UserWord)
-            .filter(UserWord.user_id == user_id)
+            .filter(
+                UserWord.user_id == user_id,
+                UserWord.srs_excluded.is_(False),
+            )
             .filter(UserCardDirection.direction == DIRECTION_ENG_RUS)  # Считаем по одному направлению
             .filter(UserCardDirection.last_reviewed >= today_start)
         )
@@ -1134,6 +1154,8 @@ class UnifiedSRSService:
                 'ease_factor': card.ease_factor or DEFAULT_EASE_FACTOR,
                 'interval': card.interval or 0,
                 'lapses': card.lapses or 0,
+                'difficulty_score': card.difficulty_score or 0,
+                'is_recovery': bool(card.recovery_required),
                 'session_attempts': card.session_attempts or 0,
                 'audio_url': self._get_audio_url(word, card.direction),
                 'transcription': getattr(word, 'transcription', None),
@@ -1219,7 +1241,10 @@ class UnifiedSRSService:
         query = (
             UserCardDirection.query
             .join(UserWord)
-            .filter(UserWord.user_id == user_id)
+            .filter(
+                UserWord.user_id == user_id,
+                UserWord.srs_excluded.is_(False),
+            )
             .filter(UserCardDirection.session_attempts > 0)
         )
 
