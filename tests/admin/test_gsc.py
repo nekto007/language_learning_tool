@@ -136,6 +136,14 @@ class TestGSCService:
             assert call_kwargs[1]['redirect_uri'] == 'https://example.com/callback'
         assert result is mock_flow
 
+    def test_detects_invalid_refresh_token_error(self):
+        from app.admin.services.gsc_service import is_invalid_refresh_token_error
+
+        assert is_invalid_refresh_token_error(
+            Exception('invalid_grant: Bad Request', {'error': 'invalid_grant'})
+        )
+        assert not is_invalid_refresh_token_error(Exception('temporary network failure'))
+
 
 # ---------------------------------------------------------------------------
 # GSC route tests

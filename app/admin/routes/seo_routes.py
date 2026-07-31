@@ -109,6 +109,18 @@ def _gsc_sites_cache_key(refresh_token: str) -> str:
     return f'gsc_sites:{_gsc_token_cache_suffix(refresh_token)}'
 
 
+def _clear_invalid_gsc_connection() -> None:
+    """Forget a refresh token Google has explicitly rejected.
+
+    Keeping it would make every admin-page visit retry a request that cannot
+    succeed. The admin can reconnect from the visible GSC state instead.
+    """
+    set_site_setting('gsc_refresh_token', '')
+    set_site_setting('gsc_site_url', '')
+    db.session.commit()
+    clear_cache_by_prefix('gsc_')
+
+
 @seo_bp.route('/seo')
 @admin_required
 def seo_index():
@@ -131,6 +143,7 @@ def seo_index():
     gsc_site_url = get_site_setting('gsc_site_url') or ''
     gsc_available_sites: list = []
     gsc_error = None
+    gsc_reconnect_required = False
 
     if gsc_connected:
         refresh_token = _get_gsc_refresh_token()
@@ -138,6 +151,7 @@ def seo_index():
             from app.admin.services.gsc_service import (
                 fetch_gsc_data,
                 get_verified_sites_for_refresh_token,
+                is_invalid_refresh_token_error,
             )
             if gsc_site_url:
                 data_cache_key = _gsc_data_cache_key(refresh_token, gsc_site_url)
@@ -150,26 +164,42 @@ def seo_index():
                         client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
                     )
                     set_cache(data_cache_key, gsc_data)
-        except Exception:
-            logger.exception('Failed to fetch GSC data')
-            gsc_error = 'Не удалось получить данные из Google Search Console. Переподключите аккаунт.'
+        except Exception as error:
+            if is_invalid_refresh_token_error(error):
+                _clear_invalid_gsc_connection()
+                gsc_connected = False
+                gsc_site_url = ''
+                gsc_reconnect_required = True
+                gsc_error = 'Подключение к Google Search Console истекло. Подключите аккаунт заново.'
+                logger.info('GSC refresh token rejected; connection cleared')
+            else:
+                logger.exception('Failed to fetch GSC data')
+                gsc_error = 'Не удалось получить данные из Google Search Console. Переподключите аккаунт.'
 
-        try:
-            sites_cache_key = _gsc_sites_cache_key(refresh_token)
-            gsc_available_sites = get_cache(
-                sites_cache_key,
-                timeout=GSC_SITES_CACHE_TIMEOUT,
-            )
-            if gsc_available_sites is None:
-                gsc_available_sites = get_verified_sites_for_refresh_token(
-                    refresh_token=refresh_token,
-                    client_id=current_app.config.get('GOOGLE_CLIENT_ID', ''),
-                    client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
+        if not gsc_reconnect_required:
+            try:
+                sites_cache_key = _gsc_sites_cache_key(refresh_token)
+                gsc_available_sites = get_cache(
+                    sites_cache_key,
+                    timeout=GSC_SITES_CACHE_TIMEOUT,
                 )
-                set_cache(sites_cache_key, gsc_available_sites)
-        except Exception:
-            logger.exception('Failed to list GSC verified sites')
-            gsc_available_sites = []
+                if gsc_available_sites is None:
+                    gsc_available_sites = get_verified_sites_for_refresh_token(
+                        refresh_token=refresh_token,
+                        client_id=current_app.config.get('GOOGLE_CLIENT_ID', ''),
+                        client_secret=current_app.config.get('GOOGLE_CLIENT_SECRET', ''),
+                    )
+                    set_cache(sites_cache_key, gsc_available_sites)
+            except Exception as error:
+                if is_invalid_refresh_token_error(error):
+                    _clear_invalid_gsc_connection()
+                    gsc_connected = False
+                    gsc_site_url = ''
+                    gsc_error = 'Подключение к Google Search Console истекло. Подключите аккаунт заново.'
+                    logger.info('GSC refresh token rejected; connection cleared')
+                else:
+                    logger.exception('Failed to list GSC verified sites')
+                gsc_available_sites = []
 
     return render_template(
         'admin/seo/index.html',

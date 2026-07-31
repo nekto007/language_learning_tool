@@ -337,6 +337,32 @@ class TestFetchGscDataExpiredToken:
         # Route sets gsc_error = 'Не удалось получить данные...'
         assert 'Не удалось' in text or 'переподключите' in text.lower()
 
+    def test_invalid_grant_clears_connection_without_retrying_sites(
+        self, app, client, admin_user, db_session,
+    ):
+        """A rejected refresh token is an expected reconnect state, not an error loop."""
+        with app.app_context():
+            encrypted = encrypt_secret('invalid-grant-token')
+        set_site_setting('gsc_refresh_token', encrypted, db_session=db_session)
+        set_site_setting('gsc_site_url', 'https://example.com/', db_session=db_session)
+        db_session.commit()
+
+        mock_service = MagicMock()
+        mock_service.searchanalytics.return_value.query.return_value.execute.side_effect = (
+            Exception('invalid_grant: Bad Request', {'error': 'invalid_grant'})
+        )
+
+        with patch('app.admin.services.gsc_service.build', return_value=mock_service), \
+             patch('app.admin.routes.seo_routes.run_seo_audit', return_value=_DUMMY_AUDIT):
+            response = client.get('/admin/seo')
+
+        assert response.status_code == 200
+        assert 'истекло' in response.data.decode()
+        assert mock_service.sites.called is False
+        with app.app_context():
+            assert get_site_setting('gsc_refresh_token') == ''
+            assert get_site_setting('gsc_site_url') == ''
+
     def test_fetch_gsc_data_empty_result_on_zero_rows(self, app):
         """fetch_gsc_data returns correct structure with empty rows."""
         from app.admin.services.gsc_service import fetch_gsc_data

@@ -28,6 +28,19 @@ def _require_libs() -> None:
         )
 
 
+def is_invalid_refresh_token_error(error: BaseException) -> bool:
+    """Return whether Google rejected the stored OAuth refresh token.
+
+    ``RefreshError`` keeps Google's response payload in ``args`` but its
+    exact shape varies between google-auth releases. The OAuth error code is
+    stable, so inspect only that non-secret value.
+    """
+    for value in getattr(error, 'args', ()):
+        if isinstance(value, dict) and value.get('error') == 'invalid_grant':
+            return True
+    return 'invalid_grant' in str(error).lower()
+
+
 def build_flow(redirect_uri: str, client_id: str, client_secret: str):
     """Return an OAuth2 Flow configured for the GSC read-only scope."""
     _require_libs()
