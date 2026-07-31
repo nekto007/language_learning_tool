@@ -360,6 +360,9 @@
                 {% endif %}
                 <a class="plan-item__link" href="{{ _url }}">
                   <span class="plan-item__title">{{ _display_title }}</span>
+                  {% if item.get('subtitle') %}
+                    <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
+                  {% endif %}
                   {% if item.get('eta_minutes') %}
                     <span class="plan-item__subtitle">~{{ item.get('eta_minutes') }} мин</span>
                   {% endif %}

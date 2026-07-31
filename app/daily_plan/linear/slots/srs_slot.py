@@ -212,9 +212,13 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
             subtitle_bits.append(f'{learning_show} в изучении')
         if review_show > 0:
             subtitle_bits.append(f'{review_show} на повтор')
+        only_learning = learning_show > 0 and new_show == 0 and review_show == 0
         return LinearSlot(
             kind='srs',
-            title=f'Повторение слов — {total_show}',
+            title=(
+                f'Карточки в изучении — {total_show}'
+                if only_learning else f'Повторение слов — {total_show}'
+            ),
             lesson_type=None,
             eta_minutes=_SRS_SLOT_ETA_MINUTES,
             url=build_slot_url('/study/cards?source=linear_plan', LinearSlotKind.SRS),

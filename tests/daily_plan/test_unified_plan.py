@@ -861,6 +861,33 @@ class TestSRSIgnoreDailyBudget:
         )
 
 
+class TestSRSPlanLabels:
+    def test_learning_only_session_has_specific_label(self, app):
+        """A recovery session must not be presented as a regular review batch."""
+        from unittest.mock import patch
+
+        from app.daily_plan.items.srs import build_srs_item
+
+        with app.app_context():
+            with patch('app.daily_plan.items.srs._srs_completed_today', return_value=False), \
+                 patch('app.srs.counting.count_pending_new', return_value=0), \
+                 patch(
+                     'app.srs.counting.count_due_by_states',
+                     side_effect=lambda _user_id, _db, states: 20 if 'learning' in states else 0,
+                 ), \
+                 patch('app.srs.counting.get_new_card_budget', return_value=(0, 20)), \
+                 patch('app.srs.counting.get_due_card_budget', return_value=20), \
+                 patch('app.srs.counting.count_new_cards_today', return_value=0), \
+                 patch('app.srs.counting.count_reviews_today', return_value=0), \
+                 patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='collapse'), \
+                 patch('app.study.services.SRSService.get_overdue_review_count', return_value=0):
+                item = build_srs_item(1, object())
+
+        assert item is not None
+        assert item.title == 'Карточки в изучении — 20'
+        assert item.subtitle == '20 в изучении'
+
+
 # ── Task 4: day_secured in graduated state ───────────────────────────
 
 

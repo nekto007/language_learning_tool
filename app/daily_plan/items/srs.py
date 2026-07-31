@@ -228,7 +228,11 @@ def build_srs_item(
         title = 'Повторение закрыто'
         subtitle = f'{reviews_today_total} карточек сегодня' if reviews_today_total else 'на сегодня всё'
     else:
-        title = f'Повторение слов — {total_show}'
+        only_learning = learning_show > 0 and new_show == 0 and review_show == 0
+        title = (
+            f'Карточки в изучении — {total_show}'
+            if only_learning else f'Повторение слов — {total_show}'
+        )
         subtitle_bits = []
         if new_show > 0:
             subtitle_bits.append(f'{new_show} новых')
