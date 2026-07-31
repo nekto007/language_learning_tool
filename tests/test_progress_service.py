@@ -201,7 +201,7 @@ class TestCreateOrUpdateProgress:
         )
 
         assert existing_progress.status == 'completed'
-        assert existing_progress.score == 92.5
+        existing_progress.record_score.assert_called_once_with(92.5)
         assert existing_progress.completed_at is not None
 
     @patch('app.curriculum.services.progress_service.db.session')

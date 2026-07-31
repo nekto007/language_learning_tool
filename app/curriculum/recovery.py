@@ -192,7 +192,7 @@ def reconcile_stuck_lesson_progress(
                 completed_at = max(candidate_times)
 
                 progress.status = 'completed'
-                progress.score = new_score
+                progress.record_score(new_score)
                 if progress.completed_at is None:
                     progress.completed_at = completed_at
 

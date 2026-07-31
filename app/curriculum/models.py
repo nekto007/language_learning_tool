@@ -16,6 +16,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    event,
     func,
 )
 from sqlalchemy.orm import joinedload, relationship
@@ -290,7 +291,12 @@ class LessonProgress(db.Model):
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
     status = Column(String(20), default='not_started')  # not_started, in_progress, completed
-    score = Column(Float, default=0.0)  # Score for this lesson
+    # ``score`` remains the backwards-compatible best score. New callers
+    # should use the explicit fields below to distinguish achievement from the
+    # most recent retry.
+    score = Column(Float, default=0.0)
+    best_score = Column(Float, default=0.0)
+    last_score = Column(Float)
     data = Column(JSON)  # Flexible JSON data for lesson-specific progress
     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime)
@@ -316,14 +322,40 @@ class LessonProgress(db.Model):
     @property
     def rounded_score(self):
         """Returns score as a whole number"""
-        return round(self.score) if self.score is not None else 0
+        return round(self.best_score if self.best_score is not None else self.score or 0)
 
     def set_score(self, value):
-        """Sets score ensuring it's a whole number between 0 and 100"""
+        """Legacy setter that replaces both stored score views.
+
+        New lesson submissions must use :meth:`record_score` so a retry cannot
+        lower the learner's best result.
+        """
+        normalized = max(0, min(100, round(float(value)))) if value is not None else 0.0
+        self.score = normalized
+        self.best_score = normalized
+        self.last_score = normalized if value is not None else None
+
+    def record_score(self, value):
+        """Record a result without lowering the learner's best score."""
         if value is not None:
-            self.score = max(0, min(100, round(float(value))))
+            normalized = max(0, min(100, round(float(value), 2)))
+            self.last_score = normalized
+            self.best_score = max(self.best_score or self.score or 0, normalized)
+            self.score = self.best_score
         else:
-            self.score = 0.0
+            self.last_score = None
+            self.best_score = self.best_score or self.score or 0.0
+            self.score = self.best_score
+
+
+@event.listens_for(LessonProgress, 'before_insert')
+def _initialize_lesson_progress_scores(mapper, connection, target):
+    """Keep direct legacy ``LessonProgress(score=...)`` inserts coherent."""
+    legacy_score = target.score or 0.0
+    if target.best_score is None or (target.best_score == 0 and legacy_score > 0):
+        target.best_score = legacy_score
+    if target.last_score is None and target.score is not None:
+        target.last_score = target.score
 
 
 class LessonAttempt(db.Model):

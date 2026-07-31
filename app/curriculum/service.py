@@ -207,7 +207,7 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
 
     progress.status = 'completed'
     progress.completed_at = datetime.now(UTC)
-    progress.score = round(score, 2)
+    progress.record_score(score)
     progress.last_activity = datetime.now(UTC)
 
     try:

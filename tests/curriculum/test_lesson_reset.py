@@ -4,9 +4,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
+from flask import session
 
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.routes.lessons import (
+    clear_lesson_retry,
     maybe_reset_lesson_progress,
     retry_display_progress,
 )
@@ -67,6 +69,37 @@ class TestMaybeResetHelper:
         assert display.status == 'in_progress'
         assert display.score is None
         assert display.data is None
+
+    def test_retry_session_persists_until_submission(self, app, db_session, test_user, module_with_lessons):
+        _, lesson = module_with_lessons
+        progress = _complete(db_session, test_user.id, lesson)
+
+        with app.test_request_context('/'):
+            session[f'curriculum_lesson_retry_{lesson.id}'] = True
+            assert retry_display_progress(progress).status == 'in_progress'
+            clear_lesson_retry(lesson.id)
+            assert retry_display_progress(progress) is progress
+
+    def test_score_records_best_and_last_attempt_separately(
+        self, db_session, test_user, module_with_lessons
+    ):
+        _, lesson = module_with_lessons
+        progress = LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=85.5,
+        )
+        db_session.add(progress)
+        db_session.commit()
+        assert progress.best_score == 85.5
+        assert progress.last_score == 85.5
+
+        progress.record_score(72.25)
+        db_session.commit()
+        assert progress.score == 85.5
+        assert progress.best_score == 85.5
+        assert progress.last_score == 72.25
 
     def test_noop_without_param(self, app, db_session, test_user, module_with_lessons):
         _, lesson = module_with_lessons
