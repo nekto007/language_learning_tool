@@ -114,6 +114,9 @@ class TestSaveReadingPositionEndpoint:
         assert r1.status_code == 200
         data1 = r1.get_json()
         assert data1.get('chapter_completed') is True
+        assert data1.get('book_completed') is True
+        assert data1.get('completed_chapters') == 1
+        assert data1.get('total_chapters') == 1
         first_xp = data1.get('xp_earned', 0)
         assert first_xp > 0
 

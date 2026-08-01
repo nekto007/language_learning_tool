@@ -1112,6 +1112,9 @@ class TestReadingSessionEndBannerState:
         assert r.status_code == 200
         body = r.get_json()
         assert body['chapter_completed_in_session'] is True
+        assert body['book_completed'] is True
+        assert body['completed_chapters'] == 1
+        assert body['total_chapters'] == 1
         assert body['banner_state'] in ('chapter_completed', 'both')
 
     def test_banner_suppressed_when_book_not_user_preference(

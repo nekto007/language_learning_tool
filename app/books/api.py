@@ -961,10 +961,17 @@ def save_reading_position():
 
     chapter_completed = was_incomplete and position >= CHAPTER_COMPLETION_THRESHOLD
     chapter_xp_award = None
+    book_completion_state = None
     if chapter_completed:
-        from app.books.progress import apply_chapter_completion_effects
+        from app.books.progress import (
+            apply_chapter_completion_effects,
+            get_book_completion_state,
+        )
         chapter_xp_award = apply_chapter_completion_effects(
             current_user.id, book_id, chapter, db,
+        )
+        book_completion_state = get_book_completion_state(
+            current_user.id, book_id, db,
         )
 
     # Linear plan: award book-reading slot XP once per day when the
@@ -1022,6 +1029,12 @@ def save_reading_position():
             'total_xp': total_xp,
             'level': level_info.current_level,
         })
+        if book_completion_state is not None:
+            response_data.update({
+                'book_completed': book_completion_state['is_completed'],
+                'completed_chapters': book_completion_state['completed_chapters'],
+                'total_chapters': book_completion_state['total_chapters'],
+            })
 
     # Book achievements — best-effort, fired after the outer commit.
     if chapter_completed:
@@ -1228,16 +1241,25 @@ def reading_session_end():
     )
     post_offset = post_progress.offset_pct if post_progress else 0.0
 
+    book_completed_in_session = False
+    book_completion_state = None
     if (
         chapter is not None
         and pre_offset < CHAPTER_COMPLETION_THRESHOLD
         and post_offset >= CHAPTER_COMPLETION_THRESHOLD
     ):
         try:
-            from app.books.progress import apply_chapter_completion_effects
+            from app.books.progress import (
+                apply_chapter_completion_effects,
+                get_book_completion_state,
+            )
             apply_chapter_completion_effects(
                 current_user.id, chapter.book_id, chapter, db,
             )
+            book_completion_state = get_book_completion_state(
+                current_user.id, chapter.book_id, db,
+            )
+            book_completed_in_session = book_completion_state['is_completed']
             db.session.commit()
         except Exception:
             logger.warning(
@@ -1389,16 +1411,21 @@ def reading_session_end():
             current_user.id, exc_info=True,
         )
 
-    return jsonify({
+    payload = {
         'success': True,
         'session_id': session.id,
         'duration_seconds': session.duration_seconds(),
         'reading_slot_completed': reading_slot_completed,
         'daily_target_met': daily_target_met_today,
         'chapter_completed_in_session': chapter_completed_in_session,
+        'book_completed': book_completed_in_session,
         'banner_state': banner_state,
         'next_slot_url': next_slot_url,
         'next_slot_title': next_slot_title,
         'dashboard_url': dashboard_url,
         'queued_vocab_count': queued_vocab_count,
-    })
+    }
+    if book_completion_state is not None:
+        payload['completed_chapters'] = book_completion_state['completed_chapters']
+        payload['total_chapters'] = book_completion_state['total_chapters']
+    return jsonify(payload)

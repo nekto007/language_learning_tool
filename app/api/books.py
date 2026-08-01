@@ -308,10 +308,17 @@ def update_chapter_progress():
         # основном флоу чтения глава не давала ни XP, ни счётчиков.
         chapter_completed = was_incomplete and effective_offset >= CHAPTER_COMPLETION_THRESHOLD
         chapter_xp_award = None
+        book_completion_state = None
         if chapter_completed:
-            from app.books.progress import apply_chapter_completion_effects
+            from app.books.progress import (
+                apply_chapter_completion_effects,
+                get_book_completion_state,
+            )
             chapter_xp_award = apply_chapter_completion_effects(
                 current_user.id, book_id, chapter, db,
+            )
+            book_completion_state = get_book_completion_state(
+                current_user.id, book_id, db,
             )
 
         db.session.commit()
@@ -363,6 +370,10 @@ def update_chapter_progress():
         if chapter_completed:
             response_data['chapter_completed'] = True
             response_data['xp_earned'] = chapter_xp_award.xp_awarded if chapter_xp_award else 0
+            if book_completion_state is not None:
+                response_data['book_completed'] = book_completion_state['is_completed']
+                response_data['completed_chapters'] = book_completion_state['completed_chapters']
+                response_data['total_chapters'] = book_completion_state['total_chapters']
 
             # Book achievements — best-effort, fired after the outer commit.
             try:

@@ -6,11 +6,9 @@ States:
 - Preference present → slot points at the user's selected book. Title
   shows the chosen book; subtitle includes the chapter the user is
   currently reading (highest ``UserChapterProgress.updated_at`` row).
-- ``completed = True`` when a ``linear_book_reading`` XP award was
-  recorded today (see ``save_reading_position`` / ``maybe_award_book_reading_xp``).
-  That award is gated on an offset_pct delta of at least
-  ``READ_PROGRESS_THRESHOLD``, so re-opening the book at the same
-  position never flips the slot to completed.
+- ``completed = True`` when today's book-scoped reading gate is met for the
+  selected book. A ``linear_book_reading`` XP event closes only the book it was
+  earned on, and the fallback checks today's real reading target.
 """
 from __future__ import annotations
 
@@ -53,17 +51,17 @@ def _latest_chapter_progress(
     )
 
 
-def _read_today(user_id: int, db: Any) -> bool:
-    """Did the user earn the ``linear_book_reading`` XP award today?
+def _read_today(user_id: int, book_id: Optional[int], db: Any) -> bool:
+    """Return True when today's reading slot is done for ``book_id``.
 
-    The XP award is written by ``save_reading_position`` only when the
-    offset_pct delta since the last saved position crosses
-    ``READ_PROGRESS_THRESHOLD``. Using the award row as the "read today"
-    signal keeps the slot's ``completed`` flag aligned with the XP path
-    and prevents trivial "open-and-close" updates from marking the slot
-    completed.
+    Kept in sync with ``app.daily_plan.items.reading._read_today`` for the
+    legacy linear slot surface.
     """
+    if book_id is None:
+        return False
+
     from app.achievements.models import StreakEvent
+    from app.books.reading_session import is_daily_reading_target_met_today
     from app.daily_plan.linear.xp import (
         LINEAR_XP_EVENT_TYPE,
         get_linear_event_local_date,
@@ -75,8 +73,18 @@ def _read_today(user_id: int, db: Any) -> bool:
         StreakEvent.event_type == LINEAR_XP_EVENT_TYPE,
         StreakEvent.event_date == today,
         StreakEvent.details['source'].astext == 'linear_book_reading',
+        StreakEvent.details['book_id'].astext == str(book_id),
     )
-    return db.session.query(query.exists()).scalar() or False
+    if db.session.query(query.exists()).scalar() or False:
+        return True
+    try:
+        return is_daily_reading_target_met_today(user_id, book_id, db)
+    except Exception:
+        logger.warning(
+            "reading_slot: is_daily_reading_target_met_today failed user=%s book=%s",
+            user_id, book_id, exc_info=True,
+        )
+        return False
 
 
 def _compute_level_mismatch(
@@ -143,6 +151,18 @@ def build_reading_slot(
             data={'needs_selection': True, 'priority': priority},
         )
 
+    from app.daily_plan.items.reading import _book_is_actionable_for_reading
+    if not _book_is_actionable_for_reading(user_id, book.id, db):
+        return LinearSlot(
+            kind='reading',
+            title='Выбрать книгу',
+            lesson_type=None,
+            eta_minutes=_READING_SLOT_ETA_MINUTES,
+            url='#book-select-modal',
+            completed=False,
+            data={'needs_selection': True, 'priority': priority},
+        )
+
     latest = _latest_chapter_progress(user_id, book.id, db)
     chapter_num = None
     chapter_title = None
@@ -152,15 +172,19 @@ def build_reading_slot(
             chapter_num = chapter.chap_num
             chapter_title = chapter.title
 
-    completed = _read_today(user_id, db)
+    completed = _read_today(user_id, book.id, db)
 
     from app.books.reading_session import (
-        MIN_READING_SECONDS,
         get_book_reading_seconds_today,
+        get_daily_reading_target_seconds,
     )
+    from app.utils.time_utils import get_user_local_date
 
     time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
-    gate_reached = time_spent_seconds >= MIN_READING_SECONDS
+    today_target_seconds = get_daily_reading_target_seconds(
+        get_user_local_date(user_id, db)
+    )
+    gate_reached = time_spent_seconds >= today_target_seconds
 
     level_too_hard, level_too_easy = _compute_level_mismatch(user_id, book.level, db)
 
@@ -188,7 +212,7 @@ def build_reading_slot(
             'needs_selection': False,
             'priority': priority,
             'time_spent_seconds': time_spent_seconds,
-            'gate_seconds': MIN_READING_SECONDS,
+            'gate_seconds': today_target_seconds,
             'gate_reached': gate_reached,
             'level_too_hard': level_too_hard,
             'level_too_easy': level_too_easy,

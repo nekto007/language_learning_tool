@@ -383,6 +383,9 @@ function saveProgress(offsetPct) {
         ) {
             window.linearPlanContext.applyBookReadingPlanAwareToast();
         }
+        if (data && data.book_completed) {
+            document.dispatchEvent(new CustomEvent('bookCompleted', { detail: data }));
+        }
     })
     .catch(error => {
         console.error('Error saving progress:', error);
@@ -442,6 +445,7 @@ setTimeout(updateProgress, 100);
     let manualPause = false;
     let checkpointPause = false;                 // auto-pause at every dailyTargetSeconds boundary
     let bannerShown = false;
+    let bookCompletedBannerShown = false;
     let beaconUsed = false;                      // suppress duplicate sends from pagehide+beforeunload
     let activeSecondsToday = 0;                  // client-tracked active reading time (ticks on resume)
     let activeTickAnchor = null;                 // Date.now() when most recent active state began
@@ -545,6 +549,10 @@ setTimeout(updateProgress, 100);
 
     function _handleEndResponse(data) {
         if (!data) return;
+        if (data.book_completed) {
+            _showBookCompleted(data);
+            return;
+        }
         // The local ticker tracks active time independently via
         // activeTickAnchor; we do NOT add data.duration_seconds here
         // because the heartbeat path closes a session without moving
@@ -641,8 +649,11 @@ setTimeout(updateProgress, 100);
         if (!titleEl || !ctaArea) return;
 
         const checkpointMinutes = Math.max(1, Math.floor(dailyTargetSeconds / 60));
+        const bookFinished = data.book_completed === true || data.banner_state === 'book_completed';
         let title = '';
-        if (data.banner_state === 'both') {
+        if (bookFinished) {
+            title = 'Книга прочитана';
+        } else if (data.banner_state === 'both') {
             title = '🎉 Глава прочитана и дневная норма выполнена!';
         } else if (data.banner_state === 'daily_target') {
             title = '🎉 Дневная норма по чтению выполнена';
@@ -658,10 +669,11 @@ setTimeout(updateProgress, 100);
 
         ctaArea.innerHTML = '';
         const dashUrl = data.dashboard_url || '/dashboard';
-        const completionConfirmed = data.daily_target_met === true
+        const completionConfirmed = bookFinished
+            || data.daily_target_met === true
             || data.banner_state === 'daily_target'
             || data.banner_state === 'both';
-        const isPlan = completionConfirmed && !!data.next_slot_url;
+        const isPlan = completionConfirmed && !bookFinished && !!data.next_slot_url;
 
         // Only confirmed daily-target states may offer dashboard / next-plan
         // navigation. The checkpoint fallback can appear before /end returns,
@@ -694,17 +706,30 @@ setTimeout(updateProgress, 100);
         // The session was actually paused on the checkpoint hit, so we need
         // to reopen it via _extendCheckpoint, not just hide the banner.
         const snoozeMinutes = Math.max(1, Math.floor(dailyTargetSeconds / 60));
-        const snooze = document.createElement('button');
-        snooze.type = 'button';
-        snooze.className = 'reading-banner__btn reading-banner__btn--ghost';
-        snooze.textContent = 'Ещё ' + snoozeMinutes + ' минут';
-        snooze.addEventListener('click', function () {
-            _extendCheckpoint();
-        });
-        ctaArea.appendChild(snooze);
+        if (!bookFinished) {
+            const snooze = document.createElement('button');
+            snooze.type = 'button';
+            snooze.className = 'reading-banner__btn reading-banner__btn--ghost';
+            snooze.textContent = 'Ещё ' + snoozeMinutes + ' минут';
+            snooze.addEventListener('click', function () {
+                _extendCheckpoint();
+            });
+            ctaArea.appendChild(snooze);
+        }
 
         banner.hidden = false;
     }
+
+    function _showBookCompleted(data) {
+        if (bookCompletedBannerShown) return;
+        bookCompletedBannerShown = true;
+        bannerShown = true;
+        _showBanner(Object.assign({}, data, { banner_state: 'book_completed' }));
+    }
+
+    document.addEventListener('bookCompleted', function (event) {
+        _showBookCompleted(event.detail || {});
+    });
 
     function _checkpointPause() {
         if (checkpointPause) return;

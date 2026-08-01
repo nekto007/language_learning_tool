@@ -29,7 +29,7 @@ from app.daily_plan.items.curriculum import (
 )
 from app.daily_plan.items.error_review import build_error_review_item, determine_section
 from app.daily_plan.items.grammar_review import build_grammar_review_item
-from app.daily_plan.items.reading import build_reading_item, get_user_reading_preference
+from app.daily_plan.items.reading import build_reading_item, reading_preference_needs_setup
 from app.daily_plan.items.setup import (
     build_setup_book_item,
     build_setup_level_item,
@@ -320,8 +320,7 @@ def build_setup(user_id: int, db: Any) -> list[PlanItem]:
     """
     items: list[PlanItem] = []
 
-    pref = get_user_reading_preference(user_id, db)
-    if pref is None:
+    if reading_preference_needs_setup(user_id, db):
         items.append(build_setup_book_item())
 
     from app.daily_plan.linear.progression import find_next_lesson_linear

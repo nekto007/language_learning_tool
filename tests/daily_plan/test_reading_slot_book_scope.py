@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from app.achievements.models import StreakEvent
 from app.daily_plan.items.reading import _read_today
+from app.daily_plan.linear.slots.reading_slot import _read_today as _linear_read_today
 from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE, get_linear_event_local_date
 from app.utils.db import db as app_db
 
@@ -32,6 +33,8 @@ def test_read_today_only_for_the_read_book(db_session, test_user):
     assert _read_today(test_user.id, book_a, app_db) is True
     # … but NOT for a different (newly-selected) book with no reading.
     assert _read_today(test_user.id, book_b, app_db) is False
+    assert _linear_read_today(test_user.id, book_a, app_db) is True
+    assert _linear_read_today(test_user.id, book_b, app_db) is False
 
 
 def test_read_today_none_book_is_false(db_session, test_user):
@@ -54,3 +57,4 @@ def test_legacy_event_without_book_id_does_not_close_slot(db_session, test_user)
     db_session.commit()
 
     assert _read_today(test_user.id, 90001, app_db) is False
+    assert _linear_read_today(test_user.id, 90001, app_db) is False

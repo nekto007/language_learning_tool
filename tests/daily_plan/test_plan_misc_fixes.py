@@ -69,6 +69,44 @@ class TestReadingItemChapterless:
         assert build_reading_item(test_user.id, app_db) is None
 
 
+class TestReadingItemCompletedBook:
+    def test_completed_book_prompts_next_book_selection(self, db_session, test_user):
+        from app.books.models import Book, Chapter, UserChapterProgress
+        from app.daily_plan.items.reading import build_reading_item
+        from app.daily_plan.linear.models import UserReadingPreference
+        from app.daily_plan.plan import build_setup
+
+        book = Book(
+            title='Done Book',
+            author='A',
+            level='A1',
+            chapters_cnt=1,
+            is_published=True,
+        )
+        db_session.add(book)
+        db_session.flush()
+        chapter = Chapter(
+            book_id=book.id,
+            chap_num=1,
+            title='Only Chapter',
+            words=10,
+            text_raw='done',
+        )
+        db_session.add(chapter)
+        db_session.flush()
+        db_session.add(UserReadingPreference(user_id=test_user.id, book_id=book.id))
+        db_session.add(UserChapterProgress(
+            user_id=test_user.id,
+            chapter_id=chapter.id,
+            offset_pct=1.0,
+        ))
+        db_session.commit()
+
+        assert build_reading_item(test_user.id, app_db) is None
+        setup = [item.to_dict() for item in build_setup(test_user.id, app_db)]
+        assert any(item['kind'] == 'setup_book' for item in setup)
+
+
 # ── #19: write_secured_at is idempotent and never duplicates the row ──────────
 
 class TestWriteSecuredAt:

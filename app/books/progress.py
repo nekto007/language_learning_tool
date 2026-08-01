@@ -62,6 +62,35 @@ def compute_book_progress_percent(user_id: int, book_id: int, session) -> float:
     return _progress_from_records(records, total_chapters)
 
 
+def get_book_completion_state(user_id: int, book_id: int, session) -> dict:
+    """Return chapter counts and completion state for a user's book progress."""
+    from sqlalchemy import func
+
+    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
+
+    sess = getattr(session, 'session', session)
+    total_chapters = (
+        sess.query(func.count(Chapter.id))
+        .filter(Chapter.book_id == book_id)
+        .scalar() or 0
+    )
+    completed_chapters = (
+        sess.query(func.count(UserChapterProgress.chapter_id))
+        .join(Chapter, Chapter.id == UserChapterProgress.chapter_id)
+        .filter(
+            UserChapterProgress.user_id == user_id,
+            Chapter.book_id == book_id,
+            UserChapterProgress.offset_pct >= CHAPTER_COMPLETION_THRESHOLD,
+        )
+        .scalar() or 0
+    )
+    return {
+        'total_chapters': int(total_chapters),
+        'completed_chapters': int(completed_chapters),
+        'is_completed': total_chapters > 0 and completed_chapters >= total_chapters,
+    }
+
+
 # Inlined former XPService.calculate_book_chapter_xp (constant 50 XP).
 BOOK_CHAPTER_XP = 50
 
@@ -82,10 +111,7 @@ def apply_chapter_completion_effects(user_id: int, book_id: int, chapter, db):
     """
     import logging
 
-    from sqlalchemy import func
-
     from app.achievements.xp_service import award_book_chapter_xp_idempotent
-    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
     from app.utils.time_utils import get_user_local_date
 
     logger = logging.getLogger(__name__)
@@ -119,22 +145,8 @@ def apply_chapter_completion_effects(user_id: int, book_id: int, chapter, db):
 
         # Detect full book completion: every chapter must be read (offset_pct
         # at/above the shared completion threshold).
-        total_chs = (
-            sess.query(func.count(Chapter.id))
-            .filter(Chapter.book_id == book_id)
-            .scalar() or 0
-        )
-        completed_chs = (
-            sess.query(func.count(UserChapterProgress.chapter_id))
-            .join(Chapter, Chapter.id == UserChapterProgress.chapter_id)
-            .filter(
-                UserChapterProgress.user_id == user_id,
-                Chapter.book_id == book_id,
-                UserChapterProgress.offset_pct >= CHAPTER_COMPLETION_THRESHOLD,
-            )
-            .scalar() or 0
-        )
-        if total_chs > 0 and completed_chs >= total_chs:
+        completion_state = get_book_completion_state(user_id, book_id, db)
+        if completion_state['is_completed']:
             stats.total_books_completed = (stats.total_books_completed or 0) + 1
         sess.flush()
     except Exception:

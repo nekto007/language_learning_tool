@@ -6,8 +6,10 @@ gone (stale row); the orchestrator then adds a ``setup_book`` item to the
 setup section instead.
 
 Completion is gated on real reading activity: the user must have crossed
-the offset_pct threshold AND spent ``MIN_READING_SECONDS`` reading today.
-Opening and closing the book without progress never marks the item done.
+the offset_pct threshold AND spent today's reading target on the selected
+book. Opening and closing the book without progress never marks the item done.
+When the selected book is fully read, this builder returns None so the plan
+can ask the user to choose the next book instead of assigning a dead slot.
 """
 from __future__ import annotations
 
@@ -43,6 +45,39 @@ def _latest_chapter_progress(user_id: int, book_id: int, db: Any) -> Optional[Us
         .order_by(UserChapterProgress.updated_at.desc())
         .first()
     )
+
+
+def _book_is_actionable_for_reading(user_id: int, book_id: int, db: Any) -> bool:
+    """Return False when the selected book cannot produce a useful reading slot."""
+    book = db.session.get(Book, book_id)
+    if book is None:
+        logger.warning("reading_item user=%s book=%s not_found preference_stale", user_id, book_id)
+        return False
+
+    has_chapter = (
+        db.session.query(Chapter.id)
+        .filter(Chapter.book_id == book.id)
+        .first()
+    )
+    if has_chapter is None:
+        logger.warning("reading_item user=%s book=%s has_no_chapters", user_id, book.id)
+        return False
+
+    from app.books.progress import get_book_completion_state
+
+    completion_state = get_book_completion_state(user_id, book.id, db)
+    if completion_state['is_completed']:
+        logger.info("reading_item user=%s book=%s already_completed", user_id, book.id)
+        return False
+    return True
+
+
+def reading_preference_needs_setup(user_id: int, db: Any) -> bool:
+    """Return True when the plan should show the setup-book card."""
+    pref = get_user_reading_preference(user_id, db)
+    if pref is None or pref.book_id is None:
+        return True
+    return not _book_is_actionable_for_reading(user_id, int(pref.book_id), db)
 
 
 def _read_today(user_id: int, book_id: Optional[int], db: Any) -> bool:
@@ -108,16 +143,7 @@ def build_reading_item(
         logger.warning("reading_item user=%s book=%s not_found preference_stale", user_id, pref.book_id)
         return None
 
-    # A book with no chapters yields an unactionable reading slot — if it landed
-    # in the required section the day could never be secured. Treat it like a
-    # missing preference so the orchestrator surfaces a setup_book item instead.
-    has_chapter = (
-        db.session.query(Chapter.id)
-        .filter(Chapter.book_id == book.id)
-        .first()
-    )
-    if has_chapter is None:
-        logger.warning("reading_item user=%s book=%s has_no_chapters", user_id, book.id)
+    if not _book_is_actionable_for_reading(user_id, book.id, db):
         return None
 
     latest = _latest_chapter_progress(user_id, book.id, db)
