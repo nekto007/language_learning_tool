@@ -114,6 +114,33 @@ class TestReaderFinishAction:
         assert progress is not None
         assert progress.offset_pct == 1.0
 
+    def test_finish_reading_last_chapter_backfills_previous_chapters(
+        self, authenticated_client, db_session, test_user, published_book,
+    ):
+        chapters = Chapter.query.filter_by(book_id=published_book.id).order_by(Chapter.chap_num).all()
+        db_session.add(UserChapterProgress(
+            user_id=test_user.id,
+            chapter_id=chapters[-1].id,
+            offset_pct=1.0,
+        ))
+        db_session.commit()
+
+        response = authenticated_client.post(
+            f'/books/{published_book.id}/finish-reading',
+            data={'chapter_id': chapters[-1].id},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        rows = UserChapterProgress.query.filter(
+            UserChapterProgress.user_id == test_user.id,
+            UserChapterProgress.chapter_id.in_([chapter.id for chapter in chapters]),
+        ).all()
+        assert len(rows) == len(chapters)
+        assert all(row.offset_pct == 1.0 for row in rows)
+        html = response.get_data(as_text=True)
+        assert 'Книга прочитана' in html
+
 
 class TestUnpublishedBookAccess:
     """Unpublished books (is_published=False) are not accessible to regular users."""

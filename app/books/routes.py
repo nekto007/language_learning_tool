@@ -484,32 +484,53 @@ def finish_book_reading(book_id):
     from app.books.progress import apply_chapter_completion_effects, get_book_completion_state
     from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
 
-    progress = (
-        db.session.query(UserChapterProgress)
-        .filter_by(user_id=current_user.id, chapter_id=chapter.id)
-        .with_for_update()
+    last_chapter = (
+        Chapter.query
+        .filter_by(book_id=book_id)
+        .order_by(Chapter.chap_num.desc())
         .first()
     )
-    was_incomplete = not progress or (progress.offset_pct or 0.0) < CHAPTER_COMPLETION_THRESHOLD
-    if progress is None:
-        progress = UserChapterProgress(
-            user_id=current_user.id,
-            chapter_id=chapter.id,
-            offset_pct=1.0,
+    chapters_to_finish = [chapter]
+    if last_chapter is not None and chapter.id == last_chapter.id:
+        chapters_to_finish = (
+            Chapter.query
+            .filter(
+                Chapter.book_id == book_id,
+                Chapter.chap_num <= chapter.chap_num,
+            )
+            .order_by(Chapter.chap_num)
+            .all()
         )
-        db.session.add(progress)
-    else:
-        progress.offset_pct = 1.0
-        progress.updated_at = datetime.now(timezone.utc)
-    db.session.flush()
 
-    if was_incomplete:
-        apply_chapter_completion_effects(current_user.id, book_id, chapter, db)
+    completed_now = []
+    for finish_chapter in chapters_to_finish:
+        progress = (
+            db.session.query(UserChapterProgress)
+            .filter_by(user_id=current_user.id, chapter_id=finish_chapter.id)
+            .with_for_update()
+            .first()
+        )
+        was_incomplete = not progress or (progress.offset_pct or 0.0) < CHAPTER_COMPLETION_THRESHOLD
+        if progress is None:
+            progress = UserChapterProgress(
+                user_id=current_user.id,
+                chapter_id=finish_chapter.id,
+                offset_pct=1.0,
+            )
+            db.session.add(progress)
+        else:
+            progress.offset_pct = 1.0
+            progress.updated_at = datetime.now(timezone.utc)
+        db.session.flush()
+
+        if was_incomplete:
+            apply_chapter_completion_effects(current_user.id, book_id, finish_chapter, db)
+            completed_now.append(finish_chapter.id)
 
     completion_state = get_book_completion_state(current_user.id, book_id, db)
     db.session.commit()
 
-    if was_incomplete:
+    if completed_now:
         try:
             stats = StatisticsService.get_or_create_statistics(current_user.id)
             AchievementService.check_book_achievements(current_user.id, stats)
@@ -524,9 +545,8 @@ def finish_book_reading(book_id):
     else:
         flash('Глава отмечена как прочитанная.', 'success')
     logger.info(
-        "finish-reading user=%s book=%s chapter=%s was_incomplete=%s book_completed=%s",
-        current_user.id, book_id, chapter.id, was_incomplete,
-        completion_state['is_completed'],
+        "finish-reading user=%s book=%s chapter=%s completed_now=%s book_completed=%s",
+        current_user.id, book_id, chapter.id, len(completed_now), completion_state['is_completed'],
     )
     return redirect(url_for('books.book_details', book_id=book_id))
 
