@@ -17,6 +17,7 @@ import pytest
 
 from app.achievements.models import StreakEvent
 from app.auth.models import User
+from app.books.models import Book, Chapter, UserChapterProgress
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.daily_plan.models import DailyPlanLog
 from app.daily_plan.snapshot import (
@@ -248,3 +249,59 @@ class TestOverlayCompletion:
         # Other slots remain uncompleted (no SRS/reading activity today).
         non_cur = [it for it in overlaid if it['kind'] != 'curriculum']
         assert all(not it.get('completed') for it in non_cur)
+
+    def test_reading_item_completed_when_book_finished(
+        self, db_session, user,
+    ):
+        book = Book(
+            title='Snapshot Done Book',
+            author='A',
+            level='A1',
+            chapters_cnt=2,
+            is_published=True,
+        )
+        db_session.add(book)
+        db_session.flush()
+        chapters = [
+            Chapter(
+                book_id=book.id,
+                chap_num=idx,
+                title=f'Ch {idx}',
+                words=10,
+                text_raw='text',
+            )
+            for idx in (1, 2)
+        ]
+        db_session.add_all(chapters)
+        db_session.flush()
+        for chapter in chapters:
+            db_session.add(UserChapterProgress(
+                user_id=user.id,
+                chapter_id=chapter.id,
+                offset_pct=1.0,
+            ))
+        db_session.commit()
+
+        snap = {
+            'version': SNAPSHOT_VERSION,
+            'date': date.today().isoformat(),
+            'items': [{
+                'id': f'reading:book:{book.id}',
+                'section': 'required',
+                'kind': 'reading',
+                'title': book.title,
+                'subtitle': 'Норма дня — 5 мин',
+                'lesson_type': None,
+                'eta_minutes': 5,
+                'url': f'/read/{book.id}',
+                'completed': False,
+                'completion_signal': 'reading_gate',
+                'data': {'book_id': book.id},
+            }],
+        }
+
+        overlaid = overlay_completion(user.id, snap, real_db)
+
+        assert overlaid[0]['completed'] is True
+        assert overlaid[0]['eta_minutes'] == 0
+        assert overlaid[0]['url'] is None
