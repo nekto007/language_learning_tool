@@ -139,7 +139,8 @@
         </a>
         {% else %}
         <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
-           class="rdr-bottom-btn rdr-bottom-btn--success" id="finish-reading-link">
+           class="rdr-bottom-btn rdr-bottom-btn--success" id="finish-reading-link"
+           data-action="finish-reading">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Завершить чтение
         </a>
@@ -227,7 +228,8 @@
         </a>
         {% else %}
         <a href="{{ url_for('books.book_details', book_id=book.id) }}"
-           class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--success">
+           class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--success"
+           data-action="finish-reading">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
           Завершить чтение
         </a>
@@ -346,7 +348,7 @@ function updateSidebarProgress(progress) {
 var _readingStepCompleteDispatched = false;
 
 function saveProgress(offsetPct) {
-    fetch('/api/progress', {
+    return fetch('/api/progress', {
         method: 'PATCH',
         headers: {
             'Content-Type': 'application/json',
@@ -389,6 +391,18 @@ function saveProgress(offsetPct) {
     })
     .catch(error => {
         console.error('Error saving progress:', error);
+        return null;
+    });
+}
+
+function finishReading(target) {
+    const href = target && target.href ? target.href : "{{ url_for('books.book_details', book_id=book.id) }}";
+    clearTimeout(saveTimeout);
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressText) progressText.textContent = '100';
+    updateSidebarProgress(1);
+    saveProgress(1.0).finally(function () {
+        window.location.href = href;
     });
 }
 
@@ -675,10 +689,11 @@ setTimeout(updateProgress, 100);
             || data.banner_state === 'both';
         const isPlan = completionConfirmed && !bookFinished && !!data.next_slot_url;
 
-        // Only confirmed daily-target states may offer dashboard / next-plan
+        // Only confirmed daily-target or book-finished states may offer
         // navigation. The checkpoint fallback can appear before /end returns,
         // and chapter_completed explicitly means the daily reading slot is
-        // still pending.
+        // still pending. A finished book goes to dashboard/book details,
+        // not next plan slot: the user must choose the next book first.
         if (completionConfirmed) {
             const primary = document.createElement('a');
             primary.className = 'reading-banner__btn reading-banner__btn--primary';
@@ -1172,6 +1187,10 @@ document.addEventListener('click', function(e) {
         case 'show-audio-bar':     showAudioBar(); break;
         case 'change-font-size':   changeFontSize(parseInt(target.dataset.delta, 10)); break;
         case 'toggle-theme':       toggleTheme(); break;
+        case 'finish-reading':
+            e.preventDefault();
+            finishReading(target);
+            break;
         case 'play-word-audio':    playWordAudio(target.dataset.audioUrl); break;
         case 'add-to-learning':    addToLearning(parseInt(target.dataset.wordId, 10), target.dataset.word); break;
     }

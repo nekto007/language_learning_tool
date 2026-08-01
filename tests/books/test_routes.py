@@ -88,6 +88,16 @@ class TestUnauthorizedAccess:
         assert response.status_code == 302
 
 
+class TestReaderFinishAction:
+    def test_finish_reading_link_saves_full_progress_before_navigation(self):
+        source = Path('app/templates/books/reader_simple.html').read_text()
+
+        assert 'data-action="finish-reading"' in source
+        assert 'function finishReading(target)' in source
+        assert 'saveProgress(1.0).finally' in source
+        assert 'return fetch(\'/api/progress\'' in source
+
+
 class TestUnpublishedBookAccess:
     """Unpublished books (is_published=False) are not accessible to regular users."""
 
@@ -183,18 +193,19 @@ class TestChapterPagination:
         assert 'id="reading-timer-target"' in html
         assert 'targetEl.textContent = _formatTime(dailyTargetSeconds)' in html
 
-    def test_reader_dashboard_cta_requires_confirmed_daily_target(self):
+    def test_reader_navigation_cta_requires_confirmed_completion_state(self):
         """Checkpoint-only timer pause must not offer dashboard navigation.
 
         The /end request can still be in flight when the checkpoint fallback
         banner renders; dashboard / next-slot CTAs are only safe after the
-        server confirms the daily reading target.
+        server confirms the daily reading target or the book is finished.
         """
         template = Path('app/templates/books/reader_simple.html').read_text(
             encoding='utf-8',
         )
-        assert "const completionConfirmed = data.daily_target_met === true" in template
-        assert "const isPlan = completionConfirmed && !!data.next_slot_url;" in template
+        assert "const completionConfirmed = bookFinished" in template
+        assert "|| data.daily_target_met === true" in template
+        assert "const isPlan = completionConfirmed && !bookFinished && !!data.next_slot_url;" in template
         assert "if (completionConfirmed) {" in template
 
     def test_first_chapter_accessible(self, authenticated_client, published_book):
