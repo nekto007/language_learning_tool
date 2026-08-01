@@ -232,6 +232,8 @@ def overlay_completion(
     for item in snapshot.get('items') or []:
         merged = dict(item)
         merged['section'] = 'required'
+        if _is_finished_reading_book(user_id, merged, db):
+            continue
         completed = _is_item_completed(user_id, merged, db)
         merged['completed'] = completed
         if completed:
@@ -262,22 +264,12 @@ def _is_item_completed(user_id: int, item: dict[str, Any], db: Any) -> bool:
         return bool(is_srs_slot_completed_today(user_id, db, allow_fallback=False))
 
     if kind == 'reading':
-        from app.books.progress import get_book_completion_state
         from app.daily_plan.items.reading import _read_today
         book_id = data.get('book_id')
         try:
             book_id_int = int(book_id) if book_id is not None else None
         except (TypeError, ValueError):
             book_id_int = None
-        if book_id_int is not None:
-            try:
-                if get_book_completion_state(user_id, book_id_int, db)['is_completed']:
-                    return True
-            except Exception:
-                logger.warning(
-                    "snapshot reading completion check failed user=%s book=%s",
-                    user_id, book_id_int, exc_info=True,
-                )
         return bool(_read_today(user_id, book_id_int, db))
 
     if kind == 'curriculum':
@@ -308,6 +300,29 @@ def _is_item_completed(user_id: int, item: dict[str, Any], db: Any) -> bool:
         )
 
     return False
+
+
+def _is_finished_reading_book(user_id: int, item: dict[str, Any], db: Any) -> bool:
+    """Return True for stale snapshot reading items whose book is complete."""
+    if item.get('kind') != 'reading':
+        return False
+    data = item.get('data') or {}
+    book_id = data.get('book_id')
+    try:
+        book_id_int = int(book_id) if book_id is not None else None
+    except (TypeError, ValueError):
+        book_id_int = None
+    if book_id_int is None:
+        return False
+    try:
+        from app.books.progress import get_book_completion_state
+        return bool(get_book_completion_state(user_id, book_id_int, db)['is_completed'])
+    except Exception:
+        logger.warning(
+            "snapshot reading completion check failed user=%s book=%s",
+            user_id, book_id_int, exc_info=True,
+        )
+        return False
 
 
 def _curriculum_lesson_done_today(

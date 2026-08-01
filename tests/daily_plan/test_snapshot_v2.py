@@ -250,7 +250,7 @@ class TestOverlayCompletion:
         non_cur = [it for it in overlaid if it['kind'] != 'curriculum']
         assert all(not it.get('completed') for it in non_cur)
 
-    def test_reading_item_completed_when_book_finished(
+    def test_reading_item_removed_when_book_finished(
         self, db_session, user,
     ):
         book = Book(
@@ -302,6 +302,4 @@ class TestOverlayCompletion:
 
         overlaid = overlay_completion(user.id, snap, real_db)
 
-        assert overlaid[0]['completed'] is True
-        assert overlaid[0]['eta_minutes'] == 0
-        assert overlaid[0]['url'] is None
+        assert overlaid == []
