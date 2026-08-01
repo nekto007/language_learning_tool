@@ -14,7 +14,7 @@ import uuid
 
 import pytest
 
-from app.books.models import Book
+from app.books.models import Book, Chapter, UserChapterProgress
 from app.curriculum.models import CEFRLevel
 from app.daily_plan.linear.models import UserReadingPreference
 from app.utils.db import db as real_db
@@ -36,6 +36,32 @@ def _make_book(db_session, level: str, *, chapters: int = 3) -> Book:
     db_session.add(book)
     db_session.commit()
     return book
+
+
+def _add_chapters(db_session, book: Book, count: int | None = None) -> list[Chapter]:
+    chapters = []
+    for i in range(1, (count or book.chapters_cnt) + 1):
+        chapter = Chapter(
+            book_id=book.id,
+            chap_num=i,
+            title=f'Chapter {i}',
+            words=100,
+            text_raw='Text',
+        )
+        db_session.add(chapter)
+        chapters.append(chapter)
+    db_session.commit()
+    return chapters
+
+
+def _complete_book(db_session, user_id: int, chapters: list[Chapter]) -> None:
+    for chapter in chapters:
+        db_session.add(UserChapterProgress(
+            user_id=user_id,
+            chapter_id=chapter.id,
+            offset_pct=1.0,
+        ))
+    db_session.commit()
 
 
 def _ensure_level(db_session, code: str, order: int) -> CEFRLevel:
@@ -118,6 +144,22 @@ class TestCatalogEndpoint:
         for key in ('title', 'author', 'level', 'summary', 'cover_image', 'chapters_cnt'):
             assert key in match
 
+    def test_excludes_completed_books(
+        self, authenticated_client, db_session, cefr_levels, test_user,
+    ):
+        completed = _make_book(db_session, 'A2')
+        available = _make_book(db_session, 'A2')
+        _complete_book(db_session, test_user.id, _add_chapters(db_session, completed))
+        _add_chapters(db_session, available)
+        test_user.onboarding_level = 'A2'
+        db_session.commit()
+
+        resp = authenticated_client.get('/api/books/catalog?level=A2')
+        assert resp.status_code == 200
+        ids = {b['id'] for b in resp.get_json()['books']}
+        assert completed.id not in ids
+        assert available.id in ids
+
 
 class TestSelectEndpoint:
     def test_unauthenticated_returns_401(self, client):
@@ -163,3 +205,14 @@ class TestSelectEndpoint:
         prefs = UserReadingPreference.query.filter_by(user_id=test_user.id).all()
         assert len(prefs) == 1
         assert prefs[0].book_id == book_b.id
+
+    def test_select_completed_book_returns_409(
+        self, authenticated_client, db_session, cefr_levels, test_user,
+    ):
+        book = _make_book(db_session, 'A2')
+        _complete_book(db_session, test_user.id, _add_chapters(db_session, book))
+
+        resp = authenticated_client.post('/api/books/select', json={'book_id': book.id})
+        assert resp.status_code == 409
+        assert resp.get_json()['error'] == 'book_already_completed'
+        assert UserReadingPreference.query.filter_by(user_id=test_user.id).first() is None

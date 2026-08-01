@@ -21,6 +21,7 @@ from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.books.access import accessible_books_filter, can_user_access_book
 from app.books.models import Book
+from app.books.progress import get_completed_book_ids, get_book_completion_state
 from app.curriculum.models import CEFRLevel
 from app.daily_plan.level_utils import _cefr_code_to_order, get_user_current_cefr_level
 from app.daily_plan.linear.models import UserReadingPreference
@@ -67,6 +68,8 @@ def get_books_catalog():
     if codes:
         query = query.filter(Book.level.in_(codes))
     books = query.order_by(Book.level.asc(), Book.title.asc()).all()
+    completed_book_ids = get_completed_book_ids(current_user.id, [book.id for book in books], db)
+    books = [book for book in books if book.id not in completed_book_ids]
 
     payload = [
         {
@@ -100,6 +103,9 @@ def select_book():
 
     if not can_user_access_book(current_user, book):
         return api_error('book_access_denied', 'Нет доступа к этой книге', 403)
+
+    if get_book_completion_state(current_user.id, book.id, db)['is_completed']:
+        return api_error('book_already_completed', 'Эта книга уже прочитана', 409)
 
     pref = (
         db.session.query(UserReadingPreference)

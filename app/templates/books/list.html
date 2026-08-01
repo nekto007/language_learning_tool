@@ -141,9 +141,11 @@
         {% endif %}
 
         {% if current_user.is_authenticated %}
-          {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-          {% if chapter_progress %}
-          <span class="bklist-card__last-read">{{ _('Last read') }}: {{ chapter_progress.updated_at.strftime('%d.%m.%Y') }}</span>
+          {% set reading_progress = book_reading_progress.get(book.id) if book_reading_progress else None %}
+          {% if reading_progress %}
+          <span class="bklist-card__last-read">
+            {% if reading_progress.is_completed %}{{ _('Completed') }}{% else %}{{ _('Last read') }}{% endif %}: {{ reading_progress.last_read.strftime('%d.%m.%Y') if reading_progress.last_read else '' }}
+          </span>
           {% endif %}
         {% endif %}
       </div>
@@ -179,17 +181,22 @@
 
         {# Smart read/continue button #}
         {% if current_user.is_authenticated %}
-          {% set chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-          {% if chapter_progress %}
+          {% set reading_progress = book_reading_progress.get(book.id) if book_reading_progress else None %}
+          {% if reading_progress and reading_progress.is_completed %}
+            <a href="{{ url_for('books.book_details', book_id=book.id) }}" class="bklist-card__btn bklist-card__btn--outline">
+              {{ _('Completed') }}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            </a>
+          {% elif reading_progress %}
             {# Continue button #}
             {% if chapter_counts.get(book.id, 0) > 0 %}
               {% if book.slug %}
-              <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(chapter_progress.chapter.chap_num if chapter_progress else 1)) }}" class="bklist-card__btn bklist-card__btn--continue">
+              <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(reading_progress.last_chapter_num if reading_progress else 1)) }}" class="bklist-card__btn bklist-card__btn--continue">
                 {{ _('Continue') }}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </a>
               {% else %}
-              <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (chapter_progress.chapter.chap_num if chapter_progress else 1) }}" class="bklist-card__btn bklist-card__btn--continue">
+              <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ (reading_progress.last_chapter_num if reading_progress else 1) }}" class="bklist-card__btn bklist-card__btn--continue">
                 {{ _('Continue') }}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </a>

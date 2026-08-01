@@ -276,11 +276,12 @@ def read_selection():
         UserChapterProgress.user_id == current_user.id
     ).all()
 
-    from app.books.progress import _progress_from_records
+    from app.books.progress import _progress_from_records, get_completed_book_ids
 
     book_chapter_counts = {}
     for book in all_books:
         book_chapter_counts[book.id] = book.chapters_cnt or len(book.chapters)
+    completed_book_ids = get_completed_book_ids(current_user.id, book_chapter_counts.keys(), db)
 
     book_progress_map = {}
     for ucp, chapter in user_progress:
@@ -305,11 +306,12 @@ def read_selection():
             'progress_pct': min(pct, 100),
             'last_chapter_num': entry['last_chapter_num'],
             'last_read': entry['last_read'],
+            'is_completed': bid in completed_book_ids,
         }
 
     recent_books = []
     for book in all_books:
-        if book.id in book_progress:
+        if book.id in book_progress and book.id not in completed_book_ids:
             recent_books.append((book, book_progress[book.id]))
     recent_books.sort(key=lambda x: x[1]['last_read'] or datetime.min, reverse=True)
 
@@ -665,6 +667,7 @@ def book_list():
             }
 
     chapter_counts = {}
+    book_reading_progress = {}
     if book_items:
         book_ids = [book.id for book in book_items]
         chapter_count_query = db.select(
@@ -678,6 +681,45 @@ def book_list():
         for book_id, count in chapter_results:
             chapter_counts[book_id] = count
 
+        if current_user.is_authenticated:
+            from app.books.models import UserChapterProgress
+            from app.books.progress import _progress_from_records, get_completed_book_ids
+
+            completed_book_ids = get_completed_book_ids(current_user.id, book_ids, db)
+            progress_rows = db.session.query(
+                UserChapterProgress, Chapter
+            ).join(
+                Chapter, UserChapterProgress.chapter_id == Chapter.id
+            ).filter(
+                UserChapterProgress.user_id == current_user.id,
+                Chapter.book_id.in_(book_ids),
+            ).all()
+
+            progress_map = {}
+            for progress_record, chapter in progress_rows:
+                entry = progress_map.setdefault(chapter.book_id, {
+                    'records': [],
+                    'last_chapter_num': chapter.chap_num,
+                    'last_read': progress_record.updated_at,
+                })
+                entry['records'].append(progress_record)
+                if (
+                    progress_record.updated_at
+                    and (entry['last_read'] is None or progress_record.updated_at > entry['last_read'])
+                ):
+                    entry['last_read'] = progress_record.updated_at
+                    entry['last_chapter_num'] = chapter.chap_num
+
+            for book_id, entry in progress_map.items():
+                total_chapters = chapter_counts.get(book_id, 1) or 1
+                pct = int(_progress_from_records(entry['records'], total_chapters))
+                book_reading_progress[book_id] = {
+                    'progress_pct': min(pct, 100),
+                    'last_chapter_num': entry['last_chapter_num'],
+                    'last_read': entry['last_read'],
+                    'is_completed': book_id in completed_book_ids,
+                }
+
     use_optimized = request.args.get('optimized', 'true').lower() == 'true'
 
     template = 'books/list_optimized.html' if use_optimized else 'books/list.html'
@@ -688,6 +730,7 @@ def book_list():
         pagination=pagination,
         book_stats=book_stats,
         chapter_counts=chapter_counts,
+        book_reading_progress=book_reading_progress,
         sort_by=sort_by,
         sort_order=sort_order
     )

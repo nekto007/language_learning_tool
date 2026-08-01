@@ -5,6 +5,7 @@ from app.books.models import Book, Chapter, UserChapterProgress
 from app.books.progress import (
     _progress_from_records,
     compute_book_progress_percent,
+    get_completed_book_ids,
 )
 
 
@@ -167,3 +168,34 @@ class TestComputeBookProgressPercent:
         db_session.add(book)
         db_session.flush()
         assert compute_book_progress_percent(test_user.id, book.id, db_session) == 0.0
+
+
+class TestCompletedBookIds:
+    def test_returns_only_fully_completed_books(self, db_session, test_user):
+        complete_book = Book(title='Complete', author='A', level='A1', chapters_cnt=2)
+        partial_book = Book(title='Partial', author='A', level='A1', chapters_cnt=2)
+        db_session.add_all([complete_book, partial_book])
+        db_session.flush()
+
+        complete_chapters = [
+            Chapter(book_id=complete_book.id, chap_num=1, title='C1', words=100, text_raw='x'),
+            Chapter(book_id=complete_book.id, chap_num=2, title='C2', words=100, text_raw='x'),
+        ]
+        partial_chapters = [
+            Chapter(book_id=partial_book.id, chap_num=1, title='P1', words=100, text_raw='x'),
+            Chapter(book_id=partial_book.id, chap_num=2, title='P2', words=100, text_raw='x'),
+        ]
+        db_session.add_all(complete_chapters + partial_chapters)
+        db_session.flush()
+
+        for chapter in complete_chapters:
+            _add_progress(db_session, test_user, chapter, 1.0)
+        _add_progress(db_session, test_user, partial_chapters[0], 1.0)
+
+        completed_ids = get_completed_book_ids(
+            test_user.id,
+            [complete_book.id, partial_book.id],
+            db_session,
+        )
+        assert complete_book.id in completed_ids
+        assert partial_book.id not in completed_ids

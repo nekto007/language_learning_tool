@@ -152,11 +152,19 @@
               <span>{{ bp.last_read.strftime('%b %d') if bp.last_read else '' }}</span>
             </div>
           </div>
+          {% if bp.is_completed %}
+          <a href="{{ url_for('books.book_details', book_id=book.id) }}"
+             class="rs-card__btn rs-card__btn--read">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            {{ _('Прочитано') }}
+          </a>
+          {% else %}
           <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}{% if bp.last_chapter_num %}?chapter={{ bp.last_chapter_num }}{% endif %}"
              class="rs-card__btn rs-card__btn--continue">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             {{ _('Продолжить') }}
           </a>
+          {% endif %}
           {% else %}
           <a href="{{ url_for('books.read_book', book_id=book.id) }}"
              class="rs-card__btn rs-card__btn--read">

@@ -91,6 +91,45 @@ def get_book_completion_state(user_id: int, book_id: int, session) -> dict:
     }
 
 
+def get_completed_book_ids(user_id: int, book_ids: Iterable[int], session) -> set[int]:
+    """Return ids of books where every chapter is completed by the user."""
+    from sqlalchemy import func
+
+    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
+
+    ids = {int(book_id) for book_id in book_ids if book_id is not None}
+    if not ids:
+        return set()
+
+    sess = getattr(session, 'session', session)
+    chapter_counts = dict(
+        sess.query(Chapter.book_id, func.count(Chapter.id))
+        .filter(Chapter.book_id.in_(ids))
+        .group_by(Chapter.book_id)
+        .all()
+    )
+    if not chapter_counts:
+        return set()
+
+    completed_counts = dict(
+        sess.query(Chapter.book_id, func.count(UserChapterProgress.chapter_id))
+        .join(UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id)
+        .filter(
+            UserChapterProgress.user_id == user_id,
+            Chapter.book_id.in_(ids),
+            UserChapterProgress.offset_pct >= CHAPTER_COMPLETION_THRESHOLD,
+        )
+        .group_by(Chapter.book_id)
+        .all()
+    )
+
+    return {
+        book_id
+        for book_id, total in chapter_counts.items()
+        if total > 0 and completed_counts.get(book_id, 0) >= total
+    }
+
+
 # Inlined former XPService.calculate_book_chapter_xp (constant 50 XP).
 BOOK_CHAPTER_XP = 50
 

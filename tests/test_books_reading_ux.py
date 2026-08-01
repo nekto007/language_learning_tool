@@ -180,6 +180,31 @@ class TestContinueReadingLogic:
         # The continue link should contain chapter=2
         assert f'chapter={chapters[1].chap_num}' in html
 
+    def test_completed_book_not_shown_in_continue_section(
+        self, authenticated_client, db_session, test_user,
+        sample_book_with_chapters, books_module_enabled
+    ):
+        """Completed books should not be offered as active continue-reading cards."""
+        book, chapters = sample_book_with_chapters
+
+        for chapter in chapters:
+            db_session.add(UserChapterProgress(
+                user_id=test_user.id,
+                chapter_id=chapter.id,
+                offset_pct=1.0,
+                updated_at=datetime.now(timezone.utc),
+            ))
+        db_session.commit()
+
+        response = authenticated_client.get('/read')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        recent_start = html.find('Продолжить чтение')
+        available_start = html.find('Доступные книги')
+        recent_html = html[recent_start:available_start] if recent_start != -1 and available_start != -1 else ''
+        assert book.title not in recent_html
+        assert 'Прочитано' in html
+
     def test_details_page_continue_reading(
         self, authenticated_client, db_session, test_user,
         sample_book_with_chapters, books_module_enabled
