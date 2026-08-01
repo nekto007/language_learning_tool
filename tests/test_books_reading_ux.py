@@ -200,6 +200,28 @@ class TestContinueReadingLogic:
         html = response.data.decode('utf-8')
         assert 'Продолжить чтение' in html
 
+    def test_details_page_completed_book_no_continue_reading(
+        self, authenticated_client, db_session, test_user,
+        sample_book_with_chapters, books_module_enabled
+    ):
+        """Completed book details should not send the user back to last chapter."""
+        book, chapters = sample_book_with_chapters
+
+        for chapter in chapters:
+            db_session.add(UserChapterProgress(
+                user_id=test_user.id,
+                chapter_id=chapter.id,
+                offset_pct=1.0,
+                updated_at=datetime.now(timezone.utc),
+            ))
+        db_session.commit()
+
+        response = authenticated_client.get(f'/books/{book.id}')
+        assert response.status_code == 200
+        html = response.data.decode('utf-8')
+        assert 'fa-play"></i>\n                        Продолжить чтение' not in html
+        assert 'Книга прочитана' in html
+
     def test_details_page_start_reading_when_no_progress(
         self, authenticated_client, sample_book_with_chapters, books_module_enabled
     ):

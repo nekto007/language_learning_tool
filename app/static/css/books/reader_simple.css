@@ -412,6 +412,15 @@ body.dark-theme .rdr-timer-bar__pause {
   color: var(--rdr-text-muted);
 }
 
+.rdr-finish-form {
+  display: contents;
+}
+
+button.rdr-bottom-btn,
+button.rdr-sidebar-nav-btn {
+  cursor: pointer;
+}
+
 .rdr-bottom-btn:hover {
   border-color: var(--rdr-primary);
   color: var(--rdr-primary);

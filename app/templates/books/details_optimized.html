@@ -46,7 +46,13 @@
                 </div>
                 
                 <div class="action-buttons mt-1">
-                    {% if last_read_chapter %}
+                    {% if book_completed %}
+                    <a href="{{ url_for('books.book_list') }}"
+                       class="btn-action btn-primary-gradient">
+                        <i class="fas fa-check"></i>
+                        {{ _('Книга прочитана') }}
+                    </a>
+                    {% elif last_read_chapter %}
                     <a href="{{ url_for('books.read_book_chapters', book_id=book.id, chapter=last_read_chapter) }}"
                        class="btn-action btn-primary-gradient">
                         <i class="fas fa-play"></i>

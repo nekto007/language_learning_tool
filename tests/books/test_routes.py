@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.books.models import Book, Chapter
+from app.books.models import Book, Chapter, UserChapterProgress
 
 
 @pytest.fixture
@@ -89,13 +89,30 @@ class TestUnauthorizedAccess:
 
 
 class TestReaderFinishAction:
-    def test_finish_reading_link_saves_full_progress_before_navigation(self):
+    def test_finish_reading_uses_server_post_action(self):
         source = Path('app/templates/books/reader_simple.html').read_text()
 
-        assert 'data-action="finish-reading"' in source
-        assert 'function finishReading(target)' in source
-        assert 'saveProgress(1.0).finally' in source
-        assert 'return fetch(\'/api/progress\'' in source
+        assert 'action="{{ url_for(\'books.finish_book_reading\', book_id=book.id) }}"' in source
+        assert 'name="chapter_id" value="{{ current_chapter.id }}"' in source
+        assert 'name="csrf_token" value="{{ csrf_token() }}"' in source
+
+    def test_finish_reading_post_marks_chapter_complete(
+        self, authenticated_client, db_session, test_user, published_book,
+    ):
+        chapter = Chapter.query.filter_by(book_id=published_book.id, chap_num=3).first()
+
+        response = authenticated_client.post(
+            f'/books/{published_book.id}/finish-reading',
+            data={'chapter_id': chapter.id},
+        )
+
+        assert response.status_code == 302
+        progress = UserChapterProgress.query.filter_by(
+            user_id=test_user.id,
+            chapter_id=chapter.id,
+        ).first()
+        assert progress is not None
+        assert progress.offset_pct == 1.0
 
 
 class TestUnpublishedBookAccess:

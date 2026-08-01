@@ -138,12 +138,14 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
         {% else %}
-        <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
-           class="rdr-bottom-btn rdr-bottom-btn--success" id="finish-reading-link"
-           data-action="finish-reading">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Завершить чтение
-        </a>
+        <form method="post" action="{{ url_for('books.finish_book_reading', book_id=book.id) }}" class="rdr-finish-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="chapter_id" value="{{ current_chapter.id }}">
+          <button type="submit" class="rdr-bottom-btn rdr-bottom-btn--success" id="finish-reading-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Завершить чтение
+          </button>
+        </form>
         {% endif %}
         <div id="daily-plan-next-step" style="grid-column: 1 / -1;"></div>
       </div>
@@ -227,12 +229,14 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </a>
         {% else %}
-        <a href="{{ url_for('books.book_details', book_id=book.id) }}"
-           class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--success"
-           data-action="finish-reading">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-          Завершить чтение
-        </a>
+        <form method="post" action="{{ url_for('books.finish_book_reading', book_id=book.id) }}" class="rdr-finish-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="chapter_id" value="{{ current_chapter.id }}">
+          <button type="submit" class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--success">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+            Завершить чтение
+          </button>
+        </form>
         {% endif %}
 
         <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
@@ -392,17 +396,6 @@ function saveProgress(offsetPct) {
     .catch(error => {
         console.error('Error saving progress:', error);
         return null;
-    });
-}
-
-function finishReading(target) {
-    const href = target && target.href ? target.href : "{{ url_for('books.book_details', book_id=book.id) }}";
-    clearTimeout(saveTimeout);
-    if (progressBar) progressBar.style.width = '100%';
-    if (progressText) progressText.textContent = '100';
-    updateSidebarProgress(1);
-    saveProgress(1.0).finally(function () {
-        window.location.href = href;
     });
 }
 
@@ -1187,10 +1180,6 @@ document.addEventListener('click', function(e) {
         case 'show-audio-bar':     showAudioBar(); break;
         case 'change-font-size':   changeFontSize(parseInt(target.dataset.delta, 10)); break;
         case 'toggle-theme':       toggleTheme(); break;
-        case 'finish-reading':
-            e.preventDefault();
-            finishReading(target);
-            break;
         case 'play-word-audio':    playWordAudio(target.dataset.audioUrl); break;
         case 'add-to-learning':    addToLearning(parseInt(target.dataset.wordId, 10), target.dataset.word); break;
     }

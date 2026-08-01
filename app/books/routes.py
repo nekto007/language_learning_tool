@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -449,6 +449,88 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
                            )
 
 
+@books.route('/books/<int:book_id>/finish-reading', methods=['POST'])
+@login_required
+def finish_book_reading(book_id):
+    """Mark the submitted chapter as fully read and return to book details."""
+    book = Book.query.get_or_404(book_id)
+
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
+
+    if not can_user_access_book(current_user, book):
+        flash('У вас нет доступа к этой книге. Обратитесь к администратору.', 'error')
+        abort(403)
+
+    chapter_id = request.form.get('chapter_id', type=int)
+    chapter = None
+    if chapter_id is not None:
+        chapter = Chapter.query.filter_by(id=chapter_id, book_id=book_id).first()
+        if chapter is None:
+            abort(404)
+    if chapter is None:
+        chapter = (
+            Chapter.query
+            .filter_by(book_id=book_id)
+            .order_by(Chapter.chap_num.desc())
+            .first()
+        )
+    if chapter is None:
+        flash('В этой книге пока нет глав для чтения.', 'warning')
+        return redirect(url_for('books.book_details', book_id=book_id))
+
+    from app.achievements.services import AchievementService, StatisticsService
+    from app.books.models import UserChapterProgress
+    from app.books.progress import apply_chapter_completion_effects, get_book_completion_state
+    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
+
+    progress = (
+        db.session.query(UserChapterProgress)
+        .filter_by(user_id=current_user.id, chapter_id=chapter.id)
+        .with_for_update()
+        .first()
+    )
+    was_incomplete = not progress or (progress.offset_pct or 0.0) < CHAPTER_COMPLETION_THRESHOLD
+    if progress is None:
+        progress = UserChapterProgress(
+            user_id=current_user.id,
+            chapter_id=chapter.id,
+            offset_pct=1.0,
+        )
+        db.session.add(progress)
+    else:
+        progress.offset_pct = 1.0
+        progress.updated_at = datetime.now(timezone.utc)
+    db.session.flush()
+
+    if was_incomplete:
+        apply_chapter_completion_effects(current_user.id, book_id, chapter, db)
+
+    completion_state = get_book_completion_state(current_user.id, book_id, db)
+    db.session.commit()
+
+    if was_incomplete:
+        try:
+            stats = StatisticsService.get_or_create_statistics(current_user.id)
+            AchievementService.check_book_achievements(current_user.id, stats)
+        except Exception:
+            logger.warning(
+                "book achievement check failed user=%s book=%s",
+                current_user.id, book_id, exc_info=True,
+            )
+
+    if completion_state['is_completed']:
+        flash('Книга прочитана. Выберите следующую книгу для плана дня.', 'success')
+    else:
+        flash('Глава отмечена как прочитанная.', 'success')
+    logger.info(
+        "finish-reading user=%s book=%s chapter=%s was_incomplete=%s book_completed=%s",
+        current_user.id, book_id, chapter.id, was_incomplete,
+        completion_state['is_completed'],
+    )
+    return redirect(url_for('books.book_details', book_id=book_id))
+
+
 @books.route('/books')
 @login_required
 def book_list():
@@ -641,11 +723,12 @@ def book_details(book_id):
         word_progress = 0
 
     from app.books.models import Chapter, UserChapterProgress
-    from app.books.progress import compute_book_progress_percent
+    from app.books.progress import compute_book_progress_percent, get_book_completion_state
 
     total_chapters = Chapter.query.filter_by(book_id=book_id).count()
     reading_progress = 0
     last_read_chapter = None
+    book_completed = False
 
     if total_chapters > 0:
         user_chapters = db.session.query(
@@ -665,6 +748,7 @@ def book_details(book_id):
                     last_read_chapter = chapter.chap_num
 
             reading_progress = int(compute_book_progress_percent(current_user.id, book_id, db))
+            book_completed = get_book_completion_state(current_user.id, book_id, db)['is_completed']
 
     frequent_words_query = db.select(
         CollectionWords,
@@ -713,7 +797,8 @@ def book_details(book_id):
         frequent_words=frequent_words,
         word_statuses=word_statuses,
         chapters=chapters,
-        last_read_chapter=last_read_chapter
+        last_read_chapter=last_read_chapter,
+        book_completed=book_completed,
     )
 
 

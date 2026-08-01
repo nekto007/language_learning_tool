@@ -158,7 +158,7 @@
         <!-- Reading Progress - Added for book reading functionality -->
         {% if current_user.is_authenticated %}
             {% set latest_chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-            {% if latest_chapter_progress %}
+            {% if latest_chapter_progress and not book_completed %}
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">{{ _('Your Reading Progress') }}</h5>
