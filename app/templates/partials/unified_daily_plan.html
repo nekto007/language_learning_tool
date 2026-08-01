@@ -7,14 +7,13 @@
 {% set u_setup = unified_plan.get('setup') or [] %}
 {% set u_has_more = unified_plan.get('has_more_optional', false) %}
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
+{% set u_optional_visible = u_optional[:5] %}
+{% set u_has_hidden_optional = (u_optional | length) > (u_optional_visible | length) %}
 
-{# When reading focus is on AND a setup_book card is present, the user
-   hasn't picked a book yet — surface setup ABOVE optional with a clear
-   prompt. Otherwise setup stays below as a quiet footer. #}
-{% set _focus_value = current_user.onboarding_focus if current_user is defined else None %}
-{% set u_focus_is_reading = _focus_value and 'reading' in (_focus_value or '') %}
+{# Book selection is the next reading action, so keep it near the top of
+   the daily plan whenever it exists. Non-book setup stays in the footer. #}
 {% set u_setup_has_book = u_setup and (u_setup | selectattr('kind', 'equalto', 'setup_book') | list | length > 0) %}
-{% set u_setup_prominent = u_focus_is_reading and u_setup_has_book %}
+{% set u_setup_prominent = u_setup_has_book %}
 
 {# Human-readable lesson-kind labels for curriculum subtitle + locked hints. #}
 {% set lesson_kind_labels = {
@@ -206,6 +205,32 @@
       </ul>
     {% endif %}
   </header>
+
+  {# ── PROMINENT SETUP (book selection belongs above today's queue) ── #}
+  {% if u_setup_prominent %}
+    <div class="daily-plan__section daily-plan__section--setup daily-plan__section--setup-prominent" data-section="setup-prominent">
+      <div class="daily-plan__section-header">
+        <h3 class="daily-plan__section-title">Выбрать книгу</h3>
+        <p class="daily-plan__section-hint">После выбора чтение появится в дневном плане.</p>
+      </div>
+      <ul class="daily-plan__list daily-plan__list--setup">
+        {% for item in u_setup if item.get('kind') == 'setup_book' %}
+          <li class="plan-item plan-item--setup_book plan-item--setup plan-item--setup-cta"
+              data-plan-item="true" data-item-id="{{ item.get('id') }}" data-item-kind="setup_book">
+            <span class="plan-item__marker plan-item__marker--setup" aria-hidden="true">📖</span>
+            <div class="plan-item__body">
+              <a class="plan-item__link" href="#book-select-modal" data-open-book-select="true">
+                <span class="plan-item__title">{{ item.get('title') }}</span>
+                {% if item.get('subtitle') %}
+                  <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
+                {% endif %}
+              </a>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
 
   {# ── REQUIRED ── #}
   <div class="daily-plan__section daily-plan__section--required" data-section="required">
@@ -461,32 +486,6 @@
     {% endif %}
   </div>
 
-  {# ── PROMINENT SETUP (only when focus=reading AND book not picked) ── #}
-  {% if u_setup_prominent %}
-    <div class="daily-plan__section daily-plan__section--setup daily-plan__section--setup-prominent" data-section="setup-prominent">
-      <div class="daily-plan__section-header">
-        <h3 class="daily-plan__section-title">Настроить чтение</h3>
-        <p class="daily-plan__section-hint">Выберите книгу, чтобы чтение появилось в дневном плане.</p>
-      </div>
-      <ul class="daily-plan__list daily-plan__list--setup">
-        {% for item in u_setup if item.get('kind') == 'setup_book' %}
-          <li class="plan-item plan-item--setup_book plan-item--setup plan-item--setup-cta"
-              data-plan-item="true" data-item-id="{{ item.get('id') }}" data-item-kind="setup_book">
-            <span class="plan-item__marker plan-item__marker--setup" aria-hidden="true">📖</span>
-            <div class="plan-item__body">
-              <a class="plan-item__link" href="#book-select-modal" data-open-book-select="true">
-                <span class="plan-item__title">{{ item.get('title') }}</span>
-                {% if item.get('subtitle') %}
-                  <span class="plan-item__subtitle">{{ item.get('subtitle') }}</span>
-                {% endif %}
-              </a>
-            </div>
-          </li>
-        {% endfor %}
-      </ul>
-    </div>
-  {% endif %}
-
   {# ── OPTIONAL ── #}
   {# Optional is locked until day_secured. Pre-secured we show the list as
      a teaser («Появится после закрытия дня») without clickable links or
@@ -504,7 +503,7 @@
        section is locked behind one hint; post-day_secured items unlock
        one at a time. #}
     {% set opt_ns = namespace(current_idx=-1) %}
-    {% for item in u_optional %}
+    {% for item in u_optional_visible %}
       {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
       {% if not _completed and opt_ns.current_idx == -1 %}
         {% set opt_ns.current_idx = loop.index0 %}
@@ -519,8 +518,8 @@
           <p class="daily-plan__section-hint">Откроется после дневного минимума</p>
         {% endif %}
       </div>
-      <ol class="daily-plan__list">
-        {% for item in u_optional %}
+      <ol class="daily-plan__list{% if u_optional_locked %} daily-plan__list--optional-preview{% endif %}">
+        {% for item in u_optional_visible %}
           {% set _id = item.get('id') %}
           {% set _kind = item.get('kind', '') %}
           {% set _data = item.get('data') or {} %}
@@ -562,7 +561,7 @@
               {% if _is_locked_any %}
                 <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
                 {% if _is_step_locked %}
-                  {% set _prev_opt = u_optional[loop.index0 - 1] if loop.index0 > 0 else None %}
+                  {% set _prev_opt = u_optional_visible[loop.index0 - 1] if loop.index0 > 0 else None %}
                   {% set _prev_opt_label = '' %}
                   {% if _prev_opt %}
                     {% if _prev_opt.get('kind') == 'curriculum' %}
@@ -601,7 +600,7 @@
           </li>
         {% endfor %}
       </ol>
-      {% if u_has_more %}
+      {% if u_has_more or u_has_hidden_optional %}
         <button type="button"
                 class="daily-plan__load-more{% if u_day_secured %} daily-plan__load-more--primary{% endif %}"
                 data-action="reload-plan"

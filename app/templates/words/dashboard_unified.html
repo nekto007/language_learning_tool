@@ -55,11 +55,17 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
   {% endif %}
 
   <div class="dash-path" data-unified-plan="true">
+    <section class="dash-path__plan" aria-label="План на сегодня">
+      {% include 'partials/unified_daily_plan.html' %}
+    </section>
+
+    <div class="dash-path__rail-wrap">
+      {% include 'components/_dashboard_rail.html' %}
+    </div>
+
     <main class="dash-path__main">
       {% include 'components/_dashboard_hero.html' %}
       {% include 'partials/_weekly_report.html' %}
-      {% include 'partials/unified_daily_plan.html' %}
-
       {# ── LEADERBOARD (below the plan in the left column) ── #}
       {% if xp_leaderboard %}
       <div class="dash-leaderboard dash-leaderboard--under-plan">
@@ -83,59 +89,55 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
       {% endif %}
     </main>
 
-    <div class="dash-path__rail-wrap">
-      {% include 'components/_dashboard_rail.html' %}
-
-      {# ── ACHIEVEMENTS (right rail, below week rhythm) ── #}
-      {% if achievements_by_category and achievements_by_category.by_category %}
-      <div class="dash-achievements dash-achievements--rail">
-        <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
-        <div class="dash-achievements__summary">
-          <span class="dash-achievements__count">{{ achievements_by_category.earned_count }} / {{ achievements_by_category.total_achievements }}</span>
-          <span class="dash-achievements__pct">{{ achievements_by_category.progress_percentage }}%</span>
-        </div>
-        <div class="dash-achievements__categories">
-          {% for category, items in achievements_by_category.by_category.items() %}
-            {% set earned_in_cat = items|selectattr('earned')|list|length %}
-            {% set total_in_cat = items|length %}
-            {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
-            <div class="dash-achievements__cat" title="{{ achievements_by_category.category_labels[category] or category }}: {{ earned_in_cat }} из {{ total_in_cat }} достижений">
-              <div class="dash-achievements__ring" style="--pct: {{ pct }}">
-                <svg viewBox="0 0 36 36" class="dash-achievements__svg">
-                  <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
-                  <circle cx="18" cy="18" r="15.9" class="dash-achievements__fill" stroke-dasharray="{{ pct }}, 100"></circle>
-                </svg>
-                <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
-              </div>
-              <span class="dash-achievements__cat-name">{{ achievements_by_category.category_labels[category] or category }}</span>
+    {# ── ACHIEVEMENTS (right column on desktop, after module on mobile) ── #}
+    {% if achievements_by_category and achievements_by_category.by_category %}
+    <div class="dash-achievements dash-achievements--rail">
+      <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
+      <div class="dash-achievements__summary">
+        <span class="dash-achievements__count">{{ achievements_by_category.earned_count }} / {{ achievements_by_category.total_achievements }}</span>
+        <span class="dash-achievements__pct">{{ achievements_by_category.progress_percentage }}%</span>
+      </div>
+      <div class="dash-achievements__categories">
+        {% for category, items in achievements_by_category.by_category.items() %}
+          {% set earned_in_cat = items|selectattr('earned')|list|length %}
+          {% set total_in_cat = items|length %}
+          {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
+          <div class="dash-achievements__cat" title="{{ achievements_by_category.category_labels[category] or category }}: {{ earned_in_cat }} из {{ total_in_cat }} достижений">
+            <div class="dash-achievements__ring" style="--pct: {{ pct }}">
+              <svg viewBox="0 0 36 36" class="dash-achievements__svg">
+                <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
+                <circle cx="18" cy="18" r="15.9" class="dash-achievements__fill" stroke-dasharray="{{ pct }}, 100"></circle>
+              </svg>
+              <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
             </div>
-          {% endfor %}
-        </div>
-        {% if achievements_by_category.next_goals %}
-        <div class="dash-achievements__next">
-          <h4 class="dash-achievements__next-title">Следующие цели</h4>
-          {% for item in achievements_by_category.next_goals[:4] %}
-            {% set ach = item.achievement %}
-            {% set ach_desc = ach.description or 'Описание пока не добавлено' %}
-            <div class="dash-achievements__goal"
-                 tabindex="0"
-                 title="{{ ach.name }} — {{ ach_desc }}"
-                 aria-label="{{ ach.name }}. {{ ach_desc }}">
-              <span class="dash-achievements__goal-icon" aria-hidden="true">{{ ach.icon or '🏆' }}</span>
-              <span class="dash-achievements__goal-copy">
-                <span class="dash-achievements__goal-name">{{ ach.name }}</span>
-                <span class="dash-achievements__goal-desc">{{ ach_desc }}</span>
-              </span>
-              {% if ach.xp_reward %}
-              <span class="dash-achievements__goal-xp">+{{ ach.xp_reward }} XP</span>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </div>
-        {% endif %}
+            <span class="dash-achievements__cat-name">{{ achievements_by_category.category_labels[category] or category }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      {% if achievements_by_category.next_goals %}
+      <div class="dash-achievements__next">
+        <h4 class="dash-achievements__next-title">Следующие цели</h4>
+        {% for item in achievements_by_category.next_goals[:4] %}
+          {% set ach = item.achievement %}
+          {% set ach_desc = ach.description or 'Описание пока не добавлено' %}
+          <div class="dash-achievements__goal"
+               tabindex="0"
+               title="{{ ach.name }} — {{ ach_desc }}"
+               aria-label="{{ ach.name }}. {{ ach_desc }}">
+            <span class="dash-achievements__goal-icon" aria-hidden="true">{{ ach.icon or '🏆' }}</span>
+            <span class="dash-achievements__goal-copy">
+              <span class="dash-achievements__goal-name">{{ ach.name }}</span>
+              <span class="dash-achievements__goal-desc">{{ ach_desc }}</span>
+            </span>
+            {% if ach.xp_reward %}
+            <span class="dash-achievements__goal-xp">+{{ ach.xp_reward }} XP</span>
+            {% endif %}
+          </div>
+        {% endfor %}
       </div>
       {% endif %}
     </div>
+    {% endif %}
   </div>
 
 </div>

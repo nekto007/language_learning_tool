@@ -16268,10 +16268,17 @@ body.dashboard-path-wide main.container {
 }
 
 .dash-path__main {
+    grid-column: 1;
+    grid-row: 2;
     width: 100%;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+.dash-path__plan {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
 }
 
 /* ─── Hero (day-status header) ──────────────────────────────────── */
@@ -17704,7 +17711,7 @@ a.daily-plan__position--link:focus {
     color: #fff;
 }
 
-/* Prominent setup (reading focus, no book yet) — between hero and optional */
+/* Prominent setup: book selection stays near the top of the plan. */
 .daily-plan__section--setup-prominent .daily-plan__section-title {
     color: var(--color-text, #222);
     font-size: 1rem;
@@ -17733,6 +17740,17 @@ a.daily-plan__position--link:focus {
 }
 .plan-item--optional-locked .plan-item__badge {
     opacity: 0.7;
+}
+.daily-plan__section--optional-locked .daily-plan__list--optional-preview {
+    gap: 6px;
+}
+.daily-plan__section--optional-locked .daily-plan__list--optional-preview .plan-item {
+    padding: 8px 10px;
+    min-height: 42px;
+}
+.daily-plan__section--optional-locked .daily-plan__list--optional-preview .plan-item__subtitle,
+.daily-plan__section--optional-locked .daily-plan__list--optional-preview .plan-item__lock-hint {
+    display: none;
 }
 
 /* Secondary CTA for optional «Начать» (outline brand) */
@@ -18260,6 +18278,7 @@ a.daily-plan__position--link:focus {
     flex-direction: column;
     gap: 16px;
     grid-column: 2;
+    grid-row: 1;
 }
 .dash-path__rail-wrap .dash-rail {
     width: 100%;
@@ -18268,6 +18287,8 @@ a.daily-plan__position--link:focus {
 
 /* Achievements card in the rail */
 .dash-achievements--rail {
+    grid-column: 2;
+    grid-row: 2;
     background: var(--color-surface, #fff);
     border-radius: 12px;
     padding: 16px;
@@ -18406,6 +18427,20 @@ a.daily-plan__position--link:focus {
     padding: 2px 6px;
     font-size: 0.68rem;
     font-weight: 700;
+}
+
+@media (max-width: 960px) {
+    .dash-path__plan,
+    .dash-path__rail-wrap,
+    .dash-path__main,
+    .dash-achievements--rail {
+        grid-column: 1;
+        grid-row: auto;
+    }
+    .dash-path__plan { order: 1; }
+    .dash-path__rail-wrap { order: 2; }
+    .dash-path__main { order: 3; }
+    .dash-achievements--rail { order: 4; }
 }
 
 /* Leaderboard under the plan in the left column */

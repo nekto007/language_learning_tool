@@ -265,6 +265,32 @@ class TestContinuationQueueSection:
         # The first (current) queue lesson is a live link.
         assert '/lesson/10' in html
 
+    def test_optional_queue_limited_to_five_visible_items(self):
+        env = _build_env()
+        optional = [
+            {
+                'id': f'curriculum:lesson:{n}',
+                'kind': 'curriculum',
+                'title': f'Урок очереди {n}',
+                'url': f'/lesson/{n}',
+                'completed': False,
+                'lesson_type': 'vocabulary',
+                'data': {'lesson_id': n, 'queue_position': i + 1},
+            }
+            for i, n in enumerate(range(10, 18))
+        ]
+        html = _render_partial(env, self._queue_plan(optional=optional))
+        for n in range(10, 15):
+            assert f'Урок очереди {n}' in html
+        assert 'Урок очереди 15' not in html
+        assert 'Показать ещё уроки' in html or 'Продолжить обучение' in html
+
+    def test_locked_optional_queue_uses_compact_preview_class(self):
+        env = _build_env()
+        html = _render_partial(env, self._queue_plan(day_secured=False))
+        assert 'daily-plan__section--optional-locked' in html
+        assert 'daily-plan__list--optional-preview' in html
+
     def test_curriculum_items_use_step_badge_not_bonus(self):
         env = _build_env()
         html = _render_partial(env, self._queue_plan())
@@ -300,3 +326,31 @@ class TestContinuationQueueSection:
         }])
         html = _render_partial(env, plan)
         assert 'Бонус' in html
+
+
+class TestDashboardMobileOrder:
+    """Unified dashboard keeps the requested single-column order."""
+
+    def test_unified_dashboard_sections_are_orderable_siblings(self):
+        with open(_DASHBOARD_UNIFIED_PATH, encoding='utf-8') as f:
+            src = f.read()
+        assert src.index('class="dash-path__plan"') < src.index('class="dash-path__rail-wrap"')
+        assert src.index('class="dash-path__rail-wrap"') < src.index('class="dash-path__main"')
+        assert src.index('class="dash-path__main"') < src.index('class="dash-achievements dash-achievements--rail"')
+
+
+class TestBookSetupPlacement:
+    """Book selection is shown near the plan, not buried in setup footer."""
+
+    def test_setup_book_is_prominent_without_reading_focus(self):
+        env = _build_env()
+        plan = _base_plan(setup=[{
+            'id': 'setup:book',
+            'kind': 'setup_book',
+            'title': 'Выберите книгу',
+            'subtitle': 'Для чтения',
+            'url': '#book-select-modal',
+        }])
+        html = _render_partial(env, plan)
+        assert 'daily-plan__section--setup-prominent' in html
+        assert 'data-section="setup"' not in html
