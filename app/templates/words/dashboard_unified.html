@@ -56,6 +56,7 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 
   <div class="dash-path" data-unified-plan="true">
     <section class="dash-path__plan" aria-label="План на сегодня">
+      {% include 'components/_dashboard_hero.html' %}
       {% include 'partials/unified_daily_plan.html' %}
     </section>
 
@@ -64,7 +65,6 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
     </div>
 
     <main class="dash-path__main">
-      {% include 'components/_dashboard_hero.html' %}
       {% include 'partials/_weekly_report.html' %}
       {# ── LEADERBOARD (below the plan in the left column) ── #}
       {% if xp_leaderboard %}

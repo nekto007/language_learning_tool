@@ -338,6 +338,11 @@ class TestDashboardMobileOrder:
         assert src.index('class="dash-path__rail-wrap"') < src.index('class="dash-path__main"')
         assert src.index('class="dash-path__main"') < src.index('class="dash-achievements dash-achievements--rail"')
 
+    def test_today_plan_hero_renders_before_plan_tasks(self):
+        with open(_DASHBOARD_UNIFIED_PATH, encoding='utf-8') as f:
+            src = f.read()
+        assert src.index("components/_dashboard_hero.html") < src.index("partials/unified_daily_plan.html")
+
 
 class TestBookSetupPlacement:
     """Book selection is shown near the plan, not buried in setup footer."""
