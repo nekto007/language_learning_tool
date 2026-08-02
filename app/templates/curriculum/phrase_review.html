@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Повтори 3 фразы{% endblock %}
+
+{% block content %}
+<main class="container" style="max-width: 760px; padding-top: 2rem; padding-bottom: 3rem;">
+  <header class="mb-4">
+    <h1>💬 Повтори 3 фразы</h1>
+    <p class="text-muted mb-0">Короткая практика на 3 минуты. Фразы выбраны из недавних тем и ошибок.</p>
+  </header>
+
+  {% if not items %}
+    <section class="card"><div class="card-body">
+      <p class="mb-3">Пока нет подходящих фраз для повторения. Заверши модуль или пройди несколько заданий — они появятся здесь.</p>
+      <a class="btn btn-primary" href="/dashboard">К плану дня</a>
+    </div></section>
+  {% else %}
+    <form id="phrase-review-form" novalidate>
+      {% for item in items %}
+        <section class="card mb-3" data-item-index="{{ loop.index0 }}">
+          <div class="card-body">
+            <div class="small text-muted mb-2">Фраза {{ loop.index }} из {{ items|length }}{% if item.module_title %} · {{ item.module_title }}{% endif %}</div>
+            <label class="form-label fw-semibold" for="phrase-answer-{{ loop.index0 }}">{{ item.prompt }}</label>
+            <input id="phrase-answer-{{ loop.index0 }}" class="form-control" type="text" autocomplete="off" autocapitalize="sentences" required>
+            <div class="small mt-2" id="phrase-result-{{ loop.index0 }}" aria-live="polite"></div>
+          </div>
+        </section>
+      {% endfor %}
+      <button class="btn btn-primary btn-lg" id="phrase-review-submit" type="submit">Проверить</button>
+      <a class="btn btn-outline-secondary btn-lg ms-2" href="/dashboard">Позже</a>
+    </form>
+  {% endif %}
+</main>
+
+{% if items %}
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const form = document.getElementById('phrase-review-form');
+  if (!form) return;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = document.getElementById('phrase-review-submit');
+    const answers = Array.from(document.querySelectorAll('[id^="phrase-answer-"]')).map((input) => input.value);
+    button.disabled = true;
+    try {
+      const response = await fetch('/api/daily-plan/phrase-review/complete', {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({answers}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Не удалось сохранить результат');
+      data.results.forEach((result, index) => {
+        const output = document.getElementById('phrase-result-' + index);
+        const input = document.getElementById('phrase-answer-' + index);
+        input.disabled = true;
+        output.className = 'small mt-2 ' + (result.correct ? 'text-success' : 'text-danger');
+        output.textContent = result.correct ? 'Верно!' : 'Верный вариант: ' + result.answer;
+      });
+      button.textContent = `Готово: ${data.correct_count}/${data.total}`;
+    } catch (error) {
+      button.disabled = false;
+      alert(error.message || 'Не удалось сохранить результат. Попробуйте ещё раз.');
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -30,6 +30,7 @@ Kind = Literal[
     'writing',
     'error_review',
     'grammar_review',
+    'phrase_review',
     'challenge',
     'setup_book',
     'setup_level',
@@ -44,6 +45,7 @@ CompletionSignal = Literal[
     'pronunciation_attempt',
     'error_review_done',
     'challenge_completed',
+    'phrase_review_done',
     'setup_action',
     'none',
 ]

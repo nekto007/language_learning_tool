@@ -3,7 +3,7 @@
 import logging
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from flask_login import current_user
 
 from app import csrf
@@ -1018,6 +1018,92 @@ def complete_error_review():
             'leveled_up': perfect_day.leveled_up,
         }
     return jsonify(response)
+
+
+def _normalise_phrase_answer(value: object) -> str:
+    import re
+    value = re.sub(r"[^\\w\\s']", '', str(value or '').casefold())
+    return ' '.join(value.strip().split())
+
+
+@api_daily_plan.route('/daily-plan/phrase-review/complete', methods=['POST'])
+@csrf.exempt
+@api_auth_required
+def complete_phrase_review():
+    """Grade and record the optional daily three-phrase retrieval activity."""
+    from app.daily_plan.linear.errors import resolve_quiz_error
+    from app.daily_plan.models import DailyPlanEvent
+    from app.utils.time_utils import get_user_local_date
+
+    items = session.get('daily_phrase_review_items')
+    if not isinstance(items, list) or not items:
+        return api_error('phrase_review_expired', 'Open the phrase review again', 400)
+
+    body = request.get_json(silent=True) or {}
+    answers = body.get('answers') or []
+    if not isinstance(answers, list):
+        return api_error('invalid_answers', 'answers must be a list', 400)
+
+    results = []
+    resolved_error_ids: list[int] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        answer = answers[index] if index < len(answers) else ''
+        accepted = item.get('accepted_answers') or [item.get('answer', '')]
+        is_correct = _normalise_phrase_answer(answer) in {
+            _normalise_phrase_answer(candidate) for candidate in accepted
+        }
+        if is_correct and item.get('error_id') is not None:
+            try:
+                resolved_error_ids.append(int(item['error_id']))
+            except (TypeError, ValueError):
+                pass
+        results.append({
+            'id': item.get('id'),
+            'correct': is_correct,
+            'answer': item.get('answer', ''),
+        })
+
+    for error_id in resolved_error_ids:
+        resolve_quiz_error(error_id, current_user.id, db, commit=False)
+
+    today = get_user_local_date(current_user.id, db)
+    event = (
+        db.session.query(DailyPlanEvent)
+        .filter_by(
+            user_id=current_user.id,
+            event_type='phrase_review_completed',
+            plan_date=today,
+        )
+        .first()
+    )
+    correct_count = sum(1 for result in results if result['correct'])
+    if event is None:
+        db.session.add(DailyPlanEvent(
+            user_id=current_user.id,
+            event_type='phrase_review_completed',
+            plan_date=today,
+            step_kind='phrase_review',
+            reason_text=f'{correct_count}/{len(results)} phrases recalled',
+        ))
+    else:
+        event.reason_text = f'{correct_count}/{len(results)} phrases recalled'
+
+    try:
+        db.session.commit()
+    except Exception:
+        logger.warning('phrase_review completion failed user=%s', current_user.id, exc_info=True)
+        db.session.rollback()
+        return api_error('db_error', 'Failed to save phrase review', 500)
+
+    session.pop('daily_phrase_review_items', None)
+    return jsonify({
+        'success': True,
+        'correct_count': correct_count,
+        'total': len(results),
+        'results': results,
+    })
 
 
 @api_daily_plan.route('/plan/pause', methods=['POST'])

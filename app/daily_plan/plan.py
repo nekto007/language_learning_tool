@@ -29,6 +29,7 @@ from app.daily_plan.items.curriculum import (
 )
 from app.daily_plan.items.error_review import build_error_review_item, determine_section
 from app.daily_plan.items.grammar_review import build_grammar_review_item
+from app.daily_plan.items.phrase_review import build_phrase_review_item
 from app.daily_plan.items.reading import build_reading_item, reading_preference_needs_setup
 from app.daily_plan.items.setup import (
     build_setup_book_item,
@@ -192,9 +193,9 @@ def build_optional(
             if cli_lid is not None:
                 seen_lesson_ids.add(cli_lid)
 
-    # Active candidates, in render order: the curriculum continuation queue
-    # first (Duolingo-style «Дальше по курсу» — a long list of upcoming spine
-    # lessons), then the other practice sources (SRS, reading, …).
+    # Active candidates, in render order. Phrase review goes first so this
+    # short, optional retrieval exercise remains visible instead of being
+    # buried behind the long curriculum continuation queue.
     active_candidates: list[PlanItem] = []
 
     def _accept(candidate: Optional[PlanItem]) -> bool:
@@ -210,6 +211,12 @@ def build_optional(
         if candidate_lid is not None:
             seen_lesson_ids.add(candidate_lid)
         return True
+
+    _accept(_build_optional_candidate(
+        user_id, db, 'phrase_review', focus,
+        exclude_curriculum_ids=exclude_curriculum_ids,
+        graduated=graduated,
+    ))
 
     # Curriculum continuation queue: anchor on the required curriculum lesson
     # and walk the spine forward. The anchor (and any lesson already seen) is
@@ -285,6 +292,8 @@ def _build_optional_candidate(
     exclude_curriculum_ids: Optional[set[int]] = None,
     graduated: bool = False,
 ) -> Optional[PlanItem]:
+    if kind == 'phrase_review':
+        return build_phrase_review_item(user_id, db, section='optional')
     if kind == 'srs':
         return build_srs_item(
             user_id, db, section='optional',

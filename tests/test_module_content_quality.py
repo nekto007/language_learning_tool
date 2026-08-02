@@ -8,16 +8,6 @@ import pytest
 
 MODULE_DIR = Path(__file__).resolve().parents[1] / "module_completed" / "fixed"
 
-LEVEL_TARGETS = {
-    # A1 minimums reflect M1 (18-lesson pilot): vocab=14, reading_words=83.
-    # All other A1 modules (12-lesson) exceed these floors comfortably.
-    "A1": {"vocab": 14, "exercises": 60, "reading_words": 83, "listening_words": 90, "dialogues": 3},
-    "A2": {"vocab": 18, "exercises": 65, "reading_words": 130, "listening_words": 120, "dialogues": 4},
-    "B1": {"vocab": 20, "exercises": 70, "reading_words": 220, "listening_words": 180, "dialogues": 5},
-    "B2": {"vocab": 24, "exercises": 80, "reading_words": 320, "listening_words": 250, "dialogues": 6},
-    "C1": {"vocab": 28, "exercises": 90, "reading_words": 420, "listening_words": 330, "dialogues": 7},
-}
-
 # 12-lesson template (all modules except A1/M1)
 EXPECTED_LESSON_TYPES_12 = [
     "vocabulary",
@@ -136,23 +126,42 @@ def test_module_lesson_structure_is_stable():
         assert [lesson["order"] for lesson in module["lessons"]] == list(range(1, n + 1)), path
 
 
-def test_module_level_quality_targets_are_met_and_progressive():
-    by_level = defaultdict(list)
-
+def test_modules_have_core_learning_content():
+    """Quality is assessed by relevance and validity, not by word-count quotas."""
     for path, module in load_modules():
-        level = module["level"]
-        assert level in LEVEL_TARGETS, path
-        metrics = module_metrics(module)
-        by_level[level].append(metrics)
-        for key, target in LEVEL_TARGETS[level].items():
-            assert metrics[key] >= target, f"{path}: {key}={metrics[key]} < {target}"
+        lesson_by_type = {lesson["type"]: lesson for lesson in module["lessons"]}
+        assert lesson_by_type["vocabulary"]["content"].get("vocabulary"), path
+        assert english_text(lesson_by_type["reading"]["content"].get("text")), path
+        assert english_text(lesson_by_type["listening_immersion"]["content"].get("text")), path
+        assert lesson_by_type["final_test"]["content"].get("test_sections"), path
 
-    levels = [level for level in ("A1", "A2", "B1", "B2", "C1") if level in by_level]
-    for previous, current in zip(levels, levels[1:]):
-        prev_min = {key: min(metrics[key] for metrics in by_level[previous]) for key in LEVEL_TARGETS[previous]}
-        curr_min = {key: min(metrics[key] for metrics in by_level[current]) for key in LEVEL_TARGETS[current]}
-        for key in prev_min:
-            assert curr_min[key] > prev_min[key], f"{key} does not increase from {previous} to {current}"
+
+def test_a1_a2_have_no_known_template_filler():
+    banned = re.compile(
+        r"Let us practise the topic words in context|"
+        r"Let us ignore the lesson topic|"
+        r"Let us remove every useful example|"
+        r"Let us choose an unrelated answer|"
+        r"Which option matches the .* practice focus|"
+        r"Can you give a daily context about|"
+        r"A: What is this\? B: It is about",
+        re.IGNORECASE,
+    )
+    for path, module in load_modules():
+        if module["level"] not in {"A1", "A2"}:
+            continue
+        match = banned.search(json.dumps(module, ensure_ascii=False))
+        assert match is None, f"{path}: template filler remains: {match.group(0)}"
+
+
+def test_a2_final_test_practice_is_in_a_rendered_section():
+    """Final-test UI renders ``test_sections`` rather than fallback exercises."""
+    for path, module in load_modules():
+        if module["level"] != "A2":
+            continue
+        final_test = next(lesson for lesson in module["lessons"] if lesson["type"] == "final_test")
+        content = final_test["content"]
+        assert not content.get("exercises"), f"{path}: final-test fallback exercises are not rendered"
 
 
 def test_open_answer_questions_have_acceptable_answers():

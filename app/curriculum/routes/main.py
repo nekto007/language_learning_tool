@@ -3,7 +3,7 @@
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
@@ -323,6 +323,19 @@ def error_review_session():
         top_lessons=top_lessons,
         top_topics=top_topics,
     )
+
+
+@learn_bp.route('/phrase-review/', methods=['GET'])
+@login_required
+def phrase_review_session():
+    """Render the optional three-phrase retrieval activity from the daily plan."""
+    from app.daily_plan.items.phrase_review import get_phrase_review_items
+
+    items = get_phrase_review_items(current_user.id, db)
+    # Keep the server-side answer key for the completion endpoint.  The
+    # template receives only prompts, never the expected English phrases.
+    session['daily_phrase_review_items'] = items
+    return render_template('curriculum/phrase_review.html', items=items)
 
 
 @learn_bp.route('/<string:level_code>/')
