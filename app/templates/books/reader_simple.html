@@ -451,6 +451,9 @@ setTimeout(updateProgress, 100);
     let idleTimer = null;
     let manualPause = false;
     let checkpointPause = false;                 // auto-pause at every dailyTargetSeconds boundary
+    let checkpointSavePending = false;           // wait for /end before choosing the checkpoint banner
+    let checkpointFallbackTimer = null;          // network-failure escape hatch for a pending checkpoint
+    let checkpointClosingSessionId = null;       // ignore an older heartbeat response at the boundary
     let bannerShown = false;
     let bookCompletedBannerShown = false;
     let beaconUsed = false;                      // suppress duplicate sends from pagehide+beforeunload
@@ -559,13 +562,23 @@ setTimeout(updateProgress, 100);
         }
         return _post('/api/books/reading-session/end', payload)
             .then(data => {
-                if (data) _handleEndResponse(data);
+                if (data) _handleEndResponse(data, payload.session_id);
                 return data;
             });
     }
 
-    function _handleEndResponse(data) {
+    function _handleEndResponse(data, responseSessionId) {
         if (!data) return;
+        const isCheckpointResponse = checkpointSavePending
+            && responseSessionId === checkpointClosingSessionId;
+        if (isCheckpointResponse) {
+            checkpointSavePending = false;
+            checkpointClosingSessionId = null;
+            if (checkpointFallbackTimer) {
+                clearTimeout(checkpointFallbackTimer);
+                checkpointFallbackTimer = null;
+            }
+        }
         if (data.book_completed) {
             _showBookCompleted(data);
             return;
@@ -581,6 +594,11 @@ setTimeout(updateProgress, 100);
         if (data.banner_state && data.banner_state !== 'none') {
             const replacingFallback = bannerShown && !lastBannerData;
             lastBannerData = data;
+            if (checkpointPause && !checkpointSavePending && !bannerShown) {
+                bannerShown = true;
+                _showBanner(data);
+                return;
+            }
             if (replacingFallback) {
                 // Checkpoint-pause already rendered a generic "5 минут
                 // пройдено" fallback because /end was still in flight;
@@ -589,11 +607,20 @@ setTimeout(updateProgress, 100);
                 return;
             }
         }
+        if (checkpointPause && !checkpointSavePending && !bannerShown) {
+            bannerShown = true;
+            _showBanner({
+                banner_state: 'checkpoint_only',
+                next_slot_url: null,
+                dashboard_url: '/dashboard',
+            });
+            return;
+        }
         _maybeShowCheckpointBanner();
     }
 
     function _maybeShowCheckpointBanner() {
-        if (bannerShown) return;
+        if (bannerShown || checkpointSavePending) return;
         let elapsed = activeSecondsToday;
         if (state === 'active' && activeTickAnchor !== null) {
             elapsed += Math.floor((Date.now() - activeTickAnchor) / 1000);
@@ -736,6 +763,11 @@ setTimeout(updateProgress, 100);
         }
 
         banner.hidden = false;
+        const pauseButton = document.getElementById('reading-pause-btn');
+        if (pauseButton && checkpointPause) {
+            pauseButton.hidden = true;
+            pauseButton.disabled = false;
+        }
     }
 
     function _showBookCompleted(data) {
@@ -752,19 +784,48 @@ setTimeout(updateProgress, 100);
     function _checkpointPause() {
         if (checkpointPause) return;
         checkpointPause = true;
+        checkpointSavePending = true;
+        checkpointClosingSessionId = sessionId;
+        lastBannerData = null;
         // Reset bannerShown so _handleEndResponse can show the banner again
         // for this fresh checkpoint cycle (previous show was a different one).
         bannerShown = false;
         _pause();
+        // A failed request must not leave the reader frozen forever. In the
+        // normal case /end responds long before this timeout and its banner
+        // is shown instead of the generic fallback.
+        checkpointFallbackTimer = setTimeout(function () {
+            if (!checkpointSavePending) return;
+            checkpointSavePending = false;
+            checkpointClosingSessionId = null;
+            checkpointFallbackTimer = null;
+            if (!bannerShown) {
+                bannerShown = true;
+                _showBanner({
+                    banner_state: 'checkpoint_only',
+                    next_slot_url: null,
+                    dashboard_url: '/dashboard',
+                });
+            }
+        }, 4000);
+        _updatePauseBtn();
     }
 
     function _extendCheckpoint() {
         if (!checkpointPause) return;
         checkpointPause = false;
+        checkpointSavePending = false;
+        checkpointClosingSessionId = null;
+        if (checkpointFallbackTimer) {
+            clearTimeout(checkpointFallbackTimer);
+            checkpointFallbackTimer = null;
+        }
         nextCheckpoint += dailyTargetSeconds;
         bannerShown = false;
         const banner = document.getElementById('reading-completion-banner');
         if (banner) banner.hidden = true;
+        const pauseButton = document.getElementById('reading-pause-btn');
+        if (pauseButton) pauseButton.hidden = false;
         manualPause = false;
         _start();
     }
@@ -872,14 +933,27 @@ setTimeout(updateProgress, 100);
     function _updatePauseBtn() {
         const btn = document.getElementById('reading-pause-btn');
         if (!btn) return;
-        if (checkpointPause) {
-            const m = Math.max(1, Math.floor(dailyTargetSeconds / 60));
-            btn.innerHTML = '▶️ Ещё ' + m + ' мин';
+        if (checkpointSavePending) {
+            btn.hidden = false;
+            btn.disabled = true;
+            btn.innerHTML = 'Сохраняем…';
+            btn.setAttribute('aria-pressed', 'true');
+        } else if (checkpointPause) {
+            // Once the server result is rendered, the sole continuation CTA
+            // lives in the banner. This branch only covers the tiny interval
+            // before it appears.
+            btn.hidden = bannerShown;
+            btn.disabled = false;
+            btn.innerHTML = '⏸️ Пауза';
             btn.setAttribute('aria-pressed', 'true');
         } else if (state === 'paused' || manualPause) {
+            btn.hidden = false;
+            btn.disabled = false;
             btn.innerHTML = '▶️ Продолжить';
             btn.setAttribute('aria-pressed', 'true');
         } else {
+            btn.hidden = false;
+            btn.disabled = false;
             btn.innerHTML = '⏸️ Пауза';
             btn.setAttribute('aria-pressed', 'false');
         }

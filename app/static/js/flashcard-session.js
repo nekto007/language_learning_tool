@@ -299,8 +299,10 @@ class FlashcardSession {
             cardNote: document.getElementById('card-note'),
             cardNoteText: document.getElementById('card-note-text'),
             recoveryTools: document.getElementById('recovery-tools'),
+            associationEditor: document.getElementById('association-editor'),
             associationInput: document.getElementById('association-input'),
             saveAssociationBtn: document.getElementById('save-association-btn'),
+            toggleAssociationBtn: document.getElementById('toggle-association-btn'),
             excludeWordBtn: document.getElementById('exclude-word-btn'),
             associationStatus: document.getElementById('association-status'),
         };
@@ -332,9 +334,15 @@ class FlashcardSession {
         if (this.els.saveAssociationBtn) {
             this.els.saveAssociationBtn.addEventListener('click', () => self.saveAssociation());
         }
+        if (this.els.toggleAssociationBtn) {
+            this.els.toggleAssociationBtn.addEventListener('click', () => self.toggleAssociationEditor());
+        }
         if (this.els.excludeWordBtn) {
             this.els.excludeWordBtn.addEventListener('click', () => self.excludeCurrentWord());
         }
+        document.querySelectorAll('[data-postpone-days]').forEach(button => {
+            button.addEventListener('click', () => self.postponeCurrentWord(Number(button.dataset.postponeDays)));
+        });
 
         // Rating buttons
         document.querySelectorAll('.rating-btn').forEach(button => {
@@ -787,6 +795,12 @@ class FlashcardSession {
             if (this.els.associationInput) {
                 this.els.associationInput.value = card.is_recovery ? (card.personal_association || '') : '';
             }
+            if (this.els.associationEditor) this.els.associationEditor.hidden = true;
+            if (this.els.toggleAssociationBtn) {
+                this.els.toggleAssociationBtn.textContent = card.personal_association
+                    ? 'Изменить ассоциацию'
+                    : 'Добавить ассоциацию';
+            }
             if (this.els.associationStatus) this.els.associationStatus.textContent = '';
         }
 
@@ -930,6 +944,42 @@ class FlashcardSession {
             if (status) status.textContent = 'Не удалось сохранить';
         } finally {
             if (button) button.disabled = false;
+        }
+    }
+
+    toggleAssociationEditor() {
+        const card = this.cards[this.currentCardIndex];
+        if (!card || !card.is_recovery || !this.els.associationEditor) return;
+        this.els.associationEditor.hidden = !this.els.associationEditor.hidden;
+        if (!this.els.associationEditor.hidden && this.els.associationInput) {
+            this.els.associationInput.focus();
+        }
+    }
+
+    async postponeCurrentWord(days) {
+        const card = this.cards[this.currentCardIndex];
+        if (!card || !card.is_recovery || ![3, 5, 10].includes(days)) return;
+
+        const buttons = Array.from(document.querySelectorAll('[data-postpone-days]'));
+        buttons.forEach(button => { button.disabled = true; });
+        try {
+            const response = await fetch('/study/api/postpone-word', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: this._csrfHeaders(),
+                body: JSON.stringify({ word_id: card.word_id, days }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || 'postpone failed');
+
+            const currentIndex = this.currentCardIndex;
+            this.cards = this.cards.filter(item => item.word_id !== card.word_id);
+            this._recountRemaining();
+            this.showCard(currentIndex);
+        } catch (error) {
+            console.error('Failed to postpone word:', error);
+            if (this.els.associationStatus) this.els.associationStatus.textContent = 'Не удалось отложить слово';
+            buttons.forEach(button => { button.disabled = false; });
         }
     }
 

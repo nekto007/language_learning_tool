@@ -1179,6 +1179,10 @@
     line-height: 1.4;
 }
 
+.fc-translation {
+    color: #334155;
+}
+
 .fc-recovery-tools {
     margin: 0 0 1rem;
     text-align: left;
@@ -1215,6 +1219,44 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.fc-recovery-tools__postpone {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.fc-recovery-tools__postpone-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.fc-recovery-tools__postpone-btn,
+.fc-recovery-tools__association-toggle {
+    border: 0;
+    padding: 0.25rem 0;
+    background: transparent;
+    color: #475569;
+    font: inherit;
+    font-size: 0.8125rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.fc-recovery-tools__postpone-btn:hover,
+.fc-recovery-tools__association-toggle:hover {
+    color: #1e293b;
+}
+
+.fc-recovery-tools__editor {
+    margin-top: 0.65rem;
+}
+
+.fc-recovery-tools__editor .btn {
     margin-top: 0.5rem;
 }
 
