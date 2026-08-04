@@ -1130,9 +1130,8 @@ def reading_session_start():
     # increment so «Ещё 5 минут» on a 10-min day reads «Ещё 10 минут».
     from app.books.reading_session import get_daily_reading_target_seconds
     from app.utils.time_utils import get_user_local_date
-    today_target_seconds = get_daily_reading_target_seconds(
-        get_user_local_date(current_user.id, db)
-    )
+    study_date = get_user_local_date(current_user.id, db)
+    today_target_seconds = get_daily_reading_target_seconds(study_date)
 
     logger.info(
         "reading-session/start user=%s chapter=%s book=%s session=%s book_seconds_today=%s target=%s",
@@ -1144,6 +1143,7 @@ def reading_session_start():
         'session_id': session.id,
         'book_seconds_today': book_seconds_today,
         'today_target_seconds': today_target_seconds,
+        'study_date': study_date.isoformat(),
     })
 
 

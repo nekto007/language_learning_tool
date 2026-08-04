@@ -60,14 +60,13 @@ class TestGetUserLocalDate:
         test_user.timezone = 'America/New_York'
         db_session.commit()
         with app.app_context():
-            # At 04:30 UTC, NY is still on the previous calendar day.
+            # At 04:30 UTC, NY is 00:30 on the next calendar date, but the
+            # study day does not reset until 02:00 local time.
             frozen = datetime(2026, 4, 25, 4, 30, tzinfo=timezone.utc)
             with patch('app.utils.time_utils.datetime') as dt_mock:
                 dt_mock.now = lambda tz=None: frozen.astimezone(tz) if tz else frozen
                 result = get_user_local_date(test_user.id)
-            # UTC: 2026-04-25; NY at 00:30 EDT: 2026-04-25 too — pick a
-            # tighter boundary.
-            assert result == date(2026, 4, 25)
+            assert result == date(2026, 4, 24)
 
     def test_cross_midnight_tz_returns_prior_local_date(self, app, db_session, test_user):
         test_user.timezone = 'America/New_York'
@@ -84,12 +83,33 @@ class TestGetUserLocalDate:
         test_user.timezone = None
         db_session.commit()
         with app.app_context():
-            # Europe/Moscow (UTC+3) — 23:00 UTC → 02:00 next-day Moscow.
-            frozen = datetime(2026, 4, 25, 23, 0, tzinfo=timezone.utc)
+            # Timezone lookup is memoized for one request/app context; this
+            # test deliberately changes the user's stored timezone.
+            from flask import g
+            g.pop('_request_cache', None)
+            # Pick a time that is after the 02:00 cutoff for both the
+            # production fallback timezone and the UTC test fallback.
+            frozen = datetime(2026, 4, 26, 5, 0, tzinfo=timezone.utc)
             with patch('app.utils.time_utils.datetime') as dt_mock:
                 dt_mock.now = lambda tz=None: frozen.astimezone(tz) if tz else frozen
                 result = get_user_local_date(test_user.id)
             assert result == date(2026, 4, 26)
+
+    def test_study_day_rolls_over_at_two_am(self, app, db_session, test_user):
+        test_user.timezone = 'Europe/Istanbul'
+        db_session.commit()
+        with app.app_context():
+            # 01:59 local stays in the preceding study day.
+            before_cutoff = datetime(2026, 4, 25, 22, 59, tzinfo=timezone.utc)
+            with patch('app.utils.time_utils.datetime') as dt_mock:
+                dt_mock.now = lambda tz=None: before_cutoff.astimezone(tz) if tz else before_cutoff
+                assert get_user_local_date(test_user.id) == date(2026, 4, 25)
+
+            # 02:00 local starts the new study day.
+            at_cutoff = datetime(2026, 4, 25, 23, 0, tzinfo=timezone.utc)
+            with patch('app.utils.time_utils.datetime') as dt_mock:
+                dt_mock.now = lambda tz=None: at_cutoff.astimezone(tz) if tz else at_cutoff
+                assert get_user_local_date(test_user.id) == date(2026, 4, 26)
 
     def test_invalid_timezone_falls_back_to_utc(self, app, db_session, test_user):
         test_user.timezone = 'Not/A/Real/Zone'

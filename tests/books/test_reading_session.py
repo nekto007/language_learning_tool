@@ -376,7 +376,11 @@ class TestReadingSessionEndpoints:
             json={'chapter_id': test_chapter.id},
         )
         assert r.status_code == 200
-        sid = r.get_json()['session_id']
+        start_body = r.get_json()
+        sid = start_body['session_id']
+        # The reader uses this server-authoritative marker to reset its
+        # client accumulator only when the 02:00 study-day boundary changes.
+        assert start_body['study_date']
 
         # Backdate started_at so end_session yields a non-zero duration.
         session = db.session.get(UserReadingSession, sid)

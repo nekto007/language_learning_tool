@@ -460,6 +460,7 @@ setTimeout(updateProgress, 100);
     let nextCheckpoint = TARGET_FALLBACK_SECONDS; // active-seconds boundary for the next banner
     let lastBannerData = null;                   // latest server end-response carrying a banner_state + CTA urls
     let didSeedFromServer = false;               // first /start response seeds today-total once
+    let studyDate = null;                         // server-authoritative study date (02:00 → 02:00)
 
     function _currentOffsetPct() {
         // Must match ``computeReadingProgress`` — the offset_pct hint sent
@@ -499,13 +500,22 @@ setTimeout(updateProgress, 100);
                     sessionId = data.session_id;
                 }
                 // Pick up today's reading target (5/10-min alternation by
-                // day-of-month). Updated on every /start so a midnight
-                // rollover during a long read shifts to the new day's
-                // target on the next heartbeat.
+                // day-of-month). The server's study day turns over at 02:00,
+                // not at calendar midnight.
                 if (data && typeof data.today_target_seconds === 'number'
                     && data.today_target_seconds > 0) {
                     dailyTargetSeconds = data.today_target_seconds;
                 }
+                // Heartbeats reopen the session every minute. When the
+                // server reports a new study date, reset the client-side
+                // accumulator to the new day's server total instead of
+                // carrying yesterday's seconds into the new progress bar.
+                if (data && data.study_date && studyDate && data.study_date !== studyDate) {
+                    activeSecondsToday = Number(data.book_seconds_today) || 0;
+                    nextCheckpoint = (Math.floor(activeSecondsToday / dailyTargetSeconds) + 1) * dailyTargetSeconds;
+                    _renderTimer();
+                }
+                if (data && data.study_date) studyDate = data.study_date;
                 // Seed today's accumulated reading time from server on the
                 // very first /start of this page load. Heartbeat-driven
                 // re-opens of subsequent sessions do not re-seed (we already

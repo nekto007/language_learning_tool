@@ -52,9 +52,9 @@ def get_daily_reading_target_seconds(today: 'date | None' = None) -> int:
     Even days (2, 4, 6, …) → 600 seconds (10 min).
 
     ``today`` defaults to today in UTC; callers that care about
-    user-local day should pass the user-local date so the target rolls
-    over with the user's local midnight (matches snapshot v2 / streak /
-    book-reading aggregation, all of which key on local date).
+    user-local study day should pass the date from ``get_user_local_date``;
+    it turns over at 02:00 local time (matching the daily plan, streak, and
+    book-reading aggregation).
     """
     from datetime import date as _date
     if today is None:
@@ -355,8 +355,12 @@ def end_session(
 
 
 def _user_local_day_window_utc(user_id: int, db_session: Any) -> tuple[datetime, datetime]:
-    """Return (start_utc, end_utc) bracketing the user's local day."""
-    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
+    """Return (start_utc, end_utc) bracketing the user's study day."""
+    from app.utils.time_utils import (
+        LEARNING_DAY_START_HOUR,
+        get_user_local_date,
+        get_user_timezone_name,
+    )
 
     try:
         from zoneinfo import ZoneInfo
@@ -370,8 +374,17 @@ def _user_local_day_window_utc(user_id: int, db_session: Any) -> tuple[datetime,
     except Exception:  # noqa: BLE001
         tz = timezone.utc
 
-    start_local = datetime(today.year, today.month, today.day, tzinfo=tz)
-    end_local = start_local + timedelta(days=1)
+    start_local = datetime(
+        today.year, today.month, today.day,
+        hour=LEARNING_DAY_START_HOUR,
+        tzinfo=tz,
+    )
+    next_day = today + timedelta(days=1)
+    end_local = datetime(
+        next_day.year, next_day.month, next_day.day,
+        hour=LEARNING_DAY_START_HOUR,
+        tzinfo=tz,
+    )
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 

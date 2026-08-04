@@ -9,7 +9,9 @@ XP twice — once under the UTC date and once under the user's tz date.
 
 ``get_user_local_date`` is the single source of truth: read
 ``User.timezone`` (falling back to ``config.settings.DEFAULT_TIMEZONE``
-then UTC) and return ``datetime.now(tz).date()``.
+then UTC) and return the learner's current *study-day* date.  A study day
+starts at 02:00 local time, so a late-night session is not interrupted by a
+calendar-midnight reset.
 """
 from __future__ import annotations
 
@@ -18,6 +20,13 @@ from datetime import datetime, time, timedelta, timezone
 from typing import Any, Optional
 
 from app.utils.request_cache import request_memoize
+
+
+# A learner who starts a session before midnight should not see their plan,
+# reading target, SRS budget, or streak split while they are still studying.
+# This is deliberately a single global cutoff (rather than a per-screen
+# workaround) so all daily features agree about what "today" means.
+LEARNING_DAY_START_HOUR = 2
 
 
 # Memoized by user_id only (NOT db_session) — audit E-011. This relies on the
@@ -66,14 +75,22 @@ def get_user_local_date(
     user_id: int,
     db_session: Any = None,
 ) -> date_cls:
-    """Return today's date in the user's timezone.
+    """Return the current study-day date in the user's timezone.
 
     Falls back to ``config.settings.DEFAULT_TIMEZONE`` when the user has
-    no timezone set, and to UTC if that value fails to resolve (e.g. on
-    a malformed override).
+    no timezone set, and to UTC if that value fails to resolve.  The study
+    day begins at :data:`LEARNING_DAY_START_HOUR` local time: e.g. at 01:30
+    on 5 August the returned date is 4 August.
     """
     tz_obj = _get_user_timezone(user_id, db_session)
-    return datetime.now(tz_obj).date()
+    return _study_day_date(datetime.now(tz_obj))
+
+
+def _study_day_date(now_local: datetime) -> date_cls:
+    """Map an aware user-local timestamp to its study-day date."""
+    if now_local.hour < LEARNING_DAY_START_HOUR:
+        return (now_local - timedelta(days=1)).date()
+    return now_local.date()
 
 
 def get_user_local_hour(
@@ -89,14 +106,15 @@ def get_user_local_day_bounds(
     user_id: int,
     db_session: Any = None,
 ) -> tuple[datetime, datetime]:
-    """Return UTC-naive bounds for the user's current local day.
+    """Return UTC-naive bounds for the user's current study day.
 
     The returned tuple is ``(start_utc_naive, end_utc_naive)`` so callers can
     compare against legacy ``DateTime`` columns that store UTC timestamps
     without tzinfo.
     """
     start = day_to_naive_utc(user_id, db_session, days_ahead=0)
-    return (start, start + timedelta(days=1))
+    end = day_to_naive_utc(user_id, db_session, days_ahead=1)
+    return (start, end)
 
 
 def day_to_naive_utc(
@@ -105,11 +123,12 @@ def day_to_naive_utc(
     days_ahead: int = 0,
     now_utc: Optional[datetime] = None,
 ) -> datetime:
-    """Return midnight of ``(today_local + days_ahead)`` as naive UTC.
+    """Return study-day start of ``(today_local + days_ahead)`` as naive UTC.
 
     Single source of truth for SRS day-based scheduling and counters:
     cards are always written/compared at the start of the user's local
     day so that "today" semantics stay consistent across UTC boundaries.
+    A study day begins at 02:00 in the user's timezone.
 
     ``now_utc`` lets tests freeze the reference clock (aware or naive UTC).
     """
@@ -119,9 +138,13 @@ def day_to_naive_utc(
     else:
         ref = now_utc if now_utc.tzinfo is not None else now_utc.replace(tzinfo=timezone.utc)
         now_local = ref.astimezone(tz_obj)
-    target_local_date = (now_local + timedelta(days=days_ahead)).date()
-    target_local_midnight = datetime.combine(target_local_date, time.min, tzinfo=tz_obj)
-    return target_local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
+    target_local_date = _study_day_date(now_local) + timedelta(days=days_ahead)
+    target_local_start = datetime.combine(
+        target_local_date,
+        time(hour=LEARNING_DAY_START_HOUR),
+        tzinfo=tz_obj,
+    )
+    return target_local_start.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def minutes_to_day_offset(
@@ -144,4 +167,4 @@ def minutes_to_day_offset(
         ref = now_utc if now_utc.tzinfo is not None else now_utc.replace(tzinfo=timezone.utc)
         now_local = ref.astimezone(tz_obj)
     target_local = now_local + timedelta(minutes=minutes)
-    return (target_local.date() - now_local.date()).days
+    return (_study_day_date(target_local) - _study_day_date(now_local)).days
