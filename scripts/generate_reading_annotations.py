@@ -342,6 +342,17 @@ def _chunk(items: list[Any], size: int) -> Iterable[list[Any]]:
         yield items[start:start + size]
 
 
+def make_batch_id(course_id: int, first_lesson_id: int, last_lesson_id: int) -> str:
+    """Name a batch after the lessons it holds.
+
+    The id must depend on content rather than on the position in the pending
+    list: imported lessons drop out of that list, so a positional number would
+    point at different lessons on the next export and the "result already
+    exists" check would then skip lessons that were never generated.
+    """
+    return f"course_{course_id}_{first_lesson_id:05d}-{last_lesson_id:05d}"
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     """Print scaffold coverage per book course."""
     from app.curriculum.daily_lessons import DailyLesson
@@ -394,8 +405,8 @@ def cmd_export(args: argparse.Namespace) -> int:
     print(f"Exporting {len(lessons)} lessons from course {course_id} into {out_dir}")
 
     written = skipped = 0
-    for index, chunk in enumerate(_chunk(lessons, args.batch_size), 1):
-        batch_id = f"course_{course_id}_batch_{index:03d}"
+    for chunk in _chunk(lessons, args.batch_size):
+        batch_id = make_batch_id(course_id, chunk[0].id, chunk[-1].id)
         batch_path = out_dir / f"{batch_id}.json"
         result_path = out_dir / f"{batch_id}_result.json"
 

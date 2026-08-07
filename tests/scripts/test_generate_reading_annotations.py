@@ -15,6 +15,7 @@ if str(SCRIPT_PATH) not in sys.path:
     sys.path.insert(0, str(SCRIPT_PATH))
 
 from generate_reading_annotations import (  # noqa: E402
+    make_batch_id,
     normalize_for_match,
     validate_scaffold,
 )
@@ -81,6 +82,32 @@ def test_normalize_collapses_whitespace():
 
 def test_normalize_unifies_typographic_punctuation():
     assert normalize_for_match("“haven’t” — yes") == '"haven\'t" - yes'
+
+
+# ---------------------------------------------------------------------------
+# make_batch_id
+# ---------------------------------------------------------------------------
+
+
+def test_batch_id_is_derived_from_the_lesson_range():
+    assert make_batch_id(3, 3158, 3168) == "course_3_03158-03168"
+
+
+def test_batch_id_is_stable_for_the_same_lessons():
+    """Re-exporting the same lessons must reuse the file name, so an existing
+    result is recognised instead of being written past."""
+    assert make_batch_id(3, 3158, 3168) == make_batch_id(3, 3158, 3168)
+
+
+def test_batch_id_differs_once_earlier_lessons_are_imported():
+    """Imported lessons leave the pending list; the next chunk must not inherit
+    the previous chunk's name, or its lessons would be silently skipped."""
+    assert make_batch_id(3, 3158, 3168) != make_batch_id(3, 3170, 3180)
+
+
+def test_batch_id_sorts_lexicographically_by_lesson_id():
+    ids = [make_batch_id(3, 990, 999), make_batch_id(3, 3158, 3168)]
+    assert sorted(ids) == ids
 
 
 # ---------------------------------------------------------------------------
