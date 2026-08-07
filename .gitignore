@@ -396,7 +396,9 @@ grammar_extra_audit_report.md
 
 # Локальный контент и инструменты — не отправляем в гит
 content/
-scripts/
+# Якорь к корню: без него правило глотало и tests/scripts/
+/scripts/
+work/
 reports/
 module_completed/
 module_completed/

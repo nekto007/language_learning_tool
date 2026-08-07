@@ -1,0 +1,217 @@
+"""Tests for scripts/generate_reading_annotations.py.
+
+Pure-function tests only — no DB or Flask app required. The script imports
+``create_app`` inside ``main()``, so importing the module here is safe.
+"""
+from __future__ import annotations
+
+import sys
+from copy import deepcopy
+from pathlib import Path
+from typing import Any
+
+SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts"
+if str(SCRIPT_PATH) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_PATH))
+
+from generate_reading_annotations import (  # noqa: E402
+    normalize_for_match,
+    validate_scaffold,
+)
+
+
+PASSAGE = (
+    "“They still haven’t caught him, then?” he asked. "
+    "“No,” said Mr. Weasley, looking extremely grave. "
+    "It’s the Azkaban guards who’ll get him back, You mark my words. "
+    "Fred muttered under his breath, and Mrs. Weasley spoke, swelling with pride."
+)
+
+
+def _valid_scaffold() -> dict[str, Any]:
+    return {
+        "objectives": ["Первое", "Второе", "Третье"],
+        "before_reading": {"goal": "Цель чтения", "tasks": ["Вопрос один", "Вопрос два"]},
+        "annotations": [
+            {
+                "phrase": "You mark my words",
+                "type": "lexical",
+                "note": "Попомни мои слова.",
+                "quick_use": ["You mark my words, he will be late."],
+            },
+            {
+                "phrase": "under his breath",
+                "type": "lexical",
+                "note": "Себе под нос.",
+                "quick_use": ["He muttered under his breath."],
+            },
+            {
+                "phrase": "swelling with pride",
+                "type": "cultural",
+                "note": "Раздуваться от гордости.",
+                "quick_use": ["She swelled with pride."],
+            },
+            {
+                "phrase": "haven't caught him",
+                "type": "grammar",
+                "note": "Present Perfect.",
+                "quick_use": ["They haven't caught him yet."],
+            },
+        ],
+        "reflection": [
+            {"question": "Why?", "hint": "Look closer.", "sample_answer": "Because."},
+        ],
+        "self_check": [
+            {"statement": "A", "answer": True, "explanation": "yes"},
+            {"statement": "B", "answer": False, "explanation": "no"},
+            {"statement": "C", "answer": True, "explanation": "yes"},
+        ],
+        "can_do": ["Могу раз", "Могу два", "Могу три"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# normalize_for_match
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_collapses_whitespace():
+    assert normalize_for_match("  a \n\t b  ") == "a b"
+
+
+def test_normalize_unifies_typographic_punctuation():
+    assert normalize_for_match("“haven’t” — yes") == '"haven\'t" - yes'
+
+
+# ---------------------------------------------------------------------------
+# validate_scaffold — happy path
+# ---------------------------------------------------------------------------
+
+
+def test_valid_scaffold_has_no_errors():
+    assert validate_scaffold(_valid_scaffold(), PASSAGE) == []
+
+
+def test_straight_apostrophe_matches_typographic_passage():
+    """The passage uses U+2019; a phrase typed with ' must still match."""
+    scaffold = _valid_scaffold()
+    assert any(
+        "haven't caught him" == ann["phrase"] for ann in scaffold["annotations"]
+    )
+    assert validate_scaffold(scaffold, PASSAGE) == []
+
+
+def test_phrase_matches_across_collapsed_whitespace():
+    scaffold = _valid_scaffold()
+    scaffold["annotations"][0]["phrase"] = "You  mark\nmy   words"
+    assert validate_scaffold(scaffold, PASSAGE) == []
+
+
+# ---------------------------------------------------------------------------
+# validate_scaffold — rejections
+# ---------------------------------------------------------------------------
+
+
+def test_rejects_non_dict():
+    errors = validate_scaffold(["not", "a", "dict"], PASSAGE)
+    assert errors and "expected an object" in errors[0]
+
+
+def test_rejects_missing_keys():
+    scaffold = _valid_scaffold()
+    del scaffold["can_do"]
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("missing keys" in e and "can_do" in e for e in errors)
+
+
+def test_rejects_hallucinated_phrase():
+    scaffold = _valid_scaffold()
+    scaffold["annotations"][0]["phrase"] = "Harry drew his wand and shouted"
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("does not occur verbatim" in e for e in errors)
+
+
+def test_rejects_duplicate_phrase():
+    scaffold = _valid_scaffold()
+    scaffold["annotations"][1]["phrase"] = scaffold["annotations"][0]["phrase"]
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("duplicate phrase" in e for e in errors)
+
+
+def test_rejects_too_many_grammar_notes():
+    scaffold = _valid_scaffold()
+    scaffold["annotations"][0]["type"] = "grammar"
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("grammar note allowed" in e for e in errors)
+
+
+def test_rejects_unknown_annotation_type():
+    scaffold = _valid_scaffold()
+    scaffold["annotations"][0]["type"] = "vocabulary"
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("annotations[0].type" in e for e in errors)
+
+
+def test_rejects_too_few_annotations():
+    scaffold = _valid_scaffold()
+    scaffold["annotations"] = scaffold["annotations"][:2]
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any(e.startswith("annotations: expected") for e in errors)
+
+
+def test_rejects_wrong_objectives_count():
+    scaffold = _valid_scaffold()
+    scaffold["objectives"] = ["Только один"]
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("objectives: expected 3 items" in e for e in errors)
+
+
+def test_rejects_blank_string_items():
+    scaffold = _valid_scaffold()
+    scaffold["can_do"][1] = "   "
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("can_do[1]" in e for e in errors)
+
+
+def test_rejects_missing_before_reading_task():
+    scaffold = _valid_scaffold()
+    scaffold["before_reading"]["tasks"] = ["Только один вопрос"]
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("before_reading.tasks: expected 2 items" in e for e in errors)
+
+
+def test_rejects_string_answer_in_self_check():
+    """A string would render as truthy in Jinja and flip the shown answer."""
+    scaffold = _valid_scaffold()
+    scaffold["self_check"][1]["answer"] = "false"
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("expected JSON true/false" in e for e in errors)
+
+
+def test_rejects_self_check_without_a_false_answer():
+    scaffold = _valid_scaffold()
+    for item in scaffold["self_check"]:
+        item["answer"] = True
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("mix at least one true and one false" in e for e in errors)
+
+
+def test_rejects_incomplete_reflection():
+    scaffold = _valid_scaffold()
+    scaffold["reflection"][0]["sample_answer"] = ""
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("reflection[0].sample_answer" in e for e in errors)
+
+
+def test_rejects_empty_quick_use():
+    scaffold = _valid_scaffold()
+    scaffold["annotations"][0]["quick_use"] = []
+    errors = validate_scaffold(scaffold, PASSAGE)
+    assert any("quick_use" in e for e in errors)
+
+
+def test_validation_does_not_mutate_input():
+    scaffold = _valid_scaffold()
+    snapshot = deepcopy(scaffold)
+    validate_scaffold(scaffold, PASSAGE)
+    assert scaffold == snapshot
