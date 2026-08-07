@@ -1,0 +1,258 @@
+================================================================================
+BASELINE — сквозной аудит 4 зон, 2026-08-08
+================================================================================
+
+Зачем этот файл.
+  Эталон «известно-красного». Ремедиация (Task 7–9 плана) оценивается ТОЛЬКО
+  диффом против этого файла, не по абсолютному числу падений.
+    - тест падает и до, и после правки  -> НЕ регрессия
+    - тест падает только после правки    -> РЕГРЕССИЯ, блокирует переход дальше
+    - тест был в списке и стал зелёным   -> хорошо, но список НЕ переписывать
+                                            задним числом — фиксировать в
+                                            «Статусе ремедиации» реестра
+
+Реестр находок: docs/audit/2026-08-08-cross-zone-audit.md
+План:           docs/plans/2026-08-08-cross-zone-audit-remediation.md
+
+--------------------------------------------------------------------------------
+УСЛОВИЯ ПРОГОНА (воспроизводить ровно так — иначе дифф несопоставим)
+--------------------------------------------------------------------------------
+
+Дата:         2026-08-08
+Ветка:        cross-zone-audit-remediation
+HEAD:         740d80d5  chore: make the annotation script configurable for pilot runs
+              (ветка = master + 1 коммит, не относящийся к зонам аудита;
+               все 27 падений воспроизводятся и на master)
+Дерево:       чистое (git status пуст)
+
+Команда:      python -m pytest -q -p no:randomly --tb=no -rf
+Интерпретатор: /Users/igorkorobko/PycharmProjects/language_learning_tool_new/.venv/bin/python
+              ВАЖНО: .venv ВНУТРИ iCloud-репозитория — пустышка без pytest.
+              Рабочий интерпретатор лежит по пути выше (в ~/PycharmProjects).
+
+Почему -p no:randomly:
+  порядок тестов должен быть детерминированным, иначе список падений «плавает»
+  и дифф против baseline теряет смысл.
+
+Почему НЕ -n (xdist):
+  параллельный прогон падает на staleness БД воркеров (learn_db_test_gw*) после
+  миграций колонок — create_all не делает ALTER. Baseline снят одним процессом.
+
+--------------------------------------------------------------------------------
+ИТОГИ ПРОГОНА
+--------------------------------------------------------------------------------
+
+Собрано тестов:  9908  (449 test-файлов)
+  passed         9803
+  FAILED           27   <- список ниже, это и есть baseline
+  skipped          69
+  xfailed           4
+  xpassed           5
+  errors            0
+
+Exit code: 1
+
+NB. Финальная строка-итог pytest ("N failed, M passed in ...") в выводе
+    отсутствует — числа выше восстановлены из прогресс-вывода и подтверждены
+    независимым `--collect-only` (сумма = 9908). На дифф это не влияет:
+    сравнивать нужно СПИСОК nodeid, а не число.
+
+--------------------------------------------------------------------------------
+PYTEST — падающие nodeid (27), отсортировано
+--------------------------------------------------------------------------------
+
+FAILED tests/api/test_books_catalog.py::TestSelectEndpoint::test_select_persists_preference_and_returns_slot
+FAILED tests/curriculum/test_listening_writing_completion.py::TestChecklistCompletionGating::test_empty_response_text_not_completed
+FAILED tests/curriculum/test_writing_prompt.py::TestWritingPromptSubmitRoute::test_not_enough_words_does_not_complete
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_fires_corrective_award_when_pool_empty
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_is_idempotent
+FAILED tests/grammar_lab/test_grammar_srs.py::TestFirstReview::test_first_review_sets_first_reviewed_timestamp
+FAILED tests/grammar_lab/test_grammar_srs.py::TestMasteryBoundaryInterval::test_review_card_near_mastery_gains_mastered_interval_after_rating_know
+FAILED tests/srs/test_counting.py::TestCountRestingWords::test_ignores_short_session_bury
+FAILED tests/static/test_mobile_responsiveness.py::test_collocation_matching_single_column_breakpoint
+FAILED tests/static/test_mobile_responsiveness.py::test_collocation_speak_btn_touch_action
+FAILED tests/test_landing_improvements.py::TestRobotsRoutes::test_robots_contains_sitemap_link
+FAILED tests/test_seo.py::TestRobots::test_robots_contains_sitemap
+FAILED tests/test_study_stats_charts.py::TestStudyNowButton::test_most_urgent_deck_shown
+FAILED tests/test_unified_srs_grammar.py::TestGradeGrammarExercise::test_grade_grammar_exercise_no_requeue_on_review
+FAILED tests/test_unified_srs_grammar.py::TestGradeGrammarExercise::test_grade_grammar_exercise_requeue_on_learning
+FAILED tests/test_unified_srs_grammar.py::TestGradeGrammarExercise::test_grade_grammar_exercise_sets_first_reviewed
+FAILED tests/test_unified_srs_grammar.py::TestGradeGrammarExercise::test_grade_grammar_exercise_success
+FAILED tests/test_unified_srs_grammar.py::TestGradeGrammarExercise::test_grade_grammar_exercise_updates_correct_count
+FAILED tests/test_unified_srs_grammar.py::TestGradeGrammarExercise::test_grade_grammar_exercise_updates_incorrect_count
+FAILED tests/test_unified_srs_service.py::TestGetOrCreateCardsForWord::test_creates_user_word_if_not_exists
+FAILED tests/test_unified_srs_service.py::TestGetOrCreateCardsForWord::test_uses_existing_user_word
+FAILED tests/test_unified_srs_service.py::TestGradeCard::test_grade_card_increments_session_attempts
+FAILED tests/test_unified_srs_service.py::TestGradeCard::test_grade_card_no_requeue_at_max_attempts
+FAILED tests/test_unified_srs_service.py::TestGradeCard::test_grade_card_not_found
+FAILED tests/test_unified_srs_service.py::TestGradeCard::test_grade_card_requeue_on_dont_know
+FAILED tests/test_unified_srs_service.py::TestGradeCard::test_grade_card_requeue_on_doubt
+FAILED tests/test_unified_srs_service.py::TestGradeCard::test_grade_card_success
+
+--------------------------------------------------------------------------------
+PYTEST — те же 27 по кластерам (для быстрой сверки глазами)
+--------------------------------------------------------------------------------
+
+  8  tests/test_unified_srs_service.py        mock-based grade_card / get_or_create_cards
+  6  tests/test_unified_srs_grammar.py        grade_grammar_exercise
+  2  tests/static/test_mobile_responsiveness.py   collocation breakpoint / touch-action
+  2  tests/daily_plan/test_srs_slot_completion.py fallback corrective award
+  2  tests/grammar_lab/test_grammar_srs.py     first_reviewed / mastery boundary
+  1  tests/srs/test_counting.py                TestCountRestingWords short-session bury
+  1  tests/test_seo.py                         robots -> sitemap link
+  1  tests/test_landing_improvements.py        robots -> sitemap link
+  1  tests/test_study_stats_charts.py          most-urgent deck
+  1  tests/curriculum/test_writing_prompt.py   not-enough-words gating
+  1  tests/curriculum/test_listening_writing_completion.py  empty-response gating
+  1  tests/api/test_books_catalog.py           select persists preference
+
+Сверка с ранее зафиксированным «master = 26»:
+  список вырос до 27 за счёт
+  tests/srs/test_counting.py::TestCountRestingWords::test_ignores_short_session_bury.
+  Этот тест ЕСТЬ на master (проверено `git show master:tests/srs/test_counting.py`)
+  и падает на master — то есть это не привнесено веткой, а уточнение старого счёта.
+  Актуальное число «известно-красного» = 27.
+
+--------------------------------------------------------------------------------
+RUFF
+--------------------------------------------------------------------------------
+
+Бинарь:  /Users/igorkorobko/.cache/pre-commit/repolq0nm4n2/py_env-python3.13/bin/ruff
+Версия:  ruff 0.5.6
+Конфиг:  pyproject.toml -> [tool.ruff] target-version=py313, line-length=120
+
+ВАЖНО. Ruff НЕ установлен ни в PATH, ни в рабочем .venv. Единственная доступная
+копия — в кэше pre-commit (путь выше). Сравнивать с baseline только ЭТИМ бинарём:
+другая версия ruff даёт другой набор правил и другое число, дифф станет
+бессмысленным.
+
+Каноническое число:
+
+  ruff check .                         4582 errors
+                                       (2522 fixable с --fix, +479 с --unsafe-fixes)
+
+Разбивка канонического прогона по каталогам (из --output-format=concise):
+
+  app/                                 3372
+  tests/                               1116
+  config/                                 4
+  <root>/generate_book_audio.py          49
+  <root>/create_admin.py                 18
+  <root>/convert_fb2_to_txt.py            9
+  <root>/add_new_achievements.py          7
+  <root>/cli.py                           4
+  <root>/test_pages.py                    2
+  <root>/extensions.py                    1
+                                     ------
+                                       4582
+
+Каталоги вне канонического прогона (gitignored — ruff по умолчанию уважает
+.gitignore, поэтому `ruff check .` их НЕ видит; числа сняты явной передачей пути):
+
+  scripts/    (gitignored)             2130
+  migrations/                             0   (per-file-ignores гасят все правила)
+
+  content/ — данные, не Python.
+  tests/conftest.py — gitignored, в каноническое число не входит.
+
+  Следствие для плана: правки контента (Task 8) доставляются скриптами в
+  scripts/ и на каноническое число НЕ влияют. Если правка трогает scripts/,
+  проверять её отдельным `ruff check scripts/` против 2130.
+
+--------------------------------------------------------------------------------
+RUFF — по правилам (каноническое `ruff check .`, 52 правила)
+--------------------------------------------------------------------------------
+
+741	UP017 	[*] datetime-timezone-utc
+722	RUF001	[ ] ambiguous-unicode-character-string
+552	UP006 	[*] non-pep585-annotation
+473	UP007 	[*] non-pep604-annotation
+341	RUF003	[ ] ambiguous-unicode-character-comment
+326	RUF002	[ ] ambiguous-unicode-character-docstring
+301	W293  	[*] blank-line-with-whitespace
+281	RUF010	[*] explicit-f-string-type-conversion
+127	F841  	[*] unused-variable
+122	UP035 	[ ] deprecated-import
+ 91	RUF013	[*] implicit-optional
+ 68	RUF100	[*] unused-noqa
+ 39	F541  	[*] f-string-missing-placeholders
+ 34	SIM102	[ ] collapsible-if
+ 34	E741  	[ ] ambiguous-variable-name
+ 29	SIM108	[ ] if-else-block-instead-of-if-exp
+ 29	UP015 	[*] redundant-open-modes
+ 28	E712  	[*] true-false-comparison
+ 25	F601  	[*] multi-value-repeated-key-literal
+ 23	SIM117	[ ] multiple-with-statements
+ 20	W292  	[*] missing-newline-at-end-of-file
+ 15	UP012 	[*] unnecessary-encode-utf8
+ 14	SIM105	[ ] suppressible-exception
+ 12	W291  	[*] trailing-whitespace
+ 12	F811  	[*] redefined-while-unused
+ 12	UP038 	[*] non-pep604-isinstance
+ 11	E711  	[*] none-comparison
+ 11	UP037 	[*] quoted-annotation
+ 11	RUF019	[*] unnecessary-key-check
+  9	B007  	[ ] unused-loop-control-variable
+  9	F821  	[ ] undefined-name
+  7	B023  	[ ] function-uses-loop-variable
+  7	UP008 	[*] super-call-with-parameters
+  7	RUF005	[*] collection-literal-concatenation
+  4	RUF015	[*] unnecessary-iterable-allocation-for-first-element
+  3	SIM103	[ ] needless-bool
+  3	SIM110	[*] reimplemented-builtin
+  3	E702  	[ ] multiple-statements-on-one-line-semicolon
+  3	E722  	[ ] bare-except
+  3	UP024 	[*] os-error-alias
+  3	RUF007	[ ] zip-instead-of-pairwise
+  2	B033  	[*] duplicate-value
+  2	B904  	[ ] raise-without-from-inside-except
+  2	B905  	[*] zip-without-explicit-strict
+  2	SIM114	[*] if-with-same-arms
+  2	SIM118	[*] in-dict-keys
+  2	UP032 	[*] f-string
+  1	SIM210	[*] if-expr-with-true-false
+  1	E401  	[*] multiple-imports-on-one-line
+  1	E721  	[ ] type-comparison
+  1	UP009 	[*] utf8-encoding-declaration
+  1	UP036 	[*] outdated-version-block
+
+Природа шума: подавляющее большинство — стилевой долг, не дефекты.
+  UP0xx (1841) — модернизация синтаксиса под py313
+  RUF001/002/003 (1389) — «неоднозначные» юникод-символы; это кириллица в
+    строках/докстрингах/комментариях, т.е. ложные срабатывания для
+    русскоязычного проекта
+  W29x (333) — пробельный мусор
+
+Правила, за которыми могут стоять реальные дефекты (смотреть в первую очередь,
+если аудит зон 2–5 заденет эти файлы):
+  F821 undefined-name            9
+  B023 function-uses-loop-variable 7
+  B904 raise-without-from-inside-except 2
+  E722 bare-except               3
+  F811 redefined-while-unused   12
+
+Эти числа — часть baseline. Задача ремедиации — не уменьшать их специально
+(это не входит в объём плана), а не увеличивать.
+
+--------------------------------------------------------------------------------
+КАК СВЕРЯТЬСЯ (Task 7–10)
+--------------------------------------------------------------------------------
+
+  # pytest: новые падения?
+  python -m pytest -q -p no:randomly --tb=no -rf 2>&1 \
+    | grep '^FAILED' | sed 's/ - .*//' | sort > /tmp/now.txt
+  grep '^FAILED tests/' docs/audit/2026-08-08-baseline-pytest.txt | sort > /tmp/base.txt
+  diff /tmp/base.txt /tmp/now.txt
+  # строки с '>' = новые падения = регрессия, блокирует переход
+  # строки с '<' = починенные, зафиксировать в «Статусе ремедиации»
+  # пустой diff = ничего не сломано (проверено: recipe round-trip'ится на этом
+  #               же прогоне, 27 == 27, diff пуст)
+
+  # ruff: новые нарушения?
+  /Users/igorkorobko/.cache/pre-commit/repolq0nm4n2/py_env-python3.13/bin/ruff \
+    check . 2>&1 | tail -3        # должно быть <= 4582
+
+  # smoke — эталон ЗЕЛЁНЫЙ: любое падение здесь = регрессия, без сверки со списком
+  python -m pytest -m smoke -q -p no:randomly
+  # проверено 2026-08-08 на этом же HEAD: 693 теста, 0 падений.
+  # (в CLAUDE.md указано «~70 тестов» — это устаревшее число, фактически 693)
