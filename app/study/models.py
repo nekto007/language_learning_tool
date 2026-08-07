@@ -530,15 +530,6 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
                 ).first()
         return direction_row
 
-    def bury(self, hours: int = 24):
-        """
-        Bury this card - it won't be shown until the specified time.
-
-        Args:
-            hours: Number of hours to bury the card (default 24 = until tomorrow)
-        """
-        self.buried_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=hours)
-
     def bury_for_session(self, session_duration_hours: int = 4):
         """
         Bury card for the rest of the study session.
@@ -552,20 +543,11 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         if self.buried_until is None or self.buried_until < until:
             self.buried_until = until
 
-    def unbury(self):
-        """Remove bury status from this card."""
-        self.buried_until = None
-
     @property
     def is_buried(self) -> bool:
-        """Check if this card is currently buried."""
-        if not self.buried_until:
-            return False
-        if self.buried_until.tzinfo is None:
-            buried_aware = self.buried_until.replace(tzinfo=timezone.utc)
-        else:
-            buried_aware = self.buried_until
-        return datetime.now(timezone.utc) < buried_aware
+        """Check if this card is currently resting."""
+        from app.srs.visibility import is_card_resting
+        return is_card_resting(self)
 
     @property
     def is_leech(self) -> bool:

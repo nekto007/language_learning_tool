@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.srs.constants import MASTERED_THRESHOLD_DAYS, STATUS_REVIEW, CardState
 from app.srs.visibility import naive_utc_now, srs_scope_filter, srs_servable_filter
@@ -188,17 +188,26 @@ def count_due_by_states(
 
 
 def count_pending_new(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
-    """Count NEW-state directions (started but never graded).
+    """Count NEW-state directions the user can actually pick up today.
 
     These are not «due now» (NEW has no scheduling), they form the new-card
-    pool the user can pick up within ``new_words_per_day`` budget.
+    pool the user can start within the ``new_words_per_day`` budget.
+
+    The ``next_review`` bound matches what the /study queue serves. Without it
+    the plan advertised cards the session refused to hand out: book vocab pull
+    creates NEW cards dated tomorrow, and they were counted as available today.
     """
+    end_of_today = day_to_naive_utc(user_id, db, days_ahead=1, now_utc=now_utc)
     return int(
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             srs_servable_filter(user_id, now_utc),
             UserCardDirection.state == CardState.NEW.value,
+            or_(
+                UserCardDirection.next_review.is_(None),
+                UserCardDirection.next_review < end_of_today,
+            ),
         )
         .scalar() or 0
     )

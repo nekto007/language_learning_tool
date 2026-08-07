@@ -528,6 +528,8 @@ def submit_quiz_answer():
     data = request.json or {}
     session_id = data.get('session_id')
     is_correct = data.get('is_correct', False)
+    word_id = data.get('word_id')
+    direction_str = data.get('direction')
 
     if session_id:
         session = StudySession.query.get(session_id)
@@ -539,9 +541,58 @@ def submit_quiz_answer():
                 session.incorrect_answers += 1
             db.session.commit()
 
+    # Advance the card's SM-2 state. The quiz used to write only QuizResult /
+    # GameScore / XP, so the daily plan's SRS slot could be satisfied by a
+    # deck quiz that moved no card at all.
+    graded = _grade_quiz_answer(word_id, direction_str, bool(is_correct))
+
     return jsonify({
-        'success': True
+        'success': True,
+        'srs_graded': graded,
     })
+
+
+def _grade_quiz_answer(word_id, direction_str, is_correct: bool) -> bool:
+    """Grade one quiz answer through the shared SM-2 engine.
+
+    Best-effort: a quiz answer must never fail because of SRS bookkeeping.
+    Honours the same rules as every other grading surface — excluded words are
+    skipped, and an unseen card only activates within the new-card budget.
+    """
+    from app.srs.constants import RATING_DONT_KNOW, RATING_KNOW
+    from app.srs.visibility import is_word_in_srs
+
+    if not isinstance(word_id, int) or isinstance(word_id, bool):
+        return False
+    if direction_str not in ('eng-rus', 'rus-eng'):
+        return False
+
+    try:
+        user_word = UserWord.query.filter_by(
+            user_id=current_user.id, word_id=word_id,
+        ).first()
+        if user_word is None or not is_word_in_srs(user_word):
+            return False
+
+        direction = UserCardDirection.query.filter_by(
+            user_word_id=user_word.id, direction=direction_str,
+        ).first()
+        if direction is None:
+            return False
+
+        if direction.first_reviewed is None:
+            from app.srs.counting import get_new_card_budget
+            remaining_new, _ = get_new_card_budget(current_user.id, db)
+            if remaining_new <= 0:
+                return False
+
+        direction.update_after_review(RATING_KNOW if is_correct else RATING_DONT_KNOW)
+        db.session.commit()
+        return True
+    except Exception:
+        db.session.rollback()
+        logger.exception('Quiz SRS grading failed for word %s', word_id)
+        return False
 
 
 @study.route('/api/get-matching-words', methods=['GET'])

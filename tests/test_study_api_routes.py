@@ -301,18 +301,15 @@ class TestGetStudyItems:
             # Due reviews should be included
             assert has_reviews or len(data['items']) == 0
 
-    def test_buried_recovery_direction_returns_in_regular_srs_session(
-        self, authenticated_client, test_user, study_settings, db_session,
-    ):
-        """A leech returns through the ordinary queue, never as a plan block."""
+    def _make_resting_recovery_card(self, db_session, test_user, *, rest_days: int):
         from app.srs.constants import CardState, LEECH_THRESHOLD
         from app.words.models import CollectionWords
 
-        study_settings.reviews_per_day = 100
-        study_settings.new_words_per_day = 0
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         word = CollectionWords(
-            english_word='recovery_queue_word', russian_word='восстановление', level='A1',
+            english_word=f'recovery_word_{rest_days}',
+            russian_word='восстановление',
+            level='A1',
         )
         db_session.add(word)
         db_session.flush()
@@ -324,10 +321,35 @@ class TestGetStudyItems:
         card.lapses = LEECH_THRESHOLD
         card.difficulty_score = 6
         card.recovery_required = True
-        card.buried_until = now + timedelta(days=7)
-        card.recovery_due_at = now - timedelta(minutes=1)
+        card.next_review = now - timedelta(days=1)
+        # A real rest schedules the recovery invite for the END of the rest.
+        card.buried_until = now + timedelta(days=rest_days)
+        card.recovery_due_at = card.buried_until
         db_session.add(card)
         db_session.commit()
+        return card
+
+    def test_resting_card_is_not_served_during_its_rest(
+        self, authenticated_client, test_user, study_settings, db_session,
+    ):
+        """The rest actually holds — no early recovery pull."""
+        study_settings.reviews_per_day = 100
+        study_settings.new_words_per_day = 0
+        card = self._make_resting_recovery_card(db_session, test_user, rest_days=7)
+
+        response = authenticated_client.get('/study/api/get-study-items?source=auto')
+
+        assert response.status_code == 200
+        items = response.get_json()['items']
+        assert all(item['id'] != card.id for item in items)
+
+    def test_card_returns_once_the_rest_expires(
+        self, authenticated_client, test_user, study_settings, db_session,
+    ):
+        """After the rest it comes back through the ordinary queue, still flagged."""
+        study_settings.reviews_per_day = 100
+        study_settings.new_words_per_day = 0
+        card = self._make_resting_recovery_card(db_session, test_user, rest_days=-1)
 
         response = authenticated_client.get('/study/api/get-study-items?source=auto')
 

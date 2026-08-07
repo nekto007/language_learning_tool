@@ -350,18 +350,13 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
             progress.data['studied_cards'][card_id_str]['attempts'] += 1
             progress.data['studied_cards'][card_id_str]['last_attempt'] = datetime.now(UTC).isoformat()
 
-        # Увеличиваем счетчик попыток в текущей сессии
-        card_direction.session_attempts += 1
-
-        # Увеличиваем общий счетчик неправильных ответов
-        card_direction.incorrect_count += 1
-
-        # Обновляем время последней попытки. Колонка naive и day-anchored —
-        # по ней считаются дневные корзины в app/srs/counting.py.
-        from app.utils.time_utils import day_to_naive_utc
-        card_direction.last_reviewed = day_to_naive_utc(user_id, db, days_ahead=0)
-
-        # НЕ обновляем interval и next_review - карточка остается "просроченной"
+        # Grade through the shared engine. This branch used to write only the
+        # counters and return, leaving state/lapses/difficulty_score untouched:
+        # a card could be failed forever inside card lessons, and the automatic
+        # rest (which keys off difficulty_score) could never fire here.
+        # update_after_review also owns session_attempts, incorrect_count and
+        # the day-anchored last_reviewed, so they are not written by hand.
+        card_direction.update_after_review(0)
 
         # Обновляем статистику урока
         progress.data['total_answers'] = progress.data.get('total_answers', 0) + 1

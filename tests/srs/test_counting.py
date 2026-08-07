@@ -9,6 +9,7 @@ from app.srs.constants import CardState
 from app.srs.counting import (
     count_due_cards,
     count_new_cards_today,
+    count_pending_new,
     count_resting_words,
     count_reviews_today,
     get_new_card_budget,
@@ -704,3 +705,34 @@ class TestCountRestingWords:
         _make_direction(db_session, uw)
 
         assert count_resting_words(user.id, real_db) == 0
+
+
+class TestCountPendingNew:
+    """The new-card counter must match what /study will actually serve."""
+
+    def test_counts_a_card_available_today(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, state=CardState.NEW.value, next_review=_now_naive())
+
+        assert count_pending_new(user.id, real_db) == 1
+
+    def test_counts_a_card_with_no_schedule(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, state=CardState.NEW.value, next_review=None)
+
+        assert count_pending_new(user.id, real_db) == 1
+
+    def test_ignores_a_card_scheduled_for_tomorrow(self, db_session):
+        # Book vocab pull creates NEW cards dated tomorrow; counting them made
+        # the plan advertise cards the session refused to hand out.
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(
+            db_session, uw,
+            state=CardState.NEW.value,
+            next_review=_now_naive() + timedelta(days=2),
+        )
+
+        assert count_pending_new(user.id, real_db) == 0

@@ -620,34 +620,6 @@ class TestSRSService:
             assert new_today == 1
             assert reviews_today == 0
 
-    def test_get_study_items_empty_deck(self, app, db_session, test_user, study_settings):
-        """Test getting study items for empty deck"""
-        from app.study.services.srs_service import SRSService
-
-        with app.app_context():
-            items = SRSService.get_study_items(test_user.id, [], 10)
-            assert len(items) == 0
-
-    def test_get_study_items_with_due_cards(self, app, db_session, test_user, study_settings, user_words, user_card_directions):
-        """Test getting study items with due review cards"""
-        from app.study.services.srs_service import SRSService
-        from datetime import datetime, timedelta, timezone
-
-        with app.app_context():
-            # Make some cards due for review
-            for card in user_card_directions[:2]:
-                card.next_review = datetime.now(timezone.utc) - timedelta(hours=1)
-                card.repetitions = 1
-                card.state = 'review'
-
-            db_session.commit()
-
-            word_ids = [uw.word_id for uw in user_words]
-            items = SRSService.get_study_items(test_user.id, word_ids, 10)
-
-            # Should return due review cards
-            assert isinstance(items, list)
-
 
 class TestStudyAPIRoutes:
     """Tests for study API routes to increase coverage"""

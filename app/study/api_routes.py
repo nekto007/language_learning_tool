@@ -294,30 +294,6 @@ def get_study_items():
             query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
         return query
 
-    def buried_recovery_query():
-        """Leeches return through the normal session one direction at a time."""
-        query = UserCardDirection.query \
-            .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
-            .options(
-                joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
-            ) \
-            .filter(
-                UserWord.user_id == current_user.id,
-                UserWord.srs_excluded.is_(False),
-                UserCardDirection.recovery_required.is_(True),
-                UserCardDirection.buried_until.isnot(None),
-                UserCardDirection.buried_until > now,
-                or_(
-                    UserCardDirection.recovery_due_at.is_(None),
-                    UserCardDirection.recovery_due_at <= now,
-                ),
-            )
-        if deck_word_ids is not None:
-            query = query.filter(UserWord.word_id.in_(deck_word_ids))
-        if exclude_card_ids:
-            query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))
-        return query
-
     # PRIORITY 1: RELEARNING cards — first claim on the combined due budget.
     # Bounded by `due_budget` (base reviews_per_day) so the session can't grow
     # unbounded; the plan tile (build_srs_item) applies the same cap, so the
@@ -364,27 +340,13 @@ def get_study_items():
         if word and word.russian_word:
             result_items.append(format_card(direction, word, 'learning'))
 
-    # A suspended leech is not silently hidden for a week. It returns as an
-    # ordinary SRS card for recovery, after in-progress learning and before
-    # new cards. It still consumes the regular review budget.
-    recovery_cap = remaining_reviews if due_budget is None else min(
-        due_budget, remaining_reviews,
-    )
-    if recovery_cap > 0:
-        buried_recovery_cards = buried_recovery_query().order_by(
-            UserCardDirection.recovery_due_at.nullsfirst(),
-            UserCardDirection.buried_until,
-        ).limit(recovery_cap).all()
-    else:
-        buried_recovery_cards = []
-    if due_budget is not None:
-        due_budget -= len(buried_recovery_cards)
-    remaining_reviews -= len(buried_recovery_cards)
-
-    for direction in buried_recovery_cards:
-        word = direction.user_word.word
-        if word and word.russian_word:
-            result_items.append(format_card(direction, word, 'recovery'))
+    # A rested card is NOT pulled back early. It returns through the ordinary
+    # queue once buried_until passes (next_review is already behind it by then),
+    # still flagged recovery_required so it keeps its badge and its priority in
+    # the ordering above. The dedicated early-return branch that used to sit
+    # here could only fire after a four-hour session bury — where it re-served
+    # the card immediately and defeated that bury — because a real rest sets
+    # recovery_due_at to the end of the rest (app/srs/difficulty.py).
 
     # PRIORITY 2.5: NEW state cards (already have UserWord entries)
     if remaining_new > 0:

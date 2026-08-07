@@ -152,10 +152,12 @@ MAX_LEECH_SUSPEND_DAYS = 90
 # CARD STATUSES (UserWord level)
 # =============================================================================
 
+# The only three values recalculate_status can produce. "Mastered" is NOT a
+# status — it is a threshold on top of 'review' (see UserWord.is_mastered), so
+# a STATUS_MASTERED constant only invited equality filters that match nothing.
 STATUS_NEW = 'new'
 STATUS_LEARNING = 'learning'
 STATUS_REVIEW = 'review'
-STATUS_MASTERED = 'mastered'
 
 # =============================================================================
 # DIRECTIONS
@@ -170,9 +172,6 @@ DIRECTION_RUS_ENG = 'rus-eng'
 
 # Threshold for "learned" word (both directions must have interval >= this)
 LEARNED_INTERVAL_THRESHOLD = 35  # days
-
-# Threshold for LEARNING → REVIEW transition
-REVIEW_THRESHOLD_REPETITIONS = 3  # After 3 successful repetitions
 
 # Mature: word is well-known but still being reviewed
 MATURE_THRESHOLD_DAYS = 21

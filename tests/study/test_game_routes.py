@@ -563,6 +563,68 @@ class TestMatchingSrsBudget:
         assert activated == 5
 
 
+class TestQuizAdvancesSrs:
+    """A deck quiz must move real cards — the plan's SRS slot counts on it."""
+
+    def _seed_card(self, db_session, test_user, english: str):
+        from app.study.models import UserCardDirection, UserWord
+        from app.words.models import CollectionWords
+
+        word = CollectionWords(english_word=english, russian_word='перевод', level='A1')
+        db_session.add(word)
+        db_session.commit()
+        user_word = UserWord(user_id=test_user.id, word_id=word.id)
+        db_session.add(user_word)
+        db_session.commit()
+        direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+        db_session.add(direction)
+        db_session.commit()
+        return word, user_word, direction
+
+    def test_correct_answer_advances_the_card(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        word, _, direction = self._seed_card(db_session, test_user, 'quiz_advances')
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'word_id': word.id,
+                'direction': 'eng-rus',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()['srs_graded'] is True
+        db_session.refresh(direction)
+        assert direction.first_reviewed is not None
+        assert direction.state != 'new'
+
+    def test_excluded_word_is_not_graded(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        word, user_word, direction = self._seed_card(db_session, test_user, 'quiz_excluded')
+        user_word.srs_excluded = True
+        db_session.commit()
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'word_id': word.id,
+                'direction': 'eng-rus',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()['srs_graded'] is False
+        db_session.refresh(direction)
+        assert direction.first_reviewed is None
+
+
 class TestMatchingGameRespectsExclusion:
     """"Не учить это слово" must hold here too.
 
