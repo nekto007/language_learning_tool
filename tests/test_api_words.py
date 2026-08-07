@@ -146,7 +146,13 @@ class TestUpdateWordStatus:
 
     @pytest.mark.smoke
     def test_update_word_status_success(self, authenticated_client, test_words, db_session):
-        """Test successfully updating word status"""
+        """The endpoint reports the status that was actually stored.
+
+        status=1 means "add this word to my studies": the cards are created in
+        the NEW state, so the derived word status is 'new'. It used to echo
+        status_to_string(1) == 'learning', a value set_word_status never wrote —
+        the badge and the database disagreed from the moment of the write.
+        """
         word_id = test_words[0].id
 
         response = authenticated_client.post(
@@ -158,7 +164,24 @@ class TestUpdateWordStatus:
         data = response.get_json()
 
         assert data['success'] is True
-        assert data['status'] == 'learning'
+        assert data['status'] == 'new'
+
+        from app.study.models import UserWord
+        stored = UserWord.query.filter_by(word_id=word_id).first()
+        assert stored is not None
+        assert data['status'] == stored.status
+
+    def test_already_known_word_is_review(self, authenticated_client, test_words, db_session):
+        """status=3 ("Уже знаю") seeds both directions in review."""
+        word_id = test_words[0].id
+
+        response = authenticated_client.post(
+            '/api/update-word-status',
+            json={'word_id': word_id, 'status': 3}
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()['status'] == 'review'
 
     def test_update_word_status_missing_fields(self, authenticated_client):
         """Test error when missing required fields"""

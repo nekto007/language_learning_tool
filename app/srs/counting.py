@@ -22,7 +22,7 @@ from typing import Any, Optional, Sequence
 
 from sqlalchemy import func
 
-from app.srs.constants import CardState
+from app.srs.constants import MASTERED_THRESHOLD_DAYS, STATUS_REVIEW, CardState
 from app.srs.visibility import naive_utc_now, srs_scope_filter, srs_servable_filter
 from app.study.models import StudySettings, UserCardDirection, UserWord
 from app.utils.db import db as _db
@@ -201,6 +201,27 @@ def count_pending_new(user_id: int, db: Any = _db, now_utc: Optional[datetime] =
             UserCardDirection.state == CardState.NEW.value,
         )
         .scalar() or 0
+    )
+
+
+def mastered_word_ids_subquery(user_id: int, db: Any = _db):
+    """Subquery of word ids the user has mastered.
+
+    "Mastered" is a threshold on top of ``status == 'review'`` (the shortest
+    interval across both directions reaching ``MASTERED_THRESHOLD_DAYS``), never
+    a stored status — ``recalculate_status`` cannot produce one. Filters written
+    as ``UserWord.status == 'mastered'`` therefore matched nothing and silently
+    returned empty lists and zero buckets.
+    """
+    return (
+        db.session.query(UserWord.word_id)
+        .join(UserCardDirection, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            srs_scope_filter(user_id),
+            UserWord.status == STATUS_REVIEW,
+        )
+        .group_by(UserWord.word_id)
+        .having(func.min(UserCardDirection.interval) >= MASTERED_THRESHOLD_DAYS)
     )
 
 

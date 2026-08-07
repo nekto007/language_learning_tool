@@ -11,6 +11,7 @@ from sqlalchemy.orm import joinedload
 
 from app import limiter
 from app.api.errors import api_error
+from app.srs.cards import ensure_card_directions
 from app.srs.counting import count_resting_words
 from app.srs.stats_service import srs_stats_service
 from app.srs.visibility import srs_servable_filter
@@ -639,12 +640,11 @@ def update_study_item():
             }), 429
 
     if not direction:
-        from app.srs.constants import CardState as CS
-        direction = UserCardDirection(user_word_id=user_word.id, direction=direction_str)
-        direction.state = CS.NEW.value
-        direction.step_index = 0
-        direction.lapses = 0
-        db.session.add(direction)
+        # Create BOTH directions, not just the graded one: a lone direction in
+        # REVIEW would make recalculate_status call the word learned after a
+        # single keypress.
+        directions = ensure_card_directions(user_word)
+        direction = next(d for d in directions if d.direction == direction_str)
 
     current_state = direction.state or CardState.NEW.value
     current_step = direction.step_index or 0

@@ -193,5 +193,10 @@ def queue_vocab_as_srs(words: list, user_id: int, db_session: Any = db) -> int:
             db_session.session.add(card)
             created += 1
 
+        # Adding a direction can change the word-level status (a word that
+        # looked finished on one direction is not finished any more).
+        db_session.session.flush()
+        user_word.recalculate_status()
+
     db_session.session.flush()
     return created

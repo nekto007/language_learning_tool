@@ -331,6 +331,8 @@ class BookSRSIntegration:
             card.next_review = datetime.now(timezone.utc).replace(tzinfo=None)
             db.session.add(card)
             db.session.flush()
+            # A newly added direction can change the word-level status.
+            user_word.recalculate_status()
 
         return card
 

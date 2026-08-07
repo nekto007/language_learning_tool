@@ -679,6 +679,54 @@ def _register_cli_commands(app):
             for e in report.errors:
                 click.echo(f'    - {e}')
 
+    @app.cli.command('recalc-word-status')
+    @click.option('--dry-run', is_flag=True, default=False,
+                  help='Show the before/after histogram without committing')
+    @click.option('--user-id', type=int, default=None,
+                  help='Limit the recalculation to one user')
+    def recalc_word_status_cmd(dry_run, user_id):
+        """Recompute UserWord.status from the card states.
+
+        Needed once after the status rule started requiring BOTH recall
+        directions to be in review before a word counts as learned. Idempotent;
+        safe to re-run.
+        """
+        from app.study.models import UserWord
+        from app.utils.db import db
+
+        query = UserWord.query
+        if user_id is not None:
+            query = query.filter_by(user_id=user_id)
+
+        before: dict[str, int] = {}
+        after: dict[str, int] = {}
+        changed = 0
+        processed = 0
+
+        mode = 'dry-run' if dry_run else 'live'
+        click.echo(f'Recalculating word statuses ({mode}) ...')
+
+        for word in query.yield_per(500):
+            old = word.status or 'new'
+            before[old] = before.get(old, 0) + 1
+            word.recalculate_status()
+            new = word.status or 'new'
+            after[new] = after.get(new, 0) + 1
+            processed += 1
+            if old != new:
+                changed += 1
+
+        if dry_run:
+            db.session.rollback()
+        else:
+            db.session.commit()
+
+        click.echo(f'\nDone. Processed {processed}, changed {changed}.')
+        for status in sorted(set(before) | set(after)):
+            was = before.get(status, 0)
+            now = after.get(status, 0)
+            click.echo(f'  {status:<10} {was:>7} → {now:>7}  ({now - was:+d})')
+
     @app.cli.command('purge-audio-grammar-exercises')
     @click.option('--dry-run', is_flag=True, default=False,
                   help='Report what would be deleted without committing')

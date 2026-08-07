@@ -8,6 +8,7 @@ from sqlalchemy import and_, case, func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.modules.decorators import module_required
+from app.srs.cards import ensure_card_directions
 from app.srs.constants import CardState
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import is_auto_deck, study
@@ -1321,11 +1322,7 @@ def custom_list_study(list_id):
 
     for word in matched_words:
         user_word = UserWord.get_or_create(current_user.id, word.id)
-        for direction in ('eng-rus', 'rus-eng'):
-            if not UserCardDirection.query.filter_by(
-                user_word_id=user_word.id, direction=direction
-            ).first():
-                db.session.add(UserCardDirection(user_word.id, direction, source='custom_list'))
+        ensure_card_directions(user_word, source='custom_list')
 
     try:
         db.session.commit()

@@ -539,29 +539,37 @@ class TestUpdateUserWordStatus:
     def service(self):
         return UnifiedSRSService()
 
+    @patch('app.srs.service.UserWord')
     @patch('app.srs.service.db')
-    def test_calls_recalculate_status(self, mock_db, service):
-        """Test that _update_user_word_status calls recalculate_status on user_word."""
+    def test_locks_parent_row_and_recalculates(self, mock_db, mock_user_word_model, service):
+        """The parent is re-read FOR UPDATE before its status is recomputed.
+
+        Grading both directions of a word concurrently would otherwise let each
+        transaction read the other's pre-grade state.
+        """
         card = MagicMock()
-        card.user_word = MagicMock()
+        locked = MagicMock()
+        (mock_user_word_model.query.filter_by.return_value
+         .with_for_update.return_value.first.return_value) = locked
 
         service._update_user_word_status(card)
 
-        # Should flush the session to ensure card state is visible
         mock_db.session.flush.assert_called_once()
-        # Should call recalculate_status on the user_word
-        card.user_word.recalculate_status.assert_called_once()
+        mock_user_word_model.query.filter_by.assert_called_once_with(id=card.user_word_id)
+        locked.recalculate_status.assert_called_once()
 
+    @patch('app.srs.service.UserWord')
     @patch('app.srs.service.db')
-    def test_flushes_session_before_recalculate(self, mock_db, service):
+    def test_flushes_session_before_recalculate(self, mock_db, mock_user_word_model, service):
         """Test that session is flushed before recalculating status."""
         card = MagicMock()
-        card.user_word = MagicMock()
+        locked = MagicMock()
+        (mock_user_word_model.query.filter_by.return_value
+         .with_for_update.return_value.first.return_value) = locked
 
-        # Track call order
         call_order = []
         mock_db.session.flush.side_effect = lambda: call_order.append('flush')
-        card.user_word.recalculate_status.side_effect = lambda: call_order.append('recalculate')
+        locked.recalculate_status.side_effect = lambda: call_order.append('recalculate')
 
         service._update_user_word_status(card)
 

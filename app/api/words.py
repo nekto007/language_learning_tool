@@ -33,15 +33,20 @@ def get_words():
 
     # Apply filters
     if status is not None:
+        from app.srs.counting import mastered_word_ids_subquery
         from app.study.models import UserWord
         from app.utils.db import status_to_string
 
         status_str = status_to_string(status)
 
-        new_system_words = db.session.query(UserWord.word_id).filter(
-            UserWord.user_id == current_user.id,
-            UserWord.status == status_str
-        ).subquery()
+        if status_str == 'mastered':
+            # Derived threshold, not a stored status — see the subquery's docstring.
+            new_system_words = mastered_word_ids_subquery(current_user.id).subquery()
+        else:
+            new_system_words = db.session.query(UserWord.word_id).filter(
+                UserWord.user_id == current_user.id,
+                UserWord.status == status_str
+            ).subquery()
 
         query = query.filter(CollectionWords.id.in_(new_system_words))
 
@@ -201,16 +206,14 @@ def update_word_status():
         return api_error('not_found', 'Word not found', 404)
 
     try:
-        # Уже используется метод User.set_word_status, который мы обновили
-        current_user.set_word_status(word_id, status)
-
-        # Получаем обновленный статус в строковом формате
-        from app.utils.db import status_to_string
-        updated_status = status_to_string(status)
+        # Return what was actually stored: the word status is derived from the
+        # card states, so echoing the requested value made the UI badge and the
+        # database disagree from the moment of the write.
+        user_word = current_user.set_word_status(word_id, status)
 
         return jsonify({
             'success': True,
-            'status': updated_status
+            'status': user_word.status if user_word else 'new'
         })
     except Exception as e:
         db.session.rollback()

@@ -138,14 +138,10 @@ class User(db.Model, UserMixin):
         from app.utils.db import db
         from app.utils.time_utils import day_to_naive_utc
 
-        # Маппинг числовых статусов в строковые
-        # status=3 теперь ставит 'review' вместо 'mastered'
-        status_map = {
-            1: 'new',
-            2: 'review',
-            3: 'review'  # "Уже знаю" = review с высоким интервалом
-        }
-
+        # Числовой статус задаёт НАМЕРЕНИЕ (добавить / повторять / уже знаю),
+        # а сам UserWord.status выводится из состояний карточек ниже. Раньше
+        # здесь писалось строковое значение, которое recalculate_status тут же
+        # затирал, — и API отвечал статусом, которого в базе не было.
         user_word = UserWord.query.filter_by(user_id=self.id, word_id=word_id).first()
 
         # Если статус 0 и запись существует, удаляем её
@@ -156,9 +152,6 @@ class User(db.Model, UserMixin):
             db.session.delete(user_word)
             db.session.commit()
             return None
-
-        # Определяем строковый статус
-        str_status = status_map.get(status, 'new')
 
         # Определяем, нужно ли ставить высокий интервал (для "Уже знаю")
         is_already_known = (status == 3)
@@ -172,7 +165,6 @@ class User(db.Model, UserMixin):
         # Создаём новую запись, если её нет
         if not user_word and status > 0:
             user_word = UserWord(user_id=self.id, word_id=word_id)
-            user_word.status = str_status
             db.session.add(user_word)
             db.session.flush()  # Чтобы получить ID
 
@@ -198,9 +190,6 @@ class User(db.Model, UserMixin):
                     direction.next_review = known_next_review
                 db.session.add(direction)
         elif user_word and status > 0:
-            # Обновляем статус существующей записи
-            user_word.status = str_status
-
             # Для "Уже знаю" - обновляем интервалы на карточках.
             # first_reviewed/last_reviewed не трогаем (см. комментарий выше).
             if is_already_known:

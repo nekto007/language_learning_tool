@@ -455,7 +455,10 @@ def get_learning_summary(user_id: int) -> dict[str, Any]:
             func.count(UserWord.id).filter(UserWord.status != 'new').label('learned'),
             func.count(UserWord.id).filter(UserWord.status == 'review').label('review'),
         )
-        .filter(UserWord.user_id == user_id)
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
+        )
         .first()
     )
 

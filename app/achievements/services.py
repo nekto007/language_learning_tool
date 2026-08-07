@@ -504,8 +504,12 @@ class AchievementService:
 
         from app.study.models import UserWord
 
+        # Excluded words are hidden from every queue, so they must not keep
+        # counting here either — the dashboard already filters them and the two
+        # numbers disagreed by exactly the excluded-word count.
         review_count = db.session.query(func.count(UserWord.id)).filter(
             UserWord.user_id == user_id,
+            UserWord.srs_excluded.is_(False),
             UserWord.status == 'review',
         ).scalar() or 0
 

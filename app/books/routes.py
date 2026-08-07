@@ -899,6 +899,13 @@ def book_words(book_id):
             ).scalar_subquery()
 
             query = query.where(CollectionWords.id.not_in(subquery))
+        elif status_str == 'mastered':
+            # Derived threshold, not a stored status — a status equality filter
+            # here could never match a row.
+            from app.srs.counting import mastered_word_ids_subquery
+            query = query.where(
+                CollectionWords.id.in_(mastered_word_ids_subquery(current_user.id).subquery())
+            )
         else:
             # Слова с определенным статусом
             query = query.join(

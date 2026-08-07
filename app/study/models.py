@@ -6,8 +6,20 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.srs.constants import MASTERED_THRESHOLD_DAYS as _MASTERED_DAYS
 from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS
+from app.srs.constants import (
+    DIRECTION_ENG_RUS,
+    DIRECTION_RUS_ENG,
+    STATUS_LEARNING,
+    STATUS_NEW,
+    STATUS_REVIEW,
+    CardState,
+)
 from app.srs.mixins import SRSFieldsMixin
 from app.utils.db import db
+
+# A word is only "learned" once BOTH recall directions hold. Recognising the
+# English form says nothing about being able to produce it.
+_BOTH_DIRECTIONS = frozenset((DIRECTION_ENG_RUS, DIRECTION_RUS_ENG))
 
 
 class StudySession(db.Model):
@@ -271,46 +283,49 @@ class UserWord(db.Model):
         Derive status from UserCardDirection states.
 
         Priority:
-        1. If ANY direction is in 'learning' or 'relearning' → status = 'learning'
-        2. Else if ANY direction is in 'new' → status = 'new'
-        3. Else (all directions in 'review') → status = 'review'
-        """
-        if self.srs_excluded:
-            return
+        1. Any direction in 'learning' or 'relearning' → 'learning'
+        2. BOTH directions present and all in 'review'  → 'review'
+        3. Any direction already graded                 → 'learning'
+        4. Otherwise                                    → 'new'
 
+        Rule 2 is the important one: without the both-directions requirement a
+        single "Знаю" on a freshly seen word created one direction, jumped it
+        straight to REVIEW and the word counted as learned — in the achievement
+        totals and in every "выучено" widget — after one keypress.
+
+        Exclusion is deliberately not consulted here. Status describes learning
+        progress; hiding an excluded word is the visibility rule's job
+        (app/srs/visibility.py). Returning early for excluded words used to
+        freeze their status forever, which is why the dashboard and the
+        achievement counters disagreed about the same user.
+        """
         directions_list = self.directions.all()
 
         if not directions_list:
             # No directions yet - keep as 'new'
             return
 
-        has_learning = False
-        has_new = False
-        all_review = True
+        states = [d.state for d in directions_list]
+        has_both_directions = _BOTH_DIRECTIONS.issubset({d.direction for d in directions_list})
 
-        for d in directions_list:
-            if d.state in ('learning', 'relearning'):
-                has_learning = True
-                all_review = False
-            elif d.state == 'new':
-                has_new = True
-                all_review = False
-            # 'review' state doesn't change all_review
-
-        if has_learning:
-            new_status = 'learning'
-        elif has_new:
-            new_status = 'new'
-        elif all_review:
-            new_status = 'review'
+        if any(s in (CardState.LEARNING.value, CardState.RELEARNING.value) for s in states):
+            new_status = STATUS_LEARNING
+        elif has_both_directions and all(s == CardState.REVIEW.value for s in states):
+            new_status = STATUS_REVIEW
+        elif any(
+            d.first_reviewed is not None or d.state != CardState.NEW.value
+            for d in directions_list
+        ):
+            # Started, but not finished in both directions.
+            new_status = STATUS_LEARNING
         else:
-            new_status = 'new'  # fallback
+            new_status = STATUS_NEW
 
         if self.status != new_status:
             self.status = new_status
             self.updated_at = datetime.now(timezone.utc)
 
-            if new_status == 'review':
+            if new_status == STATUS_REVIEW:
                 try:
                     from app.achievements.services import AchievementService
                     AchievementService.check_words_learned_achievements(self.user_id)
@@ -328,13 +343,16 @@ class UserWord(db.Model):
 
     @property
     def is_mature(self):
-        """Word is mature if min interval >= 21 days."""
-        return self.status == 'review' and self.min_interval >= self.MATURE_THRESHOLD_DAYS
+        """Word is mature once its shortest interval reaches MATURE_THRESHOLD_DAYS."""
+        return self.status == STATUS_REVIEW and self.min_interval >= self.MATURE_THRESHOLD_DAYS
 
     @property
     def is_mastered(self):
-        """Word is mastered if min interval >= 180 days."""
-        return self.status == 'review' and self.min_interval >= self.MASTERED_THRESHOLD_DAYS
+        """Word is mastered once its shortest interval reaches MASTERED_THRESHOLD_DAYS.
+
+        'mastered' is a threshold on top of 'review', never a stored status.
+        """
+        return self.status == STATUS_REVIEW and self.min_interval >= self.MASTERED_THRESHOLD_DAYS
 
     def update_status(self, new_status):
         """Update the status of the user word (legacy method, prefer recalculate_status)"""
@@ -656,10 +674,21 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         return self.interval
 
     def update_user_word_status(self):
-        """Update the parent UserWord status based on card states using recalculate_status()"""
+        """Update the parent UserWord status based on card states using recalculate_status()
+
+        Locks the parent row: grading both directions of a word concurrently
+        otherwise lets each transaction read the other's pre-grade state, so
+        the word never reaches 'review' until some later grade.
+        Lock order is always direction → user_word.
+        """
         # Flush first so that direction.all() query sees the updated state
         db.session.flush()
-        user_word = UserWord.query.get(self.user_word_id)
+        user_word = (
+            UserWord.query
+            .filter_by(id=self.user_word_id)
+            .with_for_update()
+            .first()
+        )
         if user_word:
             user_word.recalculate_status()
             db.session.flush()  # Flush the status change

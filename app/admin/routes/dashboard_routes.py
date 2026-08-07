@@ -408,9 +408,12 @@ def get_srs_health_metrics() -> dict:
     ).group_by(UserCardDirection.state).all()
     word_map = {row[0]: row[1] for row in word_states}
 
+    # 180 was unreachable: intervals are capped at MAX_REVIEW_INTERVAL_DAYS,
+    # so this counter always reported zero mastered words.
+    from app.srs.constants import MASTERED_THRESHOLD_DAYS
     mastered_words = db.session.query(func.count(UserCardDirection.id)).filter(
         UserCardDirection.state == 'review',
-        UserCardDirection.interval >= 180,
+        UserCardDirection.interval >= MASTERED_THRESHOLD_DAYS,
     ).scalar() or 0
 
     words_new = word_map.get('new', 0)

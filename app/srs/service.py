@@ -645,8 +645,17 @@ class UnifiedSRSService:
         """
         # Flush card state changes so recalculate_status() query sees them
         db.session.flush()
-        user_word = card.user_word
-        user_word.recalculate_status()
+        # Lock the parent: two directions of the same word graded concurrently
+        # would otherwise each read the other's pre-grade state and the word
+        # would never reach 'review'. Lock order is always direction → user_word.
+        user_word = (
+            UserWord.query
+            .filter_by(id=card.user_word_id)
+            .with_for_update()
+            .first()
+        )
+        if user_word:
+            user_word.recalculate_status()
 
     def grade_grammar_exercise(
         self,
