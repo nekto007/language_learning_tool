@@ -538,6 +538,26 @@ class TestCardTools:
 
         assert response.status_code == 400
 
+    def test_includes_word_back_into_srs(
+        self, authenticated_client, user_words, user_card_directions, db_session,
+    ):
+        card = user_card_directions[0]
+        word_id = card.user_word.word_id
+        authenticated_client.post('/study/api/exclude-word', json={'word_id': word_id})
+
+        response = authenticated_client.post('/study/api/include-word', json={'word_id': word_id})
+
+        assert response.status_code == 200
+        assert response.get_json()['success'] is True
+        db_session.refresh(card.user_word)
+        assert card.user_word.srs_excluded is False
+        assert card.user_word.srs_excluded_at is None
+
+    def test_include_word_rejects_unknown_word(self, authenticated_client):
+        response = authenticated_client.post('/study/api/include-word', json={'word_id': 9999999})
+
+        assert response.status_code == 404
+
 
 class TestUpdateStudyItem:
     """Test /api/update-study-item POST endpoint - Lines 744-821"""

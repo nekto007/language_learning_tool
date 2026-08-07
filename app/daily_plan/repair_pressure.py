@@ -7,6 +7,8 @@ from typing import Optional
 from sqlalchemy import func
 
 from app.grammar_lab.models import GrammarAttempt, UserGrammarExercise
+from app.srs.constants import CardState
+from app.srs.visibility import srs_servable_filter
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
@@ -59,8 +61,10 @@ def _count_overdue_srs(user_id: int) -> int:
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord)
         .filter(
-            UserWord.user_id == user_id,
-            UserCardDirection.state.in_(('review', 'relearning')),
+            # Debt the user can actually pay down: excluded and resting cards
+            # are not served, so counting them inflated the repair pressure.
+            srs_servable_filter(user_id, now),
+            UserCardDirection.state.in_((CardState.REVIEW.value, CardState.RELEARNING.value)),
             UserCardDirection.next_review <= now,
         )
     )

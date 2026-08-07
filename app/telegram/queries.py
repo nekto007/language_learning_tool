@@ -10,6 +10,7 @@ from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCo
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.grammar_lab.models import GrammarTopic, UserGrammarExercise, UserGrammarTopicStatus
+from app.srs.visibility import srs_servable_filter
 from app.study.models import UserCardDirection, UserWord
 from app.telegram.notifications import LESSON_TIME
 from app.utils.db import db
@@ -245,7 +246,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     from app.study.models import StudySettings
     user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
     raw_due = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
-        UserWord.user_id == user_id,
+        srs_servable_filter(user_id, now),
         UserCardDirection.next_review <= now,
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0
@@ -740,8 +741,11 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         user_word_subq = db.session.query(UserWord.id).filter(UserWord.user_id == user_id)
         has_any_words = UserWord.query.filter_by(user_id=user_id).first() is not None
 
-    raw_due = db.session.query(func.count(UserCardDirection.id)).filter(
+    raw_due = db.session.query(func.count(UserCardDirection.id)).join(
+        UserWord, UserCardDirection.user_word_id == UserWord.id
+    ).filter(
         UserCardDirection.user_word_id.in_(user_word_subq),
+        srs_servable_filter(user_id, now),
         UserCardDirection.next_review <= now,
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0
@@ -1471,7 +1475,7 @@ def get_quickest_action(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any] | 
 
     # Words due for review
     words_due = db.session.query(func.count(UserCardDirection.id)).join(UserWord).filter(
-        UserWord.user_id == user_id,
+        srs_servable_filter(user_id, now),
         UserCardDirection.next_review <= now,
         UserCardDirection.direction == 'eng-rus',
     ).scalar() or 0

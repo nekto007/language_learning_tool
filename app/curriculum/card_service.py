@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from sqlalchemy import Date, cast, func
 
 from app.curriculum.models import LessonProgress, Lessons
+from app.srs.visibility import srs_scope_filter, srs_servable_filter
 from app.study.models import UserCardDirection, UserWord
 from app.utils.audio import normalize_listening
 from app.utils.db import db
@@ -106,7 +107,7 @@ def get_cards_for_lesson(lesson_id, user_id):
         due_directions = UserCardDirection.query.join(
             UserWord, UserCardDirection.user_word_id == UserWord.id
         ).filter(
-            UserWord.user_id == user_id,
+            srs_servable_filter(user_id),
             UserCardDirection.last_reviewed.isnot(None),
             cast(UserCardDirection.next_review, Date) <= func.current_date(),
             ~UserCardDirection.id.in_([int(id) for id in shown_card_ids]) if shown_card_ids else True
@@ -589,7 +590,7 @@ def get_card_session_for_lesson(lesson_id, user_id):
             UserWord, UserCardDirection.user_word_id == UserWord.id
         )
         .filter(
-            UserWord.user_id == user_id,
+            srs_scope_filter(user_id),
             UserCardDirection.next_review > now
         )
         .order_by(UserCardDirection.next_review)

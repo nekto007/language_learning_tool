@@ -61,6 +61,7 @@ def _make_card(
     repetitions: int = 0,
     interval: int = 0,
     next_review: datetime | None = None,
+    buried_until: datetime | None = None,
     direction: str = "eng-rus",
 ) -> UserCardDirection:
     card = UserCardDirection(
@@ -73,6 +74,7 @@ def _make_card(
     card.interval = interval
     card.ease_factor = DEFAULT_EASE_FACTOR
     card.next_review = next_review if next_review is not None else _naive_now()
+    card.buried_until = buried_until
     db_session.add(card)
     db_session.commit()
     return card
@@ -215,11 +217,34 @@ class TestGetDueCardsCount:
         count = srs.get_due_cards_count(user.id)
         assert count >= 1
 
-    def test_mastered_user_word_excluded(self, db_session, user):
-        """Cards whose UserWord.status='mastered' are excluded."""
+    def test_excluded_user_word_not_counted(self, db_session, user):
+        """Cards of a word the learner excluded from SRS are not counted.
+
+        Replaces a check on ``UserWord.status == 'mastered'``: that value is
+        never produced by recalculate_status, so the filter it guarded could
+        only ever match hand-written rows.
+        """
         word = _make_word(db_session)
-        uw = _make_user_word(db_session, user.id, word, status="mastered")
+        uw = _make_user_word(db_session, user.id, word)
+        uw.srs_excluded = True
+        db_session.commit()
         _make_card(db_session, uw, state=CardState.NEW.value)
+
+        srs = BookSRSIntegration()
+        count = srs.get_due_cards_count(user.id)
+        assert count == 0
+
+    def test_resting_card_not_counted(self, db_session, user):
+        """A card resting after repeated failures is not offered as due."""
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, user.id, word)
+        _make_card(
+            db_session, uw,
+            state=CardState.REVIEW.value,
+            repetitions=5,
+            next_review=_naive_now() - timedelta(days=1),
+            buried_until=_naive_now() + timedelta(days=7),
+        )
 
         srs = BookSRSIntegration()
         count = srs.get_due_cards_count(user.id)

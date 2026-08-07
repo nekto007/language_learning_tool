@@ -6,6 +6,7 @@ from typing import Dict
 
 from app.curriculum.models import Lessons
 from app.srs.constants import CardState
+from app.srs.visibility import is_card_resting, is_word_in_srs, srs_servable_filter
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWordLink, CollectionWords
@@ -86,6 +87,9 @@ class SRSService:
             review_cards = 0
 
             for user_word in user_words:
+                if not is_word_in_srs(user_word):
+                    # The learner asked never to study this word again.
+                    continue
                 word_dirs = dir_map.get(user_word.id, {})
                 for direction in ['eng-rus', 'rus-eng']:
                     card_dir = word_dirs.get(direction)
@@ -100,7 +104,11 @@ class SRSService:
                         db.session.add(card_dir)
                         new_cards += 1
                         due_directions.append(card_dir)
-                    elif card_dir.next_review is not None and card_dir.next_review <= now:
+                    elif (
+                        card_dir.next_review is not None
+                        and card_dir.next_review <= now
+                        and not is_card_resting(card_dir, now)
+                    ):
                         # Review card
                         review_cards += 1
                         due_directions.append(card_dir)
@@ -319,11 +327,12 @@ class SRSService:
             mastered_words = sum(1 for uw in user_words if uw.is_mastered)
 
             # Get due cards count
-            now = datetime.now(UTC)
+            # next_review is a naive-UTC column
+            now = datetime.now(UTC).replace(tzinfo=None)
             due_cards = UserCardDirection.query.join(
                 UserWord
             ).filter(
-                UserWord.user_id == user_id,
+                srs_servable_filter(user_id, now),
                 UserCardDirection.next_review <= now
             ).count()
 

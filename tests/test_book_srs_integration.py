@@ -234,6 +234,7 @@ class TestFilterDueCards:
             next_review=None,
             direction='eng-rus',
             buried_until=None,
+            user_word=Mock(srs_excluded=False),
         )
         cards = [{'card': new_card, 'context': None}]
 
@@ -248,6 +249,7 @@ class TestFilterDueCards:
             next_review=datetime.now(timezone.utc) - timedelta(hours=1),
             direction='eng-rus',
             buried_until=None,
+            user_word=Mock(srs_excluded=False),
         )
         cards = [{'card': overdue_card, 'context': None}]
 
@@ -262,6 +264,7 @@ class TestFilterDueCards:
             next_review=datetime.now(timezone.utc) + timedelta(days=1),
             direction='eng-rus',
             buried_until=None,
+            user_word=Mock(srs_excluded=False),
         )
         cards = [{'card': future_card, 'context': None}]
 
@@ -276,6 +279,7 @@ class TestFilterDueCards:
             next_review=datetime.now(timezone.utc) - timedelta(hours=1),
             direction='eng-rus',
             buried_until=datetime.now(timezone.utc) + timedelta(days=3),
+            user_word=Mock(srs_excluded=False),
         )
         cards = [{'card': buried_card, 'context': None}]
 

@@ -561,3 +561,48 @@ class TestMatchingSrsBudget:
         )
         # study_settings.new_words_per_day == 5
         assert activated == 5
+
+
+class TestMatchingGameRespectsExclusion:
+    """"Не учить это слово" must hold here too.
+
+    The matching game grades every word it is handed, which used to bypass the
+    409 guard that /study/api/update-study-item enforces.
+    """
+
+    def test_excluded_word_is_not_graded(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        from app.study.models import UserCardDirection, UserWord
+        from app.words.models import CollectionWords
+
+        word = CollectionWords(english_word='excluded_x', russian_word='исключено_x', level='A1')
+        db_session.add(word)
+        db_session.commit()
+
+        user_word = UserWord(user_id=test_user.id, word_id=word.id)
+        user_word.srs_excluded = True
+        db_session.add(user_word)
+        db_session.commit()
+
+        direction = UserCardDirection(user_word_id=user_word.id, direction='eng-rus')
+        db_session.add(direction)
+        db_session.commit()
+
+        resp = authenticated_client.post(
+            '/study/api/complete-matching-game',
+            data=json.dumps({
+                'pairs_matched': 1,
+                'total_pairs': 1,
+                'moves': 2,
+                'time_taken': 10,
+                'difficulty': 'easy',
+                'word_ids': [word.id],
+            }),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+
+        db_session.refresh(direction)
+        assert direction.first_reviewed is None
+        assert (direction.session_attempts or 0) == 0

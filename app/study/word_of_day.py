@@ -11,6 +11,7 @@ def get_word_of_day(user_id: int) -> dict | None:
     """Pick today's word for a user. Deterministic per user+date (same word all day)."""
     from app.curriculum.book_courses import BookCourseEnrollment, BookCourseModule
     from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary
+    from app.srs.visibility import srs_servable_filter
     from app.study.models import UserCardDirection, UserWord
     from app.words.models import CollectionWords
 
@@ -56,8 +57,7 @@ def get_word_of_day(user_id: int) -> dict | None:
     ).join(
         UserCardDirection, UserCardDirection.user_word_id == UserWord.id,
     ).filter(
-        UserWord.user_id == user_id,
-        UserWord.srs_excluded.is_(False),
+        srs_servable_filter(user_id),
         UserCardDirection.direction == 'eng-rus',
         UserCardDirection.next_review <= datetime.now(timezone.utc).replace(tzinfo=None),
     ).limit(20).all()

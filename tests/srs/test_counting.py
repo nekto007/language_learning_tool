@@ -9,6 +9,7 @@ from app.srs.constants import CardState
 from app.srs.counting import (
     count_due_cards,
     count_new_cards_today,
+    count_resting_words,
     count_reviews_today,
     get_new_card_budget,
     get_review_forecast,
@@ -659,3 +660,47 @@ class TestGetReviewForecast:
         resp = authenticated_client.get('/study/stats')
         assert resp.status_code == 200
         assert b'review-forecast-chart' in resp.data
+
+
+class TestCountRestingWords:
+    """A resting word is one taken out of circulation for whole days."""
+
+    def test_counts_multi_day_rest(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, buried_until=_now_naive() + timedelta(days=7))
+
+        assert count_resting_words(user.id, real_db) == 1
+
+    def test_ignores_short_session_bury(self, db_session):
+        # bury_for_session parks a card for four hours; that is not a rest.
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, buried_until=_now_naive() + timedelta(hours=4))
+
+        assert count_resting_words(user.id, real_db) == 0
+
+    def test_counts_a_word_once_when_both_directions_rest(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        rest = _now_naive() + timedelta(days=7)
+        _make_direction(db_session, uw, direction='eng-rus', buried_until=rest)
+        _make_direction(db_session, uw, direction='rus-eng', buried_until=rest)
+
+        assert count_resting_words(user.id, real_db) == 1
+
+    def test_ignores_excluded_words(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        uw.srs_excluded = True
+        db_session.commit()
+        _make_direction(db_session, uw, buried_until=_now_naive() + timedelta(days=7))
+
+        assert count_resting_words(user.id, real_db) == 0
+
+    def test_ignores_free_cards(self, db_session):
+        user = _make_user(db_session)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw)
+
+        assert count_resting_words(user.id, real_db) == 0

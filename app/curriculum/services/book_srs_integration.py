@@ -6,13 +6,11 @@ from typing import Any, Dict, List, Optional
 
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment
 from app.curriculum.daily_lessons import DailyLesson, LessonCompletionEvent, SliceVocabulary
-from app.srs.constants import DEFAULT_EASE_FACTOR, CardState
+from app.srs.constants import DEFAULT_EASE_FACTOR, LEARNED_INTERVAL_THRESHOLD, CardState
+from app.srs.visibility import is_card_servable, srs_scope_filter, srs_servable_filter
 from app.study.models import QuizDeck, QuizDeckWord, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords, word_book_link
-
-# Константа для определения "выученного" слова
-LEARNED_INTERVAL_THRESHOLD = 35  # дней
 
 logger = logging.getLogger(__name__)
 
@@ -355,13 +353,10 @@ class BookSRSIntegration:
             if direction_filter and card.direction != direction_filter:
                 continue
 
-            # Leech-buried cards stay hidden here too, same rule as the global SRS queue
-            buried_until = card.buried_until
-            if buried_until is not None:
-                if buried_until.tzinfo is not None:
-                    buried_until = buried_until.replace(tzinfo=None)
-                if buried_until > now:
-                    continue
+            # Excluded and resting cards stay hidden here too, same rule as the
+            # global SRS queue (app/srs/visibility.py).
+            if not is_card_servable(card, now):
+                continue
 
             # New cards (state=NEW) or overdue cards
             if card.state == CardState.NEW.value:
@@ -572,7 +567,7 @@ class BookSRSIntegration:
             # Найти ближайшую карточку, которую нужно повторить
             earliest_card = (UserCardDirection.query
                              .join(UserWord)
-                             .filter(UserWord.user_id == user_id)
+                             .filter(srs_scope_filter(user_id))
                              .filter(UserCardDirection.next_review.isnot(None))
                              .order_by(UserCardDirection.next_review)
                              .first())
@@ -594,8 +589,7 @@ class BookSRSIntegration:
             count = (UserCardDirection.query
                      .join(UserWord)
                      .filter(
-                         UserWord.user_id == user_id,
-                         UserWord.status != 'mastered',
+                         srs_servable_filter(user_id, now),
                          db.or_(
                              UserCardDirection.state == CardState.NEW.value,
                              UserCardDirection.next_review <= now,
@@ -621,7 +615,7 @@ class BookSRSIntegration:
             due_cards = (UserCardDirection.query
                          .join(UserWord)
                          .join(CollectionWords, UserWord.word_id == CollectionWords.id)
-                         .filter(UserWord.user_id == user_id)
+                         .filter(srs_servable_filter(user_id, now_naive))
                          .filter(
                 db.or_(
                     UserCardDirection.state == CardState.NEW.value,  # New cards
@@ -771,20 +765,21 @@ class BookSRSIntegration:
             # Count by category
             new_count = (UserCardDirection.query
                          .join(UserWord)
-                         .filter(UserWord.user_id == user_id)
+                         .filter(srs_servable_filter(user_id, now_naive))
                          .filter(UserCardDirection.state == CardState.NEW.value)
                          .count())
 
             due_count = (UserCardDirection.query
                          .join(UserWord)
-                         .filter(UserWord.user_id == user_id)
+                         .filter(srs_servable_filter(user_id, now_naive))
                          .filter(UserCardDirection.state != CardState.NEW.value)
                          .filter(UserCardDirection.next_review <= now_naive)
                          .count())
 
+            # Progress, not workload: a resting card is still learned.
             total_learned = (UserCardDirection.query
                              .join(UserWord)
-                             .filter(UserWord.user_id == user_id)
+                             .filter(srs_scope_filter(user_id))
                              .filter(UserCardDirection.state != CardState.NEW.value)
                              .count())
 

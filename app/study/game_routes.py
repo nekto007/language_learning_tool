@@ -16,6 +16,34 @@ from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
 
+
+def _studied_word_ids_subquery(user_id: int):
+    """Word ids the user is actively studying and that may be served right now.
+
+    Games used to pick their pool from ``UserWord.status``, which is a lagging
+    label and carries neither the exclusion nor the rest rule — so a word the
+    user had excluded, or one resting after repeated failures, still turned up
+    in the quiz and the matching game. Select on the authoritative direction
+    state instead, behind the shared visibility filter.
+    """
+    from app.srs.constants import CardState
+    from app.srs.visibility import not_buried_filter, srs_scope_filter
+
+    return (
+        db.session.query(UserWord.word_id)
+        .join(UserCardDirection, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            srs_scope_filter(user_id),
+            not_buried_filter(),
+            UserCardDirection.state.in_((
+                CardState.LEARNING.value,
+                CardState.RELEARNING.value,
+                CardState.REVIEW.value,
+            )),
+        )
+    )
+
+
 # ============ Game XP / achievement helpers (inlined from former XPService) ============
 
 _XP_PER_CORRECT_ANSWER = 10
@@ -457,12 +485,8 @@ def get_quiz_questions():
                 break
 
     else:
-        learning_words = db.session.query(CollectionWords).join(
-            UserWord,
-            (CollectionWords.id == UserWord.word_id) &
-            (UserWord.user_id == current_user.id)
-        ).filter(
-            UserWord.status.in_(['learning', 'review']),
+        learning_words = CollectionWords.query.filter(
+            CollectionWords.id.in_(_studied_word_ids_subquery(current_user.id)),
             CollectionWords.russian_word != None,
             CollectionWords.russian_word != ''
         ).order_by(func.random()).limit(question_count // 2).all()
@@ -527,12 +551,8 @@ def get_matching_words():
 
     words = []
 
-    learning_words = db.session.query(CollectionWords).join(
-        UserWord,
-        (CollectionWords.id == UserWord.word_id) &
-        (UserWord.user_id == current_user.id)
-    ).filter(
-        UserWord.status.in_(['learning', 'review']),
+    learning_words = CollectionWords.query.filter(
+        CollectionWords.id.in_(_studied_word_ids_subquery(current_user.id)),
         CollectionWords.russian_word != None,
         CollectionWords.russian_word != ''
     ).order_by(func.random()).limit(word_count // 2).all()
@@ -713,13 +733,21 @@ def complete_matching_game():
         remaining_new, _ = get_new_card_budget(current_user.id, db)
         MAX_MATCHING_SRS_WORDS = 50
 
+        from app.srs.visibility import is_word_in_srs
+
         srs_errors = []
+        skipped_excluded = 0
         for word_id in word_ids[:MAX_MATCHING_SRS_WORDS]:
             try:
                 with db.session.begin_nested():
                     user_word = UserWord.query.filter_by(
                         user_id=current_user.id, word_id=word_id
                     ).first()
+                    if user_word is not None and not is_word_in_srs(user_word):
+                        # Same rule the /api/update-study-item guard enforces:
+                        # a word the user excluded must not be graded here.
+                        skipped_excluded += 1
+                        continue
                     if user_word is None:
                         if remaining_new <= 0:
                             continue
@@ -755,6 +783,11 @@ def complete_matching_game():
 
         if srs_errors:
             logger.warning(f'Matching game SRS update had {len(srs_errors)} errors out of {len(word_ids)} words')
+        if skipped_excluded:
+            logger.info(
+                'Matching game skipped %s excluded word(s) for user %s',
+                skipped_excluded, current_user.id,
+            )
 
         db.session.commit()
 

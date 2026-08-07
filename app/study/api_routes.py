@@ -11,7 +11,9 @@ from sqlalchemy.orm import joinedload
 
 from app import limiter
 from app.api.errors import api_error
+from app.srs.counting import count_resting_words
 from app.srs.stats_service import srs_stats_service
+from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import get_audio_url_for_word, study
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.models import QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord
@@ -41,30 +43,6 @@ def _calculate_flashcard_xp(cards_reviewed, correct_answers):
 def _is_valid_word_id(value: object) -> bool:
     """Accept only true integer ids; bool is an int subclass Postgres rejects as a boolean."""
     return isinstance(value, int) and not isinstance(value, bool)
-
-
-def _count_leech_suspended(user_id: int, now: datetime) -> int:
-    """Count distinct words currently buried because they crossed the leech threshold.
-
-    Counts distinct user_word_id rather than UserCardDirection rows so a word
-    leeched in both directions surfaces as a single suspended card in the UI.
-    """
-    from sqlalchemy import distinct
-
-    from app.srs.constants import LEECH_THRESHOLD
-
-    return (
-        db.session.query(func.count(distinct(UserCardDirection.user_word_id)))
-        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
-        .filter(
-            UserWord.user_id == user_id,
-            UserWord.srs_excluded.is_(False),
-            UserCardDirection.lapses >= LEECH_THRESHOLD,
-            UserCardDirection.buried_until.isnot(None),
-            UserCardDirection.buried_until > now,
-        )
-        .scalar() or 0
-    )
 
 
 def _is_linear_plan_srs_completion(data: dict) -> bool:
@@ -178,7 +156,7 @@ def get_study_items():
     # renders "session complete" instead of the scary limit message.
     is_daily_plan_session = word_source == 'daily_plan_mix'
 
-    leech_suspended_count = _count_leech_suspended(current_user.id, now)
+    leech_suspended_count = count_resting_words(current_user.id, db)
 
     if (not extra_study
             and not is_linear_plan_srs
@@ -299,14 +277,7 @@ def get_study_items():
 
         # UserCardDirection.state is authoritative; UserWord.status is a
         # derived UI label and may lag behind direction grades.
-        filters = [
-            UserWord.user_id == current_user.id,
-            UserWord.srs_excluded.is_(False),
-            or_(
-                UserCardDirection.buried_until.is_(None),
-                UserCardDirection.buried_until <= now
-            ),
-        ]
+        filters = [srs_servable_filter(current_user.id, now)]
         if due_filter is not None:
             filters.append(due_filter)
 
@@ -422,17 +393,12 @@ def get_study_items():
                 joinedload(UserCardDirection.user_word).joinedload(UserWord.word)
             ) \
             .filter(
-                UserWord.user_id == current_user.id,
-                UserWord.srs_excluded.is_(False),
+                srs_servable_filter(current_user.id, now),
                 UserCardDirection.state == CardState.NEW.value,
                 or_(
                     UserCardDirection.next_review.is_(None),
                     UserCardDirection.next_review <= end_of_today
                 ),
-                or_(
-                    UserCardDirection.buried_until.is_(None),
-                    UserCardDirection.buried_until <= now
-                )
             )
         if deck_word_ids is not None:
             new_state_query = new_state_query.filter(UserWord.word_id.in_(deck_word_ids))
@@ -820,6 +786,35 @@ def exclude_word_from_srs():
     user_word.srs_excluded_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
     return jsonify({'success': True, 'word_id': word_id})
+
+
+@study.route('/api/include-word', methods=['POST'])
+@login_required
+def include_word_in_srs():
+    """Undo an exclusion and put the word back into the SRS queues."""
+    data = request.get_json(silent=True) or {}
+    word_id = data.get('word_id')
+    if not _is_valid_word_id(word_id):
+        return api_error('invalid_input', 'word_id is required', 400)
+
+    user_word = (
+        UserWord.query
+        .filter_by(user_id=current_user.id, word_id=word_id)
+        .with_for_update()
+        .first()
+    )
+    if not user_word:
+        return api_error('not_found', 'word is not in the user SRS', 404)
+
+    user_word.srs_excluded = False
+    user_word.srs_excluded_at = None
+    user_word.recalculate_status()
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'word_id': word_id,
+        'status': user_word.status,
+    })
 
 
 @study.route('/api/complete-session', methods=['POST'])

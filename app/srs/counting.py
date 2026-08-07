@@ -17,24 +17,22 @@ Design:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 
 from app.srs.constants import CardState
+from app.srs.visibility import naive_utc_now, srs_scope_filter, srs_servable_filter
 from app.study.models import StudySettings, UserCardDirection, UserWord
 from app.utils.db import db as _db
 from app.utils.db_utils import chunk_ids
 from app.utils.time_utils import day_to_naive_utc
 
 
-def _naive_utc_now(now_utc: Optional[datetime] = None) -> datetime:
-    if now_utc is None:
-        return datetime.now(timezone.utc).replace(tzinfo=None)
-    if now_utc.tzinfo is not None:
-        return now_utc.astimezone(timezone.utc).replace(tzinfo=None)
-    return now_utc
+# Kept as a module-local alias: the normalisation itself now lives next to the
+# visibility rule so both use one definition of "now" on the naive-UTC basis.
+_naive_utc_now = naive_utc_now
 
 
 def _today_start_naive(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> datetime:
@@ -69,8 +67,7 @@ def count_due_cards(
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
-            UserWord.user_id == user_id,
-            UserWord.srs_excluded.is_(False),
+            srs_servable_filter(user_id, now),
             UserCardDirection.state.in_(
                 (
                     CardState.LEARNING.value,
@@ -79,10 +76,6 @@ def count_due_cards(
                 )
             ),
             UserCardDirection.next_review <= now,
-            or_(
-                UserCardDirection.buried_until.is_(None),
-                UserCardDirection.buried_until <= now,
-            ),
         )
     )
     if word_ids is not None:
@@ -186,20 +179,15 @@ def count_due_by_states(
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
-            UserWord.user_id == user_id,
-            UserWord.srs_excluded.is_(False),
+            srs_servable_filter(user_id, now),
             UserCardDirection.state.in_(tuple(states)),
             UserCardDirection.next_review <= now,
-            or_(
-                UserCardDirection.buried_until.is_(None),
-                UserCardDirection.buried_until <= now,
-            ),
         )
         .scalar() or 0
     )
 
 
-def count_pending_new(user_id: int, db: Any = _db) -> int:
+def count_pending_new(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
     """Count NEW-state directions (started but never graded).
 
     These are not «due now» (NEW has no scheduling), they form the new-card
@@ -209,9 +197,33 @@ def count_pending_new(user_id: int, db: Any = _db) -> int:
         db.session.query(func.count(UserCardDirection.id))
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
-            UserWord.user_id == user_id,
-            UserWord.srs_excluded.is_(False),
+            srs_servable_filter(user_id, now_utc),
             UserCardDirection.state == CardState.NEW.value,
+        )
+        .scalar() or 0
+    )
+
+
+def count_resting_words(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
+    """Count distinct words currently resting for at least the rest of today.
+
+    A resting word is one the SRS has taken out of circulation because it would
+    not stick — see ``app/srs/scheduling.py``. Counting distinct words (rather
+    than directions) means a word rested in both directions shows up once.
+
+    The threshold is tomorrow's local midnight so the short intra-session bury
+    (``UserCardDirection.bury_for_session``) is not reported as a rest. Note it
+    deliberately selects buried rows, so it takes the scope half of the
+    visibility rule only.
+    """
+    tomorrow_start = day_to_naive_utc(user_id, db, days_ahead=1, now_utc=now_utc)
+    return int(
+        db.session.query(func.count(func.distinct(UserCardDirection.user_word_id)))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            srs_scope_filter(user_id),
+            UserCardDirection.buried_until.isnot(None),
+            UserCardDirection.buried_until >= tomorrow_start,
         )
         .scalar() or 0
     )

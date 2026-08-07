@@ -211,7 +211,11 @@ def get_words_at_risk(user_id: int, limit: int = 10) -> list[dict[str, Any]]:
     from app.study.models import UserCardDirection, UserWord
     from app.words.models import CollectionWords
 
-    now = datetime.now(timezone.utc)
+    from app.srs.visibility import naive_utc_now, srs_servable_filter
+
+    # next_review is a naive-UTC column; comparing an aware `now` against it
+    # relied on the driver silently dropping the offset.
+    now = naive_utc_now()
 
     rows = (
         db.session.query(
@@ -222,7 +226,7 @@ def get_words_at_risk(user_id: int, limit: int = 10) -> list[dict[str, Any]]:
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .join(CollectionWords, UserWord.word_id == CollectionWords.id)
         .filter(
-            UserWord.user_id == user_id,
+            srs_servable_filter(user_id, now),
             UserCardDirection.direction == 'eng-rus',
             UserCardDirection.next_review < now,
             UserCardDirection.next_review.isnot(None),
@@ -237,8 +241,8 @@ def get_words_at_risk(user_id: int, limit: int = 10) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for row in rows:
         next_rev = row.next_review
-        if next_rev.tzinfo is None:
-            next_rev = next_rev.replace(tzinfo=timezone.utc)
+        if next_rev.tzinfo is not None:
+            next_rev = next_rev.astimezone(timezone.utc).replace(tzinfo=None)
         days_overdue = (now - next_rev).days
         result.append({
             'word': row.english_word,

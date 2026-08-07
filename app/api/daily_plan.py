@@ -19,31 +19,16 @@ DEFAULT_TZ = DEFAULT_TIMEZONE
 
 
 def _count_leech_suspended(user_id: int) -> int:
-    """Count distinct words currently buried due to leech threshold crossing.
+    """Count distinct words currently resting, for the daily-status payload.
 
-    Returns an int (never None). Counts distinct user_word_id so a word
-    leeched in both directions counts as one suspended item for the UI toast.
+    Thin wrapper over the canonical counter: this used to be a second copy that
+    silently disagreed with the /study one (it was missing the srs_excluded
+    filter) even though both feed the same UI number.
     """
-    from datetime import datetime, timezone
+    from app.srs.counting import count_resting_words
 
-    from sqlalchemy import distinct, func
-
-    from app.srs.constants import LEECH_THRESHOLD
-    from app.study.models import UserCardDirection, UserWord
-
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
     try:
-        return (
-            db.session.query(func.count(distinct(UserCardDirection.user_word_id)))
-            .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
-            .filter(
-                UserWord.user_id == user_id,
-                UserCardDirection.lapses >= LEECH_THRESHOLD,
-                UserCardDirection.buried_until.isnot(None),
-                UserCardDirection.buried_until > now,
-            )
-            .scalar() or 0
-        )
+        return count_resting_words(user_id, db)
     except Exception:
         logger.warning("leech_suspended count failed for user %s", user_id, exc_info=True)
         return 0

@@ -15,6 +15,7 @@ from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import joinedload
 
 from app.srs.constants import CardState
+from app.srs.visibility import not_buried_filter, srs_servable_filter
 from app.study.models import QuizDeckWord, StudySettings, UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -88,15 +89,9 @@ class SRSService:
         query = db.session.query(UserCardDirection).join(
             UserWord, UserCardDirection.user_word_id == UserWord.id
         ).filter(
-            UserWord.user_id == user_id,
-            UserWord.srs_excluded.is_(False),
+            srs_servable_filter(user_id, now),
             UserWord.word_id.in_(deck_word_ids),
             UserCardDirection.next_review <= now,
-            # Filter out buried cards
-            or_(
-                UserCardDirection.buried_until.is_(None),
-                UserCardDirection.buried_until <= now
-            ),
             # Exclude NEW cards - they are handled separately
             or_(
                 UserCardDirection.state == CardState.RELEARNING.value,
@@ -311,10 +306,7 @@ class SRSService:
                 ),
                 UserCardDirection.state == CardState.REVIEW.value,
                 UserCardDirection.next_review < today_start,
-                or_(
-                    UserCardDirection.buried_until.is_(None),
-                    UserCardDirection.buried_until <= now,
-                ),
+                not_buried_filter(now),
             ).scalar() or 0
         )
 
@@ -661,13 +653,7 @@ class SRSService:
 
         # Base filter for buried cards and anti-repeat
         def apply_filters(query):
-            # Filter out buried cards
-            query = query.filter(
-                or_(
-                    UserCardDirection.buried_until.is_(None),
-                    UserCardDirection.buried_until <= now
-                )
-            )
+            query = query.filter(not_buried_filter(now))
             # Anti-repeat: exclude specified card IDs
             if exclude_card_ids:
                 query = query.filter(~UserCardDirection.id.in_(exclude_card_ids))

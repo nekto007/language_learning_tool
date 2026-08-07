@@ -35,6 +35,9 @@ def mock_user_word():
     user_word.user_id = 1
     user_word.word_id = 1
     user_word.status = 'learning'
+    # Matches the column default; without it the visibility rule reads a Mock
+    # as a truthy "excluded" and the word is skipped.
+    user_word.srs_excluded = False
     return user_word
 
 
@@ -129,10 +132,12 @@ class TestGetCardsForLesson:
         dir_eng = Mock(user_word_id=1, direction='eng-rus',
                        next_review=naive_overdue,
                        state=CardState.REVIEW.value,
+                       buried_until=None,
                        repetitions=5)
         dir_rus = Mock(user_word_id=1, direction='rus-eng',
                        next_review=naive_overdue,
                        state=CardState.REVIEW.value,
+                       buried_until=None,
                        repetitions=3)
         mock_card_dir_model.query.filter.return_value.all.return_value = [dir_eng, dir_rus]
 
@@ -152,7 +157,9 @@ class TestGetCardsForLesson:
         mock_link.query.filter_by.return_value.all.return_value = links
 
         # Mock existing user words for all 10 words
-        user_words = [Mock(id=i, user_id=1, word_id=i) for i in range(1, 11)]
+        user_words = [
+            Mock(id=i, user_id=1, word_id=i, srs_excluded=False) for i in range(1, 11)
+        ]
         mock_user_word_model.query.filter.return_value.all.return_value = user_words
 
         # Create mock new card instances (state=NEW so the limit applies)

@@ -275,30 +275,20 @@ def init_template_utils(app):
             return None
 
         def get_words_due_count() -> int:
-            """Return count of word cards due for review (for nav badge)."""
+            """Return count of word cards due for review (for nav badge).
+
+            Delegates to the canonical counter so the badge cannot drift from
+            what /study will actually serve. The hand-rolled query it replaces
+            counted only eng-rus, ignored exclusions and rests, and compared an
+            aware end-of-day against the naive column — so the badge could show
+            work the session refused to hand out.
+            """
             from flask_login import current_user
             if not current_user.is_authenticated:
                 return 0
             try:
-                from datetime import datetime, timezone
-
-                from sqlalchemy import func, or_
-
-                from app.study.models import UserCardDirection, UserWord
-                from app.utils.db import db
-                now = datetime.now(timezone.utc)
-                end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=999999)
-                count = db.session.query(func.count(UserCardDirection.id)).join(
-                    UserWord, UserCardDirection.user_word_id == UserWord.id
-                ).filter(
-                    UserWord.user_id == current_user.id,
-                    UserCardDirection.direction == 'eng-rus',
-                    or_(
-                        UserCardDirection.next_review.is_(None),
-                        UserCardDirection.next_review <= end_of_today
-                    )
-                ).scalar() or 0
-                return count
+                from app.srs.counting import count_due_cards
+                return count_due_cards(current_user.id)
             except Exception:
                 logger.exception("Failed to get words due count for navbar")
                 return 0

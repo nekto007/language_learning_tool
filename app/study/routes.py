@@ -8,6 +8,8 @@ from sqlalchemy import and_, case, func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.modules.decorators import module_required
+from app.srs.constants import CardState
+from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import is_auto_deck, study
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.forms import StudySettingsForm
@@ -49,17 +51,15 @@ def index():
     due_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
-        UserWord.user_id == current_user.id,
-        UserWord.srs_excluded.is_(False),
+        srs_servable_filter(current_user.id, now_naive),
         UserCardDirection.next_review <= now_naive
     ).count()
 
     new_items_count = UserCardDirection.query \
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id) \
         .filter(
-        UserWord.user_id == current_user.id,
-        UserWord.srs_excluded.is_(False),
-        UserCardDirection.state == 'new',
+        srs_servable_filter(current_user.id, now_naive),
+        UserCardDirection.state == CardState.NEW.value,
         or_(
             UserCardDirection.next_review.is_(None),
             UserCardDirection.next_review <= now_naive
@@ -158,8 +158,7 @@ def index():
             UserCardDirection, UserCardDirection.user_word_id == UserWord.id
         ).filter(
             QuizDeckWord.deck_id.in_([d.id for d in my_decks]),
-            UserWord.user_id == current_user.id,
-            UserWord.srs_excluded.is_(False),
+            srs_servable_filter(current_user.id, now),
             or_(
                 UserCardDirection.state == 'new',
                 UserCardDirection.state.is_(None),
