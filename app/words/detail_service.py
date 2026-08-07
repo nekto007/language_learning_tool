@@ -6,6 +6,7 @@ import bleach
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
 
+from app.utils.time_utils import naive_utc_to_user_local_date
 from app.words.models import Collection, CollectionWords, Topic
 
 _SEMANTIC_GROUPS = {
@@ -251,6 +252,7 @@ def build_word_study_summary(user_word) -> dict:
         return {
             'status': 'new',
             'status_css': 'new',
+            'resting_until_label': '',
             'status_label': 'Новое слово',
             'status_description': 'Добавьте слово в изучение, чтобы появились повторения.',
             'badge_label': 'Новое',
@@ -274,25 +276,57 @@ def build_word_study_summary(user_word) -> dict:
         key=lambda item: {'eng-rus': 0, 'rus-eng': 1}.get(item.direction, 9),
     )
     is_mastered = user_word.is_mastered
-    status = 'mastered' if is_mastered else (user_word.status or 'new')
+
+    # A resting card is locked until buried_until, whatever next_review says.
+    resting_until = max(
+        (
+            _to_naive_utc(direction.buried_until)
+            for direction in directions
+            if direction.buried_until is not None
+        ),
+        default=None,
+    )
+    is_resting = bool(resting_until and resting_until > now)
+    resting_until_label = ''
+    if is_resting:
+        local_date = naive_utc_to_user_local_date(user_word.user_id, resting_until)
+        resting_until_label = local_date.strftime('%d.%m') if local_date else ''
+
+    if user_word.srs_excluded:
+        status = 'excluded'
+    elif is_resting:
+        status = 'resting'
+    elif is_mastered:
+        status = 'mastered'
+    else:
+        status = user_word.status or 'new'
+
     status_labels = {
         'new': 'Новое слово',
         'learning': 'Изучается',
         'review': 'На повторении',
         'mastered': 'Выученное слово',
+        'resting': f'Отдыхает до {resting_until_label}' if resting_until_label else 'Отдыхает',
+        'excluded': 'Убрано из повторений',
     }
     descriptions = {
         'new': 'Карточки созданы, но слово еще не отвечалось.',
         'learning': 'Слово закрепляется короткими повторениями.',
         'review': 'Слово уже в интервальном повторении.',
         'mastered': 'Слово держится на длинном интервале.',
+        'resting': 'Слово долго не запоминалось, поэтому SRS дал ему передышку. Оно вернётся само.',
+        'excluded': 'Вы убрали это слово из повторений. История сохранена.',
     }
     badge_labels = {
         'new': 'Новое',
         'learning': 'Изучается',
         'review': 'Повторение',
         'mastered': 'Выучено',
+        'resting': 'Отдыхает',
+        'excluded': 'Не изучается',
     }
+    # Reuse the existing palette rather than shipping two unstyled badges.
+    status_css_map = {'resting': 'learning', 'excluded': 'new'}
 
     correct_total = sum(direction.correct_count or 0 for direction in directions)
     incorrect_total = sum(direction.incorrect_count or 0 for direction in directions)
@@ -300,15 +334,34 @@ def build_word_study_summary(user_word) -> dict:
     lapses_total = sum(direction.lapses or 0 for direction in directions)
     interval_values = [direction.interval or 0 for direction in directions if direction.interval is not None]
     interval_label = f'{min(interval_values)} дн.' if interval_values else 'нет'
-    next_values = [
-        _to_naive_utc(direction.next_review)
-        for direction in directions
-        if direction.next_review is not None
-    ]
+    # Availability is max(next_review, buried_until): showing next_review alone
+    # promised "Повторение через N дней" while the card was locked for weeks.
+    next_values = []
+    for direction in directions:
+        moments = [
+            _to_naive_utc(direction.next_review),
+            _to_naive_utc(direction.buried_until),
+        ]
+        moments = [moment for moment in moments if moment is not None]
+        if moments:
+            next_values.append(max(moments))
     next_review_at = min(next_values) if next_values else None
     is_due_now = bool(next_review_at and next_review_at <= now)
 
-    if status == 'new':
+    if status == 'excluded':
+        primary_label = 'Вернуть в изучение'
+        primary_kind = 'include'
+        secondary_label = None
+        extra_study = False
+    elif status == 'resting':
+        # Deliberately no "Повторить досрочно": the rest is the feature, and
+        # the button was a silent no-op anyway because the queue filters
+        # resting cards even for extra study.
+        primary_label = status_labels['resting']
+        primary_kind = 'disabled'
+        secondary_label = None
+        extra_study = False
+    elif status == 'new':
         primary_label = 'Изучать'
         primary_kind = 'set_learning'
         secondary_label = None
@@ -350,7 +403,8 @@ def build_word_study_summary(user_word) -> dict:
 
     return {
         'status': status,
-        'status_css': 'mastered' if status == 'mastered' else status,
+        'status_css': status_css_map.get(status, status),
+        'resting_until_label': resting_until_label,
         'status_label': status_labels.get(status, status),
         'status_description': descriptions.get(status, ''),
         'badge_label': badge_labels.get(status, status),

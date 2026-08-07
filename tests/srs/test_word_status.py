@@ -207,6 +207,34 @@ class TestMasteredIsDerived:
         assert user_word.is_mastered is False
 
 
+class TestLocalDateRendering:
+    """A rest ending on the 10th must not be shown as the 9th.
+
+    buried_until stores the user's local day start projected to naive UTC, so
+    rendering it as UTC prints the previous calendar day east of Greenwich.
+    """
+
+    def test_local_date_matches_the_scheduled_day(self, db_session):
+        from app.utils.time_utils import day_to_naive_utc, naive_utc_to_user_local_date
+
+        user = _make_user(db_session)
+        user.timezone = 'Europe/Istanbul'  # UTC+3, where the off-by-one showed
+        db_session.commit()
+
+        buried_until = day_to_naive_utc(user.id, db_session, days_ahead=7)
+        local_date = naive_utc_to_user_local_date(user.id, buried_until, db_session)
+
+        # The raw UTC value lands on the previous day; the local one must not.
+        assert local_date is not None
+        assert local_date >= buried_until.date()
+
+    def test_none_is_passed_through(self, db_session):
+        from app.utils.time_utils import naive_utc_to_user_local_date
+
+        user = _make_user(db_session)
+        assert naive_utc_to_user_local_date(user.id, None, db_session) is None
+
+
 class TestRecalcWordStatusCommand:
     """The one-off backfill that re-derives stored statuses under the new rule."""
 

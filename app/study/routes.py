@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from app.modules.decorators import module_required
 from app.srs.cards import ensure_card_directions
 from app.srs.constants import CardState
+from app.srs.counting import count_resting_words
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import is_auto_deck, study
 from app.study.deck_utils import get_daily_plan_mix_word_ids
@@ -66,6 +67,10 @@ def index():
             UserCardDirection.next_review <= now_naive
         )
     ).count()
+
+    # Words the SRS put to rest — they are excluded from every count above, so
+    # without this the user sees them vanish with no explanation.
+    resting_words_count = count_resting_words(current_user.id, db)
 
     mastered_count = db.session.query(func.count(UserWord.id)).filter(
         UserWord.user_id == current_user.id,
@@ -236,6 +241,7 @@ def index():
     return render_template(
         'study/index.html',
         due_items_count=due_items_count,
+        resting_words_count=resting_words_count,
         new_items_count=new_items_count,
         learning_total=learning_total,
         review_total=review_total,

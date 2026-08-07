@@ -33,6 +33,9 @@
             {% endif %}
             <p class="study-hero__sub">
                 {{ learning_total }} слов в изучении&nbsp;·&nbsp;{{ new_items_count }} новых доступны
+                {% if resting_words_count %}
+                &nbsp;·&nbsp;<a href="{{ url_for('study.difficult_words') }}" class="study-hero__rest-link">{{ resting_words_count }} на отдыхе</a>
+                {% endif %}
             </p>
             <div class="study-hero__cta">
                 {% if due_items_count > 0 or new_items_count > 0 %}

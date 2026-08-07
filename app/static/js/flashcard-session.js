@@ -933,6 +933,41 @@ class FlashcardSession {
         }
     }
 
+    /**
+     * Tell the user a word was put to rest, and for how long.
+     * Without this the card simply stops appearing for up to 90 days.
+     */
+    _showRestNotice(word, restingUntilIso) {
+        let notice = document.getElementById('fc-rest-notice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'fc-rest-notice';
+            notice.className = 'fc-rest-notice';
+            notice.setAttribute('role', 'status');
+            document.body.appendChild(notice);
+        }
+
+        const iso = String(restingUntilIso).split('-');
+        const shown = iso.length === 3 ? `${iso[2]}.${iso[1]}` : restingUntilIso;
+
+        notice.textContent = '';
+        const text = document.createElement('span');
+        text.textContent = `«${word}» отдыхает до ${shown} — вернётся само`;
+        notice.appendChild(text);
+
+        const link = document.createElement('a');
+        link.href = '/study/difficult-words';
+        link.textContent = 'Трудные слова';
+        link.className = 'fc-rest-notice__link';
+        notice.appendChild(link);
+
+        notice.classList.add('fc-rest-notice--visible');
+        clearTimeout(this._restNoticeTimeout);
+        this._restNoticeTimeout = setTimeout(() => {
+            notice.classList.remove('fc-rest-notice--visible');
+        }, 7000);
+    }
+
     async excludeCurrentWord() {
         const card = this.cards[this.currentCardIndex];
         if (!card || !card.is_recovery) return;
@@ -1117,6 +1152,11 @@ class FlashcardSession {
             // Handle buried cards
             if (data.is_buried) {
                 console.log(`Card ${data.card_id} buried after ${this.MAX_SESSION_ATTEMPTS} attempts`);
+            }
+            // A multi-day rest makes the word vanish for up to 90 days; say so
+            // instead of letting it disappear without explanation.
+            if (data.resting_until) {
+                this._showRestNotice(card.word, data.resting_until);
             }
 
             // Handle requeue

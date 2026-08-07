@@ -147,6 +147,34 @@ def day_to_naive_utc(
     return target_local_start.astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def naive_utc_to_user_local(
+    user_id: int,
+    value: Optional[datetime],
+    db_session: Any = None,
+) -> Optional[datetime]:
+    """Inverse of :func:`day_to_naive_utc` for display.
+
+    SRS datetime columns hold the user's local day start projected to naive
+    UTC. Rendering them straight (``value.strftime(...)``) prints the UTC
+    instant, which for any eastern timezone is the *previous* calendar day —
+    a rest ending on the 10th showed up as "до 09.09".
+    """
+    if value is None:
+        return None
+    aware = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    return aware.astimezone(_get_user_timezone(user_id, db_session))
+
+
+def naive_utc_to_user_local_date(
+    user_id: int,
+    value: Optional[datetime],
+    db_session: Any = None,
+) -> Optional[date_cls]:
+    """Local calendar date of a naive-UTC SRS timestamp."""
+    local = naive_utc_to_user_local(user_id, value, db_session)
+    return local.date() if local is not None else None
+
+
 def minutes_to_day_offset(
     user_id: int,
     db_session: Any = None,

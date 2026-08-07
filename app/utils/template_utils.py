@@ -372,6 +372,25 @@ def init_template_utils(app):
         """Jinja filter to format chapter text with proper paragraphs"""
         return format_chapter_text(text)
 
+    @app.template_filter('user_local_date')
+    def user_local_date_filter(value, fmt='%d.%m'):
+        """Render a naive-UTC SRS timestamp as the viewer's local date.
+
+        These columns store the user's local day start projected to naive UTC,
+        so a plain strftime prints the previous calendar day east of UTC.
+
+        Usage: {{ card.buried_until|user_local_date }}
+        """
+        if not value:
+            return ''
+        from flask_login import current_user
+
+        from app.utils.time_utils import naive_utc_to_user_local
+        if not getattr(current_user, 'is_authenticated', False):
+            return value.strftime(fmt)
+        local = naive_utc_to_user_local(current_user.id, value)
+        return local.strftime(fmt) if local else ''
+
     @app.template_filter('audio_filename')
     def audio_filename_filter(listening):
         """

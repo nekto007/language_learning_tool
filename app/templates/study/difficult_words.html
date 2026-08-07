@@ -54,7 +54,7 @@
       <div class="dw-badges">
         <span class="dw-badge dw-badge--lapses">{{ _('срывов') }}: {{ w.lapses }}</span>
         {% if w.buried_until %}
-        <span class="dw-badge dw-badge--buried">{{ _('отложено до') }} {{ w.buried_until.strftime('%d.%m') }}</span>
+        <span class="dw-badge dw-badge--buried">{{ _('отложено до') }} {{ w.buried_until|user_local_date }}</span>
         {% elif w.is_leech %}
         <span class="dw-badge dw-badge--buried">{{ _('пиявка') }}</span>
         {% endif %}

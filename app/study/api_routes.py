@@ -680,8 +680,14 @@ def update_study_item():
     except Exception:
         logger.exception("Card achievement check failed for user %s", current_user.id)
 
-    from app.srs.constants import LEARNING_STEPS, MAX_SESSION_ATTEMPTS, RELEARNING_STEPS
+    from app.srs.constants import (
+        LEARNING_STEPS,
+        MAX_SESSION_ATTEMPTS,
+        RECOVERY_SUCCESSFUL_RECALLS,
+        RELEARNING_STEPS,
+    )
     from app.srs.service import UnifiedSRSService
+    from app.utils.time_utils import day_to_naive_utc, naive_utc_to_user_local_date
 
     requeue_position = UnifiedSRSService.get_requeue_position(
         rating=rating,
@@ -711,6 +717,16 @@ def update_study_item():
         requeue_position = None
         is_buried = True
 
+    # Only report a rest the learner should be told about: the four-hour
+    # session bury is an implementation detail, a multi-day rest is not.
+    resting_until_local = None
+    if direction.buried_until is not None:
+        tomorrow_start = day_to_naive_utc(current_user.id, db, days_ahead=1)
+        if direction.buried_until >= tomorrow_start:
+            resting_until_local = naive_utc_to_user_local_date(
+                current_user.id, direction.buried_until, db,
+            ).isoformat()
+
     return jsonify({
         'success': True,
         'card_id': direction.id,
@@ -724,7 +740,10 @@ def update_study_item():
         'lapses': direction.lapses or 0,
         'difficulty_score': direction.difficulty_score or 0,
         'is_recovery': bool(direction.recovery_required),
-        'is_buried': is_buried
+        'recovery_successes': direction.recovery_successes or 0,
+        'recovery_target': RECOVERY_SUCCESSFUL_RECALLS,
+        'is_buried': is_buried,
+        'resting_until': resting_until_local,
     })
 
 
