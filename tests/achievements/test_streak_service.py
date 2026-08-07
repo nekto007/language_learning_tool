@@ -8,7 +8,8 @@ Covers:
 - Writing streak (get_writing_streak)
 - Speaking streak (get_speaking_streak)
 """
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
+from tests.support_dates import study_today
 from unittest.mock import patch, MagicMock
 import uuid
 
@@ -100,7 +101,7 @@ class TestTimezoneEdgeCases:
 
     def test_earn_daily_coin_with_explicit_date_utc_vs_local(self, db_session, user_id):
         """Coins earned for different dates accumulate independently."""
-        today = date.today()
+        today = study_today()
         yesterday = today - timedelta(days=1)
         earn_daily_coin(user_id, for_date=today)
         earn_daily_coin(user_id, for_date=yesterday)
@@ -109,7 +110,7 @@ class TestTimezoneEdgeCases:
 
     def test_earn_daily_coin_same_date_not_duplicated(self, db_session, user_id):
         """Two earn calls for the same date only award 1 coin — no TZ drift duplicates."""
-        today = date.today()
+        today = study_today()
         r1 = earn_daily_coin(user_id, for_date=today)
         r2 = earn_daily_coin(user_id, for_date=today)
         assert r1 is True
@@ -119,7 +120,7 @@ class TestTimezoneEdgeCases:
 
     def test_save_daily_completion_updates_steps_on_same_date(self, db_session, user_id):
         """Calling save_daily_completion twice for the same date updates, not duplicates."""
-        today = date.today()
+        today = study_today()
         save_daily_completion(user_id, steps_done=1, steps_total=4, for_date=today)
         db_session.flush()
         save_daily_completion(user_id, steps_done=3, steps_total=4, for_date=today)
@@ -207,7 +208,7 @@ class TestPaidRepairFlow:
         return coins
 
     def test_paid_repair_success(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         self._give_coins(db_session, user_id, 10)
         result = apply_paid_repair(user_id, missed)
         db_session.flush()
@@ -219,21 +220,21 @@ class TestPaidRepairFlow:
         assert coins.balance == 7
 
     def test_paid_repair_insufficient_coins(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         self._give_coins(db_session, user_id, 1)
         result = apply_paid_repair(user_id, missed)
         assert result['success'] is False
         assert result['error'] == 'insufficient_coins'
 
     def test_paid_repair_expired_date(self, db_session, user_id):
-        old_date = date.today() - timedelta(days=5)
+        old_date = study_today() - timedelta(days=5)
         self._give_coins(db_session, user_id, 20)
         result = apply_paid_repair(user_id, old_date)
         assert result['success'] is False
         assert result['error'] == 'expired'
 
     def test_paid_repair_creates_spent_repair_event(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         self._give_coins(db_session, user_id, 10)
         apply_paid_repair(user_id, missed)
         db_session.flush()
@@ -247,7 +248,7 @@ class TestPaidRepairFlow:
         """Sliding cost: first=3, second=5, third+=10."""
         assert get_repair_cost(user_id) == 3
         # Add first spent_repair event this month
-        month_start = date.today().replace(day=1)
+        month_start = study_today().replace(day=1)
         db_session.add(StreakEvent(
             user_id=user_id, event_type='spent_repair',
             coins_delta=-3, event_date=month_start,
@@ -272,7 +273,7 @@ class TestStreakFreezeProtection:
     """has_repair_for_date() prevents applying the same repair twice."""
 
     def test_free_repair_prevents_duplicate(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         result1 = apply_free_repair(user_id, missed)
         db_session.flush()
         result2 = apply_free_repair(user_id, missed)
@@ -284,7 +285,7 @@ class TestStreakFreezeProtection:
         assert len(events) == 1
 
     def test_paid_repair_blocked_after_free_repair(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         apply_free_repair(user_id, missed)
         db_session.flush()
         coins = get_or_create_coins(user_id)
@@ -295,14 +296,14 @@ class TestStreakFreezeProtection:
         assert result['error'] == 'already_repaired'
 
     def test_has_repair_for_date_detects_free_repair(self, db_session, user_id):
-        missed = date.today() - timedelta(days=2)
+        missed = study_today() - timedelta(days=2)
         assert has_repair_for_date(user_id, missed) is False
         apply_free_repair(user_id, missed)
         db_session.flush()
         assert has_repair_for_date(user_id, missed) is True
 
     def test_has_repair_for_date_detects_paid_repair(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         get_or_create_coins(user_id)
         coins = StreakCoins.query.filter_by(user_id=user_id).first()
         coins.earn(10)
@@ -312,15 +313,15 @@ class TestStreakFreezeProtection:
         assert has_repair_for_date(user_id, missed) is True
 
     def test_repair_does_not_affect_other_dates(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
-        other = date.today() - timedelta(days=2)
+        missed = study_today() - timedelta(days=1)
+        other = study_today() - timedelta(days=2)
         apply_free_repair(user_id, missed)
         db_session.flush()
         assert has_repair_for_date(user_id, other) is False
 
     @pytest.mark.smoke
     def test_free_repair_records_details(self, db_session, user_id):
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         # apply_free_repair is idempotent (no-ops if a repair already exists),
         # so clear any leaked free_repair row for this (user, date) first to
         # keep the assertion order-independent under the shared-DB fixture.
@@ -355,7 +356,7 @@ class TestLongestStreakTracking:
             user_id=streak_user.id,
             current_streak_days=4,
             longest_streak_days=4,
-            last_activity_date=date.today() - timedelta(days=1),
+            last_activity_date=study_today() - timedelta(days=1),
         )
         db_session.add(stats)
         db_session.flush()
@@ -373,7 +374,7 @@ class TestLongestStreakTracking:
             user_id=streak_user.id,
             current_streak_days=10,
             longest_streak_days=10,
-            last_activity_date=date.today() - timedelta(days=5),
+            last_activity_date=study_today() - timedelta(days=5),
         )
         db_session.add(stats)
         db_session.flush()
@@ -400,7 +401,7 @@ class TestLongestStreakTracking:
         db_session.flush()
 
         # 3 lessons completed this week, 1 lesson last week
-        this_monday = date.today() - timedelta(days=date.today().weekday())
+        this_monday = study_today() - timedelta(days=study_today().weekday())
         this_week_ts = datetime.combine(this_monday, datetime.min.time()).replace(
             tzinfo=None
         ) + timedelta(hours=10)
@@ -572,7 +573,7 @@ class TestStreakShield:
 
     def test_shield_repair_success(self, db_session, user_id):
         """apply_shield_repair creates a shield_repair event for the missed date."""
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         result = apply_shield_repair(user_id, missed)
         db_session.flush()
 
@@ -586,7 +587,7 @@ class TestStreakShield:
 
     def test_shield_repair_prevents_duplicate(self, db_session, user_id):
         """Shield repair is idempotent — second call for same date returns False."""
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         r1 = apply_shield_repair(user_id, missed)
         db_session.flush()
         r2 = apply_shield_repair(user_id, missed)
@@ -599,7 +600,7 @@ class TestStreakShield:
 
     def test_has_repair_for_date_detects_shield_repair(self, db_session, user_id):
         """has_repair_for_date returns True after a shield_repair event."""
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         assert has_repair_for_date(user_id, missed) is False
         apply_shield_repair(user_id, missed)
         db_session.flush()
@@ -607,7 +608,7 @@ class TestStreakShield:
 
     def test_shield_blocks_paid_repair_on_same_date(self, db_session, user_id):
         """Paid repair is blocked when a shield repair already covers the date."""
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         apply_shield_repair(user_id, missed)
         db_session.flush()
         coins = get_or_create_coins(user_id)
@@ -659,7 +660,7 @@ class TestStreakShield:
         streak_user.streak_shield_active = True
         db_session.flush()
 
-        missed = date.today() - timedelta(days=1)
+        missed = study_today() - timedelta(days=1)
         apply_shield_repair(streak_user.id, missed)
         streak_user.streak_shield_active = False
         db_session.flush()
@@ -673,8 +674,8 @@ class TestStreakShield:
 
         assert streak_user.streak_shield_active is False
 
-        yesterday = date.today() - timedelta(days=1)
-        day_before = date.today() - timedelta(days=2)
+        yesterday = study_today() - timedelta(days=1)
+        day_before = study_today() - timedelta(days=2)
 
         assert has_repair_for_date(streak_user.id, yesterday) is False
         assert has_repair_for_date(streak_user.id, day_before) is False

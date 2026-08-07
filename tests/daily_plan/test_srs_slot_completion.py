@@ -7,7 +7,7 @@ award fires and the slot is reported as completed.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.achievements.models import StreakEvent
 from app.auth.models import User
@@ -19,6 +19,7 @@ from app.srs.constants import CardState
 from app.study.models import StudySettings, UserCardDirection, UserWord
 from app.utils.db import db as real_db
 from app.words.models import CollectionWords
+from tests.support_dates import study_today
 
 
 def _now_naive() -> datetime:
@@ -80,7 +81,7 @@ def _seed_xp_event(db_session, user: User) -> None:
     db_session.add(StreakEvent(
         user_id=user.id,
         event_type=LINEAR_XP_EVENT_TYPE,
-        event_date=date.today(),
+        event_date=study_today(),
         coins_delta=0,
         details={'source': 'linear_srs_global'},
     ))

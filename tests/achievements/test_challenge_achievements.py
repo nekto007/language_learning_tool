@@ -16,6 +16,7 @@ from app.achievements.seed import seed_achievements
 from app.achievements.services import check_challenge_achievements
 from app.daily_plan.models import DailyChallenge, DailyChallengeCompletion
 from app.study.models import Achievement
+from tests.support_dates import study_today
 
 
 CHALLENGE_BADGE_CODES = {'challenge_first', 'challenge_streak_7', 'challenger'}
@@ -83,13 +84,13 @@ def _add_completion(user_id: int, d: date, db_session) -> DailyChallengeCompleti
 
 class TestChallengeFirst:
     def test_first_completion_grants_badge(self, db_session, challenge_user, challenge_badges):
-        _add_completion(challenge_user.id, date.today(), db_session)
+        _add_completion(challenge_user.id, study_today(), db_session)
         awarded = check_challenge_achievements(challenge_user.id, db_session=db_session)
         codes = {a.code for a in awarded}
         assert 'challenge_first' in codes
 
     def test_already_owned_not_regranted(self, db_session, challenge_user, challenge_badges):
-        _add_completion(challenge_user.id, date.today(), db_session)
+        _add_completion(challenge_user.id, study_today(), db_session)
         check_challenge_achievements(challenge_user.id, db_session=db_session)
         awarded2 = check_challenge_achievements(challenge_user.id, db_session=db_session)
         assert 'challenge_first' not in {a.code for a in awarded2}
@@ -101,7 +102,7 @@ class TestChallengeFirst:
 
 class TestChallengeStreak7:
     def test_seven_consecutive_days_grants_badge(self, db_session, challenge_user, challenge_badges):
-        today = date.today()
+        today = study_today()
         for offset in range(7):
             _add_completion(challenge_user.id, today - timedelta(days=offset), db_session)
         awarded = check_challenge_achievements(challenge_user.id, db_session=db_session)
@@ -109,7 +110,7 @@ class TestChallengeStreak7:
         assert 'challenge_streak_7' in codes
 
     def test_six_days_no_badge(self, db_session, challenge_user, challenge_badges):
-        today = date.today()
+        today = study_today()
         for offset in range(6):
             _add_completion(challenge_user.id, today - timedelta(days=offset), db_session)
         awarded = check_challenge_achievements(challenge_user.id, db_session=db_session)
@@ -117,7 +118,7 @@ class TestChallengeStreak7:
         assert 'challenge_streak_7' not in codes
 
     def test_gap_breaks_streak(self, db_session, challenge_user, challenge_badges):
-        today = date.today()
+        today = study_today()
         # days 0, 1, 3, 4, 5, 6, 7 — gap on day 2
         for offset in (0, 1, 3, 4, 5, 6, 7):
             _add_completion(challenge_user.id, today - timedelta(days=offset), db_session)

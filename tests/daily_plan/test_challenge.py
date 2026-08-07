@@ -32,6 +32,7 @@ from app.daily_plan.challenge import (
     get_today_challenge,
 )
 from tests.conftest import unique_level_code
+from tests.support_dates import study_today
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -136,7 +137,7 @@ class TestGetTodayChallenge:
 
         result = get_today_challenge(user.id, db)
 
-        assert result['challenge_date'] == date.today().isoformat()
+        assert result['challenge_date'] == study_today().isoformat()
         assert result['category'] in SERVICE_CATEGORIES
         assert result['bonus_xp'] > 0
         assert result['is_completed'] is False
@@ -161,7 +162,7 @@ class TestGetTodayChallenge:
         get_today_challenge(user.id, db)
         get_today_challenge(user.id, db)
 
-        today = date.today()
+        today = study_today()
         count = DailyChallenge.query.filter_by(challenge_date=today).count()
         assert count == 1
 
@@ -358,7 +359,7 @@ class TestChallengeStreak:
     def test_three_consecutive_days(self, db_session):
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         for offset in range(3):
             _complete_for_date(user.id, today - timedelta(days=offset), db_session)
@@ -368,7 +369,7 @@ class TestChallengeStreak:
     def test_gap_resets_streak(self, db_session):
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         # Complete today and 2 days ago but NOT yesterday
         _complete_for_date(user.id, today, db_session)
@@ -380,7 +381,7 @@ class TestChallengeStreak:
     def test_only_yesterday_counts_as_one(self, db_session):
         from app.utils.db import db
         user = _make_user(db_session)
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = study_today() - timedelta(days=1)
 
         _complete_for_date(user.id, yesterday, db_session)
 
@@ -389,7 +390,7 @@ class TestChallengeStreak:
     def test_streak_included_in_get_today_challenge(self, db_session):
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         _complete_for_date(user.id, today - timedelta(days=1), db_session)
         _complete_for_date(user.id, today - timedelta(days=2), db_session)
@@ -403,7 +404,7 @@ class TestChallengeStreak:
         from app.utils.db import db
         user1 = _make_user(db_session)
         user2 = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         # user1 completes today + yesterday; user2 has no completions
         _complete_for_date(user1.id, today, db_session)
@@ -430,7 +431,7 @@ class TestChallengeLeaderboardBonus:
             update_race_points_from_linear_plan,
         )
         user = _make_user(db_session)
-        race_date = date.today()
+        race_date = study_today()
 
         # Enroll user in a race
         get_or_create_race(user.id, race_date)
@@ -469,7 +470,7 @@ class TestChallengeLeaderboardBonus:
             update_race_points_from_linear_plan,
         )
         user = _make_user(db_session)
-        race_date = date.today()
+        race_date = study_today()
 
         get_or_create_race(user.id, race_date)
         db_session.commit()
@@ -497,7 +498,7 @@ class TestNoChallengeDay:
         """Returns a valid dict (not None) when called on a day with no pre-seeded challenge."""
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         # Verify no DailyChallenge row exists for today yet
         count_before = DailyChallenge.query.filter_by(challenge_date=today).count()
@@ -522,7 +523,7 @@ class TestNoChallengeDay:
         """When no challenge exists for today, one is created automatically."""
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         get_today_challenge(user.id, db)
 
@@ -535,7 +536,7 @@ class TestNoChallengeDay:
         """Repeated calls do not create multiple DailyChallenge rows for same day."""
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         get_today_challenge(user.id, db)
         get_today_challenge(user.id, db)
@@ -645,7 +646,7 @@ class TestChallengeStreak7Correctness:
         """Exactly 7 consecutive completions produce a streak of 7."""
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         for offset in range(7):
             _complete_for_date(user.id, today - timedelta(days=offset), db_session)
@@ -656,7 +657,7 @@ class TestChallengeStreak7Correctness:
         """6 consecutive days gives streak=6, not 7."""
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         for offset in range(6):
             _complete_for_date(user.id, today - timedelta(days=offset), db_session)
@@ -667,7 +668,7 @@ class TestChallengeStreak7Correctness:
         """If yesterday is missing but today completed, streak = 1 (gap on day 1 stops walk)."""
         from app.utils.db import db
         user = _make_user(db_session)
-        today = date.today()
+        today = study_today()
 
         # Complete today and days 2-7 ago; yesterday (offset=1) is missing
         _complete_for_date(user.id, today, db_session)

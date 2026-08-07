@@ -1,10 +1,11 @@
 """Tests for plan pause/resume service logic (Task 64)."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from tests.support_dates import study_today
 
 
 class TestIsPlanPaused:
@@ -22,20 +23,20 @@ class TestIsPlanPaused:
 
     def test_returns_true_when_paused_until_future(self, test_user, db_session):
         from app.daily_plan.service import is_plan_paused
-        test_user.plan_paused_until = date.today() + timedelta(days=3)
+        test_user.plan_paused_until = study_today() + timedelta(days=3)
         db_session.flush()
         assert is_plan_paused(test_user) is True
 
     def test_returns_false_when_paused_until_today(self, test_user, db_session):
         """paused_until == today means pause has expired (strictly >)."""
         from app.daily_plan.service import is_plan_paused
-        test_user.plan_paused_until = date.today()
+        test_user.plan_paused_until = study_today()
         db_session.flush()
         assert is_plan_paused(test_user) is False
 
     def test_returns_false_when_paused_until_past(self, test_user, db_session):
         from app.daily_plan.service import is_plan_paused
-        test_user.plan_paused_until = date.today() - timedelta(days=1)
+        test_user.plan_paused_until = study_today() - timedelta(days=1)
         db_session.flush()
         assert is_plan_paused(test_user) is False
 
@@ -58,7 +59,7 @@ class TestPauseStreakNeutrality:
         with authenticated_client.application.app_context():
             from app import db as _db
             user_id = authenticated_client.application.test_user.id
-            today = date.today()
+            today = study_today()
             events = StreakEvent.query.filter(
                 StreakEvent.user_id == user_id,
                 StreakEvent.event_type == 'plan_pause',
@@ -75,7 +76,7 @@ class TestPauseStreakNeutrality:
         from app import db
 
         # Add a plan_pause event for yesterday
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = study_today() - timedelta(days=1)
         db.session.add(StreakEvent(
             user_id=test_user.id,
             event_type='plan_pause',
@@ -109,7 +110,7 @@ class TestPauseStreakNeutrality:
 
         with authenticated_client.application.app_context():
             user_id = authenticated_client.application.test_user.id
-            today = date.today()
+            today = study_today()
             # Today and future plan_pause events should be gone
             remaining = StreakEvent.query.filter(
                 StreakEvent.user_id == user_id,
@@ -218,7 +219,7 @@ class TestPauseValidation:
         """plan_paused_until in the past → get_daily_plan_unified returns normal plan."""
         from app.daily_plan.service import get_daily_plan_unified
 
-        test_user.plan_paused_until = date.today() - timedelta(days=2)
+        test_user.plan_paused_until = study_today() - timedelta(days=2)
         db_session.flush()
 
         with patch('app.daily_plan.plan.get_daily_plan', return_value={

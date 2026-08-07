@@ -12,6 +12,7 @@ Covers:
 import pytest
 from datetime import date, datetime, timezone
 from unittest.mock import patch, MagicMock
+from tests.support_dates import study_today
 
 
 MOCK_PLAN_SECURED = {
@@ -294,7 +295,7 @@ def test_rival_events_persisted_to_db(authenticated_client, db_session, test_use
     """Rival strip events are written to the database with correct fields."""
     from app.daily_plan.models import DailyPlanEvent
 
-    today = date.today().isoformat()
+    today = study_today().isoformat()
     authenticated_client.post(
         '/api/daily-plan/events',
         json={'event_type': 'rival_strip_shown', 'plan_date': today},

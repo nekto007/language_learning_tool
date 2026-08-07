@@ -4,12 +4,13 @@ Task 43: Plan completion heatmap calendar.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from app.daily_plan.models import DailyPlanLog
 from app.utils.db import db
+from tests.support_dates import study_today
 
 
 def _login(client, user) -> None:
@@ -48,7 +49,7 @@ class TestPlanCalendarRoute:
         assert '0 дней выполнен план' in html
 
     def test_secured_day_shows_in_stats(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         _make_log(db_session, test_user.id, today, secured=True)
         _login(client, test_user)
         resp = client.get('/study/calendar')
@@ -56,7 +57,7 @@ class TestPlanCalendarRoute:
         assert '1 дней выполнен план' in html
 
     def test_secured_day_has_level2_cell(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         _make_log(db_session, test_user.id, today, secured=True)
         _login(client, test_user)
         resp = client.get('/study/calendar')
@@ -64,7 +65,7 @@ class TestPlanCalendarRoute:
         assert 'plan-calendar__cell--level-2' in html
 
     def test_active_but_not_secured_day_has_level1_cell(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         _make_log(db_session, test_user.id, today, secured=False)
         _login(client, test_user)
         resp = client.get('/study/calendar')
@@ -78,7 +79,7 @@ class TestPlanCalendarRoute:
         assert 'plan-calendar__cell--level-0' in html
 
     def test_total_active_count_includes_unsecured(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         yesterday = today - timedelta(days=1)
         _make_log(db_session, test_user.id, today, secured=True)
         _make_log(db_session, test_user.id, yesterday, secured=False)
@@ -88,7 +89,7 @@ class TestPlanCalendarRoute:
         assert '2 активных дней' in html
 
     def test_days_outside_90_day_window_excluded(self, app, db_session, test_user, client):
-        old_date = date.today() - timedelta(days=100)
+        old_date = study_today() - timedelta(days=100)
         _make_log(db_session, test_user.id, old_date, secured=True)
         _login(client, test_user)
         resp = client.get('/study/calendar')
@@ -97,7 +98,7 @@ class TestPlanCalendarRoute:
         assert '0 дней выполнен план' in html
 
     def test_data_date_attribute_present_for_active_days(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         _make_log(db_session, test_user.id, today, secured=True)
         _login(client, test_user)
         resp = client.get('/study/calendar')
@@ -116,7 +117,7 @@ class TestPlanCalendarRoute:
         db_session.add(other)
         db_session.commit()
 
-        today = date.today()
+        today = study_today()
         _make_log(db_session, other.id, today, secured=True)
         _login(client, test_user)
         resp = client.get('/study/calendar')
@@ -130,7 +131,7 @@ class TestPlanCalendarRoute:
         assert 'plan-calendar__grid' in html
 
     def test_secured_day_tooltip_text(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         _make_log(db_session, test_user.id, today, secured=True)
         _login(client, test_user)
         resp = client.get('/study/calendar')

@@ -1,6 +1,7 @@
 """Tests for streak recovery system: coins, free/paid repair."""
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
+from tests.support_dates import study_today
 
 import pytest
 
@@ -51,7 +52,7 @@ class TestEarnDailyCoin:
         assert coins.balance == 1
 
     def test_earn_different_days(self, db_session, user_id):
-        today = date.today()
+        today = study_today()
         earn_daily_coin(user_id, for_date=today)
         earn_daily_coin(user_id, for_date=today - timedelta(days=1))
         coins = StreakCoins.query.filter_by(user_id=user_id).first()
@@ -81,13 +82,13 @@ class TestRepairCost:
     def test_second_repair_costs_5(self, db_session, user_id):
         db_session.add(StreakEvent(
             user_id=user_id, event_type='spent_repair',
-            coins_delta=-3, event_date=date.today(),
+            coins_delta=-3, event_date=study_today(),
         ))
         db_session.flush()
         assert get_repair_cost(user_id) == 5
 
     def test_third_repair_costs_10(self, db_session, user_id):
-        month_start = date.today().replace(day=1)
+        month_start = study_today().replace(day=1)
         for i in range(2):
             db_session.add(StreakEvent(
                 user_id=user_id, event_type='spent_repair',
@@ -99,13 +100,13 @@ class TestRepairCost:
 
 class TestFreeRepair:
     def test_apply_free_repair(self, db_session, user_id):
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = study_today() - timedelta(days=1)
         result = apply_free_repair(user_id, yesterday)
         assert result is True
         assert has_repair_for_date(user_id, yesterday) is True
 
     def test_no_double_repair(self, db_session, user_id):
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = study_today() - timedelta(days=1)
         apply_free_repair(user_id, yesterday)
         result = apply_free_repair(user_id, yesterday)
         assert result is False
@@ -117,7 +118,7 @@ class TestPaidRepair:
         coins.earn(10)
         db_session.flush()
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = study_today() - timedelta(days=1)
         result = apply_paid_repair(user_id, yesterday)
         assert result['success'] is True
         assert result['cost'] == 3
@@ -127,7 +128,7 @@ class TestPaidRepair:
         get_or_create_coins(user_id)  # balance=0
         db_session.flush()
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = study_today() - timedelta(days=1)
         result = apply_paid_repair(user_id, yesterday)
         assert result['success'] is False
         assert result['error'] == 'insufficient_coins'
@@ -137,7 +138,7 @@ class TestPaidRepair:
         coins.earn(10)
         db_session.flush()
 
-        old_date = date.today() - timedelta(days=3)
+        old_date = study_today() - timedelta(days=3)
         result = apply_paid_repair(user_id, old_date)
         assert result['success'] is False
         assert result['error'] == 'expired'
@@ -147,7 +148,7 @@ class TestPaidRepair:
         coins.earn(10)
         db_session.flush()
 
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = study_today() - timedelta(days=1)
         apply_paid_repair(user_id, yesterday)
         result = apply_paid_repair(user_id, yesterday)
         assert result['success'] is False

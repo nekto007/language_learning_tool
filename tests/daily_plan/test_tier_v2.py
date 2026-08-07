@@ -24,6 +24,7 @@ from app.daily_plan.tier import (
 )
 from app.utils.db import db as real_db
 from tests.conftest import unique_level_code
+from tests.support_dates import study_today
 
 
 @pytest.fixture
@@ -97,14 +98,14 @@ class TestTierSelection:
 
     def test_calm_when_below_secured_low_threshold(self, db_session, user, vocabulary_lesson):
         # SECURED_LOW - 1 secured days → still calm.
-        today = date.today()
+        today = study_today()
         _seed_secured_days(user.id, today, SECURED_LOW - 1, db_session)
         tier = compute_user_tier(user.id, real_db)
         assert tier == 'calm'
 
     def test_normal_at_secured_low(self, db_session, user, vocabulary_lesson):
         # SECURED_LOW secured days, no optional → normal.
-        today = date.today()
+        today = study_today()
         _seed_secured_days(user.id, today, SECURED_LOW, db_session)
         tier = compute_user_tier(user.id, real_db)
         assert tier == 'normal'
@@ -113,7 +114,7 @@ class TestTierSelection:
         self, db_session, user, vocabulary_lesson,
     ):
         # Many secured days but zero optional activity → still normal.
-        today = date.today()
+        today = study_today()
         _seed_secured_days(user.id, today, SECURED_HIGH, db_session)
         tier = compute_user_tier(user.id, real_db)
         assert tier == 'normal'
@@ -121,7 +122,7 @@ class TestTierSelection:
     def test_intensive_when_high_secured_and_optional(
         self, db_session, user, vocabulary_lesson,
     ):
-        today = date.today()
+        today = study_today()
         _seed_secured_days(user.id, today, SECURED_HIGH, db_session)
         _seed_optional_days(user.id, today, OPTIONAL_HIGH, db_session)
         tier = compute_user_tier(user.id, real_db)
@@ -131,7 +132,7 @@ class TestTierSelection:
         self, db_session, user, vocabulary_lesson,
     ):
         # SECURED_HIGH secured but OPTIONAL_HIGH-1 optional days → not intensive.
-        today = date.today()
+        today = study_today()
         _seed_secured_days(user.id, today, SECURED_HIGH, db_session)
         _seed_optional_days(user.id, today, OPTIONAL_HIGH - 1, db_session)
         tier = compute_user_tier(user.id, real_db)
@@ -154,7 +155,7 @@ class TestTierSelection:
         db_session.add(ft)
         db_session.commit()
 
-        today = date.today()
+        today = study_today()
         _seed_secured_days(user.id, today, SECURED_HIGH + 2, db_session)
         _seed_optional_days(user.id, today, OPTIONAL_HIGH + 2, db_session)
 
@@ -168,7 +169,7 @@ class TestTierSelection:
         yet observable when ``compute_user_tier`` runs (and counting it
         would create a tautology).
         """
-        today = date.today()
+        today = study_today()
         # Add today's row as secured — should be ignored.
         db_session.add(DailyPlanLog(
             user_id=user.id, plan_date=today,
@@ -182,7 +183,7 @@ class TestTierSelection:
 
     def test_outside_window_does_not_count(self, db_session, user, vocabulary_lesson):
         """Secured days older than WINDOW_DAYS are ignored."""
-        today = date.today()
+        today = study_today()
         old = today - timedelta(days=WINDOW_DAYS + 1)
         db_session.add(DailyPlanLog(
             user_id=user.id, plan_date=old,

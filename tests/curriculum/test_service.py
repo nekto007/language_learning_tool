@@ -10,6 +10,7 @@ from app.curriculum.service import complete_lesson, get_next_lesson
 from app.curriculum.security import check_lesson_access, check_module_access
 from app.daily_plan.level_utils import get_user_current_cefr_level
 from tests.conftest import unique_level_code
+from tests.support_dates import study_today
 
 
 # ---------------------------------------------------------------------------
@@ -629,7 +630,6 @@ class TestCompleteLessonXPIdempotent:
     def test_second_same_day_call_does_not_duplicate_xp(
         self, app, db_session, test_user, test_lesson_vocabulary
     ):
-        from datetime import date as _date
 
         from app.achievements.models import StreakEvent, UserStatistics
         from app.curriculum.xp import CURRICULUM_LESSON_EVENT_TYPE
@@ -653,7 +653,7 @@ class TestCompleteLessonXPIdempotent:
                 StreakEvent.query.filter_by(
                     user_id=test_user.id,
                     event_type=CURRICULUM_LESSON_EVENT_TYPE,
-                    event_date=_date.today(),
+                    event_date=study_today(),
                 )
                 .filter(
                     StreakEvent.details['lesson_id'].astext
