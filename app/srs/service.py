@@ -172,8 +172,14 @@ class UnifiedSRSService:
             'days_until_review': 0
         }
 
-        # Initialize state if missing
-        if not state or state == 'new':
+        # Initialize state if missing. An unrecognised value must not fall
+        # through the dispatch below: `result` would stay the dict above with
+        # days_until_review=0, apply_review_schedule would anchor next_review to
+        # today's (already past) midnight, and the card would be permanently due
+        # without ever changing state.
+        if not state or state not in CardState._value2member_map_:
+            if state:
+                logger.warning('Unknown SRS card state %r — treating as NEW', state)
             state = CardState.NEW.value
 
         if state == CardState.NEW.value:
@@ -213,6 +219,10 @@ class UnifiedSRSService:
             result['repetitions'] = repetitions
         elif rating == RATING_DONT_KNOW:
             result['repetitions'] = 0
+        else:
+            # Out-of-range rating: the handlers never return 'repetitions', so
+            # without this the callers raise KeyError while applying the result.
+            result['repetitions'] = repetitions
 
         return result
 
@@ -469,6 +479,9 @@ class UnifiedSRSService:
                 'error': str (if success=False)
             }
         """
+        if rating not in (RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW):
+            return {'success': False, 'error': 'invalid_rating'}
+
         try:
             # Pessimistic row lock — two parallel grades on the same direction
             # must serialize so that ``lapses``/``first_reviewed``/state

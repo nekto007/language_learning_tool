@@ -573,18 +573,18 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         Returns:
             interval_days (int)
         """
-        from app.srs.constants import DEFAULT_EASE_FACTOR, RATING_DOUBT, CardState
+        from app.srs.constants import (
+            DEFAULT_EASE_FACTOR,
+            RATING_DOUBT,
+            CardState,
+            quality_to_rating,
+        )
         from app.srs.difficulty import update_recovery_state
         from app.srs.scheduling import apply_review_schedule
         from app.srs.service import UnifiedSRSService
 
         # Map to unified 1-2-3 scale for legacy compatibility
-        if quality in (1, 2, 3):
-            rating = quality
-        elif quality == 0:
-            rating = 1  # Legacy: 0 → Again
-        else:
-            rating = 3  # Legacy: 4-5 → Good
+        rating = quality_to_rating(quality)
 
         # Update correct/incorrect count
         if rating >= RATING_DOUBT:

@@ -29,6 +29,20 @@ RATING_DONT_KNOW = 1  # Не знаю → fail, reset to step 0
 RATING_DOUBT = 2       # Сомневаюсь → repeat current step or slight penalty
 RATING_KNOW = 3        # Знаю → advance step or graduate
 
+
+def quality_to_rating(quality: int) -> int:
+    """Map a legacy 0-5 quality score onto the unified 1-2-3 rating scale.
+
+    Every caller that grades on the legacy scale must map through here — a
+    second, differing copy of this mapping made one code path grade a card as
+    a failure while re-queuing it as a success.
+    """
+    if quality in (RATING_DONT_KNOW, RATING_DOUBT, RATING_KNOW):
+        return quality
+    if quality < RATING_DONT_KNOW:
+        return RATING_DONT_KNOW  # legacy 0 → Again
+    return RATING_KNOW           # legacy 4-5 → Good
+
 # Session limits
 MAX_SESSION_ATTEMPTS = 3  # Max shows per card per session
 

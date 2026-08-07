@@ -20,6 +20,7 @@ from app.srs.constants import (
     RATING_DOUBT,
     RATING_KNOW,
     RELEARNING_STEPS,
+    quality_to_rating,
 )
 from app.srs.service import UnifiedSRSService
 from app.study.models import StudySettings, UserCardDirection, UserWord
@@ -317,6 +318,52 @@ class TestAutomaticRestForStuckCards:
 
         assert card.buried_until is not None
         assert card.buried_until > _now_naive()
+
+
+class TestGradingRobustness:
+    """Guards for inputs the engine used to mishandle silently."""
+
+    def test_unknown_state_falls_back_to_new(self):
+        # A legacy/unknown state matched no dispatch branch, so the result was
+        # the untouched passthrough dict and apply_review_schedule anchored
+        # next_review to today's (past) midnight — a permanently due card.
+        result = UnifiedSRSService.calculate_sm2_update(
+            rating=RATING_KNOW,
+            state='mastered',
+            step_index=0,
+            repetitions=0,
+            interval=0,
+            ease_factor=2.5,
+        )
+        assert result['state'] in {s.value for s in CardState}
+        assert result['state'] != 'mastered'
+        assert result['days_until_review'] > 0
+
+    @pytest.mark.parametrize('rating', [0, 4])
+    def test_repetitions_present_for_out_of_range_rating(self, rating):
+        result = UnifiedSRSService.calculate_sm2_update(
+            rating=rating,
+            state=CardState.NEW.value,
+            step_index=0,
+            repetitions=2,
+            interval=0,
+            ease_factor=2.5,
+        )
+        assert 'repetitions' in result
+
+    def test_grade_card_rejects_out_of_range_rating(self, db_session):
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=0)
+
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=0, user_id=user.id,
+        )
+
+        assert result['success'] is False
+        assert result['error'] == 'invalid_rating'
+
+    def test_quality_maps_to_rating_once(self):
+        assert [quality_to_rating(q) for q in (0, 1, 2, 3, 4, 5)] == [1, 1, 2, 3, 3, 3]
 
 
 class TestCardRecovery:

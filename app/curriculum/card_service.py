@@ -355,8 +355,10 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
         # Увеличиваем общий счетчик неправильных ответов
         card_direction.incorrect_count += 1
 
-        # Обновляем время последней попытки
-        card_direction.last_reviewed = datetime.now(UTC)
+        # Обновляем время последней попытки. Колонка naive и day-anchored —
+        # по ней считаются дневные корзины в app/srs/counting.py.
+        from app.utils.time_utils import day_to_naive_utc
+        card_direction.last_reviewed = day_to_naive_utc(user_id, db, days_ahead=0)
 
         # НЕ обновляем interval и next_review - карточка остается "просроченной"
 
@@ -578,15 +580,17 @@ def get_card_session_for_lesson(lesson_id, user_id):
         session_data['next_review_time'] = None
         return session_data
 
-    # Иначе ищем ближайший следующий review
-    from datetime import datetime
+    # Иначе ищем ближайший следующий review.
+    # next_review — naive UTC, поэтому и сравнение, и вычитание идут в naive:
+    # смешивание с aware-датой роняло эту ветку с TypeError.
+    now = datetime.now(UTC).replace(tzinfo=None)
     next_dir = (
         UserCardDirection.query.join(
             UserWord, UserCardDirection.user_word_id == UserWord.id
         )
         .filter(
             UserWord.user_id == user_id,
-            UserCardDirection.next_review > datetime.now(UTC)
+            UserCardDirection.next_review > now
         )
         .order_by(UserCardDirection.next_review)
         .first()
@@ -596,7 +600,7 @@ def get_card_session_for_lesson(lesson_id, user_id):
     if not next_dir:
         session_data['next_review_time'] = "Нет запланированных повторений"
     else:
-        delta = next_dir.next_review - datetime.now(UTC)
+        delta = next_dir.next_review - now
         if delta.days == 0:
             hours = delta.seconds // 3600
             if hours == 0:

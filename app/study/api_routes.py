@@ -603,7 +603,7 @@ def get_study_items():
 @login_required
 @limiter.limit("120 per minute", key_func=get_authenticated_user_key)
 def update_study_item():
-    from app.srs.constants import CardState
+    from app.srs.constants import CardState, quality_to_rating
 
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
@@ -683,6 +683,10 @@ def update_study_item():
     current_state = direction.state or CardState.NEW.value
     current_step = direction.step_index or 0
 
+    # One mapping for both the grade and the requeue below: computing it twice
+    # let quality=0 be graded as a failure but re-queued as a success.
+    rating = quality_to_rating(quality)
+
     interval = direction.update_after_review(quality)
 
     if session_id:
@@ -712,13 +716,6 @@ def update_study_item():
 
     from app.srs.constants import LEARNING_STEPS, MAX_SESSION_ATTEMPTS, RELEARNING_STEPS
     from app.srs.service import UnifiedSRSService
-
-    if quality == 1:
-        rating = 1
-    elif quality == 2:
-        rating = 2
-    else:
-        rating = 3
 
     requeue_position = UnifiedSRSService.get_requeue_position(
         rating=rating,
