@@ -299,10 +299,8 @@ class FlashcardSession {
             cardNote: document.getElementById('card-note'),
             cardNoteText: document.getElementById('card-note-text'),
             recoveryTools: document.getElementById('recovery-tools'),
-            associationEditor: document.getElementById('association-editor'),
             associationInput: document.getElementById('association-input'),
             saveAssociationBtn: document.getElementById('save-association-btn'),
-            toggleAssociationBtn: document.getElementById('toggle-association-btn'),
             excludeWordBtn: document.getElementById('exclude-word-btn'),
             associationStatus: document.getElementById('association-status'),
         };
@@ -334,15 +332,9 @@ class FlashcardSession {
         if (this.els.saveAssociationBtn) {
             this.els.saveAssociationBtn.addEventListener('click', () => self.saveAssociation());
         }
-        if (this.els.toggleAssociationBtn) {
-            this.els.toggleAssociationBtn.addEventListener('click', () => self.toggleAssociationEditor());
-        }
         if (this.els.excludeWordBtn) {
             this.els.excludeWordBtn.addEventListener('click', () => self.excludeCurrentWord());
         }
-        document.querySelectorAll('[data-postpone-days]').forEach(button => {
-            button.addEventListener('click', () => self.postponeCurrentWord(Number(button.dataset.postponeDays)));
-        });
 
         // Rating buttons
         document.querySelectorAll('.rating-btn').forEach(button => {
@@ -795,12 +787,6 @@ class FlashcardSession {
             if (this.els.associationInput) {
                 this.els.associationInput.value = card.is_recovery ? (card.personal_association || '') : '';
             }
-            if (this.els.associationEditor) this.els.associationEditor.hidden = true;
-            if (this.els.toggleAssociationBtn) {
-                this.els.toggleAssociationBtn.textContent = card.personal_association
-                    ? 'Изменить ассоциацию'
-                    : 'Добавить ассоциацию';
-            }
             if (this.els.associationStatus) this.els.associationStatus.textContent = '';
         }
 
@@ -947,49 +933,15 @@ class FlashcardSession {
         }
     }
 
-    toggleAssociationEditor() {
-        const card = this.cards[this.currentCardIndex];
-        if (!card || !card.is_recovery || !this.els.associationEditor) return;
-        this.els.associationEditor.hidden = !this.els.associationEditor.hidden;
-        if (!this.els.associationEditor.hidden && this.els.associationInput) {
-            this.els.associationInput.focus();
-        }
-    }
-
-    async postponeCurrentWord(days) {
-        const card = this.cards[this.currentCardIndex];
-        if (!card || !card.is_recovery || ![3, 5, 10].includes(days)) return;
-
-        const buttons = Array.from(document.querySelectorAll('[data-postpone-days]'));
-        buttons.forEach(button => { button.disabled = true; });
-        try {
-            const response = await fetch('/study/api/postpone-word', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: this._csrfHeaders(),
-                body: JSON.stringify({ word_id: card.word_id, days }),
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) throw new Error(data.message || 'postpone failed');
-
-            const currentIndex = this.currentCardIndex;
-            this.cards = this.cards.filter(item => item.word_id !== card.word_id);
-            this._recountRemaining();
-            this.showCard(currentIndex);
-        } catch (error) {
-            console.error('Failed to postpone word:', error);
-            if (this.els.associationStatus) this.els.associationStatus.textContent = 'Не удалось отложить слово';
-            buttons.forEach(button => { button.disabled = false; });
-        }
-    }
-
     async excludeCurrentWord() {
         const card = this.cards[this.currentCardIndex];
         if (!card || !card.is_recovery) return;
+        if (this._rateInFlight) return;
         if (!window.confirm('Убрать это слово из повторений?')) return;
 
         const button = this.els.excludeWordBtn;
         if (button) button.disabled = true;
+        this._rateInFlight = true;
         try {
             const response = await fetch('/study/api/exclude-word', {
                 method: 'POST',
@@ -1000,13 +952,20 @@ class FlashcardSession {
             const data = await response.json();
             if (!response.ok || !data.success) throw new Error(data.message || 'exclude failed');
 
-            const currentIndex = this.currentCardIndex;
+            // Both directions of the word leave the queue, so a sibling placed before the
+            // current card shifts the remaining cards down by one each.
+            const removedBefore = this.cards
+                .slice(0, this.currentCardIndex)
+                .filter(item => item.word_id === card.word_id).length;
+            const nextIndex = this.currentCardIndex - removedBefore;
             this.cards = this.cards.filter(item => item.word_id !== card.word_id);
             this._recountRemaining();
-            this.showCard(currentIndex);
+            this.showCard(nextIndex);
         } catch (error) {
             console.error('Failed to exclude word from SRS:', error);
             if (this.els.associationStatus) this.els.associationStatus.textContent = 'Не удалось убрать слово';
+        } finally {
+            this._rateInFlight = false;
             if (button) button.disabled = false;
         }
     }

@@ -355,6 +355,14 @@ class BookSRSIntegration:
             if direction_filter and card.direction != direction_filter:
                 continue
 
+            # Leech-buried cards stay hidden here too, same rule as the global SRS queue
+            buried_until = card.buried_until
+            if buried_until is not None:
+                if buried_until.tzinfo is not None:
+                    buried_until = buried_until.replace(tzinfo=None)
+                if buried_until > now:
+                    continue
+
             # New cards (state=NEW) or overdue cards
             if card.state == CardState.NEW.value:
                 due_cards.append(item)

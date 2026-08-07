@@ -229,7 +229,12 @@ class TestFilterDueCards:
     def test_includes_new_cards(self, integration):
         """Test including new cards (state=NEW) regardless of next_review."""
         from app.srs.constants import CardState
-        new_card = Mock(state=CardState.NEW.value, next_review=None, direction='eng-rus')
+        new_card = Mock(
+            state=CardState.NEW.value,
+            next_review=None,
+            direction='eng-rus',
+            buried_until=None,
+        )
         cards = [{'card': new_card, 'context': None}]
 
         result = integration._filter_due_cards(cards)
@@ -241,7 +246,8 @@ class TestFilterDueCards:
         overdue_card = Mock(
             repetitions=5,
             next_review=datetime.now(timezone.utc) - timedelta(hours=1),
-            direction='eng-rus'
+            direction='eng-rus',
+            buried_until=None,
         )
         cards = [{'card': overdue_card, 'context': None}]
 
@@ -254,9 +260,24 @@ class TestFilterDueCards:
         future_card = Mock(
             repetitions=3,
             next_review=datetime.now(timezone.utc) + timedelta(days=1),
-            direction='eng-rus'
+            direction='eng-rus',
+            buried_until=None,
         )
         cards = [{'card': future_card, 'context': None}]
+
+        result = integration._filter_due_cards(cards)
+
+        assert len(result) == 0
+
+    def test_excludes_buried_cards(self, integration):
+        """Test excluding cards buried by the leech rule even when they are overdue"""
+        buried_card = Mock(
+            repetitions=5,
+            next_review=datetime.now(timezone.utc) - timedelta(hours=1),
+            direction='eng-rus',
+            buried_until=datetime.now(timezone.utc) + timedelta(days=3),
+        )
+        cards = [{'card': buried_card, 'context': None}]
 
         result = integration._filter_due_cards(cards)
 

@@ -185,22 +185,11 @@
                 </div>
 
                 <section id="recovery-tools" class="fc-recovery-tools" style="display: none;">
-                    <div class="fc-recovery-tools__postpone">
-                        <span class="fc-recovery-tools__label">Отложить слово:</span>
-                        <div class="fc-recovery-tools__postpone-actions">
-                            <button type="button" class="fc-recovery-tools__postpone-btn" data-postpone-days="3">3 дня</button>
-                            <button type="button" class="fc-recovery-tools__postpone-btn" data-postpone-days="5">5 дней</button>
-                            <button type="button" class="fc-recovery-tools__postpone-btn" data-postpone-days="10">10 дней</button>
-                        </div>
-                    </div>
+                    <label class="fc-recovery-tools__label" for="association-input">Моя ассоциация</label>
+                    <textarea id="association-input" class="fc-recovery-tools__input" maxlength="500" rows="2"></textarea>
                     <div class="fc-recovery-tools__actions">
-                        <button type="button" id="toggle-association-btn" class="fc-recovery-tools__association-toggle">Добавить ассоциацию</button>
-                        <button type="button" id="exclude-word-btn" class="fc-recovery-tools__exclude">Не учить это слово</button>
-                    </div>
-                    <div id="association-editor" class="fc-recovery-tools__editor" hidden>
-                        <label class="fc-recovery-tools__label" for="association-input">Моя ассоциация</label>
-                        <textarea id="association-input" class="fc-recovery-tools__input" maxlength="500" rows="2"></textarea>
                         <button type="button" id="save-association-btn" class="btn btn-outline-secondary btn-sm">Сохранить</button>
+                        <button type="button" id="exclude-word-btn" class="fc-recovery-tools__exclude">Не учить это слово</button>
                     </div>
                     <div id="association-status" class="fc-recovery-tools__status" aria-live="polite"></div>
                 </section>

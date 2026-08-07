@@ -38,6 +38,11 @@ def _calculate_flashcard_xp(cards_reviewed, correct_answers):
     }
 
 
+def _is_valid_word_id(value: object) -> bool:
+    """Accept only true integer ids; bool is an int subclass Postgres rejects as a boolean."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def _count_leech_suspended(user_id: int, now: datetime) -> int:
     """Count distinct words currently buried because they crossed the leech threshold.
 
@@ -763,7 +768,7 @@ def save_card_association():
     direction_name = data.get('direction')
     note = data.get('note', '')
 
-    if not isinstance(word_id, int) or direction_name not in {'eng-rus', 'rus-eng'}:
+    if not _is_valid_word_id(word_id) or direction_name not in {'eng-rus', 'rus-eng'}:
         return api_error('invalid_input', 'word_id and direction are required', 400)
     if not isinstance(note, str):
         return api_error('invalid_input', 'note must be a string', 400)
@@ -796,7 +801,7 @@ def exclude_word_from_srs():
     """Keep a word out of all personal SRS queues without deleting history."""
     data = request.get_json(silent=True) or {}
     word_id = data.get('word_id')
-    if not isinstance(word_id, int):
+    if not _is_valid_word_id(word_id):
         return api_error('invalid_input', 'word_id is required', 400)
 
     user_word = (
@@ -812,43 +817,6 @@ def exclude_word_from_srs():
     user_word.srs_excluded_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
     return jsonify({'success': True, 'word_id': word_id})
-
-
-@study.route('/api/postpone-word', methods=['POST'])
-@login_required
-def postpone_word_in_srs():
-    """Temporarily hide every direction of a difficult word from SRS."""
-    data = request.get_json(silent=True) or {}
-    word_id = data.get('word_id')
-    days = data.get('days')
-    if not isinstance(word_id, int) or days not in {3, 5, 10}:
-        return api_error('invalid_input', 'word_id and days (3, 5, or 10) are required', 400)
-
-    directions = (
-        UserCardDirection.query
-        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
-        .filter(
-            UserWord.user_id == current_user.id,
-            UserWord.word_id == word_id,
-        )
-        .with_for_update()
-        .all()
-    )
-    if not directions:
-        return api_error('not_found', 'word is not in the user SRS', 404)
-
-    from app.utils.time_utils import day_to_naive_utc
-
-    buried_until = day_to_naive_utc(current_user.id, db, days_ahead=days)
-    for direction in directions:
-        direction.buried_until = buried_until
-    db.session.commit()
-    return jsonify({
-        'success': True,
-        'word_id': word_id,
-        'days': days,
-        'buried_until': buried_until.isoformat(),
-    })
 
 
 @study.route('/api/complete-session', methods=['POST'])

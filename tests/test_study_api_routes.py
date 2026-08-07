@@ -531,31 +531,9 @@ class TestCardTools:
         assert card.user_word.srs_excluded is True
         assert card.user_word.srs_excluded_at is not None
 
-    def test_postpones_both_directions_of_a_word(
-        self, authenticated_client, user_card_directions, db_session,
-    ):
-        forward = user_card_directions[0]
-        directions = [
-            card for card in user_card_directions
-            if card.user_word_id == forward.user_word_id
-        ]
-
-        response = authenticated_client.post('/study/api/postpone-word', json={
-            'word_id': forward.user_word.word_id,
-            'days': 5,
-        })
-
-        assert response.status_code == 200
-        assert response.get_json()['success'] is True
-        assert response.get_json()['days'] == 5
-        for direction in directions:
-            db_session.refresh(direction)
-            assert direction.buried_until is not None
-
-    def test_rejects_unsupported_postpone_duration(self, authenticated_client, user_card_directions):
-        response = authenticated_client.post('/study/api/postpone-word', json={
-            'word_id': user_card_directions[0].user_word.word_id,
-            'days': 7,
+    def test_rejects_boolean_word_id(self, authenticated_client, user_card_directions):
+        response = authenticated_client.post('/study/api/exclude-word', json={
+            'word_id': True,
         })
 
         assert response.status_code == 400
