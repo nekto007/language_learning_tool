@@ -16,6 +16,7 @@ Requires: ANTHROPIC_API_KEY environment variable.
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -30,10 +31,11 @@ except ImportError:
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = os.environ.get("ANTHROPIC_SONNET_MODEL", "claude-sonnet-5")
 MAX_TOKENS = 4096
 TEMPERATURE = 0.3
 API_DELAY = 1  # seconds between API calls
+MAX_SOURCE_CHARS = 6000
 
 
 SYSTEM_PROMPT = """You are an expert English language teacher creating a structured reading lesson scaffold for a book course.
@@ -93,17 +95,19 @@ Return a JSON object with this structure:
 }}"""
 
 
-def generate_lesson_scaffold(client: anthropic.Anthropic, text: str) -> dict | None:
+def generate_lesson_scaffold(
+    client: anthropic.Anthropic, text: str, model: str,
+) -> dict | None:
     """Generate full lesson scaffold for a text passage using Claude API."""
     try:
         response = client.messages.create(
-            model=MODEL,
+            model=model,
             max_tokens=MAX_TOKENS,
             temperature=TEMPERATURE,
             system=SYSTEM_PROMPT,
             messages=[{
                 "role": "user",
-                "content": USER_PROMPT_TEMPLATE.format(text=text[:3000])
+                "content": USER_PROMPT_TEMPLATE.format(text=text[:MAX_SOURCE_CHARS])
             }]
         )
 
@@ -159,11 +163,30 @@ def generate_lesson_scaffold(client: anthropic.Anthropic, text: str) -> dict | N
         return None
 
 
+def create_anthropic_client() -> anthropic.Anthropic:
+    """Create a client with an explicit, actionable missing-key error."""
+    api_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set. Add it to the production .env and "
+            "recreate the web container before running this script."
+        )
+    return anthropic.Anthropic(api_key=api_key)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate reading annotations for book course lessons")
     parser.add_argument("--course-id", type=int, help="Book course ID")
     parser.add_argument("--module-id", type=int, help="Specific module ID (optional)")
     parser.add_argument("--lesson-id", type=int, help="Specific daily lesson ID")
+    parser.add_argument(
+        "--limit", type=int,
+        help="Maximum number of matching lessons to process (use for a pilot)",
+    )
+    parser.add_argument(
+        "--model", default=DEFAULT_MODEL,
+        help=f"Claude model to use (default: {DEFAULT_MODEL})",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show what would be generated without saving")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing annotations")
     args = parser.parse_args()
@@ -203,14 +226,25 @@ def main():
         if not args.overwrite:
             query = query.filter(DailyLesson.annotations.is_(None))
 
-        lessons = query.order_by(DailyLesson.id).all()
+        query = query.order_by(DailyLesson.id)
+        if args.limit is not None:
+            if args.limit <= 0:
+                parser.error("--limit must be positive")
+            query = query.limit(args.limit)
+
+        lessons = query.all()
         print(f"Found {len(lessons)} reading lessons to annotate")
+        print(f"Model: {args.model}")
 
         if not lessons:
             print("Nothing to do.")
             return
 
-        client = anthropic.Anthropic()
+        try:
+            client = create_anthropic_client()
+        except RuntimeError as error:
+            print(f"Error: {error}")
+            return
         success = 0
         errors = 0
 
@@ -218,7 +252,7 @@ def main():
             text_preview = (lesson.slice_text or "")[:80].replace("\n", " ")
             print(f"\n[{i}/{len(lessons)}] Lesson {lesson.id} (day {lesson.day_number}): {text_preview}...")
 
-            scaffold = generate_lesson_scaffold(client, lesson.slice_text)
+            scaffold = generate_lesson_scaffold(client, lesson.slice_text, args.model)
 
             if scaffold is None:
                 errors += 1
