@@ -152,6 +152,7 @@ When the file is written, import it:
 
 
 _WS_RE = re.compile(r"\s+")
+_SPACE_BEFORE_PUNCT_RE = re.compile(r"\s+([,.;:!?])")
 _QUOTE_MAP = str.maketrans({
     "‘": "'", "’": "'", "‚": "'", "‛": "'",
     "“": '"', "”": '"', "„": '"', "‟": '"',
@@ -161,8 +162,15 @@ _QUOTE_MAP = str.maketrans({
 
 
 def normalize_for_match(text: str) -> str:
-    """Collapse whitespace and unify typographic punctuation for quote matching."""
-    return _WS_RE.sub(" ", text.translate(_QUOTE_MAP)).strip()
+    """Normalise a passage or a quote so they can be compared.
+
+    Collapses whitespace, unifies typographic punctuation, drops the space some
+    source texts leave before a comma, and folds case. A quote that differs from
+    the passage only by a sentence-initial capital is still a verbatim quote; the
+    protection against invented quotes comes from the substring check itself.
+    """
+    unified = _WS_RE.sub(" ", text.translate(_QUOTE_MAP))
+    return _SPACE_BEFORE_PUNCT_RE.sub(r"\1", unified).strip().casefold()
 
 
 def _is_nonempty_str(value: Any) -> bool:

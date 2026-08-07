@@ -134,6 +134,46 @@ def test_phrase_matches_across_collapsed_whitespace():
     assert validate_scaffold(scaffold, PASSAGE) == []
 
 
+def test_phrase_matches_regardless_of_case():
+    """A sentence-initial capital in the passage must not reject the quote."""
+    scaffold = _valid_scaffold()
+    scaffold["annotations"][0]["phrase"] = "you mark my words"
+    assert validate_scaffold(scaffold, PASSAGE) == []
+
+
+def test_phrase_matches_when_passage_has_a_space_before_a_comma():
+    """Some source texts read `word , next`; the quote is still verbatim."""
+    passage = "He said the word , and then he left the room."
+    scaffold = _valid_scaffold()
+    scaffold["annotations"] = [
+        {
+            "phrase": "the word, and then he left",
+            "type": "lexical",
+            "note": "Проверка нормализации.",
+            "quick_use": ["He left the room."],
+        },
+        {
+            "phrase": "left the room",
+            "type": "lexical",
+            "note": "Вторая заметка.",
+            "quick_use": ["She left the room."],
+        },
+        {
+            "phrase": "He said",
+            "type": "cultural",
+            "note": "Третья заметка.",
+            "quick_use": ["He said nothing."],
+        },
+        {
+            "phrase": "and then",
+            "type": "grammar",
+            "note": "Четвёртая заметка.",
+            "quick_use": ["And then we waited."],
+        },
+    ]
+    assert validate_scaffold(scaffold, passage) == []
+
+
 # ---------------------------------------------------------------------------
 # validate_scaffold — rejections
 # ---------------------------------------------------------------------------
