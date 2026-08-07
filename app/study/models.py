@@ -525,8 +525,14 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         """
         Bury card for the rest of the study session.
         Default assumes a session is about 4 hours max.
+
+        Never shortens a longer rest: the same grade that exhausts the session
+        attempts can also trigger the multi-day automatic rest, and overwriting
+        it here would put the card back in tomorrow's queue.
         """
-        self.buried_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=session_duration_hours)
+        until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=session_duration_hours)
+        if self.buried_until is None or self.buried_until < until:
+            self.buried_until = until
 
     def unbury(self):
         """Remove bury status from this card."""
@@ -604,6 +610,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             ease_factor=self.ease_factor or DEFAULT_EASE_FACTOR,
             lapses=self.lapses or 0,
             consecutive_leech_burials=self.consecutive_leech_burials or 0,
+            difficulty_score=self.difficulty_score or 0,
         )
 
         # Apply SM-2 results

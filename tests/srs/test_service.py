@@ -9,6 +9,9 @@ import pytest
 from app.auth.models import User
 from app.srs.constants import (
     CardState,
+    DIFFICULTY_BURY_THRESHOLD,
+    DIFFICULTY_MAX_SCORE,
+    DIFFICULTY_MISS_PENALTY_STEP,
     GRADUATING_INTERVAL,
     LEARNING_STEPS,
     LEECH_THRESHOLD,
@@ -186,6 +189,134 @@ class TestLeechAutoSuspend:
 
         cards = UnifiedSRSService()._get_due_cards(user_id=user.id, limit=50)
         assert card.id in [c.id for c in cards]
+
+
+class TestAutomaticRestForStuckCards:
+    """A card that keeps missing outside REVIEW earns a rest too.
+
+    LEECH_THRESHOLD only counts REVIEW lapses, so a card that never graduates
+    accumulates no lapses; without the difficulty-driven rule it would be shown
+    every session forever.
+    """
+
+    def test_calc_buries_learning_card_at_difficulty_threshold(self):
+        result = UnifiedSRSService.calculate_sm2_update(
+            rating=RATING_DONT_KNOW,
+            state=CardState.LEARNING.value,
+            step_index=0,
+            repetitions=0,
+            interval=0,
+            ease_factor=2.5,
+            lapses=0,
+            difficulty_score=DIFFICULTY_BURY_THRESHOLD - DIFFICULTY_MISS_PENALTY_STEP,
+        )
+        assert result.get('bury_days') == LEECH_SUSPEND_DAYS
+
+    def test_calc_omits_bury_for_learning_card_below_threshold(self):
+        result = UnifiedSRSService.calculate_sm2_update(
+            rating=RATING_DONT_KNOW,
+            state=CardState.LEARNING.value,
+            step_index=0,
+            repetitions=0,
+            interval=0,
+            ease_factor=2.5,
+            lapses=0,
+            difficulty_score=DIFFICULTY_BURY_THRESHOLD - DIFFICULTY_MISS_PENALTY_STEP - 1,
+        )
+        assert not result.get('bury_days')
+
+    def test_calc_buries_relearning_card_at_difficulty_threshold(self):
+        result = UnifiedSRSService.calculate_sm2_update(
+            rating=RATING_DONT_KNOW,
+            state=CardState.RELEARNING.value,
+            step_index=0,
+            repetitions=0,
+            interval=1,
+            ease_factor=2.0,
+            lapses=1,
+            difficulty_score=DIFFICULTY_BURY_THRESHOLD,
+        )
+        assert result.get('bury_days') == LEECH_SUSPEND_DAYS
+
+    def test_calc_never_buries_a_new_card(self):
+        result = UnifiedSRSService.calculate_sm2_update(
+            rating=RATING_DONT_KNOW,
+            state=CardState.NEW.value,
+            step_index=0,
+            repetitions=0,
+            interval=0,
+            ease_factor=2.5,
+            lapses=0,
+            difficulty_score=DIFFICULTY_MAX_SCORE,
+        )
+        assert not result.get('bury_days')
+
+    def test_calc_scales_rest_with_consecutive_rests(self):
+        result = UnifiedSRSService.calculate_sm2_update(
+            rating=RATING_DONT_KNOW,
+            state=CardState.LEARNING.value,
+            step_index=0,
+            repetitions=0,
+            interval=0,
+            ease_factor=2.5,
+            lapses=0,
+            difficulty_score=DIFFICULTY_BURY_THRESHOLD,
+            consecutive_leech_burials=2,
+        )
+        assert result.get('bury_days') == LEECH_SUSPEND_DAYS * 3
+
+    def test_stuck_learning_card_is_rested_end_to_end(self, db_session):
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=0)
+        card.state = CardState.LEARNING.value
+        card.difficulty_score = DIFFICULTY_BURY_THRESHOLD - DIFFICULTY_MISS_PENALTY_STEP
+        card.recovery_required = True
+        db_session.commit()
+
+        result = UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_DONT_KNOW, user_id=user.id,
+        )
+        assert result['success'] is True
+
+        db_session.refresh(card)
+        assert card.lapses == 0, 'learning misses must not be counted as REVIEW lapses'
+        assert card.buried_until is not None
+        assert card.id not in [
+            c.id for c in UnifiedSRSService()._get_due_cards(user_id=user.id, limit=50)
+        ]
+
+    def test_recovery_invite_waits_until_the_rest_ends(self, db_session):
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=LEECH_THRESHOLD - 1)
+
+        UnifiedSRSService().grade_card(
+            card_id=card.id, rating=RATING_DONT_KNOW, user_id=user.id,
+        )
+
+        db_session.refresh(card)
+        # Rest must actually hold: the card is invited back for recovery when
+        # the rest ends, not on the next day.
+        assert card.recovery_due_at == card.buried_until
+
+    def test_session_bury_does_not_shorten_a_longer_rest(self, db_session):
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=0)
+        week_long_rest = _now_naive() + timedelta(days=LEECH_SUSPEND_DAYS)
+        card.buried_until = week_long_rest
+        db_session.commit()
+
+        card.bury_for_session(session_duration_hours=4)
+
+        assert card.buried_until == week_long_rest
+
+    def test_session_bury_still_applies_without_a_longer_rest(self, db_session):
+        user = _make_user(db_session)
+        card = _make_review_card(db_session, user, lapses=0)
+
+        card.bury_for_session(session_duration_hours=4)
+
+        assert card.buried_until is not None
+        assert card.buried_until > _now_naive()
 
 
 class TestCardRecovery:

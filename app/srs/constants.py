@@ -116,6 +116,18 @@ DIFFICULTY_RECOVERY_THRESHOLD = 2
 DIFFICULTY_MAX_SCORE = 10
 RECOVERY_SUCCESSFUL_RECALLS = 2
 
+# Weight of one miss on difficulty_score: failing a long-term review is a
+# stronger signal than fumbling an intra-day learning step.
+DIFFICULTY_MISS_PENALTY_REVIEW = 2
+DIFFICULTY_MISS_PENALTY_STEP = 1
+
+# Automatic rest for a card that keeps missing in ANY phase. LEECH_THRESHOLD
+# only counts REVIEW lapses, so a card that never graduates could be missed
+# indefinitely without ever being suspended. difficulty_score drains on
+# successful recalls, so reaching this level means recent, repeated failure.
+# 6 = six learning-step misses, or three REVIEW lapses, without recovery.
+DIFFICULTY_BURY_THRESHOLD = 6
+
 # Progressive bury (Раздел 9): each consecutive bury without an intervening
 # successful review extends the next interval. ``bury_days = base * (1+n)``
 # capped at MAX_LEECH_SUSPEND_DAYS. Counter on UserCardDirection.

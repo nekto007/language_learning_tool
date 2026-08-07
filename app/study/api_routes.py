@@ -741,6 +741,12 @@ def update_study_item():
         requeue_position = None
         is_buried = True
         db.session.commit()
+    elif direction.is_buried:
+        # The grade just earned this card an automatic multi-day rest — keep it
+        # out of the in-session requeue too, otherwise the rest starts only
+        # after the current session ends.
+        requeue_position = None
+        is_buried = True
 
     return jsonify({
         'success': True,

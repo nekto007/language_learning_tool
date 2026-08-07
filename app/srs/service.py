@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from app.grammar_lab.models import GrammarExercise, UserGrammarExercise
 from app.srs.constants import (
     DEFAULT_EASE_FACTOR,
+    DIFFICULTY_BURY_THRESHOLD,
     DIRECTION_ENG_RUS,
     DIRECTION_RUS_ENG,
     EASY_INTERVAL,
@@ -47,7 +48,7 @@ from app.srs.constants import (
     CardState,
 )
 from app.srs.scheduling import apply_review_schedule
-from app.srs.difficulty import update_recovery_state
+from app.srs.difficulty import miss_penalty, update_recovery_state
 from app.study.models import UserCardDirection, UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -139,6 +140,7 @@ class UnifiedSRSService:
         ease_factor: float,
         lapses: int = 0,
         consecutive_leech_burials: int = 0,
+        difficulty_score: int = 0,
     ) -> Dict[str, Any]:
         """
         Calculate new SM-2 parameters based on Anki-like state machine.
@@ -151,6 +153,9 @@ class UnifiedSRSService:
             interval: Current interval (days)
             ease_factor: Current ease factor
             lapses: Current lapse count
+            consecutive_leech_burials: Rests taken without an intervening success
+            difficulty_score: Pre-grade difficulty score, used to decide whether
+                this miss earns the card an automatic rest
 
         Returns:
             Dict with new state, step_index, repetitions, interval, ease_factor,
@@ -189,6 +194,17 @@ class UnifiedSRSService:
                 rating, step_index, ease_factor, lapses, RELEARNING_STEPS
             )
 
+        # Automatic rest for a card that keeps missing in ANY phase. The
+        # LEECH_THRESHOLD rule inside _handle_review only counts REVIEW lapses,
+        # so a card that never graduates accumulates no lapses and would come
+        # back every session indefinitely.
+        if rating == RATING_DONT_KNOW and state != CardState.NEW.value:
+            projected_difficulty = (difficulty_score or 0) + miss_penalty(state)
+            if projected_difficulty >= DIFFICULTY_BURY_THRESHOLD and not result.get('bury_days'):
+                result['bury_days'] = UnifiedSRSService._leech_bury_days(
+                    consecutive_leech_burials
+                )
+
         # Update repetitions
         if rating >= RATING_DOUBT:
             result['repetitions'] = repetitions + 1
@@ -199,6 +215,17 @@ class UnifiedSRSService:
             result['repetitions'] = 0
 
         return result
+
+    @staticmethod
+    def _leech_bury_days(consecutive_leech_burials: int) -> int:
+        """Length of the next automatic rest, in days.
+
+        Progressive (Раздел 9): each consecutive rest without an intervening
+        successful review extends the next one by another base period —
+        7, 14, 21 … capped at MAX_LEECH_SUSPEND_DAYS.
+        """
+        scaled = LEECH_SUSPEND_DAYS * (1 + max(0, consecutive_leech_burials))
+        return min(MAX_LEECH_SUSPEND_DAYS, scaled)
 
     @staticmethod
     def _handle_new(rating: int, ease_factor: float) -> Dict[str, Any]:
@@ -315,8 +342,9 @@ class UnifiedSRSService:
             # MAX_LEECH_SUSPEND_DAYS. The streak counter is owned by
             # ``grade_card`` (it knows whether to increment vs reset).
             if new_lapses >= LEECH_THRESHOLD:
-                scaled = LEECH_SUSPEND_DAYS * (1 + max(0, consecutive_leech_burials))
-                result['bury_days'] = min(MAX_LEECH_SUSPEND_DAYS, scaled)
+                result['bury_days'] = UnifiedSRSService._leech_bury_days(
+                    consecutive_leech_burials
+                )
             return result
         elif rating == RATING_DOUBT:
             # Hard: small increase, ease penalty. Capped (Раздел 12) so a
@@ -481,6 +509,7 @@ class UnifiedSRSService:
                 ease_factor=card.ease_factor or DEFAULT_EASE_FACTOR,
                 lapses=card.lapses or 0,
                 consecutive_leech_burials=card.consecutive_leech_burials or 0,
+                difficulty_score=card.difficulty_score or 0,
             )
 
             # Update card with new values

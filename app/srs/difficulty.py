@@ -6,17 +6,29 @@ steps, which lets recovery stay inside the existing flashcard session.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.srs.constants import (
     DIFFICULTY_MAX_SCORE,
+    DIFFICULTY_MISS_PENALTY_REVIEW,
+    DIFFICULTY_MISS_PENALTY_STEP,
     DIFFICULTY_RECOVERY_THRESHOLD,
     RATING_DONT_KNOW,
     RATING_KNOW,
     RECOVERY_SUCCESSFUL_RECALLS,
     CardState,
 )
+
+
+def miss_penalty(previous_state: str) -> int:
+    """Weight of a single miss on ``difficulty_score``.
+
+    Shared with the SM-2 engine, which projects the post-grade score to decide
+    whether the card has earned an automatic rest.
+    """
+    if (previous_state or CardState.NEW.value) == CardState.REVIEW.value:
+        return DIFFICULTY_MISS_PENALTY_REVIEW
+    return DIFFICULTY_MISS_PENALTY_STEP
 
 
 def update_recovery_state(
@@ -36,19 +48,18 @@ def update_recovery_state(
     score = card.difficulty_score or 0
 
     if rating == RATING_DONT_KNOW:
-        score += 2 if previous_state == CardState.REVIEW.value else 1
+        score += miss_penalty(previous_state)
         card.difficulty_score = min(DIFFICULTY_MAX_SCORE, score)
         card.recovery_successes = 0
         if card.difficulty_score >= DIFFICULTY_RECOVERY_THRESHOLD:
             card.recovery_required = True
 
-        # A leech remains buried from the ordinary queue, but it is invited
-        # back through the same SRS session on the next day for recovery.
+        # A rested card stays out of every queue for the whole rest period; the
+        # recovery invite lands when the rest ends. Inviting it back the next
+        # day (the old behaviour) made a multi-day rest invisible — the card
+        # returned every single session and only the ordinary queue skipped it.
         if card.buried_until is not None:
-            card.recovery_due_at = (
-                datetime.now(timezone.utc).replace(tzinfo=None)
-                + timedelta(days=1)
-            )
+            card.recovery_due_at = card.buried_until
         return
 
     if not card.recovery_required:
