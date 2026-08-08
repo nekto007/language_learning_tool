@@ -518,10 +518,14 @@ class TestAuthExceptionHandling:
         with caplog.at_level(logging.ERROR, logger='app.auth.routes'):
             with patch.object(db.session, 'commit', side_effect=commit_that_fails_second_time):
                 try:
+                    # NB: the new password must satisfy validate_password_strength —
+                    # /change-password enforces it like register and reset do
+                    # (audit UI-001). 'NewPass123!@#' fails on the "123" sequence
+                    # and would never reach the commit this test is about.
                     authenticated_client.post('/change-password', data={
                         'current_password': 'testpass123',
-                        'new_password': 'NewPass123!@#',
-                        'confirm_password': 'NewPass123!@#',
+                        'new_password': 'Brand-New-Pass9',
+                        'confirm_password': 'Brand-New-Pass9',
                     })
                 except Exception:
                     pass
