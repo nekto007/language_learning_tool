@@ -27,6 +27,21 @@ def _draft_hidden(book) -> bool:
     return not book.is_published and not getattr(current_user, 'is_admin', False)
 
 
+def _block_gate(block, not_found_message: str):
+    """Book gate for block-scoped material (blocks, tasks).
+
+    Returns an error response when the caller may not see the block's book, or
+    None when access is allowed. A block without a reachable book is treated as
+    nonexistent — there is no book to authorise against, so we fail closed.
+    """
+    book = block.book if block is not None else None
+    if book is None or _draft_hidden(book):
+        return api_error('not_found', not_found_message, 404)
+    if not can_user_access_book(current_user, book):
+        return api_error('forbidden', 'Access denied', 403)
+    return None
+
+
 @api_books.route('/books', methods=['GET'])
 @api_auth_required
 def get_books():
@@ -692,6 +707,10 @@ def get_task(task_id):
     try:
         task = Task.query.get_or_404(task_id)
 
+        denied = _block_gate(task.block, 'Task not found')
+        if denied is not None:
+            return denied
+
         return jsonify({
             'success': True,
             'task': {
@@ -721,8 +740,12 @@ def get_block_tasks(block_id):
     from werkzeug.exceptions import NotFound
 
     try:
-        # First verify block exists
-        Block.query.get_or_404(block_id)
+        # First verify block exists and the caller may see its book
+        block = Block.query.get_or_404(block_id)
+
+        denied = _block_gate(block, 'Block not found')
+        if denied is not None:
+            return denied
 
         tasks = Task.query.filter_by(block_id=block_id).all()
 
@@ -759,6 +782,10 @@ def get_block(block_id):
 
     try:
         block = Block.query.get_or_404(block_id)
+
+        denied = _block_gate(block, 'Block not found')
+        if denied is not None:
+            return denied
 
         # Get task types for this block
         tasks = Task.query.filter_by(block_id=block_id).all()

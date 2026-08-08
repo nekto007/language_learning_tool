@@ -33,6 +33,34 @@ books = Blueprint('books', __name__)
 
 logger = logging.getLogger(__name__)
 
+
+def _same_host_path(referrer: str) -> str | None:
+    """Reduce a referrer to its same-host relative path, or None if it is external."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(referrer)
+    if parsed.netloc and parsed.netloc != request.host:
+        return None
+    path = parsed.path or '/'
+    return f'{path}?{parsed.query}' if parsed.query else path
+
+
+def _safe_back_url(candidate: str | None, book_id: int) -> str:
+    """Route a caller-supplied back URL through ``get_safe_redirect_url``.
+
+    The reader renders ``back_url`` straight into three ``href`` attributes, so an
+    unvalidated ``?from=`` is an open redirect (and a ``javascript:`` sink). The
+    shared helper only takes an argument-less endpoint as its fallback, so we use
+    it as a verdict: it returns the candidate unchanged when the candidate is a
+    safe relative path, and anything else means it was rejected.
+    """
+    from app.auth.routes import get_safe_redirect_url
+
+    default = url_for('books.book_details', book_id=book_id)
+    if not candidate:
+        return default
+    return candidate if get_safe_redirect_url(candidate, 'books.book_list') == candidate else default
+
 # Configuration for book cover images
 COVER_UPLOAD_FOLDER = 'app/static/uploads/covers'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -425,11 +453,12 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
             if '/books' in referrer and f'/books/{book_id}' not in referrer:
                 back_url = url_for('books.book_list')
             elif 'curriculum' in referrer or 'module' in referrer:
-                back_url = referrer
+                back_url = _same_host_path(referrer)
             else:
                 back_url = url_for('books.book_details', book_id=book_id)
         else:
             back_url = url_for('books.book_details', book_id=book_id)
+    back_url = _safe_back_url(back_url, book_id)
 
     # Enforce per-book licensed text allowance (audit E-047): a licensed /
     # companion_only book with allowed_text_percent < 100 serves only that
@@ -1185,8 +1214,9 @@ def book_read(book_id):
 
         # Determine back URL
         back_url = request.args.get('from')
-        if not back_url:
-            back_url = url_for('books.book_details', book_id=book_id)
+        if back_url in ('daily_plan', 'linear_plan'):
+            back_url = None  # tracking flag, not a URL
+        back_url = _safe_back_url(back_url, book_id)
 
         return render_template('books/reader_simple.html',
                              book=book,
