@@ -112,7 +112,7 @@
                 На главную
             </a>
             {% if fc_deck_id is defined and fc_deck_id %}
-            <a href="{{ url_for('study.deck_detail', deck_id=fc_deck_id) }}" class="cards-btn cards-btn--primary">
+            <a href="{{ url_for('study.edit_deck', deck_id=fc_deck_id) }}" class="cards-btn cards-btn--primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 Добавить слова
             </a>
