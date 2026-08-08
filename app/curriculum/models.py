@@ -135,11 +135,16 @@ class Module(db.Model):
                 if (prereq_module.level.order or 0) < min_level_order:
                     continue
 
-            # Check if user completed this module
+            # Check if user completed this module.
+            # `min_progress` lets the data express the same 80% bar the
+            # intra-level rule in check_module_access uses; without it a
+            # level-entry prereq would demand 100%, a stricter gate than
+            # anywhere else in the product (audit CNT-005).
             progress = self._get_module_completion(user_id, prereq['id'])
             min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
+            min_progress = prereq.get('min_progress', 100)
 
-            if progress['progress_percent'] < 100:
+            if progress['progress_percent'] < min_progress:
                 reasons.append(f"Complete module '{prereq_module.title}'")
             elif progress['avg_score'] < min_score:
                 reasons.append(
