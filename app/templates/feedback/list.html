@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Мои обращения{% endblock %}
 
-{% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос'} %}
+{% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос', 'survey': '📋 Опрос'} %}
 {% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
 {% set status_classes = {'new': 'fb-status-new', 'seen': 'fb-status-seen', 'in_progress': 'fb-status-progress', 'resolved': 'fb-status-resolved', 'reopened': 'fb-status-new'} %}
 

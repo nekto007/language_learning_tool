@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Обращение #{{ feedback.id }}{% endblock %}
 
-{% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос'} %}
+{% set category_labels = {'bug': '🐞 Баг', 'idea': '💡 Идея', 'question': '❓ Вопрос', 'survey': '📋 Опрос'} %}
 {% set status_labels = {'new': 'Новое', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
 
 {% block content %}

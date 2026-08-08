@@ -477,6 +477,37 @@
             </p>
           </div>
         </div>
+        {# Two-week survey. Asked here because it is the only moment in the
+           product where the learner has just finished something and nothing
+           is being interrupted. Starts collapsed so the celebration stays
+           clean; leaving the page is not a refusal, only the button is. #}
+        {% if u_day_secured and show_survey is defined and show_survey %}
+        <div class="daily-plan__survey" id="daily-plan-survey" data-survey-root="true">
+          <div class="daily-plan__survey-invite" data-survey-invite="true">
+            <p class="daily-plan__survey-text">
+              Вы занимаетесь уже две недели. Ответите на три коротких вопроса?
+            </p>
+            <div class="daily-plan__survey-actions">
+              <button type="button" class="daily-plan__survey-open" data-survey-open="true">Ответить</button>
+              <button type="button" class="daily-plan__survey-dismiss" data-survey-dismiss="true">Скрыть</button>
+            </div>
+          </div>
+          <form class="daily-plan__survey-form" data-survey-form="true" hidden>
+            {% for _key, _question in [('works', 'Что работает хорошо?'), ('annoys', 'Что раздражает или мешает?'), ('missing', 'Чего не хватает?')] %}
+            <label class="daily-plan__survey-field">
+              <span class="daily-plan__survey-label">{{ _question }}</span>
+              <textarea name="{{ _key }}" rows="2" maxlength="1000"
+                        class="daily-plan__survey-input"></textarea>
+            </label>
+            {% endfor %}
+            <div class="daily-plan__survey-actions">
+              <button type="submit" class="daily-plan__survey-submit">Отправить</button>
+              <button type="button" class="daily-plan__survey-dismiss" data-survey-dismiss="true">Скрыть</button>
+            </div>
+            <p class="daily-plan__survey-status" data-survey-status="true" aria-live="polite"></p>
+          </form>
+        </div>
+        {% endif %}
       {% endif %}
     {% else %}
       <div class="daily-plan__empty-state" role="status" aria-live="polite">
@@ -712,6 +743,83 @@
                 btn.disabled = false;
                 btn.classList.remove('btn--loading');
             });
+        });
+    });
+})();
+</script>
+
+<script nonce="{{ csp_nonce }}">
+(function() {
+    var root = document.querySelector('[data-survey-root="true"]');
+    if (!root) return;
+
+    var invite = root.querySelector('[data-survey-invite="true"]');
+    var form = root.querySelector('[data-survey-form="true"]');
+    var status = root.querySelector('[data-survey-status="true"]');
+
+    function csrfHeaders() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var headers = {'Content-Type': 'application/json'};
+        if (meta && meta.content) headers['X-CSRFToken'] = meta.content;
+        return headers;
+    }
+
+    function replaceWithNote(text) {
+        root.textContent = '';
+        var note = document.createElement('p');
+        note.className = 'daily-plan__survey-thanks';
+        note.setAttribute('role', 'status');
+        note.textContent = text;
+        root.appendChild(note);
+    }
+
+    root.querySelector('[data-survey-open="true"]').addEventListener('click', function() {
+        invite.hidden = true;
+        form.hidden = false;
+        var first = form.querySelector('textarea');
+        if (first) first.focus();
+    });
+
+    root.querySelectorAll('[data-survey-dismiss="true"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            btn.disabled = true;
+            fetch('/api/feedback/survey/dismiss', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: csrfHeaders(),
+                body: '{}'
+            }).catch(function() {
+                // Dismissal is a convenience, not data — hide it either way.
+            }).then(function() {
+                root.remove();
+            });
+        });
+    });
+
+    form.addEventListener('submit', function(ev) {
+        ev.preventDefault();
+        var payload = {};
+        form.querySelectorAll('textarea').forEach(function(area) {
+            payload[area.name] = area.value;
+        });
+        if (!Object.keys(payload).some(function(k) { return payload[k].trim(); })) {
+            status.textContent = 'Заполните хотя бы одно поле.';
+            return;
+        }
+        var submit = form.querySelector('[type="submit"]');
+        submit.disabled = true;
+        status.textContent = 'Отправляем…';
+        fetch('/api/feedback/survey', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: csrfHeaders(),
+            body: JSON.stringify(payload)
+        }).then(function(resp) {
+            if (!resp.ok) throw new Error('save failed');
+            replaceWithNote('Спасибо — прочитаю и отвечу.');
+        }).catch(function() {
+            submit.disabled = false;
+            status.textContent = 'Не удалось отправить. Попробуйте позже.';
         });
     });
 })();

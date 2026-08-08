@@ -7,8 +7,8 @@
 {{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Обратная связь', '')]) }}
 {% endblock %}
 
-{% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'} %}
-{% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info'} %}
+{% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос', 'survey': 'Опрос'} %}
+{% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info', 'survey': 'primary'} %}
 {% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
 {% set status_badges = {'new': 'primary', 'seen': 'warning', 'in_progress': 'info', 'resolved': 'secondary', 'reopened': 'danger'} %}
 {% set priority_labels = {'low': 'Низкий', 'normal': 'Обычный', 'high': 'Высокий', 'critical': 'Критичный'} %}

@@ -1196,11 +1196,17 @@ def _render_unified_dashboard(tz: str):
     else:
         xp_leaderboard, user_xp_rank, achievements_by_category = [], None, {}
 
+    # Two-week survey invite, shown inside the day-secured celebration.
+    from app.feedback.survey import should_show_survey
+    show_survey = _safe_widget_call(
+        'show_survey', should_show_survey, current_user, default=False)
+
     return render_template(
         'words/dashboard_unified.html',
         unified_plan=unified_plan,
         plan_completion=plan_completion,
         stats_card=stats_card,
+        show_survey=show_survey,
         hero=hero,
         focus=focus,
         week_rhythm=week_rhythm,
