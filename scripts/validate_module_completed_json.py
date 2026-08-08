@@ -62,6 +62,12 @@ from pathlib import Path
 from typing import Any, Iterable
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# Same blind spot as CNT-011: run as `python scripts/validate_module_completed_json.py`
+# the interpreter puts scripts/ on sys.path[0], `import app` fails, and every lesson
+# silently degrades to `schema-skipped` while the run still looks healthy.
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 DEFAULT_SOURCE_DIR = PROJECT_ROOT / "module_completed" / "fixed"
 DEFAULT_AUDIO_DIR = PROJECT_ROOT / "app" / "static" / "audio"
 DEFAULT_VALIDATION_REPORT = PROJECT_ROOT / "reports" / "module_completed_json_validation.md"
@@ -491,8 +497,18 @@ def _detect_empty_required_fields(
                 continue
             if _content_is_empty(item.get("answer")):
                 issues.append((f"items[{i}].answer", "sentence_completion item missing answer"))
-            if _content_is_empty(item.get("prompt")):
-                issues.append((f"items[{i}].prompt", "sentence_completion item missing prompt"))
+            # An empty leading `prompt` is legal: when the gap opens the sentence the
+            # text lives in `context` / `prompt_after`, and the template renders it that
+            # way (curriculum/lessons/sentence_completion.html). Only a row with no text
+            # at all is broken. See CNT-012.
+            if (
+                _content_is_empty(item.get("prompt"))
+                and _content_is_empty(item.get("prompt_after"))
+                and _content_is_empty(item.get("context"))
+            ):
+                issues.append(
+                    (f"items[{i}].prompt", "sentence_completion item has no prompt/prompt_after/context text")
+                )
     if lesson_type == "sentence_correction":
         items = content.get("items") or []
         if items:

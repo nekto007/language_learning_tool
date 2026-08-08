@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -905,14 +904,18 @@ def format_json(audit: dict[str, Any]) -> str:
 
 
 def _try_get_db_session():
+    # See CNT-013: `create_app` wants a config object (not the name "development"),
+    # and the live session lives on `app.utils.db.db`, not root `extensions.db`.
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
     try:
         from app import create_app
-        from extensions import db
+        from app.utils.db import db
     except Exception as exc:  # noqa: BLE001
         print(f"WARN: cannot import Flask app: {exc}", file=sys.stderr)
         return None, None
     try:
-        app = create_app(os.environ.get("FLASK_ENV", "development"))
+        app = create_app()
     except Exception as exc:  # noqa: BLE001
         print(f"WARN: create_app() failed: {exc}", file=sys.stderr)
         return None, None
