@@ -604,20 +604,30 @@ def change_password():
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
         
+        from app.utils.password_validator import validate_password_strength
+
+        is_strong, strength_errors = validate_password_strength(
+            new_password or '', current_user.username, current_user.email,
+        )
+
         if not current_user.check_password(current_password):
             flash('Текущий пароль неверен.', 'danger')
         elif new_password != confirm_password:
-            flash('Новые пароли не совпадают.', 'danger')  
+            flash('Новые пароли не совпадают.', 'danger')
+        elif not is_strong:
+            for error in strength_errors:
+                flash(error, 'danger')
         else:
             current_user.set_password(new_password)
             try:
                 db.session.commit()
                 flash('Пароль изменен успешно.', 'success')
+                return redirect(url_for('auth.profile'))
             except SQLAlchemyError:
                 logger.exception("Failed to change password for user %s", current_user.id)
                 db.session.rollback()
                 flash('Ошибка при изменении пароля.', 'danger')
-    
+
     return render_template('auth/change_password.html')
 
 
