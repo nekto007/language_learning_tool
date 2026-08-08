@@ -9,9 +9,10 @@
 > Между ними — гейт консолидации: находки дедуплицируются и перепроверяются скептиками;
 > в реестр идут только **CONFIRMED**, **PLAUSIBLE** — в приложение.
 
-**Статус:** 🟠 Task 1–4 закрыты (каркас + baseline + зона UI: **39 находок**; зона Контент:
-**33 находки**, 0 P0 / 9 P1 / 13 P2 / 11 P3; зона Разделы: **8 находок**, 0 P0 / 3 P1 / 0 P2 / 5 P3).
-Всего **80**. Зона Админка — не просканирована.
+**Статус:** 🟠 Task 1–5 закрыты (каркас + baseline + зона UI: **39 находок**; зона Контент:
+**33 находки**, 0 P0 / 9 P1 / 13 P2 / 11 P3; зона Разделы: **8 находок**, 0 P0 / 3 P1 / 0 P2 / 5 P3;
+зона Админка: **8 находок**, 0 P0 / 1 P1 / 4 P2 / 3 P3). Всего **88**.
+Дальше — Task 6 (кросс-зонная дедупликация, второй проход верификации, план ремедиации).
 
 ---
 
@@ -78,11 +79,34 @@ Task 10 проверяет, что ни одна находка не остал�
 
 | Severity | UI | Контент | Разделы | Админка | Унаследовано | Всего |
 |---|---|---|---|---|---|---|
-| P0 | 0 | 0 | 0 | — | 0 | 0 |
-| P1 | 7 | 9 | 3 | — | 0 | 19 |
-| P2 | 10 | 13 | 0 | — | 0 | 23 |
-| P3 | 22 | 11 | 5 | — | 0 | 38 |
-| **Всего** | **39** | **33** | **8** | — | **0** | **80** |
+| P0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| P1 | 7 | 9 | 3 | 1 | 0 | 20 |
+| P2 | 10 | 13 | 0 | 4 | 0 | 27 |
+| P3 | 22 | 11 | 5 | 3 | 0 | 41 |
+| **Всего** | **39** | **33** | **8** | **8** | **0** | **88** |
+
+**Корневые темы зоны Админка:**
+
+1. **Гейт проверяет по литеральному списку, и список отстал от кода.** `ADM-002`:
+   `ADMIN_BLUEPRINT_PREFIXES` — константа из 15 строк, ничем не сверяемая с фактическим набором
+   blueprint'ов под `/admin`; пять неймспейсов родились после неё и в проверку не попали.
+   Тот же класс, что `CNT-004`/`CNT-011` в зоне Контент: инструмент печатает зелёный именно там,
+   где дефект. Здесь он ещё и точно совпал с самым необратимым действием админки — публикацией
+   в канал и массовой рассылкой.
+2. **Два эндпоинта на одном URL — победитель выбирается порядком регистрации.** `ADM-001`
+   (реальная поломка: автокомплит потерял 49% словаря) и `ADM-006` (шесть безвредных дублей,
+   но правка в перекрытом файле молча не сработает). Ни один из 14 дублирующихся URL не ловится
+   тестом; `url_for` на проигравший эндпоинт строится успешно и уводит на чужой хендлер.
+3. **Инструмент написан, вход в него не проложен.** `ADM-004`: четыре формы редактирования
+   упражнений существуют, но ссылки на них нет ни в одном шаблоне — админ правит те же данные
+   сырым JSON. Зеркало `CNT-005`/`CNT-016` («механизм есть, данных/пути под ним нет»).
+4. **Дашборд измеряет то, что легко посчитать, а не то, что ломается.** `ADM-003`: шесть
+   coverage-метрик, из которых две структурно нулевые у 16 типов из 17, — и ни одной из
+   33 находок зоны Контент. `missing_audio_count = 0` при 1570 мёртвых ссылках на аудио слов.
+5. **Конвенция применена там, где её вводили, и не размножена.** `ADM-007` (аудит есть у 2 из 7
+   экспортов), `ADM-008` (`get_*_arg` в 2 из 19 модулей, `escape_like` мимо 4 живых `ilike`).
+   Тот же корень, что тема 1 зоны Разделы: не «забыли написать защиту», а «забыли позвать
+   существующую».
 
 **Корневые темы зоны Разделы:**
 
@@ -1077,8 +1101,10 @@ required'`, `'User not enrolled in this course'`) вместо slug'а. Фрон
 `BuildError` в живом `test_request_context`. Поскольку шаблоны-сироты, 500 никогда не наступает —
 дефект в том, что мёртвые файлы держат ссылки на давно переименованный API и при попытке их
 «оживить» страница сразу упадёт. Зона первопричины — Разделы (несуществующие эндпоинты);
-файлы лежат в админской подпапке, поэтому **Task 5** отдельно проверит, не является ли какая-то
-из этих страниц потерянной, а не мёртвой.
+файлы лежат в админской подпапке, поэтому **Task 5** отдельно проверил, не является ли какая-то
+из этих страниц потерянной, а не мёртвой. **Ответ (Task 5, `RA5`): все три мёртвые** — роутов
+CRUD модулей книжного курса не существует вовсе (модули только генерируются),
+а `index.html` вытеснен `list.html`.
 
 ### Сверка с реестром `2026-06-13-100-edge-cases.md` (checkbox 5)
 
@@ -1111,11 +1137,292 @@ required'`, `'User not enrolled in this course'`) вместо slug'а. Фрон
 
 ## Зона Админка
 
-> **Task 5.** ID `ADM-NNN`. Пока пусто.
-> Линза (г) формулирует находки как **конкретные недостающие метрики/представления**, а не как
-> «сделать дашборд лучше».
+> **Task 5** — закрыт. Инвентаризация **197 admin-правил** в 20 неймспейсах (19 sub-blueprint'ов +
+> `reminders`, смонтированный под `/admin/reminders`), из них **115 мутирующих**; AST-разбор
+> **193** route-функций в `app/admin/**` с полными цепочками декораторов. Пять линз.
+> Записано **8 находок** `ADM-001…ADM-008`. Линза (г) сформулирована как список **конкретных
+> недостающих метрик**, а не как «улучшить дашборд». Опровергнуто при проверке — **5 претензий**
+> (`RA1…RA5`), 2 не доведены до CONFIRMED и вынесены в `PL-ADM-01…02`.
 
-_(нет находок — зона не просканирована)_
+**Сводка зоны:** P0 — 0 · P1 — 1 · P2 — 4 · P3 — 3.
+
+### Инвентаризация admin-роутов (checkbox 1)
+
+Снято из живого `create_app()` (SQLite, `TESTING`) — те же 531 правило, что в Task 4; отфильтровано
+по префиксу `/admin`.
+
+| Неймспейс | Правил | Мутирующих | В списке гейта аудит-лога |
+|---|---|---|---|
+| `admin` (main_routes + book_courses + curriculum + modules + quiz_decks) | 81 | 49 | ✅ |
+| `grammar_lab_admin` | 12 | 8 | ✅ |
+| `user_admin` | 11 | 6 | ✅ |
+| `book_admin` / `word_admin` / `audio_admin` | 10 / 10 / 10 | 8 / 7 / 6 | ✅ |
+| `topic_admin` | 8 | 6 | ✅ |
+| `system_admin` | 7 | 3 | ✅ |
+| **`telegram_channel_admin`** | 7 | **6** | ❌ |
+| `admin_curriculum` / `seo_admin` | 6 / 6 | 1 / 3 | ✅ |
+| `collection_admin` | 5 | 3 | ✅ |
+| **`feedback_admin`** | 5 | 3 | ❌ |
+| **`word_contrast_admin`** | 5 | 4 | ❌ |
+| **`reminders`** (под `/admin/reminders`) | 4 | **1** | ❌ |
+| `dashboard_admin` | 3 | 0 | ❌ |
+| `settings_admin` | 2 | 1 | ✅ |
+| `activity_admin` / `audit_admin` | 2 / 2 | 0 / 0 | ✅ |
+| `acquisition_admin` | 1 | 0 | ❌ |
+| **Итого** | **197** | **115** | 15 из 20 |
+
+**Покрытие аудит-логом по факту** (AST: `@admin_audit_required` в цепочке декораторов ИЛИ
+`log_admin_action(` в теле): из 114 мутирующих функций, разобранных в `app/admin/**`, **не пишут
+аудит 8**. Две из них задокументированы в `AUDIT_LOG_WHITELIST` с обоснованием
+(`book_admin.extract_book_metadata` — временный файл без записи в БД;
+`grammar_lab_admin.import_exercises_json` — фан-аут, аудит пишет хелпер на каждый файл).
+Остальные **6** — весь мутирующий фронт `telegram_channel_admin`. Плюс `reminders.send_reminders`,
+живущий вне `app/admin/` и потому не попавший в AST-скан. → `ADM-002`.
+
+**Дубли правил.** 14 URL обслуживаются двумя эндпоинтами. 12 из 14 — легальная пара
+`GET`-форма / `POST`-обработчик на одном URL. Оставшиеся 2 — настоящие коллизии:
+`/admin/api/words/search` (→ `ADM-001`) и шесть `/admin/curriculum/*` (→ `ADM-006`).
+Победитель определён живым `url_map.bind('localhost').match(path)`, а не рассуждением
+о порядке регистрации.
+
+**Шаблоны-сироты.** Из 102 шаблонов под `app/templates/admin/` не рендерится ни одним роутом
+**3** — ровно те, что назвал `SEC-008`. Ответ на хенд-офф Task 4 — в `RA5`: они **мёртвые**, а не
+потерянные.
+
+### Индекс
+
+| ID | Sev | Файл:строка | Симптом | Вериф. |
+|---|---|---|---|---|
+| ADM-001 | P1 | `app/admin/book_courses.py:1465` | Автокомплит редактора колод не видит 49% словаря: URL перехвачен book-course-хендлером | CONFIRMED |
+| ADM-002 | P2 | `tests/admin/test_audit_log_coverage.py:34` | Гейт покрытия аудит-логом слеп к 5 из 20 неймспейсов; 7 мутирующих роутов не пишут `AdminAuditLog` | CONFIRMED |
+| ADM-003 | P2 | `app/admin/routes/dashboard_routes.py:700` | Content-quality dashboard не показывает ни одного класса дефектов зоны «Контент» | CONFIRMED |
+| ADM-004 | P2 | `app/admin/curriculum.py:449`, `:532`, `:610`, `:674` | Четыре структурных редактора уроков не имеют ни одной точки входа | CONFIRMED |
+| ADM-005 | P2 | `app/admin/routes/curriculum_routes.py:94` | `/admin/curriculum/lessons` рендерит все 1548 уроков без пагинации, `lesson.module.level` — ленивый | CONFIRMED |
+| ADM-006 | P3 | `app/admin/main_routes.py:65`, `:91`, `:131` | 6 curriculum-роутов в `main_routes.py` перекрыты копиями из `admin_curriculum` | CONFIRMED |
+| ADM-007 | P3 | `app/admin/routes/audit_routes.py:124` | 5 из 7 экспортов не пишут `log_admin_action` — включая экспорт самого аудит-лога | CONFIRMED |
+| ADM-008 | P3 | `app/admin/main_routes.py:108` | Валидаторы `get_*_arg` применены в 2 из 19 route-модулей; 4 живых `ilike` без `escape_like` | CONFIRMED |
+
+### P1 — детали
+
+**ADM-001 · `app/admin/book_courses.py:1465` (побеждает) vs `app/admin/quiz_decks.py:502` (мёртв) · blueprint `admin` · коллизия правил**
+
+Два эндпоинта одного blueprint'а зарегистрированы на **одном URL** `/admin/api/words/search`:
+
+| Эндпоинт | Файл | Что делает |
+|---|---|---|
+| `admin.search_words_api` | `book_courses.py:1465` | **INNER JOIN `word_book_link`** → только слова, привязанные к книге; сортировка по частоте в книге; жёсткий `.limit(15)`; параметр `limit` **игнорируется**; фильтра на непустой `russian_word` нет |
+| `admin.api_words_search` | `quiz_decks.py:502` | фильтрует `russian_word IS NOT NULL AND != ''`, умная сортировка (точное совпадение → префикс → алфавит), уважает `?limit` (cap 50) |
+
+`register_book_course_routes(admin)` вызывается первым в `register_admin_routes`
+(`app/admin/__init__.py:14-16`), `import app.admin.quiz_decks` — позже, поэтому правило из
+`book_courses.py` попадает в `url_map` раньше и **выигрывает**. Проверено живым матчингом:
+`url_map.bind('localhost').match('/admin/api/words/search')` → `admin.search_words_api`.
+Второй view недостижим по URL.
+
+Единственный потребитель — автокомплит редактора колод:
+`app/static/js/quiz-deck-editor.js:64` → `fetch('/admin/api/words/search?q=…&limit=10')`,
+подключён из `app/templates/admin/quiz_decks/edit.html:207`.
+
+Сценарий отказа (числа с `learn_db_prod`): в `collection_words` **25 089** слов, строку в
+`word_book_link` имеют **12 767**; значит **12 322 слова (49.1%)** не могут быть возвращены
+автокомплиту никогда — inner join их отсекает. Админ, собирающий колоду из курсовой лексики,
+вводит слово, видит пустой выпадающий список и вынужден заполнять english+russian вручную
+(обход есть — поэтому P1, а не P0). Побочно: `limit=10` из JS игнорируется (всегда 15 строк),
+а отсутствие фильтра на пустой перевод даёт пункты вида `word — None` у **25** слов —
+выбор такого пункта подставляет пустой русский.
+
+Верификация: прочитаны оба view целиком; порядок регистрации подтверждён живым `match()`, а не
+выведен из чтения; счётчики сняты запросами к `learn_db_prod`; `quiz-deck-editor.js:62-100`
+прочитан — ответ парсится как плоский список `{id, english, russian}` (эта часть контракта у
+обоих хендлеров совпадает, ломается именно выборка).
+
+### P2 — детали
+
+**ADM-002 · `tests/admin/test_audit_log_coverage.py:34` · гейт аудит-лога слеп к пяти неймспейсам**
+
+`ADMIN_BLUEPRINT_PREFIXES` перечисляет 15 префиксов. За пределами списка остались
+`telegram_channel_admin.`, `feedback_admin.`, `word_contrast_admin.`, `acquisition_admin.`,
+`dashboard_admin.` и `reminders.` — то есть `_admin_mutating_rules()` их правила отбрасывает
+на строке 82 и статическая проверка на них **не запускается вовсе**. Список задан литералом и
+ничем не сверяется с фактическим набором blueprint'ов под `/admin`.
+
+Из «невидимых» неймспейсов трое пишут аудит по дисциплине автора (`feedback_admin`,
+`word_contrast_admin`), у двоих мутаций нет (`dashboard_admin`, `acquisition_admin`), а
+**`telegram_channel_admin` не пишет ничего** — все 6 мутирующих роутов
+(`app/admin/routes/telegram_channel_routes.py:131,147,167,176,208,225`) висят на голом
+`@admin_required`:
+
+| Роут | Что делает | Обратимо? |
+|---|---|---|
+| `POST /telegram-channel/skip/<id>` | `post.status = skipped` + commit | да |
+| `POST /telegram-channel/refill` | `queue_upcoming(days_ahead)` — создаёт посты | да |
+| `POST /telegram-channel/test` | **шлёт сообщение в публичный канал** | **нет** |
+| `POST /telegram-channel/publish-now` | **`publish_due()` — публикует всю готовую очередь** | **нет** |
+| `POST /telegram-channel/resend/<id>` | возвращает провалившийся пост в очередь | да |
+| `POST /telegram-channel/send-now/<id>` | сдвигает расписание в прошлое и **публикует** | **нет** |
+
+Плюс `reminders.send_reminders` (`app/reminders/routes.py:647`, `POST /admin/reminders/send`,
+`@admin_required`) — **массовая рассылка email** выбранным пользователям, тоже без
+`AdminAuditLog`. Смягчение: факт отправки остаётся в `ReminderLog` per-user, но привязки
+«какой админ запустил какую кампанию» там нет.
+
+Сценарий отказа: в канал уходит ошибочный пост либо рассылка не тому сегменту; админ открывает
+`/admin/audit-log`, фильтрует по дате — и не находит ни одной строки, потому что записи нет.
+В `learn_db_prod` на 524 строки аудита нет ни одного `channel_post.*` и ни одного `reminder.*`.
+Восстановить авторство можно только из `audit.admin`-логгера (`decorators.py:53-58`), который
+пишет в файл/stdout, не в БД, и ротируется.
+
+Верификация: прочитан весь `test_audit_log_coverage.py`; AST-скан 114 мутирующих функций
+`app/admin/**`; прочитан `telegram_channel_routes.py` целиком и `reminders/routes.py:647-700`;
+`select action, count(*) from admin_audit_log group by 1` на `learn_db_prod`.
+⚠️ Severity — судейское решение: пользовательского бага здесь нет (это контроль
+подотчётности), поэтому не P1; но и не косметика — нарушен инвариант, который проект специально
+закрыл тестом. Записано P2; второй проход Task 6 вправе передвинуть.
+
+**ADM-003 · `app/admin/routes/dashboard_routes.py:700` (`get_content_quality_detail`) и `:629` (`get_content_quality`) · дашборд слеп к дефектам зоны «Контент»**
+
+Что дашборд показывает сегодня: `by_type` (audio / IPA / examples / completion в процентах),
+`missing_audio` (уроки типов `dictation`/`listening_immersion`/`shadow_reading`/`audio_fill_blank`
+без `content.audio_url`), `no_vocabulary`, `low_pass_lessons` (pass-rate < 50% при ≥5 попытках),
+`zero_completions_count`, `zero_exercises_count`.
+
+Зона «Контент» (Task 3) записала **33 находки**. Дашборд не показывает **ни одну** из них.
+Ниже — не «сделать лучше», а конкретные недостающие представления, каждое привязано к находке
+и к уже существующему источнику данных:
+
+| Недостающая метрика | Какой источник | Какую находку сделала бы видимой | Сколько бы показала сегодня |
+|---|---|---|---|
+| **Битые ссылки на аудио слов**: доля `collection_words.listening`, чей файл отсутствует под `app/static/` | `collection_words` × листинг файлов | `CNT-003` | **1570 из 1580** слов курсовой лексики (99.4%) — кнопка озвучки мертва |
+| **Типы упражнений, которых шаблон не умеет рисовать**: срез `content.exercises[].type` по каждому шаблону-рендереру | `lessons.content` × `_CANONICAL_LESSON_ROUTE_TYPES` | `CNT-001`, `CNT-002`, `CNT-016`, `CNT-031` | 105 `matching` в финальных тестах + 14 `matching` в `reading` |
+| **Утечки генератора**: счётчик уроков, содержащих фразы из словаря `validate_corpus.py` | `lessons.content` × словарь валидатора | `CNT-006`, `CNT-007`, `CNT-009`, `CNT-026` | 196 + 174 + 148 строк в 33/18/42 модулях |
+| **`duration_seconds = 0/None` на аудио-уроках** | `lessons.content` | `CNT-015` | 86 `audio_fill_blank` + 24 урока с `0` |
+| **Полнота данных гейтинга**: модули с пустым `prerequisites` среди входных модулей уровня + `prerequisites`, которые парсер не понимает | `modules.prerequisites` | `CNT-005`, `CNT-014` | 4 входных модуля без защиты, 2 нераспознанных формата |
+| **Заполненность метаданных слова** (IPA / synonyms / antonyms / frequency_band / etymology) — сейчас `with_ipa` считается **только** для `vocabulary`-уроков и только как «в коллекции есть хоть одно слово с IPA» | `collection_words` | `CNT-018`, `CNT-019` | 19.7% по всей базе; 1908 строк-литералов `["null"]` |
+
+Отдельный дефект той же функции: `with_ipa` / `with_examples` инкрементируются исключительно
+внутри `if lt == 'vocabulary'` (строки 772-778), а `ipa_pct` / `examples_pct` вычисляются в
+`type_rows` для **каждого** типа (строки 824-826). В базе **17** различных `lessons.type`;
+`vocabulary` — один из них. Значит **16 строк из 17** показывают `0 (0%)` в колонках IPA и
+«Примеры» **по построению**, а не потому, что данных нет. Админ читает таблицу как список
+проблем и получает 16 ложных.
+
+Проверено и **не** заявлено: `content.audio_url` на уровне урока в порядке — все **344** урока
+со значением ссылаются на существующий файл, а у всех 4 «аудио-обязательных» типов (86 уроков
+каждый) `audio_url` заполнен. То есть `missing_audio_count = 0` — правда; неправда — что аудио
+в курсе исправно, потому что мёртвыми оказались ссылки на аудио **слов**, которых дашборд
+не касается вовсе.
+
+Верификация: прочитаны `get_content_quality`, `get_content_quality_detail`,
+`content_quality_export`, `app/templates/admin/content_quality.html`; счётчики сняты запросами
+к `learn_db_prod` + обходом 5140 mp3 под `app/static/`; 1570 битых ссылок пересчитаны
+независимо от Task 3 и сошлись.
+
+**ADM-004 · `app/admin/curriculum.py:449`, `:532`, `:610`, `:674` · четыре редактора без точки входа**
+
+`edit_grammar_lesson`, `edit_quiz_lesson`, `edit_matching_lesson`, `edit_text_lesson` —
+четыре полноценных `GET|POST`-страницы со своими шаблонами
+(`admin/curriculum/edit_{grammar,quiz,matching,text}.html`), формами по структуре упражнения и
+записью в `lessons.content`. Строк `url_for('admin.edit_quiz_lesson', …)` (и трёх остальных) —
+**0** во всём `app/**`; литеральных путей `/curriculum/lessons/<id>/edit_quiz` в шаблонах и JS —
+тоже 0. Кнопка «Edit» в списке уроков (`admin/curriculum/lesson_list.html:123`) ведёт на
+`curriculum_admin.edit_lesson`.
+
+Сценарий отказа: админу нужно поправить 105 сломанных `matching`-вопросов из `CNT-001`. Форма
+для этого написана (`edit_matching`), но попасть в неё можно только вручную набрав URL —
+чего никто не сделает, не читая исходников. Фактический путь — `curriculum_admin.edit_lesson`
+(`app/curriculum/routes/admin.py:316`), где `content` правится **как сырой JSON в textarea**
+с единственной проверкой `json.loads` + «это dict или list». То есть цель достижима, но через
+ручную правку JSON вместо готовой формы — определение P2.
+
+Верификация: прочитаны все четыре view и `curriculum_admin.edit_lesson`; grep по `app/**`
+(`.py`/`.html`/`.js`) на имена эндпоинтов и на литеральные хвосты путей — 0 вхождений вне самих
+определений и шаблонов.
+
+**ADM-005 · `app/admin/routes/curriculum_routes.py:94` (`admin_curriculum.lesson_list`) · страница на 1548 строк без пагинации**
+
+`query.order_by(...).all()` — без `paginate()`, без `limit`. В `learn_db_prod` **1548** уроков,
+и при пустых фильтрах все они уходят в шаблон. `admin/curriculum/lesson_list.html:86,89`
+обращается к `lesson.module.level.code` и `lesson.module.number`; `Lessons.module`
+(`app/curriculum/models.py:251`) и `Module.level` (`:73`) — обычные `relationship` с
+`lazy='select'`. Identity map схлопывает повторы, поэтому дополнительных запросов не 1548×2,
+а **86 + 5 = 91** — по числу различных модулей и уровней. Итого ~92 запроса и один HTML на
+1548 строк таблицы на каждое открытие страницы.
+
+Сценарий отказа: админ открывает «Уроки» без фильтра — браузер получает многомегабайтную
+таблицу, а сервер выполняет 92 запроса вместо 1. Фильтры по уровню/модулю работают и
+сокращают выборку, поэтому цель достижима — P2, не выше. Соседний
+`admin_curriculum.module_list` (`:68`) имеет тот же класс дефекта в явном виде:
+`for module in modules: Lessons.query.filter_by(...).count()` — 86 COUNT-запросов в цикле
+(та же строка продублирована в `main_routes.py:79`, см. `ADM-006`).
+
+⚠️ Замера рантайма **не делалось** — вывод про 92 запроса получен чтением кода и подсчётом
+кардинальностей (`select count(*)` по `lessons` / `modules` / `cefr_levels` на
+`learn_db_prod`), а не профилировщиком. Записано как CONFIRMED в части «пагинации нет и
+`relationship` ленивый» (это факт кода); точное число запросов — производная оценка.
+
+### P3 — детали
+
+**ADM-006 · `app/admin/main_routes.py:65`, `:91`, `:131` (+ `curriculum`, `level_list`, `import_curriculum`)** —
+шесть роутов из `main_routes.py` (blueprint `admin`) зарегистрированы на тех же URL, что и их
+копии из `curriculum_routes.py` (blueprint `admin_curriculum`): `/admin/curriculum`,
+`/admin/curriculum/levels`, `/admin/curriculum/modules`, `/admin/curriculum/lessons`,
+`/admin/curriculum/progress`, `/admin/curriculum/import`. `curriculum_bp` регистрируется в
+`register_admin_routes` раньше, чем сам blueprint `admin` (он идёт последним,
+`app/admin/__init__.py:100`), поэтому во **всех шести** случаях выигрывает `admin_curriculum.*` —
+проверено живым `match()`. Тела копий совпадают построчно вплоть до комментариев.
+
+Дефект — не в поведении (копии идентичны), а в ловушке: правка, внесённая в `main_routes.py`,
+не вступит в силу и не даст никакого сигнала. `tests/admin/test_legacy_admin_routes.py:23-49`
+буквально озаглавлен «Smoke tests for legacy admin routes **in main_routes.py**» и ходит по этим
+шести URL — то есть тест зелёный, а покрывает он другой файл. `url_for('admin.lesson_list')`
+по-прежнему строится (эндпоинт существует) и ведёт на чужой хендлер.
+
+**ADM-007 · `app/admin/routes/audit_routes.py:124` (+ 4 места)** — конвенция (CLAUDE.md, раздел
+Admin): «CSV export — sanitize через `_sanitize_csv_cell()`, `MAX_EXPORT_ROWS`, streaming,
+**audit log**». Санитизация и лимит соблюдены везде (см. `RA2`), аудит — нет:
+
+| Роут | `log_admin_action` |
+|---|---|
+| `user_admin.export_users_csv` (`user_routes.py:380`) | ✅ `user.export_csv` |
+| `user_admin.stats?export=csv` (`user_routes.py:451`) | ✅ `stats.export_csv` |
+| **`audit_admin.audit_export_csv`** (`audit_routes.py:124`) | ❌ |
+| **`dashboard_admin.content_quality_export`** (`dashboard_routes.py:953`) | ❌ |
+| **`word_admin.export_words`** (`word_routes.py:107`) | ❌ |
+| **`admin.export_lesson`** (`curriculum.py:766`) | ❌ |
+| **`admin.quiz_deck_export`** (`quiz_decks.py:372`) | ❌ |
+
+Отдельно стоит первый из невыгружающих: **экспорт самого аудит-лога не оставляет следа в
+аудит-логе**. P3 — все пять под `@admin_required`, утечки за периметр админов нет, теряется
+только атрибуция выгрузки.
+
+**ADM-008 · `app/admin/main_routes.py:108`, `app/admin/routes/curriculum_routes.py:111`,
+`app/admin/quiz_decks.py:521`, `app/admin/book_courses.py:1485`** — два разошедшихся долга по
+валидации ввода:
+
+*Валидаторы.* `app/admin/utils/request_validators.py` (`get_int_arg` / `get_enum_arg` /
+`get_choice_arg`, `abort(400)` вместо тихой деградации) вызывается **5 раз** в **2** из 19
+route-модулей (`word_routes.py`, `user_routes.py`). Всего чтений `request.args` в `app/admin/**`
+— **92**. Остальные идут либо через `request.args.get(..., type=int)` (werkzeug молча возвращает
+default на мусоре — ровно то поведение, против которого написан `get_int_arg`), либо через
+`int(...)` в `try/except`. Ни одного пути к 500 из-за этого не найдено (см. `RA1`), поэтому это
+расхождение конвенции, а не баг.
+
+*`escape_like`.* Хелпер применён в 8 местах, но 4 живых `ilike` строят паттерн из сырого ввода:
+`Lessons.title.ilike(f'%{search}%')` в `main_routes.py:108` и `curriculum_routes.py:111`,
+`CollectionWords.{english,russian}_word.ilike(f'%{query}%')` в `quiz_decks.py:521-522` и
+`book_courses.py:1485`. SQL-инъекции нет (параметры связаны), ломается только точность поиска:
+`_` совпадает с любым символом, `%` — с любой подстрокой. Админ, ищущий урок `Present_Simple`,
+получит лишние совпадения.
+
+### Опровергнуто при проверке — не переоткрывать без новых фактов
+
+| # | Претензия | Почему опровергнуто |
+|---|---|---|
+| RA1 | `admin.api_words_search` (`quiz_decks.py:507`) делает `min(int(request.args.get('limit', 10)), 50)` без охраны → `?limit=abc` даёт 500, `?limit=-5` — отрицательный `LIMIT` | View **недостижим**: то же правило перехватывает `admin.search_words_api` (см. `ADM-001`), живой `match()` это подтверждает. Дефект существует только в мёртвом коде и отдельной находкой не заводится. Проверены и остальные сырые `int(request.args…)`: `collection_routes.py:72,76` обёрнуты в `try/except`, `book_courses.py:1472` — `type=int` |
+| RA2 | CSV-экспорты админки не санитизируются и не ограничены по строкам | Прочитаны все 4 CSV-писателя: `export_helpers._stream_csv_rows` + `_sanitize_csv_cell` + `MAX_EXPORT_ROWS` (`words`, `audio`, `audit-log`), `user_routes.py:402,467` (`_sanitize_csv_cell` на каждую ячейку, срез `[:MAX_EXPORT_ROWS]`), `dashboard_routes.py:964` (`_sanitize_csv_cell` + срез). Незакрытых мест нет; недостаёт только аудит-записи → `ADM-007` |
+| RA3 | Пагинация админских листингов теряет активные фильтры при переходе на следующую страницу | Прочитаны 5 шаблонов с пагинацией: `admin/audit/index.html:130,140`, `feedback/index.html:197,207`, `users.html:418-432`, `word_contrasts/index.html:153,157`, `collections/list.html:168-188`. Все прокидывают фильтры в `url_for` (`collections` — через `**pagination_args`). Ни одного случая потери |
+| RA4 | Админские загрузки файлов идут мимо `app/utils/file_security.py` | Прочитаны все 6 путей: `main_routes.py:212`, `word_routes.py:149,448`, `book_routes.py:226`, `curriculum_routes.py:215` — все зовут `validate_text_file_upload`; `book_processing_service._save_upload` (`:64-94`) — `secure_filename` + whitelist расширений + проверка размера + сверка `realpath` на выход из каталога; `word_contrast_import` (`word_contrast_routes.py:221`) — cap размера, `utf-8`-декод, построчный парсер, на диск ничего не пишет; `_import_exercises_json_file` — `json.loads` + `validate_exercise_content` на каждое упражнение, на диск не пишет |
+| RA5 | Хенд-офф `SEC-008`: `admin/book_courses/{create_module,edit_module,index}.html` — потерянные страницы, а не мёртвые | **Мёртвые.** Роутов CRUD модулей курса не существует вовсе: в `url_map` под `/admin/book-courses/**/modules/**` есть только `view_course_module` (GET) и операции над **уроками**; модули создаются исключительно `admin.generate_course_modules` (POST, генератор из книги). Ручного создания/редактирования модуля в продукте нет — значит `create_module.html`/`edit_module.html` пережили удаление своих роутов. `index.html` вытеснен `list.html`, который и рендерит `admin.book_courses` |
 
 ---
 
@@ -1232,6 +1539,16 @@ CONFIRMED: находки, срезанные капом в 8 штук на ли
 | PL-SEC-03 | `app/curriculum/service.py`, `card_service.py`, `books/services/book_service.py`, `books/api.py` (~40 мест) | `db.session.commit()` внутри сервисных хелперов вместо caller-commits — исключение у вызывающего оставит частичную запись | Проверены только XP-блоки (см. `R6`) — там инвариант соблюдён. Остальные сайты пофайлово не разбирались; без конкретного пути «исключение после чужого commit'а» претензия остаётся гипотезой о конвенции |
 | PL-SEC-04 | `app/api/books.py:643,685,716,753` | Подсистема `Block`/`Task` целиком мертва на фронте (модели остались от старой «экзаменационной» схемы) и её следовало бы удалить, а не гейтить | В БД **84 блока и 1 803 задачи** — данные живые. Потребителей на фронте не нашёл, но доказать, что их нет (в т.ч. у внешнего JWT-клиента), поиском по репозиторию нельзя. Поэтому `SEC-001` сформулирован как «поставить гейт», а не «удалить» |
 
+### Зона Админка (Task 5)
+
+Из 8 записанных находок все 8 доведены до CONFIRMED (чтение кода + живой `url_map.match()` +
+запросы к `learn_db_prod` + обход файловой системы). Ниже — то, что **осталось недоказанным**.
+
+| # | Файл:строка | Претензия | Почему не CONFIRMED |
+|---|---|---|---|
+| PL-ADM-01 | `app/admin/utils/decorators.py:104` | `admin_audit_required` вызывает `db.session.commit()` после постановки аудит-строки. Если обёрнутый view сознательно оставил в сессии незакоммиченную работу (например, ветку «показать подтверждение»), декоратор закоммитит её как побочный эффект | Роута, который бы это воспроизводил, я не нашёл: все прочитанные аудируемые view коммитят сами до `return`. Доказать отсутствие такого роута перебором 115 мутирующих функций я не пытался — поэтому не REFUTED, а PLAUSIBLE |
+| PL-ADM-02 | `app/admin/utils/export_helpers.py:38` | `_sanitize_csv_cell` смотрит только на **первый** символ ячейки; значение вида `" =cmd|'/c calc'!A1"` (ведущий пробел) проверку проходит, а Excel при импорте ведущие пробелы в ряде путей обрезает | Класс атаки реальный, но зависит от конкретного импортёра (Excel / Sheets / LibreOffice) и настроек разделителя. В таблице не проверялось; заявлять исполнение формулы без прогона не могу. Данных, куда админ мог бы положить такую строку, тоже не искал |
+
 **Дисциплина:** ни один пункт этого приложения не идёт в Task 7–9. Чтобы попасть в ремедиацию,
 находка должна пройти скептика в следующем проходе аудита.
 
@@ -1247,7 +1564,7 @@ CONFIRMED: находки, срезанные капом в 8 штук на ли
 | Контент | Все **86** файлов `module_completed/fixed/*.json` (1548 уроков, ~137 500 строковых листьев) машинными проходами: рекурсивный обход аудио-ссылок, симуляция грейдеров по всем 5 контейнерам упражнений + `test_sections`, полный перебор перестановок для 1078 `ordering`, shingle-Jaccard near-dup по прозе, skeleton-кластеризация `dialogue_completion_quiz`, посимвольная сверка `content` всех 1548 уроков против `learn_db_prod`. Прогнаны 4 валидатора. БД: `lessons`, `modules`, `grammar_topics`, `collection_words` (25 089), `word_collocations`, `cultural_notes`, `daily_lessons`, `users`. Файловая система: 5140 mp3 под `app/static/audio/`. Поимённо прочитаны JSON-фрагменты под каждую записанную находку + грейдеры `app/curriculum/grading.py`, `text.html`, `final_test.html`, `sentence_completion.html`, `vocabulary_lessons.py`, `grammar_quiz_lessons.py` | **Аудио никто не слушал** — STT недоступен, все аудио↔текст находки структурные. Не проверялась семантическая корректность ~30 000 русских переводов и правильность самой грамматики в `grammar.rule`/`sections`. Не оценивалась читабельность текстов (readability-метрика не считалась). ~4000 MC-упражнений не проверены на правдоподобие дистракторов. Перечисление фреймов `dialogue_completion_quiz` неполно (9 фреймов моих, 19 у финдера). Аудио-QA (битрейт, громкость, тишина) не измерялось. `grammar_exercises` (8947 строк) — вне корпуса, не аудировались. Пересказ-рециклинг (semantic, не лексический) невидим для 5-gram Jaccard | Основной барьер — отсутствие STT и невозможность оценить смысл без носителя/LLM-прохода. Остальное — сознательный кап: линзы были нацелены на дефекты, у которых есть машинно проверяемый признак, а не на редакторское качество |
 | UI | Шаблоны: ~96 из 248 (без `emails/`) поимённо прочитаны — `lesson_base_template.html`, `base.html`, `public_base.html`, `admin/base.html`, 17 из 20 `curriculum/lessons/**`, 6 из 21 `curriculum/book_courses/lessons/**`, `partials/**`, `components/**` (кроме трёх), `auth/**` (кроме четырёх), `words/list_optimized.html`, `books/reader_simple.html`. JS: 26 из 40 не-вендорных. CSS: `design-system.css` (19 257 строк) целиком по правилам + `books/reader_simple.css`, `words/list_optimized.css`, `lessons/bc_phrase_cloze.css`, `flashcard-session.css`. Машинные проходы по всем 265 шаблонам: extends-граф, резолюция `_()`, извлечение кириллицы, `grep` по `fetch(`/`onclick=`/`innerHTML`/`role=progressbar` | `app/templates/admin/**` (94 из 102), `app/templates/study/**` (18 из 26), `curriculum/**` верхний уровень целиком, `books/list_optimized.html` + `details_optimized.html` (дефолтные!), подзоны `race/`, `modules/`, `onboarding/`, `landing/`, `legal/`, `feedback/`, `grammar_lab/{practice,stats}`; 14 JS-файлов (в т.ч. `share.js` — грузится на **каждой** странице обеих layout-веток); 69 из 98 CSS-файлов; `emails/**`; вендор `bootstrap.*` | Админка вынесена в Task 5 (эта линза покрыла только общий хром + два `extra_js`-дефекта). Остальное — кап в 8 находок на линзу плюс инструкция концентрироваться на highest-traffic learner-поверхностях. `emails/**` и вендор — вне зоны по брифу |
 | Разделы | Машинные проходы по **всему** `app/**`: снимок `url_map` (531 правило, 52 неймспейса, methods/args/defaults), AST-инвентарь **522** route-функций с полными цепочками декораторов, извлечение и резолюция **1 118** вызовов `url_for`, сверка обязательных аргументов, AST-скан тел всех 240 мутирующих роутов на признаки владельца/гейта, перебор **188** сайтов `.in_(...)`, перебор всех вызовов `maybe_award_*`/`award_xp`/`check_all_achievements` в 7 файлах-хендлерах на обёртку savepoint'ом, подсчёт **240** ad-hoc JSON-ошибок и **386** чтений `.error`/`.message` на фронте. Поимённо прочитаны: все 13 роутов `app/api/books.py`, `app/api/decorators.py`, `app/api/books_catalog.py`, `app/books/access.py`, `app/books/routes.py` (роуты ридера), `app/uploads/routes.py`, `app/admin/utils/decorators.py`, `app/curriculum/routes/main.py::lesson_by_id`, `grammar_quiz_lessons.py::render_final_test_lesson`, `app/study/routes.py` (`cards_deck`, «Мои колоды»), `app/study/services/srs_service.py::get_card_counts`, `app/daily_plan/linear/errors.py::log_quiz_error`, `_flashcard_session.html`. Живой прогон `url_for` в `test_request_context` по 10 эндпоинтам. Запросы к `learn_db_prod`: `book`, `block`, `task`, `chapter`, `users`, `user_modules`, `system_modules`, `quiz_decks`, `quiz_deck_words`, `user_words` | **Линза (д) «пустые состояния и тупики» прогнана только точечно** — проверено 8 листинговых шаблонов на наличие empty-state, найдено 0 дефектов; обхода всех экранов не было. **Линза (в) «производительность» не доведена**: замеров количества запросов на странице не делалось, N+1 искался чтением одного листинга и статикой по `.in_(...)`; кеширование тяжёлых виджетов не проверялось. **Линза (г) «целостность транзакций»** покрыта только XP-блоками и `log_quiz_error`; ~40 сервисных `commit()` не разобраны (см. `PL-SEC-03`). Не читались тела роутов blueprint'ов `race`, `modules`, `notifications`, `legal`, `landing`, `seo`, `telegram`, `reminders`, `onboarding`, `courses`, `health_check`. Blueprint `admin` (81 правило) и 18 admin-суб-blueprint'ов сознательно не разбирались — это Task 5. Rate-limiting, CSRF-покрытие и заголовки безопасности как отдельные линзы не запускались (в брифе Task 4 их нет) | Инвентаризация и линзы (а)/(б) прогнаны по всей зоне и дали доказуемые находки; (в)/(г)/(д) упёрлись в то, что их дефекты требуют либо замера рантайма, либо обхода UI — то есть выходят за «читаю код и доказываю сценарий». Вместо правдоподобных догадок они вынесены сюда и в `PL-SEC-*` |
-| Админка | — | — | — |
+| Админка | Машинные проходы: снимок `url_map` по префиксу `/admin` (**197** правил, 20 неймспейсов, methods/args), AST-инвентарь **193** route-функций в `app/admin/**` с цепочками декораторов и телами, детекция покрытия аудит-логом по всем **114** мутирующим функциям, поиск дублирующихся правил (14) с разрешением победителя живым `url_map.bind().match()`, проверка всех **102** шаблонов `app/templates/admin/**` на сиротство встречным поиском по `app/**`, перебор **92** чтений `request.args` и всех `ilike`/`.like(`, перебор всех 7 экспортов и всех 6 путей загрузки файлов. Поимённо прочитаны: `app/admin/utils/decorators.py`, `audit.py`, `request_validators.py`, `export_helpers.py`, `__init__.py`, `routes/telegram_channel_routes.py` (целиком), `routes/dashboard_routes.py:629-980`, `routes/audit_routes.py`, `routes/user_routes.py:370-478`, `routes/collection_routes.py:60-120`, `routes/word_contrast_routes.py:50-240`, `routes/grammar_lab_routes.py:900-1033`, `services/book_processing_service.py:55-95`, `main_routes.py:60-135`, `routes/curriculum_routes.py:1-150`, `quiz_decks.py:500-560`, `book_courses.py:1455-1505`, `app/curriculum/routes/admin.py::edit_lesson`, `app/reminders/routes.py:647-700`, `tests/admin/test_audit_log_coverage.py`, `tests/admin/test_legacy_admin_routes.py:1-60`, `app/static/js/quiz-deck-editor.js:50-115`, `app/templates/admin/content_quality.html`, 5 шаблонов с пагинацией. Запросы к `learn_db_prod`: `collection_words` (25 089), `word_book_link`, `collection_words_link`, `lessons` (1548), `modules` (86), `cefr_levels` (5), `admin_audit_log` (524). Файловая система: 5140 mp3 под `app/static/` | **Линза (д) «админ-UI» покрыта частично**: проверены сиротство шаблонов, сохранение фильтров в пагинации и два листинга на N+1 — но обхода админки в браузере не было, битые виджеты/JS-ошибки на страницах не искались; **admin-шаблоны с `fetch(`, оставленные Task 2 в очереди (пункт 8 списка критика), не разбирались**. **Линза (в) в части «производительность» не замерялась рантаймом** — `ADM-005` стоит на чтении кода + кардинальностях, профилировщик не запускался; остальные 100+ admin-view на N+1 не проверялись. `app/admin/services/**` (12 файлов) читались только точечно под конкретные находки, сплошного разбора не было. Не проверялись: CSRF-покрытие admin-форм, rate-limiting админских роутов, права внутри `AdminAuditLog` (кто может читать чужие действия), корректность бизнес-логики импортёров (`curriculum_import_service`, `word_management_service`) — только их входные гейты. `app/admin/book_courses.py` (1659 строк) и `app/admin/curriculum.py` (974) прочитаны фрагментами, не целиком | Инвентаризация и линзы (а)/(б)/(в в части экспортов и загрузок)/(г) прогнаны по всей зоне и дали доказуемые находки. Перф-линза упирается в отсутствие замера рантайма, UI-линза — в отсутствие браузера; вместо правдоподобных догадок ограничения выписаны здесь, а два недоказанных пункта ушли в `PL-ADM-01/02` |
 
 ### Критик-агент на полноту (зона UI, Task 2)
 
