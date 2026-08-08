@@ -9,8 +9,9 @@
 > Между ними — гейт консолидации: находки дедуплицируются и перепроверяются скептиками;
 > в реестр идут только **CONFIRMED**, **PLAUSIBLE** — в приложение.
 
-**Статус:** 🟠 Task 1–3 закрыты (каркас + baseline + зона UI: **39 находок**; зона Контент:
-**33 находки**, 0 P0 / 9 P1 / 13 P2 / 11 P3). Всего **72**. Зоны Разделы / Админка — не просканированы.
+**Статус:** 🟠 Task 1–4 закрыты (каркас + baseline + зона UI: **39 находок**; зона Контент:
+**33 находки**, 0 P0 / 9 P1 / 13 P2 / 11 P3; зона Разделы: **8 находок**, 0 P0 / 3 P1 / 0 P2 / 5 P3).
+Всего **80**. Зона Админка — не просканирована.
 
 ---
 
@@ -77,11 +78,31 @@ Task 10 проверяет, что ни одна находка не остал�
 
 | Severity | UI | Контент | Разделы | Админка | Унаследовано | Всего |
 |---|---|---|---|---|---|---|
-| P0 | 0 | 0 | — | — | 0 | 0 |
-| P1 | 7 | 9 | — | — | 0 | 16 |
-| P2 | 10 | 13 | — | — | 0 | 23 |
-| P3 | 22 | 11 | — | — | 0 | 33 |
-| **Всего** | **39** | **33** | — | — | **0** | **72** |
+| P0 | 0 | 0 | 0 | — | 0 | 0 |
+| P1 | 7 | 9 | 3 | — | 0 | 19 |
+| P2 | 10 | 13 | 0 | — | 0 | 23 |
+| P3 | 22 | 11 | 5 | — | 0 | 38 |
+| **Всего** | **39** | **33** | **8** | — | **0** | **80** |
+
+**Корневые темы зоны Разделы:**
+
+1. **Гейт написан один раз и не размножен на соседние роуты.** `SEC-001`: в одном файле
+   `app/api/books.py` пять эндпоинтов зовут `can_user_access_book` + `_draft_hidden`, а три
+   (`/tasks/<id>`, `/blocks/<id>`, `/blocks/<id>/tasks`) — ни одного. Слой доступа к книгам
+   (`app/books/access.py`) построен и отлажен прошлыми аудитами (E-047/E-048/E-050), но покрытие
+   роутов держится на дисциплине автора, а не на конструкции: нет ни `before_request` на blueprint'е,
+   ни теста «каждый роут `api_books` дёргает гейт».
+2. **Хелпер безопасности есть, но применён выборочно.** `SEC-002`: `get_safe_redirect_url` зовётся
+   в 6 местах, а `?from=` в ридере подставляется в `href` сырым, в двух роутах. Тот же класс, что
+   тема 1: не «забыли написать защиту», а «забыли позвать существующую».
+3. **Имя эндпоинта — единственный контракт, и он ничем не проверяется.** `SEC-003`, `SEC-004`,
+   `SEC-005`, `SEC-008`: четыре `url_for` на эндпоинты, которых нет в `url_map`. Ошибка вылезает
+   только в рантайме (`BuildError` → 500) и только на той ветке шаблона/хендлера, которая
+   отрисовывается редко (пустое состояние колоды, исчерпанные попытки, легаси-редирект).
+   Ни один не ловится тестами.
+4. **Заглушка живёт как продовый роут.** `SEC-006`: `/api/book/<id>/content` отдаёт захардкоженный
+   «Sample book content would go here…» под `@api_auth_required`. Прототип не был ни удалён,
+   ни закрыт флагом.
 
 **Корневые темы зоны Контент:**
 
@@ -863,11 +884,228 @@ L8: 4 вопроса из 6** звучат не про то. Аналогичн�
 
 ## Зона Разделы
 
-> **Task 4.** ID `SEC-NNN`. Пока пусто.
-> Каждая находка указывает blueprint и конкретный сценарий отказа. Находки, пересекающиеся с
-> реестром `2026-06-13-100-edge-cases.md` (все 102 закрыты), помечаются явно как **регресс**.
+> **Task 4** — закрыт. Инвентаризация `url_map` (**531 правило**, 52 blueprint-неймспейса) +
+> пять линз. Записано **8 находок** `SEC-001…SEC-008`. Каждая указывает blueprint и конкретный
+> сценарий отказа. Пересечений-**регрессов** с реестром `2026-06-13-100-edge-cases.md` — **0**
+> (разбор ниже, секция «Сверка с реестром 2026-06-13»).
 
-_(нет находок — зона не просканирована)_
+**Сводка зоны:** P0 — 0 · P1 — 3 · P2 — 0 · P3 — 5.
+
+### Инвентаризация `url_map` (checkbox 1)
+
+Снято из живого `create_app()` (SQLite-конфиг, `TESTING`), сериализовано в `endpoint / rule /
+methods / args / defaults`. **531 правило**, из них **240 мутирующих** (POST/PUT/PATCH/DELETE).
+
+| Blueprint | Правил | | Blueprint | Правил | | Blueprint | Правил |
+|---|---|---|---|---|---|---|---|
+| `admin` | 81 | | `books_api` | 11 | | `curriculum_api` | 6 |
+| `study` | 64 | | `user_admin` | 11 | | `learn` | 6 |
+| `curriculum_lessons` | 32 | | `api_topics_collections` | 10 | | `seo` / `seo_admin` | 6 / 6 |
+| `grammar_lab` | 24 | | `audio_admin` / `book_admin` | 10 / 10 | | `collection_admin` | 5 |
+| `books` | 19 | | `curriculum_admin` / `word_admin` | 10 / 10 | | `feedback_admin` | 5 |
+| `book_courses` | 18 | | `feedback` | 9 | | `modules` | 5 |
+| `api_daily_plan` | 16 | | `topic_admin` | 8 | | `word_contrast_admin` | 5 |
+| `auth` | 14 | | `api_words` / `srs_api` | 7 / 7 | | `notifications` | 4 |
+| `words` | 14 | | `system_admin` | 7 | | `onboarding` / `reminders` | 4 / 4 |
+| `<без blueprint>` | 14 | | `telegram_channel_admin` | 7 | | `telegram` | 4 |
+| `api_books` | 13 | | `admin_curriculum` | 6 | | остальные 22 | ≤3 каждый |
+
+**Сверка `url_for` со снимком.** Извлечено **1 118** вызовов `url_for(...)` из `app/**` (`.py`,
+`.html`, `.js`); каждый сопоставлен с эндпоинтом и его обязательными аргументами.
+
+- **Несуществующие эндпоинты — 7** (все подтверждены живым `BuildError` в `test_request_context`):
+  `study.deck_detail`, `admin.add_book`, `curriculum.lesson_by_id`, `admin.create_course_module`,
+  `admin.edit_course_module`, `admin.delete_course_module`, `admin.book_course_enrollments`.
+  → `SEC-003`, `SEC-004`, `SEC-005`, `SEC-008`.
+- **`url_for` с неверными аргументами — 0.** Первый прогон дал 9 кандидатов; все 9 — артефакт
+  однострочного regex'а на многострочных вызовах (обрезался хвост `)`), при чтении исходников оба
+  аргумента передаются. Опровергнуто, см. `R2`.
+- **Недостижимые роуты — не заявлены.** Попытка вывести «мёртвые роуты» из отсутствия `url_for` +
+  отсутствия литерального пути провалилась: `url_prefix` задаётся при регистрации, поэтому полного
+  пути (`/api/daily-plan/skip-lesson`) нет в исходниках **даже у самого определения роута**, а
+  фронт собирает часть URL динамически. Оба варианта эвристики (по полному пути и по хвосту из двух
+  сегментов) давали ложные нули на заведомо живых эндпоинтах. Метод отброшен как ненадёжный;
+  претензий на мёртвые роуты в реестре **нет** (см. «Покрытие»).
+
+### Индекс
+
+| ID | Sev | Файл:строка | Симптом | Вериф. |
+|---|---|---|---|---|
+| SEC-001 | P1 | `app/api/books.py:685` | `/api/tasks/<id>` и `/api/blocks/<id>` отдают материалы `companion_only` книг мимо `can_user_access_book` | CONFIRMED |
+| SEC-002 | P1 | `app/books/routes.py:418` | `?from=` подставляется в `href` кнопки «Назад» ридера без валидации | CONFIRMED |
+| SEC-003 | P1 | `app/templates/components/_flashcard_session.html:115` | Колода без карточек на сегодня → `BuildError` → 500 вместо пустого состояния | CONFIRMED |
+| SEC-004 | P3 | `app/books/routes.py:63` | `/books/add` отдаёт 500: редирект на несуществующий `admin.add_book` | CONFIRMED |
+| SEC-005 | P3 | `app/curriculum/routes/grammar_quiz_lessons.py:590` | Ветка «попытки исчерпаны» без XHR-заголовка ведёт в несуществующий `curriculum.lesson_by_id` | CONFIRMED |
+| SEC-006 | P3 | `app/api/books.py:643` | `/api/book/<id>/content` отдаёт захардкоженную заглушку как боевой ответ | CONFIRMED |
+| SEC-007 | P3 | `app/curriculum/routes/srs_api.py:39` | 240 ad-hoc `jsonify({'error': …})` вместо `api_error` — форма JSON-ошибки расходится по кодовой базе | CONFIRMED |
+| SEC-008 | P3 | `app/templates/admin/book_courses/create_module.html:20` | 3 шаблона-сироты с 3 несуществующими эндпоинтами | CONFIRMED |
+
+### P1 — детали
+
+**SEC-001 · `app/api/books.py:685`, `:716`, `:753` · blueprint `api_books` · обход `can_user_access_book`**
+
+Три эндпоинта под `@api_auth_required` и **без единой проверки доступа к книге**:
+
+| Роут | Что отдаёт | `can_user_access_book` | `_draft_hidden` |
+|---|---|---|---|
+| `GET /api/tasks/<int:task_id>` | `task.payload` целиком | ❌ | ❌ |
+| `GET /api/blocks/<int:block_id>/tasks` | список задач блока | ❌ | ❌ |
+| `GET /api/blocks/<int:block_id>` | `grammar_key`, `focus_vocab`, типы задач | ❌ | ❌ |
+
+Соседи по тому же файлу — `/books/<id>` (`:53`), `/books/<slug>/chapters` (`:143`),
+`/books/<id>/chapters` (`:159`), `/books/<id>/chapters/<n>` (`:175`), `/chapters/<id>` (`:789`) —
+зовут **оба** гейта. То есть это пропуск, а не осознанная модель.
+
+Сценарий отказа (проверено на `learn_db_prod`): в базе **11 книг, все `rights_status =
+companion_only`** (публичных нет ни одной), под ними **84 `block`** и **1 803 `task`**. Модуль
+`books` выдан **20 из 45** пользователей. Любой из оставшихся **25** аутентифицированных
+пользователей — который на `/books`, `/read` и `/api/books/*` получает пустой каталог и 403 —
+перебирает `GET /api/tasks/1…1803` и выкачивает весь производный учебный материал по всем
+companion-книгам: у `reading_mcq` это `intro/title/questions/objectives/result_bands`, у
+`final_test` — `sections/pass_score/total_questions` (то есть задания вместе с ключами), у
+`vocabulary` — `phrases/match_phrase_to_meaning/complete_the_sentence`. `api_auth_required` —
+это только «аутентифицирован», ни модуля, ни прав книги он не смотрит
+(`app/api/decorators.py:16-63`). Токен JWT работает так же, как cookie-сессия.
+
+Верификация: перечитаны все 13 роутов `api_books` (AST-проход + чтение тел), `app/api/decorators.py`,
+`app/books/access.py`; blueprint регистрируется в `app/__init__.py:205` без `before_request`;
+счётчики и `rights_status` сняты запросами к `learn_db_prod`.
+⚠️ По продуктовым критериям реестра это P1 (учебный контент, не персональные данные пользователя).
+По лицензионной линзе это самая дорогая находка зоны: гейт `companion_only` существует именно
+затем, чтобы этот материал не покидал круг обладателей модуля.
+
+**SEC-002 · `app/books/routes.py:418` и `:1187` · blueprint `books` · `?from=` уходит в `href` без валидации**
+
+```python
+back_url = request.args.get('from')
+if back_url in ('daily_plan', 'linear_plan'):
+    back_url = None            # это трекинг-флаг, а не URL
+```
+Всё, что не совпало с двумя литералами, уходит в шаблон как есть и рендерится в **три** ссылки
+`reader_simple.html:19`, `:129`, `:242`. На `:1187` (вторая ветка того же роута) нет даже отсева
+двух литералов.
+
+Сценарий отказа: жертве присылают `/books/7/read?from=https://evil.example/login`. Страница
+открывается нормально, читатель жмёт «Назад» — и уходит на подставной домен уже в контексте
+доверенной ссылки. Вариант `?from=javascript:…` даёт клик-XSS в аутентифицированном контексте;
+сработает ли он — зависит от того, как браузер трактует `script-src 'unsafe-inline'` рядом с nonce
+в CSP3 (`app/middleware/security.py:74,91`), **в браузере это не проверялось** — открытый редирект
+воспроизводится без оговорок, `javascript:`-вариант заявлен как требующий проверки.
+Третья ветка (`:428`): при `Referer`, содержащем подстроку `curriculum` или `module`, реферер
+подставляется в `back_url` целиком — то есть внешний `https://evil.example/curriculum` тоже
+становится целью кнопки «Назад».
+
+Контраст: в проекте есть `get_safe_redirect_url(next_url, fallback)` (`app/auth/routes.py:66`),
+сверяющий netloc с `request.host`; он зовётся в `app/__init__.py:317`, `words/routes.py:1649`,
+`curriculum/middleware.py:144`, `curriculum/routes/admin.py:461,475`, `grammar_lab/routes.py:147,177`,
+`reminders/routes.py:745`, `onboarding/routes.py`. Ридер — единственное место, где параметр
+навигации минует этот хелпер.
+
+**SEC-003 · `app/templates/components/_flashcard_session.html:115` · blueprint `study` · 500 на пустой колоде**
+
+`url_for('study.deck_detail', deck_id=fc_deck_id)` — эндпоинта `study.deck_detail` в `url_map`
+нет; существуют `study.deck_settings` (`/study/my-decks/<id>/settings`) и `study.cards_deck`
+(`/study/cards/deck/<id>`).
+
+Сценарий отказа: пользователь открыл `/study/cards/deck/<id>` для колоды, в которой слова есть
+(иначе роут отдал бы редирект ещё на `app/study/routes.py:522-525`), но на сегодня всё повторено
+либо выбран дневной лимит новых. `SRSService.get_card_counts` возвращает
+`nothing_to_study = due_count == 0 and (new_count == 0 or not can_study_new)`
+(`app/study/services/srs_service.py:529`); роут рендерит `study/cards.html` с
+`fc_nothing_to_study=True` **и** `fc_deck_id=deck_id` (`routes.py:559,565`). Шаблон входит в
+`{% if fc_nothing_to_study %}` (строка 74), доходит до строки 115 и получает `BuildError`.
+Вместо экрана «Сейчас нечего учить!» пользователь видит 500 — то есть страница ломается ровно
+в тот момент, когда должна была похвалить за выполненную работу. Возвращается при каждом заходе,
+пока не наступит срок следующего повторения.
+
+Верификация: `url_for('study.deck_detail', deck_id=1)` в `test_request_context` →
+`BuildError: Could not build url for endpoint 'study.deck_detail'`; `study.cards_deck` и
+`study.deck_settings` из того же прогона строятся успешно. `fc_deck_id` задаётся ровно в одном
+месте — `app/study/routes.py:565`; на `:501` (`/study/cards`) он `None`, поэтому ветка молчит и
+дефект не виден на основном экране карточек.
+
+### P3 — детали
+
+**SEC-004 · `app/books/routes.py:63`** — `add_book_redirect` (`GET|POST /books/add`,
+`@login_required @admin_required`) делает `redirect(url_for('admin.add_book'))`. Такого эндпоинта
+нет — правильный `book_admin.add_book` (`/admin/books/add`). Админ, зашедший по легаси-URL, вместо
+flash + редиректа получает `BuildError` → 500. P3, а не выше: ссылок на `/books/add` в шаблонах
+и JS нет (grep — 0), роут достижим только вводом URL вручную или по старой закладке.
+
+**SEC-005 · `app/curriculum/routes/grammar_quiz_lessons.py:590`** — в `render_final_test_lesson`
+ветка «попытки финального теста исчерпаны» для не-XHR запроса делает
+`redirect(url_for('curriculum.lesson_by_id', lesson_id=...))`. Эндпоинт живёт в blueprint `learn`
+(`learn.lesson_by_id`, `app/curriculum/routes/main.py:500`), в `curriculum` его нет →
+`BuildError` → 500 вместо flash + возврата к уроку. Путь **живой, но сегодня недостижим**:
+`final_test` не входит в `_CANONICAL_LESSON_ROUTE_TYPES` (`main.py:20-32`), поэтому
+`/learn/<id>/` действительно рендерит этот хендлер, однако единственный отправитель формы —
+`final_test.html:1069-1071` — шлёт `fetch(window.location.href)` с
+`X-Requested-With: XMLHttpRequest`, и срабатывает XHR-ветка (`429` JSON). `<form>` в шаблоне не
+осталось (grep — 0). Дефект вскроется, как только POST придёт без заголовка: клиент без JS,
+прокси, срезающий кастомные заголовки, или будущая правка фронта.
+
+**SEC-006 · `app/api/books.py:643`** — `GET /api/book/<int:book_id>/content` под
+`@api_auth_required` возвращает `content_html: '<p>Sample book content would go here...</p>'`,
+словарные подсказки `marlin`/`struggle` и вопрос про Сантьяго — захардкоженный `mock_content`
+с комментарием «In a real implementation…». Роут зарегистрирован, отвечает `200 {'success': True}`,
+проверок доступа к книге не делает (входит в перечень `SEC-001`, но самостоятельного вреда
+не несёт — данных из БД не отдаёт вовсе). Потребителей не найдено. Это прототип, оставшийся
+боевым роутом: любой клиент, написанный по `url_map`, получит правдоподобный успешный ответ
+с выдуманным содержимым.
+
+**SEC-007 · `app/curriculum/routes/srs_api.py:39` (и ещё 239 мест в 32 файлах)** — конвенция
+проекта: `api_error(code, message, status)` (`app/api/errors.py`), дающий
+`{'success': False, 'error': '<slug>', 'message': '<текст>', 'status': <int>}` — та же форма, что
+у глобальных `handle_403/404/500_error` (`app/__init__.py`). Фактически в кодовой базе **240**
+ad-hoc `jsonify({'error': …})`: `app/admin/book_courses.py` — 29, `book_courses_api.py` — 27,
+`srs_api.py` — 20, `admin/routes/book_routes.py` и `audio_routes.py` — по 15,
+`curriculum/routes/lessons.py` — 12, далее длинный хвост. У них нет ни `success`, ни `message`, а
+`error` содержит **английское предложение** (`'Internal server error'`, `'lesson_id parameter
+required'`, `'User not enrolled in this course'`) вместо slug'а. Фронт при этом читает
+`data.message` в **102** местах и `data.error` в **284**: `flashcard-session.js:1131,1282`,
+`linear-daily-plan.js:224`, `quiz-deck-editor.js:225,343,424`, `study/deck_edit.html:550,952,1053`,
+`curriculum/lessons/quiz.html:1601` и т. д. — то есть при ошибке от «ad-hoc»-эндпоинта тост
+показывает захардкоженный fallback («Ошибка при сохранении») вместо серверной причины, а код
+ошибки нельзя разобрать программно. P3: пользователь цели достигает, теряется только точность
+диагностики; правка — механическая, но широкая, поэтому в Task 9 берётся не целиком.
+
+**SEC-008 · `app/templates/admin/book_courses/{create_module,edit_module,index}.html`** — три
+шаблона, которые не рендерит ни один роут (grep по `render_template` — 0 вхождений), и внутри них
+`url_for` на три несуществующих эндпоинта: `admin.create_course_module` (`create_module.html:20`),
+`admin.edit_course_module` (`edit_module.html:20`), `admin.delete_course_module`
+(`edit_module.html:148`), `admin.book_course_enrollments` (`index.html:150`). Все четыре дают
+`BuildError` в живом `test_request_context`. Поскольку шаблоны-сироты, 500 никогда не наступает —
+дефект в том, что мёртвые файлы держат ссылки на давно переименованный API и при попытке их
+«оживить» страница сразу упадёт. Зона первопричины — Разделы (несуществующие эндпоинты);
+файлы лежат в админской подпапке, поэтому **Task 5** отдельно проверит, не является ли какая-то
+из этих страниц потерянной, а не мёртвой.
+
+### Сверка с реестром `2026-06-13-100-edge-cases.md` (checkbox 5)
+
+Все 102 находки того реестра закрыты; проверено, не переоткрылась ли какая-то. **Регрессов — 0.**
+
+| Находка Task 4 | Смежная закрытая находка 2026-06-13 | Регресс? |
+|---|---|---|
+| `SEC-001` | `E-047` (`allowed_text_percent` не применялся при выдаче текста), `E-048` (`audio_rights_status` не проверялся), `E-050` (аноним в `accessible_books_filter`) | **Нет.** E-047 закрыт и в дереве работает: `app/books/routes.py:434` усекает текст с явной ссылкой на аудит. `SEC-001` — другой роут-семейство (`/api/tasks`, `/api/blocks`), которое ни одна из трёх находок не покрывала: там гейт не «сломан», его никогда не было |
+| `SEC-002` | — | **Нет.** В реестре 2026-06-13 нет находок про `?from=`/`back_url`/open-redirect (grep по файлу — 0) |
+| `SEC-003`, `SEC-004`, `SEC-005`, `SEC-008` | — | **Нет.** Класс «`url_for` на несуществующий эндпоинт» в 2026-06-13 не разбирался |
+| `SEC-006`, `SEC-007` | — | **Нет** |
+
+Отдельно проверено, что **не** переоткрылось: `E-078` (rollback в `admin_audit_required` при
+провале аудит-коммита) — на месте, `app/admin/utils/decorators.py:111-119`.
+
+### Опровергнуто при проверке — не переоткрывать без новых фактов
+
+| # | Претензия | Почему опровергнуто |
+|---|---|---|
+| R1 | 4 мутирующих роута в `app/admin/routes/word_contrast_routes.py` (`create`/`update`/`delete`/`import`) не имеют ни `@login_required`, ни `@admin_required` — только `admin_audit_required` | `admin_audit_required` **сам возвращает** `admin_required(wrapped_view)` (`app/admin/utils/decorators.py:122`), а `admin_required` — `login_required(wrapped_view)` (`:62`). Гейт на месте; ложное срабатывание детектора «по списку декораторов» |
+| R2 | 9 вызовов `url_for` с недостающими обязательными аргументами (`words.public_contrast`, `learn.learn_by_module` ×7) | Артефакт regex'а: тело `[^)]*` обрывалось на первой `)` многострочного вызова. Прочитаны все 9 (`words/routes.py:343,351`, `curriculum/security.py:389`, `routes/test_out.py:36`, `routes/lessons.py:1479,1926,2066`, `routes/card_lessons.py:469,673`) — оба аргумента передаются |
+| R3 | `app/templates/admin/components.html:141,200,299` ссылается на несуществующие `admin.edit`, `admin.delete_user`, `admin.list` | Все три — внутри Jinja-комментариев `{# Usage: … #}`, документирующих макросы. Кодом не исполняются |
+| R4 | `GET /covers/<filename>` (`app/uploads/routes.py:28`) — path traversal | `secure_filename` + жёсткая сверка `safe_filename != filename` → 404, затем `os.path.isfile`, затем whitelist MIME с принудительным `image/jpeg`. Обхода не построено |
+| R5 | 28 роутов с path-id и без `current_user.id` в теле — потенциальные IDOR | Прочитаны все: публичные витрины (`/u/<username>`, `/contrast/<a>/<b>`, `/og/*`, `/quiz/shared/<code>`), токен-пути (`/reset_password/<token>`, `/o/<token>.gif`), каталожные справочники (`/api/words/<id>`, `/api/topics/<id>`) и уроки под `@require_lesson_access`. Ни одного пути к чужим пользовательским данным |
+| R6 | Отсутствие savepoint вокруг XP в `card_lessons.py:867`, `study/api_routes.py:868`, `books/api.py:1110,1300` (конвенция CLAUDE.md) | Во всех четырёх `db.session.commit()` находится **внутри того же `try`**, что и начисление, а предшествующая запись (`LessonAttempt`/прогресс) закоммичена раньше отдельным блоком. `rollback()` в `except` откатывает только незакоммиченную XP-работу — ровно тот инвариант, который savepoint и обеспечивает. Правки не требуется |
+| R7 | «Мёртвые роуты»: 93 эндпоинта без `url_for` и без литерального пути в исходниках | Метод отброшен (см. «Инвентаризация»): `url_prefix` навешивается при регистрации, поэтому полный путь отсутствует даже у определения роута. Проверено на `/api/daily-plan/skip-lesson` — 0 вхождений в `app/**` при заведомо живом эндпоинте. Претензия снята целиком, а не понижена |
+| R8 | N+1 в листинге «Мои колоды» (`app/study/routes.py:95-150`) | Прочитано: колоды, `QuizDeckWord`, `UserWord` и `UserCardDirection` берутся четырьмя батч-запросами по `in_(...)`, затем раскладываются в словари. Цикла с ленивой подгрузкой нет |
 
 ---
 
@@ -982,6 +1220,18 @@ CONFIRMED: находки, срезанные капом в 8 штук на ли
 | PL-CNT-07 | 87 immersion-ассетов, у которых номер модуля в имени файла на 1 расходится с модулем | Файлы существуют и играют; дефекта поведения нет. Смежно с CNT-008, где такой же сдвиг **привёл** к коллизии — но там доказана именно коллизия |
 | PL-CNT-08 | 60 значений `dictation.gaps[].source_word_index` указывают на другое слово | Поле не читает ни один потребитель в `app/` (только `scripts/create_*.py` пишет) — дефект без сценария отказа |
 
+### Зона Разделы (Task 4)
+
+Из 8 записанных находок все 8 доведены до CONFIRMED чтением кода (плюс живой `BuildError` и
+запросы к `learn_db_prod`). Ниже — то, что **осталось недоказанным** и потому в реестр не вошло.
+
+| # | Файл:строка | Претензия | Почему не CONFIRMED |
+|---|---|---|---|
+| PL-SEC-01 | `app/study/routes.py:124,133`; `app/study/services/srs_service.py:41,92`; `app/srs/service.py:1079,1162,1303` | Списки id пользователя (`all_deck_word_ids`, `user_word_ids`, `word_ids`) уходят в `.in_(...)` без `chunk_ids` — при росте словаря запрос упрётся в лимит параметров драйвера | Замерено на `learn_db_prod`: максимальная колода — **414** слов, максимум `user_words` на пользователя — **810**, при пороге `chunk_ids` в 1000. Сегодня сценария отказа не существует; это масштабирование, а не дефект. Всего мест с «сырым» `.in_(переменная)` — **188**, из них через `chunk_ids` идут 12 |
+| PL-SEC-02 | `app/books/routes.py:418` (`?from=javascript:…`) | Клик-XSS в аутентифицированном контексте ридера | Открытый редирект доказан и записан как `SEC-002`; именно `javascript:`-вариант зависит от того, как браузер применяет `script-src 'unsafe-inline'` рядом с nonce (CSP3). В браузере не проверялось — заявлять исполнение скрипта не могу |
+| PL-SEC-03 | `app/curriculum/service.py`, `card_service.py`, `books/services/book_service.py`, `books/api.py` (~40 мест) | `db.session.commit()` внутри сервисных хелперов вместо caller-commits — исключение у вызывающего оставит частичную запись | Проверены только XP-блоки (см. `R6`) — там инвариант соблюдён. Остальные сайты пофайлово не разбирались; без конкретного пути «исключение после чужого commit'а» претензия остаётся гипотезой о конвенции |
+| PL-SEC-04 | `app/api/books.py:643,685,716,753` | Подсистема `Block`/`Task` целиком мертва на фронте (модели остались от старой «экзаменационной» схемы) и её следовало бы удалить, а не гейтить | В БД **84 блока и 1 803 задачи** — данные живые. Потребителей на фронте не нашёл, но доказать, что их нет (в т.ч. у внешнего JWT-клиента), поиском по репозиторию нельзя. Поэтому `SEC-001` сформулирован как «поставить гейт», а не «удалить» |
+
 **Дисциплина:** ни один пункт этого приложения не идёт в Task 7–9. Чтобы попасть в ремедиацию,
 находка должна пройти скептика в следующем проходе аудита.
 
@@ -996,8 +1246,7 @@ CONFIRMED: находки, срезанные капом в 8 штук на ли
 |---|---|---|---|
 | Контент | Все **86** файлов `module_completed/fixed/*.json` (1548 уроков, ~137 500 строковых листьев) машинными проходами: рекурсивный обход аудио-ссылок, симуляция грейдеров по всем 5 контейнерам упражнений + `test_sections`, полный перебор перестановок для 1078 `ordering`, shingle-Jaccard near-dup по прозе, skeleton-кластеризация `dialogue_completion_quiz`, посимвольная сверка `content` всех 1548 уроков против `learn_db_prod`. Прогнаны 4 валидатора. БД: `lessons`, `modules`, `grammar_topics`, `collection_words` (25 089), `word_collocations`, `cultural_notes`, `daily_lessons`, `users`. Файловая система: 5140 mp3 под `app/static/audio/`. Поимённо прочитаны JSON-фрагменты под каждую записанную находку + грейдеры `app/curriculum/grading.py`, `text.html`, `final_test.html`, `sentence_completion.html`, `vocabulary_lessons.py`, `grammar_quiz_lessons.py` | **Аудио никто не слушал** — STT недоступен, все аудио↔текст находки структурные. Не проверялась семантическая корректность ~30 000 русских переводов и правильность самой грамматики в `grammar.rule`/`sections`. Не оценивалась читабельность текстов (readability-метрика не считалась). ~4000 MC-упражнений не проверены на правдоподобие дистракторов. Перечисление фреймов `dialogue_completion_quiz` неполно (9 фреймов моих, 19 у финдера). Аудио-QA (битрейт, громкость, тишина) не измерялось. `grammar_exercises` (8947 строк) — вне корпуса, не аудировались. Пересказ-рециклинг (semantic, не лексический) невидим для 5-gram Jaccard | Основной барьер — отсутствие STT и невозможность оценить смысл без носителя/LLM-прохода. Остальное — сознательный кап: линзы были нацелены на дефекты, у которых есть машинно проверяемый признак, а не на редакторское качество |
 | UI | Шаблоны: ~96 из 248 (без `emails/`) поимённо прочитаны — `lesson_base_template.html`, `base.html`, `public_base.html`, `admin/base.html`, 17 из 20 `curriculum/lessons/**`, 6 из 21 `curriculum/book_courses/lessons/**`, `partials/**`, `components/**` (кроме трёх), `auth/**` (кроме четырёх), `words/list_optimized.html`, `books/reader_simple.html`. JS: 26 из 40 не-вендорных. CSS: `design-system.css` (19 257 строк) целиком по правилам + `books/reader_simple.css`, `words/list_optimized.css`, `lessons/bc_phrase_cloze.css`, `flashcard-session.css`. Машинные проходы по всем 265 шаблонам: extends-граф, резолюция `_()`, извлечение кириллицы, `grep` по `fetch(`/`onclick=`/`innerHTML`/`role=progressbar` | `app/templates/admin/**` (94 из 102), `app/templates/study/**` (18 из 26), `curriculum/**` верхний уровень целиком, `books/list_optimized.html` + `details_optimized.html` (дефолтные!), подзоны `race/`, `modules/`, `onboarding/`, `landing/`, `legal/`, `feedback/`, `grammar_lab/{practice,stats}`; 14 JS-файлов (в т.ч. `share.js` — грузится на **каждой** странице обеих layout-веток); 69 из 98 CSS-файлов; `emails/**`; вендор `bootstrap.*` | Админка вынесена в Task 5 (эта линза покрыла только общий хром + два `extra_js`-дефекта). Остальное — кап в 8 находок на линзу плюс инструкция концентрироваться на highest-traffic learner-поверхностях. `emails/**` и вендор — вне зоны по брифу |
-| Контент | — | — | — |
-| Разделы | — | — | — |
+| Разделы | Машинные проходы по **всему** `app/**`: снимок `url_map` (531 правило, 52 неймспейса, methods/args/defaults), AST-инвентарь **522** route-функций с полными цепочками декораторов, извлечение и резолюция **1 118** вызовов `url_for`, сверка обязательных аргументов, AST-скан тел всех 240 мутирующих роутов на признаки владельца/гейта, перебор **188** сайтов `.in_(...)`, перебор всех вызовов `maybe_award_*`/`award_xp`/`check_all_achievements` в 7 файлах-хендлерах на обёртку savepoint'ом, подсчёт **240** ad-hoc JSON-ошибок и **386** чтений `.error`/`.message` на фронте. Поимённо прочитаны: все 13 роутов `app/api/books.py`, `app/api/decorators.py`, `app/api/books_catalog.py`, `app/books/access.py`, `app/books/routes.py` (роуты ридера), `app/uploads/routes.py`, `app/admin/utils/decorators.py`, `app/curriculum/routes/main.py::lesson_by_id`, `grammar_quiz_lessons.py::render_final_test_lesson`, `app/study/routes.py` (`cards_deck`, «Мои колоды»), `app/study/services/srs_service.py::get_card_counts`, `app/daily_plan/linear/errors.py::log_quiz_error`, `_flashcard_session.html`. Живой прогон `url_for` в `test_request_context` по 10 эндпоинтам. Запросы к `learn_db_prod`: `book`, `block`, `task`, `chapter`, `users`, `user_modules`, `system_modules`, `quiz_decks`, `quiz_deck_words`, `user_words` | **Линза (д) «пустые состояния и тупики» прогнана только точечно** — проверено 8 листинговых шаблонов на наличие empty-state, найдено 0 дефектов; обхода всех экранов не было. **Линза (в) «производительность» не доведена**: замеров количества запросов на странице не делалось, N+1 искался чтением одного листинга и статикой по `.in_(...)`; кеширование тяжёлых виджетов не проверялось. **Линза (г) «целостность транзакций»** покрыта только XP-блоками и `log_quiz_error`; ~40 сервисных `commit()` не разобраны (см. `PL-SEC-03`). Не читались тела роутов blueprint'ов `race`, `modules`, `notifications`, `legal`, `landing`, `seo`, `telegram`, `reminders`, `onboarding`, `courses`, `health_check`. Blueprint `admin` (81 правило) и 18 admin-суб-blueprint'ов сознательно не разбирались — это Task 5. Rate-limiting, CSRF-покрытие и заголовки безопасности как отдельные линзы не запускались (в брифе Task 4 их нет) | Инвентаризация и линзы (а)/(б) прогнаны по всей зоне и дали доказуемые находки; (в)/(г)/(д) упёрлись в то, что их дефекты требуют либо замера рантайма, либо обхода UI — то есть выходят за «читаю код и доказываю сценарий». Вместо правдоподобных догадок они вынесены сюда и в `PL-SEC-*` |
 | Админка | — | — | — |
 
 ### Критик-агент на полноту (зона UI, Task 2)
