@@ -293,9 +293,17 @@ def submit_feedback():
 @limiter.limit('5 per hour')
 def submit_survey():
     """Answers to the two-week survey, stored as one feedback thread."""
-    from app.feedback.survey import build_survey_message
+    from app.feedback.survey import build_survey_message, should_show_survey
 
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    # A JSON array is truthy but has no `.get` — without this a `[1]` body
+    # raised AttributeError before the try below and answered 500.
+    if not isinstance(data, dict):
+        data = {}
+    # The "at most twice, never again once answered" contract has to hold on
+    # the endpoint too; the UI gate alone let an answered account keep posting.
+    if not should_show_survey(current_user):
+        return api_error('not_eligible', 'survey is not open for this account', 409)
     answers = {
         key: (data.get(key) or '') for key, _ in SURVEY_QUESTIONS
     }

@@ -353,7 +353,7 @@ def get_daily_plan(
         get_plan_intensity,
     )
     from app.daily_plan.linear.progression import (
-        find_next_lesson_linear,
+        find_next_lesson_state,
         get_user_level_progress,
     )
     from app.utils.db import db
@@ -362,14 +362,29 @@ def get_daily_plan(
 
     logger.info("unified_plan_assemble user=%s start", user_id)
 
-    next_lesson = find_next_lesson_linear(user_id, session)
+    next_lesson, blocking_module_id = find_next_lesson_state(user_id, session)
     level_progress = get_user_level_progress(user_id, session, next_lesson=next_lesson)
     focus = _get_user_focus(user_id, session)
     module_progress = _compute_module_progress(user_id, session, next_lesson)
 
     # Graduated state: no more curriculum lessons but user has completed history.
     # Force optional to include SRS/reading/grammar_review even if daily caps reached.
-    graduated = next_lesson is None and has_completed_history(user_id, session)
+    #
+    # A blocked spine is NOT graduation. An unsatisfied prerequisite hides the
+    # blocking module and the rest of its CEFR level, which cascades through the
+    # level-entry gates to the end of the catalogue — reading that as "course
+    # finished" would congratulate a mid-course learner and hand them infinite
+    # practice with nothing naming the blocker.
+    graduated = (
+        next_lesson is None
+        and blocking_module_id is None
+        and has_completed_history(user_id, session)
+    )
+    if next_lesson is None and blocking_module_id is not None:
+        logger.warning(
+            "unified_plan_assemble user=%s spine blocked by module=%s — not graduated",
+            user_id, blocking_module_id,
+        )
 
     if graduated:
         required_dicts = []

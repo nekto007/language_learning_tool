@@ -278,8 +278,8 @@ const audioPlayer = new Audio();
 function markAudioUnavailable(btn) {
   btn.disabled = true;
   btn.classList.add('audio-btn-card--unavailable');
-  btn.setAttribute('aria-label', '{{ _("Озвучка недоступна") }}');
-  btn.title = '{{ _("Озвучка недоступна") }}';
+  btn.setAttribute('aria-label', {{ _('Озвучка недоступна')|tojson }});
+  btn.title = {{ _('Озвучка недоступна')|tojson }};
 }
 
 // Initialize
@@ -316,7 +316,15 @@ function init() {
       audioPlayer.src = audioSrc;
       const played = audioPlayer.play();
       if (played && typeof played.catch === 'function') {
-        played.catch(() => markAudioUnavailable(btn));
+        played.catch((err) => {
+          // Every button shares one Audio element, so pointing it at the next
+          // word aborts the previous pending play() with AbortError. That says
+          // nothing about the clip — only a load/decode failure does. Treating
+          // it as "missing" disabled a working button whenever the learner
+          // clicked two speakers in a row.
+          if (err && err.name === 'AbortError') return;
+          markAudioUnavailable(btn);
+        });
       }
     });
   });
@@ -515,9 +523,9 @@ async function completeLesson() {
     cards.forEach(card => { card.style.display = ''; });
     document.getElementById('cards-navigation').style.display = '';
     if (typeof showSaveError === 'function') {
-      showSaveError('{{ _("Не удалось сохранить прогресс. Попробуйте ещё раз.") }}');
+      showSaveError({{ _('Не удалось сохранить прогресс. Попробуйте ещё раз.')|tojson }});
     } else {
-      alert('{{ _("Не удалось сохранить прогресс. Попробуйте ещё раз.") }}');
+      alert({{ _('Не удалось сохранить прогресс. Попробуйте ещё раз.')|tojson }});
     }
   }
 }
@@ -709,7 +717,7 @@ function showAnnotationError(widget, message) {
           const icon = btn.querySelector('i');
           if (icon) icon.className = 'fas fa-check';
           const label = btn.querySelector('.word-add-to-list__label');
-          if (label) label.textContent = '{{ _("Добавлено") }}';
+          if (label) label.textContent = {{ _('Добавлено')|tojson }};
         })
         .catch(function(err) {
           // UI-011: silently doing nothing here read as "already added".

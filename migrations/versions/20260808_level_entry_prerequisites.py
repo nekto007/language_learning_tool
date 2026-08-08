@@ -38,11 +38,28 @@ depends_on = None
 _MARKER = 'level_entry_gate'
 
 MIN_PROGRESS = 80
-MIN_SCORE = 70
+# Deliberately 0, and deliberately explicit. `check_prerequisites` defaults a
+# missing `min_score` to PASSING_SCORE_PERCENT (70), and it compares that bar
+# against `_get_module_completion`'s avg over LessonProgress.score for *every*
+# completed lesson — including the types that complete without ever being
+# graded (theory-only grammar lessons have their score stripped in
+# routes/lessons.py and stay at the 0.0 column default). A learner who finished
+# 100% of the module can therefore average below 70 and be locked out of the
+# whole CEFR level for good. The gate we actually want is the 80% completion
+# bar that the intra-level rule in check_module_access uses, which is exactly
+# what MIN_PROGRESS expresses; the score bar has to be switched off explicitly.
+MIN_SCORE = 0
 
 
 def _level_entry_pairs(conn):
-    """Yield (entry_module_id, previous_level_last_module_id) for every level."""
+    """Yield (entry_module_id, previous_level_last_module_id) for every level.
+
+    The prerequisite target must be a module the learner can actually finish:
+    ``_get_module_completion`` reports 0% for a module with no lessons, so
+    gating a level behind an empty trailing module would lock it for good — and
+    ``find_next_lesson_linear`` reads that as "spine exhausted". Hence the
+    target is the last module of the previous level that *has* lessons.
+    """
     levels = conn.execute(sa.text(
         'SELECT id, "order" FROM cefr_levels ORDER BY "order"'
     )).fetchall()
@@ -51,7 +68,9 @@ def _level_entry_pairs(conn):
     for level_id, _order in levels:
         modules = conn.execute(
             sa.text(
-                'SELECT id, number FROM modules WHERE level_id = :lid ORDER BY number'
+                'SELECT m.id FROM modules m WHERE m.level_id = :lid '
+                'AND EXISTS (SELECT 1 FROM lessons l WHERE l.module_id = m.id) '
+                'ORDER BY m.number'
             ),
             {'lid': level_id},
         ).fetchall()
@@ -91,9 +110,52 @@ def upgrade():
         )
 
 
+def strip_marker_entries(raw):
+    """Drop only the entries this migration authored.
+
+    Returns the surviving list (``None`` when nothing survives), or the sentinel
+    ``False`` when the row must be left untouched — unparseable data, a
+    non-list, or a marker that matched some other text in the column.
+    """
+    import json
+
+    if isinstance(raw, (list, dict)):
+        entries = raw
+    else:
+        try:
+            entries = json.loads(raw)
+        except (TypeError, ValueError):
+            return False
+    if not isinstance(entries, list):
+        return False
+
+    kept = [
+        e for e in entries
+        if not (isinstance(e, dict) and e.get('source') == _MARKER)
+    ]
+    if len(kept) == len(entries):
+        return False
+    return kept or None
+
+
 def downgrade():
+    """Remove only the entries this migration wrote.
+
+    Nulling the whole column would also delete any prerequisite an admin
+    appended to a level-entry module after the upgrade ran.
+    """
+    import json
+
     conn = op.get_bind()
-    conn.execute(sa.text(
-        "UPDATE modules SET prerequisites = NULL "
-        "WHERE prerequisites::text LIKE :marker"
-    ), {'marker': f'%{_MARKER}%'})
+    rows = conn.execute(sa.text(
+        'SELECT id, prerequisites FROM modules WHERE prerequisites::text LIKE :marker'
+    ), {'marker': f'%{_MARKER}%'}).fetchall()
+
+    for module_id, raw in rows:
+        kept = strip_marker_entries(raw)
+        if kept is False:
+            continue
+        conn.execute(
+            sa.text('UPDATE modules SET prerequisites = :p WHERE id = :id'),
+            {'p': json.dumps(kept) if kept else None, 'id': module_id},
+        )

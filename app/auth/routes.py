@@ -610,7 +610,10 @@ def change_password():
             new_password or '', current_user.username, current_user.email,
         )
 
-        if not current_user.check_password(current_password):
+        # `or ''` is load-bearing: check_password concatenates the salt, so a
+        # POST without the field (JS off, direct request) would raise TypeError
+        # and 500 instead of reporting a wrong password.
+        if not current_user.check_password(current_password or ''):
             flash('Текущий пароль неверен.', 'danger')
         elif new_password != confirm_password:
             flash('Новые пароли не совпадают.', 'danger')

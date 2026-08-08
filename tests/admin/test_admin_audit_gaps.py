@@ -132,7 +132,13 @@ class TestReminderCampaignIsAudited:
         )
         body = ast.unparse(view)
         assert 'reminder.send_campaign' in body
-        assert body.index('log_admin_action(') < body.rindex('db.session.commit()')
+        # Before the first send, not merely before the last commit: mail cannot
+        # be recalled, so a crash mid-loop must still leave attribution behind.
+        assert body.index('log_admin_action(') < body.index('send_email(')
+        log_at = body.index('log_admin_action(')
+        assert 'db.session.commit()' in body[log_at:body.index('send_email(')], (
+            'the audit row is staged but not committed before the first send'
+        )
 
 
 class TestExportsAreAudited:

@@ -15,6 +15,8 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
+
 from app.feedback.models import (
     SURVEY_ANSWER_MAX_LENGTH,
     SURVEY_MAX_PROMPTS,
@@ -85,12 +87,23 @@ def should_show_survey(user: Any, now: datetime | None = None) -> bool:
 
 
 def _get_or_create_prompt(user_id: int) -> SurveyPrompt:
+    """Race-safe upsert, same shape as ``grant_achievement``/``write_secured_at``.
+
+    Dismiss and submit can arrive together (two tabs, a double click); a bare
+    SELECT-then-INSERT lets both see ``None`` and the loser dies on the
+    ``survey_prompts`` primary key.
+    """
     prompt = get_prompt(user_id)
-    if prompt is None:
-        prompt = SurveyPrompt(user_id=user_id, dismiss_count=0)
-        db.session.add(prompt)
-        db.session.flush()
-    return prompt
+    if prompt is not None:
+        return prompt
+    try:
+        with db.session.begin_nested():
+            prompt = SurveyPrompt(user_id=user_id, dismiss_count=0)
+            db.session.add(prompt)
+            db.session.flush()
+        return prompt
+    except IntegrityError:
+        return SurveyPrompt.query.get(user_id)
 
 
 def record_survey_dismissal(user_id: int) -> SurveyPrompt:

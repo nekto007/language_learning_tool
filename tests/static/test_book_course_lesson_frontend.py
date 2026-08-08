@@ -78,21 +78,43 @@ class TestFailedSaveIsNotReportedAsSuccess:
         assert '.lesson-save-error' in DESIGN_SYSTEM.read_text(encoding='utf-8')
 
 
+# The two guard shapes that actually activate on Enter and Space. Asserting
+# `=== 'Enter'` OR `!== 'Enter'` (as this file used to) is satisfied by a
+# handler that explicitly ignores both keys — the regression it exists to catch.
+ENTER_SPACE_GUARDS = (
+    "e.key === 'Enter' || e.key === ' '",
+    "e.key !== 'Enter' && e.key !== ' '",
+)
+
+
 class TestKeyboardReachability:
     @pytest.mark.parametrize('template', KEYBOARD_TEMPLATES)
     def test_interactive_divs_expose_role_and_tabindex(self, template):
-        source = _source(template)
+        import re
 
-        assert 'role="button"' in source, f'{template}: clickable divs still have no role'
-        assert 'tabindex=' in source, f'{template}: clickable divs are not focusable'
+        source = _source(template)
+        # Both attributes on the SAME element: an unrelated `tabindex` elsewhere
+        # in the file says nothing about the clickable divs.
+        focusable = re.findall(
+            r'<div[^>]*\brole="button"[^>]*\btabindex=|<div[^>]*\btabindex=[^>]*\brole="button"',
+            source,
+        )
+
+        assert focusable, f'{template}: clickable divs are not both labelled and focusable'
 
     @pytest.mark.parametrize('template', KEYBOARD_TEMPLATES)
     def test_enter_and_space_activate(self, template):
         source = _source(template)
 
         assert "addEventListener('keydown'" in source
-        assert "e.key === 'Enter'" in source or "e.key !== 'Enter'" in source
-        assert "e.key === ' '" in source or "e.key !== ' '" in source
+        matches = [g for g in ENTER_SPACE_GUARDS if g in source]
+        assert matches, f'{template}: no keydown guard activates on both Enter and Space'
+        # The guard has to lead somewhere — swallowing the key is not activation.
+        for guard in matches:
+            after = source[source.index(guard):source.index(guard) + 400]
+            assert 'preventDefault()' in after, (
+                f'{template}: Enter/Space guard never activates the control'
+            )
 
     def test_comprehension_check_locks_after_answering(self):
         source = _source('comprehension_check.html')

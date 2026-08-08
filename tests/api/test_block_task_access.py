@@ -117,6 +117,106 @@ class TestDraftBooksLookNonexistent:
         assert authenticated_client.get(f'/api/tasks/{task.id}').status_code == 404
 
 
+def _make_daily_lesson_task(db_session, *, rights_status: str, is_published: bool = True):
+    """A task that reaches its book through ``daily_lesson.chapter``, not a block.
+
+    ``Task.block_id`` is nullable by design, so this is the arm ``_task_gate``
+    exists for — gating it on ``task.block`` alone 404'd every daily lesson.
+    """
+    from app.books.models import Chapter
+    from app.curriculum.book_courses import BookCourse, BookCourseModule
+    from app.curriculum.daily_lessons import DailyLesson
+
+    book = Book(
+        title='Course Book', author='A', level='A1', chapters_cnt=1,
+        rights_status=rights_status, is_published=is_published,
+    )
+    db_session.add(book)
+    db_session.flush()
+
+    chapter = Chapter(book_id=book.id, chap_num=1, title='Ch 1', text_raw='text', words=1)
+    db_session.add(chapter)
+    course = BookCourse(book_id=book.id, title='Course', level='A1')
+    db_session.add(course)
+    db_session.flush()
+
+    module = BookCourseModule(course_id=course.id, module_number=1, title='M1')
+    db_session.add(module)
+    task = Task(
+        block_id=None,
+        task_type=TaskType.vocabulary,
+        payload={'phrases': ['classified']},
+    )
+    db_session.add_all([module, task])
+    db_session.flush()
+
+    db_session.add(DailyLesson(
+        book_course_module_id=module.id, slice_number=1, day_number=1,
+        chapter_id=chapter.id, lesson_type='vocabulary', task_id=task.id,
+    ))
+    db_session.flush()
+    return book, task
+
+
+class TestDailyLessonTaskUsesTheSameGate:
+    def test_companion_only_daily_lesson_task_is_forbidden(
+        self, authenticated_client, db_session,
+    ):
+        _, task = _make_daily_lesson_task(db_session, rights_status='companion_only')
+
+        response = authenticated_client.get(f'/api/tasks/{task.id}')
+
+        assert response.status_code == 403
+        assert 'classified' not in response.get_data(as_text=True)
+
+    def test_public_domain_daily_lesson_task_is_readable(
+        self, authenticated_client, db_session,
+    ):
+        _, task = _make_daily_lesson_task(db_session, rights_status='public_domain')
+
+        response = authenticated_client.get(f'/api/tasks/{task.id}')
+
+        assert response.status_code == 200
+        assert response.get_json()['task']['payload']['phrases'] == ['classified']
+
+    def test_draft_daily_lesson_task_is_404(self, authenticated_client, db_session):
+        _, task = _make_daily_lesson_task(
+            db_session, rights_status='public_domain', is_published=False,
+        )
+
+        assert authenticated_client.get(f'/api/tasks/{task.id}').status_code == 404
+
+
+class TestBookContentIsGated:
+    """``/api/book/<id>/content`` resolved a Book without going through the gate."""
+
+    def test_companion_only_content_is_forbidden(self, authenticated_client, db_session):
+        book, _, _ = _make_material(db_session, rights_status='companion_only')
+
+        response = authenticated_client.get(f'/api/book/{book.id}/content')
+
+        assert response.status_code == 403
+        assert 'Companion Book' not in response.get_data(as_text=True)
+
+    def test_draft_content_is_404_not_500(self, authenticated_client, db_session):
+        book, _, _ = _make_material(
+            db_session, rights_status='public_domain', is_published=False,
+        )
+
+        assert authenticated_client.get(f'/api/book/{book.id}/content').status_code == 404
+
+    def test_missing_book_is_404_not_500(self, authenticated_client):
+        assert authenticated_client.get('/api/book/99999999/content').status_code == 404
+
+    def test_public_domain_content_is_readable(self, authenticated_client, db_session):
+        book, _, _ = _make_material(db_session, rights_status='public_domain')
+
+        response = authenticated_client.get(f'/api/book/{book.id}/content')
+
+        assert response.status_code == 200
+        assert response.get_json()['content']['title'] == 'Companion Book'
+
+
 class TestOrphanTaskFailsClosed:
     def test_task_without_block_is_not_found(self, authenticated_client, db_session):
         task = Task(

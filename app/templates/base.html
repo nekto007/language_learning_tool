@@ -452,11 +452,17 @@
             <span class="bottom-nav__icon"><i class="fas fa-flask"></i></span>
             <span class="bottom-nav__label">Грамматика</span>
         </a>
-        <div class="bottom-nav__item bottom-nav__more" id="bottom-nav-more"
-             role="button" tabindex="0" aria-haspopup="true" aria-expanded="false"
-             aria-controls="bottom-nav-dropdown" aria-label="Ещё">
-            <span class="bottom-nav__icon"><i class="fas fa-ellipsis-h"></i></span>
-            <span class="bottom-nav__label">Ещё</span>
+        {# The trigger is a real <button> and the menu is its sibling, not its
+           child: links nested inside a role="button" are not reliably exposed
+           by assistive tech, and a keydown handler on an ancestor of the links
+           swallowed the Enter that should have followed them. #}
+        <div class="bottom-nav__item bottom-nav__more">
+            <button type="button" class="bottom-nav__more-trigger" id="bottom-nav-more"
+                    aria-haspopup="true" aria-expanded="false"
+                    aria-controls="bottom-nav-dropdown" aria-label="Ещё">
+                <span class="bottom-nav__icon"><i class="fas fa-ellipsis-h"></i></span>
+                <span class="bottom-nav__label">Ещё</span>
+            </button>
             <div class="bottom-nav__dropdown" id="bottom-nav-dropdown">
                 {% if books_nav_visible() %}
                 <a href="{{ url_for('books.book_list') }}" class="bottom-nav__dropdown-item">

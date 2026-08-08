@@ -684,6 +684,18 @@ def send_reminders():
     now = datetime.now(timezone.utc)
     today = now.date()
 
+    # ADM-002: ReminderLog records *that* a user was mailed, but nothing ties the
+    # campaign to the admin who launched it. Written and committed BEFORE the
+    # first send: mail cannot be recalled, so an exception part-way through the
+    # loop must not roll the attribution away along with it.
+    log_admin_action(
+        current_user.id,
+        'reminder.send_campaign',
+        'reminder_campaign',
+        None,
+    )
+    db.session.commit()
+
     for user in users:
         if _was_recently_reminded(user.id):
             logger.info(f"Skipping reminder for user {user.id}: sent within last {REMINDER_MIN_INTERVAL_HOURS}h")
@@ -728,16 +740,6 @@ def send_reminders():
             # transient SMTP failure.
             db.session.delete(log)
             db.session.flush()
-
-    # ADM-002: ReminderLog records *that* a user was mailed, but nothing ties the
-    # campaign to the admin who launched it. One row per send, committed with the
-    # ReminderLog rows it documents.
-    log_admin_action(
-        current_user.id,
-        'reminder.send_campaign',
-        'reminder_campaign',
-        None,
-    )
 
     # Сохраняем изменения в базе данных
     db.session.commit()

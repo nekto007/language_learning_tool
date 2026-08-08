@@ -91,8 +91,11 @@ class TestReaderRendersOnlySafeBackUrl:
         assert not any(t.startswith('javascript:') for t in targets)
 
     def test_external_referrer_never_reaches_a_back_link(self, authenticated_client, public_book):
+        # The referrer branch lives in `read_book_chapters`, not in `book_read`
+        # — /books/<id>/read never looks at Referer, so pointing this test there
+        # would exercise none of _same_host_path and pass with the fix reverted.
         response = authenticated_client.get(
-            f'/books/{public_book.id}/read',
+            f'/read/{public_book.id}/chapters',
             headers={'Referer': 'https://evil.example/curriculum'},
         )
 
@@ -100,6 +103,19 @@ class TestReaderRendersOnlySafeBackUrl:
         targets = _back_link_targets(response.get_data(as_text=True))
         assert targets
         assert all('evil.example' not in t for t in targets)
+
+    def test_same_host_referrer_survives_into_the_back_link(
+        self, authenticated_client, public_book,
+    ):
+        response = authenticated_client.get(
+            f'/read/{public_book.id}/chapters',
+            headers={'Referer': 'http://localhost/curriculum/module/3'},
+        )
+
+        assert response.status_code == 200
+        targets = _back_link_targets(response.get_data(as_text=True))
+        assert targets
+        assert all(t == '/curriculum/module/3' for t in targets)
 
     def test_relative_from_still_works(self, authenticated_client, public_book):
         response = authenticated_client.get(

@@ -35,11 +35,33 @@ def _block_gate(block, not_found_message: str):
     nonexistent — there is no book to authorise against, so we fail closed.
     """
     book = block.book if block is not None else None
+    return _book_gate(book, not_found_message)
+
+
+def _book_gate(book, not_found_message: str):
+    """Shared verdict once the owning book has been resolved (or has not)."""
     if book is None or _draft_hidden(book):
         return api_error('not_found', not_found_message, 404)
     if not can_user_access_book(current_user, book):
         return api_error('forbidden', 'Access denied', 403)
     return None
+
+
+def _task_gate(task, not_found_message: str):
+    """Book gate for a task, which may hang off a block or off a daily lesson.
+
+    ``Task.block_id`` is nullable by design — daily-lesson tasks carry no block
+    and reach their book through the lesson's chapter. Gating those on
+    ``task.block`` alone made every one of them look nonexistent.
+    """
+    if task is None:
+        return api_error('not_found', not_found_message, 404)
+    if task.block is not None:
+        return _block_gate(task.block, not_found_message)
+    lesson = task.daily_lesson
+    chapter = lesson.chapter if lesson is not None else None
+    book = chapter.book if chapter is not None else None
+    return _book_gate(book, not_found_message)
 
 
 @api_books.route('/books', methods=['GET'])
@@ -660,9 +682,17 @@ def get_book_content(book_id):
     start_position = request.args.get('start_position', type=int, default=0)
     end_position = request.args.get('end_position', type=int)
 
-    try:
-        book = Book.query.get_or_404(book_id)
+    # Resolved outside the try: `get_or_404` raises an HTTPException, and the
+    # blanket `except Exception` below would turn a missing book into a 500.
+    book = Book.query.get(book_id)
+    # Every route that serves book material goes through the rights gate
+    # (audit SEC-001) — this one still leaks `book.title` for drafts and
+    # unlicensed books, and would leak the text once the mock below is real.
+    denied = _book_gate(book, 'Book not found')
+    if denied is not None:
+        return denied
 
+    try:
         # In a real implementation, this would extract the actual book content
         # For now, return mock content structure
         mock_content = {
@@ -707,7 +737,7 @@ def get_task(task_id):
     try:
         task = Task.query.get_or_404(task_id)
 
-        denied = _block_gate(task.block, 'Task not found')
+        denied = _task_gate(task, 'Task not found')
         if denied is not None:
             return denied
 

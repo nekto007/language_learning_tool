@@ -68,7 +68,10 @@ def word_contrast_index():
         like = f'%{escape_like(search.lower())}%'
         word_ids = [
             row[0] for row in db.session.query(CollectionWords.id).filter(
-                func.lower(CollectionWords.english_word).like(like),
+                # escape_like only takes effect with the matching escape clause
+                # (audit ADM-008) — without it the backslashes it inserts are
+                # literal characters on any backend that has no default escape.
+                func.lower(CollectionWords.english_word).like(like, escape='\\'),
             ).all()
         ]
         if word_ids:

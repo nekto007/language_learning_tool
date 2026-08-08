@@ -57,6 +57,12 @@ def main():
     files = sorted(glob.glob(os.path.join(SRC, "*.json")))
     type_counts = Counter()
     audio_refs = 0
+    # module_completed/ is gitignored, so "no files" is the default state of any
+    # fresh checkout — and an empty loop leaves `errors` empty, which used to
+    # print PASS. A gate that reports success on zero input is the failure mode
+    # this script exists to prevent (CNT-011).
+    if not files:
+        E("<runner>", f"no corpus files found under {SRC} — nothing was validated")
     # Run the app's real import-time schema validator so this gate rejects exactly
     # what the admin re-import would reject (e.g. min-length on item fields).
     try:

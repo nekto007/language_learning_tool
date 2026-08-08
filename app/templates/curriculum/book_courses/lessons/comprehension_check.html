@@ -211,9 +211,45 @@ function showQuestion(index) {
   // Update next button
   const nextBtn = document.getElementById('next-btn');
   nextBtn.disabled = answers[index] === undefined;
+
+  // Resuming from localStorage lands on the question that was just answered.
+  // Re-rendering it as a fresh, clickable question left the learner facing a
+  // control that silently ignored every click (selectOption/selectTF refuse to
+  // re-answer), so replay the answered state instead.
+  if (answers[index] !== undefined) {
+    renderAnsweredState(q, answers[index]);
+  }
   nextBtn.innerHTML = index === questions.length - 1
     ? 'Finish <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
     : 'Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+}
+
+// Paint the locked, graded state for an already-answered question. Shared by
+// the answer handlers and by showQuestion when a saved session is resumed.
+function renderAnsweredState(q, given) {
+  const isCorrect = given === q.answer;
+
+  if (q.type === 'true_false') {
+    document.querySelectorAll('.cc-quiz__tf-btn').forEach(btn => {
+      btn.disabled = true;
+      btn.classList.remove('selected', 'correct', 'incorrect');
+      const btnVal = btn.dataset.value === 'true';
+      if (btnVal === q.answer) btn.classList.add('correct');
+      else if (btnVal === given && !isCorrect) btn.classList.add('incorrect');
+      if (btnVal === given) btn.classList.add('selected');
+    });
+  } else {
+    document.querySelectorAll('.cc-quiz__option').forEach((opt, i) => {
+      opt.classList.remove('selected', 'correct', 'incorrect');
+      opt.style.pointerEvents = 'none';
+      opt.setAttribute('aria-disabled', 'true');
+      if (i === q.answer) opt.classList.add('correct');
+      else if (i === given && !isCorrect) opt.classList.add('incorrect');
+      if (i === given) opt.classList.add('selected');
+    });
+  }
+
+  showFeedback(isCorrect, q.explanation);
 }
 
 function selectOption(optIndex) {
@@ -222,38 +258,18 @@ function selectOption(optIndex) {
   // users need the same lock, otherwise Enter would re-answer the question.
   if (answers[currentQ] !== undefined) return;
   answers[currentQ] = optIndex;
-  const isCorrect = optIndex === q.answer;
 
-  const options = document.querySelectorAll('.cc-quiz__option');
-  options.forEach((opt, i) => {
-    opt.classList.remove('selected', 'correct', 'incorrect');
-    opt.style.pointerEvents = 'none';
-    if (i === q.answer) opt.classList.add('correct');
-    else if (i === optIndex && !isCorrect) opt.classList.add('incorrect');
-    if (i === optIndex) opt.classList.add('selected');
-  });
-
-  showFeedback(isCorrect, q.explanation);
+  renderAnsweredState(q, optIndex);
   document.getElementById('next-btn').disabled = false;
   saveProgress();
 }
 
 function selectTF(value) {
   const q = questions[currentQ];
+  if (answers[currentQ] !== undefined) return;
   answers[currentQ] = value;
-  const isCorrect = value === q.answer;
 
-  const buttons = document.querySelectorAll('.cc-quiz__tf-btn');
-  buttons.forEach(btn => {
-    btn.disabled = true;
-    btn.classList.remove('selected', 'correct', 'incorrect');
-    const btnVal = btn.dataset.value === 'true';
-    if (btnVal === q.answer) btn.classList.add('correct');
-    else if (btnVal === value && !isCorrect) btn.classList.add('incorrect');
-    if (btnVal === value) btn.classList.add('selected');
-  });
-
-  showFeedback(isCorrect, q.explanation);
+  renderAnsweredState(q, value);
   document.getElementById('next-btn').disabled = false;
   saveProgress();
 }

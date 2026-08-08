@@ -346,8 +346,11 @@ def fix_database(apply: bool) -> dict[str, int]:
             new_content, hits = fix_lesson(lesson.type or "", content, level)
             if hits:
                 _merge(totals, hits)
-                lesson.content = new_content
-                flag_modified(lesson, "content")
+                # Only stage the write under --apply. A dry run that dirties the
+                # session is one stray autoflush away from writing all 86 modules.
+                if apply:
+                    lesson.content = new_content
+                    flag_modified(lesson, "content")
 
         if apply:
             db.session.commit()

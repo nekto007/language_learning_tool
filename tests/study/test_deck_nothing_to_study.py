@@ -50,7 +50,10 @@ class TestNothingToStudyScreenRenders:
 
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        assert 'Сейчас нечего учить!' in html or 'Дневной лимит достигнут!' in html
+        # The exhausted-deck screen specifically. Accepting the daily-limit
+        # headline as an alternative would keep passing if the fixture stopped
+        # producing the state this test exists to cover.
+        assert 'Сейчас нечего учить!' in html
 
     def test_add_words_button_points_at_a_real_endpoint(
         self, authenticated_client, exhausted_deck,

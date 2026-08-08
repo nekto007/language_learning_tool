@@ -134,8 +134,11 @@ def fix_database(apply: bool) -> int:
             new_content, cleared = strip_starter_scaffolding(lesson.content or {})
             if cleared:
                 total += 1
-                lesson.content = new_content
-                flag_modified(lesson, "content")
+                # Only stage the change under --apply. A dry run that dirties
+                # the session is one stray autoflush away from writing itself.
+                if apply:
+                    lesson.content = new_content
+                    flag_modified(lesson, "content")
 
         if apply:
             db.session.commit()

@@ -38,7 +38,10 @@ depends_on = None
 # Marks rows this migration rewrote, so downgrade restores exactly those.
 _MARKER = 'slug_normalized'
 
-MIN_SCORE = 70
+# 0, and explicit — see the note in 20260808_level_entry_prerequisites: a
+# missing `min_score` defaults to 70 and is compared against an average that
+# includes ungraded completions, which can lock a fully-finished module.
+MIN_SCORE = 0
 MIN_PROGRESS = 80
 
 _SLUG_RE = re.compile(r'^module[_\-\s]*(\d+)$', re.IGNORECASE)
@@ -122,12 +125,26 @@ def restore_slugs(conn) -> int:
         prereqs = _load(raw)
         if not isinstance(prereqs, list):
             continue
-        restored = [
-            entry.get('legacy_slug')
-            if isinstance(entry, dict) and entry.get('source') == _MARKER
-            else entry
-            for entry in prereqs
-        ]
+        restored = []
+        changed = False
+        for entry in prereqs:
+            if not (isinstance(entry, dict) and entry.get('source') == _MARKER):
+                restored.append(entry)
+                continue
+            slug = entry.get('legacy_slug')
+            if slug is None:
+                # Marked but no slug recorded — leave it rather than write a
+                # bare `null` the parser would silently drop.
+                restored.append(entry)
+                continue
+            restored.append(slug)
+            changed = True
+
+        # The LIKE above also matches rows where the marker is merely text; a
+        # row we did not actually change must not be rewritten or counted.
+        if not changed:
+            continue
+
         restored_modules += 1
         conn.execute(
             sa.text('UPDATE modules SET prerequisites = :p WHERE id = :id'),

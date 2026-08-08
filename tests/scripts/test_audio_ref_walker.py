@@ -105,8 +105,24 @@ class TestVocabularyTemplateHandlesFailure:
         ).read_text(encoding='utf-8')
 
         assert 'audioPlayer.play()' in template
-        assert 'played.catch(() => markAudioUnavailable(btn));' in template
+        assert 'played.catch(' in template
+        assert 'markAudioUnavailable(btn)' in template
         assert 'function markAudioUnavailable(btn)' in template
+
+    def test_an_aborted_play_does_not_disable_the_button(self):
+        """One shared Audio element: starting word B aborts word A's play().
+
+        That rejection says nothing about A's clip, so it must not take A's
+        speaker out of the tab order for the rest of the lesson.
+        """
+        template = (
+            Path(__file__).resolve().parents[2]
+            / 'app' / 'templates' / 'curriculum' / 'lessons' / 'vocabulary.html'
+        ).read_text(encoding='utf-8')
+
+        catch_at = template.index('played.catch(')
+        mark_at = template.index('markAudioUnavailable(btn)', catch_at)
+        assert "'AbortError'" in template[catch_at:mark_at]
 
     def test_unavailable_state_is_styled(self):
         css = (

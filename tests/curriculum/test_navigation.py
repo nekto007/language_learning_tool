@@ -15,7 +15,10 @@ from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.navigation import find_next_lesson
 from app.daily_plan.assembler import _find_next_lesson as mission_find_next_lesson
-from app.daily_plan.linear.progression import find_next_lesson_linear
+from app.daily_plan.linear.progression import (
+    find_next_lesson_linear,
+    find_next_lesson_state,
+)
 from app.utils.db import db as real_db
 from tests.conftest import unique_level_code
 
@@ -168,3 +171,59 @@ class TestPrerequisiteGating:
         canonical = find_next_lesson(user.id, real_db)
         assert canonical is not None
         assert canonical.id == mini_curriculum['lessons']['a2'][0].id
+
+
+class TestBlockedModuleTakesTheRestOfItsLevel:
+    """A blocked module hides its same-level successors, and a spine hidden that
+    way must never be reported as a finished course."""
+
+    @pytest.fixture
+    def three_module_level(self, db_session):
+        level_a = _make_level(db_session, _uniq_code(), 1)
+        level_b = _make_level(db_session, _uniq_code(), 2)
+        a1 = _make_module(db_session, level_a, 1)
+        a2 = _make_module(db_session, level_a, 2)
+        a3 = _make_module(db_session, level_a, 3)
+        b1 = _make_module(db_session, level_b, 1)
+        return {
+            'modules': {'a1': a1, 'a2': a2, 'a3': a3, 'b1': b1},
+            'lessons': {
+                key: [_make_lesson(db_session, mod, 1)]
+                for key, mod in (('a1', a1), ('a2', a2), ('a3', a3), ('b1', b1))
+            },
+        }
+
+    def test_same_level_successor_is_not_offered(self, db_session, three_module_level):
+        # Offering A3 would 403 on the click: check_module_access falls through
+        # to the intra-level 80% rule and sees the blocked A2 at 0%.
+        user = _make_user(db_session)
+        mods = three_module_level['modules']
+        _complete(db_session, user, three_module_level['lessons']['a1'][0], score=50.0)
+        mods['a2'].prerequisites = [
+            {'type': 'module', 'id': mods['a1'].id, 'min_score': 80},
+        ]
+        db_session.commit()
+
+        nxt = find_next_lesson_linear(user.id, real_db)
+
+        assert nxt is not None
+        assert nxt.id == three_module_level['lessons']['b1'][0].id
+
+    def test_a_fully_blocked_spine_reports_the_blocker_not_completion(
+        self, db_session, three_module_level,
+    ):
+        user = _make_user(db_session)
+        mods = three_module_level['modules']
+        _complete(db_session, user, three_module_level['lessons']['a1'][0], score=50.0)
+        for key in ('a2', 'b1'):
+            mods[key].prerequisites = [
+                {'type': 'module', 'id': mods['a1'].id, 'min_score': 80},
+            ]
+        db_session.commit()
+
+        lesson, blocking_module_id = find_next_lesson_state(user.id, real_db)
+
+        assert lesson is None
+        # Without this the plan reads `next_lesson is None` as graduation and
+        # congratulates a learner who is stuck on A2.
+        assert blocking_module_id == mods['a2'].id

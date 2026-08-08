@@ -136,17 +136,17 @@ class TestMigrationShape:
         ).read_text(encoding='utf-8')
 
         assert 'MIN_PROGRESS = 80' in source
-        assert 'MIN_SCORE = 70' in source
+        # The score bar must stay switched off: check_prerequisites averages
+        # LessonProgress.score across ungraded completions too, so any non-zero
+        # min_score can permanently lock a 100%-completed module.
+        assert 'MIN_SCORE = 0' in source
         assert "_MARKER = 'level_entry_gate'" in source
-        # Authored prerequisites must survive both directions.
-        assert 'if existing:' in source
-        assert 'LIKE :marker' in source
 
 
 class TestMigrationSqlRuns:
     """The migration is plain SQL against the live schema — execute it for real."""
 
-    def _module(self):
+    def _module(self, db_session=None):
         import importlib.util
         from pathlib import Path
 
@@ -157,32 +157,128 @@ class TestMigrationSqlRuns:
         spec = importlib.util.spec_from_file_location('level_entry_migration', path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        if db_session is not None:
+            # `op.get_bind()` needs an Alembic context; the savepoint connection
+            # the fixture already owns is the same thing the migration wants.
+            connection = db_session.connection()
+            module.op = type('_Op', (), {'get_bind': staticmethod(lambda: connection)})()
         return module
-
-    def test_level_entry_pairs_query_executes(self, db_session):
-        migration = self._module()
-
-        pairs = list(migration._level_entry_pairs(db_session.connection()))
-
-        assert isinstance(pairs, list)
 
     def test_pairs_link_each_level_to_the_previous_one(self, db_session):
         migration = self._module()
 
         lower = _make_level(db_session, 901)
         upper = _make_level(db_session, 902)
-        _first_lower = _make_module(db_session, lower, 1)
+        first_lower = _make_module(db_session, lower, 1)
         last_lower = _make_module(db_session, lower, 2)
         entry_upper = _make_module(db_session, upper, 1)
+        _add_lessons(db_session, first_lower, 1)
+        _add_lessons(db_session, last_lower, 1)
+        _add_lessons(db_session, entry_upper, 1)
 
         pairs = dict(migration._level_entry_pairs(db_session.connection()))
 
         assert pairs[entry_upper.id] == last_lower.id
 
-    def test_downgrade_statement_executes(self, db_session):
-        import sqlalchemy as sa
+    def test_a_lessonless_trailing_module_is_never_the_gate(self, db_session):
+        """A module with no lessons reports 0% forever — gating on it would lock
+        the level permanently, and a locked level reads as an exhausted spine."""
+        migration = self._module()
 
-        db_session.connection().execute(sa.text(
-            "UPDATE modules SET prerequisites = NULL "
-            "WHERE prerequisites::text LIKE :marker"
-        ), {'marker': '%level_entry_gate%'})
+        lower = _make_level(db_session, 911)
+        upper = _make_level(db_session, 912)
+        with_lessons = _make_module(db_session, lower, 1)
+        empty_trailing = _make_module(db_session, lower, 2)
+        entry_upper = _make_module(db_session, upper, 1)
+        _add_lessons(db_session, with_lessons, 1)
+        _add_lessons(db_session, entry_upper, 1)
+
+        pairs = dict(migration._level_entry_pairs(db_session.connection()))
+
+        assert pairs[entry_upper.id] == with_lessons.id
+        assert empty_trailing.id not in pairs.values()
+
+    def test_upgrade_writes_the_gate_and_leaves_authored_rows_alone(self, db_session):
+        migration = self._module(db_session)
+
+        lower = _make_level(db_session, 921)
+        upper = _make_level(db_session, 922)
+        third = _make_level(db_session, 923)
+        last_lower = _make_module(db_session, lower, 1)
+        entry_upper = _make_module(db_session, upper, 1)
+        authored = [{'type': 'module', 'id': last_lower.id, 'min_score': 65}]
+        entry_third = _make_module(db_session, third, 1, prerequisites=authored)
+        for module in (last_lower, entry_upper, entry_third):
+            _add_lessons(db_session, module, 1)
+
+        migration.upgrade()
+        db_session.expire_all()
+
+        written = db_session.get(Module, entry_upper.id).prerequisites
+        assert written == [{
+            'type': 'module',
+            'id': last_lower.id,
+            'min_score': migration.MIN_SCORE,
+            'min_progress': migration.MIN_PROGRESS,
+            'source': 'level_entry_gate',
+        }]
+        # Authored prerequisites win — the migration must not overwrite them.
+        assert db_session.get(Module, entry_third.id).prerequisites == authored
+
+    def test_upgrade_is_idempotent(self, db_session):
+        migration = self._module(db_session)
+
+        lower = _make_level(db_session, 931)
+        upper = _make_level(db_session, 932)
+        last_lower = _make_module(db_session, lower, 1)
+        entry_upper = _make_module(db_session, upper, 1)
+        _add_lessons(db_session, last_lower, 1)
+        _add_lessons(db_session, entry_upper, 1)
+
+        migration.upgrade()
+        db_session.expire_all()
+        first = db_session.get(Module, entry_upper.id).prerequisites
+        migration.upgrade()
+        db_session.expire_all()
+
+        assert db_session.get(Module, entry_upper.id).prerequisites == first
+
+
+class TestDowngradeStripsOnlyItsOwnRows:
+    """``strip_marker_entries`` is what makes downgrade non-destructive."""
+
+    def _strip(self):
+        import importlib.util
+        from pathlib import Path
+
+        path = (
+            Path(__file__).resolve().parents[2]
+            / 'migrations' / 'versions' / '20260808_level_entry_prerequisites.py'
+        )
+        spec = importlib.util.spec_from_file_location('level_entry_migration_dg', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.strip_marker_entries
+
+    def test_marker_entry_is_removed(self):
+        strip = self._strip()
+
+        assert strip([{'type': 'module', 'id': 4, 'source': 'level_entry_gate'}]) is None
+
+    def test_authored_entry_beside_a_marker_survives(self):
+        strip = self._strip()
+        authored = {'type': 'module', 'id': 9, 'min_score': 70}
+
+        kept = strip([{'source': 'level_entry_gate', 'id': 4}, authored])
+
+        assert kept == [authored]
+
+    @pytest.mark.parametrize('untouched', [
+        [{'type': 'module', 'id': 9}],   # marker matched other text, not a row of ours
+        'not json at all',
+        '{"type": "module"}',            # valid JSON, but not a list
+    ])
+    def test_rows_we_did_not_write_are_left_alone(self, untouched):
+        strip = self._strip()
+
+        assert strip(untouched) is False

@@ -172,6 +172,22 @@ class TestNormalizationOnLiveSchema:
 
         assert gated.prerequisites == ['module_1', 'module_2']
 
+    def test_restore_skips_rows_it_did_not_write(self, db_session, prereq_migration):
+        """The downgrade selects by ``LIKE '%slug_normalized%'``, which also
+        matches a row that merely mentions the marker. Rewriting those would
+        both corrupt authored data and inflate the restored count."""
+        level = _make_level(db_session, 919)
+        target = _make_module(db_session, level, 1)
+        authored = [{'type': 'module', 'id': target.id, 'note': 'slug_normalized by hand'}]
+        gated = _make_module(db_session, level, 2, prerequisites=authored)
+        db_session.flush()
+
+        restored = prereq_migration.restore_slugs(db_session.connection())
+        db_session.expire(gated)
+
+        assert restored == 0
+        assert gated.prerequisites == authored
+
     def test_running_twice_changes_nothing(self, db_session, prereq_migration):
         level = _make_level(db_session, 918)
         _make_module(db_session, level, 1)

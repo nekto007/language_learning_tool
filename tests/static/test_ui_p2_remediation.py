@@ -136,9 +136,19 @@ class TestKeyboardReachability:
     def test_bottom_nav_more_is_a_button_in_the_tab_order(self):
         source = _read(TPL / 'base.html')
         block = source[source.index('id="bottom-nav-more"') - 200:][:600]
-        assert 'role="button"' in block
-        assert 'tabindex="0"' in block
+        # A real <button> rather than role="button": it is natively focusable
+        # (so no tabindex) and it activates on Enter/Space without help.
+        assert '<button type="button"' in block
         assert 'aria-expanded' in block
+
+    def test_the_dropdown_is_not_nested_inside_the_trigger(self):
+        """Links inside a button are not reliably exposed by assistive tech —
+        and a keydown handler on their ancestor swallowed their Enter."""
+        source = _read(TPL / 'base.html')
+        trigger_at = source.index('id="bottom-nav-more"')
+        dropdown_at = source.index('id="bottom-nav-dropdown"')
+        between = source[trigger_at:dropdown_at]
+        assert '</button>' in between, 'the trigger must close before the menu opens'
 
     def test_bottom_nav_more_handles_enter_space_and_escape(self):
         source = _read(TPL / 'base.html')

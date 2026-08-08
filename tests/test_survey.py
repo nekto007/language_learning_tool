@@ -133,7 +133,11 @@ class TestSurveyEndpoints:
         })
 
         assert resp.status_code == 400
-        assert Feedback.query.filter_by(category='survey').count() == 0
+        # Scoped to this user: a global count would depend on sibling tests
+        # being rolled back before this one runs.
+        assert Feedback.query.filter_by(
+            category='survey', user_id=test_user.id,
+        ).count() == 0
 
     def test_non_string_answer_is_rejected(self, authenticated_client, db_session, test_user):
         _age_account(db_session, test_user, 30)
@@ -159,6 +163,59 @@ class TestSurveyEndpoints:
         record_survey_dismissal(test_user.id)
         db_session.commit()
         assert should_show_survey(test_user) is False
+
+    def test_a_json_array_body_is_a_400_not_a_500(
+        self, authenticated_client, db_session, test_user,
+    ):
+        # `get_json() or {}` keeps a non-empty list, which has no `.get`.
+        _age_account(db_session, test_user, 30)
+
+        resp = authenticated_client.post(
+            '/api/feedback/survey',
+            data='[1]',
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 400
+
+    def test_an_answered_account_cannot_post_again(
+        self, authenticated_client, db_session, test_user,
+    ):
+        # The "at most twice, never again once answered" contract is enforced on
+        # the endpoint, not only by whether the dashboard renders the invite.
+        _age_account(db_session, test_user, 30)
+        db_session.add(SurveyPrompt(user_id=test_user.id, answered_at=_naive_now()))
+        db_session.commit()
+
+        resp = authenticated_client.post('/api/feedback/survey', json={'works': 'ещё раз'})
+
+        assert resp.status_code == 409
+        assert Feedback.query.filter_by(
+            category='survey', user_id=test_user.id,
+        ).count() == 0
+
+    def test_a_fresh_account_cannot_post(
+        self, authenticated_client, db_session, test_user,
+    ):
+        _age_account(db_session, test_user, SURVEY_MIN_ACCOUNT_AGE_DAYS - 1)
+
+        resp = authenticated_client.post('/api/feedback/survey', json={'works': 'рано'})
+
+        assert resp.status_code == 409
+
+    def test_dismissal_is_idempotent_under_a_double_click(
+        self, authenticated_client, db_session, test_user,
+    ):
+        # `_get_or_create_prompt` inserts the row; two arrivals must not collide
+        # on the survey_prompts primary key.
+        _age_account(db_session, test_user, 30)
+
+        first = authenticated_client.post('/api/feedback/survey/dismiss', json={})
+        second = authenticated_client.post('/api/feedback/survey/dismiss', json={})
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert SurveyPrompt.query.get(test_user.id).dismiss_count == 2
 
     def test_survey_requires_login(self, client):
         resp = client.post('/api/feedback/survey', json={'works': 'x'})

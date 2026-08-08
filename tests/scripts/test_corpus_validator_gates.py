@@ -61,8 +61,22 @@ class TestValidateCorpusSchemaGate:
             text=True,
             env={'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HOME': str(Path.home())},
         )
+        # Positive assertions first: two "substring is absent" checks also pass
+        # when the script died before printing anything at all.
+        assert proc.returncode in (0, 1), (proc.returncode, proc.stderr[:2000])
+        assert 'CORPUS VALIDATION' in proc.stdout, proc.stdout[:2000]
         assert 'LessonContentValidator unavailable' not in proc.stdout, proc.stdout[:2000]
         assert 'schema check skipped' not in proc.stdout, proc.stdout[:2000]
+
+    def test_an_empty_corpus_is_a_failure_not_a_pass(self):
+        """module_completed/ is gitignored — zero files must not report PASS."""
+        source = (SCRIPTS / 'validate_corpus.py').read_text(encoding='utf-8')
+        tree = ast.parse(source)
+        body = ast.unparse(_function(tree, 'main'))
+        guard_at = body.index('if not files:')
+        loop_at = body.index('for fp in files:')
+        assert guard_at < loop_at
+        assert 'E(' in body[guard_at:loop_at], 'an empty corpus must raise a blocking ERROR'
 
     def test_missing_validator_is_a_blocking_error_not_a_note(self):
         """Without the schema the gate must fail, not print PASS with a footnote."""

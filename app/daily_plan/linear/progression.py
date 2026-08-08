@@ -48,16 +48,32 @@ def find_next_lesson_linear(
 ) -> Optional[Lessons]:
     """Return the next incomplete lesson on the linear curriculum spine.
 
+    Thin wrapper over :func:`find_next_lesson_state` for the callers that only
+    need the lesson.
+    """
+    return find_next_lesson_state(user_id, db, exclude_lesson_ids)[0]
+
+
+def find_next_lesson_state(
+    user_id: int,
+    db: Any,
+    exclude_lesson_ids: Optional[set[int]] = None,
+) -> tuple[Optional[Lessons], Optional[int]]:
+    """Return ``(next_lesson, blocking_module_id)`` for the linear spine.
+
     Lessons are ordered by (CEFRLevel.order, Module.number, Lessons.number).
     Anything whose level is below the user's onboarding level is skipped.
     Any module whose prerequisites are not satisfied for the user is skipped
     so users cannot bypass checkpoints by URL manipulation — if that leaves
-    nothing accessible, returns None.
+    nothing accessible, the lesson is None.
 
     ``exclude_lesson_ids`` may be provided by callers that need to omit
     lessons already represented elsewhere in the current chain.
 
-    Returns None when the user has completed every eligible lesson.
+    The second element separates the two ways of arriving at ``None``: the
+    learner finished everything (None), or an unsatisfied prerequisite hid the
+    remainder of the spine (the id of the first module that blocked). Callers
+    must not read a blocked spine as graduation.
 
     Result is memoized per request keyed on (user_id, exclude_lesson_ids)
     because dashboard / plan assembly calls this 8+ times with the same
@@ -69,7 +85,7 @@ def find_next_lesson_linear(
     cache_key: Any = None
     if cache is not None:
         ex_key = frozenset(exclude_lesson_ids) if exclude_lesson_ids else None
-        cache_key = ('find_next_lesson_linear', user_id, ex_key)
+        cache_key = ('find_next_lesson_state', user_id, ex_key)
         if cache_key in cache:
             return cache[cache_key]
 
@@ -104,11 +120,28 @@ def find_next_lesson_linear(
     )
 
     module_access: dict[int, bool] = {}
+    # A hard-blocked module takes the rest of its CEFR level with it. Skipping
+    # only the blocked module would hand back the *next* module's first lesson,
+    # and that module usually carries no prerequisites of its own — so
+    # check_module_access falls through to the intra-level rule, sees the
+    # blocked predecessor at 0% completion and 403s the very lesson the plan
+    # just offered as required. build_curriculum_queue applies the same rule to
+    # the optional queue; the required item has to agree with it.
+    blocked_level_id: Any = None
+    blocking_module_id: Optional[int] = None
     for lesson in candidates:
         module_id = lesson.module_id
+        module = db.session.get(Module, module_id)
+        level_id = module.level_id if module is not None else None
+
+        if blocked_level_id is not None:
+            if level_id == blocked_level_id:
+                continue
+            # The spine moved on to a later level; the block no longer applies.
+            blocked_level_id = None
+
         accessible = module_access.get(module_id)
         if accessible is None:
-            module = db.session.get(Module, module_id)
             accessible = True
             if module is not None:
                 # Pass min_level_order so a placement-test C1 student
@@ -124,24 +157,36 @@ def find_next_lesson_linear(
                         user_id, module_id, _reasons,
                     )
             module_access[module_id] = accessible
-        if accessible:
-            module = db.session.get(Module, lesson.module_id)
-            level_code = None
-            if module is not None:
-                level = db.session.get(CEFRLevel, module.level_id)
-                level_code = level.code if level is not None else None
-            logger.debug(
-                "linear_progression user=%s next_lesson=%s type=%s module=%s level=%s",
-                user_id, lesson.id, lesson.type,
-                getattr(module, 'number', None), level_code,
-            )
-            if cache is not None and cache_key is not None:
-                cache[cache_key] = lesson
-            return lesson
-    logger.debug("linear_progression user=%s no_eligible_lesson min_order=%s", user_id, min_order)
+        if not accessible:
+            if blocking_module_id is None:
+                blocking_module_id = module_id
+            if level_id is not None:
+                blocked_level_id = level_id
+            continue
+        level_code = None
+        if level_id is not None:
+            level = db.session.get(CEFRLevel, level_id)
+            level_code = level.code if level is not None else None
+        logger.debug(
+            "linear_progression user=%s next_lesson=%s type=%s module=%s level=%s",
+            user_id, lesson.id, lesson.type,
+            getattr(module, 'number', None), level_code,
+        )
+        if cache is not None and cache_key is not None:
+            cache[cache_key] = (lesson, None)
+        return lesson, None
+    if blocking_module_id is not None:
+        logger.info(
+            "linear_progression user=%s spine_blocked_by_module=%s min_order=%s",
+            user_id, blocking_module_id, min_order,
+        )
+    else:
+        logger.debug(
+            "linear_progression user=%s no_eligible_lesson min_order=%s", user_id, min_order,
+        )
     if cache is not None and cache_key is not None:
-        cache[cache_key] = None
-    return None
+        cache[cache_key] = (None, blocking_module_id)
+    return None, blocking_module_id
 
 
 def get_user_level_progress(
