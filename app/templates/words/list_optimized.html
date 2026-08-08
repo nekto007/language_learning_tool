@@ -296,6 +296,12 @@
 
     <!-- Mobile Word Cards (shown on mobile only) -->
     <div class="vocab-mobile-cards">
+        {# The table (and with it #selectAll) is display:none below 641px, so the
+           mobile list needs its own "select all" or bulk actions are unreachable. #}
+        <label class="vocab-mobile-selectall">
+            <input type="checkbox" id="selectAllMobile" class="vocab-mobile-card__checkbox">
+            <span>{{ _('Выбрать все') }}</span>
+        </label>
         {% for word in words.items %}
         <div class="vocab-mobile-card vocab-mobile-card--{{ word.user_status or 'new' }}">
             <div class="vocab-mobile-card__header">
@@ -700,25 +706,50 @@ function updateWordStatusApi(wordId, status, deckId) {
 }
 
 // Массовые действия
-function toggleSelectAll() {
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const wordCheckboxes = document.querySelectorAll('.word-checkbox');
-
-    wordCheckboxes.forEach(checkbox => {
-        checkbox.checked = selectAllCheckbox.checked;
+//
+// Каждое слово рендерится дважды — строкой таблицы и мобильной карточкой,
+// и оба узла живут в DOM независимо от того, какой из них скрыт CSS.
+// Поэтому считать и отправлять надо уникальные id, а не узлы.
+function getSelectedWordIdsUnique() {
+    const ids = new Set();
+    document.querySelectorAll('.word-checkbox:checked').forEach(checkbox => {
+        const id = parseInt(checkbox.value, 10);
+        if (!isNaN(id)) ids.add(id);
     });
+    return Array.from(ids);
+}
 
+function syncTwinCheckbox(checkbox) {
+    const wordId = checkbox.dataset.wordId;
+    if (!wordId) return;
+    document.querySelectorAll('.word-checkbox[data-word-id="' + wordId + '"]').forEach(twin => {
+        twin.checked = checkbox.checked;
+    });
+}
+
+function setAllCheckboxes(checked) {
+    document.querySelectorAll('.word-checkbox').forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    ['selectAll', 'selectAllMobile'].forEach(id => {
+        const box = document.getElementById(id);
+        if (box) box.checked = checked;
+    });
     updateBulkActionsPanel();
 }
 
+function toggleSelectAll() {
+    setAllCheckboxes(document.getElementById('selectAll').checked);
+}
+
 function updateBulkActionsPanel() {
-    const checkedBoxes = document.querySelectorAll('.word-checkbox:checked');
+    const selectedIds = getSelectedWordIdsUnique();
     const bulkPanel = document.getElementById('bulkActionsPanel');
     const selectedCount = document.getElementById('selectedCount');
 
-    if (checkedBoxes.length > 0) {
+    if (selectedIds.length > 0) {
         bulkPanel.style.display = 'block';
-        selectedCount.textContent = checkedBoxes.length;
+        selectedCount.textContent = selectedIds.length;
         // Добавляем небольшую задержку для плавной анимации
         setTimeout(() => {
             bulkPanel.classList.add('show');
@@ -733,17 +764,13 @@ function updateBulkActionsPanel() {
 }
 
 function clearSelection() {
-    const checkboxes = document.querySelectorAll('.word-checkbox, #selectAll');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = false;
-    });
-    updateBulkActionsPanel();
+    setAllCheckboxes(false);
 }
 
 function bulkUpdateStatus(status) {
-    const checkedBoxes = document.querySelectorAll('.word-checkbox:checked');
+    const selectedIds = getSelectedWordIdsUnique();
 
-    if (checkedBoxes.length === 0) {
+    if (selectedIds.length === 0) {
         alert('{{ _("Выберите слова для обновления") }}');
         return;
     }
@@ -760,13 +787,7 @@ function bulkUpdateStatus(status) {
         if (!confirmed) return;
     }
 
-    const wordIds = Array.from(checkedBoxes).map(checkbox => {
-        const id = parseInt(checkbox.value);
-        if (isNaN(id)) {
-            throw new Error(`Invalid word ID: ${checkbox.value}`);
-        }
-        return id;
-    });
+    const wordIds = selectedIds;
 
     // If bulk adding to study (learning/mastered), show deck selection modal
     if (status === 'learning' || status === 'mastered') {
@@ -842,12 +863,22 @@ function executeBulkUpdate(wordIds, status, deckId) {
     });
 }
 
-// Добавляем обработчики событий для чекбоксов
-document.addEventListener('DOMContentLoaded', function() {
-    const wordCheckboxes = document.querySelectorAll('.word-checkbox');
-    wordCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateBulkActionsPanel);
-    });
+// Добавляем обработчики событий для чекбоксов.
+// Делегирование, а не привязка к узлам: main.js когда-то подменял чекбоксы
+// клонами и сносил прямые слушатели вместе с ними.
+document.addEventListener('change', function(e) {
+    const checkbox = e.target;
+    if (!checkbox.classList) return;
+
+    if (checkbox.id === 'selectAllMobile') {
+        setAllCheckboxes(checkbox.checked);
+        return;
+    }
+
+    if (!checkbox.classList.contains('word-checkbox')) return;
+
+    syncTwinCheckbox(checkbox);
+    updateBulkActionsPanel();
 });
 
 // Event delegation (CSP-safe replacement for inline onclick=).
