@@ -11,8 +11,9 @@ and the notification fan-out instead of needing their own screens.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from app.feedback.models import (
     SURVEY_ANSWER_MAX_LENGTH,
@@ -32,7 +33,7 @@ SURVEY_QUESTIONS: Sequence[tuple[str, str]] = (
 )
 
 
-def _naive_utc(value: Optional[datetime]) -> Optional[datetime]:
+def _naive_utc(value: datetime | None) -> datetime | None:
     """Normalise to the naive-UTC basis the DateTime columns store.
 
     ``User.created_at`` is written with an aware default but read back naive,
@@ -41,19 +42,19 @@ def _naive_utc(value: Optional[datetime]) -> Optional[datetime]:
     if value is None:
         return None
     if value.tzinfo is not None:
-        return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.astimezone(UTC).replace(tzinfo=None)
     return value
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
-def get_prompt(user_id: int) -> Optional[SurveyPrompt]:
+def get_prompt(user_id: int) -> SurveyPrompt | None:
     return SurveyPrompt.query.get(user_id)
 
 
-def should_show_survey(user: Any, now: Optional[datetime] = None) -> bool:
+def should_show_survey(user: Any, now: datetime | None = None) -> bool:
     """Is this learner due to be asked right now?
 
     True when the account is old enough, the survey has not been answered, and
@@ -80,9 +81,7 @@ def should_show_survey(user: Any, now: Optional[datetime] = None) -> bool:
         return False
 
     dismissed_at = _naive_utc(prompt.dismissed_at)
-    if dismissed_at is not None and moment - dismissed_at < timedelta(days=SURVEY_SNOOZE_DAYS):
-        return False
-    return True
+    return dismissed_at is None or moment - dismissed_at >= timedelta(days=SURVEY_SNOOZE_DAYS)
 
 
 def _get_or_create_prompt(user_id: int) -> SurveyPrompt:

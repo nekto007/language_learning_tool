@@ -1,6 +1,6 @@
 """Two-week product survey: who gets asked, and what an answer becomes."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -19,7 +19,7 @@ from app.feedback.survey import (
 
 
 def _naive_now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _age_account(db_session, user, days: int):

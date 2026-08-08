@@ -194,7 +194,7 @@ class SurveyPrompt(db.Model):
     answered_at = db.Column(db.DateTime, nullable=True)
 
     def __repr__(self) -> str:
-        state = 'answered' if self.answered_at else f'dismissed×{self.dismiss_count}'
+        state = 'answered' if self.answered_at else f'dismissed x{self.dismiss_count}'
         return f'<SurveyPrompt user={self.user_id} {state}>'
 
 

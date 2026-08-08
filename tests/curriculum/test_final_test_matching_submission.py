@@ -13,7 +13,7 @@ verdict, plus the ``BuildError`` the broken copy raised on exhausted attempts.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -125,7 +125,7 @@ class TestExhaustedAttemptsRedirect:
         self, authenticated_client, db_session, matching_final_test,
     ):
         user_id = authenticated_client.application.test_user.id
-        started = datetime.now(timezone.utc).replace(tzinfo=None)
+        started = datetime.now(UTC).replace(tzinfo=None)
         for n in range(3):
             db_session.add(LessonAttempt(
                 user_id=user_id,
@@ -150,7 +150,7 @@ class TestExhaustedAttemptsRedirect:
         self, authenticated_client, db_session, matching_final_test,
     ):
         user_id = authenticated_client.application.test_user.id
-        started = datetime.now(timezone.utc).replace(tzinfo=None)
+        started = datetime.now(UTC).replace(tzinfo=None)
         for n in range(3):
             db_session.add(LessonAttempt(
                 user_id=user_id,

@@ -7,7 +7,7 @@ the user for finishing the deck.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -32,12 +32,12 @@ def exhausted_deck(db_session, test_user):
     db_session.add(user_word)
     db_session.flush()
 
-    future = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7)
+    future = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=7)
     for direction in ('eng-rus', 'rus-eng'):
         row = UserCardDirection(user_word_id=user_word.id, direction=direction)
         row.state = 'review'
         row.next_review = future
-        row.first_reviewed = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+        row.first_reviewed = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
         row.repetitions = 3
         db_session.add(row)
     db_session.flush()
