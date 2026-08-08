@@ -20,6 +20,7 @@ import pytest
 from scripts.strip_generator_boilerplate import (
     fix_json_corpus,
     fix_lesson,
+    restore_vocab_filler,
     strip_reading_filler,
     strip_stub_explanations,
     strip_vocab_filler,
@@ -168,3 +169,126 @@ class TestCorpusIsClean:
         assert fix_json_corpus(tmp_path, apply=True) == {'CNT-006': 1}
         assert 'focused classroom practice' not in path.read_text(encoding='utf-8')
         assert fix_json_corpus(tmp_path, apply=False) == {}
+
+
+class TestContextualExampleFloor:
+    """CNT-006 stands down where the filler is the only thing meeting the bar.
+
+    ``tests/test_module_content_quality.py`` requires B1+ vocabulary examples to
+    be full sentences. Measured on the corpus: all 196 filler-carrying examples
+    fall below that floor once stripped, because the real example under the
+    filler is 3-6 words. Stripping there would trade a cosmetic defect for a
+    content-quality one, and writing longer examples is authoring work — so the
+    finding closes only for levels without a floor, and the rest is recorded.
+    """
+
+    SHORT = {'vocabulary': [
+        {'example': 'Urban life is busy. It appears during focused classroom practice.'},
+    ]}
+    LONG = {'vocabulary': [
+        {'example': 'The landlord raised the rent again this year. '
+                    'It appears during focused classroom practice.'},
+    ]}
+
+    def test_short_example_keeps_the_filler_at_b1(self):
+        _new, hits = strip_vocab_filler(self.SHORT, min_words=6)
+        assert hits == 0
+
+    def test_long_example_is_stripped_at_b1(self):
+        new, hits = strip_vocab_filler(self.LONG, min_words=6)
+        assert hits == 1
+        assert 'classroom practice' not in new['vocabulary'][0]['example']
+
+    def test_no_floor_means_always_strip(self):
+        """A1/A2 carry no contextual-example requirement."""
+        _new, hits = strip_vocab_filler(self.SHORT, min_words=0)
+        assert hits == 1
+
+    def test_level_selects_the_floor(self):
+        assert fix_lesson('vocabulary', self.SHORT, 'B1')[1] == {}
+        assert fix_lesson('vocabulary', self.SHORT, 'A2')[1] == {'CNT-006': 1}
+
+    def test_word_count_matches_the_test_that_enforces_the_floor(self):
+        from scripts.strip_generator_boilerplate import _word_count
+        from tests.test_module_content_quality import word_count
+
+        for sample in ('Urban life is very busy.', "It's a well-known fact.", 'A B C'):
+            assert _word_count(sample) == word_count(sample)
+
+
+class TestRepairMode:
+    """The one-off reconciliation for a corpus the first revision over-stripped."""
+
+    def test_restores_the_filler_only_below_the_floor(self):
+        content = {'vocabulary': [
+            {'example': 'Urban life is busy.'},
+            {'example': 'The landlord raised the rent again this year.'},
+        ]}
+        new, hits = restore_vocab_filler(content, min_words=6)
+        assert hits == 1
+        assert new['vocabulary'][0]['example'].endswith('focused classroom practice.')
+        assert 'classroom practice' not in new['vocabulary'][1]['example']
+
+    def test_never_doubles_the_filler(self):
+        content = {'vocabulary': [
+            {'example': 'Urban life is busy. It appears during focused classroom practice.'},
+        ]}
+        _new, hits = restore_vocab_filler(content, min_words=6)
+        assert hits == 0
+
+    def test_no_floor_is_a_no_op(self):
+        content = {'vocabulary': [{'example': 'Short one.'}]}
+        assert restore_vocab_filler(content, min_words=0) == (content, 0)
+
+
+class TestReadingDuplicatesGoWithTheFiller:
+    """CNT-007 — the filler was the only difference between repeated blocks."""
+
+    def test_exact_repeat_is_dropped_not_stuttered(self):
+        content = {'text': {'lines': [
+            {'text': 'The crime rate has decreased.'},
+            {'text': 'The law protects citizens.'},
+            {'text': 'The crime rate has decreased. This reading version adds context one.'},
+        ]}}
+        new, hits = strip_reading_filler(content)
+        texts = [line['text'] for line in new['text']['lines']]
+        assert texts == ['The crime rate has decreased.', 'The law protects citizens.']
+        assert hits == 2
+
+    def test_distinct_lines_all_survive(self):
+        content = {'text': {'lines': [
+            {'text': 'A sentence. This reading version adds context one.'},
+            {'text': 'Another sentence. This reading version adds context one.'},
+        ]}}
+        new, _ = strip_reading_filler(content)
+        assert [line['text'] for line in new['text']['lines']] == ['A sentence.', 'Another sentence.']
+
+    def test_rerunning_converges(self):
+        content = {'text': {'lines': [
+            {'text': 'One. This reading version adds context one.'},
+            {'text': 'One.'},
+        ]}}
+        once, _ = strip_reading_filler(content)
+        twice, hits = strip_reading_filler(once)
+        assert hits == 0 and twice == once
+
+    def test_live_corpus_has_no_duplicate_reading_lines(self):
+        import json
+        from collections import Counter
+
+        source_dir = Path(__file__).resolve().parents[2] / 'module_completed' / 'fixed'
+        if not source_dir.is_dir():
+            pytest.skip('corpus is gitignored and absent in this checkout')
+        offenders = []
+        for path in sorted(source_dir.glob('*.json')):
+            module = json.loads(path.read_text(encoding='utf-8')).get('module') or {}
+            for lesson in module.get('lessons') or []:
+                if lesson.get('type') != 'reading':
+                    continue
+                text = (lesson.get('content') or {}).get('text')
+                if not isinstance(text, dict):
+                    continue
+                lines = [x.get('text', '') for x in text.get('lines', []) if isinstance(x, dict)]
+                counts = Counter(lines)
+                offenders += [(path.name, t) for t, n in counts.items() if t and n > 1]
+        assert offenders == []

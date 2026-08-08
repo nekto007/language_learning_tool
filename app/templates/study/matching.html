@@ -340,7 +340,7 @@
                 // Show error message
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'alert alert-danger text-center';
-                errorDiv.textContent = _('Failed to load game. Please try again.');
+                errorDiv.textContent = {{ _('Failed to load game. Please try again.') | tojson }};
                 document.querySelector('#matching-game-app').appendChild(errorDiv);
             }
         }

@@ -22,6 +22,25 @@
     <!-- Design System (unified CSS) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20260602a">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script nonce="{{ csp_nonce }}">
+    // UI-017: 31 call sites pass {behavior:'smooth'} explicitly. The global
+    // `scroll-behavior: auto !important` rule in design-system.css does not
+    // apply in that case — per spec an explicit ScrollIntoViewOptions.behavior
+    // wins over the CSS property — so a reduced-motion user still got an
+    // animated jump on every checked answer. Downgrade it once, here, instead
+    // of editing every call site (and every future one).
+    (function () {
+        var query = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (!query || !Element.prototype.scrollIntoView) return;
+        var native = Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView = function (options) {
+            if (query.matches && options && typeof options === 'object' && options.behavior === 'smooth') {
+                options = Object.assign({}, options, { behavior: 'auto' });
+            }
+            return native.call(this, options);
+        };
+    })();
+    </script>
     <!-- OG defaults (override og_tags block in child templates) -->
     {% block og_tags %}
     <meta property="og:title" content="{{ site_settings.site_title or 'LLT English — Платформа для изучения английского языка' }}">
@@ -433,7 +452,9 @@
             <span class="bottom-nav__icon"><i class="fas fa-flask"></i></span>
             <span class="bottom-nav__label">Грамматика</span>
         </a>
-        <div class="bottom-nav__item bottom-nav__more" id="bottom-nav-more">
+        <div class="bottom-nav__item bottom-nav__more" id="bottom-nav-more"
+             role="button" tabindex="0" aria-haspopup="true" aria-expanded="false"
+             aria-controls="bottom-nav-dropdown" aria-label="Ещё">
             <span class="bottom-nav__icon"><i class="fas fa-ellipsis-h"></i></span>
             <span class="bottom-nav__label">Ещё</span>
             <div class="bottom-nav__dropdown" id="bottom-nav-dropdown">
@@ -463,12 +484,41 @@
         var moreBtn = document.getElementById('bottom-nav-more');
         var dropdown = document.getElementById('bottom-nav-dropdown');
         if (moreBtn && dropdown) {
+            // UI-015: this was a click-only <div>. Tab skipped it and Enter/Space
+            // did nothing, so the whole "Ещё" section (books, words, stats,
+            // settings) was unreachable from a keyboard on mobile widths.
+            var setOpen = function(open) {
+                dropdown.classList.toggle('bottom-nav__dropdown--open', open);
+                moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            };
+            var isOpen = function() {
+                return dropdown.classList.contains('bottom-nav__dropdown--open');
+            };
             moreBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                dropdown.classList.toggle('bottom-nav__dropdown--open');
+                setOpen(!isOpen());
+            });
+            moreBtn.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setOpen(!isOpen());
+                    if (isOpen()) {
+                        var first = dropdown.querySelector('.bottom-nav__dropdown-item');
+                        if (first) first.focus();
+                    }
+                } else if (e.key === 'Escape' && isOpen()) {
+                    setOpen(false);
+                }
+            });
+            dropdown.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    setOpen(false);
+                    moreBtn.focus();
+                }
             });
             document.addEventListener('click', function() {
-                dropdown.classList.remove('bottom-nav__dropdown--open');
+                setOpen(false);
             });
         }
     })();
@@ -602,7 +652,8 @@ document.addEventListener('click', function(e) {
 </script>
 
 <!-- Level-up celebration check -->
-<div id="levelup-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+<div id="levelup-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5); align-items:center; justify-content:center;"
+     role="dialog" aria-modal="true" aria-labelledby="levelup-title" aria-describedby="levelup-desc" aria-hidden="true">
   <div style="background:#fff; border-radius:16px; padding:2rem; max-width:380px; width:90%; text-align:center; animation: land-slideUp .4s ease-out;">
     <div style="font-size:3rem; margin-bottom:0.5rem;" id="levelup-icon">🎉</div>
     <h2 style="font-size:1.5rem; font-weight:800; margin:0 0 0.5rem;" id="levelup-title">Новый уровень!</h2>
@@ -616,6 +667,56 @@ document.addEventListener('click', function(e) {
 <script nonce="{{ csp_nonce }}">
 (function() {
     var CHECK_DELAY = 2000;
+
+    // UI-016: the modal used to appear via display:flex alone — no role, no
+    // focus move, no Escape, and closing left focus on <body>. A screen-reader
+    // user got no announcement and a keyboard user was stranded behind it.
+    var levelupOpener = null;
+
+    function openLevelupModal() {
+        var modal = document.getElementById('levelup-modal');
+        if (!modal) return;
+        levelupOpener = document.activeElement;
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        var closeBtn = document.getElementById('levelup-modal-close');
+        if (closeBtn) closeBtn.focus();
+    }
+
+    function closeLevelupModal() {
+        var modal = document.getElementById('levelup-modal');
+        if (!modal) return;
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        if (levelupOpener && typeof levelupOpener.focus === 'function') {
+            levelupOpener.focus();
+        }
+        levelupOpener = null;
+    }
+
+    document.addEventListener('keydown', function(e) {
+        var modal = document.getElementById('levelup-modal');
+        if (!modal || modal.style.display === 'none') return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeLevelupModal();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        // Keep Tab inside the dialog while it is open.
+        var focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
+
     setTimeout(function() {
         // Pass last seen timestamp to avoid repeated popups
         var lastSeen = localStorage.getItem('llt_celeb_seen') || '';
@@ -632,11 +733,10 @@ document.addEventListener('click', function(e) {
 
                 // Level up detected
                 if (lastLevel > 0 && currentLevel > lastLevel) {
-                    var modal = document.getElementById('levelup-modal');
                     document.getElementById('levelup-icon').textContent = '🎉';
                     document.getElementById('levelup-title').textContent = 'Уровень ' + currentLevel + '!';
                     document.getElementById('levelup-desc').textContent = 'Поздравляем! Вы достигли уровня ' + currentLevel + '. Так держать!';
-                    modal.style.display = 'flex';
+                    openLevelupModal();
                     if (typeof showConfetti === 'function') showConfetti();
                     shown = true;
                 }
@@ -644,12 +744,11 @@ document.addEventListener('click', function(e) {
 
                 // Show celebrations (achievements, streak milestones) — only first unseen
                 if (data.celebrations && data.celebrations.length > 0 && !shown) {
-                    var modal = document.getElementById('levelup-modal');
                     var c = data.celebrations[0];
                     document.getElementById('levelup-icon').textContent = c.icon || '🎉';
                     document.getElementById('levelup-title').textContent = c.title;
                     document.getElementById('levelup-desc').textContent = c.description || '';
-                    modal.style.display = 'flex';
+                    openLevelupModal();
                     if (typeof showConfetti === 'function') showConfetti();
                 }
 
@@ -685,8 +784,7 @@ document.addEventListener('click', function(e) {
         });
         var lvlClose = document.getElementById('levelup-modal-close');
         if (lvlClose) lvlClose.addEventListener('click', function() {
-            var m = document.getElementById('levelup-modal');
-            if (m) m.style.display = 'none';
+            closeLevelupModal();
         });
         var lvlShare = document.getElementById('levelup-modal-share');
         if (lvlShare) lvlShare.addEventListener('click', function(e) {

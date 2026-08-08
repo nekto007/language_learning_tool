@@ -526,6 +526,21 @@ async function completeLesson() {
 document.addEventListener('DOMContentLoaded', init);
 
 // Annotation widget
+function showAnnotationError(widget, message) {
+  let el = widget.querySelector('.word-annotation__error');
+  if (!message) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'word-annotation__error';
+    el.setAttribute('role', 'alert');
+    widget.querySelector('.word-annotation__form').appendChild(el);
+  }
+  el.textContent = message;
+}
+
 (function initAnnotations() {
   document.querySelectorAll('.word-annotation__toggle').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
@@ -558,20 +573,29 @@ document.addEventListener('DOMContentLoaded', init);
         },
         body: JSON.stringify({ note: note })
       })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.ok) {
-          let textEl = widget.querySelector('.word-annotation__text');
-          if (!textEl) {
-            textEl = document.createElement('div');
-            textEl.className = 'word-annotation__text';
-            widget.insertBefore(textEl, widget.querySelector('.word-annotation__toggle'));
-          }
-          textEl.textContent = data.note;
-          widget.querySelector('.word-annotation__form').style.display = 'none';
-        }
+      .then(function(r) {
+        // UI-011: a 500 with an HTML body made r.json() reject, and an empty
+        // catch swallowed it — the note vanished with the form still open,
+        // indistinguishable from a slow response.
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
       })
-      .catch(function() {})
+      .then(function(data) {
+        if (!data || !data.ok) throw new Error(data && data.error ? data.error : 'save_failed');
+        let textEl = widget.querySelector('.word-annotation__text');
+        if (!textEl) {
+          textEl = document.createElement('div');
+          textEl.className = 'word-annotation__text';
+          widget.insertBefore(textEl, widget.querySelector('.word-annotation__toggle'));
+        }
+        textEl.textContent = data.note;
+        widget.querySelector('.word-annotation__form').style.display = 'none';
+        showAnnotationError(widget, '');
+      })
+      .catch(function(err) {
+        console.error('annotation save failed', err);
+        showAnnotationError(widget, {{ _('Не удалось сохранить заметку. Попробуйте ещё раз.') | tojson }});
+      })
       .finally(function() { btn.disabled = false; });
     });
   });
@@ -675,17 +699,25 @@ document.addEventListener('DOMContentLoaded', init);
           },
           body: JSON.stringify({ word: word, translation: translation }),
         })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.ok) {
-            btn.classList.add('word-add-to-list__btn--added');
-            const icon = btn.querySelector('i');
-            if (icon) icon.className = 'fas fa-check';
-            const label = btn.querySelector('.word-add-to-list__label');
-            if (label) label.textContent = '{{ _("Добавлено") }}';
-          }
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
         })
-        .catch(function() {});
+        .then(function(data) {
+          if (!data || !data.ok) throw new Error(data && data.error ? data.error : 'add_failed');
+          btn.classList.add('word-add-to-list__btn--added');
+          const icon = btn.querySelector('i');
+          if (icon) icon.className = 'fas fa-check';
+          const label = btn.querySelector('.word-add-to-list__label');
+          if (label) label.textContent = '{{ _("Добавлено") }}';
+        })
+        .catch(function(err) {
+          // UI-011: silently doing nothing here read as "already added".
+          console.error('add to list failed', err);
+          const label = btn.querySelector('.word-add-to-list__label');
+          if (label) label.textContent = {{ _('Не удалось добавить') | tojson }};
+          btn.classList.add('word-add-to-list__btn--failed');
+        });
       });
     });
   });

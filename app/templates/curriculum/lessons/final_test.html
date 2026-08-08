@@ -486,11 +486,15 @@ function selectLeftWord(questionIndex, pairId, button) {
   document.querySelectorAll(`.left-word[data-question="${questionIndex}"]`).forEach(btn => {
     if (!btn.classList.contains('matched')) {
       btn.classList.remove('selected');
+      // UI-024: selection lived only in a CSS class, so assistive tech never
+      // learned which half of the pair was picked.
+      btn.setAttribute('aria-pressed', 'false');
     }
   });
 
   // Select this button
   button.classList.add('selected');
+  button.setAttribute('aria-pressed', 'true');
   state.selectedLeft = { pairId, button };
 
   // If right is already selected, try to match
@@ -517,11 +521,15 @@ function selectRightWord(questionIndex, pairId, button) {
   document.querySelectorAll(`.right-word[data-question="${questionIndex}"]`).forEach(btn => {
     if (!btn.classList.contains('matched')) {
       btn.classList.remove('selected');
+      // UI-024: selection lived only in a CSS class, so assistive tech never
+      // learned which half of the pair was picked.
+      btn.setAttribute('aria-pressed', 'false');
     }
   });
 
   // Select this button
   button.classList.add('selected');
+  button.setAttribute('aria-pressed', 'true');
   state.selectedRight = { pairId, button };
 
   // If left is already selected, try to match
@@ -540,6 +548,8 @@ function checkMatch(questionIndex) {
   rightBtn.classList.remove('selected');
   leftBtn.classList.add('matched');
   rightBtn.classList.add('matched');
+  leftBtn.setAttribute('aria-pressed', 'false');
+  rightBtn.setAttribute('aria-pressed', 'false');
   if (isCorrect) {
     leftBtn.classList.add('correct-match');
     rightBtn.classList.add('correct-match');

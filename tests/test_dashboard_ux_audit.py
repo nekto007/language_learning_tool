@@ -18,12 +18,6 @@ pytestmark = pytest.mark.smoke
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates')
 _UNIFIED_PLAN_PATH = os.path.join(_TEMPLATES_DIR, 'partials', 'unified_daily_plan.html')
 _DASHBOARD_UNIFIED_PATH = os.path.join(_TEMPLATES_DIR, 'words', 'dashboard_unified.html')
-_JS_NEXT_STEP_PATH = os.path.join(
-    os.path.dirname(__file__), '..', 'app', 'static', 'js', 'daily-plan-next.js'
-)
-_JS_UNIFIED_PLAN_PATH = os.path.join(
-    os.path.dirname(__file__), '..', 'app', 'static', 'js', 'daily-plan-next.js'
-)
 
 
 def _build_env() -> Environment:
@@ -195,13 +189,11 @@ class TestDaySecured:
 
 
 class TestNullSafetyJS:
-    """daily-plan-next.js guards against null/undefined API responses."""
+    """The plan partial survives a null/partial payload.
 
-    def test_data_null_guard_present(self):
-        with open(_JS_NEXT_STEP_PATH, encoding='utf-8') as f:
-            src = f.read()
-        # Must have a null check before accessing data properties
-        assert "if (!data || typeof data !== 'object') return;" in src
+    The companion check against ``daily-plan-next.js`` went away with the file
+    itself — see UI-031 in docs/audit/2026-08-08-cross-zone-audit.md.
+    """
 
     def test_null_plan_payload_does_not_crash_template(self):
         """Template renders without exception when plan fields are None/missing."""

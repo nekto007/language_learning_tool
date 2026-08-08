@@ -53,7 +53,7 @@ class TestScriptIncludedInLessonBaseTemplate:
         assert idx_script < idx_helper, (
             'linear-plan-context.js must be included BEFORE the inline '
             'showLessonCompletion helper so the context API is available '
-            'when the helper dispatches dailyPlanStepComplete.'
+            'by the time the helper renders the completion CTAs.'
         )
 
 

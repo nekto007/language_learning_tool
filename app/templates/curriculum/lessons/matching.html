@@ -352,7 +352,11 @@ async function startGame() {
     
   } catch (error) {
     console.error('Error starting game:', error);
-    showError(_('Ошибка при загрузке игры. Попробуйте еще раз.'));
+    // The setup UI was hidden above, so leaving it hidden here left an empty
+    // screen with no way back except a reload (UI-008). Bring it back before
+    // reporting the failure.
+    elements.gameSetup.style.display = '';
+    showError({{ _('Ошибка при загрузке игры. Попробуйте еще раз.') | tojson }});
   }
 }
 

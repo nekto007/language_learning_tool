@@ -125,7 +125,10 @@
                 <h6 class="mt-3 mb-2">{{ _('Word Learning Progress') }}</h6>
                 <div class="progress mb-3">
                     <div class="progress-bar bg-success" role="progressbar" style="width: {{ (word_stats['mastered'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['mastered'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
-                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (word_stats['learning'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['queued'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
+                    {# UI-022: aria-valuenow read a `queued` key that word_stats has never
+                       had, so the bar reported an empty value while its width showed
+                       `learning`. Report the number the bar actually draws. #}
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (word_stats['learning'] / word_stats['total'] * 100) | int if word_stats['total'] > 0 else 0 }}%" aria-valuenow="{{ word_stats['learning'] }}" aria-valuemin="0" aria-valuemax="{{ word_stats['total'] }}"></div>
                 </div>
                 <div class="d-flex justify-content-between">
                     <small class="text-muted">{{ word_progress }}% {{ _('learned') }}</small>
@@ -150,9 +153,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-        <div id="processing-status" data-book-id="{{ book.id }}" class="card mb-4">
-            <!-- Статус обработки слов будет отображаться здесь через JavaScript -->
         </div>
 
         <!-- Reading Progress - Added for book reading functionality -->

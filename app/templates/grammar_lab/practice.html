@@ -171,7 +171,6 @@
           </div>
 
           <div class="practice-complete__actions">
-            <div id="daily-plan-next-step"></div>
             {% if return_url %}
             <a href="{{ return_url }}" class="practice-btn practice-btn--primary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -277,5 +276,4 @@ const topicExerciseIds = null;
 </script>
 <script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=1"></script>
 {% endif %}
-<script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
 {% endblock %}

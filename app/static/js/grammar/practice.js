@@ -705,6 +705,5 @@ document.getElementById('next-btn').addEventListener('click', function() {
     document.getElementById('progress-bar').style.width = '100%';
     document.getElementById('progress-text').textContent = `${exercises.length} / ${exercises.length}`;
 
-    document.dispatchEvent(new Event('dailyPlanStepComplete'));
   }
 });

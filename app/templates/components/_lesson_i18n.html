@@ -13,6 +13,24 @@ window.I18N = Object.assign(window.I18N || {}, {
   plan_next: {{ _('Следующий урок плана')|tojson }},
   dashboard: {{ _('На дашборд')|tojson }},
   retry_lesson: {{ _('Пройти ещё раз')|tojson }},
-  day_done: {{ _('День завершён · на дашборд')|tojson }}
+  day_done: {{ _('День завершён · на дашборд')|tojson }},
+  {# UI-029: CTAs that linear-plan-context.js / linear-daily-plan.js inject
+     client-side. Without these the server-rendered labels would switch on a
+     second locale while the JS-injected ones stayed Russian. #}
+  plan_next_slot: {{ _('Следующий слот плана')|tojson }},
+  plan_continue: {{ _('Продолжить план')|tojson }},
+  reading_slot_done: {{ _('Слот чтения выполнен')|tojson }},
+  day_saved: {{ _('День сохранён · На дашборд')|tojson }},
+  hide: {{ _('Скрыть')|tojson }},
+  skip_step_failed: {{ _('Не удалось пропустить шаг')|tojson }},
+  step_unknown: {{ _('Не удалось определить шаг')|tojson }},
+  finish_previous_first: {{ _('Сначала завершите предыдущее задание')|tojson }},
+  catalog_loading: {{ _('Загрузка каталога…')|tojson }},
+  catalog_failed: {{ _('Не удалось загрузить каталог. Попробуйте обновить страницу.')|tojson }},
+  choice_saving: {{ _('Сохраняем выбор…')|tojson }},
+  choice_failed: {{ _('Не удалось сохранить выбор. Попробуйте ещё раз.')|tojson }},
+  no_books_for_level: {{ _('Книг под ваш уровень пока нет.')|tojson }},
+  task_added_one: {{ _('+1 задание добавлено')|tojson }},
+  tasks_added_many: {{ _('заданий добавлено')|tojson }}
 });
 </script>

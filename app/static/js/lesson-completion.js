@@ -46,11 +46,20 @@
     if (!el) return;
     var gradeEl = document.getElementById('completion-grade');
     var scoreEl = document.getElementById('completion-score');
-    if (gradeEl && opts.grade_name) {
-      gradeEl.textContent = opts.grade_name;
-    }
-    if (scoreEl && opts.score !== undefined) {
-      scoreEl.textContent = Math.round(opts.score) + '%';
+
+    // UI-010: grade and score used to be written while the container was still
+    // display:none. Revealing a hidden node is not a content mutation, so the
+    // aria-live region announced nothing — the learner got no signal that the
+    // lesson had ended. Write them *after* the reveal instead, and move focus
+    // into the panel, which in plan mode replaces the footer the learner's
+    // focus was sitting in.
+    function _fillResult() {
+      if (gradeEl && opts.grade_name) {
+        gradeEl.textContent = opts.grade_name;
+      }
+      if (scoreEl && opts.score !== undefined) {
+        scoreEl.textContent = Math.round(opts.score) + '%';
+      }
     }
 
     function _hideLegacyFooter() {
@@ -58,10 +67,6 @@
       if (legacyFooter) {
         legacyFooter.classList.remove('lsn-footer--visible');
         legacyFooter.style.display = 'none';
-      }
-      var legacyDailyPlan = document.getElementById('daily-plan-next-step');
-      if (legacyDailyPlan) {
-        legacyDailyPlan.style.display = 'none';
       }
     }
 
@@ -71,10 +76,17 @@
       if (mode === 'plan') {
         _hideLegacyFooter();
       }
+      // Fill on the next frame so the mutation lands on a visible node and the
+      // live region actually announces it (UI-010).
+      window.requestAnimationFrame(function () {
+        _fillResult();
+        if (!opts.silent && typeof el.focus === 'function') {
+          el.focus({ preventScroll: true });
+        }
+      });
       if (!opts.silent) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-      document.dispatchEvent(new Event('dailyPlanStepComplete'));
     }
 
     function _renderPlanCtas(nextUrl, nextTitle, dashboardUrl) {

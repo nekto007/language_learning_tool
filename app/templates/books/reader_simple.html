@@ -147,7 +147,6 @@
           </button>
         </form>
         {% endif %}
-        <div id="daily-plan-next-step" style="grid-column: 1 / -1;"></div>
       </div>
     </div>
   </div>
@@ -373,10 +372,6 @@ function saveProgress(offsetPct) {
         if (indicator) {
             indicator.style.display = 'inline';
             setTimeout(() => { indicator.style.display = 'none'; }, 2000);
-        }
-        if (!_readingStepCompleteDispatched && offsetPct >= 0.5) {
-            _readingStepCompleteDispatched = true;
-            document.dispatchEvent(new Event('dailyPlanStepComplete'));
         }
         // Linear plan: when the server flags the reading slot as just
         // completed AND the user entered via ?from=linear_plan&slot=reading
@@ -1157,22 +1152,8 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Daily plan: preserve ?from=daily_plan on chapter navigation links
-(function() {
-  var params = new URLSearchParams(window.location.search);
-  if (params.get('from') !== 'daily_plan') return;
-
-  ['prev-chapter-link', 'next-chapter-link'].forEach(function(id) {
-    var link = document.getElementById(id);
-    if (link) {
-      var sep = link.href.indexOf('?') === -1 ? '?' : '&';
-      link.href += sep + 'from=daily_plan';
-    }
-  });
-})();
 </script>
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
-<script src="{{ url_for('static', filename='js/daily-plan-next.js') }}"></script>
 {% if current_chapter.audio_url %}
 <script nonce="{{ csp_nonce }}">
 (function() {
