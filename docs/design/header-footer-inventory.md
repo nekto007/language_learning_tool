@@ -59,6 +59,16 @@ User-group (правая часть navbar):
 - mobile bottom-nav (Главная, Курсы, Карточки, Грамматика, Ещё → Книги/Слова/Статистика/Настройки)
 - celebrations/level-up модал
 - CSRF auto-refresh
+- reduced-motion шим для `scrollIntoView` (см. `lesson-frontend-spec.md`, аудит `UI-017`)
+
+**A11y-контракт этих виджетов (добавлен 2026-08-08, аудит `UI-015`/`UI-016`) — не терять при
+переверстке:**
+- Кнопка «Ещё» в bottom-nav — `role="button"`, `tabindex`, `aria-expanded`/`aria-haspopup`,
+  открытие по Enter/Space, закрытие по Escape, фокус уезжает на первый пункт меню. До правки меню
+  открывалось только мышью.
+- Level-up модал — `role="dialog"`, `aria-modal`, `aria-labelledby`, фокус на кнопку при открытии,
+  Escape, ловушка Tab, возврат фокуса на триггер. Оба места показа идут через `openLevelupModal()` —
+  новые точки показа тоже, иначе контракт обходится.
 
 ## 3. Сломанные ссылки в текущем `public_base.html`
 
