@@ -220,6 +220,15 @@
   transform: scale(1.1);
 }
 
+/* Clip failed to load — stop pretending the control does something. */
+.audio-btn-card--unavailable,
+.audio-btn-card--unavailable:hover {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  background: rgba(255,255,255,0.1);
+}
+
 /* Flip Hint */
 .card-flip-hint {
   font-size: 0.9rem;

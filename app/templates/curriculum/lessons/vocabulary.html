@@ -273,6 +273,15 @@ const noCardsMessage = document.getElementById('no-cards-message');
 // Audio player
 const audioPlayer = new Audio();
 
+// A clip that will not load is not going to load on the next click either —
+// take the control out of the tab order and label it, instead of failing mute.
+function markAudioUnavailable(btn) {
+  btn.disabled = true;
+  btn.classList.add('audio-btn-card--unavailable');
+  btn.setAttribute('aria-label', '{{ _("Озвучка недоступна") }}');
+  btn.title = '{{ _("Озвучка недоступна") }}';
+}
+
 // Initialize
 function init() {
   if (cards.length === 0) return;
@@ -294,14 +303,20 @@ function init() {
     });
   });
 
-  // Audio buttons
+  // Audio buttons.
+  // 1570 pronunciation clips referenced by the corpus do not exist on disk
+  // (audit CNT-003). Without a .catch() the click produced silence plus an
+  // unhandled rejection, so the learner could not tell a missing file from a
+  // muted device; now the control disables itself and says so.
   document.querySelectorAll('.audio-btn-card').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const audioSrc = btn.getAttribute('data-audio');
-      if (audioSrc) {
-        audioPlayer.src = audioSrc;
-        audioPlayer.play();
+      if (!audioSrc) return;
+      audioPlayer.src = audioSrc;
+      const played = audioPlayer.play();
+      if (played && typeof played.catch === 'function') {
+        played.catch(() => markAudioUnavailable(btn));
       }
     });
   });
