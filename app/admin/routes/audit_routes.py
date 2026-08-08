@@ -6,9 +6,10 @@ import logging
 from datetime import datetime, timedelta
 
 from flask import Blueprint, Response, render_template, request, stream_with_context
+from flask_login import current_user
 from sqlalchemy import desc
 
-from app.admin.audit import AdminAuditLog
+from app.admin.audit import AdminAuditLog, log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.admin.utils.export_helpers import (
     MAX_EXPORT_ROWS,
@@ -123,6 +124,10 @@ def _get_audit_entries(
 @admin_required
 def audit_export_csv():
     """Export filtered audit log to CSV (max MAX_EXPORT_ROWS rows)."""
+    # ADM-007: the export of the audit log used to leave no trace in the audit log.
+    log_admin_action(current_user.id, 'audit_log.export_csv', target_type='audit_log')
+    db.session.commit()  # log_admin_action only stages; a GET has nothing else to commit
+
     admin_id_raw = request.args.get('admin_id', '').strip()
     admin_id = int(admin_id_raw) if admin_id_raw.isdigit() else None
     action_filter = request.args.get('action', '').strip()[:200]

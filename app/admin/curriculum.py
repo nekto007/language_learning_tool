@@ -769,6 +769,9 @@ def export_lesson(lesson_id):
     module = Module.query.get(lesson.module_id)
     level = CEFRLevel.query.get(module.level_id)
 
+    log_admin_action(current_user.id, 'lesson.export', target_type='lesson', target_id=lesson.id)
+    db.session.commit()
+
     # Создаем базовую структуру
     export_data = {
         'level': level.code,

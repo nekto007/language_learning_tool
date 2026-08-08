@@ -26,6 +26,7 @@ from app.admin.form import (
     WordFormationTaskForm,
 )
 from app.admin.utils.decorators import admin_required, handle_admin_errors
+from app.admin.utils.request_validators import escape_like
 from app.books.models import Book, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
@@ -1488,7 +1489,7 @@ def register_book_course_routes(admin_bp):
             word_book_link,
             CollectionWords.id == word_book_link.c.word_id
         ).filter(
-            CollectionWords.english_word.ilike(f'%{query}%')
+            CollectionWords.english_word.ilike(f'%{escape_like(query)}%', escape='\\')
         )
 
         # Filter by book if provided

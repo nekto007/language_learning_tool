@@ -374,6 +374,9 @@ def quiz_deck_export(deck_id):
     deck = QuizDeck.query.get_or_404(deck_id)
     words = deck.words.order_by(QuizDeckWord.order_index).all()
 
+    log_admin_action(current_user.id, 'quiz_deck.export', target_type='quiz_deck', target_id=deck.id)
+    db.session.commit()
+
     data = {
         'title': deck.title,
         'description': deck.description or '',
@@ -518,8 +521,8 @@ def api_words_search():
 
         words_query = words_query.filter(
             db.or_(
-                CollectionWords.english_word.ilike(f'%{query}%'),
-                CollectionWords.russian_word.ilike(f'%{query}%')
+                CollectionWords.english_word.ilike(f'%{escape_like(query)}%', escape='\\'),
+                CollectionWords.russian_word.ilike(f'%{escape_like(query)}%', escape='\\')
             )
         )
 

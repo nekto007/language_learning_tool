@@ -110,6 +110,9 @@ def export_words():
     format_type = get_choice_arg('format', ('json', 'csv', 'txt'), default='json')
     user_id = get_int_arg('user_id', min_val=1)
 
+    log_admin_action(current_user.id, 'word.export', target_type='word')
+    db.session.commit()
+
     try:
         words = WordManagementService.get_words_for_export(status, user_id)
 

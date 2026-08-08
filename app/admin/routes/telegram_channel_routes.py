@@ -11,7 +11,9 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.telegram.channel_models import (
     STATUS_FAILED,
@@ -137,6 +139,7 @@ def telegram_channel_skip(post_id: int):
         flash(f'Пост #{post.id} нельзя пропустить — статус {post.status}.', 'warning')
         return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
     post.status = STATUS_SKIPPED
+    log_admin_action(current_user.id, 'channel_post.skip', 'channel_post', post.id)
     db.session.commit()
     flash(f'Пост #{post.id} помечен как пропущенный.', 'success')
     return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
@@ -149,6 +152,8 @@ def telegram_channel_refill():
     days_ahead = request.form.get('days_ahead', 7, type=int)
     if days_ahead < 1 or days_ahead > 30:
         days_ahead = 7
+    log_admin_action(current_user.id, 'channel_post.refill', 'channel_post', None)
+    db.session.commit()
     try:
         created = queue_upcoming(days_ahead=days_ahead)
     except Exception:
@@ -166,6 +171,8 @@ def telegram_channel_refill():
 @admin_required
 def telegram_channel_test():
     """Send a one-off test message to the configured channel."""
+    log_admin_action(current_user.id, 'channel_post.send_test', 'channel_post', None)
+    db.session.commit()
     ok, message = send_test_message(db.session)
     flash(message, 'success' if ok else 'danger')
     return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
@@ -176,6 +183,8 @@ def telegram_channel_test():
 def telegram_channel_publish_now():
     """Run publish_due immediately — useful when the APScheduler is not running
     (e.g. dev without start-bot, or just after the admin set the channel id)."""
+    log_admin_action(current_user.id, 'channel_post.publish_now', 'channel_post', None)
+    db.session.commit()
     try:
         result = publish_due()
     except Exception:
@@ -215,6 +224,7 @@ def telegram_channel_resend(post_id: int):
     post.status = STATUS_QUEUED
     post.error = None
     post.scheduled_for = datetime.now(timezone.utc).replace(tzinfo=None)
+    log_admin_action(current_user.id, 'channel_post.resend', 'channel_post', post.id)
     db.session.commit()
     flash(f'Пост #{post.id} возвращён в очередь.', 'success')
     return redirect(url_for('telegram_channel_admin.telegram_channel_index'))
@@ -239,6 +249,7 @@ def telegram_channel_send_now(post_id: int):
 
     # Snap scheduled_for to "now minus one second" so publish_due picks it up.
     post.scheduled_for = datetime.now(timezone.utc).replace(tzinfo=None)
+    log_admin_action(current_user.id, 'channel_post.send_now', 'channel_post', post.id)
     db.session.commit()
 
     try:

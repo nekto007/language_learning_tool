@@ -13,9 +13,11 @@ import time as _time
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, make_response, render_template
+from flask_login import current_user
 from sqlalchemy import case, desc, distinct, func
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required, cache_result
 from app.auth.models import User
 from app.books.models import Book
@@ -956,6 +958,9 @@ def content_quality_export():
     import io
 
     from app.admin.utils.export_helpers import MAX_EXPORT_ROWS, _sanitize_csv_cell
+
+    log_admin_action(current_user.id, 'content_quality.export_csv', target_type='content_quality')
+    db.session.commit()
 
     detail = get_content_quality_detail()
     rows = detail['by_type'][:MAX_EXPORT_ROWS]

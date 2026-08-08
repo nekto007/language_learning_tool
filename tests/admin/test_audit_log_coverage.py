@@ -31,23 +31,14 @@ from app.auth.models import User
 from app.utils.db import db
 
 
-ADMIN_BLUEPRINT_PREFIXES = (
-    'admin.',
-    'admin_curriculum.',
-    'activity_admin.',
-    'audio_admin.',
-    'audit_admin.',
-    'book_admin.',
-    'collection_admin.',
-    'curriculum_admin.',
-    'grammar_lab_admin.',
-    'seo_admin.',
-    'settings_admin.',
-    'system_admin.',
-    'topic_admin.',
-    'user_admin.',
-    'word_admin.',
-)
+# An admin route is one served under /admin — derived from the URL map, never
+# from a hand-kept list. The literal list this replaces (15 blueprint prefixes)
+# had gone stale: `telegram_channel_admin`, `feedback_admin`,
+# `word_contrast_admin`, `acquisition_admin`, `dashboard_admin` and `reminders`
+# were all outside it, so the coverage scan skipped them entirely and seven
+# mutating routes — three of which publish to a public channel and one of which
+# sends a mass email — were never checked (audit ADM-002).
+ADMIN_URL_PREFIX = '/admin'
 
 MUTATING_METHODS = frozenset({'POST', 'PUT', 'DELETE', 'PATCH'})
 
@@ -75,11 +66,16 @@ AUDIT_LOG_WHITELIST = frozenset({
 ACTION_NAME_RE = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$')
 
 
+def _is_admin_rule(rule) -> bool:
+    path = str(rule)
+    return path == ADMIN_URL_PREFIX or path.startswith(ADMIN_URL_PREFIX + '/')
+
+
 def _admin_mutating_rules(app):
     """Yield (rule, methods) for every admin route exposing a mutating verb."""
     rules = []
     for rule in app.url_map.iter_rules():
-        if not rule.endpoint.startswith(ADMIN_BLUEPRINT_PREFIXES):
+        if not _is_admin_rule(rule):
             continue
         methods = (rule.methods or set()) & MUTATING_METHODS
         if not methods:

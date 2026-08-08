@@ -17,6 +17,7 @@ from flask import Blueprint, abort, flash, make_response, redirect, render_templ
 from flask_login import current_user
 from sqlalchemy import desc, func
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.auth.models import User
 from app.curriculum.models import LessonProgress
@@ -727,6 +728,16 @@ def send_reminders():
             # transient SMTP failure.
             db.session.delete(log)
             db.session.flush()
+
+    # ADM-002: ReminderLog records *that* a user was mailed, but nothing ties the
+    # campaign to the admin who launched it. One row per send, committed with the
+    # ReminderLog rows it documents.
+    log_admin_action(
+        current_user.id,
+        'reminder.send_campaign',
+        'reminder_campaign',
+        None,
+    )
 
     # Сохраняем изменения в базе данных
     db.session.commit()
