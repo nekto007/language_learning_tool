@@ -368,7 +368,35 @@ function completeLessonAPI(score) {
   })
   .then(r => { if (r.ok || r.status === 201) return r.json().catch(() => ({})); throw new Error('fail'); })
   .then(() => showCompletionUI())
-  .catch(e => { console.error(e); showCompletionUI(); });
+  .catch(e => { console.error(e); showSaveError(() => completeLessonAPI(score)); });
+}
+
+// A failed POST must not paint the success screen: the lesson is NOT recorded,
+// and telling the learner it is loses their work silently (audit UI-003).
+function showSaveError(retry) {
+  const actions = document.getElementById('results-actions');
+  if (!actions) return;
+  const isRu = (typeof LANG !== 'undefined' ? LANG : 'ru') === 'ru';
+  actions.textContent = '';
+
+  const note = document.createElement('p');
+  note.className = 'lesson-save-error';
+  note.setAttribute('role', 'alert');
+  note.textContent = isRu
+    ? 'Не удалось сохранить результат. Урок не засчитан — попробуйте ещё раз.'
+    : 'Could not save your result. The lesson was not recorded — please try again.';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'mt-results__btn mt-results__btn--primary';
+  button.textContent = isRu ? 'Повторить' : 'Retry';
+  button.addEventListener('click', function () {
+    actions.textContent = '';
+    retry();
+  });
+
+  actions.appendChild(note);
+  actions.appendChild(button);
 }
 
 function showCompletionUI() {

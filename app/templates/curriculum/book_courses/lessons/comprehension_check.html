@@ -186,12 +186,23 @@ function showQuestion(index) {
   } else {
     tfButtons.style.display = 'none';
     optionsList.style.display = 'flex';
+    // role/tabindex/keydown, not a bare div: Tab used to skip every option and
+    // land on a #next-btn that stays disabled until one is picked, so a
+    // keyboard-only learner could not answer at all (audit UI-007).
     optionsList.innerHTML = q.options.map((opt, i) => `
-      <div class="cc-quiz__option" onclick="selectOption(${i})">
+      <div class="cc-quiz__option" role="button" tabindex="0" onclick="selectOption(${i})">
         <span class="cc-quiz__option-letter">${String.fromCharCode(65 + i)}</span>
         <span class="cc-quiz__option-text">${opt}</span>
       </div>
     `).join('');
+    optionsList.querySelectorAll('.cc-quiz__option').forEach((option, i) => {
+      option.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          selectOption(i);
+        }
+      });
+    });
   }
 
   // Hide feedback
@@ -207,6 +218,9 @@ function showQuestion(index) {
 
 function selectOption(optIndex) {
   const q = questions[currentQ];
+  // Mouse users are locked out by pointer-events after answering; keyboard
+  // users need the same lock, otherwise Enter would re-answer the question.
+  if (answers[currentQ] !== undefined) return;
   answers[currentQ] = optIndex;
   const isCorrect = optIndex === q.answer;
 
@@ -324,8 +338,36 @@ function completeLessonAPI(score) {
   })
   .catch(e => {
     console.error(e);
-    showCompletionUI();
+    showSaveError(() => completeLessonAPI(score));
   });
+}
+
+// A failed POST must not paint the success screen: the lesson is NOT recorded,
+// and telling the learner it is loses their work silently (audit UI-003).
+function showSaveError(retry) {
+  const actions = document.getElementById('results-actions');
+  if (!actions) return;
+  const isRu = (typeof LANG !== 'undefined' ? LANG : 'ru') === 'ru';
+  actions.textContent = '';
+
+  const note = document.createElement('p');
+  note.className = 'lesson-save-error';
+  note.setAttribute('role', 'alert');
+  note.textContent = isRu
+    ? 'Не удалось сохранить результат. Урок не засчитан — попробуйте ещё раз.'
+    : 'Could not save your result. The lesson was not recorded — please try again.';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cc-results__btn cc-results__btn--primary';
+  button.textContent = isRu ? 'Повторить' : 'Retry';
+  button.addEventListener('click', function () {
+    actions.textContent = '';
+    retry();
+  });
+
+  actions.appendChild(note);
+  actions.appendChild(button);
 }
 
 function showCompletionUI() {

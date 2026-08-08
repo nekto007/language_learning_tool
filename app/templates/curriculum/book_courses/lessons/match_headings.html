@@ -135,12 +135,23 @@ function restoreAnswers() {
 
 function renderHeadings() {
   const container = document.getElementById('headings-list');
+  // role/tabindex/keydown: these are the only controls that assign a heading,
+  // and as bare divs they were unreachable by keyboard (audit UI-007).
   container.innerHTML = matchingData.headings.map(h => `
-    <div class="heading-item" id="heading-${h.id}" onclick="selectHeading('${h.id}')" data-id="${h.id}">
+    <div class="heading-item" id="heading-${h.id}" role="button" tabindex="0"
+         onclick="selectHeading('${h.id}')" data-id="${h.id}">
       <span class="heading-letter">${h.id}</span>
       <span class="heading-text">${h.text}</span>
     </div>
   `).join('');
+  container.querySelectorAll('.heading-item').forEach(item => {
+    item.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        selectHeading(item.dataset.id);
+      }
+    });
+  });
 }
 
 function renderParagraphs() {
@@ -149,13 +160,22 @@ function renderParagraphs() {
     <div class="paragraph-item" id="paragraph-${p.id}">
       <div class="paragraph-header">
         <span class="paragraph-number">${LANG === 'ru' ? 'Параграф' : 'Paragraph'} ${p.id}</span>
-        <div class="answer-slot" id="slot-${p.id}" onclick="selectSlot(${p.id})">
+        <div class="answer-slot" id="slot-${p.id}" role="button" tabindex="0"
+             data-paragraph-id="${p.id}" onclick="selectSlot(${p.id})">
           <span class="slot-placeholder">${LANG === 'ru' ? 'Выберите заголовок' : 'Choose a heading'}</span>
         </div>
       </div>
       <div class="paragraph-text">${p.text}</div>
     </div>
   `).join('');
+  container.querySelectorAll('.answer-slot').forEach(slot => {
+    slot.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        selectSlot(parseInt(slot.dataset.paragraphId, 10));
+      }
+    });
+  });
 }
 
 function selectHeading(headingId) {

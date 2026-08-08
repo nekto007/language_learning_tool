@@ -16143,6 +16143,21 @@ span.vocab-word.vocab-word--active {
     font-size: 1.1em;
 }
 
+/* Shown when a lesson-completion POST fails: the result was NOT recorded,
+   so this must read as a failure, not as the success screen. */
+.lesson-save-error {
+    width: 100%;
+    margin: 0 0 var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--danger-500);
+    border-left-width: 3px;
+    background: var(--danger-50);
+    color: var(--danger-800, #991b1b);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+}
+
 /* ==========================================================================
    Input states — shared validation styling for inputs/textareas
    ========================================================================== */
