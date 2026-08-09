@@ -374,9 +374,6 @@ def quiz_deck_export(deck_id):
     deck = QuizDeck.query.get_or_404(deck_id)
     words = deck.words.order_by(QuizDeckWord.order_index).all()
 
-    log_admin_action(current_user.id, 'quiz_deck.export', target_type='quiz_deck', target_id=deck.id)
-    db.session.commit()
-
     data = {
         'title': deck.title,
         'description': deck.description or '',
@@ -392,6 +389,13 @@ def quiz_deck_export(deck_id):
             for w in words
         ],
     }
+
+    # Audit after the payload is built: `commit()` expires every loaded
+    # instance, so committing first would re-SELECT the deck and each word row
+    # on the attribute reads above. GET handlers have nothing else to commit,
+    # so the explicit commit is still required for the log row to survive.
+    log_admin_action(current_user.id, 'quiz_deck.export', target_type='quiz_deck', target_id=deck_id)
+    db.session.commit()
 
     response = jsonify(data)
     response.headers['Content-Disposition'] = f'attachment; filename="deck_{deck_id}.json"'

@@ -60,9 +60,24 @@ def _level_entry_pairs(conn):
     ``find_next_lesson_linear`` reads that as "spine exhausted". Hence the
     target is the last module of the previous level that *has* lessons.
     """
+    # `cefr_levels."order"` carries no unique constraint and defaults to 0, and
+    # the admin form lets an operator pick it freely. Ties would make the row
+    # order arbitrary and chain a level onto the wrong predecessor — with
+    # min_progress=80 that hard-locks a CEFR level for every non-placement
+    # learner. `code` is the tiebreaker so the chain is at least deterministic,
+    # and a genuinely ambiguous catalogue is skipped rather than guessed at.
     levels = conn.execute(sa.text(
-        'SELECT id, "order" FROM cefr_levels ORDER BY "order"'
+        'SELECT id, "order" FROM cefr_levels ORDER BY "order", code'
     )).fetchall()
+
+    orders = [order for _id, order in levels]
+    if len(set(orders)) != len(orders):
+        print(
+            'level-entry prerequisites: cefr_levels."order" has duplicates '
+            f'({orders}) — the level chain is ambiguous, skipping. '
+            'Give every level a distinct order and re-run this migration.'
+        )
+        return
 
     previous_last_module_id = None
     for level_id, _order in levels:

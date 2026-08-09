@@ -32,8 +32,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 DEFAULT_MODEL = os.environ.get("ANTHROPIC_SONNET_MODEL", "claude-sonnet-5")
-MAX_TOKENS = 4096
-TEMPERATURE = 0.3
+# Adaptive thinking is on by default on this model and its tokens come out of
+# max_tokens, so the budget has to cover thinking *and* the JSON scaffold —
+# 4096 was sized for the old thinking-off default and truncated the JSON.
+MAX_TOKENS = 8192
 API_DELAY = 1  # seconds between API calls
 MAX_SOURCE_CHARS = 6000
 
@@ -100,10 +102,13 @@ def generate_lesson_scaffold(
 ) -> dict | None:
     """Generate full lesson scaffold for a text passage using Claude API."""
     try:
+        # No `temperature`: the sampling parameters are rejected outright
+        # (HTTP 400) on this model generation. Determinism is steered with a
+        # low effort level instead.
         response = client.messages.create(
             model=model,
             max_tokens=MAX_TOKENS,
-            temperature=TEMPERATURE,
+            output_config={"effort": "low"},
             system=SYSTEM_PROMPT,
             messages=[{
                 "role": "user",
@@ -111,7 +116,13 @@ def generate_lesson_scaffold(
             }]
         )
 
-        content = response.content[0].text.strip()
+        # Pick the text block rather than indexing: with thinking on, the first
+        # block is a thinking block, which carries `.thinking`, not `.text`.
+        text_block = next((b for b in response.content if b.type == "text"), None)
+        if text_block is None:
+            print("  ERROR: response carried no text block")
+            return None
+        content = text_block.text.strip()
         # Strip markdown code fences if present
         if content.startswith("```"):
             content = content.split("\n", 1)[1]

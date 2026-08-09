@@ -536,7 +536,11 @@
       </div>
     </div>
     <form class="daily-plan__survey-form" data-survey-form="true" hidden>
-      {% for _key, _question in [('works', 'Что работает хорошо?'), ('annoys', 'Что раздражает или мешает?'), ('missing', 'Чего не хватает?')] %}
+      {# Keys come from `SURVEY_QUESTIONS` via the route, not a local copy:
+         `submit_survey` reads exactly those payload keys, so a template-local
+         list would drift into posting names nobody reads — which the learner
+         sees as a permanent «не удалось отправить». #}
+      {% for _key, _question in (survey_questions or []) %}
       <label class="daily-plan__survey-field">
         <span class="daily-plan__survey-label">{{ _question }}</span>
         <textarea name="{{ _key }}" rows="2" maxlength="1000"

@@ -111,10 +111,20 @@ def _get_or_create_prompt(user_id: int) -> SurveyPrompt:
     prompt = get_prompt(user_id)
     if prompt is not None:
         return prompt
-    prompt = SurveyPrompt(user_id=user_id, dismiss_count=0)
-    db.session.add(prompt)
-    db.session.flush()
-    return prompt
+    # Savepoint here too: a third writer can land between the re-fetch above
+    # and this insert, and an IntegrityError escaping a race-safe helper would
+    # poison the caller's whole transaction.
+    try:
+        with db.session.begin_nested():
+            prompt = SurveyPrompt(user_id=user_id, dismiss_count=0)
+            db.session.add(prompt)
+            db.session.flush()
+        return prompt
+    except IntegrityError:
+        prompt = get_prompt(user_id)
+        if prompt is None:
+            raise
+        return prompt
 
 
 def record_survey_dismissal(user_id: int) -> SurveyPrompt:

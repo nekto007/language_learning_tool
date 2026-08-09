@@ -160,11 +160,19 @@ class Module(db.Model):
             min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
             min_progress = prereq.get('min_progress', 100)
 
+            # These strings are user-facing: the blocked-spine empty state in
+            # `partials/unified_daily_plan.html` renders them verbatim under a
+            # Russian sentence. Both name the bar as well as the module — a
+            # learner who finished every lesson but averaged below `min_score`
+            # must not be told to «finish» a module they already completed.
             if progress['progress_percent'] < min_progress:
-                reasons.append(f"Complete module '{prereq_module.title}'")
+                reasons.append(
+                    f"Пройдите модуль «{prereq_module.title}» "
+                    f"минимум на {min_progress}% (сейчас: {progress['progress_percent']:.0f}%)")
             elif progress['avg_score'] < min_score:
                 reasons.append(
-                    f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
+                    f"Наберите {min_score}% в модуле «{prereq_module.title}» "
+                    f"(сейчас: {progress['avg_score']:.0f}%)")
 
         return len(reasons) == 0, reasons
 

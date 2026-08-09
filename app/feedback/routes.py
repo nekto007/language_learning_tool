@@ -306,12 +306,18 @@ def submit_survey():
     # the endpoint too; the UI gate alone let an answered account keep posting.
     if not should_show_survey(current_user):
         return api_error('not_eligible', 'survey is not open for this account', 409)
-    answers = {
-        key: (data.get(key) or '') for key, _ in SURVEY_QUESTIONS
-    }
-    for key, value in answers.items():
+    # Type-check the raw value: applying the `or ''` default first would turn
+    # every falsy non-string (`[]`, `0`, `False`) into a blank answer and slip
+    # it past the guard as an empty survey rather than invalid input.
+    answers = {}
+    for key, _question in SURVEY_QUESTIONS:
+        value = data.get(key)
+        if value is None:
+            answers[key] = ''
+            continue
         if not isinstance(value, str):
             return api_error('invalid_input', f'{key} must be a string', 400)
+        answers[key] = value
 
     message = build_survey_message(answers)
     if not message:

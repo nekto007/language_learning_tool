@@ -1197,7 +1197,10 @@ def _render_unified_dashboard(tz: str):
         xp_leaderboard, user_xp_rank, achievements_by_category = [], None, {}
 
     # Two-week survey invite, shown inside the day-secured celebration.
-    from app.feedback.survey import should_show_survey
+    # The questions come from the server constant `submit_survey` reads its
+    # payload keys from — a template-local copy would drift silently and post
+    # names nobody reads, which surfaces as an unretryable «empty_survey» 400.
+    from app.feedback.survey import SURVEY_QUESTIONS, should_show_survey
     show_survey = _safe_widget_call(
         'show_survey', should_show_survey, current_user, default=False)
 
@@ -1207,6 +1210,7 @@ def _render_unified_dashboard(tz: str):
         plan_completion=plan_completion,
         stats_card=stats_card,
         show_survey=show_survey,
+        survey_questions=SURVEY_QUESTIONS,
         hero=hero,
         focus=focus,
         week_rhythm=week_rhythm,
