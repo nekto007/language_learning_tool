@@ -11,7 +11,7 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 
 import pytest
 
@@ -27,6 +27,7 @@ from app.daily_plan.snapshot import (
 )
 from app.utils.db import db as real_db
 from tests.conftest import unique_level_code
+from tests.support_dates import study_today
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ class TestResolveSnapshot:
     def test_creates_fresh_snapshot_for_today(
         self, db_session, user, vocabulary_lesson,
     ):
-        today = date.today()
+        today = study_today()
         snap = resolve_snapshot_for_today(user.id, today, real_db)
 
         assert snap['version'] == SNAPSHOT_VERSION
@@ -85,7 +86,7 @@ class TestResolveSnapshot:
         assert row.plan_json == snap
 
     def test_returns_existing_snapshot(self, db_session, user, vocabulary_lesson):
-        today = date.today()
+        today = study_today()
         # First call writes.
         snap1 = resolve_snapshot_for_today(user.id, today, real_db)
         real_db.session.commit()
@@ -99,7 +100,7 @@ class TestRollover:
     def test_rollover_copies_yesterday_on_zero_activity(
         self, db_session, user, vocabulary_lesson,
     ):
-        today = date.today()
+        today = study_today()
         yesterday = today - timedelta(days=1)
 
         # Pre-seed yesterday's snapshot with one item.
@@ -137,7 +138,7 @@ class TestRollover:
     def test_no_rollover_when_yesterday_had_activity(
         self, db_session, user, vocabulary_lesson,
     ):
-        today = date.today()
+        today = study_today()
         yesterday = today - timedelta(days=1)
 
         prior = {
@@ -181,7 +182,7 @@ class TestRollover:
         self, db_session, user, vocabulary_lesson,
     ):
         user.timezone = 'UTC'
-        today = date.today() - timedelta(days=10)
+        today = study_today() - timedelta(days=10)
         yesterday = today - timedelta(days=1)
 
         prior = {
@@ -223,7 +224,7 @@ class TestOverlayCompletion:
     def test_curriculum_completed_today_marks_item_done(
         self, db_session, user, vocabulary_lesson,
     ):
-        today = date.today()
+        today = study_today()
         snap = resolve_snapshot_for_today(user.id, today, real_db)
         real_db.session.commit()
 
@@ -284,7 +285,7 @@ class TestOverlayCompletion:
 
         snap = {
             'version': SNAPSHOT_VERSION,
-            'date': date.today().isoformat(),
+            'date': study_today().isoformat(),
             'items': [{
                 'id': f'reading:book:{book.id}',
                 'section': 'required',

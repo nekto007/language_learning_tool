@@ -1,9 +1,10 @@
 """Tests for public streak page and calendar data."""
 import pytest
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 from app.auth.models import User
 from app.achievements.models import StreakEvent
+from tests.support_dates import study_today
 
 
 @pytest.fixture
@@ -14,7 +15,7 @@ def streak_user(db_session):
     db_session.add(user)
     db_session.flush()
 
-    today = date.today()
+    today = study_today()
     for i in range(5):
         db_session.add(StreakEvent(
             user_id=user.id, event_type='earned_daily',

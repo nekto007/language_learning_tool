@@ -273,6 +273,15 @@ const noCardsMessage = document.getElementById('no-cards-message');
 // Audio player
 const audioPlayer = new Audio();
 
+// A clip that will not load is not going to load on the next click either —
+// take the control out of the tab order and label it, instead of failing mute.
+function markAudioUnavailable(btn) {
+  btn.disabled = true;
+  btn.classList.add('audio-btn-card--unavailable');
+  btn.setAttribute('aria-label', {{ _('Озвучка недоступна')|tojson }});
+  btn.title = {{ _('Озвучка недоступна')|tojson }};
+}
+
 // Initialize
 function init() {
   if (cards.length === 0) return;
@@ -294,14 +303,28 @@ function init() {
     });
   });
 
-  // Audio buttons
+  // Audio buttons.
+  // 1570 pronunciation clips referenced by the corpus do not exist on disk
+  // (audit CNT-003). Without a .catch() the click produced silence plus an
+  // unhandled rejection, so the learner could not tell a missing file from a
+  // muted device; now the control disables itself and says so.
   document.querySelectorAll('.audio-btn-card').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const audioSrc = btn.getAttribute('data-audio');
-      if (audioSrc) {
-        audioPlayer.src = audioSrc;
-        audioPlayer.play();
+      if (!audioSrc) return;
+      audioPlayer.src = audioSrc;
+      const played = audioPlayer.play();
+      if (played && typeof played.catch === 'function') {
+        played.catch((err) => {
+          // Every button shares one Audio element, so pointing it at the next
+          // word aborts the previous pending play() with AbortError. That says
+          // nothing about the clip — only a load/decode failure does. Treating
+          // it as "missing" disabled a working button whenever the learner
+          // clicked two speakers in a row.
+          if (err && err.name === 'AbortError') return;
+          markAudioUnavailable(btn);
+        });
       }
     });
   });
@@ -500,9 +523,9 @@ async function completeLesson() {
     cards.forEach(card => { card.style.display = ''; });
     document.getElementById('cards-navigation').style.display = '';
     if (typeof showSaveError === 'function') {
-      showSaveError('{{ _("Не удалось сохранить прогресс. Попробуйте ещё раз.") }}');
+      showSaveError({{ _('Не удалось сохранить прогресс. Попробуйте ещё раз.')|tojson }});
     } else {
-      alert('{{ _("Не удалось сохранить прогресс. Попробуйте ещё раз.") }}');
+      alert({{ _('Не удалось сохранить прогресс. Попробуйте ещё раз.')|tojson }});
     }
   }
 }
@@ -511,6 +534,21 @@ async function completeLesson() {
 document.addEventListener('DOMContentLoaded', init);
 
 // Annotation widget
+function showAnnotationError(widget, message) {
+  let el = widget.querySelector('.word-annotation__error');
+  if (!message) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'word-annotation__error';
+    el.setAttribute('role', 'alert');
+    widget.querySelector('.word-annotation__form').appendChild(el);
+  }
+  el.textContent = message;
+}
+
 (function initAnnotations() {
   document.querySelectorAll('.word-annotation__toggle').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
@@ -543,20 +581,29 @@ document.addEventListener('DOMContentLoaded', init);
         },
         body: JSON.stringify({ note: note })
       })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.ok) {
-          let textEl = widget.querySelector('.word-annotation__text');
-          if (!textEl) {
-            textEl = document.createElement('div');
-            textEl.className = 'word-annotation__text';
-            widget.insertBefore(textEl, widget.querySelector('.word-annotation__toggle'));
-          }
-          textEl.textContent = data.note;
-          widget.querySelector('.word-annotation__form').style.display = 'none';
-        }
+      .then(function(r) {
+        // UI-011: a 500 with an HTML body made r.json() reject, and an empty
+        // catch swallowed it — the note vanished with the form still open,
+        // indistinguishable from a slow response.
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
       })
-      .catch(function() {})
+      .then(function(data) {
+        if (!data || !data.ok) throw new Error(data && data.error ? data.error : 'save_failed');
+        let textEl = widget.querySelector('.word-annotation__text');
+        if (!textEl) {
+          textEl = document.createElement('div');
+          textEl.className = 'word-annotation__text';
+          widget.insertBefore(textEl, widget.querySelector('.word-annotation__toggle'));
+        }
+        textEl.textContent = data.note;
+        widget.querySelector('.word-annotation__form').style.display = 'none';
+        showAnnotationError(widget, '');
+      })
+      .catch(function(err) {
+        console.error('annotation save failed', err);
+        showAnnotationError(widget, {{ _('Не удалось сохранить заметку. Попробуйте ещё раз.') | tojson }});
+      })
       .finally(function() { btn.disabled = false; });
     });
   });
@@ -660,17 +707,25 @@ document.addEventListener('DOMContentLoaded', init);
           },
           body: JSON.stringify({ word: word, translation: translation }),
         })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.ok) {
-            btn.classList.add('word-add-to-list__btn--added');
-            const icon = btn.querySelector('i');
-            if (icon) icon.className = 'fas fa-check';
-            const label = btn.querySelector('.word-add-to-list__label');
-            if (label) label.textContent = '{{ _("Добавлено") }}';
-          }
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
         })
-        .catch(function() {});
+        .then(function(data) {
+          if (!data || !data.ok) throw new Error(data && data.error ? data.error : 'add_failed');
+          btn.classList.add('word-add-to-list__btn--added');
+          const icon = btn.querySelector('i');
+          if (icon) icon.className = 'fas fa-check';
+          const label = btn.querySelector('.word-add-to-list__label');
+          if (label) label.textContent = {{ _('Добавлено')|tojson }};
+        })
+        .catch(function(err) {
+          // UI-011: silently doing nothing here read as "already added".
+          console.error('add to list failed', err);
+          const label = btn.querySelector('.word-add-to-list__label');
+          if (label) label.textContent = {{ _('Не удалось добавить') | tojson }};
+          btn.classList.add('word-add-to-list__btn--failed');
+        });
       });
     });
   });

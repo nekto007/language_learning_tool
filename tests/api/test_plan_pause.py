@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
+from datetime import timedelta
 from unittest.mock import patch, MagicMock
 
 import pytest
+from tests.support_dates import study_today
 
 
 def _paused_plan(paused_until: str) -> dict:
@@ -65,7 +66,7 @@ class TestPlanPauseEndpoint:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['status'] == 'ok'
-        expected_until = (date.today() + timedelta(days=3)).isoformat()
+        expected_until = (study_today() + timedelta(days=3)).isoformat()
         assert data['paused_until'] == expected_until
 
     def test_pause_invalid_days_zero(self, authenticated_client):
@@ -110,7 +111,7 @@ class TestPlanPauseEndpoint:
             user_id = authenticated_client.application.test_user.id
             user = User.query.filter_by(id=user_id).first()
             assert user is not None
-            assert user.plan_paused_until == date.today() + timedelta(days=5)
+            assert user.plan_paused_until == study_today() + timedelta(days=5)
 
     def test_pause_unauthenticated(self, client):
         """Unauthenticated request → redirected or 401."""
@@ -172,7 +173,7 @@ class TestPlanPausedMode:
 
     def test_daily_status_paused_returns_paused_flag(self, authenticated_client, db_session):
         """When plan is paused, /api/daily-status includes plan_paused=True and paused_until."""
-        paused_until = (date.today() + timedelta(days=2)).isoformat()
+        paused_until = (study_today() + timedelta(days=2)).isoformat()
         plan = _paused_plan(paused_until)
         patches = self._status_patches(plan)
         with patches[0], patches[1], patches[2], patches[3]:
@@ -206,7 +207,7 @@ class TestPlanPausedMode:
 
     def test_daily_plan_returns_paused_mode(self, authenticated_client, db_session):
         """When plan is paused, /api/daily-plan returns mode=paused."""
-        paused_until = (date.today() + timedelta(days=1)).isoformat()
+        paused_until = (study_today() + timedelta(days=1)).isoformat()
         plan = _paused_plan(paused_until)
         with patch('app.daily_plan.service.get_daily_plan_unified', return_value=plan):
             with patch('app.telegram.queries.get_daily_summary', return_value=_empty_summary()):
@@ -225,20 +226,20 @@ class TestPauseStreakNeutrality:
         """get_daily_plan_unified returns paused payload when user.plan_paused_until >= today."""
         from app.daily_plan.service import get_daily_plan_unified
 
-        test_user.plan_paused_until = date.today() + timedelta(days=3)
+        test_user.plan_paused_until = study_today() + timedelta(days=3)
         db_session.flush()
 
         plan = get_daily_plan_unified(test_user.id)
         assert plan.get('mode') == 'paused'
         assert plan.get('_plan_meta', {}).get('effective_mode') == 'paused'
-        assert plan.get('paused_until') == (date.today() + timedelta(days=3)).isoformat()
+        assert plan.get('paused_until') == (study_today() + timedelta(days=3)).isoformat()
 
     def test_get_daily_plan_unified_not_paused_when_expired(self, test_user, db_session):
         """get_daily_plan_unified does NOT return paused when plan_paused_until is in the past."""
         from app.daily_plan.service import get_daily_plan_unified
 
         # Set paused_until to yesterday
-        test_user.plan_paused_until = date.today() - timedelta(days=1)
+        test_user.plan_paused_until = study_today() - timedelta(days=1)
         db_session.flush()
 
         with patch('app.daily_plan.plan.get_daily_plan', return_value={'mode': 'unified', 'required': []}):

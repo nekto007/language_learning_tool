@@ -10,6 +10,13 @@
 (function () {
     'use strict';
 
+    // UI-029: see components/_lesson_i18n.html. Russian stays as the fallback so
+    // today's single-locale rendering is unchanged.
+    function _t(key, fallback) {
+        var dict = window.I18N || {};
+        return (typeof dict[key] === 'string' && dict[key]) ? dict[key] : fallback;
+    }
+
     var MODAL_ID = 'book-select-modal';
     var STATUS_ID = 'book-select-modal-status';
     var LIST_ID = 'book-select-modal-list';
@@ -55,7 +62,7 @@
         if (!list) return;
         list.innerHTML = '';
         if (!books || !books.length) {
-            setStatus('Книг под ваш уровень пока нет.');
+            setStatus(_t('no_books_for_level', 'Книг под ваш уровень пока нет.'));
             return;
         }
         setStatus('');
@@ -115,7 +122,7 @@
     }
 
     function loadCatalog() {
-        setStatus('Загрузка каталога…');
+        setStatus(_t('catalog_loading', 'Загрузка каталога…'));
         var list = $(LIST_ID);
         if (list) list.innerHTML = '';
         fetch('/api/books/catalog', {
@@ -128,12 +135,12 @@
         }).then(function (data) {
             renderBooks(data && data.books);
         }).catch(function () {
-            setStatus('Не удалось загрузить каталог. Попробуйте обновить страницу.');
+            setStatus(_t('catalog_failed', 'Не удалось загрузить каталог. Попробуйте обновить страницу.'));
         });
     }
 
     function selectBook(bookId) {
-        setStatus('Сохраняем выбор…');
+        setStatus(_t('choice_saving', 'Сохраняем выбор…'));
         fetch('/api/books/select', {
             method: 'POST',
             credentials: 'same-origin',
@@ -149,7 +156,7 @@
             closeModal();
             window.location.reload();
         }).catch(function () {
-            setStatus('Не удалось сохранить выбор. Попробуйте ещё раз.');
+            setStatus(_t('choice_failed', 'Не удалось сохранить выбор. Попробуйте ещё раз.'));
         });
     }
 
@@ -202,7 +209,7 @@
     function _skipSlot(button) {
         var slotKind = button.getAttribute('data-skip-kind') || '';
         if (!slotKind) {
-            _showLockedToast('Не удалось определить шаг');
+            _showLockedToast(_t('step_unknown', 'Не удалось определить шаг'));
             return;
         }
         button.disabled = true;
@@ -221,7 +228,7 @@
         }).then(function (resp) {
             if (!resp.ok) {
                 return resp.json().catch(function () { return {}; }).then(function (data) {
-                    throw new Error(data.message || 'Не удалось пропустить шаг');
+                    throw new Error(data.message || _t('skip_step_failed', 'Не удалось пропустить шаг'));
                 });
             }
             return resp.json();
@@ -229,7 +236,7 @@
             window.location.reload();
         }).catch(function (err) {
             button.disabled = false;
-            _showLockedToast(err && err.message ? err.message : 'Не удалось пропустить шаг');
+            _showLockedToast(err && err.message ? err.message : _t('skip_step_failed', 'Не удалось пропустить шаг'));
         });
     }
 
@@ -251,7 +258,7 @@
         if (lockedSlot) {
             event.preventDefault();
             event.stopPropagation();
-            _showLockedToast('Сначала завершите предыдущее задание');
+            _showLockedToast(_t('finish_previous_first', 'Сначала завершите предыдущее задание'));
             return;
         }
         if (isLinearReadingTrigger(event.target)) {
@@ -371,7 +378,9 @@
             toast.setAttribute('aria-live', 'polite');
             document.body.appendChild(toast);
         }
-        var prefix = delta === 1 ? '+1 задание добавлено' : '+' + delta + ' заданий добавлено';
+        var prefix = delta === 1
+            ? _t('task_added_one', '+1 задание добавлено')
+            : '+' + delta + ' ' + _t('tasks_added_many', 'заданий добавлено');
         toast.textContent = prefix;
         toast.classList.add('linear-plan__chain-toast--visible');
         setTimeout(function () {

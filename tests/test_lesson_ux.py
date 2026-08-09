@@ -315,9 +315,11 @@ class TestPlanContextHidesCurriculumNext:
         authenticated_client, empty_content_lesson, db_session,
     ):
         """The scoped CSS in lesson_base_template.html must declare a sibling
-        selector that hides ``#lesson-footer`` (and the
-        ``#daily-plan-next-step`` widget) when the completion block is in plan
-        mode — otherwise curriculum-next buttons would bleed through."""
+        selector that hides ``#lesson-footer`` when the completion block is in
+        plan mode — otherwise curriculum-next buttons would bleed through.
+
+        The companion ``#daily-plan-next-step`` clause went away with the widget
+        itself (UI-031)."""
         response = authenticated_client.get(f'/learn/{empty_content_lesson.id}/')
         assert response.status_code == 200
         html = response.data.decode()
@@ -325,21 +327,20 @@ class TestPlanContextHidesCurriculumNext:
         # showLessonCompletion's inline display:block rather than the
         # data-attribute, which is set later in the plan branch).
         assert '#lesson-completion[style*="display: block"] ~ #lesson-footer' in html
-        assert '#lesson-completion[style*="display: block"] ~ #daily-plan-next-step' in html
+        assert '#daily-plan-next-step' not in html
         # Plan mode hides legacy standalone CTAs inside the completion block.
         assert '#lesson-completion[data-completion-mode="plan"] [data-standalone-cta]' in html
 
     def test_plan_branch_js_hides_footer_inline(self):
         """The renderer's plan branch must strip the ``lsn-footer--visible``
-        class and force ``display: none`` on the footer + daily-plan widget, so
-        lesson templates that set inline ``display: inline-flex`` on footer
-        buttons cannot beat the CSS rule."""
+        class and force ``display: none`` on the footer, so lesson templates
+        that set inline ``display: inline-flex`` on footer buttons cannot beat
+        the CSS rule."""
         from pathlib import Path
         js = (Path(__file__).resolve().parent.parent
               / 'app' / 'static' / 'js' / 'lesson-completion.js').read_text(encoding='utf-8')
         assert "legacyFooter.classList.remove('lsn-footer--visible')" in js
         assert "legacyFooter.style.display = 'none'" in js
-        assert "legacyDailyPlan.style.display = 'none'" in js
 
     @patch('app.curriculum.security.check_lesson_access', return_value=True)
     @patch('app.curriculum.security.check_module_access', return_value=True)

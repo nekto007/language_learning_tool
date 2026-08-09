@@ -14,44 +14,6 @@ def _read_js(filename: str) -> str:
         return f.read()
 
 
-class TestDailyPlanNextEscaping:
-    """daily-plan-next.js must escape all API data before innerHTML insertion."""
-
-    def test_has_escape_html_function(self):
-        src = _read_js("daily-plan-next.js")
-        assert "function escapeHtml" in src
-
-    def test_step_title_escaped(self):
-        src = _read_js("daily-plan-next.js")
-        assert "escapeHtml(data.step_title)" in src
-
-    def test_step_icon_escaped(self):
-        src = _read_js("daily-plan-next.js")
-        assert "escapeHtml(data.step_icon)" in src
-
-    def test_step_url_escaped(self):
-        src = _read_js("daily-plan-next.js")
-        assert "escapeHtml(data.step_url)" in src
-
-    def test_steps_done_escaped(self):
-        src = _read_js("daily-plan-next.js")
-        assert "escapeHtml(data.steps_done)" in src
-
-    def test_steps_total_escaped(self):
-        src = _read_js("daily-plan-next.js")
-        assert "escapeHtml(data.steps_total)" in src
-
-    def test_no_raw_data_in_innerhtml(self):
-        """No innerHTML should contain raw data.step_title without escaping."""
-        src = _read_js("daily-plan-next.js")
-        # Find all innerHTML lines that reference data.step_title
-        for line in src.splitlines():
-            if "innerHTML" in line and "data.step_title" in line:
-                assert "escapeHtml(data.step_title)" in line, (
-                    f"Unescaped data.step_title in innerHTML: {line.strip()}"
-                )
-
-
 class TestWordTranslatorSafety:
     """word-translator.js must use safe DOM methods for user-visible data."""
 

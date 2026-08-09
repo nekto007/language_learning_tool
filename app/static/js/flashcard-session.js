@@ -1285,6 +1285,21 @@ class FlashcardSession {
 
             if (data.success) {
                 const stats = data.stats || {};
+                const inDailyPlan = !!(data.daily_plan_ctx && data.daily_plan_ctx.is_daily_plan);
+
+                // UI-009: the celebration screen becoming visible also wakes the
+                // MutationObserver in _flashcard_session.html, which asks
+                // /api/daily-plan/next-slot for the same answer we already have
+                // inline. Its fetch resolved ~200ms later and could hard-redirect
+                // over freshly drawn CTAs. Claim the container BEFORE revealing
+                // the screen so the observer stands down.
+                if (inDailyPlan) {
+                    const claimed = document.querySelector('[data-celebration-actions]');
+                    if (claimed) {
+                        claimed.setAttribute('data-plan-cta-source', 'inline');
+                    }
+                }
+
                 this._showCelebration(
                     stats,
                     data.xp_earned || 0,
@@ -1296,7 +1311,6 @@ class FlashcardSession {
                 // Show extra study button if more cards available (and we're
                 // not in a daily-plan session — there the UI is locked to the
                 // plan flow, "extra study" would derail it).
-                const inDailyPlan = !!(data.daily_plan_ctx && data.daily_plan_ctx.is_daily_plan);
                 if ((this.hasMoreNewCards || this.hasMoreReviewCards) && !inDailyPlan) {
                     const extraLink = document.getElementById('session-extra-study-link');
                     if (extraLink) {
@@ -1317,7 +1331,22 @@ class FlashcardSession {
                     }
                     const actions = document.querySelector('[data-celebration-actions]');
                     if (actions) {
-                        const nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
+                        actions.setAttribute('data-completion-mode', 'plan');
+                        let nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
+                        if (!nextBtn && dp.next_slot_url) {
+                            // _lesson_completion_actions.html only renders this
+                            // anchor when a next slot was known at PAGE RENDER.
+                            // Finishing the session can reveal one that wasn't —
+                            // and the claim above already stood the observer's
+                            // synthesis fallback down, so build it here or the
+                            // learner is left with «На дашборд» alone.
+                            nextBtn = document.createElement('a');
+                            nextBtn.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
+                            nextBtn.setAttribute('data-plan-cta', 'next-slot');
+                            const dict = window.I18N || {};
+                            nextBtn.textContent = dict.plan_next_slot || 'Следующий слот плана';
+                            actions.appendChild(nextBtn);
+                        }
                         if (nextBtn && dp.next_slot_url) {
                             nextBtn.setAttribute('href', dp.next_slot_url);
                         }
@@ -1337,9 +1366,6 @@ class FlashcardSession {
                 if (this.config.onComplete) {
                     this.config.onComplete(data);
                 }
-
-                // Notify daily plan module
-                document.dispatchEvent(new Event('dailyPlanStepComplete'));
             }
         } catch (error) {
             // Don't blind-redirect away from a finished session on a transient

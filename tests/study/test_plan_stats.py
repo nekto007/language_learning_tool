@@ -4,12 +4,13 @@ Task 50: Plan performance analytics route.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from app.daily_plan.models import DailyPlanLog
 from app.utils.db import db
+from tests.support_dates import study_today
 
 
 def _login(client, user) -> None:
@@ -48,7 +49,7 @@ class TestPlanStatsRoute:
         assert '0%' in html or 'Нет данных' in html
 
     def test_active_day_counted_in_completion_rate(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         _make_log(db_session, test_user.id, today, secured=False)
         _login(client, test_user)
         resp = client.get('/study/plan-stats')
@@ -57,7 +58,7 @@ class TestPlanStatsRoute:
         assert '3%' in html or '1 из 30' in html
 
     def test_secured_day_counted_in_secured_rate(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         _make_log(db_session, test_user.id, today, secured=True)
         _login(client, test_user)
         resp = client.get('/study/plan-stats')
@@ -73,7 +74,7 @@ class TestPlanStatsRoute:
         assert resp.status_code == 200
 
     def test_trend_up_when_second_half_more_active(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         # Add activity only in last 15 days
         for i in range(5):
             d = today - timedelta(days=i)
@@ -84,7 +85,7 @@ class TestPlanStatsRoute:
         assert 'растёт' in html or '↑' in html
 
     def test_trend_down_when_first_half_more_active(self, app, db_session, test_user, client):
-        today = date.today()
+        today = study_today()
         # Add activity only in first 15 days (older)
         for i in range(20, 30):
             d = today - timedelta(days=i)
@@ -95,7 +96,7 @@ class TestPlanStatsRoute:
         assert 'снижается' in html or '↓' in html
 
     def test_only_last_30_days_counted(self, app, db_session, test_user, client):
-        old_date = date.today() - timedelta(days=35)
+        old_date = study_today() - timedelta(days=35)
         _make_log(db_session, test_user.id, old_date, secured=True)
         _login(client, test_user)
         resp = client.get('/study/plan-stats')
@@ -115,7 +116,7 @@ class TestPlanStatsRoute:
         db_session.add(other)
         db_session.commit()
 
-        today = date.today()
+        today = study_today()
         _make_log(db_session, other.id, today, secured=True)
         _login(client, test_user)
         resp = client.get('/study/plan-stats')

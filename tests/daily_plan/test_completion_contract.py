@@ -8,7 +8,7 @@ migration in docs/design/lesson-completion-contract.md stays verifiable:
     ``_lesson_completion_actions.html`` renders the plan-CTA pair from it; and
     the CURRENT (nested) shape of ``/api/daily-plan/next-slot`` — pinned so a
     later stage flattens it deliberately, not by accident.
-  * Stage 1.2 — curriculum lesson pages no longer load ``daily-plan-next.js``
+  * Stage 1.2 — ``daily-plan-next.js`` is deleted (UI-031); no page loads it
     (it self-activates only on ``?from=daily_plan``, which lessons never carry).
 """
 from __future__ import annotations
@@ -263,7 +263,7 @@ class TestLessonCompletionPartialRendersPlanCtas:
 
 
 # ---------------------------------------------------------------------------
-# Stage 1.2 — daily-plan-next.js is gated OFF curriculum lessons
+# Stage 1.2 — daily-plan-next.js is gone (was gated OFF lessons, now deleted)
 # ---------------------------------------------------------------------------
 class TestDailyPlanNextScriptGatedOffLessons:
     @patch('app.curriculum.security.check_module_access', return_value=True)
@@ -280,10 +280,12 @@ class TestDailyPlanNextScriptGatedOffLessons:
         # Sanity: the page still rendered its real completion machinery.
         assert 'showLessonCompletion' in html
 
-    def test_reader_template_still_includes_daily_plan_next_js(self):
-        # The book reader is the ONLY surface that emits ?from=daily_plan, so it
-        # keeps the script (included directly, not via lesson_base).
+    def test_reader_template_no_longer_includes_daily_plan_next_js(self):
+        # The reader was believed to be the surface that emitted ?from=daily_plan.
+        # UI-031 found it never did — the plan builds reader URLs with
+        # ?from=linear_plan — so the script could not activate there either and
+        # was deleted.
         src = (REPO_ROOT / 'app' / 'templates' / 'books' / 'reader_simple.html').read_text(
             encoding='utf-8'
         )
-        assert 'daily-plan-next.js' in src
+        assert 'daily-plan-next.js' not in src

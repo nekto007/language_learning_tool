@@ -12,13 +12,14 @@ Covers ``app/books/access.py``:
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 
 from app.books.access import accessible_books_filter, can_user_access_book
 from app.books.models import Book
 from app.modules.models import SystemModule, UserModule
+from tests.support_dates import study_today
 
 
 @pytest.fixture
@@ -98,7 +99,7 @@ class TestCanUserAccessBook:
         _enable_books_for(db_session, test_user, _books_module)
         book = _make_book(
             db_session, rights_status='licensed',
-            expiration_date=date.today() - timedelta(days=1),
+            expiration_date=study_today() - timedelta(days=1),
         )
         assert can_user_access_book(test_user, book) is False
 
@@ -106,7 +107,7 @@ class TestCanUserAccessBook:
         # public_domain ignores expiration_date — copyright term is over.
         book = _make_book(
             db_session, rights_status='public_domain',
-            expiration_date=date.today() - timedelta(days=365),
+            expiration_date=study_today() - timedelta(days=365),
         )
         assert can_user_access_book(test_user, book) is True
 
@@ -129,7 +130,7 @@ class TestAccessibleBooksFilter:
         licensed = _make_book(db_session, title='LIC', rights_status='licensed')
         expired = _make_book(
             db_session, title='EXP', rights_status='licensed',
-            expiration_date=date.today() - timedelta(days=1),
+            expiration_date=study_today() - timedelta(days=1),
         )
 
         rows = Book.query.filter(accessible_books_filter(test_user)).all()
@@ -142,7 +143,7 @@ class TestAccessibleBooksFilter:
         companion = _make_book(db_session, title='COM', rights_status='companion_only')
         expired = _make_book(
             db_session, title='EXP', rights_status='licensed',
-            expiration_date=date.today() - timedelta(days=1),
+            expiration_date=study_today() - timedelta(days=1),
         )
 
         rows = Book.query.filter(accessible_books_filter(admin_user)).all()

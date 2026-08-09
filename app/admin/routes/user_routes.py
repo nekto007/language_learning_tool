@@ -386,6 +386,7 @@ def export_users_csv():
     rows = rows[:MAX_EXPORT_ROWS]
 
     log_admin_action(current_user.id, 'user.export_csv', target_type='user')
+    db.session.commit()  # log_admin_action only stages; a GET has nothing else to commit
     current_app.logger.info(
         'CSV user export by admin %s, search=%r, %d records',
         current_user.id, search, len(rows),
@@ -453,6 +454,7 @@ def _export_stats_csv(days: int, period: str) -> Response:
 
     content = UserManagementService.get_platform_content_stats(days=days)
     log_admin_action(current_user.id, 'stats.export_csv', target_type='stats')
+    db.session.commit()
 
     rows: list = [['Период (дней)', days], []]
     rows.append(['Завершение по уровням', 'Уровень', '% завершения'])

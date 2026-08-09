@@ -25,16 +25,19 @@ from app import limiter
 from app.api.errors import api_error
 from app.feedback import feedback_bp
 from app.feedback.models import (
-    FEEDBACK_CATEGORIES,
     MESSAGE_MAX_LENGTH,
     REPLY_BODY_MAX_LENGTH,
     URL_MAX_LENGTH,
     USER_AGENT_MAX_LENGTH,
+    USER_SUBMITTABLE_CATEGORIES,
     Feedback,
-    FEEDBACK_PRIORITIES,
     FeedbackReply,
     create_feedback,
     create_reply,
+)
+from app.feedback.survey import (
+    SURVEY_QUESTIONS,
+    record_survey_dismissal,
 )
 from app.feedback.storage import (
     SCREENSHOT_REJECT_REASONS,
@@ -168,10 +171,10 @@ def submit_feedback():
         source = request.get_json(silent=True) or {}
 
     category = (source.get('category') or '').strip().lower()
-    if category not in FEEDBACK_CATEGORIES:
+    if category not in USER_SUBMITTABLE_CATEGORIES:
         return api_error(
             'invalid_category',
-            'category must be one of: ' + ', '.join(FEEDBACK_CATEGORIES),
+            'category must be one of: ' + ', '.join(USER_SUBMITTABLE_CATEGORIES),
             400,
         )
 
@@ -281,6 +284,102 @@ def submit_feedback():
         'screenshot_message': screenshot_message,
         'screenshot_reject_reason': screenshot_reject_reason,
     }), 201
+
+
+@feedback_bp.route('/api/feedback/survey', methods=['POST'])
+@login_required
+@limiter.limit('5 per hour')
+def submit_survey():
+    """Answers to the two-week survey, stored as one feedback thread."""
+    from app.feedback.survey import (
+        build_survey_message,
+        claim_survey_answer,
+        should_show_survey,
+    )
+
+    data = request.get_json(silent=True)
+    # A JSON array is truthy but has no `.get` — without this a `[1]` body
+    # raised AttributeError before the try below and answered 500.
+    if not isinstance(data, dict):
+        data = {}
+    # The "at most twice, never again once answered" contract has to hold on
+    # the endpoint too; the UI gate alone let an answered account keep posting.
+    if not should_show_survey(current_user):
+        return api_error('not_eligible', 'survey is not open for this account', 409)
+    # Type-check the raw value: applying the `or ''` default first would turn
+    # every falsy non-string (`[]`, `0`, `False`) into a blank answer and slip
+    # it past the guard as an empty survey rather than invalid input.
+    answers = {}
+    for key, _question in SURVEY_QUESTIONS:
+        value = data.get(key)
+        if value is None:
+            answers[key] = ''
+            continue
+        if not isinstance(value, str):
+            return api_error('invalid_input', f'{key} must be a string', 400)
+        answers[key] = value
+
+    message = build_survey_message(answers)
+    if not message:
+        return api_error('empty_survey', 'answer at least one question', 400)
+
+    try:
+        # Claim BEFORE writing the thread: `should_show_survey` above is a read,
+        # so two tabs submitting at once both pass it and would both create a
+        # thread. The conditional UPDATE inside `claim_survey_answer` has exactly
+        # one winner; the loser leaves without writing anything.
+        if not claim_survey_answer(current_user.id):
+            db.session.rollback()
+            return api_error('not_eligible', 'survey is not open for this account', 409)
+        row = create_feedback(
+            user_id=current_user.id,
+            category='survey',
+            message=message[:MESSAGE_MAX_LENGTH],
+            url=_trim_str(data.get('url'), URL_MAX_LENGTH),
+            user_agent=_trim_str(request.headers.get('User-Agent'), USER_AGENT_MAX_LENGTH),
+        )
+        db.session.commit()
+        try:
+            _notify_admins_of_feedback(row)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception('survey_notify_failed feedback_id=%s', row.id)
+    except Exception:
+        db.session.rollback()
+        logger.exception('survey_submit_failed user_id=%s', current_user.id)
+        return api_error('save_failed', 'could not save survey', 500)
+
+    logger.info('survey_submitted id=%s user_id=%s', row.id, current_user.id)
+    return jsonify({
+        'success': True,
+        'id': row.id,
+        'thread_url': url_for('feedback.thread_view', feedback_id=row.id),
+    }), 201
+
+
+@feedback_bp.route('/api/feedback/survey/dismiss', methods=['POST'])
+@login_required
+@limiter.limit('20 per hour')
+def dismiss_survey():
+    """Learner asked to be left alone. Second time closes it for good."""
+    from app.feedback.survey import should_show_survey
+
+    # Same server-side gate as the submit endpoint: without it a POST from an
+    # account the survey was never offered to still burns one of its two
+    # offers, and an answered account keeps writing dismissals.
+    if not should_show_survey(current_user):
+        return api_error('not_eligible', 'survey is not open for this account', 409)
+
+    try:
+        prompt = record_survey_dismissal(current_user.id)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception('survey_dismiss_failed user_id=%s', current_user.id)
+        return api_error('save_failed', 'could not save dismissal', 500)
+
+    return jsonify({'success': True, 'dismiss_count': prompt.dismiss_count})
 
 
 @feedback_bp.route('/api/feedback/<int:feedback_id>/reply', methods=['POST'])
@@ -530,8 +629,8 @@ def serve_screenshot(rel_path: str):
     return response
 
 
-_CATEGORY_LABELS = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'}
-_CATEGORY_ICONS = {'bug': '🐞', 'idea': '💡', 'question': '❓'}
+_CATEGORY_LABELS = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос', 'survey': 'Опрос'}
+_CATEGORY_ICONS = {'bug': '🐞', 'idea': '💡', 'question': '❓', 'survey': '📋'}
 
 
 def _notify_admins_of_feedback(feedback_row) -> None:

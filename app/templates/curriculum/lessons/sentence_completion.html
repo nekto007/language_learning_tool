@@ -177,6 +177,15 @@ function _updateProgress() {
   const current = document.getElementById('sc-progress-current');
   if (current) current.textContent = String(filled);
   if (fill) fill.style.width = Math.round((filled / Math.max(1, itemCount)) * 100) + '%';
+  // UI-022: only the width was updated, so aria-valuenow stayed at the
+  // server-rendered 0 for the whole lesson and the bar read as "0 of N"
+  // to assistive tech no matter how far the learner got.
+  _setProgressValue(filled);
+}
+
+function _setProgressValue(value) {
+  const bar = document.querySelector('.lesson-shell__progress-bar[role="progressbar"]');
+  if (bar) bar.setAttribute('aria-valuenow', String(value));
 }
 
 // Wrong-attempt history is still tracked in `itemAttempts[idx]` and
@@ -322,6 +331,7 @@ function _updateProgressLabel() {
     correct + '</span> / <span data-progress-total>' + itemCount + '</span>';
   const fill = document.getElementById('sc-progress-fill');
   if (fill) fill.style.width = Math.round((correct / Math.max(1, itemCount)) * 100) + '%';
+  _setProgressValue(correct);
 }
 
 // Reset every given-up item back to pending so the learner can retry it.

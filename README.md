@@ -91,6 +91,11 @@ Security notes:
 - `JWT_SECRET_KEY`: required in production; in development a random key is generated per restart
 - Cookie security flags are enabled by default; disabled when `FLASK_ENV=development`
 
+Optional (content tooling only — not needed to run the app):
+- `ANTHROPIC_API_KEY`: required by `scripts/generate_reading_annotations.py`
+- `ANTHROPIC_SONNET_MODEL`: model id for that script (default `claude-sonnet-5`)
+- That script also needs `pip install anthropic`, which is deliberately not in `requirements.txt`
+
 ## Project Structure
 
 ```

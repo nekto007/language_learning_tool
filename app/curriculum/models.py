@@ -1,5 +1,6 @@
 # app/curriculum/models.py
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -23,6 +24,8 @@ from sqlalchemy.orm import joinedload, relationship
 
 from app.utils.db import db
 from config.settings import PASSING_SCORE_PERCENT
+
+logger = logging.getLogger(__name__)
 
 
 class CEFRLevel(db.Model):
@@ -135,15 +138,41 @@ class Module(db.Model):
                 if (prereq_module.level.order or 0) < min_level_order:
                     continue
 
-            # Check if user completed this module
+            # Check if user completed this module.
+            # `min_progress` lets the data express the same 80% bar the
+            # intra-level rule in check_module_access uses; without it a
+            # level-entry prereq would demand 100%, a stricter gate than
+            # anywhere else in the product (audit CNT-005).
             progress = self._get_module_completion(user_id, prereq['id'])
-            min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
 
-            if progress['progress_percent'] < 100:
-                reasons.append(f"Complete module '{prereq_module.title}'")
+            # A prerequisite module with no lessons can never be completed:
+            # `_get_module_completion` reports 0% for it, so any bar above 0
+            # locks this module — and, through the level-entry gates, the rest
+            # of the catalogue — for good. Nothing to finish means nothing to
+            # demand, so treat it as satisfied instead of unsatisfiable.
+            if progress.get('lesson_count', 0) == 0:
+                logger.warning(
+                    "module %s has prerequisite module %s with no lessons — treating as satisfied",
+                    self.id, prereq['id'],
+                )
+                continue
+
+            min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
+            min_progress = prereq.get('min_progress', 100)
+
+            # These strings are user-facing: the blocked-spine empty state in
+            # `partials/unified_daily_plan.html` renders them verbatim under a
+            # Russian sentence. Both name the bar as well as the module — a
+            # learner who finished every lesson but averaged below `min_score`
+            # must not be told to «finish» a module they already completed.
+            if progress['progress_percent'] < min_progress:
+                reasons.append(
+                    f"Пройдите модуль «{prereq_module.title}» "
+                    f"минимум на {min_progress}% (сейчас: {progress['progress_percent']:.0f}%)")
             elif progress['avg_score'] < min_score:
                 reasons.append(
-                    f"Score {min_score}%+ in '{prereq_module.title}' (current: {progress['avg_score']:.0f}%)")
+                    f"Наберите {min_score}% в модуле «{prereq_module.title}» "
+                    f"(сейчас: {progress['avg_score']:.0f}%)")
 
         return len(reasons) == 0, reasons
 
@@ -153,7 +182,7 @@ class Module(db.Model):
 
         lessons = Lessons.query.filter_by(module_id=module_id).all()
         if not lessons:
-            return {'progress_percent': 0, 'avg_score': 0}
+            return {'progress_percent': 0, 'avg_score': 0, 'lesson_count': 0}
 
         lesson_ids = [l.id for l in lessons]
         stats = db.session.query(
@@ -171,7 +200,8 @@ class Module(db.Model):
 
         return {
             'progress_percent': progress_percent,
-            'avg_score': avg_score
+            'avg_score': avg_score,
+            'lesson_count': len(lessons),
         }
 
     def __repr__(self):

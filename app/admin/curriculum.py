@@ -802,6 +802,13 @@ def export_lesson(lesson_id):
 
         export_data['vocabulary'] = vocabulary_items
 
+    # Audit after the payload is built: `commit()` expires loaded instances, so
+    # committing first would re-SELECT the lesson, module and level on every
+    # attribute read above. The explicit commit stays — a GET handler has
+    # nothing else that would flush the staged audit row.
+    log_admin_action(current_user.id, 'lesson.export', target_type='lesson', target_id=lesson_id)
+    db.session.commit()
+
     return jsonify(export_data)
 
 

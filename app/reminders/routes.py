@@ -17,6 +17,7 @@ from flask import Blueprint, abort, flash, make_response, redirect, render_templ
 from flask_login import current_user
 from sqlalchemy import desc, func
 
+from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.auth.models import User
 from app.curriculum.models import LessonProgress
@@ -666,6 +667,21 @@ def send_reminders():
     if not user_ids:
         flash('Не выбрано ни одного пользователя для отправки напоминаний.', 'warning')
         return redirect(url_for('reminders.reminder_dashboard'))
+
+    # ADM-002: ReminderLog records *that* a user was mailed, but nothing ties the
+    # campaign to the admin who launched it. Written and committed BEFORE the
+    # first send: mail cannot be recalled, so an exception part-way through the
+    # loop must not roll the attribution away along with it. It also has to be
+    # committed BEFORE the recipient list is materialised — commit expires every
+    # loaded instance, so logging afterwards turned each `user.*` read in the
+    # send loop into a refresh SELECT.
+    log_admin_action(
+        current_user.id,
+        'reminder.send_campaign',
+        'reminder_campaign',
+        None,
+    )
+    db.session.commit()
 
     users = User.query.filter(
         User.id.in_(user_ids),

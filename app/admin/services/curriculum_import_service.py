@@ -363,8 +363,14 @@ class CurriculumImportService:
         # НЕ используем explicit_module_id для поиска — id в JSON относительный, не DB PK
         module = Module.query.filter_by(level_id=level.id, number=module_number).first()
 
-        # Получаем prerequisites из JSON
-        module_prerequisites = data.get('prerequisites', [])
+        # Получаем prerequisites из JSON. Слаги вида "module_3" резолвим в
+        # modules.id прямо здесь: check_prerequisites молча выбрасывает строки,
+        # и без нормализации любой ре-импорт снова разгейтил бы модуль (CNT-014).
+        from app.curriculum.prerequisites import normalize_prerequisites
+
+        module_prerequisites = normalize_prerequisites(
+            data.get('prerequisites', []), level.id,
+        )
 
         if not module:
             # Создаем новый модуль с явным ID если указан

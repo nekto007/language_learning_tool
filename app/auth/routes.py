@@ -89,6 +89,14 @@ def get_safe_redirect_url(next_url, fallback=None):
     if not next_url.startswith('/'):
         return url_for(fallback)
 
+    # SECURITY: Reject every leading-slash-run, not just two. `urlparse` reads
+    # `///evil.com/path` as the local path `/evil.com/path` (empty netloc), but
+    # the WHATWG URL parser browsers use skips ANY run of slashes after the
+    # scheme and lands on the authority — so the browser resolves it as
+    # https://evil.com/path. Checking `parsed.netloc` alone therefore misses it.
+    if next_url.startswith('//'):
+        return url_for(fallback)
+
     # SECURITY: Reject backslash tricks (e.g. /\evil.com interpreted as //evil.com)
     if '\\' in next_url:
         return url_for(fallback)
@@ -604,20 +612,33 @@ def change_password():
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
         
-        if not current_user.check_password(current_password):
+        from app.utils.password_validator import validate_password_strength
+
+        is_strong, strength_errors = validate_password_strength(
+            new_password or '', current_user.username, current_user.email,
+        )
+
+        # `or ''` is load-bearing: check_password concatenates the salt, so a
+        # POST without the field (JS off, direct request) would raise TypeError
+        # and 500 instead of reporting a wrong password.
+        if not current_user.check_password(current_password or ''):
             flash('Текущий пароль неверен.', 'danger')
         elif new_password != confirm_password:
-            flash('Новые пароли не совпадают.', 'danger')  
+            flash('Новые пароли не совпадают.', 'danger')
+        elif not is_strong:
+            for error in strength_errors:
+                flash(error, 'danger')
         else:
             current_user.set_password(new_password)
             try:
                 db.session.commit()
                 flash('Пароль изменен успешно.', 'success')
+                return redirect(url_for('auth.profile'))
             except SQLAlchemyError:
                 logger.exception("Failed to change password for user %s", current_user.id)
                 db.session.rollback()
                 flash('Ошибка при изменении пароля.', 'danger')
-    
+
     return render_template('auth/change_password.html')
 
 

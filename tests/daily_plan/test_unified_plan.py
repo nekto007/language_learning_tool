@@ -951,6 +951,81 @@ class TestGraduatedDaySecured:
         }
         assert compute_day_secured_from_activity(plan, {}) is False
 
+    def test_blocked_spine_payload_names_the_blocker(self, db_session):
+        """A prerequisite-blocked spine reports the blocking module, not graduation.
+
+        The learner has to be told which module is in the way — an empty plan
+        with no explanation is the dead end this state exists to avoid.
+        """
+        level = _make_level(db_session, order=900)
+        blocked = _make_module(db_session, level, number=1)
+        gate = _make_module(db_session, level, number=2)
+        _make_lesson(db_session, blocked, number=1, type_='vocabulary')
+        _make_lesson(db_session, gate, number=1, type_='vocabulary')
+        # The first module of the level demands a module the user has not done,
+        # so the whole level — and with it the spine — is hidden.
+        blocked.prerequisites = [{'type': 'module', 'id': gate.id, 'min_progress': 100}]
+        db_session.commit()
+
+        user = _make_user(db_session, onboarding_level=level.code)
+        plan = get_daily_plan(user.id, real_db)
+
+        assert plan.get('graduated') is False
+        blocked_module = plan.get('blocked_module') or {}
+        assert blocked_module.get('module_id') == blocked.id
+        assert blocked_module.get('module_title') == blocked.title
+        assert blocked_module.get('reasons'), 'the unmet condition must be listed'
+
+        from app.daily_plan.service import get_daily_plan_unified
+        meta = (get_daily_plan_unified(user.id) or {}).get('_plan_meta', {})
+        assert meta.get('blocked_module_id') == blocked.id
+
+    def test_prerequisite_module_without_lessons_is_satisfied(self, db_session):
+        """A lesson-less prerequisite cannot be completed — it must not gate.
+
+        ``_get_module_completion`` reports 0% for a module with no lessons, so
+        any bar above 0 would lock the dependent module for good.
+        """
+        level = _make_level(db_session, order=901)
+        empty_gate = _make_module(db_session, level, number=1)
+        dependent = _make_module(db_session, level, number=2)
+        _make_lesson(db_session, dependent, number=1, type_='vocabulary')
+        dependent.prerequisites = [{'type': 'module', 'id': empty_gate.id, 'min_progress': 80}]
+        db_session.commit()
+
+        user = _make_user(db_session, onboarding_level=level.code)
+        accessible, reasons = dependent.check_prerequisites(user.id)
+
+        assert accessible is True, reasons
+
+    def test_blocked_spine_empty_required_falls_back_to_activity(self):
+        """Blocked spine + activity today → day_secured=True.
+
+        A blocked spine empties required exactly like graduation does, but it
+        is not graduation. Without this fallback the learner could study all
+        day and never close it — streak, rank and perfect-day would freeze for
+        as long as the unmet prerequisite lasts.
+        """
+        from unittest.mock import patch
+
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        plan = {
+            'required': [],
+            '_plan_meta': {
+                'effective_mode': 'unified',
+                'graduated': False,
+                'blocked_module_id': 42,
+                'user_id': 999,
+            },
+        }
+
+        with patch('app.utils.activity_tracker.has_learning_activity', return_value=True):
+            assert compute_day_secured_from_activity(plan, {}) is True
+
+        with patch('app.utils.activity_tracker.has_learning_activity', return_value=False):
+            assert compute_day_secured_from_activity(plan, {}) is False
+
     def test_graduated_flag_stamped_in_plan_meta_by_service(self, db_session):
         """get_daily_plan_unified stamps graduated=True in _plan_meta for a graduated user."""
         level = _make_level(db_session, order=20)

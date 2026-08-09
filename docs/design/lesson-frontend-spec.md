@@ -87,10 +87,26 @@ mandatory unless marked optional.
 - Result region is `role="status"` with `aria-live="polite"` and
   `aria-atomic="true"`.
 - Inputs are linked to labels via `for=`/`id=`.
-- Option buttons get `aria-pressed` toggled on selection; correct/wrong
-  states use both colour and an icon.
+- Option buttons announce selection, and **which attribute depends on the
+  semantics** (revised 2026-08-08, audit `UI-024`):
+  - *Mutually exclusive choice* (pick one of N) — `role="radiogroup"` on the
+    container, `role="radio"` + `aria-checked` on the buttons. Applies to
+    `sentence_correction` (both branches), `listening_immersion` speed
+    controls, `shadow_reading` self-assess.
+  - *Independent toggles* — `aria-pressed`. Applies to
+    `collocation_matching` cards and final-test matching buttons.
+  - Using `aria-pressed` for a single-select group is a bug, not a style
+    choice: a screen reader then announces a set of unrelated toggles
+    instead of one choice out of N.
+- Correct/wrong states use both colour and an icon.
+- Progress bars update `aria-valuenow` whenever the width changes — updating
+  only the width leaves the announced value frozen (audit `UI-022`).
 - All animations respect the global `prefers-reduced-motion` block in
-  design-system.css.
+  design-system.css. **CSS is not enough for `scrollIntoView`:** an explicit
+  `{behavior: 'smooth'}` argument beats the `scroll-behavior` property per
+  spec, so a shim in `base.html` downgrades it to `auto` under
+  reduced-motion (audit `UI-017`). Call sites therefore do **not** need to
+  check the media query themselves.
 
 ### Keyboard map (default)
 
@@ -347,9 +363,10 @@ choice or free-text.
 options branch only (controlled by `if options`); user submits empty ⇒
 inline hint, no alert.
 
-**A11y notes:** option buttons get `aria-pressed`; result region is
-aria-live; explanation reveal uses
-`role="note"`.
+**A11y notes:** the option list is a `role="radiogroup"` whose buttons are
+`role="radio"` with `aria-checked` — this is single-select, so `aria-pressed`
+is wrong here (revised 2026-08-08, audit `UI-024`); result region is
+aria-live; explanation reveal uses `role="note"`.
 
 **Keyboard map:** `Enter` submits when an option is selected; in
 textarea, `Enter` (without Shift) submits.
@@ -699,8 +716,11 @@ NOT introduce a new field name.
 `segments` ⇒ render plain transcript.
 
 **A11y notes:** audio has a visible label; speed controls are a
-`role="radiogroup"`; transcript toggle is `aria-expanded`; checkbox
-inside a `<label>`; reduced-motion respected for the reveal animation.
+`role="radiogroup"` **whose buttons carry `role="radio"` + `aria-checked`** —
+the group declared the role but held no radios until 2026-08-08 (audit
+`UI-024`), which left the whole group unreadable; transcript toggle is
+`aria-expanded`; checkbox inside a `<label>`; reduced-motion respected for
+the reveal animation.
 
 **Keyboard map:** `Space` plays/pauses the audio; `↑/↓` cycle speed
 buttons inside the radiogroup; `T` toggles transcript; `Enter`

@@ -168,10 +168,11 @@
             btnEl.href = data.step_url || '{{ url_for("words.dashboard") }}';
         }
 
-        // Show bar & offset body
+        // Show bar. The 48px offset comes from the `.dp-bar--visible ~ nav.navbar`
+        // rule above — adding padding on <body> as well pushed the page down by
+        // 96px and left a 48px band of bare background under the bar (UI-013).
         bar.style.display = 'flex';
         bar.classList.add('dp-bar--visible');
-        document.body.style.paddingTop = '48px';
     })
     .catch(function(err) {
         console.error('Daily plan bar error:', err);

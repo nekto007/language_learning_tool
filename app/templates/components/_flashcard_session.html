@@ -112,7 +112,7 @@
                 На главную
             </a>
             {% if fc_deck_id is defined and fc_deck_id %}
-            <a href="{{ url_for('study.deck_detail', deck_id=fc_deck_id) }}" class="cards-btn cards-btn--primary">
+            <a href="{{ url_for('study.edit_deck', deck_id=fc_deck_id) }}" class="cards-btn cards-btn--primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 Добавить слова
             </a>
@@ -372,7 +372,6 @@
                 <div class="celebration-actions celebration-actions--unified"
                      data-celebration-actions
                      data-completion-mode="standalone">
-                    <div id="daily-plan-next-step"></div>
 
                     {% if not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
                     <a href="#" id="session-extra-study-link" class="btn-extra-study" style="display: none;">
@@ -501,6 +500,13 @@
     var fired = false;
     function trigger() {
         if (fired) { return; }
+        // UI-009: flashcard-session.js already applied the plan CTAs from the
+        // inline daily_plan_ctx that came back with the complete-session
+        // response. Re-deriving them here raced that update — same anchors, a
+        // second round-trip, and a possible hard redirect over what the learner
+        // was already looking at. The observer stays for /study/cards, where
+        // /study/api/complete-session still returns no ctx.
+        if (container.getAttribute('data-plan-cta-source') === 'inline') { return; }
         fired = true;
         try { ctx.applySrsPlanAwareCompletion(container); } catch (_e) { /* swallow */ }
     }

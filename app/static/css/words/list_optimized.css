@@ -963,6 +963,17 @@
     display: none;
 }
 
+.vocab-mobile-selectall {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.25rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--vocab-text-muted, #64748b);
+    cursor: pointer;
+}
+
 .vocab-mobile-card {
     background: var(--vocab-card-bg);
     border: 1px solid var(--vocab-border);

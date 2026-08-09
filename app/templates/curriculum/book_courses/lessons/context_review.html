@@ -174,7 +174,10 @@ function renderChoose() {
         if (oi !== item.answer && oi !== userAnswer) cls += ' cr-option--dim';
       }
       const disabled = answered ? 'style="pointer-events:none"' : '';
-      return `<div class="${cls}" ${disabled} onclick="answerChoose(${idx}, ${oi})">
+      // role/tabindex + data hooks so the keydown delegation below can reach
+      // these options — as bare divs Tab skipped them entirely (audit UI-007).
+      return `<div class="${cls}" ${disabled} role="button" tabindex="${answered ? -1 : 0}"
+        data-choose-idx="${idx}" data-option-idx="${oi}" onclick="answerChoose(${idx}, ${oi})">
         <span class="cr-option__letter">${String.fromCharCode(65 + oi)}</span>
         <span class="cr-option__text">${opt}</span>
       </div>`;
@@ -197,6 +200,24 @@ function renderChoose() {
       </div>`;
   });
 }
+
+// Delegated keydown: both widgets re-render their whole innerHTML on every
+// answer, so per-node listeners would be lost each time (audit UI-007).
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+  const target = e.target.closest ? e.target.closest('[role="button"]') : null;
+  if (!target) return;
+
+  if (target.dataset.chooseIdx !== undefined) {
+    e.preventDefault();
+    answerChoose(parseInt(target.dataset.chooseIdx, 10), parseInt(target.dataset.optionIdx, 10));
+    return;
+  }
+  if (target.dataset.side !== undefined && target.classList.contains('cr-match__item')) {
+    e.preventDefault();
+    selectMatch(target.dataset.side, parseInt(target.dataset.idx, 10));
+  }
+});
 
 function answerChoose(idx, optIndex) {
   if (chooseAnswered[idx] !== undefined) return;
@@ -331,7 +352,7 @@ function renderMatch() {
     const solved = matchSolved[i] !== undefined;
     const cls = solved ? 'cr-match__item cr-match__item--solved' : 'cr-match__item';
     const sel = matchSelected && matchSelected.side === 'left' && matchSelected.idx === i ? ' cr-match__item--selected' : '';
-    return `<div class="${cls}${sel}" data-side="left" data-idx="${i}" onclick="selectMatch('left', ${i})">${p.phrase}</div>`;
+    return `<div class="${cls}${sel}" role="button" tabindex="${solved ? -1 : 0}" data-side="left" data-idx="${i}" onclick="selectMatch('left', ${i})">${p.phrase}</div>`;
   }).join('');
 
   let rightHtml = rightSlots.map((ri) => {
@@ -339,7 +360,7 @@ function renderMatch() {
     const solved = usedRight.has(ri);
     const cls = solved ? 'cr-match__item cr-match__item--solved' : 'cr-match__item';
     const sel = matchSelected && matchSelected.side === 'right' && matchSelected.idx === ri ? ' cr-match__item--selected' : '';
-    return `<div class="${cls}${sel}" data-side="right" data-idx="${ri}" onclick="selectMatch('right', ${ri})">${p.meaning}</div>`;
+    return `<div class="${cls}${sel}" role="button" tabindex="${solved ? -1 : 0}" data-side="right" data-idx="${ri}" onclick="selectMatch('right', ${ri})">${p.meaning}</div>`;
   }).join('');
 
   area.innerHTML = `
@@ -505,7 +526,35 @@ function completeLessonAPI() {
   })
   .then(r => { if (r.ok || r.status === 201) return r.json().catch(() => ({})); throw new Error('fail'); })
   .then(() => { clearProgress(); showCompletionUI(); })
-  .catch(e => { console.error(e); showCompletionUI(); });
+  .catch(e => { console.error(e); showSaveError(() => completeLessonAPI()); });
+}
+
+// A failed POST must not paint the success screen: the lesson is NOT recorded,
+// and telling the learner it is loses their work silently (audit UI-003).
+function showSaveError(retry) {
+  const actions = document.getElementById('results-actions');
+  if (!actions) return;
+  const isRu = (typeof LANG !== 'undefined' ? LANG : 'ru') === 'ru';
+  actions.textContent = '';
+
+  const note = document.createElement('p');
+  note.className = 'lesson-save-error';
+  note.setAttribute('role', 'alert');
+  note.textContent = isRu
+    ? 'Не удалось сохранить результат. Урок не засчитан — попробуйте ещё раз.'
+    : 'Could not save your result. The lesson was not recorded — please try again.';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cr-results__btn cr-results__btn--primary';
+  button.textContent = isRu ? 'Повторить' : 'Retry';
+  button.addEventListener('click', function () {
+    actions.textContent = '';
+    retry();
+  });
+
+  actions.appendChild(note);
+  actions.appendChild(button);
 }
 
 function showCompletionUI() {

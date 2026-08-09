@@ -544,7 +544,12 @@ def maybe_award_linear_perfect_day(
     plan_meta = plan.get('_plan_meta') or {}
     if plan_meta.get('effective_mode') == 'paused':
         return None
-    if not (plan.get('required') or []) and not plan_meta.get('graduated'):
+    # Same admission rule as compute_day_secured_from_activity: an empty
+    # required list only counts when the curriculum is exhausted (graduated) or
+    # hidden behind an unmet prerequisite (blocked spine).
+    if not (plan.get('required') or []) and not (
+        plan_meta.get('graduated') or plan_meta.get('blocked_module_id') is not None
+    ):
         return None
 
     plan_completion, _, _, _ = compute_plan_steps(plan, summary)

@@ -26,6 +26,7 @@ admin = Blueprint('admin', __name__, url_prefix='/admin')
 logger = logging.getLogger(__name__)
 
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.request_validators import escape_like
 
 
 @admin.route('/curriculum')
@@ -105,7 +106,9 @@ def lesson_list():
         query = query.filter(Lessons.module_id == module_id)
 
     if search:
-        query = query.filter(Lessons.title.ilike(f'%{search}%'))
+        query = query.filter(
+            Lessons.title.ilike(f'%{escape_like(search)}%', escape='\\')
+        )
 
     lessons = query.order_by(CEFRLevel.order, Module.number, Lessons.number).all()
 

@@ -30,6 +30,17 @@ class TestGetSafeRedirectUrl:
             assert result.startswith('/')
             assert 'evil.com' not in result
 
+    @pytest.mark.parametrize('hostile', [
+        '///evil.com/path',
+        '////evil.com/path',
+    ])
+    def test_blocks_slash_run_url(self, app, hostile):
+        """`urlparse` calls these local paths; browsers call them evil.com."""
+        with app.test_request_context():
+            result = get_safe_redirect_url(hostile, fallback='auth.login')
+            assert result.startswith('/')
+            assert 'evil.com' not in result
+
     def test_blocks_backslash_trick(self, app):
         with app.test_request_context():
             result = get_safe_redirect_url('/\\evil.com', fallback='auth.login')
@@ -75,7 +86,7 @@ class TestRedirectsUsesSafeValidation:
                             violations.append(f'{filepath}:{lineno}: {line.strip()}')
 
         assert violations == [], (
-            f'Found raw redirect(request.referrer) without validation:\n'
+            'Found raw redirect(request.referrer) without validation:\n'
             + '\n'.join(violations)
         )
 

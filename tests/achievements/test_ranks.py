@@ -1,6 +1,6 @@
 """Unit tests for the daily plan rank/title system."""
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
@@ -21,6 +21,7 @@ from app.achievements.ranks import (
 )
 from app.auth.models import User
 from app.notifications.models import Notification
+from tests.support_dates import study_today
 
 
 class TestRankThresholds:
@@ -188,7 +189,7 @@ class TestRecordPlanCompletion:
     """record_plan_completion increments counter, idempotent per day, detects rank-up."""
 
     def test_first_completion_creates_stats_and_marker(self, db_session, rank_user):
-        today = date.today()
+        today = study_today()
         result = record_plan_completion(rank_user.id, for_date=today)
         db_session.flush()
 
@@ -205,7 +206,7 @@ class TestRecordPlanCompletion:
         assert marker.details['plans_completed_total'] == 1
 
     def test_second_call_same_date_idempotent(self, db_session, rank_user):
-        today = date.today()
+        today = study_today()
         record_plan_completion(rank_user.id, for_date=today)
         db_session.flush()
         result = record_plan_completion(rank_user.id, for_date=today)
@@ -222,8 +223,8 @@ class TestRecordPlanCompletion:
         assert markers == 1
 
     def test_consecutive_days_increment(self, db_session, rank_user):
-        d1 = date.today() - timedelta(days=1)
-        d2 = date.today()
+        d1 = study_today() - timedelta(days=1)
+        d2 = study_today()
         record_plan_completion(rank_user.id, for_date=d1)
         db_session.flush()
         record_plan_completion(rank_user.id, for_date=d2)
@@ -239,7 +240,7 @@ class TestRecordPlanCompletion:
         db_session.add(stats)
         db_session.flush()
 
-        today = date.today()
+        today = study_today()
         result = record_plan_completion(rank_user.id, for_date=today)
         db_session.flush()
 
@@ -258,7 +259,7 @@ class TestRecordPlanCompletion:
         db_session.add(stats)
         db_session.flush()
 
-        result = record_plan_completion(rank_user.id, for_date=date.today())
+        result = record_plan_completion(rank_user.id, for_date=study_today())
         db_session.flush()
 
         assert result is None
@@ -272,7 +273,7 @@ class TestRecordPlanCompletion:
         db_session.add(stats)
         db_session.flush()
 
-        result = record_plan_completion(rank_user.id, for_date=date.today())
+        result = record_plan_completion(rank_user.id, for_date=study_today())
         db_session.flush()
 
         assert isinstance(result, RankUp)
@@ -325,7 +326,7 @@ class TestConcurrentRankUpDedup:
         db_session.add(stats)
         db_session.flush()
 
-        today = date.today()
+        today = study_today()
 
         # First call — crosses the threshold, returns RankUp.
         rank_up1 = record_plan_completion(rank_user.id, for_date=today)
@@ -363,7 +364,7 @@ class TestConcurrentRankUpDedup:
         db_session.add(stats)
         db_session.flush()
 
-        result = record_plan_completion(rank_user.id, for_date=date.today())
+        result = record_plan_completion(rank_user.id, for_date=study_today())
         db_session.flush()
 
         assert isinstance(result, RankUp)
@@ -465,7 +466,7 @@ class TestGetRankHistory:
     """get_rank_history reconstructs rank-up milestones from StreakEvents."""
 
     def _record_events(self, db_session, user_id, sequence):
-        today = date.today()
+        today = study_today()
         for offset, total, code in sequence:
             db_session.add(StreakEvent(
                 user_id=user_id,
@@ -497,7 +498,7 @@ class TestGetRankHistory:
         history = get_rank_history(rank_user.id)
         assert len(history) == 1
         assert history[0].code == 'novice'
-        assert history[0].achieved_on == date.today() - timedelta(days=3)
+        assert history[0].achieved_on == study_today() - timedelta(days=3)
 
     def test_progression_through_ranks(self, db_session, rank_user):
         self._record_events(db_session, rank_user.id, [
@@ -509,14 +510,14 @@ class TestGetRankHistory:
         ])
         history = get_rank_history(rank_user.id)
         assert [m.code for m in history] == ['novice', 'explorer', 'student']
-        assert history[0].achieved_on == date.today() - timedelta(days=10)
-        assert history[1].achieved_on == date.today() - timedelta(days=8)
-        assert history[2].achieved_on == date.today() - timedelta(days=1)
+        assert history[0].achieved_on == study_today() - timedelta(days=10)
+        assert history[1].achieved_on == study_today() - timedelta(days=8)
+        assert history[2].achieved_on == study_today() - timedelta(days=1)
         assert history[2].plans_completed == 21
         assert history[2].name == 'Student'
 
     def test_skip_events_without_rank_code(self, db_session, rank_user):
-        today = date.today()
+        today = study_today()
         db_session.add(StreakEvent(
             user_id=rank_user.id,
             event_type='plan_completed',
@@ -538,7 +539,7 @@ class TestGetRankHistory:
         assert history[0].code == 'explorer'
 
     def test_other_event_types_ignored(self, db_session, rank_user):
-        today = date.today()
+        today = study_today()
         db_session.add(StreakEvent(
             user_id=rank_user.id,
             event_type='earned',
@@ -558,7 +559,7 @@ class TestDaysAtCurrentRank:
             user_id=user_id,
             event_type='plan_completed',
             coins_delta=0,
-            event_date=date.today() + timedelta(days=offset),
+            event_date=study_today() + timedelta(days=offset),
             details={'plans_completed_total': total, 'rank_code': code},
         ))
         db_session.flush()
@@ -583,6 +584,6 @@ class TestDaysAtCurrentRank:
         self._record(db_session, rank_user.id, -2, 7, 'explorer')
         result = days_at_current_rank(
             rank_user.id,
-            today=date.today() + timedelta(days=5),
+            today=study_today() + timedelta(days=5),
         )
         assert result == 7

@@ -35,6 +35,45 @@ _OPTION_ANSWER_TYPES = frozenset({
 })
 
 
+def _collect_final_test_form(form) -> tuple[dict, dict]:
+    """Split a final-test POST into ``answer_<i>`` values and ``pairs_<i>`` sidecars.
+
+    ``final_test.html`` posts matching questions twice: ``answer_<i>`` is a
+    human-readable display string and ``pairs_<i>`` is the JSON the grader can
+    actually validate. Reading only the former marks every matching question
+    wrong (audit CNT-001), so both handlers share this collector.
+    """
+    answers: dict = {}
+    pairs_by_idx: dict = {}
+
+    for key in form:
+        if key.startswith('answer_'):
+            question_idx = key.replace('answer_', '')
+            try:
+                answers[int(question_idx)] = form[key]
+            except ValueError:
+                logger.error(f"Invalid question index: {question_idx}")
+        elif key.startswith('pairs_'):
+            question_idx = key.replace('pairs_', '')
+            try:
+                idx = int(question_idx)
+                raw = form[key]
+                parsed = json.loads(raw) if raw else None
+                if isinstance(parsed, list):
+                    pairs_by_idx[idx] = [
+                        {
+                            'left': str(p.get('left', ''))[:200],
+                            'right': str(p.get('right', ''))[:200],
+                            'correct': bool(p.get('correct', True)),
+                        }
+                        for p in parsed if isinstance(p, dict)
+                    ]
+            except (ValueError, TypeError) as pair_error:
+                logger.warning(f"Invalid pairs payload for {question_idx}: {pair_error}")
+
+    return answers, pairs_by_idx
+
+
 def _uses_option_answer_text(question: dict) -> bool:
     """Return True when posted option indexes are unstable across shuffles."""
     question_type = question.get('type', 'multiple_choice')
@@ -587,17 +626,9 @@ def render_final_test_lesson(lesson):
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': False, **rate_limit}), 429
             flash('Достигнут лимит попыток финального теста. Попробуйте позже.', 'error')
-            return redirect(url_for('curriculum.lesson_by_id', lesson_id=lesson.id))
+            return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
 
-        answers = {}
-        for key in request.form:
-            if key.startswith('answer_'):
-                question_idx = key.replace('answer_', '')
-                try:
-                    idx = int(question_idx)
-                    answers[idx] = request.form[key]
-                except ValueError:
-                    logger.error(f"Invalid question index: {question_idx}")
+        answers, pairs_by_idx = _collect_final_test_form(request.form)
 
         all_questions = []
         sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
@@ -611,7 +642,38 @@ def render_final_test_lesson(lesson):
             all_questions, lesson_id=lesson.id,
         )
 
+        # For matching questions: if we collected pairs_<i> sidecar, package
+        # them in the JSON shape the grader's matching branch expects so it
+        # can actually validate (instead of marking everything wrong).
+        # Only matching questions — a stray `pairs_<i>` posted alongside a
+        # multiple-choice answer would otherwise replace the real answer with
+        # a JSON blob and grade the question wrong.
+        def _is_matching(idx: int) -> bool:
+            if not (0 <= idx < len(all_questions)):
+                return False
+            question = all_questions[idx]
+            return isinstance(question, dict) and question.get('type') == 'matching'
+
+        pairs_by_idx = {
+            idx: pair_list
+            for idx, pair_list in pairs_by_idx.items()
+            if _is_matching(idx)
+        }
+        for idx, pair_list in pairs_by_idx.items():
+            answers[idx] = json.dumps({'pairs': pair_list})
+
         result = process_quiz_submission(all_questions, answers)
+
+        # Persist user-assembled matching pairs into feedback so the results
+        # page can render «Friend → Друг» instead of "completed".
+        if pairs_by_idx and isinstance(result, dict):
+            feedback = result.get('feedback') or {}
+            for idx, pair_list in pairs_by_idx.items():
+                fb_key = str(idx)
+                if fb_key in feedback and isinstance(feedback[fb_key], dict):
+                    feedback[fb_key]['user_pairs'] = pair_list
+            result['feedback'] = feedback
+
         passing_score = get_lesson_passing_score(lesson)
 
         try:
@@ -981,212 +1043,15 @@ def quiz_lesson(lesson_id):
 @login_required
 @require_lesson_access
 def final_test_lesson(lesson_id):
-    """Display final test lesson with specialized handling"""
+    """Display final test lesson with specialized handling.
+
+    Thin wrapper over :func:`render_final_test_lesson` — the two used to be
+    independent copies that drifted apart (audit CNT-001): only this one parsed
+    the ``pairs_<i>`` sidecar, while every first-attempt entry point routed
+    through the other. One handler, one behaviour.
+    """
     lesson = Lessons.query.get_or_404(lesson_id)
-
-    if lesson.type != 'final_test':
-        abort(400, "This is not a final test lesson")
-
-    try:
-        is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-            'final_test', lesson.content
-        )
-    except ValidationError as e:
-        error_msg = str(e.messages)
-        logger.error(f"Invalid final test content for lesson {lesson_id}: {error_msg}")
-        flash('Ошибка в содержимом финального теста', 'error')
-        return redirect('/learn/')
-
-    if not is_valid:
-        logger.error(f"Invalid final test content for lesson {lesson_id}: {error_msg}")
-        flash('Ошибка в содержимом финального теста', 'error')
-        return redirect('/learn/')
-
-    questions_to_sanitize = []
-    sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
-    if sections_list:
-        for section in sections_list:
-            questions_to_sanitize.extend(section.get('exercises') or section.get('questions') or [])
-    else:
-        questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
-        questions_to_sanitize = cleaned_content.get(questions_field, [])
-
-    for question in questions_to_sanitize:
-        if 'question' in question:
-            question['question'] = sanitize_html(question['question'])
-        elif 'prompt' in question:
-            question['question'] = sanitize_html(question['prompt'])
-
-        if 'options' in question:
-            question['options'] = [sanitize_html(opt) for opt in question['options']]
-
-        if 'explanation' in question:
-            question['explanation'] = sanitize_html(question['explanation'])
-
-        if 'correct_index' in question and 'correct' not in question:
-            question['correct'] = question['correct_index']
-
-        if 'answer' in question and 'correct_answer' not in question:
-            question['correct_answer'] = question['answer']
-
-    reset_progress = is_lesson_retry_requested()
-
-    progress = LessonProgress.query.filter_by(
-        user_id=current_user.id,
-        lesson_id=lesson.id
-    ).first()
-
-    if request.method == 'POST':
-        rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
-        if rate_limit is not None:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, **rate_limit}), 429
-            flash('Достигнут лимит попыток финального теста. Попробуйте позже.', 'error')
-            return redirect(url_for('curriculum_lessons.final_test_lesson', lesson_id=lesson.id))
-
-        answers = {}
-        pairs_by_idx = {}
-        for key in request.form:
-            if key.startswith('answer_'):
-                question_idx = key.replace('answer_', '')
-                try:
-                    idx = int(question_idx)
-                    answers[idx] = request.form[key]
-                except ValueError:
-                    logger.error(f"Invalid question index: {question_idx}")
-            elif key.startswith('pairs_'):
-                # Optional sidecar for matching questions — JSON list of
-                # {left, right, correct} the user actually matched.
-                question_idx = key.replace('pairs_', '')
-                try:
-                    idx = int(question_idx)
-                    import json as _json
-                    raw = request.form[key]
-                    parsed = _json.loads(raw) if raw else None
-                    if isinstance(parsed, list):
-                        pairs_by_idx[idx] = [
-                            {
-                                'left': str(p.get('left', ''))[:200],
-                                'right': str(p.get('right', ''))[:200],
-                                'correct': bool(p.get('correct', True)),
-                            }
-                            for p in parsed if isinstance(p, dict)
-                        ]
-                except (ValueError, TypeError) as _pe:
-                    logger.warning(f"Invalid pairs payload for {question_idx}: {_pe}")
-
-        all_questions = []
-        if 'test_sections' in cleaned_content:
-            for section in cleaned_content['test_sections']:
-                all_questions.extend(section.get('exercises') or section.get('questions') or [])
-        else:
-            questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
-            all_questions = cleaned_content.get(questions_field, [])
-        all_questions = _filter_final_test_questions_for_student(
-            all_questions, lesson_id=lesson.id,
-        )
-
-        # For matching questions: if we collected pairs_<i> sidecar, package
-        # them in the JSON shape the grader's matching branch expects so it
-        # can actually validate (instead of marking everything wrong).
-        if pairs_by_idx:
-            import json as _json
-            for idx, pair_list in pairs_by_idx.items():
-                answers[idx] = _json.dumps({'pairs': pair_list})
-
-        result = process_quiz_submission(all_questions, answers)
-
-        # Persist user-assembled matching pairs into feedback so the results
-        # page can render «Friend → Друг» instead of "completed".
-        if pairs_by_idx and isinstance(result, dict):
-            feedback = result.get('feedback') or {}
-            for idx, pair_list in pairs_by_idx.items():
-                fb_key = str(idx)
-                if fb_key in feedback and isinstance(feedback[fb_key], dict):
-                    feedback[fb_key]['user_pairs'] = pair_list
-            result['feedback'] = feedback
-
-        passing_score = get_lesson_passing_score(lesson)
-
-        try:
-            log_quiz_errors_from_result(
-                current_user.id,
-                lesson.id,
-                all_questions,
-                result,
-                db,
-            )
-        except Exception as log_error:
-            logger.warning(f"Failed to log quiz errors for lesson {lesson.id}: {log_error}")
-
-        progress, completion_result = ProgressService.update_progress_with_grading(
-            user_id=current_user.id,
-            lesson=lesson,
-            result=result,
-            passing_score=passing_score
-        )
-
-        if progress and progress.status == 'completed':
-            try:
-                from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-                with db.session.begin_nested():
-                    maybe_award_curriculum_xp(
-                        current_user.id, lesson,
-                        db_session=db,
-                        score=result.get('score'),
-                    )
-                db.session.commit()
-            except Exception as _xp_err:
-                db.session.rollback()
-                logger.warning(f"Linear XP award failed for final test {lesson.id}: {_xp_err}")
-
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            response_data = {
-                'success': True,
-                'score': result.get('score', 0),
-                'feedback': result.get('feedback', {}),
-                'correct_count': result.get('correct_count', 0),
-                'total_count': result.get('total_count', 0),
-                'passing_score': passing_score,
-                'passed': result.get('score', 0) >= passing_score
-            }
-            if completion_result:
-                response_data['grade'] = completion_result['grade']
-                response_data['grade_name'] = completion_result['grade_name']
-                response_data['new_achievements'] = completion_result['new_achievements']
-            return jsonify(response_data)
-        else:
-            _from = request.args.get('from', '')
-            _slot = request.args.get('slot', '')
-            _results_url = url_for('curriculum_lessons.final_test_results', lesson_id=lesson.id)
-            if _from:
-                _results_url += f'?from={_from}'
-                if _slot:
-                    _results_url += f'&slot={_slot}'
-            return redirect(_results_url)
-
-    next_lesson = get_next_lesson(lesson.id)
-
-    if 'test_sections' in cleaned_content:
-        questions = []
-        for section in cleaned_content.get('test_sections', []):
-            questions.extend(section.get('exercises') or section.get('questions') or [])
-    else:
-        questions = cleaned_content.get('exercises', cleaned_content.get('questions', []))
-    questions = _filter_final_test_questions_for_student(
-        questions, lesson_id=lesson.id,
-    )
-
-    return render_template(
-        'curriculum/lessons/final_test.html',
-        lesson=lesson,
-        questions=questions,
-        exercises=questions,
-        settings=cleaned_content,
-        progress=retry_display_progress(progress, force=reset_progress),
-        next_lesson=next_lesson,
-        passing_score=get_lesson_passing_score(lesson)
-    )
+    return render_final_test_lesson(lesson)
 
 
 @lessons_bp.route('/lesson/<int:lesson_id>/final_test/results')

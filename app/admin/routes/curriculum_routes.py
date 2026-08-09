@@ -14,6 +14,7 @@ from sqlalchemy import distinct, func
 from app.admin.audit import log_admin_action
 from app.admin.services.curriculum_import_service import CurriculumImportService
 from app.admin.utils.decorators import admin_required
+from app.admin.utils.request_validators import escape_like
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.utils.db import db
@@ -108,7 +109,9 @@ def lesson_list():
         query = query.filter(Lessons.module_id == module_id)
 
     if search:
-        query = query.filter(Lessons.title.ilike(f'%{search}%'))
+        query = query.filter(
+            Lessons.title.ilike(f'%{escape_like(search)}%', escape='\\')
+        )
 
     lessons = query.order_by(CEFRLevel.order, Module.number, Lessons.number).all()
 

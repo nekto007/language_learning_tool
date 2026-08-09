@@ -954,10 +954,13 @@ class TestP3Batch2:
         assert resp.status_code == 200
         _assert_inline_js_valid(resp.data.decode(), 'submitResults')
 
-    # --- daily-plan-next.js: dead mission code removed (file kept — live for readers) ---
-    def test_daily_plan_next_mission_code_removed(self):
-        js = (REPO / 'app' / 'static' / 'js' / 'daily-plan-next.js').read_text(encoding='utf-8')
-        assert 'var isMissionPlan' not in js
-        assert 'isMissionPlan ?' not in js           # no live ternary references
-        # File is NOT deleted — still loaded by the reader + grammar-lab pages.
-        assert (REPO / 'app' / 'static' / 'js' / 'daily-plan-next.js').exists()
+    # --- daily-plan-next.js: deleted outright (UI-031) ---
+    def test_daily_plan_next_script_is_deleted(self):
+        """The earlier pass kept the file believing the reader still used it.
+
+        UI-031 re-checked the polarity: the gate needs ``?from=daily_plan``,
+        every plan URL carries ``?from=linear_plan``, and the sole route that
+        does emit ``from=daily_plan`` renders a template that never loaded the
+        script. Nothing could reach it, so it is gone.
+        """
+        assert not (REPO / 'app' / 'static' / 'js' / 'daily-plan-next.js').exists()

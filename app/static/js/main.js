@@ -66,17 +66,19 @@ function enhancedBulkActionsSetup() {
             return;
         }
 
-        // Remove any existing event listeners by cloning elements
+        // Bind once per element instead of replacing it with a cloneNode copy.
+        // Cloning used to drop every listener the page had already registered —
+        // on /words the template binds its own change handlers first, so its
+        // bulk-actions panel stopped opening entirely.
+        const bindOnce = (element, type, handler) => {
+            if (!element || element.dataset.bulkBound === type) return false;
+            element.dataset.bulkBound = type;
+            element.addEventListener(type, handler);
+            return true;
+        };
+
         if (selectAllCheckbox) {
-            const newSelectAllCheckbox = selectAllCheckbox.cloneNode(true);
-            if (selectAllCheckbox.parentNode) {
-                selectAllCheckbox.parentNode.replaceChild(newSelectAllCheckbox, selectAllCheckbox);
-            }
-
-            // Add the change event listener to the new element
-            newSelectAllCheckbox.addEventListener('change', function() {
-                console.log("Select All checkbox clicked, new state:", this.checked);
-
+            bindOnce(selectAllCheckbox, 'change', function() {
                 // Update all word checkboxes
                 wordCheckboxes.forEach(checkbox => {
                     checkbox.checked = this.checked;
@@ -84,21 +86,12 @@ function enhancedBulkActionsSetup() {
 
                 // Update the visual state of bulk action buttons
                 updateBulkActionsVisualState();
-
-                console.log("Word checkboxes updated, bulk actions state updated");
             });
         }
 
         // Add event listeners to word checkboxes
         wordCheckboxes.forEach(checkbox => {
-            const newCheckbox = checkbox.cloneNode(true);
-            if (checkbox.parentNode) {
-                checkbox.parentNode.replaceChild(newCheckbox, checkbox);
-            }
-
-            newCheckbox.addEventListener('change', function() {
-                console.log("Individual checkbox changed");
-
+            bindOnce(checkbox, 'change', function() {
                 // Update Select All checkbox state
                 if (selectAllCheckbox) {
                     const totalCheckboxes = document.querySelectorAll('.word-checkbox').length;
@@ -115,13 +108,7 @@ function enhancedBulkActionsSetup() {
 
         // Make sure click events on bulk action buttons work correctly
         bulkActionButtons.forEach(button => {
-            // Remove existing click handlers to avoid duplicates
-            const newButton = button.cloneNode(true);
-            if (button.parentNode) {
-                button.parentNode.replaceChild(newButton, button);
-            }
-
-            newButton.addEventListener('click', function(e) {
+            bindOnce(button, 'click', function(e) {
                 e.preventDefault();
 
                 const selectedIds = getSelectedWordIds();

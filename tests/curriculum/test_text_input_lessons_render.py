@@ -375,4 +375,8 @@ class TestSentenceCorrectionOptionTaxonomy:
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
         assert "option-btn" in html
-        assert 'aria-pressed="false"' in html
+        # UI-024: single-select options are a radiogroup, not a row of
+        # independent toggles — aria-pressed was replaced by aria-checked.
+        assert 'role="radiogroup"' in html
+        assert 'role="radio"' in html
+        assert 'aria-checked="false"' in html

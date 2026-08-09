@@ -23,6 +23,15 @@
 (function() {
   'use strict';
 
+  // UI-029: labels this module injects client-side. An external .js cannot call
+  // Jinja's _(), so they come from the server-rendered window.I18N bridge
+  // (components/_lesson_i18n.html); the Russian fallback keeps the current
+  // single-locale rendering byte-identical if the bridge is absent.
+  function _t(key, fallback) {
+    var dict = window.I18N || {};
+    return (typeof dict[key] === 'string' && dict[key]) ? dict[key] : fallback;
+  }
+
   var STORAGE_KEY = 'linear_plan_context';
   var PLAN_SOURCE = 'linear_plan';
   // ``reading`` is the canonical slot kind (matches ``PlanItem.kind`` on the
@@ -222,7 +231,6 @@
    * Expects a DOM tree shaped like the celebration-actions block rendered by
    * ``components/_flashcard_session.html``:
    *   <div class="celebration-actions" data-celebration-actions>
-   *     <div id="daily-plan-next-step"></div>
    *     <a id="session-extra-study-link" ...>Ещё карточки</a>
    *     <a id="fc-continue-btn" ...>К колодам</a>
    *   </div>
@@ -301,14 +309,14 @@
       primary.setAttribute('data-plan-cta', 'next-slot');
       primary.setAttribute('href', data.next.url);
       primary.textContent = data.next.title
-        ? 'Следующий слот плана · ' + data.next.title
-        : 'Следующий слот плана';
+        ? _t('plan_next_slot', 'Следующий слот плана') + ' · ' + data.next.title
+        : _t('plan_next_slot', 'Следующий слот плана');
 
       var secondary = document.createElement('a');
       secondary.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
       secondary.setAttribute('data-plan-cta', 'dashboard');
       secondary.setAttribute('href', '/dashboard');
-      secondary.textContent = 'На дашборд';
+      secondary.textContent = _t('dashboard', 'На дашборд');
 
       container.appendChild(primary);
       container.appendChild(secondary);
@@ -372,7 +380,7 @@
 
       var message = document.createElement('div');
       message.className = 'linear-plan-book-toast__message';
-      message.textContent = 'Слот чтения выполнен';
+      message.textContent = _t('reading_slot_done', 'Слот чтения выполнен');
       toast.appendChild(message);
 
       var primary = document.createElement('a');
@@ -381,13 +389,13 @@
 
       if (data.day_secured) {
         primary.href = '/dashboard?day_secured=1';
-        primary.textContent = 'День сохранён · На дашборд';
+        primary.textContent = _t('day_saved', 'День сохранён · На дашборд');
         try { clear(); } catch (e) { /* ignore */ }
       } else if (data.next && data.next.url) {
         primary.href = data.next.url;
         primary.textContent = data.next.title
-          ? 'Продолжить план · ' + data.next.title
-          : 'Продолжить план';
+          ? _t('plan_continue', 'Продолжить план') + ' · ' + data.next.title
+          : _t('plan_continue', 'Продолжить план');
       } else {
         return 'standalone';
       }
@@ -396,7 +404,7 @@
       var close = document.createElement('button');
       close.type = 'button';
       close.className = 'linear-plan-book-toast__close';
-      close.setAttribute('aria-label', 'Скрыть');
+      close.setAttribute('aria-label', _t('hide', 'Скрыть'));
       close.textContent = '×';
       close.addEventListener('click', function() {
         if (toast.parentNode) toast.parentNode.removeChild(toast);
@@ -488,15 +496,15 @@
       primary.setAttribute('data-plan-cta', 'next-slot');
       primary.href = data.next.url;
       primary.textContent = data.next.title
-        ? 'Следующий слот плана · ' + data.next.title
-        : 'Следующий слот плана';
+        ? _t('plan_next_slot', 'Следующий слот плана') + ' · ' + data.next.title
+        : _t('plan_next_slot', 'Следующий слот плана');
       wrapper.appendChild(primary);
 
       var secondary = document.createElement('a');
       secondary.className = 'btn btn--outline';
       secondary.setAttribute('data-plan-cta', 'dashboard');
       secondary.href = '/dashboard';
-      secondary.textContent = 'На дашборд';
+      secondary.textContent = _t('dashboard', 'На дашборд');
       wrapper.appendChild(secondary);
 
       container.appendChild(wrapper);

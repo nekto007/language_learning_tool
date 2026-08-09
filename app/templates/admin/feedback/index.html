@@ -7,8 +7,8 @@
 {{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Обратная связь', '')]) }}
 {% endblock %}
 
-{% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос'} %}
-{% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info'} %}
+{% set category_labels = {'bug': 'Баг', 'idea': 'Идея', 'question': 'Вопрос', 'survey': 'Опрос'} %}
+{% set category_badges = {'bug': 'danger', 'idea': 'success', 'question': 'info', 'survey': 'primary'} %}
 {% set status_labels = {'new': 'Новые', 'seen': 'Просмотрено', 'in_progress': 'В работе', 'resolved': 'Закрыто', 'reopened': 'Переоткрыто'} %}
 {% set status_badges = {'new': 'primary', 'seen': 'warning', 'in_progress': 'info', 'resolved': 'secondary', 'reopened': 'danger'} %}
 {% set priority_labels = {'low': 'Низкий', 'normal': 'Обычный', 'high': 'Высокий', 'critical': 'Критичный'} %}
@@ -16,6 +16,15 @@
 
 {% block content %}
 {{ page_header('Обратная связь', 'Сообщения пользователей: баги, идеи, вопросы') }}
+
+<div class="d-flex gap-2 mb-3">
+    <a href="{{ url_for('feedback_admin.feedback_index', category='survey') }}" class="btn btn-sm btn-outline-primary">
+        Только опросы
+    </a>
+    <a href="{{ url_for('feedback_admin.survey_coverage') }}" class="btn btn-sm btn-outline-secondary">
+        Охват опроса — кто ответил и кто нет
+    </a>
+</div>
 
 <div class="row g-3 mb-4">
     {% for st in statuses %}

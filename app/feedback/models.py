@@ -10,7 +10,11 @@ from datetime import datetime, timezone
 
 from app.utils.db import db
 
-FEEDBACK_CATEGORIES = ('bug', 'idea', 'question')
+# Every category that may exist in the table — admin filtering and labels.
+FEEDBACK_CATEGORIES = ('bug', 'idea', 'question', 'survey')
+# What the public widget may submit. 'survey' is written only by the survey
+# endpoint, so it must not be selectable in the free-form feedback form.
+USER_SUBMITTABLE_CATEGORIES = ('bug', 'idea', 'question')
 FEEDBACK_STATUSES = ('new', 'seen', 'in_progress', 'resolved', 'reopened')
 FEEDBACK_PRIORITIES = ('low', 'normal', 'high', 'critical')
 
@@ -22,6 +26,13 @@ TIMEZONE_MAX_LENGTH = 64
 PLATFORM_MAX_LENGTH = 64
 SCREENSHOT_PATH_MAX_LENGTH = 512
 REPLY_BODY_MAX_LENGTH = 4000
+
+# Two-week product survey. Asked once at the moment the learner closes a study
+# day — the one point in the product where nothing is interrupted.
+SURVEY_MIN_ACCOUNT_AGE_DAYS = 14
+SURVEY_SNOOZE_DAYS = 7
+SURVEY_MAX_PROMPTS = 2
+SURVEY_ANSWER_MAX_LENGTH = 1000
 
 
 class Feedback(db.Model):
@@ -156,6 +167,35 @@ class FeedbackReply(db.Model):
 
     def __repr__(self) -> str:
         return f'<FeedbackReply id={self.id} feedback={self.feedback_id} admin={self.is_admin}>'
+
+
+class SurveyPrompt(db.Model):
+    """Per-user lifecycle of the two-week survey prompt.
+
+    Only the prompt state lives here. The answers themselves are ordinary
+    ``Feedback`` rows with category ``survey``, so they land in the existing
+    admin queue, reply thread and notification fan-out rather than in a
+    parallel system nobody would remember to read.
+    """
+
+    __tablename__ = 'survey_prompts'
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    # How many times the learner explicitly said "not now". Leaving the page
+    # is not a dismissal — only the button counts.
+    dismiss_count = db.Column(
+        db.Integer, nullable=False, default=0, server_default='0',
+    )
+    dismissed_at = db.Column(db.DateTime, nullable=True)
+    answered_at = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        state = 'answered' if self.answered_at else f'dismissed x{self.dismiss_count}'
+        return f'<SurveyPrompt user={self.user_id} {state}>'
 
 
 def create_feedback(

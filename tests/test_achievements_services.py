@@ -3,7 +3,7 @@ Tests for achievements services
 Тесты сервисов достижений
 """
 import pytest
-from datetime import date, datetime, UTC, timedelta
+from datetime import datetime, UTC, timedelta
 from app.achievements.services import (
     GradingService,
     StatisticsService,
@@ -12,6 +12,7 @@ from app.achievements.services import (
 )
 from app.achievements.models import LessonGrade, UserStatistics
 from app.study.models import Achievement, UserAchievement
+from tests.support_dates import study_today
 
 
 class TestGradingService:
@@ -133,7 +134,7 @@ class TestStatisticsService:
         assert stats.grade_b_count == 1
         assert stats.current_streak_days == 1
         assert stats.longest_streak_days == 1
-        assert stats.last_activity_date == date.today()
+        assert stats.last_activity_date == study_today()
 
     def test_update_on_lesson_completion_grade_counts(self, db_session, test_user):
         """Тест подсчета оценок разных типов"""
@@ -155,7 +156,7 @@ class TestStatisticsService:
             user_id=test_user.id,
             current_streak_days=3,
             longest_streak_days=5,
-            last_activity_date=date.today() - timedelta(days=1)
+            last_activity_date=study_today() - timedelta(days=1)
         )
         db_session.add(stats)
         db_session.commit()
@@ -171,7 +172,7 @@ class TestStatisticsService:
             user_id=test_user.id,
             current_streak_days=5,
             longest_streak_days=10,
-            last_activity_date=date.today() - timedelta(days=3)
+            last_activity_date=study_today() - timedelta(days=3)
         )
         db_session.add(stats)
         db_session.commit()
@@ -187,7 +188,7 @@ class TestStatisticsService:
             user_id=test_user.id,
             current_streak_days=4,
             longest_streak_days=4,
-            last_activity_date=date.today() - timedelta(days=1)
+            last_activity_date=study_today() - timedelta(days=1)
         )
         db_session.add(stats)
         db_session.commit()
@@ -203,7 +204,7 @@ class TestStatisticsService:
             user_id=test_user.id,
             current_streak_days=3,
             longest_streak_days=5,
-            last_activity_date=date.today()
+            last_activity_date=study_today()
         )
         db_session.add(stats)
         db_session.commit()

@@ -443,5 +443,8 @@
     </script>
 
     {% block scripts %}{% endblock %}
+    {# Same name as base.html / public_base.html: children written against the
+       cabinet layout otherwise lose their whole script block silently. #}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

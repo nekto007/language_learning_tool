@@ -39,9 +39,12 @@ class TestLessonCompletionModule:
         assert '[data-plan-cta="next-slot"]' in JS
         assert '[data-plan-cta="dashboard"]' in JS
 
-    def test_preserves_day_secured_redirect_and_event(self):
+    def test_preserves_day_secured_redirect(self):
         assert "'?day_secured=1'" in JS
-        assert 'dailyPlanStepComplete' in JS
+
+    def test_no_longer_dispatches_the_orphaned_event(self):
+        # UI-031: the only listener lived in the deleted daily-plan-next.js.
+        assert 'dailyPlanStepComplete' not in JS
 
     def test_has_plan_and_standalone_modes(self):
         assert "_revealCompletion('standalone')" in JS

@@ -18,12 +18,6 @@ pytestmark = pytest.mark.smoke
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), '..', 'app', 'templates')
 _UNIFIED_PLAN_PATH = os.path.join(_TEMPLATES_DIR, 'partials', 'unified_daily_plan.html')
 _DASHBOARD_UNIFIED_PATH = os.path.join(_TEMPLATES_DIR, 'words', 'dashboard_unified.html')
-_JS_NEXT_STEP_PATH = os.path.join(
-    os.path.dirname(__file__), '..', 'app', 'static', 'js', 'daily-plan-next.js'
-)
-_JS_UNIFIED_PLAN_PATH = os.path.join(
-    os.path.dirname(__file__), '..', 'app', 'static', 'js', 'daily-plan-next.js'
-)
 
 
 def _build_env() -> Environment:
@@ -173,6 +167,15 @@ class TestDaySecured:
         env = _build_env()
         plan = _base_plan(
             day_secured=False,
+            # The lock enforces «finish today's plan first», so it needs a plan
+            # to finish: with required=[] there is nothing to gate behind and
+            # the section unlocks (graduated / prerequisite-blocked learners
+            # would otherwise be left with unclickable content).
+            required=[{
+                'id': 'r1', 'kind': 'curriculum', 'title': 'Урок 1',
+                'url': '/lesson/1', 'completed': False, 'skipped': False,
+                'blocked': False, 'data': {}, 'lesson_type': 'vocabulary',
+            }],
             optional=[{
                 'id': 'o1', 'kind': 'srs', 'title': 'Повторение',
                 'url': '/study', 'completed': False, 'data': {},
@@ -180,6 +183,25 @@ class TestDaySecured:
         )
         html = _render_partial(env, plan)
         assert 'daily-plan__section--optional-locked' in html
+
+    def test_optional_section_unlocked_when_there_is_no_required_plan(self):
+        """No required items → nothing to finish first → optional is live.
+
+        Graduated and prerequisite-blocked learners have an empty required
+        list; leaving optional locked would make their only content
+        unclickable and day_secured (which needs activity) unreachable.
+        """
+        env = _build_env()
+        plan = _base_plan(
+            day_secured=False,
+            required=[],
+            optional=[{
+                'id': 'o1', 'kind': 'srs', 'title': 'Повторение',
+                'url': '/study', 'completed': False, 'data': {},
+            }]
+        )
+        html = _render_partial(env, plan)
+        assert 'daily-plan__section--optional-locked' not in html
 
     def test_optional_section_unlocked_when_day_secured(self):
         env = _build_env()
@@ -195,13 +217,11 @@ class TestDaySecured:
 
 
 class TestNullSafetyJS:
-    """daily-plan-next.js guards against null/undefined API responses."""
+    """The plan partial survives a null/partial payload.
 
-    def test_data_null_guard_present(self):
-        with open(_JS_NEXT_STEP_PATH, encoding='utf-8') as f:
-            src = f.read()
-        # Must have a null check before accessing data properties
-        assert "if (!data || typeof data !== 'object') return;" in src
+    The companion check against ``daily-plan-next.js`` went away with the file
+    itself — see UI-031 in docs/audit/2026-08-08-cross-zone-audit.md.
+    """
 
     def test_null_plan_payload_does_not_crash_template(self):
         """Template renders without exception when plan fields are None/missing."""
@@ -287,7 +307,17 @@ class TestContinuationQueueSection:
 
     def test_locked_optional_queue_uses_compact_preview_class(self):
         env = _build_env()
-        html = _render_partial(env, self._queue_plan(day_secured=False))
+        # An unfinished required item is what locks the queue — see
+        # test_optional_section_unlocked_when_there_is_no_required_plan.
+        plan = self._queue_plan(
+            day_secured=False,
+            required=[{
+                'id': 'r1', 'kind': 'curriculum', 'title': 'Урок 1',
+                'url': '/lesson/1', 'completed': False, 'skipped': False,
+                'blocked': False, 'data': {}, 'lesson_type': 'vocabulary',
+            }],
+        )
+        html = _render_partial(env, plan)
         assert 'daily-plan__section--optional-locked' in html
         assert 'daily-plan__list--optional-preview' in html
 

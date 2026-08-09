@@ -8,7 +8,7 @@ from sqlalchemy import func
 from app.admin.audit import log_admin_action
 from app.admin.main_routes import admin
 from app.admin.utils.decorators import admin_required
-from app.admin.utils.request_validators import escape_like
+from app.admin.utils.request_validators import escape_like, get_int_arg
 from app.study.models import QuizDeck, QuizDeckWord, QuizResult
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -390,6 +390,13 @@ def quiz_deck_export(deck_id):
         ],
     }
 
+    # Audit after the payload is built: `commit()` expires every loaded
+    # instance, so committing first would re-SELECT the deck and each word row
+    # on the attribute reads above. GET handlers have nothing else to commit,
+    # so the explicit commit is still required for the log row to survive.
+    log_admin_action(current_user.id, 'quiz_deck.export', target_type='quiz_deck', target_id=deck_id)
+    db.session.commit()
+
     response = jsonify(data)
     response.headers['Content-Disposition'] = f'attachment; filename="deck_{deck_id}.json"'
     return response
@@ -491,7 +498,7 @@ def quiz_deck_clone(deck_id):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
         return jsonify({
             'success': True,
-            'message': f'Колода скопирована',
+            'message': 'Колода скопирована',
             'new_deck_id': new_deck.id,
         })
 
@@ -504,7 +511,10 @@ def quiz_deck_clone(deck_id):
 def api_words_search():
     """API endpoint to search words for autocomplete in quiz deck editor"""
     query = request.args.get('q', '').strip()
-    limit = min(int(request.args.get('limit', 10)), 50)  # Max 50 for autocomplete
+    # `int(request.args.get(...))` answered 500 on `?limit=abc` and let a
+    # negative value through to SQLAlchemy. `get_int_arg` aborts 400 on both;
+    # the upper bound stays a silent clamp so an over-eager client still works.
+    limit = min(get_int_arg('limit', default=10, min_val=1) or 10, 50)
 
     # Base query - only words with translations
     words_query = CollectionWords.query.filter(
@@ -518,8 +528,8 @@ def api_words_search():
 
         words_query = words_query.filter(
             db.or_(
-                CollectionWords.english_word.ilike(f'%{query}%'),
-                CollectionWords.russian_word.ilike(f'%{query}%')
+                CollectionWords.english_word.ilike(f'%{escape_like(query)}%', escape='\\'),
+                CollectionWords.russian_word.ilike(f'%{escape_like(query)}%', escape='\\')
             )
         )
 

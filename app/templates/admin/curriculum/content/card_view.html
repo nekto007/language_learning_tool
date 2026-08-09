@@ -1,6 +1,16 @@
 <!-- Card lesson content view -->
 <div class="alert alert-dark mb-3">
     <i class="fas fa-id-card me-2"></i>
+    <strong>Урок с карточками</strong>
+</div>
+
+{% if lesson.content and lesson.content is iterable %}
+    {% if lesson.content is mapping %}
+        <!-- Settings -->
+        {% if lesson.content.settings %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Настройки</h6>
                 </div>
                 <div class="card-body">
                     <dl class="row">
@@ -12,7 +22,7 @@
                 </div>
             </div>
         {% endif %}
-        
+
         <!-- Cards -->
         {% set cards = lesson.content.cards if lesson.content.cards else lesson.content %}
     {% else %}

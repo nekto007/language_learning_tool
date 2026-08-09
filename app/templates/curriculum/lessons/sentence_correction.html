@@ -70,14 +70,20 @@
           {# A6: correct_sentence + explanation are NOT shipped to the DOM.
              Each pick is graded by POST /api/lesson/<id>/check-item, which
              reveals the answer only when correct or on the final attempt. #}
+          {# UI-024: these are mutually exclusive choices, so they are radios.
+             aria-pressed described a set of independent toggles — a screen
+             reader announced "not pressed" on every sibling instead of
+             "1 of 4 selected". #}
           <div class="sentence-correction-options"
-               id="sc-options-{{ _i }}" data-index="{{ _i }}">
+               id="sc-options-{{ _i }}" data-index="{{ _i }}"
+               role="radiogroup" aria-label="{{ _('Выберите правильный вариант:') }}">
             {% for opt in (item.options or []) %}
               <button type="button"
                       class="option-btn sentence-correction-option-btn"
                       data-index="{{ _i }}"
                       data-value="{{ opt | e }}"
-                      aria-pressed="false">{{ opt }}</button>
+                      role="radio"
+                      aria-checked="false">{{ opt }}</button>
             {% endfor %}
           </div>
           <input type="hidden" id="sc-answer-{{ _i }}" data-index="{{ _i }}" />
@@ -112,12 +118,14 @@
           <i class="fas fa-list-ul"></i>
           {{ _('Выберите правильный вариант:') }}
         </div>
-        <div class="sentence-correction-options" id="correction-options">
+        <div class="sentence-correction-options" id="correction-options"
+             role="radiogroup" aria-label="{{ _('Выберите правильный вариант:') }}">
           {% for opt in options %}
           <button
             class="option-btn sentence-correction-option-btn"
             type="button"
-            aria-pressed="false"
+            role="radio"
+            aria-checked="false"
             onclick='selectOption({{ loop.index0 }}, {{ opt | tojson }})'
             id="option-btn-{{ loop.index0 }}"
             data-value="{{ opt | e }}"
@@ -207,7 +215,7 @@ function selectOption(idx, value) {
     const selected = i === idx;
     btn.classList.toggle('option-btn--selected', selected);
     btn.classList.toggle('sentence-correction-option-btn--selected', selected);
-    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    btn.setAttribute('aria-checked', selected ? 'true' : 'false');
     // Clear stale "wrong" highlight from a previous failed attempt.
     btn.classList.remove('option-btn--wrong');
   });
@@ -479,14 +487,21 @@ function _scShowCorrection(idx, expected, explanation) {
   fb.appendChild(wrap);
 }
 
+// UI-024: обе lock-функции — ещё и точки восстановления после перезагрузки,
+// поэтому они обязаны выставлять aria-checked. Иначе скринридер на
+// восстановленном уроке читал группу, где не выбрано ничего, хотя ответ
+// зафиксирован и подсвечен визуально.
 function _scLockCorrect(idx, expected) {
   document.querySelectorAll('.sentence-correction-option-btn[data-index="' + idx + '"]').forEach(function(b) {
     b.disabled = true;
-    if (b.getAttribute('data-value') === expected) {
+    const isAnswer = b.getAttribute('data-value') === expected;
+    if (isAnswer) {
       b.classList.add('option-btn--correct', 'sentence-correction-option-btn--correct');
     } else {
       b.classList.remove('option-btn--selected', 'option-btn--wrong');
     }
+    // Верный ответ И есть выбор пользователя — на нём урок и закончился.
+    b.setAttribute('aria-checked', isAnswer ? 'true' : 'false');
   });
 }
 
@@ -500,6 +515,9 @@ function _scLockGivenUp(idx, expected, lastWrong) {
     } else if (v === lastWrong) {
       b.classList.add('option-btn--wrong', 'sentence-correction-option-btn--wrong');
     }
+    // Выбор — это последняя попытка пользователя, а не раскрытый правильный
+    // вариант: aria-checked описывает выбранное, а не верное.
+    b.setAttribute('aria-checked', (lastWrong && v === lastWrong) ? 'true' : 'false');
   });
 }
 
@@ -559,6 +577,12 @@ async function _scCheckItem(idx, chosenValue) {
 
   const hidden = document.getElementById('sc-answer-' + idx);
   if (hidden) hidden.value = chosenValue;
+
+  // UI-024: reflect the pick in the radio group — previously every option kept
+  // its rendered aria-pressed="false" for the whole lesson.
+  optionsEl.querySelectorAll('.sentence-correction-option-btn').forEach(function(b) {
+    b.setAttribute('aria-checked', b.getAttribute('data-value') === chosenValue ? 'true' : 'false');
+  });
 
   if (res.correct) {
     _scItemState[idx] = 'correct';
@@ -787,6 +811,8 @@ function _scRetryGivenUp() {
         'sentence-correction-option-btn--correct', 'sentence-correction-option-btn--wrong',
         'sentence-correction-option-btn--selected',
       );
+      // Попытка сброшена — выбранного варианта снова нет.
+      b.setAttribute('aria-checked', 'false');
     });
     const fb = document.getElementById('sc-feedback-' + i);
     if (fb) { fb.innerHTML = ''; fb.style.display = 'none'; }

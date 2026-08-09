@@ -26,6 +26,7 @@ from app.admin.form import (
     WordFormationTaskForm,
 )
 from app.admin.utils.decorators import admin_required, handle_admin_errors
+from app.admin.utils.request_validators import escape_like
 from app.books.models import Book, Chapter, Task, TaskType
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule, BookModuleProgress
 from app.curriculum.daily_lessons import DailyLesson, SliceVocabulary, UserLessonProgress
@@ -1462,10 +1463,16 @@ def register_book_course_routes(admin_bp):
                 'error': f'Ошибка при сохранении: {str(e)}'
             }), 500
 
-    @admin_bp.route('/api/words/search')
+    @admin_bp.route('/api/book-courses/words/search')
     @admin_required
     def search_words_api():
-        """Search words in CollectionWords for adding to lesson - filtered by book"""
+        """Search words in CollectionWords for adding to lesson - filtered by book.
+
+        Deliberately NOT ``/api/words/search``: that URL belongs to the general
+        autocomplete in ``quiz_decks.py``. Both used to claim it, this one won by
+        registration order, and the deck editor silently lost every word without
+        a ``word_book_link`` row — 49% of the dictionary (audit ADM-001).
+        """
         from app.words.models import CollectionWords, word_book_link
 
         query = request.args.get('q', '').strip()
@@ -1482,7 +1489,7 @@ def register_book_course_routes(admin_bp):
             word_book_link,
             CollectionWords.id == word_book_link.c.word_id
         ).filter(
-            CollectionWords.english_word.ilike(f'%{query}%')
+            CollectionWords.english_word.ilike(f'%{escape_like(query)}%', escape='\\')
         )
 
         # Filter by book if provided

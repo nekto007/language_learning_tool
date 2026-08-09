@@ -315,6 +315,10 @@ Language Learning Tool — полный каталог API-эндпоинтов.
 }
 ```
 
+**Errors:** книжный контент гейтится по правам (`can_user_access_book`, audit SEC-001).
+- `404 not_found` — книги нет; черновик (`is_published=false`) для не-админа; блок/задача не резолвится в книгу.
+- `403 forbidden` — `licensed`/`companion_only` без модуля `books` или с истёкшим `expiration_date`.
+
 ### `GET /api/tasks/<task_id>`
 Получение задания по ID.
 
@@ -324,6 +328,10 @@ Language Learning Tool — полный каталог API-эндпоинтов.
 ```json
 { "success": true, "task": { "id": 1, "block_id": 2, "task_type": "fill_gap", "payload": {} } }
 ```
+
+**Errors:** книжный контент гейтится по правам (`can_user_access_book`, audit SEC-001).
+- `404 not_found` — книги нет; черновик (`is_published=false`) для не-админа; блок/задача не резолвится в книгу.
+- `403 forbidden` — `licensed`/`companion_only` без модуля `books` или с истёкшим `expiration_date`.
 
 ### `GET /api/blocks/<block_id>/tasks`
 Все задания блока.
@@ -335,6 +343,10 @@ Language Learning Tool — полный каталог API-эндпоинтов.
 { "success": true, "block_id": 2, "tasks": [] }
 ```
 
+**Errors:** книжный контент гейтится по правам (`can_user_access_book`, audit SEC-001).
+- `404 not_found` — книги нет; черновик (`is_published=false`) для не-админа; блок/задача не резолвится в книгу.
+- `403 forbidden` — `licensed`/`companion_only` без модуля `books` или с истёкшим `expiration_date`.
+
 ### `GET /api/blocks/<block_id>`
 Информация о блоке с типами заданий.
 
@@ -344,6 +356,10 @@ Language Learning Tool — полный каталог API-эндпоинтов.
 ```json
 { "success": true, "block": { "id": 2, "block_num": 1, "grammar_key": "present_simple", "focus_vocab": [], "task_types": ["fill_gap", "mcq"] } }
 ```
+
+**Errors:** книжный контент гейтится по правам (`can_user_access_book`, audit SEC-001).
+- `404 not_found` — книги нет; черновик (`is_published=false`) для не-админа; блок/задача не резолвится в книгу.
+- `403 forbidden` — `licensed`/`companion_only` без модуля `books` или с истёкшим `expiration_date`.
 
 ### `GET /api/chapters/<chapter_id>`
 Получение главы по ID.
@@ -1225,6 +1241,8 @@ SRS-информация по конкретному упражнению.
 
 In-app channel for product feedback (bug reports / ideas / questions). Surfaces in the floating widget in the footer of every authenticated page; admins triage on `/admin/feedback`.
 
+Есть и четвёртая категория, `survey` — она **не** принимается от клиента (`POST /api/feedback` отбивает её `400 invalid_category`); её пишет сервер из ответов на двухнедельный опрос, и в списках/фильтрах админки она ведёт себя как обычная категория.
+
 ### `POST /api/feedback`
 Создать запись обратной связи. Каждая отправка также рассылает in-app уведомление всем администраторам.
 
@@ -1260,6 +1278,58 @@ In-app channel for product feedback (bug reports / ideas / questions). Surfaces 
 - `400 invalid_category` — категория не из разрешённого набора.
 - `400 empty_message` — пустой `message`.
 - `429` — превышен rate limit.
+- `500 save_failed` — сбой записи в БД.
+
+---
+
+### `POST /api/feedback/survey`
+Ответы на двухнедельный опрос. Сохраняются как обычный тред `Feedback` с `category='survey'`, поэтому видны на `/feedback` и в админской очереди.
+
+**Auth:** `@login_required`
+
+**Rate limit:** 5 per hour per user.
+
+**Headers:** `X-CSRFToken: <token>`
+
+**Body:**
+```json
+{ "works": "Повторения удобные", "annoys": "Много кликов", "missing": "" }
+```
+
+| Поле | Тип | Описание | Обязательное |
+|------|-----|----------|:---:|
+| works | string | «Что работает хорошо?», обрезается до 1000 символов | - |
+| annoys | string | «Что раздражает или мешает?» | - |
+| missing | string | «Чего не хватает?» | - |
+| url | string | URL, на котором юзер был при отправке | - |
+
+Хотя бы одно поле должно быть непустым. Отправка закрывает опрос для аккаунта навсегда.
+
+**Response (201):**
+```json
+{ "success": true, "id": 42, "thread_url": "/feedback/42" }
+```
+
+**Errors:**
+- `400 invalid_input` — значение поля не строка.
+- `400 empty_survey` — все три ответа пустые.
+- `409 not_eligible` — аккаунт моложе 14 дней, уже отвечал или исчерпал два показа. Гейт серверный, не только в UI.
+- `429` — превышен rate limit.
+- `500 save_failed` — сбой записи в БД.
+
+### `POST /api/feedback/survey/dismiss`
+«Не сейчас». Первый отказ прячет приглашение на неделю, второй — навсегда.
+
+**Auth:** `@login_required`
+
+**Rate limit:** 20 per hour per user.
+
+**Response (200):**
+```json
+{ "success": true, "dismiss_count": 1 }
+```
+
+**Errors:**
 - `500 save_failed` — сбой записи в БД.
 
 ---

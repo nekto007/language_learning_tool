@@ -186,12 +186,23 @@ function showQuestion(index) {
   } else {
     tfButtons.style.display = 'none';
     optionsList.style.display = 'flex';
+    // role/tabindex/keydown, not a bare div: Tab used to skip every option and
+    // land on a #next-btn that stays disabled until one is picked, so a
+    // keyboard-only learner could not answer at all (audit UI-007).
     optionsList.innerHTML = q.options.map((opt, i) => `
-      <div class="cc-quiz__option" onclick="selectOption(${i})">
+      <div class="cc-quiz__option" role="button" tabindex="0" onclick="selectOption(${i})">
         <span class="cc-quiz__option-letter">${String.fromCharCode(65 + i)}</span>
         <span class="cc-quiz__option-text">${opt}</span>
       </div>
     `).join('');
+    optionsList.querySelectorAll('.cc-quiz__option').forEach((option, i) => {
+      option.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          selectOption(i);
+        }
+      });
+    });
   }
 
   // Hide feedback
@@ -200,46 +211,65 @@ function showQuestion(index) {
   // Update next button
   const nextBtn = document.getElementById('next-btn');
   nextBtn.disabled = answers[index] === undefined;
+
+  // Resuming from localStorage lands on the question that was just answered.
+  // Re-rendering it as a fresh, clickable question left the learner facing a
+  // control that silently ignored every click (selectOption/selectTF refuse to
+  // re-answer), so replay the answered state instead.
+  if (answers[index] !== undefined) {
+    renderAnsweredState(q, answers[index]);
+  }
   nextBtn.innerHTML = index === questions.length - 1
     ? 'Finish <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
     : 'Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 }
 
-function selectOption(optIndex) {
-  const q = questions[currentQ];
-  answers[currentQ] = optIndex;
-  const isCorrect = optIndex === q.answer;
+// Paint the locked, graded state for an already-answered question. Shared by
+// the answer handlers and by showQuestion when a saved session is resumed.
+function renderAnsweredState(q, given) {
+  const isCorrect = given === q.answer;
 
-  const options = document.querySelectorAll('.cc-quiz__option');
-  options.forEach((opt, i) => {
-    opt.classList.remove('selected', 'correct', 'incorrect');
-    opt.style.pointerEvents = 'none';
-    if (i === q.answer) opt.classList.add('correct');
-    else if (i === optIndex && !isCorrect) opt.classList.add('incorrect');
-    if (i === optIndex) opt.classList.add('selected');
-  });
+  if (q.type === 'true_false') {
+    document.querySelectorAll('.cc-quiz__tf-btn').forEach(btn => {
+      btn.disabled = true;
+      btn.classList.remove('selected', 'correct', 'incorrect');
+      const btnVal = btn.dataset.value === 'true';
+      if (btnVal === q.answer) btn.classList.add('correct');
+      else if (btnVal === given && !isCorrect) btn.classList.add('incorrect');
+      if (btnVal === given) btn.classList.add('selected');
+    });
+  } else {
+    document.querySelectorAll('.cc-quiz__option').forEach((opt, i) => {
+      opt.classList.remove('selected', 'correct', 'incorrect');
+      opt.style.pointerEvents = 'none';
+      opt.setAttribute('aria-disabled', 'true');
+      if (i === q.answer) opt.classList.add('correct');
+      else if (i === given && !isCorrect) opt.classList.add('incorrect');
+      if (i === given) opt.classList.add('selected');
+    });
+  }
 
   showFeedback(isCorrect, q.explanation);
+}
+
+function selectOption(optIndex) {
+  const q = questions[currentQ];
+  // Mouse users are locked out by pointer-events after answering; keyboard
+  // users need the same lock, otherwise Enter would re-answer the question.
+  if (answers[currentQ] !== undefined) return;
+  answers[currentQ] = optIndex;
+
+  renderAnsweredState(q, optIndex);
   document.getElementById('next-btn').disabled = false;
   saveProgress();
 }
 
 function selectTF(value) {
   const q = questions[currentQ];
+  if (answers[currentQ] !== undefined) return;
   answers[currentQ] = value;
-  const isCorrect = value === q.answer;
 
-  const buttons = document.querySelectorAll('.cc-quiz__tf-btn');
-  buttons.forEach(btn => {
-    btn.disabled = true;
-    btn.classList.remove('selected', 'correct', 'incorrect');
-    const btnVal = btn.dataset.value === 'true';
-    if (btnVal === q.answer) btn.classList.add('correct');
-    else if (btnVal === value && !isCorrect) btn.classList.add('incorrect');
-    if (btnVal === value) btn.classList.add('selected');
-  });
-
-  showFeedback(isCorrect, q.explanation);
+  renderAnsweredState(q, value);
   document.getElementById('next-btn').disabled = false;
   saveProgress();
 }
@@ -324,8 +354,36 @@ function completeLessonAPI(score) {
   })
   .catch(e => {
     console.error(e);
-    showCompletionUI();
+    showSaveError(() => completeLessonAPI(score));
   });
+}
+
+// A failed POST must not paint the success screen: the lesson is NOT recorded,
+// and telling the learner it is loses their work silently (audit UI-003).
+function showSaveError(retry) {
+  const actions = document.getElementById('results-actions');
+  if (!actions) return;
+  const isRu = (typeof LANG !== 'undefined' ? LANG : 'ru') === 'ru';
+  actions.textContent = '';
+
+  const note = document.createElement('p');
+  note.className = 'lesson-save-error';
+  note.setAttribute('role', 'alert');
+  note.textContent = isRu
+    ? 'Не удалось сохранить результат. Урок не засчитан — попробуйте ещё раз.'
+    : 'Could not save your result. The lesson was not recorded — please try again.';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cc-results__btn cc-results__btn--primary';
+  button.textContent = isRu ? 'Повторить' : 'Retry';
+  button.addEventListener('click', function () {
+    actions.textContent = '';
+    retry();
+  });
+
+  actions.appendChild(note);
+  actions.appendChild(button);
 }
 
 function showCompletionUI() {

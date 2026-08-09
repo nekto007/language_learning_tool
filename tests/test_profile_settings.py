@@ -8,6 +8,7 @@ import pytest
 from app.auth.models import User
 from app.auth.routes import _get_profile_stats, TIMEZONE_CHOICES
 from app.utils.db import db
+from tests.support_dates import study_today
 
 
 @pytest.fixture
@@ -200,7 +201,7 @@ class TestProfileRankSection:
         self, app, db_session, auth_client, profile_user,
     ):
         """Current rank and days-at-rank are rendered from StreakEvents."""
-        from datetime import date, timedelta
+        from datetime import timedelta
 
         from app.achievements.models import StreakEvent, UserStatistics
 
@@ -213,7 +214,7 @@ class TestProfileRankSection:
             user_id=profile_user.id,
             event_type='plan_completed',
             coins_delta=0,
-            event_date=date.today() - timedelta(days=3),
+            event_date=study_today() - timedelta(days=3),
             details={'plans_completed_total': 7, 'rank_code': 'explorer'},
         ))
         db_session.flush()
@@ -233,11 +234,11 @@ class TestProfileRankSection:
         self, app, db_session, auth_client, profile_user,
     ):
         """Rank history timeline lists every distinct promotion."""
-        from datetime import date, timedelta
+        from datetime import timedelta
 
         from app.achievements.models import StreakEvent, UserStatistics
 
-        today = date.today()
+        today = study_today()
         db_session.add(UserStatistics(
             user_id=profile_user.id,
             plans_completed_total=21,
@@ -409,7 +410,6 @@ class TestReferralStats:
         """XP earned from referrals = sum of actually-awarded XP recorded in StreakEvent."""
         from app.achievements.models import StreakEvent
         from app.achievements.xp_service import REFERRAL_XP_EVENT_TYPE
-        from datetime import date
 
         profile_user.ensure_referral_code()
 
@@ -426,7 +426,7 @@ class TestReferralStats:
             db_session.add(StreakEvent(
                 user_id=profile_user.id,
                 event_type=REFERRAL_XP_EVENT_TYPE,
-                event_date=date.today(),
+                event_date=study_today(),
                 coins_delta=0,
                 details={'referee_id': u.id, 'xp': 100},
             ))
