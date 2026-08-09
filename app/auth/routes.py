@@ -89,6 +89,14 @@ def get_safe_redirect_url(next_url, fallback=None):
     if not next_url.startswith('/'):
         return url_for(fallback)
 
+    # SECURITY: Reject every leading-slash-run, not just two. `urlparse` reads
+    # `///evil.com/path` as the local path `/evil.com/path` (empty netloc), but
+    # the WHATWG URL parser browsers use skips ANY run of slashes after the
+    # scheme and lands on the authority — so the browser resolves it as
+    # https://evil.com/path. Checking `parsed.netloc` alone therefore misses it.
+    if next_url.startswith('//'):
+        return url_for(fallback)
+
     # SECURITY: Reject backslash tricks (e.g. /\evil.com interpreted as //evil.com)
     if '\\' in next_url:
         return url_for(fallback)

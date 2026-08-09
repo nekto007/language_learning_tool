@@ -263,8 +263,12 @@
                 <!-- Left column (English) -->
                 <div class="matching-left-column" id="matching-left-{{ question_index }}">
                   {% for pair in question.pairs %}
+                    {# aria-pressed рендерится сразу: JS выставляет его только
+                       после первого клика, и до него скринридер читал обычные
+                       кнопки вместо тогглов (UI-024). #}
                     <button type="button"
                             class="final-test-matching-btn left-word"
+                            aria-pressed="false"
                             data-question="{{ question_index }}"
                             data-pair-id="{{ loop.index0 }}"
                             data-word="{{ pair.english or pair.left }}"
@@ -281,6 +285,7 @@
                   {% for pair in shuffled_pairs|reverse %}
                     <button type="button"
                             class="final-test-matching-btn right-word"
+                            aria-pressed="false"
                             data-question="{{ question_index }}"
                             data-pair-id="{{ (question.pairs|length - loop.index) }}"
                             data-word="{{ pair.russian or pair.right }}"

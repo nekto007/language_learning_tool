@@ -127,13 +127,26 @@ def record_survey_dismissal(user_id: int) -> SurveyPrompt:
     return prompt
 
 
-def mark_survey_answered(user_id: int) -> SurveyPrompt:
-    """Close the survey for this account for good. Flushes only."""
-    prompt = _get_or_create_prompt(user_id)
-    if prompt.answered_at is None:
-        prompt.answered_at = _now()
-        db.session.flush()
-    return prompt
+def claim_survey_answer(user_id: int) -> bool:
+    """Close the survey and report whether *this* call was the one that closed it.
+
+    ``should_show_survey`` is a read: two submits from two tabs can both pass it
+    before either writes, and then both create a ``Feedback`` thread. The claim
+    is a conditional UPDATE — under READ COMMITTED the loser blocks on the row
+    lock, re-evaluates ``answered_at IS NULL`` after the winner commits, and
+    matches nothing. Only the winner may go on to create the thread.
+
+    Flushes only — the caller commits (and must roll back on failure, which
+    releases the claim along with everything else).
+    """
+    _get_or_create_prompt(user_id)
+    updated = (
+        db.session.query(SurveyPrompt)
+        .filter(SurveyPrompt.user_id == user_id, SurveyPrompt.answered_at.is_(None))
+        .update({SurveyPrompt.answered_at: _now()}, synchronize_session=False)
+    )
+    db.session.flush()
+    return bool(updated)
 
 
 def build_survey_message(answers: dict[str, str]) -> str:

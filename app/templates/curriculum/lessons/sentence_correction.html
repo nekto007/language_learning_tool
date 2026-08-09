@@ -487,14 +487,21 @@ function _scShowCorrection(idx, expected, explanation) {
   fb.appendChild(wrap);
 }
 
+// UI-024: обе lock-функции — ещё и точки восстановления после перезагрузки,
+// поэтому они обязаны выставлять aria-checked. Иначе скринридер на
+// восстановленном уроке читал группу, где не выбрано ничего, хотя ответ
+// зафиксирован и подсвечен визуально.
 function _scLockCorrect(idx, expected) {
   document.querySelectorAll('.sentence-correction-option-btn[data-index="' + idx + '"]').forEach(function(b) {
     b.disabled = true;
-    if (b.getAttribute('data-value') === expected) {
+    const isAnswer = b.getAttribute('data-value') === expected;
+    if (isAnswer) {
       b.classList.add('option-btn--correct', 'sentence-correction-option-btn--correct');
     } else {
       b.classList.remove('option-btn--selected', 'option-btn--wrong');
     }
+    // Верный ответ И есть выбор пользователя — на нём урок и закончился.
+    b.setAttribute('aria-checked', isAnswer ? 'true' : 'false');
   });
 }
 
@@ -508,6 +515,9 @@ function _scLockGivenUp(idx, expected, lastWrong) {
     } else if (v === lastWrong) {
       b.classList.add('option-btn--wrong', 'sentence-correction-option-btn--wrong');
     }
+    // Выбор — это последняя попытка пользователя, а не раскрытый правильный
+    // вариант: aria-checked описывает выбранное, а не верное.
+    b.setAttribute('aria-checked', (lastWrong && v === lastWrong) ? 'true' : 'false');
   });
 }
 
@@ -801,6 +811,8 @@ function _scRetryGivenUp() {
         'sentence-correction-option-btn--correct', 'sentence-correction-option-btn--wrong',
         'sentence-correction-option-btn--selected',
       );
+      // Попытка сброшена — выбранного варианта снова нет.
+      b.setAttribute('aria-checked', 'false');
     });
     const fb = document.getElementById('sc-feedback-' + i);
     if (fb) { fb.innerHTML = ''; fb.style.display = 'none'; }

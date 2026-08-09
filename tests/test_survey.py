@@ -231,6 +231,30 @@ class TestSurveyEndpoints:
         assert resp.status_code == 409
         assert SurveyPrompt.query.get(test_user.id) is None
 
+    def test_a_second_submit_cannot_open_a_second_thread(
+        self, authenticated_client, db_session, test_user,
+    ):
+        # `should_show_survey` is a read: two tabs can both pass it. The claim
+        # inside the write path is what keeps the second one from creating a
+        # thread — the sequential case here is the observable half of it.
+        _age_account(db_session, test_user, 30)
+
+        first = authenticated_client.post('/api/feedback/survey', json={'works': 'раз'})
+        second = authenticated_client.post('/api/feedback/survey', json={'works': 'два'})
+
+        assert first.status_code == 201
+        assert second.status_code == 409
+        assert Feedback.query.filter_by(
+            category='survey', user_id=test_user.id,
+        ).count() == 1
+
+    def test_claim_has_exactly_one_winner(self, db_session, test_user):
+        from app.feedback.survey import claim_survey_answer
+
+        assert claim_survey_answer(test_user.id) is True
+        db_session.commit()
+        assert claim_survey_answer(test_user.id) is False
+
     def test_survey_requires_login(self, client):
         resp = client.post('/api/feedback/survey', json={'works': 'x'})
 
@@ -245,6 +269,42 @@ class TestSurveyEndpoints:
         )
 
         assert resp.status_code == 400
+
+
+class TestSurveyPlacementInThePlan:
+    """The invite must not depend on the plan having required items.
+
+    `required` is empty for graduated learners and for a prerequisite-blocked
+    spine, yet those days still secure (`compute_day_secured_from_activity`
+    falls through to activity). While the block lived inside the
+    `{% if u_required %}` branch, the accounts most likely to be two weeks old
+    were exactly the ones that never saw it.
+    """
+
+    @staticmethod
+    def _partial() -> str:
+        from pathlib import Path
+
+        return (
+            Path(__file__).resolve().parent.parent
+            / 'app' / 'templates' / 'partials' / 'unified_daily_plan.html'
+        ).read_text(encoding='utf-8')
+
+    def test_survey_block_sits_outside_the_required_branch(self):
+        source = self._partial()
+        # The empty-state div is the `{% else %}` arm of `{% if u_required %}`,
+        # so anything after it is outside that conditional entirely.
+        empty_state = source.index('daily-plan__empty-state')
+        survey = source.index('data-survey-root="true"')
+        assert survey > empty_state
+
+    def test_survey_block_is_still_gated_on_a_secured_day(self):
+        source = self._partial()
+        survey = source.index('data-survey-root="true"')
+        # The gate is the line immediately above the block — moving the block
+        # must not have moved it out from under `u_day_secured`.
+        assert '{% if u_day_secured and show_survey is defined and show_survey %}' in \
+            source[:survey][-300:]
 
 
 @pytest.mark.smoke

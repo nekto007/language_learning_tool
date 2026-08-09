@@ -719,6 +719,34 @@ function getSelectedWordIdsUnique() {
     return Array.from(ids);
 }
 
+function getAllWordIdsUnique() {
+    const ids = new Set();
+    document.querySelectorAll('.word-checkbox').forEach(checkbox => {
+        const id = parseInt(checkbox.value, 10);
+        if (!isNaN(id)) ids.add(id);
+    });
+    return ids;
+}
+
+// Оба «выбрать все» пересчитываются здесь и только здесь.
+//
+// main.js тоже вешает свой обработчик на каждый .word-checkbox и пересчитывает
+// #selectAll по количеству УЗЛОВ — а узлов вдвое больше слов, и его листенер
+// срабатывает на самом элементе, то есть ДО делегированного здесь (всплытие) и
+// до syncTwinCheckbox. Отсюда его вечный indeterminate при полном выборе и
+// полное отсутствие #selectAllMobile в его расчёте. Наш пересчёт идёт последним
+// и считает уникальные id, поэтому он и есть источник истины.
+function syncMasterCheckboxes() {
+    const total = getAllWordIdsUnique().size;
+    const selected = getSelectedWordIdsUnique().length;
+    ['selectAll', 'selectAllMobile'].forEach(id => {
+        const box = document.getElementById(id);
+        if (!box) return;
+        box.checked = total > 0 && selected === total;
+        box.indeterminate = selected > 0 && selected < total;
+    });
+}
+
 function syncTwinCheckbox(checkbox) {
     const wordId = checkbox.dataset.wordId;
     if (!wordId) return;
@@ -731,10 +759,7 @@ function setAllCheckboxes(checked) {
     document.querySelectorAll('.word-checkbox').forEach(checkbox => {
         checkbox.checked = checked;
     });
-    ['selectAll', 'selectAllMobile'].forEach(id => {
-        const box = document.getElementById(id);
-        if (box) box.checked = checked;
-    });
+    syncMasterCheckboxes();
     updateBulkActionsPanel();
 }
 
@@ -878,6 +903,8 @@ document.addEventListener('change', function(e) {
     if (!checkbox.classList.contains('word-checkbox')) return;
 
     syncTwinCheckbox(checkbox);
+    // После синхронизации близнеца — иначе счёт «выбрано» отстаёт на один узел.
+    syncMasterCheckboxes();
     updateBulkActionsPanel();
 });
 

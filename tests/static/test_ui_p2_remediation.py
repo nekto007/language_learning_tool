@@ -244,9 +244,28 @@ class TestAriaState:
         source = _read(TPL / 'curriculum/lessons/listening_immersion.html')
         assert "btn.setAttribute('aria-checked', active ? 'true' : 'false')" in source
 
+    def test_sentence_correction_restored_state_updates_aria(self):
+        # The lock helpers double as the reload/restore path: without an
+        # aria-checked write there, a restored lesson reads as "nothing
+        # selected" while the locked-in answer is highlighted on screen.
+        source = _read(TPL / 'curriculum/lessons/sentence_correction.html')
+        for fn in ('function _scLockCorrect(', 'function _scLockGivenUp(',
+                   'function _scRetryGivenUp('):
+            body = source.split(fn)[1].split('\nfunction ')[0]
+            assert "setAttribute('aria-checked'" in body, fn
+
     def test_final_test_matching_buttons_expose_selection(self):
         source = _read(TPL / 'curriculum/lessons/final_test.html')
         assert source.count("setAttribute('aria-pressed'") >= 4
+
+    def test_final_test_matching_buttons_ship_initial_aria_pressed(self):
+        # ARIA that only appears after the first click leaves the untouched
+        # board reading as plain buttons instead of toggles.
+        source = _read(TPL / 'curriculum/lessons/final_test.html')
+        for cls in ('final-test-matching-btn left-word',
+                    'final-test-matching-btn right-word'):
+            block = source.split(f'class="{cls}"')[1].split('>')[0]
+            assert 'aria-pressed="false"' in block, cls
 
 
 class TestSrsObserverRace:

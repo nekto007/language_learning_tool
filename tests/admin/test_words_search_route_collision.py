@@ -88,6 +88,20 @@ class TestAutocompleteReachesUnlinkedWords:
         assert response.status_code == 200
         assert len(response.get_json()) == 2
 
+    @pytest.mark.parametrize('bad_limit', ['abc', '-1', '0', '1.5'])
+    def test_invalid_limit_is_a_400_not_a_500(self, admin_client, bad_limit):
+        # `int(request.args.get('limit'))` raised straight into the error
+        # handler, and a negative value travelled on into SQLAlchemy.
+        response = admin_client.get(f'/admin/api/words/search?q=ru&limit={bad_limit}')
+
+        assert response.status_code == 400
+
+    def test_oversized_limit_is_clamped_not_rejected(self, admin_client):
+        response = admin_client.get('/admin/api/words/search?q=ru&limit=9999')
+
+        assert response.status_code == 200
+        assert len(response.get_json()) <= 50
+
 
 class TestBookScopedSearchStillWorks:
     def test_book_scoped_endpoint_responds(self, admin_client):

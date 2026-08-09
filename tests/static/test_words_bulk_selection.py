@@ -55,6 +55,25 @@ class TestSelectionIsDeduplicated:
         assert 'function syncTwinCheckbox(checkbox)' in words_template
         assert 'syncTwinCheckbox(checkbox);' in words_template
 
+    def test_master_checkboxes_are_recomputed_from_unique_ids(self, words_template):
+        # main.js recomputes #selectAll from node counts (two nodes per word)
+        # and never looks at #selectAllMobile, so the page has to own the state.
+        body = words_template.split('function syncMasterCheckboxes()')[1]
+        body = body.split('\nfunction ')[0]
+        assert 'getAllWordIdsUnique()' in body
+        assert 'getSelectedWordIdsUnique()' in body
+        assert "'selectAll', 'selectAllMobile'" in body
+        assert 'box.indeterminate' in body
+
+    def test_both_selection_paths_resync_the_masters(self, words_template):
+        set_all = words_template.split('function setAllCheckboxes(checked)')[1]
+        set_all = set_all.split('\nfunction ')[0]
+        assert 'syncMasterCheckboxes();' in set_all
+
+        delegated = words_template.split("document.addEventListener('change', function")[1]
+        delegated = delegated.split('});')[0]
+        assert 'syncMasterCheckboxes();' in delegated
+
 
 class TestMobileHasSelectAll:
     def test_mobile_select_all_control_exists(self, words_template):

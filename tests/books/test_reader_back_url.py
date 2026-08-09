@@ -33,6 +33,11 @@ class TestSafeBackUrlHelper:
     @pytest.mark.parametrize('hostile', [
         'https://evil.example/login',
         '//evil.example/login',
+        # urlparse reads any slash-run past the second as a local path (empty
+        # netloc), but browsers skip the whole run and land on the authority —
+        # `///evil.example/x` navigates to https://evil.example/x.
+        '///evil.example/login',
+        '////evil.example/login',
         'javascript:alert(1)',
         r'/\evil.example',
         'evil.example',
@@ -116,6 +121,18 @@ class TestReaderRendersOnlySafeBackUrl:
         targets = _back_link_targets(response.get_data(as_text=True))
         assert targets
         assert all(t == '/curriculum/module/3' for t in targets)
+
+    def test_slash_run_from_never_reaches_a_back_link(
+        self, authenticated_client, public_book,
+    ):
+        response = authenticated_client.get(
+            f'/books/{public_book.id}/read?from=///evil.example/path',
+        )
+
+        assert response.status_code == 200
+        targets = _back_link_targets(response.get_data(as_text=True))
+        assert targets
+        assert all(t == f'/books/{public_book.id}' for t in targets)
 
     def test_relative_from_still_works(self, authenticated_client, public_book):
         response = authenticated_client.get(

@@ -24,7 +24,6 @@ from app.books.forms import BookContentForm
 from app.books.models import Book, Chapter
 from app.books.parsers import process_uploaded_book
 from app.books.processors import enqueue_book_processing
-from app.modules.decorators import module_required
 from app.study.models import UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords, word_book_link

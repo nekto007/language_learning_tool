@@ -37,7 +37,6 @@ from app.feedback.models import (
 )
 from app.feedback.survey import (
     SURVEY_QUESTIONS,
-    mark_survey_answered,
     record_survey_dismissal,
 )
 from app.feedback.storage import (
@@ -292,7 +291,11 @@ def submit_feedback():
 @limiter.limit('5 per hour')
 def submit_survey():
     """Answers to the two-week survey, stored as one feedback thread."""
-    from app.feedback.survey import build_survey_message, should_show_survey
+    from app.feedback.survey import (
+        build_survey_message,
+        claim_survey_answer,
+        should_show_survey,
+    )
 
     data = request.get_json(silent=True)
     # A JSON array is truthy but has no `.get` — without this a `[1]` body
@@ -315,6 +318,13 @@ def submit_survey():
         return api_error('empty_survey', 'answer at least one question', 400)
 
     try:
+        # Claim BEFORE writing the thread: `should_show_survey` above is a read,
+        # so two tabs submitting at once both pass it and would both create a
+        # thread. The conditional UPDATE inside `claim_survey_answer` has exactly
+        # one winner; the loser leaves without writing anything.
+        if not claim_survey_answer(current_user.id):
+            db.session.rollback()
+            return api_error('not_eligible', 'survey is not open for this account', 409)
         row = create_feedback(
             user_id=current_user.id,
             category='survey',
@@ -322,7 +332,6 @@ def submit_survey():
             url=_trim_str(data.get('url'), URL_MAX_LENGTH),
             user_agent=_trim_str(request.headers.get('User-Agent'), USER_AGENT_MAX_LENGTH),
         )
-        mark_survey_answered(current_user.id)
         db.session.commit()
         try:
             _notify_admins_of_feedback(row)
