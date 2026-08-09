@@ -127,7 +127,12 @@ def find_next_lesson_state(
     # blocked predecessor at 0% completion and 403s the very lesson the plan
     # just offered as required. build_curriculum_queue applies the same rule to
     # the optional queue; the required item has to agree with it.
-    blocked_level_id: Any = None
+    # A set, not a single "currently blocked" id: CEFRLevel.order carries no
+    # unique constraint (it defaults to 0), so two levels sharing an order
+    # interleave in the candidate stream. Clearing the block on the first
+    # foreign level would then un-gate the rest of the blocked level and hand
+    # back a lesson check_module_access 403s.
+    blocked_level_ids: set[Any] = set()
     blocking_module_id: Optional[int] = None
     for lesson in candidates:
         module_id = lesson.module_id
@@ -144,11 +149,8 @@ def find_next_lesson_state(
             continue
         level_id = module.level_id
 
-        if blocked_level_id is not None:
-            if level_id == blocked_level_id:
-                continue
-            # The spine moved on to a later level; the block no longer applies.
-            blocked_level_id = None
+        if level_id in blocked_level_ids:
+            continue
 
         accessible = module_access.get(module_id)
         if accessible is None:
@@ -169,7 +171,7 @@ def find_next_lesson_state(
             if blocking_module_id is None:
                 blocking_module_id = module_id
             if level_id is not None:
-                blocked_level_id = level_id
+                blocked_level_ids.add(level_id)
             continue
         level_code = None
         if level_id is not None:

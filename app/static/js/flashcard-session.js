@@ -1331,7 +1331,22 @@ class FlashcardSession {
                     }
                     const actions = document.querySelector('[data-celebration-actions]');
                     if (actions) {
-                        const nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
+                        actions.setAttribute('data-completion-mode', 'plan');
+                        let nextBtn = actions.querySelector('[data-plan-cta="next-slot"]');
+                        if (!nextBtn && dp.next_slot_url) {
+                            // _lesson_completion_actions.html only renders this
+                            // anchor when a next slot was known at PAGE RENDER.
+                            // Finishing the session can reveal one that wasn't —
+                            // and the claim above already stood the observer's
+                            // synthesis fallback down, so build it here or the
+                            // learner is left with «На дашборд» alone.
+                            nextBtn = document.createElement('a');
+                            nextBtn.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
+                            nextBtn.setAttribute('data-plan-cta', 'next-slot');
+                            const dict = window.I18N || {};
+                            nextBtn.textContent = dict.plan_next_slot || 'Следующий слот плана';
+                            actions.appendChild(nextBtn);
+                        }
                         if (nextBtn && dp.next_slot_url) {
                             nextBtn.setAttribute('href', dp.next_slot_url);
                         }

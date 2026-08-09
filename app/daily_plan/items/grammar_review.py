@@ -13,7 +13,7 @@ Returns None only when no GrammarTopic rows exist at all.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from app.daily_plan.items import PlanItem
@@ -32,30 +32,19 @@ def _grammar_reviewed_today(user_id: int, db: Any) -> bool:
     - curriculum grammar lessons (``LessonAttempt`` on ``type='grammar'``
       lessons), which write LessonProgress/LessonAttempt, NOT UserGrammarExercise.
 
-    ``UserGrammarExercise.last_reviewed`` is a naive UTC column, so the
-    user-local day must be translated to a UTC window before comparison —
-    otherwise a non-UTC user practising near local midnight is either
-    missed (review fell into yesterday-UTC) or credited on the wrong day.
+    Both columns are naive UTC, so the user's day must be translated to a UTC
+    window before comparison — otherwise a non-UTC user practising near local
+    midnight is either missed (review fell into yesterday-UTC) or credited on
+    the wrong day. The window comes from ``get_user_local_day_bounds``, the
+    same helper every other item builder uses: a study day runs 02:00 → 02:00
+    local, so a hand-rolled midnight window would drop practice done between
+    midnight and 2am — exactly the late-night hours this slot is meant to flip
+    on — while wrongly crediting the previous study day's small hours.
     """
     from app.grammar_lab.models import UserGrammarExercise
-    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
+    from app.utils.time_utils import get_user_local_day_bounds
 
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:  # pragma: no cover
-        from backports.zoneinfo import ZoneInfo  # type: ignore
-
-    today = get_user_local_date(user_id, db)
-    tz_name = get_user_timezone_name(user_id, db)
-    try:
-        tz = ZoneInfo(tz_name)
-    except Exception:  # noqa: BLE001
-        tz = timezone.utc
-    start_local = datetime(today.year, today.month, today.day, tzinfo=tz)
-    end_local = start_local + timedelta(days=1)
-    # Compare against the naive UTC column in its native form.
-    start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
-    end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+    start_utc, end_utc = get_user_local_day_bounds(user_id, db)
     query = db.session.query(UserGrammarExercise).filter(
         UserGrammarExercise.user_id == user_id,
         UserGrammarExercise.last_reviewed >= start_utc,

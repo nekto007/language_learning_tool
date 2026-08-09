@@ -517,9 +517,14 @@
            learner can act on — name the module and the unmet condition instead
            of sending them to a setup they have already done. #}
         {% if u_blocked_module %}
+        {# u_blocked_module is the module the learner CANNOT open (its own
+           prerequisites are unmet) — not the module they have to finish. The
+           requirement lives in `reasons` below, so this sentence must not tell
+           them to «complete» a locked module. #}
         <p class="daily-plan__empty">
-          Следующие уроки закрыты: нужно завершить модуль
-          «{{ u_blocked_module.get('module_title') }}»{% if u_blocked_module.get('level_code') %} ({{ u_blocked_module.get('level_code') }}){% endif %}.
+          Следующие уроки закрыты — модуль
+          «{{ u_blocked_module.get('module_title') }}»{% if u_blocked_module.get('level_code') %} ({{ u_blocked_module.get('level_code') }}){% endif %}
+          пока недоступен{% if u_blocked_module.get('reasons') %}:{% else %}.{% endif %}
         </p>
         {% if u_blocked_module.get('reasons') %}
         <ul class="daily-plan__empty-reasons">

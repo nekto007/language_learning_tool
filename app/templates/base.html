@@ -419,6 +419,13 @@
     <script src="{{ url_for('static', filename='js/unified-js.js') }}" defer></script>
     <!-- Share functionality -->
     <script src="{{ url_for('static', filename='js/share.js') }}" defer></script>
+    {# JS i18n bridge — must precede {% block scripts %}, where child templates
+       load linear-plan-context.js / linear-daily-plan.js. Both read
+       window.I18N; without the bridge here every cabinet page outside the
+       lesson shell (dashboard, /study, reader, error review) fell back to the
+       hard-coded Russian. Object.assign-based, so lesson_base_template.html
+       re-including it merges rather than clobbers. #}
+    {% include 'components/_lesson_i18n.html' %}
     {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
 

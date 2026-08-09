@@ -643,10 +643,12 @@ def build_curriculum_queue(
     excluded: set[int] = set(exclude_lesson_ids or ())
     min_order = _user_min_level_order(user_id, db)
     module_access: dict[int, bool] = {}
-    # CEFR level whose remaining modules are dropped after a hard block.
-    # Cleared when the spine (monotonic by level order) advances to a new
-    # level — see docstring.
-    blocked_level_id: Optional[int] = None
+    # CEFR levels whose remaining modules are dropped after a hard block — see
+    # docstring. A set rather than a single "current" id: CEFRLevel.order has no
+    # unique constraint (default 0), so two levels sharing an order interleave
+    # in the spine and clearing the block on the first foreign level would
+    # re-admit the blocked level's later modules.
+    blocked_level_ids: set[int] = set()
     items: list[PlanItem] = []
 
     # Page through the spine rather than fetching a single fixed window. A
@@ -675,12 +677,9 @@ def build_curriculum_queue(
             level = module.level if module is not None else None
             level_id = level.id if level is not None else None
 
-            if blocked_level_id is not None:
-                if level_id == blocked_level_id:
-                    # Same level as hard-blocked module → transitively gated.
-                    continue
-                # Spine advanced to a later level; the block no longer applies.
-                blocked_level_id = None
+            if level_id in blocked_level_ids:
+                # Same level as a hard-blocked module → transitively gated.
+                continue
 
             accessible = module_access.get(module_id)
             if accessible is None:
@@ -690,7 +689,7 @@ def build_curriculum_queue(
                 module_access[module_id] = accessible
             if not accessible:
                 if level_id is not None:
-                    blocked_level_id = level_id
+                    blocked_level_ids.add(level_id)
                 continue
 
             items.append(

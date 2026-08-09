@@ -668,6 +668,21 @@ def send_reminders():
         flash('Не выбрано ни одного пользователя для отправки напоминаний.', 'warning')
         return redirect(url_for('reminders.reminder_dashboard'))
 
+    # ADM-002: ReminderLog records *that* a user was mailed, but nothing ties the
+    # campaign to the admin who launched it. Written and committed BEFORE the
+    # first send: mail cannot be recalled, so an exception part-way through the
+    # loop must not roll the attribution away along with it. It also has to be
+    # committed BEFORE the recipient list is materialised — commit expires every
+    # loaded instance, so logging afterwards turned each `user.*` read in the
+    # send loop into a refresh SELECT.
+    log_admin_action(
+        current_user.id,
+        'reminder.send_campaign',
+        'reminder_campaign',
+        None,
+    )
+    db.session.commit()
+
     users = User.query.filter(
         User.id.in_(user_ids),
         User.active.is_(True),
@@ -683,18 +698,6 @@ def send_reminders():
 
     now = datetime.now(timezone.utc)
     today = now.date()
-
-    # ADM-002: ReminderLog records *that* a user was mailed, but nothing ties the
-    # campaign to the admin who launched it. Written and committed BEFORE the
-    # first send: mail cannot be recalled, so an exception part-way through the
-    # loop must not roll the attribution away along with it.
-    log_admin_action(
-        current_user.id,
-        'reminder.send_campaign',
-        'reminder_campaign',
-        None,
-    )
-    db.session.commit()
 
     for user in users:
         if _was_recently_reminded(user.id):
