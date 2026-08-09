@@ -1,5 +1,5 @@
 """Tests for the reading-slot time gate (Task 11)."""
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -19,12 +19,20 @@ from app.books.reading_session import (
 from app.daily_plan.linear.models import UserReadingPreference
 from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
 from app.utils.db import db
+from app.utils.time_utils import _study_day_date
 
 
 # Today's reading target accounts for the 5/10-min day-of-month alternation
 # (odd days = 300s, even = 600s). Tests should use this so they remain green
 # regardless of which day they run.
-DAILY_READING_TARGET_SECONDS = get_daily_reading_target_seconds(date.today())
+#
+# The basis has to be the *study day of the user under test*, not the server's
+# calendar date: fixture users are UTC and the study day turns over at 02:00
+# (LEARNING_DAY_START_HOUR), so between 02:00 local and midnight UTC the two
+# disagree and every duration in this file is measured against the wrong target.
+DAILY_READING_TARGET_SECONDS = get_daily_reading_target_seconds(
+    _study_day_date(datetime.now(timezone.utc)),
+)
 
 
 def _close_session_with_duration(session: UserReadingSession, seconds: int) -> None:

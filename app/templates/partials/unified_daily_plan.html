@@ -7,6 +7,7 @@
 {% set u_setup = unified_plan.get('setup') or [] %}
 {% set u_has_more = unified_plan.get('has_more_optional', false) %}
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
+{% set u_blocked_module = unified_plan.get('blocked_module') or {} %}
 {% set u_optional_visible = u_optional[:5] %}
 {% set u_has_hidden_optional = (u_optional | length) > (u_optional_visible | length) %}
 
@@ -512,9 +513,29 @@
     {% else %}
       <div class="daily-plan__empty-state" role="status" aria-live="polite">
         <span class="daily-plan__empty-icon" aria-hidden="true">&#128203;</span>
+        {# A blocked spine also empties the required list, but for a reason the
+           learner can act on — name the module and the unmet condition instead
+           of sending them to a setup they have already done. #}
+        {% if u_blocked_module %}
+        <p class="daily-plan__empty">
+          Следующие уроки закрыты: нужно завершить модуль
+          «{{ u_blocked_module.get('module_title') }}»{% if u_blocked_module.get('level_code') %} ({{ u_blocked_module.get('level_code') }}){% endif %}.
+        </p>
+        {% if u_blocked_module.get('reasons') %}
+        <ul class="daily-plan__empty-reasons">
+          {% for reason in u_blocked_module.get('reasons') %}
+          <li>{{ reason }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <p class="daily-plan__empty">
+          Пока можно заниматься из раздела «Дополнительно» ниже — день всё равно засчитается.
+        </p>
+        {% else %}
         <p class="daily-plan__empty">
           Завершите настройку ниже, чтобы получить план дня.
         </p>
+        {% endif %}
       </div>
     {% endif %}
   </div>
@@ -528,8 +549,14 @@
     {# Unlock when day_secured (all required completed) OR when every
        required is at least settled (completed-or-skipped). Lets a user
        who skipped a slot still open bonus content without forcing them
-       to redo what they just chose to skip. #}
-    {% set u_optional_locked = not (u_day_secured or u_required_settled) %}
+       to redo what they just chose to skip.
+
+       An empty required list unlocks too: the gate exists to enforce
+       «finish today's plan first», and graduated or prerequisite-blocked
+       learners have no plan to finish. Leaving it locked would make the
+       optional list — their only content — permanently unclickable, and
+       day_secured (which needs activity) unreachable. #}
+    {% set u_optional_locked = not (u_day_secured or u_required_settled or u_required_total == 0) %}
     {# Sequentially unlock optional items: same UX as required slots — the
        first not-yet-done item is `current`, every later item is `locked`
        until the previous one is completed. Pre-day_secured the whole
@@ -815,6 +842,13 @@
             headers: csrfHeaders(),
             body: JSON.stringify(payload)
         }).then(function(resp) {
+            // 409 = the survey is already closed for this account (another tab
+            // answered it, or the offer ran out). Retrying can never succeed,
+            // so end the exchange instead of inviting another attempt.
+            if (resp.status === 409) {
+                replaceWithNote('Опрос уже закрыт — спасибо!');
+                return;
+            }
             if (!resp.ok) throw new Error('save failed');
             replaceWithNote('Спасибо — прочитаю и отвечу.');
         }).catch(function() {

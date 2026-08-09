@@ -132,7 +132,17 @@ def find_next_lesson_state(
     for lesson in candidates:
         module_id = lesson.module_id
         module = db.session.get(Module, module_id)
-        level_id = module.level_id if module is not None else None
+        if module is None:
+            # An unresolvable module has no level, so it can neither be
+            # prerequisite-checked nor compared against the active block —
+            # letting it through would both hand out an unrenderable lesson
+            # and silently clear the block for the rest of the level.
+            logger.warning(
+                "linear_progression user=%s lesson=%s has unresolvable module=%s — skipped",
+                user_id, lesson.id, module_id,
+            )
+            continue
+        level_id = module.level_id
 
         if blocked_level_id is not None:
             if level_id == blocked_level_id:
@@ -142,20 +152,18 @@ def find_next_lesson_state(
 
         accessible = module_access.get(module_id)
         if accessible is None:
-            accessible = True
-            if module is not None:
-                # Pass min_level_order so a placement-test C1 student
-                # isn't blocked by «complete B1 module» prerequisites
-                # they were never asked to study.
-                ok, _reasons = module.check_prerequisites(
-                    user_id, min_level_order=min_order,
+            # Pass min_level_order so a placement-test C1 student
+            # isn't blocked by «complete B1 module» prerequisites
+            # they were never asked to study.
+            ok, _reasons = module.check_prerequisites(
+                user_id, min_level_order=min_order,
+            )
+            accessible = bool(ok)
+            if not ok:
+                logger.debug(
+                    "linear_progression user=%s module=%s blocked prereqs=%s",
+                    user_id, module_id, _reasons,
                 )
-                accessible = bool(ok)
-                if not ok:
-                    logger.debug(
-                        "linear_progression user=%s module=%s blocked prereqs=%s",
-                        user_id, module_id, _reasons,
-                    )
             module_access[module_id] = accessible
         if not accessible:
             if blocking_module_id is None:
@@ -169,8 +177,7 @@ def find_next_lesson_state(
             level_code = level.code if level is not None else None
         logger.debug(
             "linear_progression user=%s next_lesson=%s type=%s module=%s level=%s",
-            user_id, lesson.id, lesson.type,
-            getattr(module, 'number', None), level_code,
+            user_id, lesson.id, lesson.type, module.number, level_code,
         )
         if cache is not None and cache_key is not None:
             cache[cache_key] = (lesson, None)

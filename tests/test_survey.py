@@ -203,19 +203,33 @@ class TestSurveyEndpoints:
 
         assert resp.status_code == 409
 
-    def test_dismissal_is_idempotent_under_a_double_click(
+    def test_a_double_click_does_not_spend_both_offers(
         self, authenticated_client, db_session, test_user,
     ):
         # `_get_or_create_prompt` inserts the row; two arrivals must not collide
-        # on the survey_prompts primary key.
+        # on the survey_prompts primary key. And they must not count twice: the
+        # account only gets SURVEY_MAX_PROMPTS offers, so a double click would
+        # otherwise close the survey for good before the snooze ever elapsed.
         _age_account(db_session, test_user, 30)
 
         first = authenticated_client.post('/api/feedback/survey/dismiss', json={})
         second = authenticated_client.post('/api/feedback/survey/dismiss', json={})
 
         assert first.status_code == 200
-        assert second.status_code == 200
-        assert SurveyPrompt.query.get(test_user.id).dismiss_count == 2
+        assert second.status_code == 409
+        assert SurveyPrompt.query.get(test_user.id).dismiss_count == 1
+
+    def test_an_ineligible_account_cannot_spend_a_dismissal(
+        self, authenticated_client, db_session, test_user,
+    ):
+        # The survey was never offered to this account, so a posted dismissal
+        # must not burn one of its two future offers.
+        _age_account(db_session, test_user, SURVEY_MIN_ACCOUNT_AGE_DAYS - 1)
+
+        resp = authenticated_client.post('/api/feedback/survey/dismiss', json={})
+
+        assert resp.status_code == 409
+        assert SurveyPrompt.query.get(test_user.id) is None
 
     def test_survey_requires_login(self, client):
         resp = client.post('/api/feedback/survey', json={'works': 'x'})

@@ -1,5 +1,6 @@
 # app/curriculum/models.py
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -23,6 +24,8 @@ from sqlalchemy.orm import joinedload, relationship
 
 from app.utils.db import db
 from config.settings import PASSING_SCORE_PERCENT
+
+logger = logging.getLogger(__name__)
 
 
 class CEFRLevel(db.Model):
@@ -141,6 +144,19 @@ class Module(db.Model):
             # level-entry prereq would demand 100%, a stricter gate than
             # anywhere else in the product (audit CNT-005).
             progress = self._get_module_completion(user_id, prereq['id'])
+
+            # A prerequisite module with no lessons can never be completed:
+            # `_get_module_completion` reports 0% for it, so any bar above 0
+            # locks this module — and, through the level-entry gates, the rest
+            # of the catalogue — for good. Nothing to finish means nothing to
+            # demand, so treat it as satisfied instead of unsatisfiable.
+            if progress.get('lesson_count', 0) == 0:
+                logger.warning(
+                    "module %s has prerequisite module %s with no lessons — treating as satisfied",
+                    self.id, prereq['id'],
+                )
+                continue
+
             min_score = prereq.get('min_score', PASSING_SCORE_PERCENT)
             min_progress = prereq.get('min_progress', 100)
 
@@ -158,7 +174,7 @@ class Module(db.Model):
 
         lessons = Lessons.query.filter_by(module_id=module_id).all()
         if not lessons:
-            return {'progress_percent': 0, 'avg_score': 0}
+            return {'progress_percent': 0, 'avg_score': 0, 'lesson_count': 0}
 
         lesson_ids = [l.id for l in lessons]
         stats = db.session.query(
@@ -176,7 +192,8 @@ class Module(db.Model):
 
         return {
             'progress_percent': progress_percent,
-            'avg_score': avg_score
+            'avg_score': avg_score,
+            'lesson_count': len(lessons),
         }
 
     def __repr__(self):

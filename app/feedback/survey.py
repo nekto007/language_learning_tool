@@ -103,7 +103,18 @@ def _get_or_create_prompt(user_id: int) -> SurveyPrompt:
             db.session.flush()
         return prompt
     except IntegrityError:
-        return SurveyPrompt.query.get(user_id)
+        pass
+    # Lost the race: the winner has committed by the time the constraint fired,
+    # so the row is visible now. If it still is not (the winner rolled back
+    # instead), create it ourselves — returning None here would surface as an
+    # AttributeError in the caller.
+    prompt = get_prompt(user_id)
+    if prompt is not None:
+        return prompt
+    prompt = SurveyPrompt(user_id=user_id, dismiss_count=0)
+    db.session.add(prompt)
+    db.session.flush()
+    return prompt
 
 
 def record_survey_dismissal(user_id: int) -> SurveyPrompt:

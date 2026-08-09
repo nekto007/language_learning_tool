@@ -351,6 +351,10 @@ class TestPlacementPrerequisiteAlignment:
         low = _make_level(db_session, order=10)
         high = _make_level(db_session, order=30)
         m_low = _make_module(db_session, low, number=1)
+        # m_low needs a lesson to be completable at all — a lesson-less
+        # prerequisite is treated as satisfied (nothing to finish), which would
+        # make these tests pass for the wrong reason.
+        _make_lesson(db_session, m_low, number=1)
         # m_high requires m_low, which the user never completed.
         m_high = _make_module(
             db_session, high, number=1,

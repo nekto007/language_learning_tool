@@ -645,6 +645,20 @@ def render_final_test_lesson(lesson):
         # For matching questions: if we collected pairs_<i> sidecar, package
         # them in the JSON shape the grader's matching branch expects so it
         # can actually validate (instead of marking everything wrong).
+        # Only matching questions — a stray `pairs_<i>` posted alongside a
+        # multiple-choice answer would otherwise replace the real answer with
+        # a JSON blob and grade the question wrong.
+        def _is_matching(idx: int) -> bool:
+            if not (0 <= idx < len(all_questions)):
+                return False
+            question = all_questions[idx]
+            return isinstance(question, dict) and question.get('type') == 'matching'
+
+        pairs_by_idx = {
+            idx: pair_list
+            for idx, pair_list in pairs_by_idx.items()
+            if _is_matching(idx)
+        }
         for idx, pair_list in pairs_by_idx.items():
             answers[idx] = json.dumps({'pairs': pair_list})
 

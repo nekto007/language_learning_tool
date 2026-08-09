@@ -380,11 +380,14 @@ def get_daily_plan(
         and blocking_module_id is None
         and has_completed_history(user_id, session)
     )
-    if next_lesson is None and blocking_module_id is not None:
+    spine_blocked = next_lesson is None and blocking_module_id is not None
+    blocked_module: Optional[dict[str, Any]] = None
+    if spine_blocked:
         logger.warning(
             "unified_plan_assemble user=%s spine blocked by module=%s — not graduated",
             user_id, blocking_module_id,
         )
+        blocked_module = _describe_blocking_module(user_id, session, blocking_module_id)
 
     if graduated:
         required_dicts = []
@@ -399,8 +402,12 @@ def get_daily_plan(
         # Hydrate PlanItem objects for build_optional (it reads .id/.kind/.data/.completed).
         required = [PlanItem(**d) for d in required_dicts]
 
+    # A blocked spine leaves required empty just like graduation does, so the
+    # optional section is the learner's only place to study — let it reach past
+    # the daily budget the same way.
     optional, has_more_optional = build_optional(
-        user_id, session, required_items=required, focus=focus, graduated=graduated,
+        user_id, session, required_items=required, focus=focus,
+        graduated=graduated or spine_blocked,
     )
     setup = build_setup(user_id, session)
 
@@ -455,6 +462,45 @@ def get_daily_plan(
         'plan_intensity': get_plan_intensity(total_estimated_minutes),
         'has_more_optional': has_more_optional,
         'graduated': graduated,
+        'blocked_module': blocked_module,
+    }
+
+
+def _describe_blocking_module(
+    user_id: int,
+    db: Any,
+    module_id: Optional[int],
+) -> Optional[dict[str, Any]]:
+    """Name the module that hides the rest of the spine, and why.
+
+    Without this the learner sees an empty plan with nothing pointing at the
+    unmet prerequisite — the exact dead end a blocked spine is supposed to
+    avoid.
+    """
+    if module_id is None:
+        return None
+
+    from app.curriculum.models import Module
+    from app.daily_plan.linear.progression import _user_min_level_order
+
+    module = db.session.get(Module, module_id)
+    if module is None:
+        return None
+
+    try:
+        _ok, reasons = module.check_prerequisites(
+            user_id, min_level_order=_user_min_level_order(user_id, db),
+        )
+    except Exception:  # noqa: BLE001 — a missing reason must not break the plan
+        logger.exception("blocked module %s: could not collect reasons", module_id)
+        reasons = []
+
+    return {
+        'module_id': module.id,
+        'module_number': module.number,
+        'module_title': module.title,
+        'level_code': module.level.code if module.level is not None else None,
+        'reasons': list(reasons or []),
     }
 
 

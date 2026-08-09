@@ -686,8 +686,8 @@ def get_book_content(book_id):
     # blanket `except Exception` below would turn a missing book into a 500.
     book = Book.query.get(book_id)
     # Every route that serves book material goes through the rights gate
-    # (audit SEC-001) — this one still leaks `book.title` for drafts and
-    # unlicensed books, and would leak the text once the mock below is real.
+    # (audit SEC-001). This one returns the title and would return the text
+    # once the mock below is real, so the gate has to run before either.
     denied = _book_gate(book, 'Book not found')
     if denied is not None:
         return denied

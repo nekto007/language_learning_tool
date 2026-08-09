@@ -118,6 +118,18 @@ class TestModuleModel:
             db_session.add(prereq_module)
             db_session.commit()
 
+            # The prereq needs a lesson to be completable: a lesson-less
+            # prerequisite is treated as satisfied (there is nothing to
+            # finish), so without this the module would be accessible.
+            db_session.add(Lessons(
+                module_id=prereq_module.id,
+                number=1,
+                title='Prereq Lesson',
+                type='vocabulary',
+                content={},
+            ))
+            db_session.commit()
+
             # Create module with prerequisites
             module = Module(
                 level_id=test_level.id,

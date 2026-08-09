@@ -17419,6 +17419,14 @@ a.daily-plan__position--link:focus {
     font-size: 0.875rem;
     margin: 0;
 }
+/* Unmet prerequisites behind a blocked spine — one line per condition. */
+.daily-plan__empty-reasons {
+    margin: 0;
+    padding: 0 0 0 18px;
+    text-align: left;
+    color: var(--color-text-muted, #888);
+    font-size: 0.8125rem;
+}
 
 .daily-plan__section--optional .daily-plan__section-title,
 .daily-plan__section--setup .daily-plan__section-title {

@@ -31,7 +31,6 @@ from app.feedback.models import (
     USER_AGENT_MAX_LENGTH,
     USER_SUBMITTABLE_CATEGORIES,
     Feedback,
-    FEEDBACK_PRIORITIES,
     FeedbackReply,
     create_feedback,
     create_reply,
@@ -349,6 +348,14 @@ def submit_survey():
 @limiter.limit('20 per hour')
 def dismiss_survey():
     """Learner asked to be left alone. Second time closes it for good."""
+    from app.feedback.survey import should_show_survey
+
+    # Same server-side gate as the submit endpoint: without it a POST from an
+    # account the survey was never offered to still burns one of its two
+    # offers, and an answered account keeps writing dismissals.
+    if not should_show_survey(current_user):
+        return api_error('not_eligible', 'survey is not open for this account', 409)
+
     try:
         prompt = record_survey_dismissal(current_user.id)
         db.session.commit()

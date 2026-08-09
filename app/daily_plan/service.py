@@ -38,6 +38,12 @@ def compute_day_secured_from_activity(
     and _plan_meta.graduated=True. Day secured only when the user has
     logged any learning activity today — keeps the streak meaningful.
 
+    A blocked spine (an unmet prerequisite hides the rest of the catalogue)
+    also produces required=[], and it is resolved the same way. It is NOT
+    graduation — the plan says so elsewhere — but the learner can still study
+    from the optional section, and refusing to ever close their day would
+    freeze streak, rank and perfect-day for as long as the block lasts.
+
     Skipped or blocked required items only affect navigation. They do not
     represent learning activity and must not satisfy the daily minimum for
     streak/rank purposes.
@@ -50,7 +56,8 @@ def compute_day_secured_from_activity(
         required = plan.get('required') or []
         if not required:
             graduated = plan_meta.get('graduated', False)
-            if not graduated:
+            spine_blocked = plan_meta.get('blocked_module_id') is not None
+            if not (graduated or spine_blocked):
                 return False
             user_id = plan_meta.get('user_id')
             if not user_id:
@@ -137,6 +144,7 @@ def _with_plan_meta(
     fallback_reason: Optional[str] = None,
     graduated: bool = False,
     user_id: Optional[int] = None,
+    blocked_module_id: Optional[int] = None,
 ) -> dict[str, Any]:
     enriched = dict(payload)
     enriched['_plan_meta'] = {
@@ -145,6 +153,7 @@ def _with_plan_meta(
         'fallback_reason': fallback_reason,
         'graduated': graduated,
         'user_id': user_id,
+        'blocked_module_id': blocked_module_id,
     }
     return enriched
 
@@ -184,9 +193,15 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
     try:
         payload = get_daily_plan(user_id)
         graduated = bool(payload.get('graduated', False))
-        logger.info("daily_plan_unified user=%s mode=unified graduated=%s", user_id, graduated)
+        blocked_module = payload.get('blocked_module') or {}
+        blocked_module_id = blocked_module.get('module_id')
+        logger.info(
+            "daily_plan_unified user=%s mode=unified graduated=%s blocked_module=%s",
+            user_id, graduated, blocked_module_id,
+        )
         return _with_plan_meta(
             payload, effective_mode='unified', graduated=graduated, user_id=user_id,
+            blocked_module_id=blocked_module_id,
         )
     except Exception:
         logger.exception(
