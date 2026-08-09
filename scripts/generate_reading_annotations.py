@@ -14,21 +14,36 @@ agent working in this repository instead of a paid API call:
 Validation on import is strict: every annotated phrase must appear verbatim in
 the lesson text, so invented quotes never reach the database.
 
+``dump`` and ``load`` move finished scaffolds to another environment. They match
+lessons by course slug, module number, day number and lesson type rather than by
+primary key, because ids differ between databases, and they only ever write the
+``annotations`` column — no lesson, module or course is created or deleted.
+
 Usage:
   python scripts/generate_reading_annotations.py status
   python scripts/generate_reading_annotations.py export --course-id=3
   python scripts/generate_reading_annotations.py export --course-id=3 --batch-size=8 --limit=40
+  python scripts/generate_reading_annotations.py check --course-id=3
   python scripts/generate_reading_annotations.py import --course-id=3
   python scripts/generate_reading_annotations.py import --file=work/.../batch_001_result.json
   python scripts/generate_reading_annotations.py import --course-id=3 --dry-run
+  python scripts/generate_reading_annotations.py dump
+  python scripts/generate_reading_annotations.py load --dry-run
+  python scripts/generate_reading_annotations.py load --dir=work/reading_scaffolds_fixture
+
+``check`` applies the same validation as ``import`` but reads the passage from
+the batch file instead of the database, so an agent can verify its own output
+before handing it back and no invalid scaffold ever reaches the import step.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -37,7 +52,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 DEFAULT_OUT_ROOT = BASE_DIR / "work" / "reading_scaffolds"
+DEFAULT_FIXTURE_ROOT = BASE_DIR / "work" / "reading_scaffolds_fixture"
 DEFAULT_BATCH_SIZE = 6
+
+FIXTURE_KIND = "reading_scaffolds"
+FIXTURE_VERSION = 1
 
 READING_TYPES = (
     "reading", "reading_assignment", "reading_passage",
@@ -319,6 +338,83 @@ def validate_scaffold(scaffold: Any, slice_text: str) -> list[str]:
     return errors
 
 
+def passage_digest(slice_text: str) -> str:
+    """Fingerprint a passage the way the phrase check sees it.
+
+    Normalising before hashing lets a fixture survive cosmetic differences
+    between two databases (whitespace, curly quotes) while still catching a
+    passage that was re-sliced or re-imported — there the quotes in a scaffold
+    would point at words the reader no longer has in front of them.
+    """
+    return hashlib.sha256(normalize_for_match(slice_text).encode("utf-8")).hexdigest()
+
+
+def fixture_key(
+    course_slug: Any, module_number: Any, day_number: Any, lesson_type: Any,
+) -> tuple[str, int, int, str]:
+    """Address a lesson by content coordinates instead of by primary key.
+
+    Lesson ids are assigned per database, so they cannot carry a scaffold from
+    one environment to another. These four coordinates are unique across every
+    reading lesson and stable across imports.
+    """
+    return (str(course_slug), int(module_number), int(day_number), str(lesson_type))
+
+
+# Outcomes of matching one fixture entry against a target database.
+LOAD_WRITE = "write"
+LOAD_SKIP_EXISTING = "skip_existing"
+LOAD_DRIFT = "drift"
+LOAD_UNMATCHED = "unmatched"
+LOAD_WRONG_TYPE = "wrong_type"
+LOAD_INVALID = "invalid"
+
+LOAD_PROBLEMS = (LOAD_DRIFT, LOAD_UNMATCHED, LOAD_WRONG_TYPE, LOAD_INVALID)
+
+
+def decide_load(
+    entry: dict[str, Any],
+    target: dict[str, Any] | None,
+    *,
+    overwrite: bool = False,
+    allow_passage_drift: bool = False,
+) -> tuple[str, list[str]]:
+    """Decide what one fixture entry does to the lesson it matched.
+
+    Kept free of the database so the rules can be tested directly: ``target`` is
+    a plain snapshot of the row the loader found, or ``None`` when the key
+    matched nothing. Returns the outcome plus messages worth printing — for a
+    write those are warnings, otherwise the reason it was not written.
+    """
+    if target is None:
+        return LOAD_UNMATCHED, ["no reading lesson with this key in the target database"]
+
+    if target.get("lesson_type") not in READING_TYPES:
+        return LOAD_WRONG_TYPE, [
+            f"target lesson is '{target.get('lesson_type')}', not a reading lesson"
+        ]
+
+    if target.get("has_annotations") and not overwrite:
+        return LOAD_SKIP_EXISTING, ["target lesson already has a scaffold (use --overwrite)"]
+
+    slice_text = target.get("slice_text") or ""
+    warnings: list[str] = []
+    expected = entry.get("passage_sha256")
+    if expected and passage_digest(slice_text) != expected:
+        drift = "target passage differs from the one this scaffold was written for"
+        if not allow_passage_drift:
+            return LOAD_DRIFT, [f"{drift} (use --allow-passage-drift to validate anyway)"]
+        warnings.append(drift)
+
+    # The passage in the target database is the authority, not the fixture: a
+    # scaffold only ships if its quotes are verbatim in the text the student
+    # will actually read.
+    errors = validate_scaffold(entry.get("scaffold"), slice_text)
+    if errors:
+        return LOAD_INVALID, warnings + errors
+    return LOAD_WRITE, warnings
+
+
 def _query_lessons(args: argparse.Namespace, pending_only: bool):
     """Build the lesson query shared by export and status."""
     from app.curriculum.daily_lessons import DailyLesson
@@ -454,6 +550,81 @@ def cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_check(args: argparse.Namespace) -> int:
+    """Validate result files against their batch files, without the database.
+
+    ``import`` reads ``slice_text`` from the database, so it needs an app
+    context and a single writer. Generation is spread over many agents that all
+    want the same verdict before handing work back, so the same check is
+    offered here against the batch file the export step already wrote.
+    """
+    paths = _load_result_files(args)
+    if not paths:
+        print("No result files to check.")
+        return 1
+
+    checked = problems = 0
+
+    for path in paths:
+        batch_path = path.with_name(path.name.replace("_result.json", ".json"))
+        if not batch_path.exists():
+            print(f"FAIL {path.name}: no batch file at {batch_path.name}")
+            problems += 1
+            continue
+
+        try:
+            batch = json.loads(batch_path.read_text(encoding="utf-8"))
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"FAIL {path.name}: cannot read file: {error}")
+            problems += 1
+            continue
+
+        texts = {item["lesson_id"]: item["slice_text"] for item in batch["lessons"]}
+        scaffolds = payload.get("scaffolds") if isinstance(payload, dict) else None
+        if not isinstance(scaffolds, list):
+            print(f"FAIL {path.name}: expected an object with a 'scaffolds' list")
+            problems += 1
+            continue
+
+        errors: list[str] = []
+        covered: set[int] = set()
+
+        for entry in scaffolds:
+            if not isinstance(entry, dict):
+                errors.append(f"scaffold entry is not an object: {entry!r:.60}")
+                continue
+
+            lesson_id = entry.get("lesson_id")
+            if lesson_id not in texts:
+                errors.append(f"lesson_id {lesson_id!r} is not in this batch")
+                continue
+
+            covered.add(lesson_id)
+            scaffold = {key: entry[key] for key in SCAFFOLD_KEYS if key in entry}
+            errors.extend(
+                f"lesson {lesson_id}: {message}"
+                for message in validate_scaffold(scaffold, texts[lesson_id])
+            )
+
+        errors.extend(
+            f"lesson {lesson_id} has no scaffold in the result file"
+            for lesson_id in texts if lesson_id not in covered
+        )
+
+        if errors:
+            problems += 1
+            print(f"FAIL {path.name}:")
+            for message in errors:
+                print(f"  - {message}")
+        else:
+            checked += 1
+            print(f"OK {path.name}: {len(covered)} lessons valid")
+
+    print(f"\n{checked} file(s) valid, {problems} with problems.")
+    return 1 if problems else 0
+
+
 def _load_result_files(args: argparse.Namespace) -> list[Path]:
     if args.file:
         path = Path(args.file)
@@ -552,6 +723,236 @@ def cmd_import(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _reading_index_rows(course_id: int | None = None) -> list[Any]:
+    """Join every reading lesson to the coordinates a fixture addresses it by."""
+    from app.curriculum.daily_lessons import DailyLesson
+    from app.curriculum.book_courses import BookCourse, BookCourseModule
+    from app.utils.db import db
+
+    query = db.session.query(
+        DailyLesson, BookCourse.slug, BookCourse.title, BookCourseModule.module_number,
+    ).join(
+        BookCourseModule, DailyLesson.book_course_module_id == BookCourseModule.id
+    ).join(
+        BookCourse, BookCourseModule.course_id == BookCourse.id
+    ).filter(DailyLesson.lesson_type.in_(READING_TYPES))
+
+    if course_id:
+        query = query.filter(BookCourse.id == course_id)
+
+    return query.order_by(
+        BookCourse.id, BookCourseModule.module_number, DailyLesson.day_number, DailyLesson.id,
+    ).all()
+
+
+def cmd_dump(args: argparse.Namespace) -> int:
+    """Write stored scaffolds into per-course fixture files for another database."""
+    rows = [row for row in _reading_index_rows(args.course_id) if row[0].annotations is not None]
+    if not rows:
+        print("Nothing to dump: no reading lesson has a scaffold yet.")
+        return 1
+
+    out_dir = Path(args.out_dir) if args.out_dir else DEFAULT_FIXTURE_ROOT
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    per_course: dict[str, dict[str, Any]] = {}
+    invalid = unaddressable = 0
+
+    for lesson, slug, title, module_number in rows:
+        if not slug:
+            unaddressable += 1
+            print(f"  SKIP lesson {lesson.id}: course '{title}' has no slug to address it by")
+            continue
+
+        slice_text = lesson.slice_text or ""
+        stored = lesson.annotations
+        scaffold = (
+            {key: stored[key] for key in SCAFFOLD_KEYS if key in stored}
+            if isinstance(stored, dict) else stored
+        )
+
+        # Validate on the way out too: a fixture must not be able to carry a
+        # scaffold that the import step would have rejected.
+        errors = validate_scaffold(scaffold, slice_text)
+        if errors:
+            invalid += 1
+            print(f"  INVALID lesson {lesson.id} (day {lesson.day_number}): not dumped")
+            for message in errors:
+                print(f"    - {message}")
+            continue
+
+        bucket = per_course.setdefault(slug, {"title": title, "lessons": []})
+        bucket["lessons"].append({
+            "course_slug": slug,
+            "module_number": int(module_number),
+            "day_number": lesson.day_number,
+            "lesson_type": lesson.lesson_type,
+            "slice_number": lesson.slice_number,
+            # Diagnostics only — the loader addresses lessons by the four
+            # coordinates above, never by an id from another database.
+            "source_lesson_id": lesson.id,
+            "passage_sha256": passage_digest(slice_text),
+            "passage_chars": len(slice_text),
+            "scaffold": scaffold,
+        })
+
+    print(f"Dumping {sum(len(b['lessons']) for b in per_course.values())} scaffolds into {out_dir}")
+    for slug, bucket in sorted(per_course.items()):
+        payload = {
+            "fixture": FIXTURE_KIND,
+            "version": FIXTURE_VERSION,
+            "course": {"slug": slug, "title": bucket["title"]},
+            "lessons": bucket["lessons"],
+        }
+        path = out_dir / f"{slug}.json"
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  {path.name}: {len(bucket['lessons'])} lessons")
+
+    print(f"\nWrote {len(per_course)} course file(s), {invalid} invalid, {unaddressable} unaddressable.")
+    if not invalid and not unaddressable:
+        print("Next: copy the directory to the target host and run `load --dry-run` there.")
+    return 1 if invalid or unaddressable else 0
+
+
+def _fixture_files(args: argparse.Namespace) -> list[Path]:
+    if args.file:
+        path = Path(args.file)
+        if not path.exists():
+            print(f"Error: {path} does not exist")
+            return []
+        return [path]
+
+    directory = Path(args.dir) if args.dir else DEFAULT_FIXTURE_ROOT
+    if not directory.exists():
+        print(f"Error: {directory} does not exist")
+        return []
+
+    paths = sorted(directory.glob("*.json"))
+    if not paths:
+        print(f"Error: no fixture files in {directory}")
+    return paths
+
+
+def _fixture_problem(payload: Any) -> str | None:
+    """Return why this payload cannot be treated as a scaffold fixture."""
+    if not isinstance(payload, dict):
+        return f"expected a fixture object, got {type(payload).__name__}"
+    if payload.get("fixture") != FIXTURE_KIND:
+        return f"not a {FIXTURE_KIND} fixture (fixture={payload.get('fixture')!r})"
+    version = payload.get("version")
+    if not isinstance(version, int) or version > FIXTURE_VERSION:
+        return f"unsupported version {version!r} (this script reads up to {FIXTURE_VERSION})"
+    if not isinstance(payload.get("lessons"), list):
+        return "expected a 'lessons' list"
+    return None
+
+
+def _describe_key(key: tuple[str, int, int, str]) -> str:
+    slug, module_number, day_number, lesson_type = key
+    return f"{slug} module {module_number} day {day_number} ({lesson_type})"
+
+
+def _format_counts(counts: Counter, dry_run: bool) -> str:
+    labels = {
+        LOAD_WRITE: "to write" if dry_run else "written",
+        LOAD_SKIP_EXISTING: "already had a scaffold",
+        LOAD_UNMATCHED: "unmatched",
+        LOAD_DRIFT: "passage drift",
+        LOAD_WRONG_TYPE: "wrong lesson type",
+        LOAD_INVALID: "invalid",
+    }
+    return ", ".join(
+        f"{counts[name]} {labels[name]}"
+        for name in (LOAD_WRITE, LOAD_SKIP_EXISTING, *LOAD_PROBLEMS)
+        if counts[name] or name == LOAD_WRITE
+    )
+
+
+def cmd_load(args: argparse.Namespace) -> int:
+    """Apply fixture files to this database, writing only the annotations column."""
+    from app.utils.db import db
+
+    paths = _fixture_files(args)
+    if not paths:
+        return 1
+
+    index: dict[tuple[str, int, int, str], Any] = {}
+    for lesson, slug, _title, module_number in _reading_index_rows():
+        if slug:
+            index[fixture_key(slug, module_number, lesson.day_number, lesson.lesson_type)] = lesson
+    print(f"Target database holds {len(index)} addressable reading lessons.")
+
+    totals: Counter = Counter()
+    file_errors = 0
+
+    for path in paths:
+        print(f"\n=== {path.name} ===")
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"  ERROR: cannot read file: {error}")
+            file_errors += 1
+            continue
+
+        problem = _fixture_problem(payload)
+        if problem:
+            print(f"  ERROR: {problem}")
+            file_errors += 1
+            continue
+
+        counts: Counter = Counter()
+        for entry in payload["lessons"]:
+            if not isinstance(entry, dict):
+                counts[LOAD_INVALID] += 1
+                print(f"  INVALID: entry is not an object: {entry!r:.60}")
+                continue
+            try:
+                key = fixture_key(
+                    entry.get("course_slug"), entry.get("module_number"),
+                    entry.get("day_number"), entry.get("lesson_type"),
+                )
+            except (TypeError, ValueError):
+                counts[LOAD_INVALID] += 1
+                print(f"  INVALID: entry has no usable key: {entry!r:.60}")
+                continue
+
+            lesson = index.get(key)
+            target = None if lesson is None else {
+                "lesson_type": lesson.lesson_type,
+                "slice_text": lesson.slice_text,
+                "has_annotations": lesson.annotations is not None,
+            }
+            outcome, messages = decide_load(
+                entry, target,
+                overwrite=args.overwrite,
+                allow_passage_drift=args.allow_passage_drift,
+            )
+            counts[outcome] += 1
+
+            if outcome == LOAD_WRITE and not args.dry_run:
+                lesson.annotations = entry["scaffold"]
+
+            if messages:
+                label = "WARN" if outcome == LOAD_WRITE else outcome.upper()
+                print(f"  {label} {_describe_key(key)}:")
+                for message in messages:
+                    print(f"    - {message}")
+
+        totals.update(counts)
+        print(f"  {_format_counts(counts, args.dry_run)}")
+
+    if args.dry_run:
+        db.session.rollback()
+        print(f"\nDry run: {_format_counts(totals, True)}. Nothing written.")
+    else:
+        db.session.commit()
+        print(f"\nDone: {_format_counts(totals, False)}.")
+    if file_errors:
+        print(f"{file_errors} file(s) could not be read.")
+
+    return 1 if file_errors or any(totals[name] for name in LOAD_PROBLEMS) else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Export reading lessons for scaffold generation and import the results",
@@ -596,6 +997,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     import_parser.set_defaults(func=cmd_import)
 
+    check_parser = subparsers.add_parser(
+        "check",
+        help="Validate result files against their batch files (no database needed)",
+    )
+    check_parser.add_argument("--course-id", type=int, help="Check the default directory of this course")
+    check_parser.add_argument("--file", help="Check a single *_result.json file")
+    check_parser.add_argument("--out-dir", help="Directory holding *_result.json files")
+    check_parser.set_defaults(func=cmd_check)
+
+    dump_parser = subparsers.add_parser(
+        "dump", help="Write stored scaffolds into fixture files for another environment",
+    )
+    dump_parser.add_argument("--course-id", type=int, help="Dump a single book course")
+    dump_parser.add_argument(
+        "--out-dir", help=f"Destination directory (default: {DEFAULT_FIXTURE_ROOT})",
+    )
+    dump_parser.set_defaults(func=cmd_dump)
+
+    load_parser = subparsers.add_parser(
+        "load", help="Apply fixture files to this database (annotations column only)",
+    )
+    load_parser.add_argument("--file", help="Load a single fixture file")
+    load_parser.add_argument(
+        "--dir", help=f"Directory holding fixture files (default: {DEFAULT_FIXTURE_ROOT})",
+    )
+    load_parser.add_argument(
+        "--overwrite", action="store_true", help="Replace scaffolds the target already has",
+    )
+    load_parser.add_argument(
+        "--allow-passage-drift", action="store_true",
+        help="Load even where the target passage differs, if the quotes still match it",
+    )
+    load_parser.add_argument(
+        "--dry-run", action="store_true", help="Report what would happen, write nothing",
+    )
+    load_parser.set_defaults(func=cmd_load)
+
     return parser
 
 
@@ -608,6 +1046,11 @@ def main() -> int:
         build_parser().error("--batch-size must be positive")
     if args.command == "export" and args.limit is not None and args.limit <= 0:
         build_parser().error("--limit must be positive")
+
+    # `check` reads the batch files the export step wrote, so it deliberately
+    # skips the app: many agents can run it at once while generating.
+    if args.command == "check":
+        return args.func(args)
 
     from app import create_app
     app = create_app()

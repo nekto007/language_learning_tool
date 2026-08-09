@@ -15,8 +15,17 @@ if str(SCRIPT_PATH) not in sys.path:
     sys.path.insert(0, str(SCRIPT_PATH))
 
 from generate_reading_annotations import (  # noqa: E402
+    LOAD_DRIFT,
+    LOAD_INVALID,
+    LOAD_SKIP_EXISTING,
+    LOAD_UNMATCHED,
+    LOAD_WRITE,
+    LOAD_WRONG_TYPE,
+    decide_load,
+    fixture_key,
     make_batch_id,
     normalize_for_match,
+    passage_digest,
     validate_scaffold,
 )
 
@@ -282,3 +291,127 @@ def test_validation_does_not_mutate_input():
     snapshot = deepcopy(scaffold)
     validate_scaffold(scaffold, PASSAGE)
     assert scaffold == snapshot
+
+
+# ---------------------------------------------------------------------------
+# passage_digest / fixture_key — carrying scaffolds between databases
+# ---------------------------------------------------------------------------
+
+
+def test_digest_ignores_cosmetic_differences():
+    """Two databases may store the same passage with different quote glyphs."""
+    plain = PASSAGE.replace("“", '"').replace("”", '"').replace("’", "'")
+    assert passage_digest(PASSAGE) == passage_digest(plain)
+    assert passage_digest(PASSAGE) == passage_digest(f"  {PASSAGE}\n")
+
+
+def test_digest_changes_when_the_passage_is_re_sliced():
+    assert passage_digest(PASSAGE) != passage_digest(PASSAGE + " He left the room.")
+
+
+def test_fixture_key_accepts_numbers_written_as_strings():
+    """Numbers come back from JSON as ints, but a hand-edited file may hold strings."""
+    assert fixture_key("slug", "2", "13", "reading") == ("slug", 2, 13, "reading")
+
+
+def test_fixture_key_separates_lessons_of_the_same_day():
+    part1 = fixture_key("slug", 1, 3, "reading_part1")
+    part2 = fixture_key("slug", 1, 3, "reading_part2")
+    assert part1 != part2
+
+
+# ---------------------------------------------------------------------------
+# decide_load
+# ---------------------------------------------------------------------------
+
+
+def _entry(**overrides: Any) -> dict[str, Any]:
+    entry = {
+        "course_slug": "english-course-test",
+        "module_number": 1,
+        "day_number": 2,
+        "lesson_type": "reading",
+        "passage_sha256": passage_digest(PASSAGE),
+        "scaffold": _valid_scaffold(),
+    }
+    entry.update(overrides)
+    return entry
+
+
+def _target(**overrides: Any) -> dict[str, Any]:
+    target = {"lesson_type": "reading", "slice_text": PASSAGE, "has_annotations": False}
+    target.update(overrides)
+    return target
+
+
+def test_load_writes_a_matching_scaffold():
+    outcome, messages = decide_load(_entry(), _target())
+    assert (outcome, messages) == (LOAD_WRITE, [])
+
+
+def test_load_reports_a_key_that_matched_nothing():
+    """A course missing on the target must be visible, not silently dropped."""
+    outcome, messages = decide_load(_entry(), None)
+    assert outcome == LOAD_UNMATCHED
+    assert "target database" in messages[0]
+
+
+def test_load_refuses_a_lesson_that_is_not_a_reading_lesson():
+    outcome, _ = decide_load(_entry(), _target(lesson_type="vocabulary"))
+    assert outcome == LOAD_WRONG_TYPE
+
+
+def test_load_keeps_an_existing_scaffold_by_default():
+    outcome, messages = decide_load(_entry(), _target(has_annotations=True))
+    assert outcome == LOAD_SKIP_EXISTING
+    assert "--overwrite" in messages[0]
+
+
+def test_load_replaces_an_existing_scaffold_when_asked():
+    outcome, _ = decide_load(_entry(), _target(has_annotations=True), overwrite=True)
+    assert outcome == LOAD_WRITE
+
+
+def test_load_stops_when_the_target_passage_is_a_different_text():
+    """The scaffold was written for another slice; its questions no longer fit."""
+    outcome, messages = decide_load(_entry(), _target(slice_text="A completely other text."))
+    assert outcome == LOAD_DRIFT
+    assert "--allow-passage-drift" in messages[0]
+
+
+def test_drift_is_refused_even_when_the_quotes_would_still_match():
+    """Matching quotes are not enough: the rest of the scaffold describes the
+    old passage, so the mismatch is reported rather than written."""
+    outcome, _ = decide_load(_entry(), _target(slice_text=PASSAGE + " Extra sentence here."))
+    assert outcome == LOAD_DRIFT
+
+
+def test_drift_can_be_accepted_and_is_still_warned_about():
+    outcome, messages = decide_load(
+        _entry(), _target(slice_text=PASSAGE + " Extra sentence here."),
+        allow_passage_drift=True,
+    )
+    assert outcome == LOAD_WRITE
+    assert any("differs" in message for message in messages)
+
+
+def test_load_validates_against_the_target_passage_not_the_fixture():
+    """The digest may be absent (hand-written fixture) — the quotes still have to
+    occur in the text the student will read."""
+    entry = _entry(passage_sha256=None)
+    outcome, messages = decide_load(entry, _target(slice_text="An unrelated passage entirely."))
+    assert outcome == LOAD_INVALID
+    assert any("does not occur verbatim" in message for message in messages)
+
+
+def test_load_rejects_a_scaffold_that_lost_a_section():
+    entry = _entry()
+    del entry["scaffold"]["can_do"]
+    outcome, messages = decide_load(entry, _target())
+    assert outcome == LOAD_INVALID
+    assert any("missing keys" in message for message in messages)
+
+
+def test_load_rejects_an_entry_without_a_scaffold():
+    outcome, _ = decide_load(_entry(scaffold=None), _target())
+    assert outcome == LOAD_INVALID
