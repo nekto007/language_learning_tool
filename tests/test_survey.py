@@ -315,3 +315,55 @@ class TestAdminSeesSurveys:
         resp = admin_client.get('/admin/feedback?category=survey')
 
         assert resp.status_code == 200
+
+    def test_coverage_page_renders(self, admin_client):
+        resp = admin_client.get('/admin/feedback/surveys')
+
+        assert resp.status_code == 200
+        assert 'Охват опроса'.encode() in resp.data
+
+    def test_coverage_shows_a_fresh_account_as_too_new(
+        self, admin_client, db_session, test_user,
+    ):
+        _age_account(db_session, test_user, SURVEY_MIN_ACCOUNT_AGE_DAYS - 1)
+
+        resp = admin_client.get('/admin/feedback/surveys')
+
+        assert resp.status_code == 200
+        assert test_user.username.encode() in resp.data
+        assert 'Ещё рано'.encode() in resp.data
+
+    def test_coverage_shows_a_dismissal(self, admin_client, db_session, test_user):
+        _age_account(db_session, test_user, 30)
+        db_session.add(SurveyPrompt(
+            user_id=test_user.id,
+            dismiss_count=SURVEY_MAX_PROMPTS,
+            dismissed_at=_naive_now(),
+        ))
+        db_session.commit()
+
+        resp = admin_client.get('/admin/feedback/surveys')
+
+        assert resp.status_code == 200
+        assert 'Отмахнулся'.encode() in resp.data
+
+    def test_coverage_links_to_the_answer(self, admin_client, db_session, test_user):
+        # The point of the page: an answer must be reachable from the row,
+        # not just countable.
+        _age_account(db_session, test_user, 30)
+        from app.feedback.models import create_feedback
+        row = create_feedback(
+            user_id=test_user.id,
+            category='survey',
+            message='Что работает хорошо?\nКарточки',
+            url=None,
+            user_agent=None,
+        )
+        db_session.add(SurveyPrompt(user_id=test_user.id, answered_at=_naive_now()))
+        db_session.commit()
+
+        resp = admin_client.get('/admin/feedback/surveys')
+
+        assert resp.status_code == 200
+        assert f'/admin/feedback/{row.id}'.encode() in resp.data
+        assert 'Карточки'.encode() in resp.data

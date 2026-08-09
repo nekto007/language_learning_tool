@@ -153,6 +153,75 @@ def feedback_index():
     )
 
 
+@feedback_admin_bp.route('/feedback/surveys')
+@admin_required
+def survey_coverage():
+    """Who the two-week survey reached, and what came back.
+
+    The inbox shows answers; it cannot show silence. This page lists every
+    account against the survey so a missing answer is visible as a state
+    ("отмахнулся", "ещё не показан") rather than as an absent row.
+    """
+    from app.feedback.models import SURVEY_MAX_PROMPTS, SURVEY_MIN_ACCOUNT_AGE_DAYS, SurveyPrompt
+    from app.feedback.survey import should_show_survey
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    users = User.query.order_by(User.created_at.asc()).all()
+    prompts = {p.user_id: p for p in SurveyPrompt.query.all()}
+    answers = {
+        row.user_id: row
+        for row in Feedback.query
+        .filter(Feedback.category == 'survey')
+        .order_by(Feedback.created_at.asc())
+        .all()
+    }
+
+    rows = []
+    counts = {'answered': 0, 'dismissed': 0, 'pending': 0, 'too_new': 0}
+    for user in users:
+        created_at = user.created_at
+        if created_at is not None and created_at.tzinfo is not None:
+            created_at = created_at.astimezone(timezone.utc).replace(tzinfo=None)
+        age_days = (now - created_at).days if created_at else None
+
+        prompt = prompts.get(user.id)
+        answer = answers.get(user.id)
+
+        if answer is not None or (prompt is not None and prompt.answered_at):
+            state = 'answered'
+        elif prompt is not None and (prompt.dismiss_count or 0) >= SURVEY_MAX_PROMPTS:
+            state = 'dismissed'
+        elif age_days is not None and age_days < SURVEY_MIN_ACCOUNT_AGE_DAYS:
+            state = 'too_new'
+        elif should_show_survey(user, now=now):
+            state = 'pending'
+        else:
+            # Eligible on age, but snoozed after a first dismissal.
+            state = 'dismissed'
+        counts[state] += 1
+
+        rows.append({
+            'user': user,
+            'age_days': age_days,
+            'state': state,
+            'dismiss_count': (prompt.dismiss_count or 0) if prompt else 0,
+            'answered_at': prompt.answered_at if prompt else None,
+            'answer': answer,
+        })
+
+    # Answered first, then the people worth chasing, then the rest.
+    order = {'answered': 0, 'pending': 1, 'dismissed': 2, 'too_new': 3}
+    rows.sort(key=lambda r: (order[r['state']], r['user'].id))
+
+    return render_template(
+        'admin/feedback/surveys.html',
+        rows=rows,
+        counts=counts,
+        min_age_days=SURVEY_MIN_ACCOUNT_AGE_DAYS,
+    )
+
+
 @feedback_admin_bp.route('/feedback/<int:feedback_id>')
 @admin_required
 def feedback_detail(feedback_id: int):

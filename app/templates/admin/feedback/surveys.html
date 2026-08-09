@@ -1,0 +1,88 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Охват опроса{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Обратная связь', url_for('feedback_admin.feedback_index')), ('Опрос', '')]) }}
+{% endblock %}
+
+{% set state_labels = {
+    'answered': 'Ответил',
+    'pending': 'Ждём ответа',
+    'dismissed': 'Отмахнулся',
+    'too_new': 'Ещё рано',
+} %}
+{% set state_badges = {
+    'answered': 'success',
+    'pending': 'primary',
+    'dismissed': 'secondary',
+    'too_new': 'light text-dark',
+} %}
+
+{% block content %}
+{{ page_header('Охват опроса', 'Кому опрос положен, кто ответил и кто отказался') }}
+
+<div class="row g-3 mb-4">
+    {% for key in ['answered', 'pending', 'dismissed', 'too_new'] %}
+    <div class="col-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body py-3">
+                <div class="text-muted small">{{ state_labels[key] }}</div>
+                <div class="fs-4 fw-semibold">{{ counts[key] }}</div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<p class="text-muted small">
+    Опрос предлагается через {{ min_age_days }} дней после регистрации, не больше двух раз.
+    «Ещё рано» — аккаунт моложе этого порога. «Отмахнулся» — нажал «Скрыть»
+    (одиночное скрытие временное: опрос вернётся через неделю).
+</p>
+
+{% if rows %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Пользователь</th>
+                    <th style="width: 120px;">С нами</th>
+                    <th style="width: 130px;">Статус</th>
+                    <th style="width: 100px;">Скрытий</th>
+                    <th>Ответ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ row.user.username }}</div>
+                        <div class="text-muted small">{{ row.user.email }}</div>
+                    </td>
+                    <td>{% if row.age_days is not none %}{{ row.age_days }} дн.{% else %}—{% endif %}</td>
+                    <td>
+                        <span class="badge bg-{{ state_badges[row.state] }}">{{ state_labels[row.state] }}</span>
+                    </td>
+                    <td>{{ row.dismiss_count }}</td>
+                    <td>
+                        {% if row.answer %}
+                        <a href="{{ url_for('feedback_admin.feedback_detail', feedback_id=row.answer.id) }}">
+                            {{ row.answer.message[:140] }}{% if row.answer.message|length > 140 %}…{% endif %}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info mb-0">Пользователей пока нет.</div>
+{% endif %}
+{% endblock %}

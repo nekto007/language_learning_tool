@@ -17,6 +17,15 @@
 {% block content %}
 {{ page_header('Обратная связь', 'Сообщения пользователей: баги, идеи, вопросы') }}
 
+<div class="d-flex gap-2 mb-3">
+    <a href="{{ url_for('feedback_admin.feedback_index', category='survey') }}" class="btn btn-sm btn-outline-primary">
+        Только опросы
+    </a>
+    <a href="{{ url_for('feedback_admin.survey_coverage') }}" class="btn btn-sm btn-outline-secondary">
+        Охват опроса — кто ответил и кто нет
+    </a>
+</div>
+
 <div class="row g-3 mb-4">
     {% for st in statuses %}
     <div class="col-sm-4 col-lg-2">
