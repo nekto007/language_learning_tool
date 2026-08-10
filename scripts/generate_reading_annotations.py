@@ -23,6 +23,7 @@ Usage:
   python scripts/generate_reading_annotations.py status
   python scripts/generate_reading_annotations.py export --course-id=3
   python scripts/generate_reading_annotations.py export --course-id=3 --batch-size=8 --limit=40
+  python scripts/generate_reading_annotations.py export --course-id=3 --invalid-only
   python scripts/generate_reading_annotations.py check --course-id=3
   python scripts/generate_reading_annotations.py import --course-id=3
   python scripts/generate_reading_annotations.py import --file=work/.../batch_001_result.json
@@ -121,7 +122,9 @@ Write the scaffolds only from the passage itself: no invented plot details, no u
 cultural claims, no answers that cannot be verified from the text."""
 
 
-def _build_prompt(batch_path: Path, result_path: Path, batch: dict[str, Any]) -> str:
+def _build_prompt(
+    batch_path: Path, result_path: Path, batch: dict[str, Any], import_flags: str = "",
+) -> str:
     """Render the per-batch instruction file that accompanies a batch export."""
     lessons = batch["lessons"]
     listing = "\n".join(
@@ -166,7 +169,7 @@ Return JSON with this exact shape:
 
 When the file is written, import it:
 
-    python scripts/generate_reading_annotations.py import --file={result_path}
+    python scripts/generate_reading_annotations.py import --file={result_path}{import_flags}
 """
 
 
@@ -317,6 +320,18 @@ def _validate_self_check(value: Any, errors: list[str]) -> None:
 
     if answers and not (any(answers) and not all(answers)):
         errors.append("self_check: answers must mix at least one true and one false")
+
+
+def stored_scaffold(stored: Any) -> Any:
+    """Project a stored ``annotations`` value onto the scaffold keys.
+
+    A stored value carries only the six sections, but older rows may hold extra
+    keys or another shape entirely; anything that is not an object is handed to
+    the validator untouched so it reports the shape problem itself.
+    """
+    if not isinstance(stored, dict):
+        return stored
+    return {key: stored[key] for key in SCAFFOLD_KEYS if key in stored}
 
 
 def validate_scaffold(scaffold: Any, slice_text: str) -> list[str]:
@@ -491,7 +506,18 @@ def cmd_export(args: argparse.Namespace) -> int:
     """Write pending lessons into batch files plus their prompts."""
     from app.curriculum.book_courses import BookCourse
 
-    lessons = _query_lessons(args, pending_only=not args.overwrite).all()
+    if args.invalid_only:
+        # Lessons whose stored scaffold no longer passes validation: they are not
+        # pending — they hold content — but that content cannot be shipped, so it
+        # has to go back through generation.
+        lessons = [
+            lesson for lesson in _query_lessons(args, pending_only=False).all()
+            if lesson.annotations is not None
+            and validate_scaffold(stored_scaffold(lesson.annotations), lesson.slice_text or "")
+        ]
+    else:
+        lessons = _query_lessons(args, pending_only=not args.overwrite).all()
+
     if args.limit is not None:
         lessons = lessons[:args.limit]
 
@@ -505,6 +531,10 @@ def cmd_export(args: argparse.Namespace) -> int:
 
     out_dir = Path(args.out_dir) if args.out_dir else DEFAULT_OUT_ROOT / f"course_{course_id}"
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # A re-export replaces content the lessons already hold, so the prompt has to
+    # tell the generator to import with --overwrite or the result is skipped.
+    replacing = bool(args.invalid_only or args.overwrite)
 
     print(f"Exporting {len(lessons)} lessons from course {course_id} into {out_dir}")
 
@@ -539,7 +569,11 @@ def cmd_export(args: argparse.Namespace) -> int:
             json.dumps(batch, ensure_ascii=False, indent=2), encoding="utf-8",
         )
         (out_dir / f"{batch_id}_prompt.md").write_text(
-            _build_prompt(batch_path, result_path, batch), encoding="utf-8",
+            _build_prompt(
+                batch_path, result_path, batch,
+                import_flags=" --overwrite" if replacing else "",
+            ),
+            encoding="utf-8",
         )
         written += 1
         print(f"  {batch_path.name}: {len(chunk)} lessons")
@@ -765,11 +799,7 @@ def cmd_dump(args: argparse.Namespace) -> int:
             continue
 
         slice_text = lesson.slice_text or ""
-        stored = lesson.annotations
-        scaffold = (
-            {key: stored[key] for key in SCAFFOLD_KEYS if key in stored}
-            if isinstance(stored, dict) else stored
-        )
+        scaffold = stored_scaffold(lesson.annotations)
 
         # Validate on the way out too: a fixture must not be able to carry a
         # scaffold that the import step would have rejected.
@@ -978,6 +1008,10 @@ def build_parser() -> argparse.ArgumentParser:
     export_parser.add_argument(
         "--overwrite", action="store_true",
         help="Include lessons that already have a scaffold",
+    )
+    export_parser.add_argument(
+        "--invalid-only", action="store_true",
+        help="Export only lessons whose stored scaffold fails validation",
     )
     export_parser.add_argument(
         "--force", action="store_true",

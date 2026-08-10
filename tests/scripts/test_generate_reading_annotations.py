@@ -26,6 +26,7 @@ from generate_reading_annotations import (  # noqa: E402
     make_batch_id,
     normalize_for_match,
     passage_digest,
+    stored_scaffold,
     validate_scaffold,
 )
 
@@ -291,6 +292,29 @@ def test_validation_does_not_mutate_input():
     snapshot = deepcopy(scaffold)
     validate_scaffold(scaffold, PASSAGE)
     assert scaffold == snapshot
+
+
+# ---------------------------------------------------------------------------
+# stored_scaffold
+# ---------------------------------------------------------------------------
+
+
+def test_stored_scaffold_keeps_only_the_six_sections():
+    stored = dict(_valid_scaffold(), generated_at="2026-01-01", model="whatever")
+    assert set(stored_scaffold(stored)) == {
+        "objectives", "before_reading", "annotations",
+        "reflection", "self_check", "can_do",
+    }
+
+
+def test_stored_scaffold_passes_a_wrong_shape_through_to_the_validator():
+    """A legacy row holding a bare list must be reported, not crash the caller."""
+    assert stored_scaffold(["legacy", "list"]) == ["legacy", "list"]
+    assert validate_scaffold(stored_scaffold(["legacy", "list"]), PASSAGE)
+
+
+def test_stored_scaffold_of_a_valid_row_still_validates():
+    assert validate_scaffold(stored_scaffold(_valid_scaffold()), PASSAGE) == []
 
 
 # ---------------------------------------------------------------------------
