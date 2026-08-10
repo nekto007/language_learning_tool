@@ -17,6 +17,7 @@ Companion documents:
 | --------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
 | `immersion-data-rollback.md`      | Backup + rollback for `lessons`, `collection_words`, `word_collocations`, `cultural_notes`, `user_card_directions`. | Before any immersion content import.           |
 | `immersion-data-readiness.md`     | Production-readiness checklist (Task 8). Import order, audits, smoke URLs, rollback checkpoints. | Before staging or production rollout.          |
+| `reading-scaffolds-to-production.md` | Moving `daily_lessons.annotations` for reading lessons between environments with `generate_reading_annotations.py dump`/`load`. | After scaffolds are generated and imported locally. |
 
 Add new runbooks as separate files. Do not bury procedures inside the
 plan or inside content READMEs — runbooks must be findable by
