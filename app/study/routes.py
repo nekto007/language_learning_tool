@@ -1342,3 +1342,4 @@ def custom_list_study(list_id):
 from app.study import api_routes  # noqa: E402, F401
 from app.study import deck_routes  # noqa: E402, F401
 from app.study import game_routes  # noqa: E402, F401
+from app.study import word_set_routes  # noqa: E402, F401

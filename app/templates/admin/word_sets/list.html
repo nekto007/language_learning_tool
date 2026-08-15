@@ -1,0 +1,78 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}Наборы слов - Admin{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Наборы слов', '')]) }}
+{% endblock %}
+
+{% block content %}
+{% set actions %}
+<a href="{{ url_for('word_set_admin.word_set_create') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-1"></i> Создать набор
+</a>
+{% endset %}
+{{ page_header('Наборы слов', 'Тематические подборки для квизов', actions=actions) }}
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th style="width:3rem;"></th>
+            <th>Название</th>
+            <th>Слаг</th>
+            <th class="text-center">Слов</th>
+            <th class="text-center">Порядок</th>
+            <th class="text-center">Статус</th>
+            <th class="text-end">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for word_set in word_sets %}
+          <tr>
+            <td class="fs-4">{{ word_set.icon or '📚' }}</td>
+            <td>
+              <strong>{{ word_set.name }}</strong>
+              {% if word_set.description %}
+                <div class="text-muted small">{{ word_set.description }}</div>
+              {% endif %}
+            </td>
+            <td><code>{{ word_set.slug }}</code></td>
+            <td class="text-center">{{ counts.get(word_set.id, 0) }}</td>
+            <td class="text-center">{{ word_set.sort_order }}</td>
+            <td class="text-center">
+              {% if word_set.is_published %}
+                <span class="badge bg-success">Опубликован</span>
+              {% else %}
+                <span class="badge bg-secondary">Черновик</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{{ url_for('word_set_admin.word_set_words', set_id=word_set.id) }}"
+                 class="btn btn-sm btn-outline-primary">Слова</a>
+              <a href="{{ url_for('word_set_admin.word_set_edit', set_id=word_set.id) }}"
+                 class="btn btn-sm btn-outline-secondary">Изменить</a>
+              <form method="POST" class="d-inline"
+                    action="{{ url_for('word_set_admin.word_set_delete', set_id=word_set.id) }}"
+                    onsubmit="return confirm('Удалить набор «{{ word_set.name }}»? Результаты квизов по нему тоже будут удалены.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+              Наборов пока нет. Создайте первый или примените миграцию-сид.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -77,4 +77,22 @@ Variables:
     {% endif %}
   </section>
   {% endif %}
+
+  {% if word_set_suggestion and word_set_suggestion.word_count %}
+  {% set _ws = word_set_suggestion.set %}
+  <section class="dash-rail__card wset-rail wset-rail--{{ _ws.accent }}">
+    <div class="wset-rail__head">
+      <span class="wset-rail__icon" aria-hidden="true">{{ _ws.icon or '📚' }}</span>
+      <h2 class="dash-rail__heading">Набор слов</h2>
+    </div>
+    <p class="wset-rail__title">{{ _ws.name }}</p>
+    <p class="wset-rail__meta">
+      {{ word_set_suggestion.word_count }} слов
+      {%- if word_set_suggestion.attempts %} · лучший {{ word_set_suggestion.best_score|round|int }}%
+      {%- else %} · ещё не проходили{% endif %}
+    </p>
+    <a class="wset-rail__cta" href="{{ url_for('study.quiz_word_set', slug=_ws.slug) }}">Пройти квиз</a>
+    <a class="wset-rail__link" href="{{ url_for('study.word_sets') }}">Все наборы</a>
+  </section>
+  {% endif %}
 </aside>

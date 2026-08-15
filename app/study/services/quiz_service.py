@@ -7,9 +7,30 @@ Responsibilities:
 - Quiz result tracking
 """
 import random
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Sequence, Set
 
 from app.words.models import CollectionWords
+
+# How many of a multiple-choice question's three distractors are drawn from the
+# themed pool when one is supplied. The remaining slot is filled from the wider
+# vocabulary on purpose: an all-in-theme question ("red" among four colours) is
+# the point, but one outside option keeps a beginner from being stranded and
+# lets sets with fewer than four words still produce a full question.
+THEMED_DISTRACTOR_QUOTA = 2
+
+
+def _answer_variants(text: Optional[str]) -> Set[str]:
+    """Split a stored translation into its comparable variants.
+
+    Translations are stored comma-separated («тень, оттенок»), so two options
+    can look distinct as raw strings while naming the same thing. In the Colors
+    set `shadow` is «тень» and `shade` is «тень, оттенок»: offered side by side,
+    both are defensible answers but only one is graded correct. Comparing the
+    variant sets — not the raw strings — is what keeps such a pair apart.
+    """
+    if not text:
+        return set()
+    return {part.strip().lower() for part in text.split(',') if part.strip()}
 
 
 class QuizService:
@@ -22,7 +43,8 @@ class QuizService:
         cls,
         words: List[CollectionWords],
         count: int,
-        get_audio_url: Optional[Callable] = None
+        get_audio_url: Optional[Callable] = None,
+        distractor_pool: Optional[Sequence[CollectionWords]] = None,
     ) -> List[Dict]:
         """
         Generate quiz questions from words.
@@ -34,6 +56,10 @@ class QuizService:
             words: List of CollectionWords to generate questions from
             count: Number of questions to generate
             get_audio_url: Optional function to get audio URL for a word
+            distractor_pool: Optional themed word list the wrong options should
+                prefer. Supplied by the themed set quiz so a «Цвета» question
+                offers colours; omitted elsewhere, where wrong options are drawn
+                from the wider vocabulary as before.
 
         Returns:
             List of question dictionaries
@@ -67,7 +93,8 @@ class QuizService:
 
                 if question_type == 'multiple_choice':
                     question = cls.create_multiple_choice_question(
-                        word, all_words, 'eng_to_rus', get_audio_url
+                        word, all_words, 'eng_to_rus', get_audio_url,
+                        pool_words=distractor_pool,
                     )
                 else:
                     question = cls.create_fill_blank_question(
@@ -90,11 +117,67 @@ class QuizService:
         return questions[:count]
 
     @staticmethod
+    def _collect_distractors(
+        word: CollectionWords,
+        correct_answer: str,
+        direction: str,
+        themed_pool: Optional[Sequence[CollectionWords]],
+        fallback_pool: Sequence[CollectionWords],
+        needed: int = 3,
+    ) -> List[str]:
+        """Pick up to ``needed`` wrong options for a multiple-choice question.
+
+        When ``themed_pool`` is given, the first ``THEMED_DISTRACTOR_QUOTA``
+        options come from it and the rest from ``fallback_pool``; without it
+        every option comes from ``fallback_pool``, which is the behaviour every
+        pre-existing caller (decks, auto, linear plan) keeps.
+
+        An option is rejected when it shares any translation variant with the
+        correct answer or with an option already chosen — otherwise a question
+        can offer the same meaning twice and have no single right answer.
+        """
+        attribute = 'russian_word' if direction == 'eng_to_rus' else 'english_word'
+
+        taken = _answer_variants(correct_answer)
+        chosen: List[str] = []
+
+        def draw(pool: Sequence[CollectionWords], quota: int) -> None:
+            if quota <= 0 or not pool:
+                return
+            candidates = list(pool)
+            random.shuffle(candidates)
+            for candidate in candidates:
+                if len(chosen) >= needed or quota <= 0:
+                    return
+                if candidate.id == word.id:
+                    continue
+                value = getattr(candidate, attribute, None)
+                if not value or not value.strip():
+                    continue
+                variants = _answer_variants(value)
+                if not variants or variants & taken:
+                    continue
+                chosen.append(value)
+                taken.update(variants)
+                quota -= 1
+
+        if themed_pool:
+            draw(themed_pool, min(THEMED_DISTRACTOR_QUOTA, needed))
+        draw(fallback_pool, needed - len(chosen))
+        # A themed set can be richer than the sampled global pool; let it fill
+        # any slot the fallback could not.
+        if themed_pool and len(chosen) < needed:
+            draw(themed_pool, needed - len(chosen))
+
+        return chosen
+
+    @staticmethod
     def create_multiple_choice_question(
         word: CollectionWords,
         all_words: List[CollectionWords],
         direction: str,
-        get_audio_url: Optional[Callable] = None
+        get_audio_url: Optional[Callable] = None,
+        pool_words: Optional[Sequence[CollectionWords]] = None,
     ) -> Dict:
         """
         Create a multiple choice question.
@@ -104,6 +187,7 @@ class QuizService:
             all_words: List of all words for creating distractors
             direction: 'eng_to_rus' or 'rus_to_eng'
             get_audio_url: Optional function to get audio URL
+            pool_words: Optional themed pool the distractors should prefer
 
         Returns:
             Question dictionary
@@ -112,30 +196,18 @@ class QuizService:
             question_template = 'Переведите на русский:'
             question_text = word.english_word
             correct_answer = word.russian_word
-
-            # Find distractors (other Russian words)
-            distractors = []
-            for distractor_word in random.sample(all_words, min(10, len(all_words))):
-                if (distractor_word.id != word.id and
-                        distractor_word.russian_word and
-                        distractor_word.russian_word != correct_answer):
-                    distractors.append(distractor_word.russian_word)
-                    if len(distractors) >= 3:
-                        break
         else:
             question_template = 'Переведите на английский:'
             question_text = word.russian_word
             correct_answer = word.english_word
 
-            # Find distractors (other English words)
-            distractors = []
-            for distractor_word in random.sample(all_words, min(10, len(all_words))):
-                if (distractor_word.id != word.id and
-                        distractor_word.english_word and
-                        distractor_word.english_word != correct_answer):
-                    distractors.append(distractor_word.english_word)
-                    if len(distractors) >= 3:
-                        break
+        distractors = QuizService._collect_distractors(
+            word=word,
+            correct_answer=correct_answer,
+            direction=direction,
+            themed_pool=pool_words,
+            fallback_pool=all_words,
+        )
 
         # Ensure we have at least 3 distractors
         while len(distractors) < 3:

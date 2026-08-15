@@ -9,6 +9,7 @@ Architecture:
 - stats_service.py: Statistics and leaderboards
 - session_service.py: Study session tracking
 - collection_topic_service.py: Collection and topic management
+- word_set_service.py: Curated themed word sets (browsing, progress)
 """
 
 from .collection_topic_service import CollectionTopicService
@@ -18,6 +19,7 @@ from .quiz_service import QuizService
 from .session_service import SessionService
 from .srs_service import SRSService, get_user_word_ids
 from .stats_service import StatsService
+from .word_set_service import WordSetService
 
 __all__ = [
     'DeckService',
@@ -27,5 +29,6 @@ __all__ = [
     'StatsService',
     'SessionService',
     'CollectionTopicService',
+    'WordSetService',
     'get_user_word_ids',
 ]

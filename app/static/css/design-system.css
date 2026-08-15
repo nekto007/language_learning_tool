@@ -19422,3 +19422,401 @@ body.feedback-modal-open { overflow: hidden; }
         gap: 0.25rem;
     }
 }
+
+/* === Word sets (curated themed vocabulary) ===
+   Learner-facing section that replaced the old topics listing. Accent is
+   chosen by class from a fixed palette rather than printed as a colour into a
+   style attribute, so the set of possible looks stays reviewable. */
+.wset-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.wset-hero {
+    margin-bottom: 1.75rem;
+}
+
+.wset-hero__title {
+    font-family: var(--font-heading);
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.35rem;
+}
+
+.wset-hero__subtitle {
+    color: var(--text-secondary);
+    font-size: var(--text-base);
+    margin: 0;
+    max-width: 46rem;
+}
+
+.wset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem;
+}
+
+.wset-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.wset-card::before {
+    content: '';
+    display: block;
+    height: 4px;
+    background: var(--wset-accent, var(--primary-600));
+}
+
+.wset-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.wset-card__main {
+    display: block;
+    padding: 1.1rem 1.15rem 0.9rem;
+    text-decoration: none;
+    color: inherit;
+    flex: 1;
+}
+
+.wset-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    line-height: 1;
+    background: var(--wset-accent-soft, var(--bg-tertiary));
+    margin-bottom: 0.7rem;
+}
+
+.wset-card__title {
+    font-size: var(--text-lg);
+    font-weight: 650;
+    color: var(--text-primary);
+    margin: 0 0 0.3rem;
+}
+
+.wset-card__desc {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: 0 0 0.6rem;
+    line-height: 1.4;
+}
+
+.wset-card__count {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin: 0 0 0.65rem;
+}
+
+.wset-card__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.wset-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.wset-progress__fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--wset-accent, var(--primary-600));
+}
+
+.wset-card__best {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+}
+
+.wset-card__best--empty {
+    color: var(--text-tertiary);
+}
+
+.wset-card__cta {
+    display: block;
+    padding: 0.7rem 1.15rem;
+    border-top: 1px solid var(--border-light);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--wset-accent, var(--primary-600));
+    text-decoration: none;
+    text-align: center;
+}
+
+.wset-card__cta:hover {
+    background: var(--wset-accent-soft, var(--bg-secondary));
+}
+
+/* Detail page */
+.wset-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin-bottom: 1rem;
+}
+
+.wset-breadcrumb a {
+    color: var(--text-link);
+    text-decoration: none;
+}
+
+.wset-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.wset-detail__hero {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1.25rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-left: 4px solid var(--wset-accent, var(--primary-600));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+}
+
+.wset-detail__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    font-size: 1.75rem;
+    line-height: 1;
+    background: var(--wset-accent-soft, var(--bg-tertiary));
+    flex-shrink: 0;
+}
+
+.wset-detail__info {
+    flex: 1;
+    min-width: 14rem;
+}
+
+.wset-detail__title {
+    font-family: var(--font-heading);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.3rem;
+}
+
+.wset-detail__desc {
+    color: var(--text-secondary);
+    margin: 0 0 0.4rem;
+}
+
+.wset-detail__meta {
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+    margin: 0;
+}
+
+.wset-detail__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.wset-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1.1rem;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.wset-btn--primary {
+    background: var(--wset-accent, var(--primary-600));
+    color: var(--text-inverse);
+}
+
+.wset-btn--primary:hover {
+    filter: brightness(0.94);
+    color: var(--text-inverse);
+}
+
+.wset-btn--ghost {
+    background: var(--bg-primary);
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+}
+
+.wset-btn--ghost:hover {
+    background: var(--bg-secondary);
+}
+
+.wset-words {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 0.5rem;
+}
+
+.wset-word {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 0.5rem);
+}
+
+.wset-word__en {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.wset-word__ru {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.wset-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+}
+
+.wset-empty__title {
+    font-weight: 650;
+    color: var(--text-primary);
+    margin: 0 0 0.3rem;
+}
+
+.wset-empty__text {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Accent palette. Names match WORD_SET_ACCENTS in app/study/models.py —
+   adding one there requires a rule here, otherwise the card silently falls
+   back to the primary colour. */
+.wset-card--indigo, .wset-detail--indigo { --wset-accent: #4f46e5; --wset-accent-soft: #eef2ff; }
+.wset-card--violet, .wset-detail--violet { --wset-accent: #7c3aed; --wset-accent-soft: #f5f3ff; }
+.wset-card--blue,   .wset-detail--blue   { --wset-accent: #2563eb; --wset-accent-soft: #eff6ff; }
+.wset-card--teal,   .wset-detail--teal   { --wset-accent: #0d9488; --wset-accent-soft: #f0fdfa; }
+.wset-card--green,  .wset-detail--green  { --wset-accent: #16a34a; --wset-accent-soft: #f0fdf4; }
+.wset-card--amber,  .wset-detail--amber  { --wset-accent: #d97706; --wset-accent-soft: #fffbeb; }
+.wset-card--rose,   .wset-detail--rose   { --wset-accent: #e11d48; --wset-accent-soft: #fff1f2; }
+.wset-card--slate,  .wset-detail--slate  { --wset-accent: #475569; --wset-accent-soft: #f8fafc; }
+
+@media (max-width: 640px) {
+    .wset-detail__hero {
+        flex-direction: column;
+    }
+    .wset-detail__actions {
+        width: 100%;
+    }
+    .wset-detail__actions .wset-btn {
+        flex: 1;
+    }
+}
+
+/* Word-set tile in the dashboard rail. Shares the rail card chrome; only the
+   accent and the emoji badge are specific to sets. */
+.wset-rail__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.wset-rail__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.9rem;
+    border-radius: 50%;
+    font-size: 1.05rem;
+    line-height: 1;
+    background: var(--wset-accent-soft, var(--bg-tertiary));
+}
+
+.wset-rail__title {
+    font-weight: 650;
+    color: var(--text-primary);
+    margin: 0 0 0.2rem;
+}
+
+.wset-rail__meta {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    margin: 0 0 0.7rem;
+}
+
+.wset-rail__cta {
+    display: block;
+    text-align: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--wset-accent, var(--primary-600));
+    color: var(--text-inverse);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.wset-rail__cta:hover {
+    filter: brightness(0.94);
+    color: var(--text-inverse);
+}
+
+.wset-rail__link {
+    display: block;
+    text-align: center;
+    margin-top: 0.45rem;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.wset-rail__link:hover {
+    text-decoration: underline;
+}
+
+.wset-rail--indigo { --wset-accent: #4f46e5; --wset-accent-soft: #eef2ff; }
+.wset-rail--violet { --wset-accent: #7c3aed; --wset-accent-soft: #f5f3ff; }
+.wset-rail--blue   { --wset-accent: #2563eb; --wset-accent-soft: #eff6ff; }
+.wset-rail--teal   { --wset-accent: #0d9488; --wset-accent-soft: #f0fdfa; }
+.wset-rail--green  { --wset-accent: #16a34a; --wset-accent-soft: #f0fdf4; }
+.wset-rail--amber  { --wset-accent: #d97706; --wset-accent-soft: #fffbeb; }
+.wset-rail--rose   { --wset-accent: #e11d48; --wset-accent-soft: #fff1f2; }
+.wset-rail--slate  { --wset-accent: #475569; --wset-accent-soft: #f8fafc; }

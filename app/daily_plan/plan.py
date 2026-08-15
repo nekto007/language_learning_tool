@@ -111,6 +111,7 @@ _OPTIONAL_PRIORITY = (
     'reading',
     'error_review',
     'grammar_review',
+    'word_set_quiz',
     'challenge',
 )
 
@@ -311,6 +312,9 @@ def _build_optional_candidate(
         return build_error_review_item(user_id, db, section='optional')
     if kind == 'grammar_review':
         return build_grammar_review_item(user_id, db, section='optional')
+    if kind == 'word_set_quiz':
+        from app.daily_plan.items.word_set_quiz import build_word_set_quiz_item
+        return build_word_set_quiz_item(user_id, db, section='optional')
     if kind == 'challenge':
         return build_challenge_item(user_id, db)
     return None
