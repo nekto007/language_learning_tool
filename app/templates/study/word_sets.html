@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Наборы слов{% endblock %}
+
+{% block content %}
+<div class="wset-page">
+  <header class="wset-hero">
+    <h1 class="wset-hero__title">Наборы слов</h1>
+    <p class="wset-hero__subtitle">
+      Тематические подборки — цвета, еда, одежда. Пройдите квиз по теме
+      или добавьте её слова в изучение.
+    </p>
+  </header>
+
+  {% if entries %}
+    <div class="wset-grid">
+      {% for entry in entries %}
+        {% set word_set = entry.set %}
+        <article class="wset-card wset-card--{{ word_set.accent }}">
+          <a class="wset-card__main" href="{{ url_for('study.word_set_detail', slug=word_set.slug) }}">
+            <span class="wset-card__icon" aria-hidden="true">{{ word_set.icon or '📚' }}</span>
+            <h2 class="wset-card__title">{{ word_set.name }}</h2>
+            {% if word_set.description %}
+              <p class="wset-card__desc">{{ word_set.description }}</p>
+            {% endif %}
+            <p class="wset-card__count">{{ entry.word_count }} слов</p>
+
+            {% if entry.best_score is not none %}
+              {% set best = entry.best_score|round|int %}
+              <div class="wset-card__progress">
+                <div class="wset-progress"
+                     role="progressbar"
+                     aria-valuenow="{{ best }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                     aria-label="Лучший результат по набору «{{ word_set.name }}»">
+                  <span class="wset-progress__fill" style="width: {{ best }}%"></span>
+                </div>
+                <span class="wset-card__best">Лучший результат: {{ best }}%</span>
+              </div>
+            {% else %}
+              <span class="wset-card__best wset-card__best--empty">Ещё не пройден</span>
+            {% endif %}
+          </a>
+
+          {% if entry.word_count %}
+            <a class="wset-card__cta" href="{{ url_for('study.quiz_word_set', slug=word_set.slug) }}">
+              Пройти квиз
+            </a>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="wset-empty">
+      <p class="wset-empty__title">Наборы ещё не готовы</p>
+      <p class="wset-empty__text">Загляните позже — тематические подборки скоро появятся.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

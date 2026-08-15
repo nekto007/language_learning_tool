@@ -121,7 +121,7 @@
                     {% if has_module('words') or has_module('study') %}
                     <li class="nav-item dropdown">
                         {% set _words_due = get_words_due_count() %}
-                        <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics')) %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown" aria-label="Слова">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint == 'words.word_list' or request.endpoint.startswith('study.collections') or request.endpoint.startswith('study.topics') or request.endpoint.startswith('study.word_set')) %}active{% endif %}" href="#" id="wordsDropdown" role="button" data-bs-toggle="dropdown" aria-label="Слова">
                             <i class="fas fa-spell-check"></i><span class="cabinet-nav__label">Слова</span>{% if _words_due %} <span class="badge bg-primary rounded-pill ms-1" style="font-size:0.65rem;">{{ _words_due if _words_due < 100 else '99+' }}</span>{% endif %}
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="wordsDropdown">
@@ -131,7 +131,7 @@
                             {% endif %}
                             {% if has_module('study') %}
                             <li><a class="dropdown-item" href="{{ url_for('study.collections') }}"><i class="fas fa-layer-group me-2"></i>Коллекции</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('study.topics') }}"><i class="fas fa-tags me-2"></i>Темы</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('study.word_sets') }}"><i class="fas fa-tags me-2"></i>Наборы слов</a></li>
                             {% endif %}
                         </ul>
                     </li>

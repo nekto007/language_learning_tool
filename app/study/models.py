@@ -955,6 +955,146 @@ class QuizResult(db.Model):
         return f'<QuizResult user={self.user_id} deck={self.deck_id} score={self.score_percentage}%>'
 
 
+# Accent names a curated set may carry. Stored as a NAME, never a hex colour:
+# the template turns it into a class (`wset-card--indigo`), so no colour value
+# is ever printed into a `style="..."` attribute — inline styles would need a
+# CSP exemption that the rest of the cabinet does not take.
+WORD_SET_ACCENTS = (
+    'indigo',
+    'violet',
+    'blue',
+    'teal',
+    'green',
+    'amber',
+    'rose',
+    'slate',
+)
+
+DEFAULT_WORD_SET_ACCENT = 'indigo'
+
+
+class WordSet(db.Model):
+    """A curated, themed group of words — «Цвета», «Одежда», «Еда».
+
+    Distinct from :class:`~app.words.models.Topic` on purpose. Topics are an
+    open, machine-populated space (thousands of rows, most holding a single
+    word) and stay the admin/import-side vocabulary. A WordSet is the
+    editorially controlled surface a learner actually browses and quizzes.
+    """
+
+    __tablename__ = 'word_sets'
+
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+    # Presentation
+    icon = db.Column(db.String(8), nullable=True)  # single emoji
+    accent = db.Column(db.String(20), nullable=False, default=DEFAULT_WORD_SET_ACCENT)
+
+    # Optional CEFR scoping; NULL means "any level".
+    level = db.Column(db.String(10), nullable=True)
+
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    is_published = db.Column(db.Boolean, nullable=False, default=True)
+
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    entries = db.relationship(
+        'WordSetWord',
+        back_populates='word_set',
+        cascade='all, delete-orphan',
+        lazy='dynamic',
+        order_by='WordSetWord.order_index',
+    )
+
+    __table_args__ = (
+        Index('idx_word_set_published_order', 'is_published', 'sort_order'),
+    )
+
+    def __repr__(self):
+        return f'<WordSet {self.slug} ({self.name})>'
+
+
+class WordSetWord(db.Model):
+    """Membership row: one word inside one curated set."""
+
+    __tablename__ = 'word_set_words'
+
+    id = db.Column(db.Integer, primary_key=True)
+    set_id = db.Column(
+        db.Integer, db.ForeignKey('word_sets.id', ondelete='CASCADE'), nullable=False
+    )
+    word_id = db.Column(
+        db.Integer, db.ForeignKey('collection_words.id', ondelete='CASCADE'), nullable=False
+    )
+    order_index = db.Column(db.Integer, nullable=False, default=0)
+
+    word_set = db.relationship('WordSet', back_populates='entries')
+    word = db.relationship('CollectionWords')
+
+    __table_args__ = (
+        db.UniqueConstraint('set_id', 'word_id', name='uix_word_set_word'),
+        Index('idx_word_set_word_set', 'set_id'),
+        Index('idx_word_set_word_word', 'word_id'),
+    )
+
+    def __repr__(self):
+        return f'<WordSetWord set={self.set_id} word={self.word_id}>'
+
+
+class WordSetQuizResult(db.Model):
+    """One completed themed quiz.
+
+    Mirrors :class:`QuizResult` (which is deck-scoped) so a set can show real
+    progress on its card, and so the daily plan's optional slot has a durable
+    per-day completion signal instead of inferring one from ``GameScore``,
+    which carries no set reference.
+    """
+
+    __tablename__ = 'word_set_quiz_results'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False
+    )
+    set_id = db.Column(
+        db.Integer, db.ForeignKey('word_sets.id', ondelete='CASCADE'), nullable=False
+    )
+
+    total_questions = db.Column(db.Integer, nullable=False)
+    correct_answers = db.Column(db.Integer, nullable=False)
+    score_percentage = db.Column(db.Float, nullable=False)
+    time_taken = db.Column(db.Integer, nullable=False)  # seconds
+
+    completed_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+    user = db.relationship(
+        'User',
+        backref=db.backref('word_set_quiz_results', lazy='dynamic', cascade='all, delete-orphan'),
+    )
+    word_set = db.relationship('WordSet')
+
+    __table_args__ = (
+        Index('idx_word_set_result_user_set', 'user_id', 'set_id'),
+        Index('idx_word_set_result_user_completed', 'user_id', 'completed_at'),
+    )
+
+    def __repr__(self):
+        return (
+            f'<WordSetQuizResult user={self.user_id} set={self.set_id} '
+            f'score={self.score_percentage}%>'
+        )
+
+
 class Achievement(db.Model):
     """
     Defines available achievements/badges that users can earn

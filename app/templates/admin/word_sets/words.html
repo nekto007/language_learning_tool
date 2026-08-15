@@ -1,0 +1,124 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% block title %}{{ word_set.name }}: слова - Admin{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Главная', url_for('dashboard_admin.dashboard')),
+    ('Наборы слов', url_for('word_set_admin.word_set_list')),
+    (word_set.name, '')
+]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header(word_set.name ~ ': слова', 'Состав набора — ' ~ entries|length ~ ' слов') }}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <label class="form-label" for="ws-search">Добавить слово</label>
+    <input class="form-control" id="ws-search" autocomplete="off"
+           placeholder="Начните вводить английское слово…">
+    <div id="ws-results" class="list-group mt-2"></div>
+
+    <form method="POST" id="ws-add-form"
+          action="{{ url_for('word_set_admin.word_set_add_word', set_id=word_set.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="word_id" id="ws-word-id">
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Английское</th>
+          <th>Перевод</th>
+          <th class="text-end">Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry, word in entries %}
+        <tr>
+          <td><strong>{{ word.english_word }}</strong></td>
+          <td class="text-muted">{{ word.russian_word }}</td>
+          <td class="text-end">
+            <form method="POST" class="d-inline"
+                  action="{{ url_for('word_set_admin.word_set_remove_word', set_id=word_set.id, word_id=word.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Убрать</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-center text-muted py-4">В наборе пока нет слов.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    var input = document.getElementById('ws-search');
+    var results = document.getElementById('ws-results');
+    var form = document.getElementById('ws-add-form');
+    var wordIdField = document.getElementById('ws-word-id');
+    var searchUrl = {{ url_for('word_set_admin.word_set_word_search')|tojson }};
+    var timer = null;
+
+    function clearResults() {
+        while (results.firstChild) {
+            results.removeChild(results.firstChild);
+        }
+    }
+
+    function render(items) {
+        clearResults();
+        items.forEach(function (item) {
+            // Built through the DOM API rather than innerHTML: these strings
+            // come from the word database and must never be parsed as markup.
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'list-group-item list-group-item-action';
+
+            var strong = document.createElement('strong');
+            strong.textContent = item.english_word;
+            button.appendChild(strong);
+
+            if (item.russian_word) {
+                var span = document.createElement('span');
+                span.className = 'text-muted ms-2';
+                span.textContent = item.russian_word;
+                button.appendChild(span);
+            }
+
+            button.addEventListener('click', function () {
+                wordIdField.value = item.id;
+                form.submit();
+            });
+            results.appendChild(button);
+        });
+    }
+
+    input.addEventListener('input', function () {
+        var term = input.value.trim();
+        window.clearTimeout(timer);
+        if (term.length < 2) {
+            clearResults();
+            return;
+        }
+        timer = window.setTimeout(function () {
+            fetch(searchUrl + '?q=' + encodeURIComponent(term))
+                .then(function (response) { return response.json(); })
+                .then(function (data) { render(data.results || []); })
+                .catch(function () { clearResults(); });
+        }, 250);
+    });
+})();
+</script>
+{% endblock %}

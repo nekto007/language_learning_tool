@@ -2,7 +2,7 @@ import logging
 import random
 from datetime import datetime, timezone
 
-from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -151,6 +151,18 @@ LINEAR_PLAN_DECK_QUIZ_SOURCE = 'linear_plan_deck_quiz'
 LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT = 30
 LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT = 30
 
+WORD_SET_QUIZ_SOURCE = 'word_set'
+WORD_SET_QUIZ_DEFAULT_LIMIT = 20
+
+# Session types that count as "a quiz was played". The themed set quiz gets its
+# own type so the answer handler can tell — server-side, without trusting the
+# request body — that it must not advance SRS scheduling. Anything reading
+# "was this a quiz session" must consult this tuple rather than compare against
+# the bare 'quiz' string, or themed quizzes silently lose their XP.
+QUIZ_SESSION_TYPE = 'quiz'
+WORD_SET_QUIZ_SESSION_TYPE = 'quiz_word_set'
+QUIZ_SESSION_TYPES = (QUIZ_SESSION_TYPE, WORD_SET_QUIZ_SESSION_TYPE)
+
 
 @study.route('/quiz')
 @login_required
@@ -261,6 +273,44 @@ def quiz_deck(deck_id):
         deck_id=deck_id,
         deck_title=deck.title,
         word_limit=word_limit
+    )
+
+
+@study.route('/quiz/set/<slug>')
+@login_required
+@module_required('study')
+def quiz_word_set(slug):
+    """Themed quiz over one curated set.
+
+    The session is opened with its own type so ``submit_quiz_answer`` can tell
+    server-side that this run must not advance SRS scheduling — a learner
+    testing themselves on «Цвета» should not thereby schedule review cards for
+    words they never chose to study.
+    """
+    from app.study.services import WordSetService
+
+    is_admin = bool(getattr(current_user, 'is_admin', False))
+    word_set = WordSetService.get_set(slug, include_unpublished=is_admin)
+    if word_set is None:
+        abort(404)
+
+    words = WordSetService.get_words(word_set.id)
+    if not words:
+        flash('В этом наборе пока нет слов', 'warning')
+        return redirect(url_for('study.word_sets'))
+
+    settings = StudySettings.get_settings(current_user.id)
+    session = SessionService.start_session(current_user.id, WORD_SET_QUIZ_SESSION_TYPE)
+
+    return render_template(
+        'study/quiz.html',
+        session_id=session.id,
+        settings=settings,
+        word_source=WORD_SET_QUIZ_SOURCE,
+        deck_id=None,
+        set_slug=word_set.slug,
+        deck_title=word_set.name,
+        word_limit=min(len(words), WORD_SET_QUIZ_DEFAULT_LIMIT),
     )
 
 
@@ -390,7 +440,9 @@ def get_quiz_questions():
 
     source = request.args.get('source', 'auto')
     requested_count = request.args.get('count', type=int)
-    if source == LINEAR_PLAN_DECK_QUIZ_SOURCE:
+    if source == WORD_SET_QUIZ_SOURCE:
+        question_count = min(max(requested_count or WORD_SET_QUIZ_DEFAULT_LIMIT, 1), 200)
+    elif source == LINEAR_PLAN_DECK_QUIZ_SOURCE:
         question_count = min(
             max(requested_count or LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT, 1),
             LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT,
@@ -400,6 +452,7 @@ def get_quiz_questions():
     deck_id = request.args.get('deck_id', type=int)
 
     words = []
+    distractor_pool = None
 
     class DeckWordAdapter:
         def __init__(self, deck_word):
@@ -413,7 +466,39 @@ def get_quiz_questions():
                 self.get_download = deck_word.word.get_download
                 self.listening = deck_word.word.listening
 
-    if deck_id:
+    if source == WORD_SET_QUIZ_SOURCE:
+        from app.study.services import WordSetService
+
+        word_set = WordSetService.get_set(
+            request.args.get('set', ''),
+            include_unpublished=bool(getattr(current_user, 'is_admin', False)),
+        )
+        if word_set is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'Word set not found',
+                'questions': []
+            }), 404
+
+        set_words = WordSetService.get_words(word_set.id)
+        if not set_words:
+            return jsonify({
+                'status': 'error',
+                'message': 'No words in set',
+                'questions': []
+            })
+
+        # The whole set feeds the distractors even when only a slice becomes
+        # questions — a «Цвета» question must be able to offer any colour as a
+        # wrong option, not only the handful that got sampled.
+        distractor_pool = set_words
+        words = (
+            random.sample(set_words, question_count)
+            if len(set_words) > question_count
+            else list(set_words)
+        )
+
+    elif deck_id:
         deck = QuizDeck.query.get_or_404(deck_id)
 
         if not deck.is_public and deck.user_id != current_user.id:
@@ -512,12 +597,76 @@ def get_quiz_questions():
             'questions': []
         })
 
-    questions = QuizService.generate_quiz_questions(words, question_count, get_audio_url_for_word)
+    questions = QuizService.generate_quiz_questions(
+        words, question_count, get_audio_url_for_word, distractor_pool=distractor_pool
+    )
 
     return jsonify({
         'status': 'success',
         'questions': questions
     })
+
+
+def _record_word_set_result(
+    *,
+    session_id,
+    set_slug,
+    total_questions: int,
+    correct_answers: int,
+    score: float,
+    time_taken: int,
+) -> bool:
+    """Persist a finished themed quiz. Returns True when a row was written.
+
+    The slug arrives in the request body, so it is only trusted once the
+    session it claims to belong to is confirmed to be this user's and to be a
+    word-set session. Without that check any client could post arbitrary rows
+    into a table the daily plan reads for completion.
+
+    Best-effort: bookkeeping must never sink a quiz the learner already
+    finished, so failures are logged and swallowed.
+    """
+    slug = (set_slug or '').strip()
+    if not slug or not session_id or total_questions <= 0:
+        return False
+
+    from app.study.models import WordSetQuizResult
+    from app.study.services import WordSetService
+
+    try:
+        session = StudySession.query.get(int(session_id))
+    except (TypeError, ValueError):
+        return False
+
+    if (
+        session is None
+        or session.user_id != current_user.id
+        or session.session_type != WORD_SET_QUIZ_SESSION_TYPE
+    ):
+        return False
+
+    word_set = WordSetService.get_set(slug, include_unpublished=True)
+    if word_set is None:
+        return False
+
+    try:
+        db.session.add(WordSetQuizResult(
+            user_id=current_user.id,
+            set_id=word_set.id,
+            total_questions=total_questions,
+            correct_answers=correct_answers,
+            score_percentage=score,
+            time_taken=time_taken,
+        ))
+        db.session.commit()
+        return True
+    except Exception:
+        logger.warning(
+            'word_set_quiz: failed to record result user=%s set=%s',
+            current_user.id, slug, exc_info=True,
+        )
+        db.session.rollback()
+        return False
 
 
 @study.route('/api/submit-quiz-answer', methods=['POST'])
@@ -531,6 +680,7 @@ def submit_quiz_answer():
     word_id = data.get('word_id')
     direction_str = data.get('direction')
 
+    skip_srs = False
     if session_id:
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
@@ -540,11 +690,19 @@ def submit_quiz_answer():
             else:
                 session.incorrect_answers += 1
             db.session.commit()
+            # Read the source off the session, never off the request body: a
+            # client-supplied flag would also let a deck quiz opt out of the
+            # grading it is specifically meant to perform.
+            skip_srs = session.session_type == WORD_SET_QUIZ_SESSION_TYPE
 
     # Advance the card's SM-2 state. The quiz used to write only QuizResult /
     # GameScore / XP, so the daily plan's SRS slot could be satisfied by a
     # deck quiz that moved no card at all.
-    graded = _grade_quiz_answer(word_id, direction_str, bool(is_correct))
+    #
+    # Themed set quizzes are the deliberate exception: they range over curated
+    # vocabulary the learner has not chosen to study, so grading them would
+    # seed review cards for words nobody asked for.
+    graded = False if skip_srs else _grade_quiz_answer(word_id, direction_str, bool(is_correct))
 
     return jsonify({
         'success': True,
@@ -969,6 +1127,15 @@ def complete_quiz():
 
             db.session.commit()
 
+    _record_word_set_result(
+        session_id=session_id,
+        set_slug=data.get('set_slug'),
+        total_questions=total_questions,
+        correct_answers=correct_answers,
+        score=score,
+        time_taken=time_taken,
+    )
+
     game_score = GameScore(
         user_id=current_user.id,
         game_type='quiz',
@@ -1001,7 +1168,7 @@ def complete_quiz():
             if (
                 _sess
                 and _sess.user_id == current_user.id
-                and _sess.session_type == 'quiz'
+                and _sess.session_type in QUIZ_SESSION_TYPES
             ):
                 verified_session_id = _sid
     xp_award = None

@@ -1,0 +1,99 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+
+{% set _is_edit = word_set is not none %}
+{% set _v = data or {
+    'name': word_set.name if _is_edit else '',
+    'slug': word_set.slug if _is_edit else '',
+    'description': word_set.description if _is_edit else '',
+    'icon': word_set.icon if _is_edit else '',
+    'accent': word_set.accent if _is_edit else accents[0],
+    'level': word_set.level if _is_edit else '',
+    'sort_order': word_set.sort_order if _is_edit else 0,
+    'is_published': word_set.is_published if _is_edit else True,
+} %}
+
+{% block title %}{% if _is_edit %}{{ word_set.name }}{% else %}Новый набор{% endif %} - Admin{% endblock %}
+
+{% block breadcrumb %}
+{{ breadcrumb([
+    ('Главная', url_for('dashboard_admin.dashboard')),
+    ('Наборы слов', url_for('word_set_admin.word_set_list')),
+    (word_set.name if _is_edit else 'Новый набор', '')
+]) }}
+{% endblock %}
+
+{% block content %}
+{{ page_header(word_set.name if _is_edit else 'Новый набор', 'Оформление и настройки набора') }}
+
+<div class="card">
+  <div class="card-body">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label" for="ws-name">Название</label>
+          <input class="form-control" id="ws-name" name="name" required
+                 value="{{ _v.name or '' }}">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label" for="ws-slug">Слаг</label>
+          <input class="form-control" id="ws-slug" name="slug"
+                 placeholder="colors" value="{{ _v.slug or '' }}">
+          <div class="form-text">Пусто — построится из названия.</div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label" for="ws-description">Описание</label>
+          <textarea class="form-control" id="ws-description" name="description"
+                    rows="2">{{ _v.description or '' }}</textarea>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label" for="ws-icon">Эмодзи</label>
+          <input class="form-control" id="ws-icon" name="icon" maxlength="8"
+                 placeholder="🎨" value="{{ _v.icon or '' }}">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label" for="ws-accent">Акцент</label>
+          <select class="form-select" id="ws-accent" name="accent">
+            {% for accent in accents %}
+              <option value="{{ accent }}" {% if _v.accent == accent %}selected{% endif %}>{{ accent }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label" for="ws-level">Уровень</label>
+          <input class="form-control" id="ws-level" name="level" maxlength="10"
+                 placeholder="A1" value="{{ _v.level or '' }}">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label" for="ws-sort">Порядок</label>
+          <input class="form-control" id="ws-sort" name="sort_order" type="number"
+                 value="{{ _v.sort_order or 0 }}">
+        </div>
+
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="ws-published"
+                   name="is_published" {% if _v.is_published %}checked{% endif %}>
+            <label class="form-check-label" for="ws-published">
+              Опубликован (виден учащимся)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <a href="{{ url_for('word_set_admin.word_set_list') }}" class="btn btn-outline-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

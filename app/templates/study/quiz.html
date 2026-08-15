@@ -231,6 +231,7 @@
         const sessionId = {{ session_id }};
         const wordSource = '{{ word_source }}';
         const deckId = {{ deck_id|tojson }};
+        const setSlug = {{ set_slug|default(None)|tojson }};
         // Get word limit from URL parameter if not set by server
         const urlParams = new URLSearchParams(window.location.search);
         const wordLimit = {{ word_limit|tojson }} || parseInt(urlParams.get('limit')) || null;
@@ -303,6 +304,9 @@
                 let url = `/study/api/get-quiz-questions?source=${wordSource}&lang=${lang}`;
                 if (deckId) {
                     url += `&deck_id=${deckId}`;
+                }
+                if (setSlug) {
+                    url += `&set=${encodeURIComponent(setSlug)}`;
                 }
                 if (wordLimit && wordLimit !== null) {
                     url += `&count=${wordLimit}`;
@@ -763,6 +767,7 @@
                     body: JSON.stringify({
                         session_id: sessionId,
                         deck_id: deckId,
+                        set_slug: setSlug,
                         source: wordSource,
                         from: planFrom,
                         slot: planSlot,

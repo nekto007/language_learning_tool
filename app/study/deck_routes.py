@@ -377,16 +377,15 @@ def add_collection(collection_id):
 @study.route('/topics')
 @login_required
 def topics():
-    topics_data = CollectionTopicService.get_topics_with_stats(current_user.id)
+    """Superseded by the curated sets section.
 
-    for data in topics_data:
-        data['topic'].word_count = data['word_count']
-        data['topic'].words_in_study = data['words_in_study']
-
-    return render_template(
-        'study/topics.html',
-        topics=[d['topic'] for d in topics_data]
-    )
+    This listing used to render every row of `topics`. That table is an open,
+    machine-populated space: the overwhelming majority of its rows hold a
+    single word and carry a generated name, and the page counted each group
+    with its own query. Curated sets are the browsable replacement; the topics
+    data stays put for the admin side and the deck "add from topic" API.
+    """
+    return redirect(url_for('study.word_sets'))
 
 
 @study.route('/topics/<int:topic_id>')

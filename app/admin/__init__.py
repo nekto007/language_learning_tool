@@ -45,6 +45,10 @@ def register_admin_routes(flask_app):
     from app.admin.routes.topic_routes import topic_bp
     flask_app.register_blueprint(topic_bp, url_prefix='/admin')
 
+    # Curated themed word sets (learner-facing catalogue)
+    from app.admin.routes.word_set_routes import word_set_bp
+    flask_app.register_blueprint(word_set_bp, url_prefix='/admin')
+
     # Import and register collection routes blueprint
     from app.admin.routes.collection_routes import collection_bp
     flask_app.register_blueprint(collection_bp, url_prefix='/admin')

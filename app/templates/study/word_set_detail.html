@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ word_set.name }} — набор слов{% endblock %}
+
+{% block content %}
+<div class="wset-page wset-detail wset-detail--{{ word_set.accent }}">
+  <nav class="wset-breadcrumb" aria-label="Хлебные крошки">
+    <a href="{{ url_for('study.word_sets') }}">Наборы слов</a>
+    <span aria-hidden="true">/</span>
+    <span>{{ word_set.name }}</span>
+  </nav>
+
+  <header class="wset-detail__hero">
+    <span class="wset-detail__icon" aria-hidden="true">{{ word_set.icon or '📚' }}</span>
+    <div class="wset-detail__info">
+      <h1 class="wset-detail__title">{{ word_set.name }}</h1>
+      {% if word_set.description %}
+        <p class="wset-detail__desc">{{ word_set.description }}</p>
+      {% endif %}
+      <p class="wset-detail__meta">
+        {{ words|length }} слов
+        {%- if progress.attempts %} · пройден {{ progress.attempts }} раз{% endif %}
+        {%- if progress.best_score is not none %} · лучший результат {{ progress.best_score|round|int }}%{% endif %}
+      </p>
+    </div>
+
+    <div class="wset-detail__actions">
+      {% if words %}
+        <a class="wset-btn wset-btn--primary"
+           href="{{ url_for('study.quiz_word_set', slug=word_set.slug) }}">
+          Пройти квиз
+        </a>
+      {% endif %}
+      <form method="POST" action="{{ url_for('study.add_word_set', slug=word_set.slug) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="wset-btn wset-btn--ghost">Добавить в изучение</button>
+      </form>
+    </div>
+  </header>
+
+  {% if words %}
+    <ul class="wset-words">
+      {% for word in words %}
+        <li class="wset-word">
+          <span class="wset-word__en">{{ word.english_word }}</span>
+          <span class="wset-word__ru">{{ word.russian_word }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="wset-empty">
+      <p class="wset-empty__title">В наборе пока нет слов</p>
+      <p class="wset-empty__text">Как только слова появятся, здесь можно будет пройти квиз.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1204,6 +1204,12 @@ def _render_unified_dashboard(tz: str):
     show_survey = _safe_widget_call(
         'show_survey', should_show_survey, current_user, default=False)
 
+    # Themed word-set invitation. Falls back to None so a missing/empty
+    # catalogue simply hides the tile instead of breaking the dashboard.
+    from app.study.services import WordSetService
+    word_set_suggestion = _safe_widget_call(
+        'word_set_suggestion', WordSetService.suggest_for_user, current_user.id, default=None)
+
     return render_template(
         'words/dashboard_unified.html',
         unified_plan=unified_plan,
@@ -1211,6 +1217,7 @@ def _render_unified_dashboard(tz: str):
         stats_card=stats_card,
         show_survey=show_survey,
         survey_questions=SURVEY_QUESTIONS,
+        word_set_suggestion=word_set_suggestion,
         hero=hero,
         focus=focus,
         week_rhythm=week_rhythm,
