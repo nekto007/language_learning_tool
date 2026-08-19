@@ -1,5 +1,6 @@
 """Tests for words routes: word list, word detail, status update, API endpoints."""
 from datetime import datetime, timedelta, timezone
+import re
 import uuid
 
 import pytest
@@ -14,6 +15,22 @@ from app.words.detail_service import (
 )
 from app.books.models import Book
 from app.modules.models import SystemModule, UserModule
+
+
+def _visible_text(html: str) -> str:
+    """The text a page renders, with markup and attribute values removed.
+
+    An assertion about what the page *shows* must not read attribute values.
+    The CSP nonce and CSRF token are random, so a bare ``'ID' not in html``
+    matches whenever a nonce happens to contain those two letters — about one
+    run in eight, which is indistinguishable from a real regression when the
+    suite is judged by diffing against the recorded baseline.
+
+    Tags are replaced by a space rather than removed, so neighbouring text
+    cannot fuse into a substring that neither element contained.
+    """
+    without_scripts = re.sub(r'(?is)<(script|style)\b.*?</\1>', ' ', html)
+    return re.sub(r'(?s)<[^>]*>', ' ', without_scripts)
 
 
 @pytest.fixture
@@ -584,7 +601,7 @@ class TestWordDetail:
         assert 'Top 1000' in html
         assert 'Данные слова' in html
         assert 'Brown corpus' not in html
-        assert 'ID' not in html
+        assert 'ID' not in _visible_text(html)
         assert 'Used when someone studies' in html
         assert f'study{suffix}' in html
         assert f'forget{suffix}' in html
