@@ -132,23 +132,30 @@ class WordSetService:
         }
 
     @staticmethod
-    def completed_on(user_id: int, day) -> bool:
-        """True when the user finished any themed quiz on the given local day.
+    def completed_on(user_id: int) -> bool:
+        """True when the user finished any themed quiz during the current study day.
 
-        ``day`` is a user-local date; callers resolve it through
-        ``get_user_local_date`` so the daily plan and XP agree on where the day
-        boundary sits.
+        Bounds come from ``get_user_local_day_bounds``, which returns them as
+        naive UTC — the basis ``completed_at`` is actually stored in. Building
+        the window from a local calendar date instead skews it by the user's
+        UTC offset: a quiz finished at 02:30 in Istanbul is stored as 23:30 UTC
+        on the previous day, fell outside a window anchored on the local date,
+        and the plan's slot never registered it.
+
+        The helper also anchors the day at ``LEARNING_DAY_START_HOUR`` (02:00),
+        the same boundary ``get_user_local_date`` and the SRS counters use, so
+        "today" means one thing across the whole plan. ``end`` is the start of
+        the next study day and is therefore exclusive.
         """
-        from datetime import datetime, time
+        from app.utils.time_utils import get_user_local_day_bounds
 
-        start = datetime.combine(day, time.min)
-        end = datetime.combine(day, time.max)
+        start, end = get_user_local_day_bounds(user_id, db.session)
         return db.session.query(
             db.session.query(WordSetQuizResult.id)
             .filter(
                 WordSetQuizResult.user_id == user_id,
                 WordSetQuizResult.completed_at >= start,
-                WordSetQuizResult.completed_at <= end,
+                WordSetQuizResult.completed_at < end,
             )
             .exists()
         ).scalar()

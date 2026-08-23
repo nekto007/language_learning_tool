@@ -33,10 +33,12 @@ production that destroys the lessons users are studying.
 - On the source host, `status` shows what is available to ship, and `dump`
   exits 0.
 
-State of the source environment as of 2026-08-09: 1033 reading lessons carry a
-scaffold, 829 of them validate against their own passage and ship; 204 are
-rejected by `dump` (quotes that are not verbatim, missing `quick_use`,
-`self_check` with two items) and are being regenerated separately.
+State of the source environment as of 2026-08-15: all 1033 reading lessons carry
+a scaffold and all 1033 validate against their own passage, so `dump` ships the
+complete set (5.9 MB across 9 course files). The 204 scaffolds the first dump
+rejected — quotes that were not verbatim, missing `quick_use`, `self_check` with
+two items — were regenerated through the offline pipeline
+(`export --invalid-only` → generate → `check` → `import --overwrite`).
 
 ---
 

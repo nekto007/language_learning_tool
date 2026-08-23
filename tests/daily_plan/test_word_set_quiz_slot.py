@@ -6,7 +6,7 @@ crept into required would change what closes a day for every learner.
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -91,7 +91,9 @@ class TestBuilder:
             correct_answers=9,
             score_percentage=90.0,
             time_taken=45,
-            completed_at=datetime.combine(date.today(), datetime.min.time()),
+            # Production stores UTC-now in a naive column; mirror that so the
+            # assertion exercises the real comparison basis.
+            completed_at=datetime.now(timezone.utc).replace(tzinfo=None),
         ))
         db_session.commit()
 
@@ -99,6 +101,67 @@ class TestBuilder:
         assert item is not None
         assert item.completed is True
         assert item.eta_minutes == 0
+
+    def test_completed_for_a_quiz_finished_just_after_the_day_starts(self, db_session):
+        """A quiz taken at 02:30 in Istanbul is stored as 23:30 UTC the day before.
+
+        The window is built from ``get_user_local_day_bounds`` — naive UTC, the
+        basis the column is stored in. Anchoring it on the local calendar date
+        instead placed this timestamp a day early, so the slot stayed unfinished
+        for anyone studying at the very start of their study day.
+        """
+        from app.utils.time_utils import get_user_local_day_bounds
+
+        user = _make_user(db_session)
+        user.timezone = 'Europe/Istanbul'
+        db_session.commit()
+        word_set = _make_set(db_session)
+
+        # 30 minutes into the current study day, whenever the suite happens to run.
+        day_start_utc, _ = get_user_local_day_bounds(user.id, db_session)
+        finished_at = day_start_utc + timedelta(minutes=30)
+
+        db_session.add(WordSetQuizResult(
+            user_id=user.id,
+            set_id=word_set.id,
+            total_questions=10,
+            correct_answers=8,
+            score_percentage=80.0,
+            time_taken=50,
+            completed_at=finished_at,
+        ))
+        db_session.commit()
+
+        item = build_word_set_quiz_item(user.id, real_db)
+        assert item is not None
+        assert item.completed is True
+
+    def test_not_completed_for_a_quiz_from_the_previous_study_day(self, db_session):
+        """The window must still exclude yesterday, or the slot never resets."""
+        from app.utils.time_utils import get_user_local_day_bounds
+
+        user = _make_user(db_session)
+        user.timezone = 'Europe/Istanbul'
+        db_session.commit()
+        word_set = _make_set(db_session)
+
+        day_start_utc, _ = get_user_local_day_bounds(user.id, db_session)
+        finished_at = day_start_utc - timedelta(minutes=1)
+
+        db_session.add(WordSetQuizResult(
+            user_id=user.id,
+            set_id=word_set.id,
+            total_questions=10,
+            correct_answers=8,
+            score_percentage=80.0,
+            time_taken=50,
+            completed_at=finished_at,
+        ))
+        db_session.commit()
+
+        item = build_word_set_quiz_item(user.id, real_db)
+        assert item is not None
+        assert item.completed is False
 
 
 class TestPlanIntegration:

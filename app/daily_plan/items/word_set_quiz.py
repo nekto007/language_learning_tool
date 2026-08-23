@@ -25,7 +25,6 @@ def build_word_set_quiz_item(
     keeps pointing somewhere useful instead of repeating a set already aced.
     """
     from app.study.services import WordSetService
-    from app.utils.time_utils import get_user_local_date
 
     suggestion = WordSetService.suggest_for_user(user_id)
     if suggestion is None:
@@ -36,7 +35,7 @@ def build_word_set_quiz_item(
     # Completion is per-day and set-agnostic: playing any themed quiz today
     # settles this card. Tying it to one specific set would leave the card
     # unfinishable the moment the suggestion moved on to another set.
-    completed = WordSetService.completed_on(user_id, get_user_local_date(user_id, db))
+    completed = WordSetService.completed_on(user_id)
 
     best = suggestion['best_score']
     if suggestion['attempts']:
