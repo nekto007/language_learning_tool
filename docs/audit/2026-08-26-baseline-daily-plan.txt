@@ -1,0 +1,90 @@
+================================================================================
+BASELINE ПРОГОНОВ ДЛЯ АУДИТА ЗОНЫ «ПЛАН ДНЯ» (2026-08-26)
+================================================================================
+Реестр аудита:  docs/audit/2026-08-26-daily-plan-audit.md
+План:           docs/plans/2026-08-26-daily-plan-audit.md (Task 1)
+Ветка:          word-sets-quiz
+HEAD:           0b1f8b7f  refactor: drop the personal association note from flashcards
+Дата снятия:    2026-08-26
+Python:         3.14.5   pytest 9.0.3   Flask 3.1.3   SQLAlchemy 1.4.54
+БД тестов:      postgresql://…@127.0.0.1:5432/learn_db_test  (из .env.test)
+Режим:          последовательный (pytest.ini addopts = -q --tb=short --timeout=60),
+                БЕЗ xdist — параллельный прогон в этом чекауте даёт ложную
+                краснуху из-за устаревших learn_db_test_gw* (см. CLAUDE.md/memory)
+
+Назначение файла: зафиксировать «цвет» тестов ДО аудита. Аудит не меняет
+продакшн-код, поэтому Task 10 обязан воспроизвести ровно эти числа. Любой
+красный тест, которого здесь нет, — сам по себе находка.
+
+--------------------------------------------------------------------------------
+РАЗМЕР ЗОНЫ (посчитано на HEAD 0b1f8b7f)
+--------------------------------------------------------------------------------
+app/daily_plan/**.py .................... 44 файла / 11 347 строк
+app/api/daily_plan.py ................... 1 391 строка / 16 эндпоинтов
+tests/daily_plan/**.py .................. 26 файлов / 8 021 строка
+роутов зоны в живом app.url_map ......... 19 (16 в blueprint api_daily_plan
+                                             + 3 в words: /api/daily-plan/next-step,
+                                             /api/streak/repair-web, /dashboard)
+
+--------------------------------------------------------------------------------
+ПРОГОН 1: pytest tests/daily_plan --tb=line
+--------------------------------------------------------------------------------
+ИТОГ: 2 failed, 402 passed, 1 warning in 10.03s   (exit 1)
+
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_fires_corrective_award_when_pool_empty
+    tests/daily_plan/test_srs_slot_completion.py:157: assert False is True
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_is_idempotent
+    tests/daily_plan/test_srs_slot_completion.py:187: assert 0 == 1  (where 0 = len([]))
+
+СВЕРКА С BASELINE 2026-08-08 (docs/audit/2026-08-08-baseline-pytest.txt:67-68):
+    обе строки присутствуют в том baseline дословно.
+    => НОВЫХ красных тестов в tests/daily_plan НЕТ: 2 из 2 — унаследованные.
+    Сами эти два падения остаются кандидатом-находкой для Task 7 (заранее
+    красный тест зоны — это либо баг, который никто не чинит, либо тест,
+    который ничего не проверяет), но не регрессией аудита.
+
+--------------------------------------------------------------------------------
+ПРОГОН 2: pytest -m smoke --tb=line
+--------------------------------------------------------------------------------
+ИТОГ: 695 passed, 9917 deselected, 1 warning in 16.91s   (exit 0)
+Красных нет.
+
+--------------------------------------------------------------------------------
+ЕДИНСТВЕННОЕ ПРЕДУПРЕЖДЕНИЕ (оба прогона, не относится к зоне)
+--------------------------------------------------------------------------------
+tests/conftest.py:97 RemovedIn20Warning — TRUNCATE через legacy-API SQLAlchemy 1.4.
+Инфраструктура тестов, не код плана дня.
+
+--------------------------------------------------------------------------------
+КАК ВОСПРОИЗВЕСТИ (Task 10)
+--------------------------------------------------------------------------------
+  cd <repo>
+  python -m pytest tests/daily_plan --tb=line     # ждём: 2 failed, 402 passed
+  python -m pytest -m smoke --tb=line             # ждём: 695 passed, 0 failed
+
+Сверка списка красных с прошлым baseline:
+  python -m pytest tests/daily_plan --tb=no -rf 2>/dev/null \
+    | grep '^FAILED' | sed 's/ - .*//' | sort > /tmp/now.txt
+  grep '^FAILED tests/daily_plan' docs/audit/2026-08-08-baseline-pytest.txt \
+    | sort > /tmp/base.txt
+  diff /tmp/base.txt /tmp/now.txt   # ждём: пусто
+
+--------------------------------------------------------------------------------
+СОСТОЯНИЕ РАБОЧЕЙ КОПИИ НА МОМЕНТ СНЯТИЯ BASELINE (важно для Task 10)
+--------------------------------------------------------------------------------
+`git status --short` ДО начала аудита уже показывал изменения, к аудиту НЕ
+относящиеся (хвосты предыдущей работы по CNT-003/CNT-006):
+
+     M docs/audit/2026-08-08-cross-zone-audit.md
+     M scripts/clear_missing_word_audio.py
+     M tests/scripts/test_audio_ref_walker.py
+    ?? book_translator-master/
+    ?? tests/scripts/test_rewrite_short_vocab_examples.py
+
+Из них под `tests/` попадают две записи: `tests/scripts/test_audio_ref_walker.py`
+(+39/-1) и новый `tests/scripts/test_rewrite_short_vocab_examples.py`. Обе про
+аудио/вокабуляр, к зоне «План дня» отношения не имеют.
+
+=> Task 10 проверяет `git diff --stat -- app/ tests/daily_plan/ tests/api/ tests/study/`
+   и наличие НУЛЯ изменений, внесённых аудитом, а не буквальную пустоту
+   `git diff` по всему `tests/`: две строки выше были в дереве до его начала.
