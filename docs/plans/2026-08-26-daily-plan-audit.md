@@ -60,12 +60,12 @@
 - Read: `app/daily_plan/plan.py`, `service.py`, `plan_builder.py`, `snapshot.py`, `next_step.py`, `route_progress.py`, `tier.py`, `milestones.py`, `repair_pressure.py`, `skips.py`, `level_utils.py`, `models.py`
 - Write: заметки финдеров в `.ralphex/audit-notes/daily-plan/core-*.md`
 
-- [ ] линза A — **границы**: `None` от `find_next_lesson_state`, пустой `required`, graduated, заблокированный модуль, `plan_paused_until`, новый юзер без истории, юзер без `onboarding_level`; для каждой ветки — что попадает в payload и что делает `compute_day_secured_from_activity`
-- [ ] линза B — **инварианты INV-01…INV-NN**: для каждого — найти код, который его держит, и код, который его может нарушить; помечать сторону расхождения (код / CLAUDE.md)
-- [ ] линза C — **часовые пояса и граница учебного дня**: `get_user_local_date` vs naive-UTC колонки, `day_to_naive_utc`, граница 02:00, юзер с `timezone=None`, смена tz в течение дня, plan_date в snapshot vs plan_date в `write_secured_at`
-- [ ] линза D — **идемпотентность и гонки двух вкладок**: `write_secured_at` (savepoint + IntegrityError), snapshot-reconcile, `overlay_completion`, точки commit/flush, что происходит при двух одновременных `/api/daily-plan`
-- [ ] линза E — **N+1 и стоимость сборки**: запросы внутри циклов по item'ам/урокам очереди, повторные резолвы `Module`/`Lesson`, отсутствие `selectinload`; замерить фактическое число запросов на сборку плана (echo/counter), а не оценивать на глаз
-- [ ] свести заметки 5 финдеров в единый список кандидатов ядра с `path:line` и сценарием отказа (без дедупа — он в Task 8)
+- [x] линза A — **границы**: `None` от `find_next_lesson_state`, пустой `required`, graduated, заблокированный модуль, `plan_paused_until`, новый юзер без истории, юзер без `onboarding_level`; для каждой ветки — что попадает в payload и что делает `compute_day_secured_from_activity`
+- [x] линза B — **инварианты INV-01…INV-NN**: для каждого — найти код, который его держит, и код, который его может нарушить; помечать сторону расхождения (код / CLAUDE.md)
+- [x] линза C — **часовые пояса и граница учебного дня**: `get_user_local_date` vs naive-UTC колонки, `day_to_naive_utc`, граница 02:00, юзер с `timezone=None`, смена tz в течение дня, plan_date в snapshot vs plan_date в `write_secured_at`
+- [x] линза D — **идемпотентность и гонки двух вкладок**: `write_secured_at` (savepoint + IntegrityError), snapshot-reconcile, `overlay_completion`, точки commit/flush, что происходит при двух одновременных `/api/daily-plan`
+- [x] линза E — **N+1 и стоимость сборки**: запросы внутри циклов по item'ам/урокам очереди, повторные резолвы `Module`/`Lesson`, отсутствие `selectinload`; замерить фактическое число запросов на сборку плана (echo/counter), а не оценивать на глаз
+- [x] свести заметки 5 финдеров в единый список кандидатов ядра с `path:line` и сценарием отказа (без дедупа — он в Task 8)
 
 ### Task 3: Финдеры по item builders и linear/*
 
