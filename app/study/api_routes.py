@@ -228,7 +228,6 @@ def get_study_items():
                 'is_leech': is_leech,
                 'is_recovery': is_recovery,
                 'difficulty_score': direction.difficulty_score or 0,
-                'personal_association': direction.personal_association or '',
                 'leech_hint': leech_hint,
                 'frequency_band': word.frequency_band,
                 'source': direction.source,
@@ -249,7 +248,6 @@ def get_study_items():
                 'is_leech': is_leech,
                 'is_recovery': is_recovery,
                 'difficulty_score': direction.difficulty_score or 0,
-                'personal_association': direction.personal_association or '',
                 'leech_hint': leech_hint,
                 'frequency_band': word.frequency_band,
                 'source': direction.source,
@@ -707,42 +705,6 @@ def update_study_item():
         'is_buried': is_buried,
         'resting_until': resting_until_local,
     })
-
-
-@study.route('/api/card-association', methods=['POST'])
-@login_required
-def save_card_association():
-    """Save a learner-authored cue for one recall direction."""
-    data = request.get_json(silent=True) or {}
-    word_id = data.get('word_id')
-    direction_name = data.get('direction')
-    note = data.get('note', '')
-
-    if not _is_valid_word_id(word_id) or direction_name not in {'eng-rus', 'rus-eng'}:
-        return api_error('invalid_input', 'word_id and direction are required', 400)
-    if not isinstance(note, str):
-        return api_error('invalid_input', 'note must be a string', 400)
-    note = note.strip()
-    if len(note) > 500:
-        return api_error('invalid_input', 'note must be at most 500 characters', 400)
-
-    direction = (
-        UserCardDirection.query
-        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
-        .filter(
-            UserWord.user_id == current_user.id,
-            UserWord.word_id == word_id,
-            UserCardDirection.direction == direction_name,
-        )
-        .with_for_update()
-        .first()
-    )
-    if not direction:
-        return api_error('not_found', 'card direction not found', 404)
-
-    direction.personal_association = note or None
-    db.session.commit()
-    return jsonify({'success': True, 'note': direction.personal_association or ''})
 
 
 @study.route('/api/exclude-word', methods=['POST'])
