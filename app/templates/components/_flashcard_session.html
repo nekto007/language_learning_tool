@@ -185,13 +185,10 @@
                 </div>
 
                 <section id="recovery-tools" class="fc-recovery-tools" style="display: none;">
-                    <label class="fc-recovery-tools__label" for="association-input">Моя ассоциация</label>
-                    <textarea id="association-input" class="fc-recovery-tools__input" maxlength="500" rows="2"></textarea>
                     <div class="fc-recovery-tools__actions">
-                        <button type="button" id="save-association-btn" class="btn btn-outline-secondary btn-sm">Сохранить</button>
                         <button type="button" id="exclude-word-btn" class="fc-recovery-tools__exclude">Не учить это слово</button>
                     </div>
-                    <div id="association-status" class="fc-recovery-tools__status" aria-live="polite"></div>
+                    <div id="recovery-status" class="fc-recovery-tools__status" aria-live="polite"></div>
                 </section>
 
                 {% if fc_show_book_context is defined and fc_show_book_context %}

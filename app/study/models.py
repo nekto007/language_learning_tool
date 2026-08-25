@@ -429,10 +429,6 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
     )
     recovery_due_at = db.Column(db.DateTime, nullable=True)
 
-    # Learner-authored cue, scoped to the recall direction. It is surfaced
-    # only while the card is in recovery so routine reviews stay compact.
-    personal_association = db.Column(db.Text, nullable=True)
-
     # Bury until - card won't be shown until this timestamp (for session-level bury)
     buried_until = db.Column(db.DateTime, nullable=True)
 

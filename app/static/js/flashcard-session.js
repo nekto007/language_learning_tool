@@ -299,10 +299,8 @@ class FlashcardSession {
             cardNote: document.getElementById('card-note'),
             cardNoteText: document.getElementById('card-note-text'),
             recoveryTools: document.getElementById('recovery-tools'),
-            associationInput: document.getElementById('association-input'),
-            saveAssociationBtn: document.getElementById('save-association-btn'),
             excludeWordBtn: document.getElementById('exclude-word-btn'),
-            associationStatus: document.getElementById('association-status'),
+            recoveryStatus: document.getElementById('recovery-status'),
         };
     }
 
@@ -329,9 +327,6 @@ class FlashcardSession {
             });
         }
 
-        if (this.els.saveAssociationBtn) {
-            this.els.saveAssociationBtn.addEventListener('click', () => self.saveAssociation());
-        }
         if (this.els.excludeWordBtn) {
             this.els.excludeWordBtn.addEventListener('click', () => self.excludeCurrentWord());
         }
@@ -784,10 +779,7 @@ class FlashcardSession {
 
         if (this.els.recoveryTools) {
             this.els.recoveryTools.style.display = card.is_recovery ? 'block' : 'none';
-            if (this.els.associationInput) {
-                this.els.associationInput.value = card.is_recovery ? (card.personal_association || '') : '';
-            }
-            if (this.els.associationStatus) this.els.associationStatus.textContent = '';
+            if (this.els.recoveryStatus) this.els.recoveryStatus.textContent = '';
         }
 
         // Set card content
@@ -900,39 +892,6 @@ class FlashcardSession {
         };
     }
 
-    async saveAssociation() {
-        const card = this.cards[this.currentCardIndex];
-        if (!card || !card.is_recovery || !this.els.associationInput) return;
-
-        const button = this.els.saveAssociationBtn;
-        const status = this.els.associationStatus;
-        const note = this.els.associationInput.value.trim();
-        if (button) button.disabled = true;
-        if (status) status.textContent = '';
-
-        try {
-            const response = await fetch('/study/api/card-association', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: this._csrfHeaders(),
-                body: JSON.stringify({
-                    word_id: card.word_id,
-                    direction: card.direction,
-                    note,
-                }),
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) throw new Error(data.message || 'save failed');
-            card.personal_association = data.note || '';
-            if (status) status.textContent = note ? 'Сохранено' : 'Ассоциация удалена';
-        } catch (error) {
-            console.error('Failed to save card association:', error);
-            if (status) status.textContent = 'Не удалось сохранить';
-        } finally {
-            if (button) button.disabled = false;
-        }
-    }
-
     /**
      * Tell the user a word was put to rest, and for how long.
      * Without this the card simply stops appearing for up to 90 days.
@@ -998,7 +957,7 @@ class FlashcardSession {
             this.showCard(nextIndex);
         } catch (error) {
             console.error('Failed to exclude word from SRS:', error);
-            if (this.els.associationStatus) this.els.associationStatus.textContent = 'Не удалось убрать слово';
+            if (this.els.recoveryStatus) this.els.recoveryStatus.textContent = 'Не удалось убрать слово';
         } finally {
             this._rateInFlight = false;
             if (button) button.disabled = false;

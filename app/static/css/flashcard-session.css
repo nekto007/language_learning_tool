@@ -1188,36 +1188,10 @@
     text-align: left;
 }
 
-.fc-recovery-tools__label {
-    display: block;
-    margin-bottom: 0.35rem;
-    color: #475569;
-    font-size: 0.8125rem;
-    font-weight: 600;
-}
-
-.fc-recovery-tools__input {
-    display: block;
-    width: 100%;
-    resize: vertical;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 0.55rem 0.65rem;
-    color: #1e293b;
-    font: inherit;
-    line-height: 1.35;
-}
-
-.fc-recovery-tools__input:focus {
-    border-color: #6366f1;
-    outline: 2px solid rgba(99, 102, 241, 0.18);
-    outline-offset: 1px;
-}
-
 .fc-recovery-tools__actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 0.75rem;
     margin-top: 0.5rem;
 }

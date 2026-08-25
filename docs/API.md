@@ -789,15 +789,6 @@ Health-пинг ридер-API.
 ```
 Невалидная сессия → `{"success": false, "message": "Invalid session"}` со статусом 200.
 
-### `POST /study/api/card-association`
-Сохранить личную ассоциацию (подсказку) для одного направления карточки.
-
-**Body:** `{ "word_id": 1, "direction": "eng-rus", "note": "как в «exemplar»" }` (note ≤ 500 символов, пустая строка очищает)
-
-**Response:** `{ "success": true, "note": "как в «exemplar»" }`
-
-**Errors:** `400 invalid_input`, `404 not_found`.
-
 ### `POST /study/api/exclude-word`
 Исключить слово из всех SRS-очередей (история сохраняется).
 

@@ -510,31 +510,6 @@ class TestGetQuizQuestions:
 class TestCardTools:
     """Tests for actions available on recovery cards."""
 
-    def test_saves_association_for_selected_direction(
-        self, authenticated_client, user_words, user_card_directions, db_session,
-    ):
-        forward = user_card_directions[0]
-        reverse = next(
-            card for card in user_card_directions
-            if card.user_word_id == forward.user_word_id and card.id != forward.id
-        )
-
-        response = authenticated_client.post('/study/api/card-association', json={
-            'word_id': forward.user_word.word_id,
-            'direction': forward.direction,
-            'note': 'Связываю с знакомой фразой',
-        })
-
-        assert response.status_code == 200
-        assert response.get_json() == {
-            'success': True,
-            'note': 'Связываю с знакомой фразой',
-        }
-        db_session.refresh(forward)
-        db_session.refresh(reverse)
-        assert forward.personal_association == 'Связываю с знакомой фразой'
-        assert reverse.personal_association is None
-
     def test_excludes_word_from_srs(
         self, authenticated_client, user_words, user_card_directions, db_session,
     ):
