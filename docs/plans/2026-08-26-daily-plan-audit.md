@@ -73,12 +73,12 @@
 - Read: `app/daily_plan/items/*` (10 файлов), `app/daily_plan/linear/` (slots/, xp.py, errors.py, progression.py, lesson_context.py, grammar_theory.py, context.py, models.py)
 - Write: `.ralphex/audit-notes/daily-plan/items-*.md`
 
-- [ ] линза A — **curriculum-очередь**: дедуп по `id` И по `data.lesson_id`, фильтр заблокированных модулей и «hard-блок выбрасывает остаток CEFR-уровня», кеш решения per `module_id`, over-fetch +1 → `has_more_optional`, `OPTIONAL_MAX=15` / `CONTINUATION_QUEUE_LIMIT=12`, поведение при отсутствии anchor
-- [ ] линза B — **SRS-слот**: подмена required-SRS на deck-quiz строго при `_count_user_deck_quiz_words > 0`, схлопывание optional-дубля, completion gate при внутридневных learning-шагах, согласованность с `app/srs/counting.py`
-- [ ] линза C — **прочие слоты** (reading / listening / speaking / writing / error_review / grammar_review / phrase_review / challenge / word_set_quiz / skills / setup): book-scoped `_read_today`, union курсовой и standalone грамматики, пороги и cooldown'ы, что происходит при пустых источниках
-- [ ] линза D — **XP и идемпотентность в `linear/xp.py`**: dedup-ключи `(user, date, source)`, perfect-day для graduated и заблокированного, `LESSON_TYPE_TO_SOURCE` — полнота против списка типов уроков, score-aware пробрасывание
-- [ ] линза E — **порядок и бюджет**: адаптация порядка по времени суток, `plan_difficulty` light/normal/intensive, `total_estimated_minutes` vs фактический состав, `graduated=True` для заблокированного в `build_optional`
-- [ ] свести заметки в список кандидатов подзоны с `path:line`
+- [x] линза A — **curriculum-очередь**: дедуп по `id` И по `data.lesson_id`, фильтр заблокированных модулей и «hard-блок выбрасывает остаток CEFR-уровня», кеш решения per `module_id`, over-fetch +1 → `has_more_optional`, `OPTIONAL_MAX=15` / `CONTINUATION_QUEUE_LIMIT=12`, поведение при отсутствии anchor
+- [x] линза B — **SRS-слот**: подмена required-SRS на deck-quiz строго при `_count_user_deck_quiz_words > 0`, схлопывание optional-дубля, completion gate при внутридневных learning-шагах, согласованность с `app/srs/counting.py`
+- [x] линза C — **прочие слоты** (reading / listening / speaking / writing / error_review / grammar_review / phrase_review / challenge / word_set_quiz / skills / setup): book-scoped `_read_today`, union курсовой и standalone грамматики, пороги и cooldown'ы, что происходит при пустых источниках
+- [x] линза D — **XP и идемпотентность в `linear/xp.py`**: dedup-ключи `(user, date, source)`, perfect-day для graduated и заблокированного, `LESSON_TYPE_TO_SOURCE` — полнота против списка типов уроков, score-aware пробрасывание
+- [x] линза E — **порядок и бюджет**: адаптация порядка по времени суток, `plan_difficulty` light/normal/intensive, `total_estimated_minutes` vs фактический состав, `graduated=True` для заблокированного в `build_optional`
+- [x] свести заметки в список кандидатов подзоны с `path:line`
 
 ### Task 4: Финдеры по API и серверному рендеру дашборда
 
