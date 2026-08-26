@@ -86,12 +86,12 @@
 - Read: `app/api/daily_plan.py` (16 эндпоинтов), `app/words/routes.py` (`_render_unified_dashboard`, `daily_plan_next_step`, `_next_step_from_unified`), `app/achievements/streak_service.py:compute_plan_steps`, `app/daily_plan/service.py`
 - Write: `.ralphex/audit-notes/daily-plan/api-*.md`
 
-- [ ] линза A — **расхождение payload**: собрать фактические ответы `/api/daily-plan`, `/api/daily-status`, `/api/daily-plan/next-slot`, `/api/daily-plan/continuation` и контекст серверного рендера дашборда для одного и того же юзера в одном и том же состоянии; таблица «ключ → значение в каждом источнике» и явный список расхождений (`day_secured`, `srs_limit_reason`, счётчики required/optional, `tomorrow_preview`)
-- [ ] линза B — **контракт ошибок и валидация ввода**: 16 эндпоинтов × (не-dict тело, чужой `lesson_id`, невалидный enum, отсутствующие поля) → 400/403/404 против 500; соответствие `api_error` и глобальному JSON-контракту ошибок
-- [ ] линза C — **квоты, гонки, транзакции**: `DAILY_SKIP_QUOTA=1` и `DAILY_SLOT_SKIP_QUOTA=1` (DB-enforce vs проверка в коде), двойной POST на `/events`, `/plan/pause` + `/plan/resume` в один день, `/streak/repair`, `/daily-plan/challenge/complete`, где commit, где flush, что откатывается при исключении
-- [ ] линза D — **нормализация completion на дашборде**: precedence `completed / skipped / blocked` в `_render_unified_dashboard`, согласованность с `compute_plan_steps` и с тем, что читает шаблон
-- [ ] линза E — **auth и rate-limit**: `@login_required`/module-гейты/лимиты на каждом из 16 эндпоинтов, чтение чужого `user_id` из параметров
-- [ ] свести заметки в список кандидатов подзоны с `path:line`
+- [x] линза A — **расхождение payload**: собрать фактические ответы `/api/daily-plan`, `/api/daily-status`, `/api/daily-plan/next-slot`, `/api/daily-plan/continuation` и контекст серверного рендера дашборда для одного и того же юзера в одном и том же состоянии; таблица «ключ → значение в каждом источнике» и явный список расхождений (`day_secured`, `srs_limit_reason`, счётчики required/optional, `tomorrow_preview`)
+- [x] линза B — **контракт ошибок и валидация ввода**: 16 эндпоинтов × (не-dict тело, чужой `lesson_id`, невалидный enum, отсутствующие поля) → 400/403/404 против 500; соответствие `api_error` и глобальному JSON-контракту ошибок
+- [x] линза C — **квоты, гонки, транзакции**: `DAILY_SKIP_QUOTA=1` и `DAILY_SLOT_SKIP_QUOTA=1` (DB-enforce vs проверка в коде), двойной POST на `/events`, `/plan/pause` + `/plan/resume` в один день, `/streak/repair`, `/daily-plan/challenge/complete`, где commit, где flush, что откатывается при исключении
+- [x] линза D — **нормализация completion на дашборде**: precedence `completed / skipped / blocked` в `_render_unified_dashboard`, согласованность с `compute_plan_steps` и с тем, что читает шаблон
+- [x] линза E — **auth и rate-limit**: `@login_required`/module-гейты/лимиты на каждом из 16 эндпоинтов, чтение чужого `user_id` из параметров
+- [x] свести заметки в список кандидатов подзоны с `path:line`
 
 ### Task 5: Финдеры по фронтенду плана
 
@@ -99,10 +99,8 @@
 - Read: `app/templates/partials/unified_daily_plan.html`, `app/templates/words/dashboard_unified.html`, `app/templates/components/_daily_plan_progress.html`, `app/static/js/linear-daily-plan.js`, `app/static/js/linear-plan-context.js`
 - Write: `.ralphex/audit-notes/daily-plan/frontend-*.md`
 
-- [ ] линза A — **расхождение клиента и сервера**: какие поля payload шаблон/JS читают, каких не существует, какие существуют и игнорируются; ветки шаблона, недостижимые при пустом `required` (прецедент: `show_survey` был заперт внутри `{% if u_required %}`)
-- [ ] линза B — **fetch-надёжность**: обработка не-2xx и сетевого сбоя в `fetchNextSlot` / `showLessonCompletion` / `linear-daily-plan.js`, ложный успех на упавшем сохранении, двойная отправка по двойному клику, гонка inline `daily_plan_ctx` против HTTP round-trip
-- [ ] линза C — **мёртвый фронт-код**: диспатчеры `dailyPlanStepComplete` (слушателей нет по CLAUDE.md — проверить фактически), осиротевшие контейнеры/флаги после удаления `daily-plan-next.js`, неиспользуемые ветки
-- [ ] линза D — **i18n и a11y**: литералы, вставляемые в DOM мимо `window.I18N`; `_('…')` в inline-JS; `aria-valuenow` при обновлении ширины прогресс-бара; single-select vs toggle роли
+- [ ] линза A — **расхождение клиента и сервера**: какие поля payload шаблон/JS читают, каких не существует, какие существуют и игнорируются; ветки шаблона, недостижимые при пустом `required` (прецедент: `show_survey` был заперт внутри `{% if u_required %}`), **i18n и a11y**: литералы, вставляемые в DOM мимо `window.I18N`; `_('…')` в inline-JS; `aria-valuenow` при обновлении ширины прогресс-бара; single-select vs toggle роли
+- [ ] линза B — **fetch-надёжность**: обработка не-2xx и сетевого сбоя в `fetchNextSlot` / `showLessonCompletion` / `linear-daily-plan.js`, ложный успех на упавшем сохранении, двойная отправка по двойному клику, гонка inline `daily_plan_ctx` против HTTP round-trip, **мёртвый фронт-код**: диспатчеры `dailyPlanStepComplete` (слушателей нет по CLAUDE.md — проверить фактически), осиротевшие контейнеры/флаги после удаления `daily-plan-next.js`, неиспользуемые ветки
 - [ ] свести заметки в список кандидатов подзоны с `path:line`
 
 ### Task 6: Liveness-аудит — что из зоны реально мёртвое
