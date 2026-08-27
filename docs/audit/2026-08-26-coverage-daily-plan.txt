@@ -1,0 +1,224 @@
+================================================================================
+COVERAGE ЗОНЫ «ПЛАН ДНЯ» (2026-08-27, Task 7 аудита)
+================================================================================
+План:     docs/plans/2026-08-26-daily-plan-audit.md (Task 7)
+Baseline: docs/audit/2026-08-26-baseline-daily-plan.txt (Task 1)
+Заметка:  .ralphex/audit-notes/daily-plan/coverage.md
+HEAD:     439f0963 feat: аудит плана дня — liveness-срез зоны, 3373 строки мёртвого кода, 7 кандидатов
+Инструмент: pytest-cov 7.1.0 / coverage 7.15.4 (объявлены в requirements-test.txt:6,19,
+            но в venv отсутствовали — доустановлены, прод-код не тронут)
+
+ВАЖНО про спецификацию источника: '--cov=app/api/daily_plan.py' (путь к файлу)
+молча даёт 'module-not-imported' и 0 строк; точечная форма '--cov=app.api.daily_plan'
+роняет прогон (двойной импорт SQLAlchemy). Рабочая форма — каталог: '--cov=app/api'.
+
+--------------------------------------------------------------------------------
+ПРОГОН A (предписан планом): pytest tests/daily_plan --cov=app/daily_plan --cov=app/api
+--------------------------------------------------------------------------------
+........................................................................ [ 17%]
+..............................F......................................... [ 35%]
+........................................................................ [ 53%]
+........................................................................ [ 71%]
+...............FF....................................................... [ 89%]
+............................................                             [100%]
+=============================== warnings summary ===============================
+tests/daily_plan/test_challenge.py::TestSeedChallenge::test_challenge_seeded_for_date
+  /Users/igorkorobko/Library/Mobile Documents/com~apple~CloudDocs/29092022/PycharmProjects/language_learning_tool_new/tests/conftest.py:97: RemovedIn20Warning: Deprecated API features detected! These feature(s) are not compatible with SQLAlchemy 2.0. To prevent incompatible upgrades prior to updating applications, ensure requirements files are pinned to "sqlalchemy<2.0". Set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.  Set environment variable SQLALCHEMY_SILENCE_UBER_WARNING=1 to silence this message. (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    conn.execute(text(f'TRUNCATE TABLE {table_list} CASCADE'))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.14.5-final-0 _______________
+
+Name                                               Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------
+app/api/anki.py                                       44     30    32%   22-78
+app/api/auth.py                                       50     35    30%   50-96, 110-126
+app/api/books.py                                     393    330    16%   27, 37-38, 43-47, 57-64, 70-85, 91-148, 168-169, 185-191, 201-207, 217-258, 269-431, 441-479, 492-671, 682-725, 735-760, 770-801, 811-841, 851-880
+app/api/books_catalog.py                              66     42    36%   38-50, 57-87, 94-134
+app/api/daily_plan.py                                672    441    34%   28-34, 39-40, 47-51, 79-101, 106-126, 135-191, 200-217, 226-254, 274-444, 469-496, 523-530, 544-550, 565-601, 627-628, 641-643, 736, 742, 755, 762-767, 815-816, 854, 857-859, 871-895, 906-915, 938-1005, 1009-1011, 1019-1086, 1118, 1144-1146, 1164, 1177-1179, 1189-1206, 1222-1293, 1370-1372, 1387-1389
+app/api/decorators.py                                 31     13    58%   33-49, 68-69
+app/api/errors.py                                      3      0   100%
+app/api/topics_collections.py                        248    206    17%   25-93, 106-166, 182-227, 244-318, 327-406, 419-485, 503-548, 565-639, 648-663, 675-690
+app/api/words.py                                     204    172    16%   22-113, 125-174, 194-221, 236-306, 313-341, 357-419, 427-463
+app/daily_plan/__init__.py                             2      0   100%
+app/daily_plan/assembler.py                          231    231     0%   1-811
+app/daily_plan/challenge.py                          142     44    69%   107-111, 185-192, 203-204, 254-264, 288-341, 364, 372-384, 391, 401, 404, 416-418
+app/daily_plan/items/__init__.py                      21      0   100%
+app/daily_plan/items/challenge.py                     33      6    82%   67-72, 77-79
+app/daily_plan/items/curriculum.py                   237     29    88%   101, 129, 202-212, 233, 255-257, 309-313, 457, 483, 489-491, 517, 552
+app/daily_plan/items/error_review.py                  45     24    47%   76-79, 89-112
+app/daily_plan/items/grammar_review.py                61      4    93%   54, 134, 136, 157
+app/daily_plan/items/phrase_review.py                 85     37    56%   46, 87-102, 128-152, 160, 164-170, 174-178, 198-199
+app/daily_plan/items/reading.py                       81     13    84%   54-55, 117-122, 143-144, 153-156, 177, 179
+app/daily_plan/items/setup.py                         19      1    95%   80
+app/daily_plan/items/skills.py                        16      1    94%   52
+app/daily_plan/items/srs.py                           71      4    94%   69, 85, 196, 238
+app/daily_plan/items/word_set_quiz.py                 16      0   100%
+app/daily_plan/level_utils.py                         33     20    39%   16, 35-73
+app/daily_plan/linear/__init__.py                      0      0   100%
+app/daily_plan/linear/chain.py                       274    274     0%   14-525
+app/daily_plan/linear/context.py                      27      2    93%   52, 54
+app/daily_plan/linear/errors.py                      280    153    45%   71, 96, 122, 127-130, 170, 176-177, 183, 223-232, 243-250, 268, 287-291, 322-325, 333-334, 399-412, 442, 473-525, 538-624, 643-651
+app/daily_plan/linear/grammar_theory.py               61     50    18%   37-47, 56-73, 77, 105-142
+app/daily_plan/linear/lesson_context.py              121     15    88%   57-63, 156-157, 228-229, 237-238, 258-261
+app/daily_plan/linear/models.py                       45      3    93%   43, 76, 111
+app/daily_plan/linear/plan.py                        151    110    27%   67-69, 83, 87-93, 106-119, 131-137, 142-144, 153-160, 172-197, 207-213, 230-244, 257-259, 289-296, 310-386
+app/daily_plan/linear/progression.py                 107      9    92%   145-149, 283-295, 321, 326, 329
+app/daily_plan/linear/slots/__init__.py               14      1    93%   27
+app/daily_plan/linear/slots/curriculum_slot.py       137     49    64%   124, 167-177, 196, 202, 251-255, 302-307, 321-322, 348-374, 402-410, 440-452, 456
+app/daily_plan/linear/slots/error_review_slot.py      33     33     0%   8-61
+app/daily_plan/linear/slots/listening_slot.py         41     41     0%   13-137
+app/daily_plan/linear/slots/reading_slot.py           71     46    35%   32, 42, 61, 82-87, 96-109, 124-198
+app/daily_plan/linear/slots/speaking_slot.py          34     34     0%   11-110
+app/daily_plan/linear/slots/srs_slot.py               83     58    30%   37-39, 49-51, 85-90, 95-131, 153-242
+app/daily_plan/linear/slots/writing_slot.py           42     42     0%   12-139
+app/daily_plan/linear/xp.py                          167     60    64%   129, 164-165, 212-214, 222-223, 244, 248, 265-267, 329-356, 370-372, 389-420, 432-434, 455-457, 477-479, 498-500, 521, 537-542, 553
+app/daily_plan/milestones.py                          89     89     0%   19-264
+app/daily_plan/models.py                             160     22    86%   189-226
+app/daily_plan/next_step.py                          156     10    94%   81-82, 155, 159, 163, 177, 211, 397, 399, 403
+app/daily_plan/plan.py                               200     19    90%   79, 149-150, 188-195, 312, 320, 485, 492, 498-500, 522
+app/daily_plan/plan_builder.py                       121      7    94%   194, 246, 263, 266, 290, 303, 307
+app/daily_plan/repair_pressure.py                     63     63     0%   1-136
+app/daily_plan/route_progress.py                      75     75     0%   7-205
+app/daily_plan/service.py                             93     18    81%   64, 81-101, 129-132
+app/daily_plan/skips.py                               16      2    88%   32, 35
+app/daily_plan/snapshot.py                           195     68    65%   48-49, 63, 66, 94, 114, 174, 209-210, 257-258, 261-264, 267-273, 279-280, 282, 285-302, 313-314, 316, 320-325, 371, 410-460
+app/daily_plan/tier.py                                41      0   100%
+--------------------------------------------------------------------------------
+TOTAL                                               5701   3036    47%
+Coverage JSON written to file /tmp/dp-covA.json
+=========================== short test summary info ============================
+FAILED tests/daily_plan/test_events.py::TestSlotSkipEndpoint::test_all_valid_reasons_accepted
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_fires_corrective_award_when_pool_empty
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_is_idempotent
+
+--------------------------------------------------------------------------------
+ПРОГОН B (шире: + тесты зоны вне tests/daily_plan) — чтобы отличить
+«не покрыто каталогом» от «не покрыто вообще»
+--------------------------------------------------------------------------------
+........................................................................ [  9%]
+..............................F......................................... [ 18%]
+........................................................................ [ 27%]
+........................................................................ [ 37%]
+...............FF....................................................... [ 46%]
+........................................................................ [ 55%]
+........................................................................ [ 64%]
+........................................................................ [ 74%]
+........................................................................ [ 83%]
+........................................................................ [ 92%]
+........................................................                 [100%]
+=============================== warnings summary ===============================
+tests/daily_plan/test_challenge.py::TestSeedChallenge::test_challenge_seeded_for_date
+  /Users/igorkorobko/Library/Mobile Documents/com~apple~CloudDocs/29092022/PycharmProjects/language_learning_tool_new/tests/conftest.py:97: RemovedIn20Warning: Deprecated API features detected! These feature(s) are not compatible with SQLAlchemy 2.0. To prevent incompatible upgrades prior to updating applications, ensure requirements files are pinned to "sqlalchemy<2.0". Set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.  Set environment variable SQLALCHEMY_SILENCE_UBER_WARNING=1 to silence this message. (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    conn.execute(text(f'TRUNCATE TABLE {table_list} CASCADE'))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.14.5-final-0 _______________
+
+Name                                               Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------
+app/api/anki.py                                       44     30    32%   22-78
+app/api/auth.py                                       50     35    30%   50-96, 110-126
+app/api/books.py                                     393    330    16%   27, 37-38, 43-47, 57-64, 70-85, 91-148, 168-169, 185-191, 201-207, 217-258, 269-431, 441-479, 492-671, 682-725, 735-760, 770-801, 811-841, 851-880
+app/api/books_catalog.py                              66     42    36%   38-50, 57-87, 94-134
+app/api/daily_plan.py                                672    229    66%   32-34, 90-95, 97-101, 114-115, 145-146, 179-180, 209-210, 215-217, 240-241, 316-321, 347-348, 362-365, 369-370, 375-376, 382-384, 407-409, 484, 495, 544-550, 577, 581, 587-591, 627-628, 641-643, 755, 815-816, 854, 857-859, 893-895, 906-915, 938-1005, 1009-1011, 1019-1086, 1118, 1144-1146, 1164, 1177-1179, 1189-1206, 1222-1293, 1370-1372, 1387-1389
+app/api/decorators.py                                 31     13    58%   33-49, 68-69
+app/api/errors.py                                      3      0   100%
+app/api/topics_collections.py                        248    206    17%   25-93, 106-166, 182-227, 244-318, 327-406, 419-485, 503-548, 565-639, 648-663, 675-690
+app/api/words.py                                     204    172    16%   22-113, 125-174, 194-221, 236-306, 313-341, 357-419, 427-463
+app/daily_plan/__init__.py                             2      0   100%
+app/daily_plan/assembler.py                          231    169    27%   93-108, 119-157, 171, 177-178, 209-214, 243-256, 282-320, 324-336, 341, 345-357, 370, 391-549, 580-655, 688-725, 740-811
+app/daily_plan/challenge.py                          142     44    69%   107-111, 185-192, 203-204, 254-264, 288-341, 364, 372-384, 391, 401, 404, 416-418
+app/daily_plan/items/__init__.py                      21      0   100%
+app/daily_plan/items/challenge.py                     33      6    82%   67-72, 77-79
+app/daily_plan/items/curriculum.py                   237     29    88%   101, 129, 202-212, 233, 255-257, 309-313, 457, 483, 489-491, 517, 552
+app/daily_plan/items/error_review.py                  45     24    47%   76-79, 89-112
+app/daily_plan/items/grammar_review.py                61      4    93%   54, 134, 136, 157
+app/daily_plan/items/phrase_review.py                 85     37    56%   46, 87-102, 128-152, 160, 164-170, 174-178, 198-199
+app/daily_plan/items/reading.py                       81     13    84%   54-55, 117-122, 143-144, 153-156, 177, 179
+app/daily_plan/items/setup.py                         19      1    95%   80
+app/daily_plan/items/skills.py                        16      1    94%   52
+app/daily_plan/items/srs.py                           71      4    94%   69, 85, 196, 238
+app/daily_plan/items/word_set_quiz.py                 16      0   100%
+app/daily_plan/level_utils.py                         33      0   100%
+app/daily_plan/linear/__init__.py                      0      0   100%
+app/daily_plan/linear/chain.py                       274    241    12%   47-54, 61-71, 75-78, 89-118, 130-140, 147-157, 164-175, 182-193, 200-211, 217-228, 254-259, 271-287, 312-355, 373-424, 455-525
+app/daily_plan/linear/context.py                      27      2    93%   52, 54
+app/daily_plan/linear/errors.py                      280    153    45%   71, 96, 122, 127-130, 170, 176-177, 183, 223-232, 243-250, 268, 287-291, 322-325, 333-334, 399-412, 442, 473-525, 538-624, 643-651
+app/daily_plan/linear/grammar_theory.py               61     50    18%   37-47, 56-73, 77, 105-142
+app/daily_plan/linear/lesson_context.py              121     15    88%   57-63, 156-157, 228-229, 237-238, 258-261
+app/daily_plan/linear/models.py                       45      3    93%   43, 76, 111
+app/daily_plan/linear/plan.py                        151    105    30%   67-69, 83, 89, 92, 106-119, 131-137, 142-144, 153-160, 172-197, 207-213, 230-244, 257-259, 289-296, 310-386
+app/daily_plan/linear/progression.py                 107      9    92%   145-149, 283-295, 321, 326, 329
+app/daily_plan/linear/slots/__init__.py               14      1    93%   27
+app/daily_plan/linear/slots/curriculum_slot.py       137     49    64%   124, 167-177, 196, 202, 251-255, 302-307, 321-322, 348-374, 402-410, 440-452, 456
+app/daily_plan/linear/slots/error_review_slot.py      33     22    33%   32-61
+app/daily_plan/linear/slots/listening_slot.py         41     27    34%   44-57, 70-109, 119-137
+app/daily_plan/linear/slots/reading_slot.py           71     46    35%   32, 42, 61, 82-87, 96-109, 124-198
+app/daily_plan/linear/slots/speaking_slot.py          34     19    44%   37-39, 58-71, 90-110
+app/daily_plan/linear/slots/srs_slot.py               83     56    33%   49-51, 85-90, 95-131, 153-242
+app/daily_plan/linear/slots/writing_slot.py           42     28    33%   47-63, 82-95, 114-139
+app/daily_plan/linear/xp.py                          167     49    71%   129, 164-165, 212-214, 222-223, 244, 248, 265-267, 346, 352-353, 370-372, 389-420, 432-434, 455-457, 477-479, 498-500, 521, 537-542, 553
+app/daily_plan/milestones.py                          89     64    28%   92-117, 125-142, 150-169, 181-246, 256-260
+app/daily_plan/models.py                             160      9    94%   194, 196, 198, 215-219, 226
+app/daily_plan/next_step.py                          156     10    94%   81-82, 155, 159, 163, 177, 211, 397, 399, 403
+app/daily_plan/plan.py                               200     19    90%   79, 149-150, 188-195, 312, 320, 485, 492, 498-500, 522
+app/daily_plan/plan_builder.py                       121      7    94%   194, 246, 263, 266, 290, 303, 307
+app/daily_plan/repair_pressure.py                     63     27    57%   46-52, 57-87, 91, 103-105, 120-136
+app/daily_plan/route_progress.py                      75     50    33%   61, 70-83, 87-101, 118-185, 203-205
+app/daily_plan/service.py                             93     18    81%   64, 81-101, 129-132
+app/daily_plan/skips.py                               16      2    88%   32, 35
+app/daily_plan/snapshot.py                           195     68    65%   48-49, 63, 66, 94, 114, 174, 209-210, 257-258, 261-264, 267-273, 279-280, 282, 285-302, 313-314, 316, 320-325, 371, 410-460
+app/daily_plan/tier.py                                41      0   100%
+--------------------------------------------------------------------------------
+TOTAL                                               5701   2538    55%
+Coverage JSON written to file /tmp/dp-covB.json
+=========================== short test summary info ============================
+FAILED tests/daily_plan/test_events.py::TestSlotSkipEndpoint::test_all_valid_reasons_accepted
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_fires_corrective_award_when_pool_empty
+FAILED tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_is_idempotent
+
+--------------------------------------------------------------------------------
+СВЕРКА КРАСНЫХ С BASELINE (Task 1) — дополнено 2026-08-27
+--------------------------------------------------------------------------------
+Baseline (docs/audit/2026-08-26-baseline-daily-plan.txt):  2 failed, 402 passed
+Прогон 2026-08-27 (pytest tests/daily_plan):               3 failed, 401 passed
+
+Унаследованные (в baseline есть):
+  tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_fires_corrective_award_when_pool_empty
+  tests/daily_plan/test_srs_slot_completion.py::TestSrsSlotCompletion::test_fallback_is_idempotent
+    Причина (DP-COV-02): карточки сеются с last_reviewed = календарная полночь,
+    а count_reviews_today сравнивает с началом учебного дня 02:00.
+
+Сверх baseline (в baseline был зелёным):
+  tests/daily_plan/test_events.py::TestSlotSkipEndpoint::test_all_valid_reasons_accepted
+    Причина (DP-COV-01): цвет теста определяется формой схемы БД, не кодом.
+    Партиальный индекс uq_daily_plan_events_slot_skipped объявлен только в
+    миграции 20260527_slot_skipped_unique_index.py, но НЕ в DailyPlanEvent.__table_args__
+    (app/daily_plan/models.py:75-78). Проверено на живых БД:
+        learn_db_test          -> индекс ЕСТЬ  -> тест ПАДАЕТ (429 на 2-й причине)
+        learn_db_test_gw0..gw3 -> индекса НЕТ  -> тест ПРОХОДИТ
+    (worker-БД строятся db.create_all() из модели, поэтому индекса там нет).
+    Верификация: индекс временно снят -> 17 passed в файле; возвращён -> падение
+    воспроизводится. Состояние learn_db_test восстановлено (индекс на месте).
+    ВАЖНО для Task 10: ожидание «ровно 2 red» верно только для create_all-схемы.
+
+--------------------------------------------------------------------------------
+ПРОГОН C (добор эндпоинтов, которых нет в A и B)
+--------------------------------------------------------------------------------
+  pytest tests/api/test_api_error_format.py tests/test_words_routes.py --cov=app/api
+  результат: 0 падений
+
+Исполнение тел view-функций app/api/daily_plan.py по A+B+C (замер по AST-диапазонам):
+  streak                  :535   0 строк тела   (в тестах только 401-путь)
+  error_review_summary    :904   0 строк тела   (URL не встречается в tests/)
+  complete_phrase_review  :1017  0 строк тела   (URL не встречается в tests/)
+  streak_repair           :1187  0 строк тела   (tests/test_words_routes.py бьёт
+                                                 другой роут — /api/streak/repair-web)
+  complete_error_review   :926   6 строк из ~79 (только ранняя 400-ветка)
+  challenge_complete      :1212  5 строк из ~81 (только ранняя 400-ветка)
+  _normalise_phrase_answer:1008  0 строк тела   (не-роутовый хелпер)
+
+Полный разбор — .ralphex/audit-notes/daily-plan/coverage.md
