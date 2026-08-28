@@ -788,7 +788,7 @@ _(находок этого уровня в подзоне нет)_
 | DP-040 | P2 | `app/daily_plan/items/curriculum.py:551-552` | нерезолвящийся модуль: очередь fail-open (`return True`), спайн fail-closed — противоположные дефолты | CONFIRMED | код |
 | DP-041 | P2 | `app/daily_plan/snapshot.py:233` | `overlay_completion` не обновляет `data`: числа required-SRS заморожены на день, прогресс «X из N карточек» не рендерится | CONFIRMED | код |
 | DP-042 | P2 | `app/daily_plan/linear/xp.py:302` | «строгий» гейт `srs:deck_quiz` читает ключ `linear_srs_global`, который пишет обычная SRS-сессия → required-квиз закрывается без квиза | CONFIRMED | код |
-| DP-043 | P2 | `app/daily_plan/items/srs.py:203` | тир critical/collapse + чисто REVIEW-бэклог → `total_show=0`, слот исчезает молча, объясняющий hint гейтится `total_show>0` | CONFIRMED | код |
+| DP-043 | P2 | `app/daily_plan/items/srs.py:191` | тир `collapse` + чисто REVIEW-бэклог → `total_show=0`, слот исчезает молча на раннем `return None` | CONFIRMED | код |
 | DP-044 | P2 | `app/daily_plan/plan_builder.py:200` | гейт на пустые колоды применяется только при сборке снапшота: очистка колод в течение дня оставляет замороженный required `srs:deck_quiz` незакрываемым | CONFIRMED | код |
 | DP-045 | P2 | `app/daily_plan/items/srs.py:196` | `ignore_daily_budget` печатает в заголовке весь бэклог, которого сессия не выдаст | CONFIRMED | код |
 | DP-046 | P2 | `app/api/daily_plan.py:1010` | грейдер «Повтори 3 фразы»: пустой ответ засчитывается верным и закрывает `QuizErrorLog` | CONFIRMED | — |
@@ -967,17 +967,17 @@ _(находок этого уровня в подзоне нет)_
 - **Второй проход (три независимые линзы):** correctness=SOUND · reproducibility=REPRODUCIBLE · user-impact=P2 → P1 → P2. P1→P2: гейт действительно не отличает происхождение `linear_srs_global`, но это пере-начисление с обходом, без потери XP/streak/данных; ~18% юзеров с колодами × ~11% дней с карточным уроком.
 - **Где расхождение:** код — раздел CLAUDE.md «SRS deck-quiz подмена» заявляет «required-SRS подменяется на deck-quiz… С обычным srs:global в required optional-дубль схлопывается. У юзеров с колодами optional srs:global остаётся как extra reps (id отличается от srs:deck_quiz)» — документ не упоминает, что этот «extra reps» item фактически способен закрыть required deck-quiz за счёт общего XP-ключа, что противоречит цели свопа («так daily plan предлагает vocabulary-review активность без буквального повтора карточек дважды», `app/daily_plan/items/srs.py:36-45`).
 
-#### DP-043 · P2 · `app/daily_plan/items/srs.py:203`
+#### DP-043 · P2 · `app/daily_plan/items/srs.py:191`
 
 - **Кандидат:** `DP-C-066` · линзы-источники: ITEMS-B-04 · скептик: `skeptics/DP-C-066.md`
-- **Симптом:** тир critical/collapse + чисто REVIEW-бэклог → `total_show=0`, слот исчезает молча, объясняющий hint гейтится `total_show>0`
+- **Симптом:** тир `collapse` + чисто REVIEW-бэклог → `total_show=0`, слот исчезает молча на раннем `return None` (:191). Тир `critical` отказа НЕ даёт — у него бюджет ненулевой; гейт `total_show>0` на :203 не причина молчания, до него исполнение не доходит
 - **Сценарий отказа:** механизм воспроизводим по коду без предположений о недостижимых ветках. Сценарий вход→выход: пользователь с accuracy < 45% (tier=`collapse`), у которого весь текущий due-бэклог сидит в состоянии REVIEW (нет NEW/LEARNING due), сегодня ещё не открывал SRS. Ожидаемый корректный выход — слот в `required`/`optional` с `title` вида «Повторение слов — N» и, при желании, hint про collapse-тир. Фактический выход — SRS-слот отсутствует и в `required`, и в `optional` daily-plan payload'а; поле `data.reason_hint` не существует, потому что PlanItem не создаётся; независимое поле `srs_limit_reason` в API есть, но нигде не рендерится; прямой заход на `/study/cards` тоже отдаёт «дневной лимит исчерпан» без обхода. Итог — реальный бэклог ревью полностью невидим и недостижим через штатный UI в этот день, что усугубляет позиционный застой пользователя, для которого collapse-тир как раз задуман как временная защита с последующим восстановлением.
 - **Верификация:** CONFIRMED — скептик, настроенный опровергать, опровергнуть не смог. Цитаты:
   - `app/study/services/srs_service.py:197-202` — `TIER_PCT['collapse'] = {'new': 0.00, 'review': 0.00}`; `_compute_adaptive_state` (строки 424-444) на collapse даёт `adaptive_reviews = round(base_reviews * 0.0) = 0`.
   - `app/srs/counting.py:127-134` — `get_new_card_budget` возвращает `remaining_reviews = max(0, adaptive_reviews - rev_today)`. При `adaptive_reviews=0` это `0` **независимо** от `rev_today` (свежий день или нет).
   - `app/daily_plan/items/srs.py:178-183`: ``` remaining_new, remaining_reviews = get_new_card_budget(user_id, db) due_budget = get_due_card_budget(user_id, db) new_show = min(new_pending, remaining_new) learning_show = min(learning_due, due_budget) review_show = min(review_due, max(0, due_budget - learning_show), remaining_reviews) total_show = new_show + learning_show + review_show ``` При чистом REVIEW-бэклоге (`new_pending=0`, `learning_due=0`, `review_due>0`) на tier=`collapse`: `new_show=0`, `learning_show=0`, `review_show=min(review_due, due_budget, 0)=0` → `total_show=0` гарантированно, вне зависимости от размера реального бэклога.
   - _(ещё 6 цитат — `.ralphex/audit-notes/daily-plan/skeptics/DP-C-066.md`; здесь список усечён по бюджету, а не по значимости)_
-- **Второй проход (три независимые линзы):** correctness=PARTIAL · reproducibility=REPRODUCIBLE · user-impact=P2 → P1 → P2. P1→P2. Формулировку править: отказ даёт только тир `collapse` (у `critical` бюджет ненулевой при реальных `reviews_per_day` 20–50), а гейт `total_show>0` на :203 — не причина молчания, до него исполнение не доходит (ранний `return None` на :191). Затронут 1 из 12 юзеров прод-снимка.
+- **Второй проход (три независимые линзы):** correctness=PARTIAL · reproducibility=REPRODUCIBLE · user-impact=P2 → P1 → P2. P1→P2. Формулировка **исправлена** в заголовке, якоре и симптоме выше: отказ даёт только тир `collapse` (у `critical` бюджет ненулевой при реальных `reviews_per_day` 20–50), а гейт `total_show>0` на :203 — не причина молчания, до него исполнение не доходит (ранний `return None` на :191). Затронут 1 из 12 юзеров прод-снимка.
 - **Где расхождение:** код — расхождение внутри самого кода: комментарий `get_due_card_budget` в `app/srs/counting.py` формулирует цель «bounded-but-nonzero batch» для collapse-тира, но комбинация с `remaining_reviews` в трёх местах (`items/srs.py`, `linear/slots/srs_slot.py`, `linear/xp.py`) эту цель систематически аннулирует.
 
 #### DP-044 · P2 · `app/daily_plan/plan_builder.py:200`
@@ -2162,13 +2162,13 @@ _(находок этого уровня в подзоне нет)_
 | Модули зоны, мёртвые целиком — 8 файлов (`assembler.py` 831 · `chain.py` 530 · `curriculum_slot.py` 476 · `writing_slot.py` 156 · `listening_slot.py` 153 · `repair_pressure.py` 144 · `speaking_slot.py` 127 · `error_review_slot.py` 75) | **2 492** |
 | Мёртвые символы внутри живых модулей зоны (`linear/plan.py` 267 = 65 % файла · `milestones.py` 132 = 48 % · `lesson_context.py` 37 = 11 %) | **436** |
 | **Итого внутри зоны** | **2 928 из 11 347 = 25.8 %** |
-| «Потребительская тень» вне зоны — ветки, недостижимые из-за мёртвого производителя | **445** |
-| **ВСЕГО** | **3 373** |
+| «Потребительская тень» вне зоны — ветки, недостижимые из-за мёртвого производителя (строгий подсчёт по найденным веткам; оценка финдера «445» самостоятельно **не воспроизведена** — см. `DP-123`) | **240** |
+| **ВСЕГО** | **3 168** |
 
 Порядок будущей чистки (сама чистка в аудит **не входит** и требует подтверждения владельца):
 (1) один связный кластер 1 784 строки — `get_linear_plan` + 9 хелперов → `chain.py` → 5 slot-модулей,
 ни одного живого входа; (2) `assembler.py` + `repair_pressure.py` — 975 строк; (3) потребительская
-тень 445 строк — только после (1) и (2). `DP-120` из списка чистки **исключена**: это не удаление,
+тень 240 строк — только после (1) и (2). `DP-120` из списка чистки **исключена**: это не удаление,
 а починка (восстановить вызов `check_curriculum_milestones` на живом пути завершения урока).
 
 ### Индекс
@@ -2179,7 +2179,7 @@ _(находок этого уровня в подзоне нет)_
 | DP-120 | P3 | `app/daily_plan/milestones.py` | milestone-уведомления о завершении модуля и уровня не выдаются никогда | CONFIRMED | — |
 | DP-121 | P3 | `app/daily_plan/linear/slots/` | пять slot-модулей (987 строк) мертвы вместе с `chain.py`; `reading_slot.py` при этом жив — не удалять пакетом | CONFIRMED | — |
 | DP-122 | P3 | `app/daily_plan/repair_pressure.py` | модуль мёртв целиком | CONFIRMED | — |
-| DP-123 | P3 | `app/daily_plan/linear/chain.py` | «потребительская тень»: 445 строк вне зоны недостижимы из-за мёртвого производителя | CONFIRMED | код |
+| DP-123 | P3 | `app/daily_plan/linear/chain.py` | «потребительская тень»: 240 строк вне зоны недостижимы из-за мёртвого производителя (оценка финдера «445» не воспроизведена) | CONFIRMED | код |
 | DP-124 | P3 | `app/daily_plan/linear/lesson_context.py` | `build_lesson_context_from_plan` — мёртвый двойник живой функции, застрявший на удалённом контракте | CONFIRMED | код |
 
 ### P0 — детали
@@ -2254,8 +2254,8 @@ _(находок этого уровня в подзоне нет)_
 #### DP-123 · P3 · `app/daily_plan/linear/chain.py`
 
 - **Кандидат:** `DP-C-178` · линзы-источники: LIVE-06 · скептик: `skeptics/DP-C-178.md`
-- **Симптом:** «потребительская тень»: 445 строк вне зоны недостижимы из-за мёртвого производителя
-- **Сценарий отказа:** механизм реален и воспроизводим чтением кода: `chain.py` (продюсер) не имеет ни одного живого пути исполнения (`get_linear_plan` — 0 вызовов), а несколько реально исполняемых веток в файлах вне `app/daily_plan/` (`app/telegram/notifications.py`, `app/words/routes.py`, `app/achievements/streak_service.py`), достижимых из живых точек входа (`telegram/scheduler.py` — крон планировщика, `race/routes.py` — роут `/race`), гейтятся на `plan.get('mode') == 'linear'`, которое никогда не наступает. Сценарий: любой запрос к `/race` или срабатывание утреннего telegram-напоминания выполняет `_get_next_plan_action`/`format_morning_reminder`, доходит до `if mode == 'linear'`, условие всегда `False` — 240 строк кода в этих функциях никогда не исполняются ни при каком состоянии БД. Число «445» самостоятельно не воспроизвёл — строгий подсчёт по найденным веткам даёт 240 строк; если приплюсовать полностью осиротевший `path_view.py` (706 строк, тот же контракт, но независимая причина смерти — отсутствие вызова вовсе), сумма уходит далеко за 445 в другую сторону. Эффект (недостижимый код вне зоны плана дня, причинно связанный со смертью `chain.py`) при этом подтверждён твёрдо.
+- **Симптом:** «потребительская тень»: 240 строк вне зоны недостижимы из-за мёртвого производителя (финдер заявлял 445 — число не воспроизведено, см. сценарий)
+- **Сценарий отказа:** механизм реален и воспроизводим чтением кода: `chain.py` (продюсер) не имеет ни одного живого пути исполнения (`get_linear_plan` — 0 вызовов), а несколько реально исполняемых веток в файлах вне `app/daily_plan/` (`app/telegram/notifications.py`, `app/words/routes.py`, `app/achievements/streak_service.py`), достижимых из живых точек входа (`telegram/scheduler.py` — крон планировщика, `race/routes.py` — роут `/race`), гейтятся на `plan.get('mode') == 'linear'`, которое никогда не наступает. Сценарий: любой запрос к `/race` или срабатывание утреннего telegram-напоминания выполняет `_get_next_plan_action`/`format_morning_reminder`, доходит до `if mode == 'linear'`, условие всегда `False` — 240 строк кода в этих функциях никогда не исполняются ни при каком состоянии БД. Число «445» самостоятельно не воспроизвёл — строгий подсчёт по найденным веткам даёт 240 строк, и **именно 240 вынесено в заголовок, симптом и сводную таблицу мёртвого кода**; если приплюсовать полностью осиротевший `path_view.py` (706 строк, тот же контракт, но независимая причина смерти — отсутствие вызова вовсе), сумма уходит далеко за 445 в другую сторону. Эффект (недостижимый код вне зоны плана дня, причинно связанный со смертью `chain.py`) при этом подтверждён твёрдо.
 - **Верификация:** CONFIRMED — скептик, настроенный опровергать, опровергнуть не смог. Цитаты:
   - `app/daily_plan/linear/chain.py:242-259, 292-354, 427-530` — `build_chain` / `extend_chain_after_activity` / `recompute_continuation_available` / `build_next_slot`: единственная точка входа в файл извне — `get_linear_plan` (`app/daily_plan/linear/plan.py:299`, зовёт `build_chain` на строке 337) и `build_tomorrow_preview` (`plan.py:98`, зовёт `_build_baseline`/`_get_plan_difficulty` из `chain.py`).
   - `grep -rn "get_linear_plan(" app tests` → единственное совпадение — сама сигнатура `app/daily_plan/linear/plan.py:299`. Ноль вызовов где-либо ещё, включая тесты.
@@ -2352,7 +2352,7 @@ end-to-end — не покрыт нигде**; **fallback-ветка сборк�
 |---|---|---|---|---|---|
 | DP-125 | P3 | `tests/daily_plan/test_srs_slot_completion.py:142,170` | два baseline-красных теста сеют карточки по календарной полуночи, а счётчик считает от 02:00 — красное здесь тест, не прод | CONFIRMED | код |
 | DP-126 | P3 | `app/api/daily_plan.py:535,904,1017,1187` | 4 эндпоинта зоны не исполняют ни одной строки тела ни в одном тесте, ещё 2 — только раннюю 400-ветку | CONFIRMED | — |
-| DP-127 | P3 | `tests/daily_plan/linear/` (удалён в `d197e94a`)` | удалены 18 файлов тестов при сохранённых 12 прод-модулях: 7 модулей не исполняют ни строки тела | CONFIRMED | код |
+| DP-127 | P3 | `tests/daily_plan/linear/` (удалён в `d197e94a`) | удалены 18 файлов тестов при сохранённых 16 непустых прод-модулях: 5 модулей не исполняют ни строки тела | CONFIRMED | код |
 
 ### P0 — детали
 
@@ -2399,10 +2399,10 @@ _(находок этого уровня в подзоне нет)_
   - _(ещё 2 цитат — `.ralphex/audit-notes/daily-plan/skeptics/DP-C-181.md`; здесь список усечён по бюджету, а не по значимости)_
 - **Где расхождение:** — (инвариант `CLAUDE.md` не задет)
 
-#### DP-127 · P3 · `tests/daily_plan/linear/` (удалён в `d197e94a`)`
+#### DP-127 · P3 · `tests/daily_plan/linear/` (удалён в `d197e94a`)
 
 - **Кандидат:** `DP-C-182` · линзы-источники: DP-COV-04 · скептик: `skeptics/DP-C-182.md`
-- **Симптом:** удалены 18 файлов тестов при сохранённых 12 прод-модулях: 7 модулей не исполняют ни строки тела
+- **Симптом:** удалены 18 файлов тестов при сохранённых 16 непустых прод-модулях: 5 модулей не исполняют ни строки тела (финдер заявлял 12 и 7 — оба числа поправлены проверкой, см. сценарий)
 - **Сценарий отказа:** CONFIRMED, но с поправкой числа. Механизм реален и воспроизведён: `d197e94a` убрал legacy `get_linear_plan`/`build_chain`-цепочку из живого пути (заменил её на unified-ассемблер в `app/daily_plan/plan.py`), но не удалил сами файлы `app/daily_plan/linear/chain.py` и 4 slot-модуля (`error_review_slot`, `listening_slot`, `speaking_slot`, `writing_slot`), и одновременно вычистил все тесты, которые их напрямую дергали. Итог — **5 модулей**, не 7, с буквально нулём исполненных строк тела (`chain.py` + 4 slot-файла), подтверждено и coverage-прогоном, и grep по всему `app/`+`tests/`. `curriculum_slot.py` в прод-пути тоже сирота, но не «0 строк» — его тело исполняет переживший чистку `test_skip_helpers.py`. Счёт «12 прод-модулей» тоже не бьётся: в каталоге 16 непустых файлов (9 верхнего уровня + 7 в `slots/`), из них минимум 11 (`context`, `errors`, `grammar_theory`, `lesson_context`, `models`, `progression`, `xp`, `reading_slot`, `srs_slot`, и частично `plan.py`) имеют подтверждённые живые вызовы из `app/daily_plan/items/*.py`, `app/books/api.py`, `app/api/books*.py`, `app/curriculum/routes/*`. Эффект на пользователей нулевой — живой daily-plan идёт через `items/*.py`, мёртвый код недостижим ни для кого; это чистый мёртвый код + дыра в тестовом покрытии, не функциональный баг.
 - **Верификация:** CONFIRMED — скептик, настроенный опровергать, опровергнуть не смог. Цитаты:
   - `app/daily_plan/linear/plan.py:299` `def get_linear_plan(...)` — 0 вызовов во всём `app/` и `tests/` (кроме собственного определения и упоминания в комментарии `tests/daily_plan/test_perfect_day_unified.py:3`, где явно написано «раньше бонус собирал legacy linear-план»). Живой ассемблер — `get_daily_plan` в `app/daily_plan/plan.py:347` — вызывает только 4 конкретных символа из `plan.py` (`_get_user_focus`, `_level_progress_to_dict`, `_position_from_lesson`, `get_plan_intensity`), не `get_linear_plan`.

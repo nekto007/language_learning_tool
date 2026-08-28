@@ -160,7 +160,13 @@ class QuizService:
             for candidate in candidates:
                 if len(chosen) >= needed or quota <= 0:
                     return
-                if candidate.id == word.id:
+                if candidate is word:
+                    continue
+                # A custom deck entry carries ``id is None`` by design (it has no
+                # CollectionWords row), so an id-only test would read every such
+                # entry as "this is the same word" and strip an all-custom deck
+                # of every distractor it has.
+                if candidate.id is not None and candidate.id == word.id:
                     continue
                 value = getattr(candidate, attribute, None)
                 if not value or not value.strip():
