@@ -174,10 +174,29 @@ class TestSelectEndpoint:
         resp = authenticated_client.post('/api/books/select', json={'book_id': 9999999})
         assert resp.status_code == 404
 
+    def test_draft_book_returns_404_and_persists_nothing(
+        self, authenticated_client, db_session, cefr_levels, test_user,
+    ):
+        """An unpublished book is invisible to the reader routes, so the
+        selector must refuse it too — otherwise the required reading slot
+        points at a permanent 404 and the day can never be secured."""
+        book = _make_book(db_session, 'A2')
+        book.is_published = False
+        db_session.commit()
+
+        resp = authenticated_client.post('/api/books/select', json={'book_id': book.id})
+        assert resp.status_code == 404
+        assert resp.get_json()['error'] == 'book_not_found'
+        assert UserReadingPreference.query.filter_by(user_id=test_user.id).first() is None
+
     def test_select_persists_preference_and_returns_slot(
         self, authenticated_client, db_session, cefr_levels, test_user,
     ):
         book = _make_book(db_session, 'A2')
+        # The slot only names a book that can actually be read: a title whose
+        # ``chapters_cnt`` is not backed by Chapter rows is refused by
+        # ``_book_is_actionable_for_reading`` and degrades to needs_selection.
+        _add_chapters(db_session, book)
 
         resp = authenticated_client.post('/api/books/select', json={'book_id': book.id})
         assert resp.status_code == 200
