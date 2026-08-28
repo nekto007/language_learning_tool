@@ -61,11 +61,17 @@ def _slug_taken(slug: str, exclude_id: int | None = None) -> bool:
 
 
 # Column widths from `WordSet`. Over-length input is truncated here rather
-# than left to raise DataError at commit: the audit decorator swallows that
-# into a rollback, so the admin would see a form that silently saved nothing.
+# than left to raise DataError at commit: `admin_audit_required` calls the view
+# outside its own try block, so a commit-time DataError escapes as a bare 500
+# with the session left dirty instead of a form the admin can correct.
 _MAX_NAME = 120
 _MAX_ICON = 8
 _MAX_LEVEL = 10
+
+# `WordSet.sort_order` is a Postgres INTEGER; anything wider raises DataError at
+# commit, on the same uncaught path as the truncations above.
+_SORT_ORDER_MIN = -(2 ** 31)
+_SORT_ORDER_MAX = 2 ** 31 - 1
 
 
 def _clamp(value: str | None, limit: int) -> str | None:
@@ -95,9 +101,10 @@ def _read_form(form) -> dict:
 
 def _int_or_zero(raw) -> int:
     try:
-        return int(raw)
+        value = int(raw)
     except (TypeError, ValueError):
         return 0
+    return max(_SORT_ORDER_MIN, min(value, _SORT_ORDER_MAX))
 
 
 @word_set_bp.route('/word-sets')

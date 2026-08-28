@@ -649,20 +649,34 @@ def _record_word_set_result(
     if word_set is None:
         return False
 
+    # The insert lives in its own savepoint: the caller has already staged
+    # `session.complete_session()` without committing it, and for a themed quiz
+    # (no deck branch) this is the first commit that would persist it. A bare
+    # `db.session.rollback()` here would throw that `end_time` away and leave
+    # the study session open forever.
     try:
-        db.session.add(WordSetQuizResult(
-            user_id=current_user.id,
-            set_id=word_set.id,
-            total_questions=total_questions,
-            correct_answers=correct_answers,
-            score_percentage=score,
-            time_taken=time_taken,
-        ))
+        with db.session.begin_nested():
+            db.session.add(WordSetQuizResult(
+                user_id=current_user.id,
+                set_id=word_set.id,
+                total_questions=total_questions,
+                correct_answers=correct_answers,
+                score_percentage=score,
+                time_taken=time_taken,
+            ))
+    except Exception:
+        logger.warning(
+            'word_set_quiz: failed to record result user=%s set=%s',
+            current_user.id, slug, exc_info=True,
+        )
+        return False
+
+    try:
         db.session.commit()
         return True
     except Exception:
         logger.warning(
-            'word_set_quiz: failed to record result user=%s set=%s',
+            'word_set_quiz: failed to commit result user=%s set=%s',
             current_user.id, slug, exc_info=True,
         )
         db.session.rollback()

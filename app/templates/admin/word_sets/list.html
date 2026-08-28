@@ -55,9 +55,9 @@
                  class="btn btn-sm btn-outline-primary">Слова</a>
               <a href="{{ url_for('word_set_admin.word_set_edit', set_id=word_set.id) }}"
                  class="btn btn-sm btn-outline-secondary">Изменить</a>
-              <form method="POST" class="d-inline"
+              <form method="POST" class="d-inline js-ws-delete"
                     action="{{ url_for('word_set_admin.word_set_delete', set_id=word_set.id) }}"
-                    onsubmit="return confirm('Удалить набор «{{ word_set.name }}»? Результаты квизов по нему тоже будут удалены.');">
+                    data-set-name="{{ word_set.name }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger">Удалить</button>
               </form>
@@ -75,4 +75,24 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+    // The set name is read from a data attribute, not interpolated into a JS
+    // string literal: the HTML parser decodes character references inside an
+    // attribute before the value is compiled as script, so an escaped
+    // apostrophe in a name used to terminate the confirm() literal.
+    document.querySelectorAll('form.js-ws-delete').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            var name = form.dataset.setName || '';
+            var message = 'Удалить набор «' + name + '»? Результаты квизов по нему тоже будут удалены.';
+            if (!window.confirm(message)) {
+                event.preventDefault();
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

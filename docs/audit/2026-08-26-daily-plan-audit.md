@@ -231,7 +231,7 @@ Task 7: заранее красный тест зоны — это либо ба
 | ID | Sev | Файл:строка | Симптом | Вериф. | Расхождение |
 |---|---|---|---|---|---|
 | DP-001 | P1 | `app/api/daily_plan.py:278` | три базиса суток в одном вызове `process_streak_on_activity`: `user_today` — учебный день (02:00), `real_activity` — календарная полночь, `find_missed_date`/починка — календарная полночь на клиентском `?tz=`; клиентский `?tz=` — вторичный вектор | CONFIRMED | код |
-| DP-033 | P1 | `app/daily_plan/items/reading.py:50` | required-слот чтения строится без `can_user_access_book`/`is_published`: пункт ведёт в 403 и `day_secured` недостижим | CONFIRMED | код |
+| DP-033 | P1 | `app/daily_plan/items/reading.py:50` | required-слот чтения строится без `can_user_access_book`/`is_published`: пункт ведёт в 403 и `day_secured` недостижим (подслучай «черновик» закрыт на ветке — см. тело находки; основной механизм лицензия/модуль открыт) | CONFIRMED | код |
 | DP-034 | P1 | `app/curriculum/routes/lessons.py:388` | **theory-only** grammar-уроки (без секции `exercises`) платят 9 XP вместо 18: вычищенный ради антифрода `score` доезжает до скейлера как `0.0` | CONFIRMED | код |
 | DP-035 | P1 | `app/daily_plan/linear/xp.py:505` | perfect-day (25 XP) без пассивного «подметальщика»: 30 из 72 закрытых дней прода без `xp_perfect_day` | CONFIRMED | код |
 
@@ -777,7 +777,7 @@ _(находок этого уровня в подзоне нет)_
 
 | ID | Sev | Файл:строка | Симптом | Вериф. | Расхождение |
 |---|---|---|---|---|---|
-| DP-033 | P1 | `app/daily_plan/items/reading.py:50` | required-слот чтения строится без `can_user_access_book`/`is_published`: пункт ведёт в 403 и `day_secured` недостижим | CONFIRMED | код |
+| DP-033 | P1 | `app/daily_plan/items/reading.py:50` | required-слот чтения строится без `can_user_access_book`/`is_published`: пункт ведёт в 403 и `day_secured` недостижим (подслучай «черновик» закрыт на ветке — см. тело находки; основной механизм лицензия/модуль открыт) | CONFIRMED | код |
 | DP-034 | P1 | `app/curriculum/routes/lessons.py:388` | **theory-only** grammar-уроки (без секции `exercises`) платят 9 XP вместо 18: вычищенный ради антифрода `score` доезжает до скейлера как `0.0` | CONFIRMED | код |
 | DP-035 | P1 | `app/daily_plan/linear/xp.py:505` | perfect-day (25 XP) без пассивного «подметальщика»: 30 из 72 закрытых дней прода без `xp_perfect_day` | CONFIRMED | код |
 | DP-036 | P2 | `app/templates/partials/unified_daily_plan.html:11` | шаблон рендерит `u_optional[:5]` при очереди в 12–15 пунктов; «Показать ещё уроки» = `window.location.reload()` и нового не показывает | CONFIRMED | код |
