@@ -650,6 +650,7 @@ def _record_word_set_result(
     correct_answers: int,
     score: float,
     time_taken: int,
+    session_already_completed: bool,
 ) -> bool:
     """Persist a finished themed quiz. Returns True when a row was written.
 
@@ -661,6 +662,18 @@ def _record_word_set_result(
     must also be this user's and of the themed-quiz type, or any client could
     post arbitrary rows into a table the daily plan reads for completion.
 
+    Ownership and type are necessary but not sufficient: the counts still
+    arrive in the body, so a bare POST naming a freshly opened session used to
+    file a 100 % row without a single question having been generated. Two
+    server-owned facts close that, mirroring ``_deck_quiz_run_is_real``:
+
+    * ``words_studied`` — raised only by /api/submit-quiz-answer, one call per
+      answered question — must be non-zero, so the run has to have happened;
+    * the session must not have been completed already. ``complete_quiz``
+      closes it on the way in, so a replay of the same body would otherwise
+      file a second row each time, inflating the set's attempt count and
+      `best_score` and, through ``suggest_for_user``, the «what next» pick.
+
     Best-effort: bookkeeping must never sink a quiz the learner already
     finished, so failures are logged and swallowed.
     """
@@ -669,6 +682,11 @@ def _record_word_set_result(
     # completion down with it before GameScore and XP were written.
     slug = set_slug.strip() if isinstance(set_slug, str) else ''
     if not slug or not session_id or total_questions <= 0:
+        return False
+
+    # A session this request did not close was closed by an earlier one: this
+    # is a replay, and the first POST already filed the row.
+    if session_already_completed:
         return False
 
     from app.study.models import WordSet, WordSetQuizResult
@@ -683,6 +701,10 @@ def _record_word_set_result(
         or session.user_id != current_user.id
         or session.session_type != WORD_SET_QUIZ_SESSION_TYPE
     ):
+        return False
+
+    # The only evidence the server owns that questions were actually answered.
+    if int(session.words_studied or 0) <= 0:
         return False
 
     # Sessions opened before the `word_set_id` column existed carry NULL — they
@@ -1268,9 +1290,13 @@ def complete_quiz():
     score = round((correct_answers / total_questions) * 100, 2) if total_questions > 0 else 0
     has_streak = bool(data.get('has_streak', False))
 
+    # Captured before `complete_session()` overwrites it: it is the marker that
+    # separates the POST that finishes a run from a replay of the same body.
+    session_already_completed = False
     if session_id:
         session = StudySession.query.get(session_id)
         if session and session.user_id == current_user.id:
+            session_already_completed = session.end_time is not None
             session.complete_session()
             logger.info(
                 'study_session_complete user=%s session=%s session_type=%s duration=%s words_studied=%s',
@@ -1303,6 +1329,7 @@ def complete_quiz():
         correct_answers=correct_answers,
         score=score,
         time_taken=time_taken,
+        session_already_completed=session_already_completed,
     )
 
     game_score = GameScore(

@@ -254,9 +254,28 @@ class TestSrsIsolation:
         assert calls == [words[0].id]
 
 
+def _answer_one(client, session_id, word_id):
+    """Raise `words_studied` the only way the server accepts.
+
+    A themed result is filed only when the session carries evidence that
+    questions were actually answered, so a test that wants a row has to play
+    one — posting the completion alone is the abuse case, not the happy path.
+    """
+    response = client.post(
+        '/study/api/submit-quiz-answer',
+        json={
+            'session_id': session_id,
+            'word_id': word_id,
+            'direction': 'eng_to_rus',
+            'is_correct': True,
+        },
+    )
+    assert response.status_code == 200
+
+
 class TestResultRecording:
     def test_completion_writes_a_result(self, authenticated_client, db_session, test_user):
-        word_set, _ = _make_set(db_session)
+        word_set, words = _make_set(db_session)
         authenticated_client.get(f'/study/quiz/set/{word_set.slug}')
         session = (
             StudySession.query
@@ -264,6 +283,7 @@ class TestResultRecording:
             .order_by(StudySession.id.desc())
             .first()
         )
+        _answer_one(authenticated_client, session.id, words[0].id)
 
         response = authenticated_client.post(
             '/study/api/complete-quiz',
@@ -287,6 +307,76 @@ class TestResultRecording:
         # The column every ranking surface reads (list_published, get_progress,
         # suggest_for_user), so pin its value, not just the raw counts.
         assert result.score_percentage == pytest.approx(75.0)
+
+    def test_unplayed_run_writes_nothing(self, authenticated_client, db_session, test_user):
+        """A completion POST is not evidence that a quiz happened.
+
+        Ownership, session type and `word_set_id` are all satisfied by merely
+        opening the page; the counts come from the body. Without a server-owned
+        signal that questions were answered, a bare POST files a 100 % row that
+        drives attempts, best_score, `suggest_for_user` and the daily plan's
+        completion signal.
+        """
+        word_set, _ = _make_set(db_session)
+        authenticated_client.get(f'/study/quiz/set/{word_set.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': session.id,
+                'set_slug': word_set.slug,
+                'source': 'word_set',
+                'total_questions': 20,
+                'correct_answers': 20,
+                'time_taken': 5,
+            },
+        )
+        # The quiz itself still completes — recording is best-effort bookkeeping.
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(
+            user_id=test_user.id, set_id=word_set.id
+        ).count() == 0
+
+    def test_replayed_completion_files_one_row(
+        self, authenticated_client, db_session, test_user
+    ):
+        """Re-POSTing the same completion must not stack attempts.
+
+        The row has no per-session uniqueness, so an unguarded replay inflates
+        the set's attempt count and best_score without a second run.
+        """
+        word_set, words = _make_set(db_session)
+        authenticated_client.get(f'/study/quiz/set/{word_set.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+        _answer_one(authenticated_client, session.id, words[0].id)
+
+        body = {
+            'session_id': session.id,
+            'set_slug': word_set.slug,
+            'source': 'word_set',
+            'total_questions': 8,
+            'correct_answers': 8,
+            'time_taken': 40,
+        }
+        for _ in range(3):
+            assert authenticated_client.post(
+                '/study/api/complete-quiz', json=body
+            ).status_code == 200
+
+        assert WordSetQuizResult.query.filter_by(
+            user_id=test_user.id, set_id=word_set.id
+        ).count() == 1
 
     def test_themed_quiz_still_earns_xp(self, authenticated_client, db_session, test_user):
         """A themed session is still a quiz session for XP purposes.
