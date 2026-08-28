@@ -1,0 +1,213 @@
+================================================================================
+BASELINE РЕМЕДИАЦИИ «ПЛАН ДНЯ» — ФАЗА 1
+================================================================================
+Дата снятия : 2026-08-29 (локальное время машины 01:45 +03, Europe/Istanbul)
+Ветка       : daily-plan-remediation (создана от word-sets-quiz@54f90e64)
+HEAD        : 54f90e64 "move completed plan: 2026-08-26-daily-plan-audit.md"
+Окружение   : python -m pytest (venv проекта), одиночный процесс, -p no:randomly
+              БД тестов — postgres 15 в контейнере language_learning_tool_db
+              (127.0.0.1:5432, база learn_db_test)
+
+ЭТО ЕДИНСТВЕННЫЙ ЭТАЛОН «ИЗВЕСТНО-КРАСНОГО» ДЛЯ ВСЕГО ПЛАНА.
+Сверка на приёмке (Task 10) — ПО ИМЕНАМ nodeid, а не по числу.
+
+--------------------------------------------------------------------------------
+1. ПОЛНЫЙ ПРОГОН: python -m pytest -q -p no:randomly
+--------------------------------------------------------------------------------
+Собрано  : 10689
+Прогнано : 10684
+passed   : 10610
+skipped  : 69
+xfail    : 4
+FAILED   : 1
+ERROR    : 0
+exit     : 1
+
+Список FAILED (полный):
+
+  FAILED tests/srs/test_counting.py::TestCountRestingWords::test_ignores_short_session_bury
+
+Разбор единственного падения:
+  tests/srs/test_counting.py:682  assert count_resting_words(user.id, real_db) == 0
+  E   assert 1 == 0
+  Тест кладёт карточку с buried_until = now + 4h и ждёт, что четырёхчасовая парковка
+  не считается «отдыхом». Прогон сделан в 01:45 локального времени, то есть ВНУТРИ
+  окна 00:00-02:00, где учебный день (LEARNING_DAY_START_HOUR = 2) ещё не сменился:
+  now+4h перепрыгивает границу учебных суток, и карточка справедливо считается
+  отдыхающей. Это известный времязависимый артефакт (между полуночью и 02:00 прав
+  прод, а не тест), а не регрессия зоны ремедиации. При прогоне вне этого окна
+  полный pytest зелёный.
+
+  ВАЖНО для Task 10: если приёмка выпадет вне окна 00:00-02:00, этот тест будет
+  зелёным — это НЕ повод считать список «короче baseline» достижением, и наоборот,
+  его краснота внутри окна не считается регрессией.
+
+Расхождение с памятью проекта («26 pre-existing red tests on master, 2026-08-08»):
+  на этой ветке они уже починены; актуальный baseline — одно времязависимое падение.
+
+--------------------------------------------------------------------------------
+2. ЗОНА ПРАВКИ: python -m pytest tests/daily_plan -q -p no:randomly
+--------------------------------------------------------------------------------
+Собрано : 404
+passed  : 404
+FAILED  : 0
+ERROR   : 0
+exit    : 0
+
+Совпадает с ожиданием из Context плана: на HEAD зона зелёная (0 падений, не 2 —
+коммит 3fd29d85 применил предписание DP-125 в tests/daily_plan/test_srs_slot_completion.py).
+
+--------------------------------------------------------------------------------
+3. SMOKE: python -m pytest -m smoke -q -p no:randomly
+--------------------------------------------------------------------------------
+Собрано : 695
+passed  : 695
+FAILED  : 0
+exit    : 0
+
+NB: CLAUDE.md описывает smoke как «~70 тестов» — устаревшая цифра, фактически 695.
+Кандидат в документарные расхождения Task 9 (в реестре CM-* этого пункта нет).
+
+--------------------------------------------------------------------------------
+4. LINT: python -m ruff check .
+--------------------------------------------------------------------------------
+ruff  : 0.16.5 (в venv проекта ruff отсутствовал, установлен для снятия baseline)
+Найдено : 5064 ошибок
+          (2652 автофиксимых, 677 скрытых unsafe-fix)
+exit    : 1
+
+Распределение по верхнему уровню пути:
+  app                      3477
+  tests                    1480
+  generate_book_audio.py     49
+  create_admin.py            18
+  book_translator-master     13   <- НЕотслеживаемый чужой каталог в рабочем дереве
+  convert_fb2_to_txt.py       9
+  add_new_achievements.py     7
+  config                      4
+  cli.py                      4
+  test_pages.py               2
+
+Расхождение с CLAUDE.md («4579 ≤ 4582 baseline», 2026-08-08) объясняется другой
+версией ruff (новые правила) и присутствием book_translator-master/ в рабочем дереве.
+Сравнение на приёмке корректно ТОЛЬКО против числа 5064 из этого файла и ТОЛЬКО той
+же версией ruff 0.16.5.
+
+--------------------------------------------------------------------------------
+5. КОМАНДЫ ДЛЯ ПОВТОРНОГО СНЯТИЯ
+--------------------------------------------------------------------------------
+  docker compose up -d db                       # поднять postgres (тесты + копия прода)
+  python -m pytest -q -p no:randomly
+  python -m pytest tests/daily_plan -q -p no:randomly
+  python -m pytest -m smoke -q -p no:randomly
+  python -m ruff check .
+
+Прогон в один процесс (без -n): при xdist-прогоне базы learn_db_test_gw* устаревают
+после миграций колонок (create_all не делает ALTER) — известная ловушка проекта.
+
+================================================================================
+6. АКТУАЛЬНЫЕ ЯКОРЯ 16 НАХОДОК ОБЪЁМА (перечитано на HEAD 54f90e64)
+================================================================================
+Реестр docs/audit/2026-08-26-daily-plan-audit.md снимал path:line на 0b1f8b7f.
+Ниже — строки, проверенные на HEAD. Все 16 механизмов воспроизводятся; ни одна
+находка не отзывается.
+
+--- P1 -------------------------------------------------------------------------
+
+DP-001  три базиса суток в process_streak_on_activity + порядок починок
+  app/achievements/streak_service.py:282      process_streak_on_activity()
+  app/achievements/streak_service.py:302      user_today = get_user_local_date(...)   <- учебный день 02:00
+  app/achievements/streak_service.py:310-313  ЛОЖНЫЙ комментарий "same basis as user_today"
+  app/achievements/streak_service.py:314-316  _user_tz -> has_activity_today()        <- календарная полночь
+  app/achievements/streak_service.py:363-390  щит: find_missed_date(tz=tz)            <- КЛИЕНТСКИЙ tz, третий базис
+  app/achievements/streak_service.py:393-401  free repair
+  app/achievements/streak_service.py:404-412  auto_heal_streak_on_activity(tz=tz)     <- ПОСЛЕ щита (Task 3)
+  app/achievements/streak_service.py:774      has_repair_for_date()  (считает shield_repair починкой)
+  app/achievements/streak_service.py:820      apply_shield_repair()
+  app/achievements/streak_service.py:856      find_missed_date()
+  app/achievements/streak_service.py:905      find_auto_heal_date()
+  app/achievements/streak_service.py:966      auto_heal_streak_on_activity()
+  app/achievements/streak_service.py:1261     get_streak_status()
+  app/telegram/queries.py:22-37               _user_day_boundaries()  <- КОРЕНЬ: tz.localize(datetime(y,m,d)), полночь
+  app/telegram/queries.py:40-44               has_activity_today()
+  app/api/daily_plan.py:278                   клиентский ?tz= доезжает до выбора чинимой даты
+
+DP-033  required-слот чтения строится без гейта доступа к книге
+  app/daily_plan/items/reading.py:50          _book_is_actionable_for_reading()  (гейта нет)
+  app/daily_plan/items/reading.py:75-80       reading_preference_needs_setup()
+  app/daily_plan/items/reading.py:146         вызов из билдера слота
+  app/daily_plan/snapshot.py:215              overlay_completion()  (заморозка: самопочинка нужна тут)
+  app/daily_plan/snapshot.py:246              _is_item_completed()
+  app/books/access.py                         can_user_access_book()  <- гейт, который надо переиспользовать
+
+DP-034  theory-only grammar платит 9 XP вместо 18
+  app/curriculum/routes/lessons.py:313        _SCORE_STRIP_ONLY_TYPES
+  app/curriculum/routes/lessons.py:324-328    _is_grammar_theory_only
+  app/curriculum/routes/lessons.py:335-337    cleaned_data.pop('score')   <- score сознательно вычищен
+  app/curriculum/routes/lessons.py:385-389    maybe_award_curriculum_xp(..., score=progress.score)  <- 0.0, а не None
+  соседние call-site того же паттерна, проверить в Task 5:
+  app/curriculum/routes/lessons.py:1098, :1210, :1410, :1573, :1852, :1998
+  app/curriculum/service.py:256-266            (реестр указывал :232; на HEAD в файле НЕТ вызова
+                                              maybe_award_curriculum_xp — там
+                                              award_curriculum_lesson_xp_idempotent(), у которого
+                                              параметра score нет вовсе, то есть скейлер к нему
+                                              не применяется. Проверить в Task 5, что это
+                                              намеренно, а не третий путь недоплаты.)
+  app/achievements/xp_service.py:297          apply_score_to_base()  (None -> база, 0.0 -> половина)
+  app/daily_plan/linear/xp.py:229             maybe_award_curriculum_xp()
+
+DP-035  perfect-day начисляется только из слот-обработчиков, подметальщика нет
+  app/daily_plan/linear/xp.py:505             maybe_award_linear_perfect_day()
+  app/api/daily_plan.py:332,350               write_secured_at() в daily_status  <- писатель 1, вызова нет
+  app/api/daily_plan.py:356-372               соседние подметальщики: record_plan_completion,
+                                              check_immersion_achievement, streak milestone
+  app/words/routes.py:1044,1056               write_secured_at() в _render_unified_dashboard <- писатель 2
+
+--- P2 предусловие ---------------------------------------------------------------
+
+DP-051  award_perfect_day_xp_idempotent без savepoint
+  app/achievements/xp_service.py:212          award_perfect_day_xp_idempotent()  (голый check-then-insert)
+  БД: partial unique на (user_id, event_date) для xp_perfect_day ОТСУТСТВУЕТ
+      (проверено на копии прода; есть только для plan_completed, reengagement_email,
+       xp_curriculum_lesson, xp_linear+source)
+  образец для правки: app/achievements/services.py::grant_achievement
+
+--- Кластер «граница суток» (11) --------------------------------------------------
+
+DP-003  write_secured_at по КАЛЕНДАРНОЙ дате
+  app/words/routes.py:1051-1056               _dt_sec.now(_tz_sec).date()  -> заменить на get_user_local_date
+
+DP-002 / DP-009  окно снапшота от time.min
+  app/daily_plan/snapshot.py:196              _local_date_start_naive_utc()
+  app/daily_plan/snapshot.py:177              вызов для roll-over вчерашнего снапшота
+
+DP-027  докстринг снапшота говорит «полночь»
+  app/daily_plan/snapshot.py:4                "...at user-local midnight or on the first lazy build after midnight"
+
+DP-008  «XP сегодня» на дашборде по календарному дню
+  app/words/routes.py:1104-1109               _today_local = datetime.now(_tz).date() -> get_today_xp(...)
+
+DP-010  add_study_minutes(when=...) против иных базисов
+  app/api/daily_plan.py:197-217               _compute_study_minutes(): datetime.now(tz_obj).date()
+  app/daily_plan/linear/xp.py:220-223         add_study_minutes(user_id, when, ...)
+  app/curriculum/models.py:699                add_study_minutes()
+
+DP-012  дата кохорты гонки на дашборде != /api/daily-race
+  app/words/routes.py:715-721                 local_today = datetime.now(tz_obj).date() -> get_race_standings(...)
+
+DP-026  daily_words от 02:00, weekly_lessons от иной границы
+  app/api/daily_plan.py:220-266               _compute_goal_progress()
+  app/api/daily_plan.py:236                   words_today = count_new_cards_today()  <- учебный день
+  app/api/daily_plan.py:243-246               monday_local от hour=0                 <- календарная полночь
+  app/api/daily_plan.py:139-152               тот же паттерн в _compute_listening_progress (hour=0)
+
+DP-013  нарушен контракт докстринга "tz must match the timezone used to derive target_date"
+  app/api/daily_plan.py:368                   check_immersion_achievement(user_id, today, db.session, tz=tz)
+
+DP-022  две несогласованные реализации «вчера не закрыто»
+  app/api/daily_plan.py:110-122               pytz-ветка: (datetime.now(tz_obj) - 1d).date()
+  app/daily_plan/next_step.py:75-84           ZoneInfo-ветка: get_user_local_date(user_id) - 1d
+
+DP-011  идемпотентные ключи пересчитываются из ТЕКУЩЕГО User.timezone
+  app/utils/time_utils.py:_get_user_timezone / get_user_local_date  (единой точки хранения даты записи нет)
+  РЕШЕНИЕ, а не автофикс — см. Task 8, пункт DP-011.
