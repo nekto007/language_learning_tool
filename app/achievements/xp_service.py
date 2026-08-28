@@ -209,6 +209,17 @@ class XPAward:
     leveled_up: bool
 
 
+def _perfect_day_already_awarded(user_id: int, for_date: date) -> bool:
+    """True when the perfect-day bonus for ``for_date`` is already on record."""
+    from app.achievements.models import StreakEvent
+
+    return StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='xp_perfect_day',
+        event_date=for_date,
+    ).first() is not None
+
+
 def award_perfect_day_xp_idempotent(
     user_id: int,
     for_date: date,
@@ -226,15 +237,33 @@ def award_perfect_day_xp_idempotent(
     Returns XPAward if awarded, None if already awarded today.
     Caller must commit the session.
     """
+    from sqlalchemy.exc import IntegrityError
+
     from app.achievements.models import StreakEvent, UserStatistics
     from app.utils.db import db
 
-    already = StreakEvent.query.filter_by(
+    if _perfect_day_already_awarded(user_id, for_date):
+        return None
+
+    # Claim the day BEFORE crediting anything. The marker row IS the
+    # idempotency key, so the insert has to be the race arbiter — this used to
+    # be a bare check-then-insert (DP-051), and the day-secured sweepers
+    # (daily-status, dashboard) make concurrent calls routine. Claiming first
+    # also means a lost race costs nothing: XP and the consecutive-days
+    # counter only move for the winner. Details are filled in below, once the
+    # award is computed.
+    marker = StreakEvent(
         user_id=user_id,
         event_type='xp_perfect_day',
         event_date=for_date,
-    ).first()
-    if already:
+        coins_delta=0,
+        details={},
+    )
+    try:
+        with db.session.begin_nested():
+            db.session.add(marker)
+            db.session.flush()
+    except IntegrityError:
         return None
 
     # Determine consecutive perfect day count. Paused days are streak-neutral
@@ -280,17 +309,11 @@ def award_perfect_day_xp_idempotent(
     # view when tuning the economy so the cap isn't silently blown past.
     result = award_xp(user_id, adjusted_base, 'perfect_day')
 
-    db.session.add(StreakEvent(
-        user_id=user_id,
-        event_type='xp_perfect_day',
-        event_date=for_date,
-        coins_delta=0,
-        details={
-            'xp': result.xp_awarded,
-            'consecutive_days': new_consecutive,
-            'perfect_day_multiplier': perfect_mult,
-        },
-    ))
+    marker.details = {
+        'xp': result.xp_awarded,
+        'consecutive_days': new_consecutive,
+        'perfect_day_multiplier': perfect_mult,
+    }
     return result
 
 

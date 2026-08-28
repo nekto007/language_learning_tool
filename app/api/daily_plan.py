@@ -369,6 +369,25 @@ def daily_status():
             except Exception:
                 logger.warning("immersion achievement check failed for user %s", user_id, exc_info=True)
             try:
+                # Perfect-day sweeper (DP-035). Slot handlers award the bonus
+                # only when the LAST action of the day went through one of
+                # them; a day closed by standalone grammar-lab, book SRS or a
+                # game reached no awarding call-site at all, so 30 of 72 closed
+                # days in production carried no xp_perfect_day. Gate is the
+                # already-computed day_secured; idempotency is the helper's
+                # own (StreakEvent per user+date), no extra flag needed.
+                from app.daily_plan.linear.xp import maybe_award_linear_perfect_day
+                perfect_day = maybe_award_linear_perfect_day(
+                    user_id, for_date=today, db_session=db,
+                )
+                if perfect_day is not None:
+                    logger.info(
+                        "perfect_day_bonus user=%s xp=%d total=%d source=daily_status",
+                        user_id, perfect_day.xp_awarded, perfect_day.new_total_xp,
+                    )
+            except Exception:
+                logger.warning("perfect-day sweep failed for user %s", user_id, exc_info=True)
+            try:
                 from app.notifications.services import check_plan_streak_milestone_notification
                 _streak = streak_result.get('streak_status', {}).get('streak', 0)
                 check_plan_streak_milestone_notification(user_id, _streak, today)

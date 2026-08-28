@@ -4,7 +4,7 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import CHAR, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import CHAR, Column, Date, DateTime, Float, ForeignKey, Index, Integer, String, text
 from sqlalchemy.orm import backref, relationship
 
 from app.utils.db import db
@@ -204,4 +204,14 @@ class StreakEvent(db.Model):
     __table_args__ = (
         Index('idx_streak_events_user_date', 'user_id', 'event_date'),
         Index('idx_streak_events_user_type', 'user_id', 'event_type'),
+        # The perfect-day bonus is one row per user per day and nothing else
+        # enforced it: award_perfect_day_xp_idempotent did a bare
+        # check-then-insert, and the day-secured sweepers (daily-status,
+        # dashboard) call it concurrently (DP-051). Partial — other event
+        # types legitimately repeat within a day.
+        Index(
+            'uq_streak_events_perfect_day', 'user_id', 'event_date',
+            unique=True,
+            postgresql_where=text("event_type = 'xp_perfect_day'"),
+        ),
     )

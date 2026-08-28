@@ -128,8 +128,29 @@
 42 → 1/1, 54 → 1/1, 45 → 1/1, 44 → 1/1, 50 → 1/0, 56 → 2/0.
 Пропуск не привязан к одному юзеру — 9 из 11 закрывавших день юзеров теряли бонус.
 
-- [ ] «после» (Task 6): новые закрытые дни получают `xp_perfect_day`;
-      исторические 30 остаются без бонуса **сознательно** (решение владельца: XP только вперёд)
+**«После» (Task 6, 2026-08-29).** Снимок прода не изменился (замер повторён read-only на том же
+контейнере: 72 закрытых дня / 42 с бонусом / 30 без / 0 дублей) — исторические 30 остаются без
+бонуса **сознательно** (решение владельца: XP только вперёд, ни SQL, ни backfill).
+
+Вперёд закрыт весь путь, а не часть: писателей `secured_at` ровно два —
+`daily_status` (`app/api/daily_plan.py`) и `_render_unified_dashboard` (`app/words/routes.py`), —
+и `maybe_award_linear_perfect_day` теперь вызывается в **обоих**, рядом с уже жившими там
+подметальщиками (`record_plan_completion`, `emit_daily_plan_completed`,
+`check_immersion_achievement`). То есть любой день, который вообще способен получить
+`secured_at`, проходит через начисляющий call-site независимо от того, каким действием он был
+закрыт (standalone grammar-lab, book-SRS, игра — ни один из них не заходил в слот-обработчик).
+
+Тесты-стражи (`tests/daily_plan/test_perfect_day_unified.py`), краснеющие при откате фикса:
+
+| страж | что ловит |
+|---|---|
+| `TestPerfectDaySweeperOnSecuredDay::test_daily_status_awards_bonus_without_any_slot_handler` | день закрыт мимо слот-обработчиков → бонус начислен |
+| `TestPerfectDaySweeperOnSecuredDay::test_two_consecutive_calls_award_once` | два подряд `GET /api/daily-status` → ровно одно начисление, `total_xp` не растёт |
+| `TestPerfectDaySweeperOnDashboard::test_dashboard_awards_bonus_on_secured_day` | второй писатель `secured_at` тоже подметает |
+| `TestPerfectDaySweeperOnSecuredDay::test_no_bonus_on_paused_day` / `…_required_empty_and_not_graduated` | правило допуска не сломано |
+
+Проверено откатом: без правки `app/api/daily_plan.py` краснеют первые два стража, без правки
+`app/words/routes.py` — дашбордный.
 
 ## (г) `DP-051` — предусловие к (в)
 
@@ -142,6 +163,24 @@
 `xp_curriculum_lesson` и `xp_linear`+`source`. У `xp_perfect_day` защиты нет ни на уровне БД,
 ни в коде (голый check-then-insert) — дублей пока нет только потому, что писатель один.
 Task 6 добавляет второго и третьего, поэтому `DP-051` чинится **первым**.
+
+**«После» (Task 6, 2026-08-29).**
+
+| факт | значение |
+|---|---|
+| partial unique `uq_streak_events_perfect_day` на `(user_id, event_date) WHERE event_type='xp_perfect_day'` | **есть** (миграция `20260829_perfect_day_unique_index` + `__table_args__` модели) |
+| дублей к моменту создания индекса (копия прода) | 0 — чистка в миграции отработала вхолостую |
+| порядок в `award_perfect_day_xp_idempotent` | claim-first: строка-маркер вставляется в `begin_nested()` **до** начисления XP |
+
+Порядок важнее самого savepoint'а: XP начислялся ДО вставки маркера, поэтому обёртка только
+вокруг вставки оставила бы проигравшему гонку начисленный `total_xp` без строки. Теперь маркер
+— арбитр гонки, а `details` дописываются победителем после `award_xp`. Индекс объявлен и в
+модели, и в миграции: `create_all` в тестах миграций не проигрывает, а без индекса гонка
+не воспроизводима.
+
+Страж — `TestPerfectDayIdempotentIsRaceSafe::test_lost_race_returns_none_without_crediting_xp`
+(конкурент вставил строку после проверки): на откате фикса падает с `IntegrityError`,
+после фикса возвращает `None` и оставляет `total_xp` нетронутым.
 
 ---
 

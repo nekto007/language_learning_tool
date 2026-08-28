@@ -267,24 +267,24 @@
 - Modify: `app/achievements/xp_service.py`, `app/api/daily_plan.py`, `app/words/routes.py`
 - Modify: `tests/daily_plan/test_perfect_day_unified.py`
 
-- [ ] **сначала `DP-051`** (предусловие, не «заодно»): `award_perfect_day_xp_idempotent`
+- [x] **сначала `DP-051`** (предусловие, не «заодно»): `award_perfect_day_xp_idempotent`
       (`app/achievements/xp_service.py:212`) — единственный XP-хелпер с голым check-then-insert.
       Обернуть вставку в `begin_nested()` + `except IntegrityError` по образцу `grant_achievement`;
       проверить, есть ли уникальность на `(user_id, event_type, event_date)` в `StreakEvent`, и если
       нет — решить, добавлять ли partial unique index миграцией (тогда миграция входит в задачу).
       Без этого шага фикс `DP-035` добавляет два новых конкурирующих вызывателя незащищённому хелперу
-- [ ] тест «до» для `DP-035`: день закрыт последним действием через standalone grammar-lab
+- [x] тест «до» для `DP-035`: день закрыт последним действием через standalone grammar-lab
       (`grammar_lab_service.submit_answer`) или book-SRS — `day_secured=True`, `xp_perfect_day` нет
       ни в этом запросе, ни в следующем `GET /api/daily-status`
-- [ ] добавить вызов `maybe_award_linear_perfect_day` в **оба** писателя `secured_at`, рядом с уже
+- [x] добавить вызов `maybe_award_linear_perfect_day` в **оба** писателя `secured_at`, рядом с уже
       живущими там подметальщиками (`record_plan_completion`, `emit_daily_plan_completed`,
       `check_immersion_achievement`): `app/api/daily_plan.py:332-370` и
       `app/words/routes.py:1046-1065`. Идемпотентность обеспечивает сам хелпер — специальных
       флагов не заводить
-- [ ] тест: два подряд `GET /api/daily-status` на закрытом дне дают ровно одно начисление 25 XP
-- [ ] тест: paused-день и день с пустым `required` у **не**-graduated юзера бонуса не получают
+- [x] тест: два подряд `GET /api/daily-status` на закрытом дне дают ровно одно начисление 25 XP
+- [x] тест: paused-день и день с пустым `required` у **не**-graduated юзера бонуса не получают
       (правило допуска уже зашито в `maybe_award_linear_perfect_day:544-553` — не сломать его)
-- [ ] замер «после»: новые закрытые дни в проде получают `xp_perfect_day`; исторические 30 дней
+- [x] замер «после»: новые закрытые дни в проде получают `xp_perfect_day`; исторические 30 дней
       остаются без бонуса сознательно
 
 ### Task 7: Кластер границы суток — писатели дат

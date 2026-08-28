@@ -1066,6 +1066,16 @@ def _render_unified_dashboard(tz: str):
                     notify_rank_up(current_user.id, _rank_up.new_name)
             except Exception:
                 logger.warning('rank-up recording failed in unified dashboard', exc_info=True)
+            try:
+                # Perfect-day sweeper (DP-035): the bonus used to be reachable
+                # only from slot handlers, so a day closed outside them (book
+                # SRS, standalone grammar-lab) never got it. No for_date here —
+                # the helper keys off get_user_local_date, the same basis the
+                # slot call-sites use.
+                from app.daily_plan.linear.xp import maybe_award_linear_perfect_day
+                maybe_award_linear_perfect_day(current_user.id, db_session=db)
+            except Exception:
+                logger.warning('perfect-day sweep failed in unified dashboard', exc_info=True)
             db.session.commit()
         except Exception:
             logger.warning('write_secured_at failed in unified dashboard', exc_info=True)
