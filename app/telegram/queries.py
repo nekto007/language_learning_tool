@@ -2,7 +2,6 @@
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-import pytz
 from sqlalchemy import func
 
 from app.books.models import Book, UserChapterProgress
@@ -14,6 +13,7 @@ from app.srs.visibility import srs_servable_filter
 from app.study.models import UserCardDirection, UserWord
 from app.telegram.notifications import LESSON_TIME
 from app.utils.db import db
+from app.utils.time_utils import study_day_bounds_utc, study_day_date_for_tz
 from config.settings import DEFAULT_TIMEZONE
 
 DEFAULT_TZ = DEFAULT_TIMEZONE
@@ -24,17 +24,27 @@ def _user_day_boundaries(tz_name: str = DEFAULT_TZ,
     """Return (start_utc, end_utc) for 'today' in user's timezone.
 
     offset_days=-1 means yesterday in user's timezone, etc.
-    """
-    try:
-        tz = pytz.timezone(tz_name)
-    except pytz.UnknownTimeZoneError:
-        tz = pytz.timezone(DEFAULT_TZ)
 
-    local_now = datetime.now(tz)
-    local_day = local_now.date() + timedelta(days=offset_days)
-    local_start = tz.localize(datetime(local_day.year, local_day.month, local_day.day))
-    local_end = local_start + timedelta(days=1)
-    return local_start.astimezone(pytz.utc), local_end.astimezone(pytz.utc)
+    Thin wrapper over the canonical :func:`study_day_bounds_utc` — the day
+    starts at ``LEARNING_DAY_START_HOUR`` (02:00) local, NOT at calendar
+    midnight (DP-001).  Before the unification this helper was the only
+    place still cutting days at midnight, so a 01:00 session belonged to
+    one day for XP dedup (`get_user_local_date`) and to another for streak
+    repair and telegram nudges — repairs were spent on days the learner had
+    actually studied.  Signature and the unknown-zone fallback policy are
+    preserved verbatim; only the basis moved.
+    """
+    return study_day_bounds_utc(tz_name, offset_days=offset_days)
+
+
+def _user_day_date(tz_name: str = DEFAULT_TZ) -> date:
+    """Study-day date matching :func:`_user_day_boundaries` offset 0.
+
+    Callers that walk days backwards must derive `check_date` from this, not
+    from ``datetime.now(tz).date()`` — otherwise the window and the date key
+    written into ``streak_events`` describe different days again.
+    """
+    return study_day_date_for_tz(tz_name)
 
 
 def has_activity_today(user_id: int, tz: str = DEFAULT_TZ) -> bool:
@@ -70,13 +80,12 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
     if has_activity_today(user_id, tz=tz):
         streak = 1
 
-    # Pre-fetch repair events for the last year in one query
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-    local_now = datetime.now(tz_obj)
-    earliest_date = local_now.date() - timedelta(days=366)
+    # Pre-fetch repair events for the last year in one query.
+    # Study-day date, NOT the calendar date: repair rows in `streak_events`
+    # are keyed on the study day, so walking the streak on a calendar basis
+    # would look repairs up under the wrong date (DP-001).
+    local_today = _user_day_date(tz)
+    earliest_date = local_today - timedelta(days=366)
 
     repairs_by_date: dict[date, bool] = {}
     for ev in StreakEvent.query.filter(
@@ -88,7 +97,7 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
 
     # Walk backwards through dates
     for offset in range(1, 366):
-        check_date = local_now.date() - timedelta(days=offset)
+        check_date = local_today - timedelta(days=offset)
 
         if check_date in repairs_by_date:
             streak += 1

@@ -323,16 +323,24 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
                     # Estimate what streak was before the break
                     prev_streak = get_current_streak(user_id, tz=user_tz)
                     # Walk back from missed date to count streak before break
-                    from datetime import datetime, timedelta
-                    from datetime import timezone as tz_mod
+                    from datetime import timedelta
 
                     from app.achievements.models import StreakEvent
-                    from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
+                    from app.telegram.queries import (
+                        _has_activity_in_range,
+                        _user_day_boundaries,
+                        _user_day_date,
+                    )
                     old_streak = 0
-                    missed_offset = (datetime.now(tz_mod.utc).date() - missed).days
+                    # Offsets and repair keys are counted from the user's study
+                    # day — the same basis as the windows below and as the dates
+                    # `find_missed_date` writes (DP-001).  Using the UTC calendar
+                    # date here put the walk one day off for eastern zones.
+                    local_today = _user_day_date(user_tz)
+                    missed_offset = (local_today - missed).days
                     for offset in range(missed_offset + 1, 366):
                         day_start, day_end = _user_day_boundaries(user_tz, offset_days=-offset)
-                        check_date = (datetime.now(tz_mod.utc) - timedelta(days=offset)).date()
+                        check_date = local_today - timedelta(days=offset)
                         if _has_activity_in_range(user_id, day_start, day_end):
                             old_streak += 1
                         else:
