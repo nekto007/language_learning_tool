@@ -626,7 +626,10 @@ def _record_word_set_result(
     Best-effort: bookkeeping must never sink a quiz the learner already
     finished, so failures are logged and swallowed.
     """
-    slug = (set_slug or '').strip()
+    # The body is arbitrary JSON: a non-string slug (`5`, `{}`) survives
+    # `or ''` and used to blow up on `.strip()`, taking the whole quiz
+    # completion down with it before GameScore and XP were written.
+    slug = set_slug.strip() if isinstance(set_slug, str) else ''
     if not slug or not session_id or total_questions <= 0:
         return False
 

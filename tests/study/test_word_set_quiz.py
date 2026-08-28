@@ -11,6 +11,7 @@ from app.study.models import (
     WordSetQuizResult,
     WordSetWord,
 )
+from app.study.models import GameScore
 from app.words.models import CollectionWords
 
 
@@ -405,6 +406,38 @@ class TestResultRecording:
         )
         assert response.status_code == 200
         assert WordSetQuizResult.query.filter_by(set_id=word_set.id).count() == 0
+
+    def test_non_string_slug_does_not_sink_the_quiz(
+        self, authenticated_client, db_session, test_user
+    ):
+        """Bookkeeping is best-effort: a junk slug must not lose the run.
+
+        `set_slug` is arbitrary JSON, and a non-string value used to reach
+        `.strip()` and 500 the whole endpoint before GameScore and XP were
+        written -- for deck quizzes too, since the coercion runs first.
+        """
+        word_set, _ = _make_set(db_session)
+        authenticated_client.get(f'/study/quiz/set/{word_set.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': session.id,
+                'set_slug': 5,
+                'total_questions': 4,
+                'correct_answers': 4,
+                'time_taken': 30,
+            },
+        )
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(set_id=word_set.id).count() == 0
+        assert GameScore.query.filter_by(user_id=test_user.id).count() == 1
 
 
 @pytest.mark.smoke
