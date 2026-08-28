@@ -96,6 +96,26 @@ class TestGenerateQuizQuestions:
         # With 10 questions, we should have 5 unique words (2 questions each)
         assert len(unique_word_ids) == 5
 
+    @pytest.mark.parametrize('side', ['english_word', 'russian_word'])
+    @pytest.mark.parametrize('blank', ['   ', '\t', '\n', '\xa0'])
+    def test_skips_words_blank_on_either_side(self, test_words_list, side, blank):
+        """A blank side is an unusable answer, not just an ugly one.
+
+        Both directions are graded: eng_to_rus answers with the Russian side,
+        rus_to_eng with the English one, and each builds its hint by indexing
+        the stripped answer's first character. A whitespace-only value there
+        used to reach that indexing and raise ``IndexError`` mid-request.
+        """
+        from app.study.services.quiz_service import QuizService
+
+        words = list(test_words_list[:3])
+        setattr(words[0], side, blank)
+
+        questions = QuizService.generate_quiz_questions(words, count=10)
+
+        assert questions, 'the two intact words must still produce questions'
+        assert words[0].id not in {q['word_id'] for q in questions}
+
 
 class TestGenerateMultipleChoice:
     """Test create_multiple_choice_question method"""

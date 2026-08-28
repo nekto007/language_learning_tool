@@ -11,8 +11,8 @@ from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Query
 
 from app.modules.decorators import module_required
-from app.study.models import GameScore
 from app.utils.db import db
+from app.utils.db_utils import not_blank
 from app.words.detail_service import build_word_profile, build_word_study_summary, get_related_words
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
@@ -1294,8 +1294,7 @@ def word_list():
     ).filter(
         UserWord.user_id == current_user.id,
         UserWord.status == 'review',
-        CollectionWords.english_word.isnot(None),
-        func.trim(CollectionWords.english_word) != '',
+        not_blank(CollectionWords.english_word),
         CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     ).group_by(UserWord.word_id).having(
         func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
@@ -1330,8 +1329,7 @@ def word_list():
         next_review_subquery,
         CollectionWords.id == next_review_subquery.c.word_id
     ).filter(
-        CollectionWords.english_word.isnot(None),
-        func.trim(CollectionWords.english_word) != '',
+        not_blank(CollectionWords.english_word),
         CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     )
 
@@ -1514,8 +1512,7 @@ def word_list():
     if current_user.is_authenticated:
         _base_filters = [
             UserWord.user_id == current_user.id,
-            CollectionWords.english_word.isnot(None),
-            func.trim(CollectionWords.english_word) != '',
+            not_blank(CollectionWords.english_word),
             CollectionWords.level.in_(PUBLIC_CEFR_CODES),
         ]
         status_rows = db.session.query(
@@ -1543,8 +1540,7 @@ def word_list():
 
     # Получаем количество по типам — один GROUP BY запрос вместо трёх COUNT
     _base_type_filters = [
-        CollectionWords.english_word.isnot(None),
-        func.trim(CollectionWords.english_word) != '',
+        not_blank(CollectionWords.english_word),
         CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     ]
     type_rows = db.session.query(

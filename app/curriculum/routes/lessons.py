@@ -1777,7 +1777,12 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
 
     meets_min_words = (min_words == 0) or (word_count >= min_words)
     meets_min_sentences = (min_sentences == 0) or (sentence_count >= min_sentences)
-    meets_min = meets_min_words and meets_min_sentences
+    # Below B1 the word-count floor is dropped on purpose (see
+    # _writing_words_required), and lessons may set neither min_words nor
+    # min_sentences — which left every threshold at 0, so an empty textarea
+    # satisfied «meets_min», completed the lesson and saved a blank attempt.
+    # Whatever the level, writing nothing is not writing.
+    meets_min = meets_min_words and meets_min_sentences and word_count > 0
 
     completed = meets_min and checklist_completed and target_phrases_met
     writing_score = round(len(valid_checked) / len(checklist) * 100) if checklist else 100

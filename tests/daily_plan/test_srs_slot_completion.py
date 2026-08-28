@@ -7,7 +7,7 @@ award fires and the slot is reported as completed.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from app.achievements.models import StreakEvent
 from app.auth.models import User
@@ -22,8 +22,19 @@ from app.words.models import CollectionWords
 from tests.support_dates import study_today
 
 
-def _now_naive() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+def _study_day_start(user_id: int) -> datetime:
+    """Start of the current study day as naive UTC.
+
+    The app's day begins at ``LEARNING_DAY_START_HOUR`` (02:00 local), so a
+    card stamped at calendar midnight belongs to the *previous* study day and
+    the "reviewed today" counters rightly ignore it. Seeding activity from
+    ``now.replace(hour=0)`` therefore built a user with no activity at all, and
+    the fallback these tests exist to exercise could never fire. Anchor on the
+    same helper production uses, as ``tests/support_dates`` does for dates.
+    """
+    from app.utils.time_utils import day_to_naive_utc
+
+    return day_to_naive_utc(user_id, real_db, days_ahead=0)
 
 
 def _make_user(db_session) -> User:
@@ -106,8 +117,7 @@ class TestSrsSlotCompletion:
         pool → slot not yet done (don't fire corrective award)."""
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        now = _now_naive()
-        today_midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_midnight = _study_day_start(user.id)
 
         # Card reviewed today (first_reviewed yesterday → counts as review)
         _make_card(
@@ -138,8 +148,7 @@ class TestSrsSlotCompletion:
         award lands and the slot reports completed."""
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        now = _now_naive()
-        today_midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_midnight = _study_day_start(user.id)
 
         # One card reviewed today, no other cards remain.
         _make_card(
@@ -166,8 +175,7 @@ class TestSrsSlotCompletion:
         """Repeated reconciliation calls must not duplicate the award."""
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        now = _now_naive()
-        today_midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_midnight = _study_day_start(user.id)
 
         _make_card(
             db_session, user,
@@ -198,8 +206,7 @@ class TestDeckQuizStrictCompletion:
     def test_card_lesson_activity_does_not_complete_deck_quiz(self, db_session):
         user = _make_user(db_session)
         _make_settings(db_session, user)
-        now = _now_naive()
-        today_midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_midnight = _study_day_start(user.id)
 
         # Тот же сетап, что у сработавшего fallback: активность есть,
         # пул пуст — но это активность card-урока, не квиза.

@@ -8,7 +8,7 @@ Responsibilities:
 - Daily limits tracking
 """
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Dict, List, Set, Tuple
 
 from sqlalchemy import and_, case, func, or_

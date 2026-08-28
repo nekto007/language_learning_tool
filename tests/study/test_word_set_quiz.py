@@ -319,6 +319,40 @@ class TestResultRecording:
         payload = response.get_json()
         assert payload['xp_earned'] > 0, 'themed quiz must award XP like any other quiz'
 
+    def test_draft_slug_is_not_credited(self, authenticated_client, db_session, test_user):
+        """A learner can open a published set, then post a draft's slug back.
+
+        The slug arrives from the client, so it is only ever compared against
+        the set id the session was opened with — a draft the learner cannot
+        even open never gets progress minted for it.
+        """
+        published, _ = _make_set(db_session)
+        draft, _ = _make_set(db_session, slug=f'draft-{uuid.uuid4().hex[:8]}', published=False)
+
+        authenticated_client.get(f'/study/quiz/set/{published.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': session.id,
+                'set_slug': draft.slug,
+                'source': 'word_set',
+                'total_questions': 8,
+                'correct_answers': 8,
+                'time_taken': 40,
+            },
+        )
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(
+            user_id=test_user.id, set_id=draft.id
+        ).count() == 0
+
     def test_slug_without_a_matching_session_is_ignored(
         self, authenticated_client, db_session, test_user
     ):
@@ -438,6 +472,85 @@ class TestResultRecording:
         assert response.status_code == 200
         assert WordSetQuizResult.query.filter_by(set_id=word_set.id).count() == 0
         assert GameScore.query.filter_by(user_id=test_user.id).count() == 1
+
+
+class TestResultAttribution:
+    """Which set a run counts for is the server's answer, not the client's."""
+
+    def test_session_is_bound_to_the_set_it_started_on(
+        self, authenticated_client, db_session, test_user
+    ):
+        word_set, _ = _make_set(db_session)
+        authenticated_client.get(f'/study/quiz/set/{word_set.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+        assert session.word_set_id == word_set.id
+
+    def test_another_published_sets_slug_is_not_credited(
+        self, authenticated_client, db_session, test_user
+    ):
+        """Start set A, report set B: neither set may take the row.
+
+        Both sets are published, so a visibility check cannot tell them apart —
+        only the set id pinned to the session can. Without it a learner could
+        pump any set's attempt count, best score and «what to study next».
+        """
+        started, _ = _make_set(db_session)
+        other, _ = _make_set(db_session, slug=f'other-{uuid.uuid4().hex[:8]}')
+
+        authenticated_client.get(f'/study/quiz/set/{started.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': session.id,
+                'set_slug': other.slug,
+                'source': 'word_set',
+                'total_questions': 8,
+                'correct_answers': 8,
+                'time_taken': 40,
+            },
+        )
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(
+            user_id=test_user.id, set_id=other.id
+        ).count() == 0
+        assert WordSetQuizResult.query.filter_by(
+            user_id=test_user.id, set_id=started.id
+        ).count() == 0
+
+    def test_unbound_session_records_nothing(
+        self, authenticated_client, db_session, test_user
+    ):
+        """Sessions from before the binding existed carry NULL — not a licence."""
+        word_set, _ = _make_set(db_session)
+        legacy = StudySession(user_id=test_user.id, session_type='quiz_word_set')
+        db_session.add(legacy)
+        db_session.commit()
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': legacy.id,
+                'set_slug': word_set.slug,
+                'source': 'word_set',
+                'total_questions': 8,
+                'correct_answers': 8,
+                'time_taken': 40,
+            },
+        )
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(set_id=word_set.id).count() == 0
 
 
 @pytest.mark.smoke

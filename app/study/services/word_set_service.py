@@ -17,6 +17,7 @@ from sqlalchemy import func
 
 from app.study.models import WordSet, WordSetQuizResult, WordSetWord
 from app.utils.db import db
+from app.utils.db_utils import not_blank
 from app.words.models import CollectionWords
 
 
@@ -39,17 +40,29 @@ class WordSetService:
     def get_words(set_id: int) -> List[CollectionWords]:
         """Words of a set in curated order, ready for the quiz generator.
 
-        Words without a translation are dropped here rather than downstream:
+        Words blank on either side are dropped here rather than downstream:
         they cannot become a question *or* a distractor, and letting them
-        through would silently shrink the quiz.
+        through would silently shrink the quiz. Blank means blank after
+        trimming — that is the rule the quiz generator itself applies
+        (``russian_word.strip() == ''``), and a whitespace-only translation
+        that survives here would come back as an empty question list.
+        ``not_blank`` reproduces that rule for *every* whitespace character;
+        a bare SQL ``trim()`` strips spaces only and would let a tab-only
+        translation through.
+
+        Both sides are checked because every word yields a reverse
+        ``rus_to_eng`` question whose answer is the English side: a
+        whitespace-only ``english_word`` would be prompted as an empty string
+        and its hint («Начинается с: …») indexes the stripped answer's first
+        character.
         """
         rows = (
             db.session.query(CollectionWords)
             .join(WordSetWord, WordSetWord.word_id == CollectionWords.id)
             .filter(
                 WordSetWord.set_id == set_id,
-                CollectionWords.russian_word.isnot(None),
-                CollectionWords.russian_word != '',
+                not_blank(CollectionWords.russian_word),
+                not_blank(CollectionWords.english_word),
             )
             .order_by(WordSetWord.order_index, CollectionWords.english_word)
             .all()
@@ -75,9 +88,19 @@ class WordSetService:
 
         set_ids = [word_set.id for word_set in sets]
 
+        # Count what ``get_words`` would actually serve, not raw membership.
+        # A word blank on either side can be neither a question nor a
+        # distractor, so counting it advertises a playable set on the catalogue
+        # and lets ``suggest_for_user`` push it into the daily plan — where the
+        # quiz route turns around and flashes «в этом наборе пока нет слов».
         counts = dict(
             db.session.query(WordSetWord.set_id, func.count(WordSetWord.id))
-            .filter(WordSetWord.set_id.in_(set_ids))
+            .join(CollectionWords, CollectionWords.id == WordSetWord.word_id)
+            .filter(
+                WordSetWord.set_id.in_(set_ids),
+                not_blank(CollectionWords.russian_word),
+                not_blank(CollectionWords.english_word),
+            )
             .group_by(WordSetWord.set_id)
             .all()
         )
@@ -167,6 +190,11 @@ class WordSetService:
         Mirrors ``CollectionTopicService.add_topic_to_study`` — same default
         deck bookkeeping — so a word added from a set behaves exactly like one
         added from a topic.
+
+        The insert goes through ``UserWord.get_or_create``: the bulk read above
+        is a snapshot, and ``uix_user_word`` turns a stale one into an
+        ``IntegrityError`` on flush — a double-click or a retried request used
+        to answer 500 instead of «уже в вашем списке».
         """
         from app.study.deck_utils import ensure_word_in_default_deck
         from app.study.models import UserWord
@@ -182,8 +210,7 @@ class WordSetService:
         for word in words:
             if word.id in existing:
                 continue
-            user_word = UserWord(user_id=user_id, word_id=word.id)
-            db.session.add(user_word)
+            user_word = UserWord.get_or_create(user_id, word.id)
             db.session.flush()
             ensure_word_in_default_deck(user_id, word.id, user_word.id)
             added += 1

@@ -24,6 +24,19 @@ def quiz_session(db_session, test_user):
 
 
 @pytest.fixture
+def plan_quiz_session(db_session, test_user):
+    """A session opened by /study/quiz/linear-plan — the plan's own deck quiz.
+
+    Its type is the server's record that the run started from the SRS slot;
+    a generic 'quiz' session cannot stand in for it.
+    """
+    sess = StudySession(user_id=test_user.id, session_type='quiz_linear_plan')
+    db_session.add(sess)
+    db_session.commit()
+    return sess
+
+
+@pytest.fixture
 def matching_session(db_session, test_user):
     """A matching StudySession owned by test_user."""
     sess = StudySession(user_id=test_user.id, session_type='matching')
@@ -435,7 +448,8 @@ class TestSrsSlotXpDecision:
         assert after == before, "Free-play quiz must not award linear SRS-slot XP"
 
     def test_quiz_with_srs_plan_slot_awards_srs_global_xp(
-        self, authenticated_client, study_settings, db_session, test_user
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session,
     ):
         """Quiz submitted with plan_slot='srs' and correct source creates xp_linear StreakEvent."""
         from app.achievements.models import StreakEvent
@@ -444,7 +458,11 @@ class TestSrsSlotXpDecision:
             StreakEvent.event_type == 'xp_linear',
         ).count()
 
+        plan_quiz_session.words_studied = 10
+        db_session.commit()
+
         payload = {
+            'session_id': plan_quiz_session.id,
             'total_questions': 10,
             'correct_answers': 8,
             'time_taken': 60,
@@ -468,12 +486,17 @@ class TestSrsSlotXpDecision:
         assert after > before, "Quiz with plan_slot='srs' must award linear SRS-slot XP"
 
     def test_quiz_with_srs_plan_slot_idempotent_second_call(
-        self, authenticated_client, study_settings, db_session, test_user
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session,
     ):
         """Second quiz submission with plan_slot='srs' on same day does not double-award."""
         from app.achievements.models import StreakEvent
 
+        plan_quiz_session.words_studied = 10
+        db_session.commit()
+
         payload = {
+            'session_id': plan_quiz_session.id,
             'total_questions': 10,
             'correct_answers': 8,
             'time_taken': 60,
@@ -508,6 +531,192 @@ class TestSrsSlotXpDecision:
         assert after_second == after_first, (
             "SRS-slot XP must be idempotent — second same-day quiz must not add StreakEvent"
         )
+
+
+class TestDeckQuizSrsSlotNeedsARealRun:
+    """The plan's required SRS slot must not be closable by a bare POST.
+
+    `source`/`from`/`slot` and the counts are all client-supplied, so the only
+    server-owned evidence that a deck quiz happened is the session row and the
+    answers routed through /api/submit-quiz-answer.
+    """
+
+    @staticmethod
+    def _linear_events(user_id):
+        from app.achievements.models import StreakEvent
+        return StreakEvent.query.filter(
+            StreakEvent.user_id == user_id,
+            StreakEvent.event_type == 'xp_linear',
+        ).count()
+
+    def _payload(self, **extra):
+        payload = {
+            'total_questions': 10,
+            'correct_answers': 8,
+            'time_taken': 60,
+            'source': 'linear_plan_deck_quiz',
+            'from': 'linear_plan',
+            'slot': 'srs',
+        }
+        payload.update(extra)
+        return payload
+
+    def test_post_without_session_does_not_award(
+        self, authenticated_client, study_settings, db_session, test_user
+    ):
+        before = self._linear_events(test_user.id)
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(self._payload()),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        assert self._linear_events(test_user.id) == before, (
+            'a completion POST with no session must not close the SRS slot'
+        )
+
+    def test_session_without_answers_does_not_award(
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session,
+    ):
+        """Opening /quiz/linear-plan is not the same as playing it."""
+        before = self._linear_events(test_user.id)
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(self._payload(session_id=plan_quiz_session.id)),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        assert self._linear_events(test_user.id) == before
+
+    def test_another_users_session_does_not_award(
+        self, authenticated_client, study_settings, db_session, test_user,
+        other_user_quiz_session,
+    ):
+        other_user_quiz_session.words_studied = 10
+        db_session.commit()
+        before = self._linear_events(test_user.id)
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(self._payload(session_id=other_user_quiz_session.id)),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        assert self._linear_events(test_user.id) == before
+
+    def test_themed_set_session_does_not_award(
+        self, authenticated_client, study_settings, db_session, test_user
+    ):
+        """A themed set quiz never grades SRS, so it cannot close the SRS slot."""
+        themed = StudySession(
+            user_id=test_user.id, session_type='quiz_word_set', words_studied=10,
+        )
+        db_session.add(themed)
+        db_session.commit()
+
+        before = self._linear_events(test_user.id)
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(self._payload(session_id=themed.id)),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        assert self._linear_events(test_user.id) == before
+
+    def test_generic_quiz_session_relabelled_as_plan_run_does_not_award(
+        self, authenticated_client, study_settings, db_session, test_user, quiz_session
+    ):
+        """/quiz/auto and /quiz/deck/<id> open generic sessions — not the plan's.
+
+        The completion body can claim any source, so an owned free-play quiz
+        used to close the required SRS slot just by being relabelled.
+        """
+        quiz_session.words_studied = 10
+        db_session.commit()
+
+        before = self._linear_events(test_user.id)
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(self._payload(session_id=quiz_session.id)),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        assert self._linear_events(test_user.id) == before, (
+            'a generic quiz session must not close the plan SRS slot'
+        )
+
+    def test_answers_submitted_through_the_endpoint_do_award(
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session,
+    ):
+        """The honest flow still pays: answers go through /submit-quiz-answer."""
+        before = self._linear_events(test_user.id)
+
+        answer = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'session_id': plan_quiz_session.id,
+                'word_id': None,
+                'direction': 'eng_to_rus',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+        assert answer.status_code == 200
+
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(self._payload(session_id=plan_quiz_session.id)),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        assert self._linear_events(test_user.id) > before
+
+    @pytest.mark.parametrize('answer', [
+        {'word_id': None, 'is_correct': True},                      # no direction at all
+        {'word_id': None, 'direction': 'sideways', 'is_correct': True},
+        {'word_id': 'x', 'direction': 'eng_to_rus', 'is_correct': True},
+        {'word_id': [1], 'direction': 'eng_to_rus', 'is_correct': True},
+    ])
+    def test_unanswerable_submissions_do_not_close_the_slot(
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session, answer,
+    ):
+        """`words_studied` is the gate's evidence, so garbage must not raise it.
+
+        A body that names no question the generator could have produced used to
+        increment the counter anyway, which let one fake answer stand in for a
+        played quiz.
+        """
+        before = self._linear_events(test_user.id)
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({'session_id': plan_quiz_session.id, **answer}),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        db_session.refresh(plan_quiz_session)
+        assert plan_quiz_session.words_studied == 0
+
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(self._payload(session_id=plan_quiz_session.id)),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200
+        db_session.expire_all()
+        assert self._linear_events(test_user.id) == before, (
+            'an unanswerable submission must not stand in for a played quiz'
+        )
+
 
 
 # ---------------------------------------------------------------------------
@@ -614,6 +823,171 @@ class TestQuizAdvancesSrs:
         db_session.refresh(direction)
         assert direction.first_reviewed is not None
         assert direction.state != 'new'
+
+    def test_direction_as_the_quiz_emits_it_is_graded(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        """The client posts the question's own direction, not the column's.
+
+        ``QuizService`` labels questions ``eng_to_rus``/``rus_to_eng`` and
+        quiz.html sends that string back verbatim, while the card column stores
+        ``eng-rus``/``rus-eng``. Matching the two vocabularies directly made
+        grading a no-op for every real answer while the hyphenated form used by
+        the other tests here kept passing.
+        """
+        word, _, direction = self._seed_card(db_session, test_user, 'quiz_underscore')
+        session = self._seed_session(db_session, test_user)
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'session_id': session.id,
+                'word_id': word.id,
+                'direction': 'eng_to_rus',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()['srs_graded'] is True
+        db_session.refresh(direction)
+        assert direction.first_reviewed is not None
+
+    def test_unknown_direction_is_not_graded(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        word, _, direction = self._seed_card(db_session, test_user, 'quiz_bogus')
+        session = self._seed_session(db_session, test_user)
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'session_id': session.id,
+                'word_id': word.id,
+                'direction': 'sideways',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()['srs_graded'] is False
+        db_session.refresh(direction)
+        assert direction.first_reviewed is None
+
+    def test_malformed_direction_is_rejected_not_raised(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        """A JSON list is unhashable, and ``dict.get`` raises on it.
+
+        The membership test this lookup replaced failed closed for such values;
+        the map must too, or a hand-written request 500s the endpoint.
+        """
+        word, _, direction = self._seed_card(db_session, test_user, 'quiz_unhashable')
+        session = self._seed_session(db_session, test_user)
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'session_id': session.id,
+                'word_id': word.id,
+                'direction': [],
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()['srs_graded'] is False
+        db_session.refresh(direction)
+        assert direction.first_reviewed is None
+
+    def test_word_without_card_rows_is_provisioned_and_graded(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        """Bulk «добавить в изучение» writes UserWord but no directions.
+
+        Those words are exactly what a deck quiz serves right after a set is
+        added, and declining to grade them let the quiz close the plan's SRS
+        slot while moving no card. /study provisions them on first grade; so
+        does this.
+        """
+        from app.study.models import UserCardDirection, UserWord
+        from app.words.models import CollectionWords
+
+        word = CollectionWords(
+            english_word='quiz_unprovisioned', russian_word='перевод', level='A1',
+        )
+        db_session.add(word)
+        db_session.commit()
+        db_session.add(UserWord(user_id=test_user.id, word_id=word.id))
+        db_session.commit()
+        session = self._seed_session(db_session, test_user)
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'session_id': session.id,
+                'word_id': word.id,
+                'direction': 'eng_to_rus',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()['srs_graded'] is True
+
+        user_word = UserWord.query.filter_by(
+            user_id=test_user.id, word_id=word.id,
+        ).first()
+        directions = UserCardDirection.query.filter_by(
+            user_word_id=user_word.id,
+        ).all()
+        # Both directions exist — a lone one in REVIEW would call the word
+        # learned after a single keypress.
+        assert {row.direction for row in directions} == {'eng-rus', 'rus-eng'}
+        graded = next(row for row in directions if row.direction == 'eng-rus')
+        assert graded.first_reviewed is not None
+
+    def test_word_without_card_rows_respects_the_new_card_budget(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        from app.study.models import UserCardDirection, UserWord
+        from app.words.models import CollectionWords
+
+        study_settings.new_words_per_day = 0
+        db_session.commit()
+
+        word = CollectionWords(
+            english_word='quiz_over_budget', russian_word='перевод', level='A1',
+        )
+        db_session.add(word)
+        db_session.commit()
+        db_session.add(UserWord(user_id=test_user.id, word_id=word.id))
+        db_session.commit()
+        session = self._seed_session(db_session, test_user)
+
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'session_id': session.id,
+                'word_id': word.id,
+                'direction': 'eng_to_rus',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()['srs_graded'] is False
+        user_word = UserWord.query.filter_by(
+            user_id=test_user.id, word_id=word.id,
+        ).first()
+        assert UserCardDirection.query.filter_by(
+            user_word_id=user_word.id,
+        ).count() == 0
 
     def test_excluded_word_is_not_graded(
         self, authenticated_client, db_session, test_user, study_settings,

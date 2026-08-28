@@ -506,6 +506,25 @@ class TestGetQuizQuestions:
         question_word_ids = {q['word_id'] for q in data['questions']}
         assert set(mastered_ids).issubset(question_word_ids)
 
+    def test_custom_deck_word_carries_no_collection_word_id(
+        self, authenticated_client, quiz_deck_custom_words,
+    ):
+        """A custom deck row has no collection word, so it must claim none.
+
+        ``word_id`` is posted back to /api/submit-quiz-answer and resolved there
+        as a ``CollectionWords`` id; emitting the ``QuizDeckWord`` id instead
+        would grade whichever studied word happens to share the number.
+        """
+        response = authenticated_client.get(
+            f'/study/api/get-quiz-questions?deck_id={quiz_deck_custom_words.id}&count=10'
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'success'
+        assert data['questions']
+        assert all(q['word_id'] is None for q in data['questions'])
+
 
 class TestCardTools:
     """Tests for actions available on recovery cards."""
@@ -1262,10 +1281,20 @@ class TestCompleteQuiz:
         from app.achievements.models import StreakEvent
         from app.daily_plan.linear.slots.srs_slot import build_srs_slot
         from app.daily_plan.linear.xp import LINEAR_XP_EVENT_TYPE
+        from app.study.models import StudySession
 
+        # The slot is credited off server-owned evidence, not the body: a
+        # session opened by the plan's own quiz route (its type is written
+        # server-side there), with answers routed through
+        # /api/submit-quiz-answer.
+        session = StudySession(
+            user_id=test_user.id, session_type='quiz_linear_plan', words_studied=20,
+        )
+        db_session.add(session)
         db_session.commit()
 
         response = authenticated_client.post('/study/api/complete-quiz', json={
+            'session_id': session.id,
             'source': 'linear_plan_deck_quiz',
             'from': 'linear_plan',
             'slot': 'srs',

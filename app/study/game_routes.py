@@ -8,10 +8,12 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.modules.decorators import module_required
+from app.srs.constants import DIRECTION_ENG_RUS, DIRECTION_RUS_ENG
 from app.study.blueprint import get_audio_url_for_word, study
 from app.study.models import GameScore, StudySession, StudySettings, UserCardDirection, UserWord
 from app.study.services import DeckService, QuizService, SessionService, StatsService
 from app.utils.db import db
+from app.utils.db_utils import not_blank
 from app.words.models import CollectionWords
 
 logger = logging.getLogger(__name__)
@@ -154,14 +156,21 @@ LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT = 30
 WORD_SET_QUIZ_SOURCE = 'word_set'
 WORD_SET_QUIZ_DEFAULT_LIMIT = 20
 
-# Session types that count as "a quiz was played". The themed set quiz gets its
-# own type so the answer handler can tell — server-side, without trusting the
-# request body — that it must not advance SRS scheduling. Anything reading
-# "was this a quiz session" must consult this tuple rather than compare against
-# the bare 'quiz' string, or themed quizzes silently lose their XP.
+# Session types that count as "a quiz was played". Every quiz variant that the
+# server has to tell apart later gets its own type, because the type is the one
+# thing the client cannot choose: the themed set quiz must not advance SRS
+# scheduling, and the daily-plan deck quiz is the only entry point allowed to
+# close the plan's SRS slot. Anything reading "was this a quiz session" must
+# consult this tuple rather than compare against the bare 'quiz' string, or
+# those variants silently lose their XP.
 QUIZ_SESSION_TYPE = 'quiz'
+LINEAR_PLAN_QUIZ_SESSION_TYPE = 'quiz_linear_plan'
 WORD_SET_QUIZ_SESSION_TYPE = 'quiz_word_set'
-QUIZ_SESSION_TYPES = (QUIZ_SESSION_TYPE, WORD_SET_QUIZ_SESSION_TYPE)
+QUIZ_SESSION_TYPES = (
+    QUIZ_SESSION_TYPE,
+    LINEAR_PLAN_QUIZ_SESSION_TYPE,
+    WORD_SET_QUIZ_SESSION_TYPE,
+)
 
 
 @study.route('/quiz')
@@ -218,7 +227,15 @@ def quiz_linear_plan():
         max(word_limit or LINEAR_PLAN_DECK_QUIZ_DEFAULT_LIMIT, 1),
         LINEAR_PLAN_DECK_QUIZ_MAX_LIMIT,
     )
-    session = SessionService.start_session(current_user.id, 'quiz')
+    # Own session type, not the generic 'quiz': this route is the only entry
+    # point the daily plan links to, so the type is the server's own record
+    # that the run really started from the plan's SRS slot. /quiz/auto and
+    # /quiz/deck/<id> open generic sessions, and completion only trusts this
+    # row — otherwise any owned quiz session could be relabelled
+    # `source=linear_plan_deck_quiz` at completion time and close the slot.
+    session = SessionService.start_session(
+        current_user.id, LINEAR_PLAN_QUIZ_SESSION_TYPE,
+    )
 
     # Bug #4: deck-quiz invoked from the daily-plan SRS slot — the
     # completion screen must show the same dashboard / next-slot CTAs
@@ -285,7 +302,8 @@ def quiz_word_set(slug):
     The session is opened with its own type so ``submit_quiz_answer`` can tell
     server-side that this run must not advance SRS scheduling — a learner
     testing themselves on «Цвета» should not thereby schedule review cards for
-    words they never chose to study.
+    words they never chose to study. It also carries ``word_set_id`` so the
+    result lands on the set the run actually started from.
     """
     from app.study.services import WordSetService
 
@@ -300,7 +318,12 @@ def quiz_word_set(slug):
         return redirect(url_for('study.word_sets'))
 
     settings = StudySettings.get_settings(current_user.id)
-    session = SessionService.start_session(current_user.id, WORD_SET_QUIZ_SESSION_TYPE)
+    # The set id is pinned to the session here: completion reads it back from
+    # the row instead of believing the slug the client posts, so a run started
+    # on one set cannot be filed under another.
+    session = SessionService.start_session(
+        current_user.id, WORD_SET_QUIZ_SESSION_TYPE, word_set_id=word_set.id,
+    )
 
     return render_template(
         'study/quiz.html',
@@ -455,8 +478,18 @@ def get_quiz_questions():
     distractor_pool = None
 
     class DeckWordAdapter:
+        """Presents a deck row to the quiz generator as if it were a word.
+
+        ``id`` must stay a ``CollectionWords`` id or nothing: the generator
+        serialises it as the question's ``word_id``, quiz.html posts it back to
+        /api/submit-quiz-answer, and grading resolves it there as a collection
+        word. A custom deck entry has no collection word, and ``QuizDeckWord``
+        ids come from their own sequence — reusing one would grade whichever
+        studied word happens to share the number.
+        """
+
         def __init__(self, deck_word):
-            self.id = deck_word.id
+            self.id = None
             self.english_word = deck_word.english_word
             self.russian_word = deck_word.russian_word
             self.get_download = 0
@@ -523,18 +556,18 @@ def get_quiz_questions():
             words = random.sample(words, question_count)
 
     elif source == LINEAR_PLAN_DECK_QUIZ_SOURCE:
+        # Same ``not_blank`` rule as ``_count_user_deck_quiz_words``, which
+        # decided this quiz was worth offering: a raw ``!= ''`` here would
+        # admit tab-only words the generator drops, so the plan's count and
+        # the quiz it produces would disagree.
         valid_collection_word = and_(
             QuizDeckWord.word_id.isnot(None),
-            CollectionWords.english_word.isnot(None),
-            CollectionWords.english_word != '',
-            CollectionWords.russian_word.isnot(None),
-            CollectionWords.russian_word != '',
+            not_blank(CollectionWords.english_word),
+            not_blank(CollectionWords.russian_word),
         )
         valid_custom_word = and_(
-            QuizDeckWord.custom_english.isnot(None),
-            QuizDeckWord.custom_english != '',
-            QuizDeckWord.custom_russian.isnot(None),
-            QuizDeckWord.custom_russian != '',
+            not_blank(QuizDeckWord.custom_english),
+            not_blank(QuizDeckWord.custom_russian),
         )
         deck_words = (
             db.session.query(QuizDeckWord)
@@ -551,7 +584,9 @@ def get_quiz_questions():
 
         seen: set[object] = set()
         for deck_word in deck_words:
-            if not deck_word.english_word or not deck_word.russian_word:
+            if not (deck_word.english_word or '').strip():
+                continue
+            if not (deck_word.russian_word or '').strip():
                 continue
             key = (
                 deck_word.word_id
@@ -618,10 +653,13 @@ def _record_word_set_result(
 ) -> bool:
     """Persist a finished themed quiz. Returns True when a row was written.
 
-    The slug arrives in the request body, so it is only trusted once the
-    session it claims to belong to is confirmed to be this user's and to be a
-    word-set session. Without that check any client could post arbitrary rows
-    into a table the daily plan reads for completion.
+    Which set the run belongs to is read off the session row (``word_set_id``,
+    written when ``quiz_word_set`` opened it), never off the request body: the
+    posted slug is only compared against it. Trusting the body meant a learner
+    could start set A and report set B — both real, both visible — and skew
+    B's attempt count, best score and the «what next» suggestion. The session
+    must also be this user's and of the themed-quiz type, or any client could
+    post arbitrary rows into a table the daily plan reads for completion.
 
     Best-effort: bookkeeping must never sink a quiz the learner already
     finished, so failures are logged and swallowed.
@@ -633,8 +671,7 @@ def _record_word_set_result(
     if not slug or not session_id or total_questions <= 0:
         return False
 
-    from app.study.models import WordSetQuizResult
-    from app.study.services import WordSetService
+    from app.study.models import WordSet, WordSetQuizResult
 
     try:
         session = StudySession.query.get(int(session_id))
@@ -648,8 +685,17 @@ def _record_word_set_result(
     ):
         return False
 
-    word_set = WordSetService.get_set(slug, include_unpublished=True)
-    if word_set is None:
+    # Sessions opened before the `word_set_id` column existed carry NULL — they
+    # simply cannot be attributed, and inventing an attribution from the body is
+    # exactly what this guard exists to stop.
+    if not session.word_set_id:
+        return False
+
+    word_set = db.session.get(WordSet, session.word_set_id)
+    if word_set is None or slug != word_set.slug:
+        # Mismatch means the client is reporting a different set than the one
+        # the server started this session for. Drop the row rather than file it
+        # anywhere: neither set has a truthful claim to it.
         return False
 
     # The insert lives in its own savepoint: the caller has already staged
@@ -707,7 +753,12 @@ def submit_quiz_answer():
         if candidate is not None and candidate.user_id == current_user.id:
             session = candidate
 
-    if session is not None:
+    # Only an answer that could have come from a generated question counts.
+    # `words_studied` is not just a statistic: `_deck_quiz_run_is_real` reads it
+    # as the server's evidence that the plan's deck quiz was actually played, so
+    # a body that names no question at all must not advance it (nor skew the
+    # correct/incorrect split the session stats and quiz achievements read).
+    if session is not None and _quiz_answer_is_answerable(word_id, direction_str):
         session.words_studied += 1
         if is_correct:
             session.correct_answers += 1
@@ -735,6 +786,40 @@ def submit_quiz_answer():
     })
 
 
+#: The quiz generator and the SRS schema name the same two directions
+#: differently: questions carry ``eng_to_rus``/``rus_to_eng`` (see
+#: ``QuizService.generate_quiz_questions``) and the client posts that value
+#: back verbatim, while ``UserCardDirection.direction`` stores
+#: ``eng-rus``/``rus-eng``. Matching the posted string against the column
+#: vocabulary directly makes grading a silent no-op — the endpoint answers
+#: ``srs_graded: false`` for every real answer and no card ever moves.
+QUIZ_DIRECTION_TO_CARD = {
+    'eng_to_rus': DIRECTION_ENG_RUS,
+    'eng-rus': DIRECTION_ENG_RUS,
+    'rus_to_eng': DIRECTION_RUS_ENG,
+    'rus-eng': DIRECTION_RUS_ENG,
+}
+
+
+def _quiz_answer_is_answerable(word_id, direction_str) -> bool:
+    """Could this submission be an answer to a question the server generated?
+
+    Every question ``QuizService`` emits carries a ``direction`` from the pair
+    above and a ``word_id`` that is either a ``CollectionWords`` id or ``None``
+    — a custom deck entry has no collection word, so ``DeckWordAdapter.id``
+    stays ``None`` on purpose and those answers are legitimate.
+
+    Anything outside that shape (no direction, a direction the generator never
+    produces, a string/list/dict where the id belongs) cannot be an answer to a
+    real question, so it neither grades nor counts.
+    """
+    if not isinstance(direction_str, str) or direction_str not in QUIZ_DIRECTION_TO_CARD:
+        return False
+    if word_id is None:
+        return True
+    return isinstance(word_id, int) and not isinstance(word_id, bool)
+
+
 def _grade_quiz_answer(word_id, direction_str, is_correct: bool) -> bool:
     """Grade one quiz answer through the shared SM-2 engine.
 
@@ -747,7 +832,12 @@ def _grade_quiz_answer(word_id, direction_str, is_correct: bool) -> bool:
 
     if not isinstance(word_id, int) or isinstance(word_id, bool):
         return False
-    if direction_str not in ('eng-rus', 'rus-eng'):
+    # The body is arbitrary JSON, so `direction` can be a list or a dict —
+    # unhashable, and `dict.get` raises on it rather than answering None.
+    if not isinstance(direction_str, str):
+        return False
+    card_direction = QUIZ_DIRECTION_TO_CARD.get(direction_str)
+    if card_direction is None:
         return False
 
     try:
@@ -758,15 +848,33 @@ def _grade_quiz_answer(word_id, direction_str, is_correct: bool) -> bool:
             return False
 
         direction = UserCardDirection.query.filter_by(
-            user_word_id=user_word.id, direction=direction_str,
+            user_word_id=user_word.id, direction=card_direction,
         ).first()
-        if direction is None:
-            return False
 
-        if direction.first_reviewed is None:
+        # An unseen card only activates within the new-card budget — the rule
+        # every grading surface follows. «Missing» counts as unseen: bulk
+        # «добавить в изучение» (set/topic/collection) writes UserWord and deck
+        # membership but no direction rows, and /study provisions them lazily
+        # on the first grade (get-study-items PRIORITY 4 → update-study-item →
+        # ensure_card_directions). Declining them here instead would let a deck
+        # quiz over freshly added words close the plan's SRS slot while moving
+        # no card at all — the very thing grading was added to prevent.
+        if direction is None or direction.first_reviewed is None:
             from app.srs.counting import get_new_card_budget
             remaining_new, _ = get_new_card_budget(current_user.id, db)
             if remaining_new <= 0:
+                return False
+
+        if direction is None:
+            from app.srs.cards import ensure_card_directions
+            direction = next(
+                (
+                    row for row in ensure_card_directions(user_word)
+                    if row.direction == card_direction
+                ),
+                None,
+            )
+            if direction is None:
                 return False
 
         direction.update_after_review(RATING_KNOW if is_correct else RATING_DONT_KNOW)
@@ -1101,6 +1209,42 @@ def complete_matching_game():
         }), 500
 
 
+def _deck_quiz_run_is_real(verified_session) -> bool:
+    """Did the plan's deck quiz actually happen, or is this just a POST?
+
+    ``source``/``from``/``slot`` and the counts all arrive in the request body,
+    so on their own they let a bare POST close the daily plan's required SRS
+    slot (and pay its XP) without a quiz ever being opened. Two things here are
+    the server's own, and both are required:
+
+    * the session row must exist, belong to this user, and carry the session
+      type that only ``/study/quiz/linear-plan`` writes — the single entry
+      point the plan item links to. Matching the generic ``'quiz'`` type
+      instead would accept any owned ``/quiz/auto`` or ``/quiz/deck/<id>``
+      session relabelled as the plan run at completion time;
+    * ``words_studied``, which only /api/submit-quiz-answer increments, one
+      call per answered question — and only for a body shaped like an answer to
+      a question the generator could have produced (see
+      ``_quiz_answer_is_answerable``), so a POST that names no question does
+      not manufacture the evidence.
+
+    Deliberately NOT gated on cards having moved (``srs_graded``): a deck may
+    hold custom entries or words the learner never added to study, and those
+    grade to nothing by design. Requiring a grade there would leave the
+    required slot unclosable all day and freeze streak, rank and perfect-day
+    with it.
+
+    Sessions opened before this type existed carry ``'quiz'`` and no longer
+    match — a quiz left open across the deploy has to be restarted, the same
+    trade-off ``word_set_id`` makes for pre-migration rows.
+    """
+    if verified_session is None:
+        return False
+    if verified_session.session_type != LINEAR_PLAN_QUIZ_SESSION_TYPE:
+        return False
+    return int(verified_session.words_studied or 0) > 0
+
+
 @study.route('/api/complete-quiz', methods=['POST'])
 @login_required
 def complete_quiz():
@@ -1182,7 +1326,7 @@ def complete_quiz():
 
     from app.achievements.models import UserStatistics as _UserStats
     from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
-    verified_session_id = None
+    verified_session = None
     if session_id:
         try:
             _sid = int(session_id)
@@ -1195,7 +1339,8 @@ def complete_quiz():
                 and _sess.user_id == current_user.id
                 and _sess.session_type in QUIZ_SESSION_TYPES
             ):
-                verified_session_id = _sid
+                verified_session = _sess
+    verified_session_id = verified_session.id if verified_session else None
     xp_award = None
     if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:
         from app.utils.time_utils import get_user_local_date
@@ -1213,6 +1358,7 @@ def complete_quiz():
         and plan_from == 'linear_plan'
         and plan_slot == 'srs'
         and int(total_questions or 0) > 0
+        and _deck_quiz_run_is_real(verified_session)
     ):
         try:
             from app.daily_plan.linear.xp import (

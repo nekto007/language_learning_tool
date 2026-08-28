@@ -109,11 +109,18 @@ class Collection(db.Model):
 
     @word_count.expression
     def word_count(cls):
-        """Позволяет сортировать/фильтровать напрямую в SQL."""
+        """Позволяет сортировать/фильтровать напрямую в SQL.
+
+        Считает по таблице связи `collection_words_link`, а не по
+        `collection_words` (это сами слова, у неё нет `collection_id`) —
+        имени `collection_words` в модуле вообще нет, так что любое
+        использование выражения в запросе падало с NameError.
+        """
         return (
-            select(func.count(collection_words.c.word_id))
-            .where(collection_words.c.collection_id == cls.id)
+            select(func.count(CollectionWordLink.word_id))
+            .where(CollectionWordLink.collection_id == cls.id)
             .correlate(cls)
+            .scalar_subquery()
             .label("word_count")
         )
 

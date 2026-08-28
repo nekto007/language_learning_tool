@@ -250,7 +250,15 @@ class TestFirstReview:
             mock_progress.first_reviewed = None  # Never reviewed
             mock_progress.last_reviewed = None
             mock_progress.next_review = None
+            mock_progress.buried_until = None
+            mock_progress.consecutive_leech_burials = 0
             MockModel.get_or_create.return_value = mock_progress
+            # get_or_create only resolves the id — the row that gets graded is
+            # re-read under a row lock, so the locked query has to answer with
+            # the same mock or nothing on it ever moves.
+            (MockModel.query.filter_by.return_value
+             .with_for_update.return_value
+             .first.return_value) = mock_progress
 
             with patch('app.srs.service.db'):
                 result = service.grade_grammar_exercise(
@@ -345,11 +353,13 @@ class TestMasteryBoundaryInterval:
         assert progress.is_mastered is False
 
     def test_review_card_near_mastery_gains_mastered_interval_after_rating_know(self):
+        """REVIEW card one day below mastery, rated KNOW → mastered.
+
+        Mastery is tied to MAX_REVIEW_INTERVAL_DAYS, the hard ceiling on the
+        review interval, so «past the threshold» is unreachable by design —
+        SM-2 growth lands exactly on it. Reaching it is the whole claim.
         """
-        REVIEW card with interval just below mastery (179) gets rated KNOW →
-        new interval jumps well past mastery threshold (180).
-        """
-        below_mastery = MASTERED_THRESHOLD_DAYS - 1  # 179
+        below_mastery = MASTERED_THRESHOLD_DAYS - 1
 
         result = UnifiedSRSService.calculate_sm2_update(
             rating=RATING_KNOW,
@@ -362,9 +372,8 @@ class TestMasteryBoundaryInterval:
         )
 
         assert result['state'] == CardState.REVIEW.value
-        # New interval should exceed mastery threshold
-        assert result['interval'] > MASTERED_THRESHOLD_DAYS, (
-            f"Expected interval > {MASTERED_THRESHOLD_DAYS}, got {result['interval']}"
+        assert result['interval'] >= MASTERED_THRESHOLD_DAYS, (
+            f"Expected interval >= {MASTERED_THRESHOLD_DAYS}, got {result['interval']}"
         )
 
     @pytest.mark.parametrize("interval,expected_mastered", [

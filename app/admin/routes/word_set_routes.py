@@ -277,6 +277,15 @@ def word_set_add_word(set_id):
     db.session.add(WordSetWord(set_id=word_set.id, word_id=word.id, order_index=next_index))
     db.session.commit()
     flash(f'«{word.english_word}» добавлено', 'success')
+    # A word without a translation is dropped by ``WordSetService.get_words``:
+    # it can be neither a question nor a distractor, so it sits in the set
+    # without ever reaching a learner. Say so instead of letting the editor
+    # count it as content.
+    if not (word.russian_word or '').strip():
+        flash(
+            f'У «{word.english_word}» нет перевода — в квиз оно не попадёт',
+            'warning',
+        )
     return redirect(url_for('word_set_admin.word_set_words', set_id=set_id))
 
 

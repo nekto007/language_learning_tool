@@ -94,6 +94,92 @@ class TestSuggestion:
         _make_set(db_session, published=False)
         assert WordSetService.suggest_for_user(test_user.id) is None
 
+    def test_set_of_untranslated_words_is_never_suggested(self, db_session, test_user):
+        """Membership is not the same thing as playable content.
+
+        ``get_words`` drops words without a translation — they can be neither a
+        question nor a distractor — so counting raw membership advertised a set
+        whose quiz route immediately turns the learner away.
+        """
+        word_set, words = _make_set(db_session, words=2)
+        for word in words:
+            word.russian_word = ''
+        db_session.commit()
+
+        assert WordSetService.suggest_for_user(test_user.id) is None
+        entry = next(
+            e for e in WordSetService.list_published(test_user.id)
+            if e['set'].id == word_set.id
+        )
+        assert entry['word_count'] == 0
+
+    @pytest.mark.parametrize('blank', ['   ', '\t', '\n', '\r\n', ' \t ', '\xa0'])
+    def test_whitespace_only_translation_is_not_playable_content(
+        self, db_session, test_user, blank,
+    ):
+        """Blank means blank after trimming, as in the quiz generator.
+
+        ``QuizService`` skips a word whose ``russian_word.strip()`` is empty, so
+        a set holding only «   » translations counted as playable, got suggested,
+        and then produced a successful response with no questions in it.
+
+        Every whitespace form is checked, not just the plain space: SQL's
+        one-argument ``trim()`` strips spaces *only*, so tab-, newline- and
+        NBSP-only translations used to pass the catalogue's blank check and be
+        dropped by the generator anyway — exactly the mismatch this rule exists
+        to prevent.
+        """
+        word_set, words = _make_set(db_session, words=2)
+        for word in words:
+            word.russian_word = blank
+        db_session.commit()
+
+        assert WordSetService.get_words(word_set.id) == []
+        entry = next(
+            e for e in WordSetService.list_published(test_user.id)
+            if e['set'].id == word_set.id
+        )
+        assert entry['word_count'] == 0
+        assert WordSetService.suggest_for_user(test_user.id) is None
+
+    @pytest.mark.parametrize('blank', ['   ', '\t', '\n', '\xa0'])
+    def test_whitespace_only_english_side_is_not_playable_content(
+        self, db_session, test_user, blank,
+    ):
+        """The English side is an answer too, not just a label.
+
+        Every word yields a reverse «переведите на английский» question whose
+        answer is ``english_word``; its hint indexes the stripped answer's
+        first character. A whitespace-only English side therefore prompts an
+        empty string or raises — so it must not be counted as playable content
+        or pushed into the plan by ``suggest_for_user``.
+        """
+        word_set, words = _make_set(db_session, words=2)
+        # ``english_word`` is unique, so each blank differs in length only —
+        # still whitespace-only, still two distinct rows.
+        for index, word in enumerate(words):
+            word.english_word = blank * (index + 1)
+        db_session.commit()
+
+        assert WordSetService.get_words(word_set.id) == []
+        entry = next(
+            e for e in WordSetService.list_published(test_user.id)
+            if e['set'].id == word_set.id
+        )
+        assert entry['word_count'] == 0
+        assert WordSetService.suggest_for_user(test_user.id) is None
+
+    def test_word_count_matches_what_the_quiz_would_serve(self, db_session, test_user):
+        word_set, words = _make_set(db_session, words=3)
+        words[0].russian_word = None
+        db_session.commit()
+
+        entry = next(
+            e for e in WordSetService.list_published(test_user.id)
+            if e['set'].id == word_set.id
+        )
+        assert entry['word_count'] == len(WordSetService.get_words(word_set.id)) == 2
+
 
 class TestAddToStudy:
     def test_adds_every_word_once(self, authenticated_client, db_session, test_user):

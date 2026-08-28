@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_babel import gettext as _
@@ -215,17 +215,6 @@ def index():
         user_id=current_user.id, is_active=True
     ).first() is not None
 
-    most_urgent_deck = None
-    if my_decks:
-        best_due = -1
-        for deck in my_decks:
-            due = deck.learning_count + deck.review_count
-            if due > best_due:
-                best_due = due
-                most_urgent_deck = deck
-        if best_due <= 0:
-            most_urgent_deck = None
-
     from app.study.insights_service import get_weak_areas as _get_weak_areas
     from app.study.insights_service import get_writing_stats as _get_writing_stats
     try:
@@ -250,7 +239,6 @@ def index():
         my_decks=my_decks,
         public_decks=public_decks,
         telegram_linked=telegram_linked,
-        most_urgent_deck=most_urgent_deck,
         writing_stats=writing_stats,
         weak_areas=weak_areas,
     )
@@ -841,6 +829,7 @@ def insights():
         logger.exception("comprehension_by_type failed for user %s", current_user.id)
         comprehension_by_type = []
     try:
+        from config.settings import DEFAULT_TIMEZONE
         tz = getattr(current_user, 'timezone', None) or DEFAULT_TIMEZONE
         study_time_dist = get_study_time_distribution(current_user.id, tz=tz)
     except Exception:
