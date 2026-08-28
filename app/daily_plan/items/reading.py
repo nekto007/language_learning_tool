@@ -1,9 +1,12 @@
 """Reading item builder for the unified daily plan.
 
 Returns a ``PlanItem`` for the user's chosen book when a valid preference
-exists. Returns None when no preference is set OR the referenced book is
-gone (stale row); the orchestrator then adds a ``setup_book`` item to the
-setup section instead.
+exists. Returns None when no preference is set, when the referenced book is
+gone (stale row), or when the user may not open it (draft / revoked ``books``
+module / expired licence); the orchestrator then adds a ``setup_book`` item to
+the setup section instead. The access gate is the same one the reader routes
+enforce — a required slot the user cannot open would hold ``day_secured``
+hostage until midnight.
 
 Completion is gated on real reading activity: the user must have crossed
 the offset_pct threshold AND spent today's reading target on the selected
@@ -47,11 +50,45 @@ def _latest_chapter_progress(user_id: int, book_id: int, db: Any) -> Optional[Us
     )
 
 
+def book_access_ok_for_reading(user_id: int, book: Any, db: Any) -> bool:
+    """Return False when the plan's owner cannot actually open ``book``.
+
+    Mirrors the reader routes (``app/books/routes.py::read_book``): a draft is
+    invisible to non-admins (404) and ``can_user_access_book`` answers the
+    rights / module question (403). Without this check a required reading slot
+    can point at a book the user is not allowed to open — the slot is then
+    uncompletable and ``day_secured`` is out of reach for the whole day.
+    """
+    from app.auth.models import User
+    from app.books.access import can_user_access_book
+
+    if book is None:
+        return False
+
+    user = db.session.get(User, user_id)
+    if user is None:
+        logger.warning("reading_item user=%s missing_user access_denied", user_id)
+        return False
+
+    if not book.is_published and not getattr(user, 'is_admin', False):
+        logger.warning("reading_item user=%s book=%s draft_not_readable", user_id, book.id)
+        return False
+
+    if not can_user_access_book(user, book):
+        logger.warning("reading_item user=%s book=%s access_denied", user_id, book.id)
+        return False
+
+    return True
+
+
 def _book_is_actionable_for_reading(user_id: int, book_id: int, db: Any) -> bool:
     """Return False when the selected book cannot produce a useful reading slot."""
     book = db.session.get(Book, book_id)
     if book is None:
         logger.warning("reading_item user=%s book=%s not_found preference_stale", user_id, book_id)
+        return False
+
+    if not book_access_ok_for_reading(user_id, book, db):
         return False
 
     has_chapter = (

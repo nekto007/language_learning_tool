@@ -63,7 +63,12 @@ def user_no_book(db_session):
 
 @pytest.fixture
 def book_with_chapter(db_session):
-    """Minimal Book + Chapter so reading_item builder yields a real slot."""
+    """Minimal Book + Chapter so reading_item builder yields a real slot.
+
+    ``public_domain`` on purpose: the builder gates the required slot on
+    ``can_user_access_book``, and the default ``companion_only`` would need
+    the ``books`` module, which the test user does not have.
+    """
     from app.books.models import Book, Chapter
 
     suffix = uuid.uuid4().hex[:6]
@@ -74,6 +79,7 @@ def book_with_chapter(db_session):
         chapters_cnt=1,
         level='A1',
         is_published=True,
+        rights_status='public_domain',
     )
     db_session.add(book)
     db_session.commit()

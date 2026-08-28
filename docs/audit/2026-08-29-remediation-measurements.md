@@ -46,7 +46,30 @@
 раньше и/или реестр считал по другому срезу). Механизм воспроизводится дословно:
 слот в required → `day_secured` недостижим → **ни одного** закрытого дня за 52 дня подряд.
 
-- [ ] «после» (Task 4): у `user_id=39` слот чтения в required не появляется
+**Замер «после» (Task 4)** — `scripts/audit/2026-08-29_measurements/10_after_dp033_reading_gate.py`
+(read-only, сессия откатывается), прогон против той же копии прода:
+
+Книга из preference — `book_id=4` «The Girl with Green Eyes», `rights_status='companion_only'`,
+`is_published=true`, без `expiration_date`. У `user_id=39` модуля `books` нет, поэтому недоступна
+она именно по правам, а не по черновику или сроку.
+
+| механизм | функция | было | стало |
+|---|---|---|---|
+| билдер | `book_access_ok_for_reading` | (не существовала) | `False` |
+| билдер | `build_reading_item` | `PlanItem(reading:book:4)` | `None` |
+| билдер | `_reading_item_dict` (required) | `dict(reading:book:4)` | `None` |
+| билдер | `reading_preference_needs_setup` | `False` | `True` → план показывает `setup_book` |
+| снапшот | `overlay_completion` по 47 замороженным дням | слот оставался во всех 47 | **0 из 47** |
+
+Слот чтения у `user_id=39` в required больше не появляется — ни в новом дне (гейт билдера),
+ни в уже замороженных снапшотах (самопочинка `overlay_completion`).
+
+**Сверка 52 против 47.** Замер «до» насчитал 52 юзеро-дня; из них 47 лежат в снапшотах
+`version=3` и 5 — в `version=2`. Версия 2 не проходит `_valid_snapshot`, до `overlay_completion`
+эти дни не доходят вовсе: снапшот пересобирается заново и попадает уже под гейт билдера.
+Итого покрыты все 52 — 47 самопочинкой, 5 пересборкой.
+
+- [x] «после» (Task 4): у `user_id=39` слот чтения в required не появляется
 
 ## (б) `DP-034` — theory-only grammar платит половину
 

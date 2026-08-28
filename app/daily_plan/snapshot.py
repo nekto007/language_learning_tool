@@ -227,12 +227,21 @@ def overlay_completion(
 
     Other fields (id, kind, title, subtitle, lesson_type, data,
     completion_signal) are passed through unchanged.
+
+    Two kinds of reading item are dropped rather than overlaid: a book that
+    has been finished, and a book the user can no longer open. The builder's
+    access gate only covers the day the snapshot is composed — the required
+    list is then frozen, so a licence that expires (or a ``books`` module that
+    is revoked) mid-day would otherwise leave an uncompletable slot blocking
+    ``day_secured`` until midnight.
     """
     items_out: list[dict[str, Any]] = []
     for item in snapshot.get('items') or []:
         merged = dict(item)
         merged['section'] = 'required'
         if _is_finished_reading_book(user_id, merged, db):
+            continue
+        if _reading_book_unreachable(user_id, merged, db):
             continue
         completed = _is_item_completed(user_id, merged, db)
         merged['completed'] = completed
@@ -323,6 +332,48 @@ def _is_finished_reading_book(user_id: int, item: dict[str, Any], db: Any) -> bo
             user_id, book_id_int, exc_info=True,
         )
         return False
+
+
+def _reading_book_unreachable(user_id: int, item: dict[str, Any], db: Any) -> bool:
+    """True when a frozen reading slot points at a book the user can't open.
+
+    Access is not static: a licence expires, an admin pulls the ``books``
+    module, a book is unpublished. The snapshot is frozen for the day, so the
+    slot keeps pointing at a 403/404 and ``day_secured`` stays unreachable.
+
+    Dropping the item is the only honest repair — marking it ``completed``
+    would be a fake credit and would also fake a perfect day. A book row that
+    has disappeared counts as unreachable for the same reason. Errors keep the
+    item: a transient failure must not silently shrink the required list.
+    """
+    if item.get('kind') != 'reading':
+        return False
+    data = item.get('data') or {}
+    book_id = data.get('book_id')
+    try:
+        book_id_int = int(book_id) if book_id is not None else None
+    except (TypeError, ValueError):
+        book_id_int = None
+    if book_id_int is None:
+        return False
+    try:
+        from app.books.models import Book
+        from app.daily_plan.items.reading import book_access_ok_for_reading
+
+        book = db.session.get(Book, book_id_int)
+        if book_access_ok_for_reading(user_id, book, db):
+            return False
+    except Exception:
+        logger.warning(
+            "snapshot reading access check failed user=%s book=%s",
+            user_id, book_id_int, exc_info=True,
+        )
+        return False
+    logger.warning(
+        "snapshot reading slot dropped user=%s book=%s reason=access_revoked",
+        user_id, book_id_int,
+    )
+    return True
 
 
 def _curriculum_lesson_done_today(
