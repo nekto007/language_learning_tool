@@ -96,7 +96,21 @@
 
 Ни один сосед не залипает на половине — дефект локален для theory-only ветки.
 
-- [ ] «после» (Task 5): новые начисления `linear_curriculum_grammar` для theory-only = 18
+### «После» (Task 5)
+
+Прод-таблица не пересчитывается (решение владельца «XP только вперёд»), поэтому «после»
+измеряется на стенде — тем же путём, каким пришли 18 начислений по 9: сквозной
+`POST /curriculum/api/lesson/<id>/progress` с `status=completed` на theory-only grammar-уроке.
+
+| замер | до | после |
+|---|---|---|
+| `score`, доезжающий до `apply_score_to_base` | `0.0` | `None` |
+| прирост `UserStatistics.total_xp` за урок (без streak-множителя) | **9** | **18** |
+| `listening_immersion_quiz` (тот же strip-only список) | `0.0` | `None` |
+| exercise-backed grammar с реальным score 60 | `60.0` | `60.0` (не изменилось) |
+
+Тест `tests/curriculum/test_theory_only_xp_scaling.py::test_theory_only_grammar_credits_eighteen_xp_end_to_end`
+до фикса падал с `assert 9 >= 18`, после — зелёный. Исторические 20 начислений остаются как есть.
 
 ## (в) `DP-035` — закрытый день без perfect-day бонуса
 

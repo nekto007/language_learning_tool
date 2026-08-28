@@ -233,20 +233,33 @@
 - Modify: `app/curriculum/routes/lessons.py`
 - Create/Modify: тест в `tests/curriculum/` на XP theory-only урока
 
-- [ ] тест «до»: завершение theory-only grammar-урока (нет секции `exercises`) начисляет
+- [x] тест «до»: завершение theory-only grammar-урока (нет секции `exercises`) начисляет
       `linear_curriculum_grammar` = **9**, ожидается **18**
-- [ ] фикс в `app/curriculum/routes/lessons.py`: там, где `score` **сознательно вычищен**
+      → `tests/curriculum/test_theory_only_xp_scaling.py`, 3 из 8 тестов краснели ровно так:
+      `assert 9 >= 18` и `assert 0.0 is None` на аргументе скейлера
+- [x] фикс в `app/curriculum/routes/lessons.py`: там, где `score` **сознательно вычищен**
       антифродом (`_is_grammar_theory_only`, `_SCORE_STRIP_ONLY_TYPES`), в
       `maybe_award_curriculum_xp` передавать `score=None`, а не `progress.score`. `None` по
       контракту `apply_score_to_base` (`app/achievements/xp_service.py:297`) даёт базовую сумму;
       `0.0` — половину. Якорь: `lessons.py:388`
-- [ ] проверить три соседних call-site с тем же паттерном — `lessons.py:393`, `:415`,
+      → флаг `_is_score_strip_type` поднят выше XP-блока (у него теперь два потребителя, а не
+      один), XP-вызовы получают `_xp_score = None if _is_score_strip_type else progress.score`
+- [x] проверить три соседних call-site с тем же паттерном — `lessons.py:393`, `:415`,
       `app/curriculum/service.py:232`: у каждого выяснить, реальный ли там грейд или тот же
       дефолт колонки `0.0`, и починить те, где дефолт
-- [ ] тест-страж на **не**регрессию скейлера: exercise-backed grammar с реальным score
+      → (1) `maybe_award_listening_xp` — **тот же дефект** (`listening_immersion_quiz` получал
+      `0.0`), починен; (2) `process_lesson_completion` — дефекта нет, уже гейтился тем же флагом;
+      (3) `complete_lesson` — дефекта нет: его XP-путь `award_curriculum_lesson_xp_idempotent`
+      не принимает `score` вовсе (плоские 30 XP), прод-вызывателей у функции нет. Оба «нет»
+      закреплены тестами в классе `TestNeighbouringScoreCallSites`
+- [x] тест-страж на **не**регрессию скейлера: exercise-backed grammar с реальным score
       по-прежнему масштабируется (не «всё стало базовым»)
-- [ ] исторические 20 начислений по 9 XP **не трогаем** (решение владельца: только вперёд) —
+      → `test_exercise_backed_grammar_still_scales_by_real_score` (score 60.0 доезжает как 60.0)
+      + `test_graded_type_still_reaches_process_lesson_completion`
+- [x] исторические 20 начислений по 9 XP **не трогаем** (решение владельца: только вперёд) —
       записать это в реестр в статус находки, чтобы следующий читатель не искал backfill
+      → секция «Статус ремедиации» в теле `DP-034` (`docs/audit/2026-08-26-daily-plan-audit.md`)
+      + пары «до/после» в `docs/audit/2026-08-29-remediation-measurements.md`, секция (б)
 
 ### Task 6: `DP-051` → `DP-035` — perfect-day получает подметальщика
 

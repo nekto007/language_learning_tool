@@ -858,6 +858,27 @@ _(находок этого уровня в подзоне нет)_
   - _(ещё 3 цитат — `.ralphex/audit-notes/daily-plan/skeptics/DP-C-084.md`; здесь список усечён по бюджету, а не по значимости)_
 - **Второй проход (три независимые линзы):** correctness=SOUND · reproducibility=REPRODUCIBLE · user-impact=P1 → **P1**. P1 подтверждён всеми тремя линзами. Все 86 из 86 grammar-уроков прода — theory-only; 18 из 20 реальных начислений `linear_curriculum_grammar` содержат ровно `xp=9` при показанных пользователю «100%».
 - **Где расхождение:** код — CLAUDE.md документирует `LINEAR_XP` `_grammar=18` как единую константу без оговорки, что theory-only подтип фактически платит вдвое меньше; расхождение между заявленным инвариантом экономики и реализацией.
+- **Статус ремедиации (фаза 1, ветка `daily-plan-remediation`): ✅ исправлено, история НЕ добирается.**
+  Фикс — `app/curriculum/routes/lessons.py`: флаг `_is_score_strip_type` поднят выше XP-блока, и там,
+  где `score` вычищен сознательно (`_is_grammar_theory_only`, `_SCORE_STRIP_ONLY_TYPES`), в
+  `maybe_award_curriculum_xp`/`maybe_award_listening_xp` уходит `score=None`, а не `progress.score`.
+  `None` по контракту `apply_score_to_base` даёт базовую сумму, `0.0` — половину.
+  Тесты-стражи: `tests/curriculum/test_theory_only_xp_scaling.py` (theory-only платит 18, а не 9;
+  `listening_immersion_quiz` не режется; exercise-backed grammar с реальным score по-прежнему
+  масштабируется; контракт `apply_score_to_base(18, None) == 18` против `(18, 0.0) == 9`).
+  **Три соседних call-site проверены** (пункт плана, не «заодно»):
+  (1) `maybe_award_listening_xp` в том же блоке — **тот же дефект**, `listening_immersion_quiz`
+      получал `0.0`; починен вместе с основным;
+  (2) `process_lesson_completion` ниже по функции — **дефекта нет**, вызов уже гейтился тем же
+      `_is_score_strip_type` (иначе дефолт `0.0` записался бы как настоящая оценка F);
+      зафиксировано тестом `test_process_lesson_completion_skips_strip_only_types`;
+  (3) `app/curriculum/service.py` (`complete_lesson`) — **дефекта нет**: его XP-путь
+      `award_curriculum_lesson_xp_idempotent` вообще не принимает `score` (плоские 30 XP), а сам
+      `score` там — явный параметр вызывающего, не дефолт колонки; прод-вызывателей у функции нет
+      (см. `CM-6`). Зафиксировано тестом `test_complete_lesson_xp_path_takes_no_score`.
+  **Исторические ~20 начислений по 9 XP не добираются — решение владельца «XP только вперёд»:**
+  ни SQL, ни backfill-скрипта не будет. Следующему читателю искать backfill не нужно: его нет
+  сознательно, а не по недосмотру.
 
 #### DP-035 · P1 · `app/daily_plan/linear/xp.py:505`
 

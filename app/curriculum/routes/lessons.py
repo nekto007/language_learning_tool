@@ -376,6 +376,18 @@ def update_lesson_progress(lesson_id):
 
         db.session.commit()
 
+        # Types whose score is stripped above (theory-only grammar,
+        # listening_immersion_quiz) never carry a grade on this endpoint —
+        # `progress.score` is the column default 0.0, not a measured result.
+        # `apply_score_to_base` reads 0.0 as "0% accuracy" and pays half the
+        # base, so the anti-fraud strip silently halved the award (DP-034).
+        # `score=None` is the contract for "not graded" → full base.
+        _is_score_strip_type = bool(
+            lesson_for_check
+            and (lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES or _is_grammar_theory_only)
+        )
+        _xp_score = None if _is_score_strip_type else progress.score
+
         if progress.status == 'completed':
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_listening_xp
@@ -385,12 +397,12 @@ def update_lesson_progress(lesson_id):
                         maybe_award_curriculum_xp(
                             current_user.id, lesson_for_xp,
                             db_session=db,
-                            score=progress.score,
+                            score=_xp_score,
                         )
                         if lesson_for_xp.type in ('listening_immersion', 'listening_immersion_quiz'):
                             maybe_award_listening_xp(
                                 current_user.id, lesson_for_xp.id,
-                                score=progress.score,
+                                score=_xp_score,
                                 db_session=db,
                             )
                     db.session.commit()
@@ -399,13 +411,9 @@ def update_lesson_progress(lesson_id):
                 logger.warning(f"Linear XP award failed for lesson {lesson_id}: {xp_err}")
 
         completion_result = None
-        # Skip process_lesson_completion for theory-only types (grammar, listening_immersion_quiz)
-        # whose score is stripped above — their score defaults to 0.0, not None, so the
+        # Same flag, second consumer: skip process_lesson_completion for the
+        # strip-only types — their score defaults to 0.0, not None, so the
         # is-not-None guard alone would pass and record a spurious F-grade.
-        _is_score_strip_type = bool(
-            lesson_for_check
-            and (lesson_for_check.type in _SCORE_STRIP_ONLY_TYPES or _is_grammar_theory_only)
-        )
         if progress.status == 'completed' and progress.score is not None and not _is_score_strip_type:
             try:
                 from app.achievements.services import process_lesson_completion
