@@ -1,8 +1,9 @@
 """Daily required-plan snapshot: the fixed plan composition for a day.
 
 This is the only required-plan path. It freezes full item dicts (id, kind,
-title, url, eta, data, completion_signal) at user-local midnight or on the
-first lazy build after midnight. Required composition is fixed for the day;
+title, url, eta, data, completion_signal) on the first build of the user's
+study day — which starts at ``LEARNING_DAY_START_HOUR`` (02:00) local, not at
+calendar midnight. Required composition is fixed for the day;
 only ``completed`` is overlaid live from real activity. Skill slots are
 intentionally absent: the day is closed by curriculum, SRS, reading, and
 final-test prep items sized by the user's tier (see ``tier.py``).
@@ -154,9 +155,9 @@ def _try_rollover_from_yesterday(
 
     Roll-over fires only when ALL hold:
       - yesterday has a snapshot row with non-empty items
-      - the user had zero learning activity in yesterday's user-local
-        day window (``has_learning_activity`` over the 24h naive-UTC
-        bounds derived from yesterday's user-local midnight)
+      - the user had zero learning activity in yesterday's study-day
+        window (``has_learning_activity`` over the 24h naive-UTC bounds
+        anchored at 02:00 local — see :func:`_local_date_start_naive_utc`)
     """
     from datetime import timedelta
 
@@ -194,22 +195,20 @@ def _try_rollover_from_yesterday(
 
 
 def _local_date_start_naive_utc(user_id: int, local_date: Any, db: Any):
-    """Return UTC-naive midnight for an explicit user-local date."""
-    from datetime import datetime, time, timezone
+    """Return UTC-naive study-day start (02:00 local) for an explicit date.
 
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:  # pragma: no cover
-        from backports.zoneinfo import ZoneInfo  # type: ignore
+    ``local_date`` is already a *study-day* date (it comes from
+    ``get_user_local_date``), so anchoring the window at calendar midnight
+    shifted it two hours early: activity between 00:00 and 02:00 fell into
+    the next window, and the roll-over check both missed a real study session
+    and counted the previous day's one (DP-002 / DP-009). Delegates to
+    :func:`app.utils.time_utils.study_day_start_utc` — the same anchor the
+    streak, telegram and SRS windows use.
+    """
+    from app.utils.time_utils import get_user_timezone_name, study_day_start_utc
 
-    from app.utils.time_utils import get_user_timezone_name
-
-    try:
-        tz = ZoneInfo(get_user_timezone_name(user_id, db))
-    except Exception:  # noqa: BLE001
-        tz = timezone.utc
-    local_midnight = datetime.combine(local_date, time.min, tzinfo=tz)
-    return local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
+    tz_name = get_user_timezone_name(user_id, db)
+    return study_day_start_utc(tz_name, local_date).replace(tzinfo=None)
 
 
 def overlay_completion(
@@ -233,7 +232,7 @@ def overlay_completion(
     access gate only covers the day the snapshot is composed — the required
     list is then frozen, so a licence that expires (or a ``books`` module that
     is revoked) mid-day would otherwise leave an uncompletable slot blocking
-    ``day_secured`` until midnight.
+    ``day_secured`` until the study day rolls over at 02:00.
     """
     items_out: list[dict[str, Any]] = []
     for item in snapshot.get('items') or []:

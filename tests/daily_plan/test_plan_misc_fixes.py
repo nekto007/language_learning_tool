@@ -169,3 +169,77 @@ class TestSiblingExercisesCase:
         assert isinstance(rows, list)
         assert len(rows) == 2
         assert rows[0].exercise_type == 'multiple_choice'
+
+
+# ── DP-003: дашборд пишет secured_at по учебному дню, не по календарному ──────
+
+class TestDashboardSecuredDateIsStudyDay:
+    """Закрытие дня в 00:30 остаётся сегодняшним и не уезжает в завтра.
+
+    Второй писатель `secured_at` (SSR-дашборд) брал `datetime.now(tz).date()`
+    от клиентского `tz`, тогда как `/api/daily-status` уже писал
+    `get_user_local_date`. Между 00:00 и 02:00 два писателя расходились на
+    сутки: строка уходила в завтрашний день, серия и ранги теряли сегодняшний.
+    """
+
+    def _enable_words_module(self, db_session, user_id):
+        from app.modules.models import SystemModule, UserModule
+
+        module = SystemModule.query.filter_by(code='words').first()
+        if module is None:
+            module = SystemModule(code='words', name='Words')
+            db_session.add(module)
+            db_session.commit()
+        if not UserModule.query.filter_by(
+            user_id=user_id, module_id=module.id,
+        ).first():
+            db_session.add(UserModule(
+                user_id=user_id, module_id=module.id, is_enabled=True,
+            ))
+            db_session.commit()
+
+    def test_secured_at_written_on_study_day_after_midnight(
+        self, authenticated_client, db_session, test_user,
+    ):
+        from unittest.mock import patch
+
+        from freezegun import freeze_time
+
+        from app.daily_plan.models import DailyPlanLog
+
+        test_user.timezone = 'UTC'
+        db_session.commit()
+        self._enable_words_module(db_session, test_user.id)
+
+        plan = {
+            '_plan_meta': {
+                'effective_mode': 'unified',
+                'graduated': False,
+                'user_id': test_user.id,
+            },
+            'required': [{
+                'id': 'curriculum:lesson:1', 'kind': 'curriculum', 'completed': True,
+            }],
+            'optional': [],
+        }
+        completion = {'curriculum:lesson:1': True}
+
+        # 00:30 локального времени: календарная дата 15 сентября,
+        # учебная — 14 сентября.
+        with freeze_time('2026-09-15 00:30:00'), patch(
+            'app.daily_plan.service.get_daily_plan_unified', return_value=plan,
+        ), patch(
+            'app.telegram.queries.get_daily_summary', return_value={},
+        ), patch(
+            'app.achievements.streak_service.compute_plan_steps',
+            return_value=(completion, 1, 1, 1),
+        ):
+            response = authenticated_client.get('/dashboard')
+
+        assert response.status_code == 200
+
+        secured = DailyPlanLog.query.filter(
+            DailyPlanLog.user_id == test_user.id,
+            DailyPlanLog.secured_at.isnot(None),
+        ).all()
+        assert [row.plan_date for row in secured] == [date(2026, 9, 14)]

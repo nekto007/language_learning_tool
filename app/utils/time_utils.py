@@ -173,6 +173,30 @@ def _local_now_for_tz_name(
     return tz, ref.astimezone(tz)
 
 
+def study_day_start_utc(tz_name: str, local_date: date_cls) -> datetime:
+    """Aware-UTC start of the study day whose date is ``local_date``.
+
+    The one place that turns "study day D in zone Z" into an instant: the
+    anchor is :data:`LEARNING_DAY_START_HOUR` local, never calendar midnight.
+    :func:`study_day_bounds_utc` (relative to now) and the snapshot roll-over
+    window (an explicit past date) both go through here, so a window built
+    from a stored date and a window built from the clock cannot drift apart.
+
+    Timezone resolution keeps the historical ``_user_day_boundaries`` policy
+    verbatim — see :func:`_local_now_for_tz_name`.
+    """
+    import pytz
+
+    from config.settings import DEFAULT_TIMEZONE
+
+    try:
+        tz = pytz.timezone(tz_name)
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone(DEFAULT_TIMEZONE)
+    naive = datetime.combine(local_date, time(hour=LEARNING_DAY_START_HOUR))
+    return tz.normalize(tz.localize(naive)).astimezone(pytz.utc)
+
+
 def study_day_bounds_utc(
     tz_name: str,
     offset_days: int = 0,
@@ -194,15 +218,11 @@ def study_day_bounds_utc(
 
     ``now_utc`` lets callers/tests freeze the reference clock.
     """
-    import pytz
-
-    tz, local_now = _local_now_for_tz_name(tz_name, now_utc)
+    _tz, local_now = _local_now_for_tz_name(tz_name, now_utc)
     base_day = _study_day_date(local_now)
 
     def _start(shift: int) -> datetime:
-        local_day = base_day + timedelta(days=shift)
-        naive = datetime.combine(local_day, time(hour=LEARNING_DAY_START_HOUR))
-        return tz.normalize(tz.localize(naive)).astimezone(pytz.utc)
+        return study_day_start_utc(tz_name, base_day + timedelta(days=shift))
 
     return _start(offset_days), _start(offset_days + 1)
 

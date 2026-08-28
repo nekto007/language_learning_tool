@@ -293,18 +293,25 @@
 - Modify: `app/daily_plan/snapshot.py`, `app/words/routes.py`
 - Modify: `tests/daily_plan/test_snapshot_v2.py`
 
-- [ ] `DP-003` — `_render_unified_dashboard` (`app/words/routes.py:1056`) пишет
+- [x] `DP-003` — `_render_unified_dashboard` (`app/words/routes.py:1056`) пишет
       `write_secured_at(user_id, datetime.now(tz).date())`, то есть по **календарной** дате:
       закрытие дня между 00:00 и 02:00 уезжает в завтра. Заменить на `get_user_local_date(user_id, db)` —
       тот же источник, что у остальных дедуп-ключей. Тест: закрытие в 00:30 пишет `secured_at`
       на текущий учебный день
-- [ ] `DP-002`/`DP-009` — `_local_date_start_naive_utc` (`app/daily_plan/snapshot.py:196`) строит
+      → сделано; в проде 3 из 72 закрытий писались на чужую дату (замер (ж)), страж —
+      `TestDashboardSecuredDateIsStudyDay` в `tests/daily_plan/test_plan_misc_fixes.py`
+- [x] `DP-002`/`DP-009` — `_local_date_start_naive_utc` (`app/daily_plan/snapshot.py:196`) строит
       окно от `time.min`, тогда как дата приходит уже учебная: перевести анкер на
       `LEARNING_DAY_START_HOUR` (переиспользовать хелпер из Task 2, не писать четвёртую копию)
-- [ ] `DP-027` — докстринги `app/daily_plan/snapshot.py:4-5` описывают границу «полночь»;
-      привести к фактическому поведению
-- [ ] тест на roll-over снапшота через границу 02:00: перенос вчерашнего снапшота не должен
+      → введён канонический `study_day_start_utc(tz_name, local_date)` в `app/utils/time_utils.py`
+      (единственное место, превращающее «учебный день D» в момент); `study_day_bounds_utc` из
+      Task 2 переведён на него же, копий не прибавилось
+- [x] `DP-027` — докстринги `app/daily_plan/snapshot.py:4-5` описывают границу «полночь»;
+      привести к фактическому поведению → плюс две таких же формулировки в `_try_rollover_from_yesterday`
+      и `overlay_completion`
+- [x] тест на roll-over снапшота через границу 02:00: перенос вчерашнего снапшота не должен
       срабатывать дважды и не должен пропускать день
+      → `TestRolloverStudyDayBoundary` (4 теста, 3 краснеют при откате фикса)
 
 ### Task 8: Кластер границы суток — читатели дат
 

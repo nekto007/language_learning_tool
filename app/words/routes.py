@@ -1046,14 +1046,15 @@ def _render_unified_dashboard(tz: str):
     unified_plan['day_secured'] = _day_secured
     if _day_secured:
         try:
-            from datetime import datetime as _dt_sec
-
-            import pytz as _pytz_sec
-            try:
-                _tz_sec = _pytz_sec.timezone(tz)
-            except _pytz_sec.UnknownTimeZoneError:
-                _tz_sec = _pytz_sec.timezone(DEFAULT_TIMEZONE)
-            write_secured_at(current_user.id, _dt_sec.now(_tz_sec).date())
+            # DP-003: the plan_date must be the STUDY day (02:00 local), not
+            # the calendar date, and must be keyed on User.timezone rather
+            # than the client-supplied ``tz`` — otherwise a day closed between
+            # 00:00 and 02:00 wrote secured_at into tomorrow's row, and the
+            # API writer (/api/daily-status, already on get_user_local_date)
+            # then created a second row for the same session.
+            from app.utils.time_utils import get_user_local_date
+            _secured_date = get_user_local_date(current_user.id, db)
+            write_secured_at(current_user.id, _secured_date)
             try:
                 # Rank progression + rank-up notification on a secured day
                 # (idempotent per local day). Gated on the unified day_secured;

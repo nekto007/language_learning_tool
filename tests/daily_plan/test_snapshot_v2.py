@@ -219,6 +219,118 @@ class TestRollover:
         assert all(it.get('id') != 'curriculum:lesson:777' for it in snap['items'])
 
 
+class TestRolloverStudyDayBoundary:
+    """DP-002 / DP-009: окно roll-over якорится в 02:00, не в полночь.
+
+    ``plan_date`` приходит уже учебной датой (`get_user_local_date`), поэтому
+    окно `[дата 00:00, дата+1 00:00)` было сдвинуто на два часа: занятие в
+    00:30 роняло снапшот дважды (день «пропущен», хотя юзер занимался);
+    занятие позапрошлой ночью, наоборот, гасило законный перенос.
+    """
+
+    def _seed_yesterday(self, db_session, user, yesterday, lesson_marker):
+        prior = {
+            'version': SNAPSHOT_VERSION,
+            'date': yesterday.isoformat(),
+            'tier': 'calm',
+            'rolled_over_from': None,
+            'items': [{
+                'id': f'curriculum:lesson:{lesson_marker}',
+                'section': 'required',
+                'kind': 'curriculum',
+                'title': 'Yesterday lesson',
+                'subtitle': None,
+                'lesson_type': 'vocabulary',
+                'eta_minutes': 8,
+                'url': f'/learn/{lesson_marker}/',
+                'completion_signal': 'lesson_completed',
+                'data': {'lesson_id': lesson_marker},
+            }],
+        }
+        db_session.add(DailyPlanLog(
+            user_id=user.id, plan_date=yesterday, plan_json=prior,
+        ))
+        return prior
+
+    def test_window_starts_at_learning_day_hour(self, db_session, user):
+        from app.daily_plan.snapshot import _local_date_start_naive_utc
+        from app.utils.time_utils import LEARNING_DAY_START_HOUR
+
+        user.timezone = 'UTC'
+        db_session.commit()
+
+        plan_date = study_today() - timedelta(days=10)
+        start = _local_date_start_naive_utc(user.id, plan_date, real_db)
+
+        assert start == datetime.combine(
+            plan_date, time(hour=LEARNING_DAY_START_HOUR),
+        )
+
+    def test_after_midnight_activity_belongs_to_that_study_day(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Занятие в 01:00 календарного «завтра» — это ещё вчерашний день."""
+        user.timezone = 'UTC'
+        today = study_today() - timedelta(days=10)
+        yesterday = today - timedelta(days=1)
+        self._seed_yesterday(db_session, user, yesterday, 666)
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='in_progress',
+            # 01:00 на календарной дате `today` — внутри учебного дня
+            # `yesterday` (02:00 вчера … 02:00 сегодня).
+            last_activity=datetime.combine(today, time(hour=1)),
+        ))
+        db_session.commit()
+
+        snap = resolve_snapshot_for_today(user.id, today, real_db)
+
+        assert snap['rolled_over_from'] is None
+        assert all(it.get('id') != 'curriculum:lesson:666' for it in snap['items'])
+
+    def test_activity_before_study_day_start_does_not_block_rollover(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Занятие в 01:00 вчерашней календарной даты — это позавчера."""
+        user.timezone = 'UTC'
+        today = study_today() - timedelta(days=10)
+        yesterday = today - timedelta(days=1)
+        prior = self._seed_yesterday(db_session, user, yesterday, 555)
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='in_progress',
+            last_activity=datetime.combine(yesterday, time(hour=1)),
+        ))
+        db_session.commit()
+
+        snap = resolve_snapshot_for_today(user.id, today, real_db)
+
+        assert snap['rolled_over_from'] == yesterday.isoformat()
+        assert snap['items'] == prior['items']
+
+    def test_rollover_does_not_fire_twice_for_the_same_day(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Повторный resolve возвращает уже записанный снапшот, не переносит заново."""
+        user.timezone = 'UTC'
+        today = study_today() - timedelta(days=10)
+        yesterday = today - timedelta(days=1)
+        self._seed_yesterday(db_session, user, yesterday, 444)
+        db_session.commit()
+
+        first = resolve_snapshot_for_today(user.id, today, real_db)
+        real_db.session.commit()
+        second = resolve_snapshot_for_today(user.id, today, real_db)
+        real_db.session.commit()
+
+        assert first['rolled_over_from'] == yesterday.isoformat()
+        assert second == first
+        rows = DailyPlanLog.query.filter_by(
+            user_id=user.id, plan_date=today,
+        ).all()
+        assert len(rows) == 1
+
+
 class TestOverlayCompletion:
 
     def test_curriculum_completed_today_marks_item_done(
