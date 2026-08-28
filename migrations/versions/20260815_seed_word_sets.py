@@ -138,6 +138,21 @@ def upgrade():
         seeded += 1
 
     print(f'seed word sets: created {seeded} of {len(_SETS)} sets')
+    if seeded == 0:
+        already = conn.execute(
+            sa.text('SELECT count(*) FROM word_sets')
+        ).scalar() or 0
+        if already == 0:
+            # Every set is resolved by an exact `topics.name` match. On a
+            # database whose topic names differ, all 19 lookups miss and this
+            # migration succeeds having created nothing — the feature would
+            # ship with an empty catalogue, a hidden dashboard tile and a plan
+            # item that never appears. Fail loudly instead: `flask db upgrade`
+            # aborts and the deploy surfaces it.
+            raise RuntimeError(
+                'seed word sets: no sets created and word_sets is empty — the '
+                'expected topic names are absent from this database'
+            )
 
 
 def downgrade():

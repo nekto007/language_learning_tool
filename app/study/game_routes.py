@@ -680,20 +680,28 @@ def submit_quiz_answer():
     word_id = data.get('word_id')
     direction_str = data.get('direction')
 
-    skip_srs = False
+    # Fail closed: grading only happens once the answer is tied to a session
+    # this user owns. An unresolvable session_id used to fall through to
+    # `skip_srs = False` and grade anyway, which handed a themed quiz the SM-2
+    # advance it is specifically excluded from just by omitting the field.
+    session = None
     if session_id:
-        session = StudySession.query.get(session_id)
-        if session and session.user_id == current_user.id:
-            session.words_studied += 1
-            if is_correct:
-                session.correct_answers += 1
-            else:
-                session.incorrect_answers += 1
-            db.session.commit()
-            # Read the source off the session, never off the request body: a
-            # client-supplied flag would also let a deck quiz opt out of the
-            # grading it is specifically meant to perform.
-            skip_srs = session.session_type == WORD_SET_QUIZ_SESSION_TYPE
+        candidate = StudySession.query.get(session_id)
+        if candidate is not None and candidate.user_id == current_user.id:
+            session = candidate
+
+    if session is not None:
+        session.words_studied += 1
+        if is_correct:
+            session.correct_answers += 1
+        else:
+            session.incorrect_answers += 1
+        db.session.commit()
+
+    # Read the source off the session, never off the request body: a
+    # client-supplied flag would also let a deck quiz opt out of the
+    # grading it is specifically meant to perform.
+    skip_srs = session is None or session.session_type == WORD_SET_QUIZ_SESSION_TYPE
 
     # Advance the card's SM-2 state. The quiz used to write only QuizResult /
     # GameScore / XP, so the daily plan's SRS slot could be satisfied by a

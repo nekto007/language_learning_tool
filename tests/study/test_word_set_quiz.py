@@ -93,9 +93,17 @@ class TestQuestionSourcing:
         )
         assert response.status_code == 404
 
-    def test_multiple_choice_options_prefer_the_set(self, authenticated_client, db_session):
+    def test_multiple_choice_options_prefer_the_set(
+        self, authenticated_client, db_session, monkeypatch
+    ):
         word_set, words = _make_set(db_session, words=5)
         set_translations = {w.russian_word for w in words}
+
+        # generate_quiz_questions picks eng->rus question type with an
+        # unseeded random.choice per word, so without pinning it this test
+        # asserts on an empty list roughly 1 run in 32.
+        import app.study.services.quiz_service as quiz_service
+        monkeypatch.setattr(quiz_service.random, 'choice', lambda seq: 'multiple_choice')
 
         response = authenticated_client.get(
             f'/study/api/get-quiz-questions?source=word_set&set={word_set.slug}&count=20'
@@ -147,11 +155,71 @@ class TestSrsIsolation:
             user_id=test_user.id, word_id=target.id
         ).first()
         assert user_word is None, 'themed quiz must not enrol the word'
+        # And no card either, asserted independently of UserWord so the
+        # invariant still holds if the quiz ever starts enrolling words.
+        assert UserCardDirection.query.join(
+            UserWord, UserCardDirection.user_word_id == UserWord.id
+        ).filter(
+            UserWord.user_id == test_user.id, UserWord.word_id == target.id
+        ).count() == 0
 
-        if user_word is not None:  # pragma: no cover - defensive
-            assert UserCardDirection.query.filter_by(
-                user_word_id=user_word.id
-            ).count() == 0
+    def test_unresolvable_session_does_not_grade(
+        self, authenticated_client, db_session, test_user, monkeypatch
+    ):
+        """Grading is gated on a session this user owns, so it fails closed.
+
+        Otherwise a themed run could buy back the SM-2 advance it is excluded
+        from simply by leaving session_id out of the body.
+        """
+        import app.study.game_routes as game_routes
+
+        calls = []
+        monkeypatch.setattr(
+            game_routes, '_grade_quiz_answer',
+            lambda word_id, direction, is_correct: calls.append(word_id) or True,
+        )
+
+        _, words = _make_set(db_session)
+        for body in (
+            {'word_id': words[0].id, 'direction': 'eng_to_rus', 'is_correct': True},
+            {'session_id': 999999999, 'word_id': words[0].id,
+             'direction': 'eng_to_rus', 'is_correct': True},
+        ):
+            response = authenticated_client.post('/study/api/submit-quiz-answer', json=body)
+            assert response.status_code == 200
+            assert response.get_json()['srs_graded'] is False
+        assert calls == []
+
+    def test_another_users_session_does_not_grade(
+        self, authenticated_client, db_session, second_user, monkeypatch
+    ):
+        import app.study.game_routes as game_routes
+
+        calls = []
+        monkeypatch.setattr(
+            game_routes, '_grade_quiz_answer',
+            lambda word_id, direction, is_correct: calls.append(word_id) or True,
+        )
+
+        _, words = _make_set(db_session)
+        foreign = StudySession(user_id=second_user.id, session_type='quiz')
+        db_session.add(foreign)
+        db_session.commit()
+
+        response = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            json={
+                'session_id': foreign.id,
+                'word_id': words[0].id,
+                'direction': 'eng_to_rus',
+                'is_correct': True,
+            },
+        )
+        assert response.status_code == 200
+        assert calls == []
+        # And the foreign session's counters are untouched.
+        db_session.refresh(foreign)
+        assert foreign.words_studied == 0
 
     def test_deck_quiz_still_grades(self, authenticated_client, db_session, test_user, monkeypatch):
         """The exemption is scoped to themed sets, not to quizzes in general.
@@ -215,6 +283,40 @@ class TestResultRecording:
         assert result is not None
         assert result.total_questions == 8
         assert result.correct_answers == 6
+        # The column every ranking surface reads (list_published, get_progress,
+        # suggest_for_user), so pin its value, not just the raw counts.
+        assert result.score_percentage == pytest.approx(75.0)
+
+    def test_themed_quiz_still_earns_xp(self, authenticated_client, db_session, test_user):
+        """A themed session is still a quiz session for XP purposes.
+
+        `complete_quiz` verifies the session type against QUIZ_SESSION_TYPES
+        before awarding; narrowing that back to the bare 'quiz' string would
+        silently drop XP for every themed run.
+        """
+        word_set, _ = _make_set(db_session)
+        authenticated_client.get(f'/study/quiz/set/{word_set.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': session.id,
+                'set_slug': word_set.slug,
+                'source': 'word_set',
+                'total_questions': 8,
+                'correct_answers': 8,
+                'time_taken': 40,
+            },
+        )
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload['xp_earned'] > 0, 'themed quiz must award XP like any other quiz'
 
     def test_slug_without_a_matching_session_is_ignored(
         self, authenticated_client, db_session, test_user
@@ -230,6 +332,75 @@ class TestResultRecording:
                 'total_questions': 8,
                 'correct_answers': 8,
                 'time_taken': 10,
+            },
+        )
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(set_id=word_set.id).count() == 0
+
+    def test_another_users_session_cannot_write_a_result(
+        self, authenticated_client, db_session, second_user
+    ):
+        """Ownership, not just existence, is what makes the slug trustworthy."""
+        word_set, _ = _make_set(db_session)
+        foreign = StudySession(user_id=second_user.id, session_type='quiz_word_set')
+        db_session.add(foreign)
+        db_session.commit()
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': foreign.id,
+                'set_slug': word_set.slug,
+                'total_questions': 8,
+                'correct_answers': 8,
+                'time_taken': 10,
+            },
+        )
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(set_id=word_set.id).count() == 0
+
+    def test_plain_quiz_session_cannot_write_a_result(
+        self, authenticated_client, db_session, test_user
+    ):
+        """A deck quiz posting a set slug must not land in the set's history."""
+        word_set, _ = _make_set(db_session)
+        session = StudySession(user_id=test_user.id, session_type='quiz')
+        db_session.add(session)
+        db_session.commit()
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': session.id,
+                'set_slug': word_set.slug,
+                'total_questions': 8,
+                'correct_answers': 8,
+                'time_taken': 10,
+            },
+        )
+        assert response.status_code == 200
+        assert WordSetQuizResult.query.filter_by(set_id=word_set.id).count() == 0
+
+    def test_zero_question_run_is_not_recorded(
+        self, authenticated_client, db_session, test_user
+    ):
+        word_set, _ = _make_set(db_session)
+        authenticated_client.get(f'/study/quiz/set/{word_set.slug}')
+        session = (
+            StudySession.query
+            .filter_by(user_id=test_user.id, session_type='quiz_word_set')
+            .order_by(StudySession.id.desc())
+            .first()
+        )
+
+        response = authenticated_client.post(
+            '/study/api/complete-quiz',
+            json={
+                'session_id': session.id,
+                'set_slug': word_set.slug,
+                'total_questions': 0,
+                'correct_answers': 0,
+                'time_taken': 5,
             },
         )
         assert response.status_code == 200

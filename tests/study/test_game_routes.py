@@ -566,6 +566,17 @@ class TestMatchingSrsBudget:
 class TestQuizAdvancesSrs:
     """A deck quiz must move real cards — the plan's SRS slot counts on it."""
 
+    def _seed_session(self, db_session, test_user):
+        """Grading is gated on a session this user owns, so every quiz answer
+        carries one — quiz.html renders session_id server-side and always
+        posts it."""
+        from app.study.models import StudySession
+
+        session = StudySession(user_id=test_user.id, session_type='quiz')
+        db_session.add(session)
+        db_session.commit()
+        return session
+
     def _seed_card(self, db_session, test_user, english: str):
         from app.study.models import UserCardDirection, UserWord
         from app.words.models import CollectionWords
@@ -585,10 +596,12 @@ class TestQuizAdvancesSrs:
         self, authenticated_client, db_session, test_user, study_settings,
     ):
         word, _, direction = self._seed_card(db_session, test_user, 'quiz_advances')
+        session = self._seed_session(db_session, test_user)
 
         resp = authenticated_client.post(
             '/study/api/submit-quiz-answer',
             data=json.dumps({
+                'session_id': session.id,
                 'word_id': word.id,
                 'direction': 'eng-rus',
                 'is_correct': True,
@@ -608,10 +621,12 @@ class TestQuizAdvancesSrs:
         word, user_word, direction = self._seed_card(db_session, test_user, 'quiz_excluded')
         user_word.srs_excluded = True
         db_session.commit()
+        session = self._seed_session(db_session, test_user)
 
         resp = authenticated_client.post(
             '/study/api/submit-quiz-answer',
             data=json.dumps({
+                'session_id': session.id,
                 'word_id': word.id,
                 'direction': 'eng-rus',
                 'is_correct': True,

@@ -822,9 +822,10 @@ Health-пинг ридер-API.
 
 | Параметр | Тип | Описание |
 |----------|-----|----------|
-| source | string | `auto` или `linear_plan_deck_quiz` |
-| count | int | Количество (default: 20, max: 200; для слота плана — свой лимит) |
+| source | string | `auto`, `linear_plan_deck_quiz` или `word_set` |
+| count | int | Количество (default: 20, max: 200; для `linear_plan_deck_quiz` — 30) |
 | deck_id | int | ID колоды |
+| set | string | Слаг набора; обязателен при `source=word_set` |
 
 **Response:**
 ```json
@@ -840,15 +841,19 @@ Health-пинг ридер-API.
 ```
 Типы вопросов: `multiple_choice`, `fill_blank`. Нет слов → `{"status": "error", "message": "No words available for quiz", "questions": []}`.
 
+При `source=word_set` весь набор подаётся в дистракторы, даже если в вопросы попадает лишь часть слов: неверные варианты набираются сначала из набора (`THEMED_DISTRACTOR_QUOTA`), остаток — из общего словаря. Ошибки: `404 {"status": "error", "message": "Word set not found"}` (нет набора или он не опубликован), `200 {"status": "error", "message": "No words in set"}`.
+
 ### `POST /study/api/submit-quiz-answer`
-Зафиксировать ответ: обновляет счётчики сессии и продвигает SM-2 состояние карточки.
+Зафиксировать ответ: обновляет счётчики сессии и (кроме тематических наборов) продвигает SM-2 состояние карточки.
 
 **Body:**
 ```json
 { "session_id": 42, "is_correct": true, "word_id": 1, "direction": "eng-rus" }
 ```
 
-**Response:** `{ "success": true, "srs_graded": true }` (`srs_graded=false`, если карточки нет, слово исключено или исчерпан бюджет новых).
+**Response:** `{ "success": true, "srs_graded": true }`.
+
+`srs_graded=false`, если: карточки нет, слово исключено, исчерпан бюджет новых, сессия открыта как тематический квиз набора (`session_type='quiz_word_set'`) — тип читается с сессии, флаг из тела запроса не принимается, — либо `session_id` не передан / не резолвится в сессию текущего пользователя (гейт fail-closed).
 
 ### `POST /study/api/complete-quiz`
 Завершение квиза: результат, XP, ачивки.
@@ -856,8 +861,11 @@ Health-пинг ридер-API.
 **Body:**
 ```json
 { "session_id": 42, "deck_id": 5, "total_questions": 10, "correct_answers": 8,
-  "time_taken": 120, "has_streak": false, "source": "linear_plan_deck_quiz", "from": "linear_plan", "slot": "srs" }
+  "time_taken": 120, "has_streak": false, "source": "linear_plan_deck_quiz", "from": "linear_plan", "slot": "srs",
+  "set_slug": "colors" }
 ```
+
+`set_slug` — только для тематического квиза. Строка `WordSetQuizResult` пишется, если сессия принадлежит текущему пользователю и имеет тип `quiz_word_set`; запись best-effort — её отказ логируется и не валит уже пройденный квиз.
 
 **Response:**
 ```json

@@ -128,6 +128,10 @@
                     <i class="fas fa-layer-group" aria-hidden="true"></i>
                     <span>Коллекции</span>
                 </a>
+                <a href="{{ url_for('word_set_admin.word_set_list') }}" class="nav-link {{ 'active' if request.endpoint.startswith('word_set_admin.') }}">
+                    <i class="fas fa-shapes" aria-hidden="true"></i>
+                    <span>Наборы слов</span>
+                </a>
                 <a href="{{ url_for('word_admin.word_management') }}" class="nav-link {{ 'active' if request.endpoint.startswith('word_admin.') }}">
                     <i class="fas fa-spell-check" aria-hidden="true"></i>
                     <span>Слова</span>
@@ -338,6 +342,7 @@
             { title: 'Lessons', url: '{{ url_for("admin_curriculum.lesson_list") }}', icon: 'fa-file-alt', section: 'Content' },
             { title: 'Topics', url: '{{ url_for("topic_admin.topic_list") }}', icon: 'fa-tags', section: 'Content' },
             { title: 'Collections', url: '{{ url_for("collection_admin.collection_list") }}', icon: 'fa-layer-group', section: 'Content' },
+            { title: 'Word Sets', url: '{{ url_for("word_set_admin.word_set_list") }}', icon: 'fa-shapes', section: 'Content' },
             { title: 'Words', url: '{{ url_for("word_admin.word_management") }}', icon: 'fa-spell-check', section: 'Content' },
             { title: 'Books', url: '{{ url_for("book_admin.books") }}', icon: 'fa-book', section: 'Content' },
             { title: 'Book Courses', url: '{{ url_for("admin.book_courses") }}', icon: 'fa-graduation-cap', section: 'Content' },
