@@ -5,6 +5,12 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
+# ``edge-tts`` is a content-pipeline-only dependency and is in neither
+# requirements file; without this the whole module errors at collection on a
+# checkout that never runs the audio pipeline.
+pytest.importorskip("edge_tts")
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts"
 _MODULE_KEY = "scripts_generate_pilot_audio"

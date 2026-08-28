@@ -339,7 +339,17 @@
         }
 
         function getQuizStateKey() {
-            const quizKey = deckId ? `deck_${deckId}` : (wordSource || 'auto');
+            // Themed sets all share wordSource === 'word_set' and have no deckId,
+            // so without the slug every curated set would resume the previous
+            // set's questions and post that run under the wrong set_slug.
+            let quizKey;
+            if (deckId) {
+                quizKey = `deck_${deckId}`;
+            } else if (setSlug) {
+                quizKey = `set_${setSlug}`;
+            } else {
+                quizKey = wordSource || 'auto';
+            }
             return `quizState_${quizKey}`;
         }
 
@@ -347,6 +357,7 @@
             const state = {
                 deckId: deckId,
                 wordSource: wordSource,
+                setSlug: setSlug,
                 questions: questions,
                 currentQuestionIndex: currentQuestionIndex,
                 sessionStats: sessionStats,
@@ -377,7 +388,8 @@
                         return null;
                     }
 
-                    if (state.deckId === deckId && state.wordSource === wordSource) {
+                    if (state.deckId === deckId && state.wordSource === wordSource
+                        && (state.setSlug || null) === (setSlug || null)) {
                         return state;
                     }
                 } catch (error) {

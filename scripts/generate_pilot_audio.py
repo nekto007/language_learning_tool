@@ -31,10 +31,22 @@ import edge_tts
 
 ROOT = Path(__file__).resolve().parents[1]
 
-PILOTS = sorted(
-    p.name for p in (ROOT / "module_completed" / "fixed").iterdir()
-    if p.name.startswith("module_") and p.name.endswith(".json")
-)
+PILOT_DIR = ROOT / "module_completed" / "fixed"
+
+
+def list_pilots() -> list[str]:
+    """Pilot filenames, resolved on demand.
+
+    ``module_completed/`` is gitignored, so scanning it at import time turned a
+    missing corpus into a collection-time ``FileNotFoundError`` for every
+    checkout without the content.
+    """
+    if not PILOT_DIR.is_dir():
+        return []
+    return sorted(
+        p.name for p in PILOT_DIR.iterdir()
+        if p.name.startswith("module_") and p.name.endswith(".json")
+    )
 
 TYPE_VOICE = {
     "dictation": ("en-US-AriaNeural", "-10%"),
@@ -384,16 +396,17 @@ def _collect_inline_jobs(
 
 def collect_jobs(module_filter: str | None = None) -> list[Job]:
     jobs: list[Job] = []
-    files = PILOTS
+    pilots = list_pilots()
+    files = pilots
     if module_filter:
         # Match by prefix on the `module_<...>_` segment, so 'A1_1' only matches
         # module_A1_1_*.json and does NOT also pick up A1_10, A1_11, ….  The
         # caller may pass the pattern with or without a trailing underscore.
         needle = module_filter.rstrip("_")
         prefix = f"module_{needle}_"
-        files = [f for f in PILOTS if f.startswith(prefix)]
+        files = [f for f in pilots if f.startswith(prefix)]
     for fname in files:
-        data = json.loads((ROOT / "module_completed" / "fixed" / fname).read_text(encoding="utf-8"))
+        data = json.loads((PILOT_DIR / fname).read_text(encoding="utf-8"))
         for lesson in data["module"]["lessons"]:
             c = lesson.get("content") or {}
             url = c.get("audio_url")
