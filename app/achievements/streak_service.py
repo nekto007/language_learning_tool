@@ -614,13 +614,13 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
       - current_streak: current consecutive run
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.books.models import UserChapterProgress
     from app.curriculum.daily_lessons import UserLessonProgress
     from app.curriculum.models import LessonProgress
     from app.grammar_lab.models import UserGrammarExercise
     from app.study.models import UserCardDirection, UserWord
+    from app.utils.time_utils import study_day_date_for_tz
 
     try:
         tz_obj = pytz.timezone(tz)
@@ -628,7 +628,14 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
     tz = tz_obj.zone
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date. This function returns
+    # `current_streak`/`longest_streak` and hands off to `get_current_streak`
+    # once the run reaches the window edge — and that walker has been on the
+    # study day since DP-001. On a calendar basis a learner who studied at
+    # 23:00 and again at 01:00 counted as two days here and one there, so the
+    # public /streak page disagreed with the dashboard, and a single response
+    # could even mix both bases across the hand-off.
+    local_today = study_day_date_for_tz(tz)
     from_date = local_today - timedelta(days=days)
     start_utc = datetime.now(timezone.utc) - timedelta(days=days + 1)
 
@@ -642,7 +649,8 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
         event_dates.add(ev.event_date)
 
     def _local_date(col):
-        return cast(func.timezone(tz, func.timezone('UTC', col)), Date)
+        # All five sources below are naive-UTC columns, so the non-aware form.
+        return _study_day_date_expr(col, tz)
 
     q1 = (
         db.session.query(_local_date(LessonProgress.last_activity).label('d'))

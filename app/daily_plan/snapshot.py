@@ -236,11 +236,13 @@ def overlay_completion(
     completion_signal) are passed through unchanged.
 
     Two kinds of reading item are dropped rather than overlaid: a book that
-    has been finished, and a book the user can no longer open. The builder's
-    access gate only covers the day the snapshot is composed — the required
-    list is then frozen, so a licence that expires (or a ``books`` module that
-    is revoked) mid-day would otherwise leave an uncompletable slot blocking
-    ``day_secured`` until the study day rolls over at 02:00.
+    has been finished, and a *still-incomplete* slot on a book the user can no
+    longer open. The builder's access gate only covers the day the snapshot is
+    composed — the required list is then frozen, so a licence that expires (or
+    a ``books`` module that is revoked) mid-day would otherwise leave an
+    uncompletable slot blocking ``day_secured`` until the study day rolls over
+    at 02:00. A slot already completed before access was lost is kept: it
+    blocks nothing, and dropping it would revoke earned credit.
     """
     items_out: list[dict[str, Any]] = []
     for item in snapshot.get('items') or []:
@@ -248,9 +250,14 @@ def overlay_completion(
         merged['section'] = 'required'
         if _is_finished_reading_book(user_id, merged, db):
             continue
-        if _reading_book_unreachable(user_id, merged, db):
-            continue
         completed = _is_item_completed(user_id, merged, db)
+        # Reachability is checked AFTER completion: the point of the drop is to
+        # unblock a slot that can no longer be finished, and a slot already
+        # finished this morning is not blocking anything. Dropping it anyway
+        # would erase credit the user really earned and shrink the
+        # steps_done/steps_total pair that feeds get_required_steps.
+        if not completed and _reading_book_unreachable(user_id, merged, db):
+            continue
         merged['completed'] = completed
         if completed:
             merged['eta_minutes'] = 0

@@ -259,11 +259,20 @@ def award_perfect_day_xp_idempotent(
         coins_delta=0,
         details={},
     )
+    # The savepoint is taken OUTSIDE the try on purpose. `begin_nested()` takes
+    # its snapshot by flushing the session BEFORE emitting SAVEPOINT, so an
+    # IntegrityError from some unrelated row a caller staged upstream would
+    # otherwise land in the handler below and be misread as "lost the race" —
+    # returning None (day silently treated as already awarded) with the session
+    # left in PendingRollbackError. Only the marker insert is guarded. The `add`
+    # still happens inside the savepoint so a lost race expunges it.
+    savepoint = db.session.begin_nested()
     try:
-        with db.session.begin_nested():
-            db.session.add(marker)
-            db.session.flush()
+        db.session.add(marker)
+        db.session.flush()
+        savepoint.commit()
     except IntegrityError:
+        savepoint.rollback()
         return None
 
     # Claiming first is only safe if a failed award RELEASES the claim: the

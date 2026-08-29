@@ -138,9 +138,11 @@ def init_scheduler(app) -> None:
         replace_existing=True,
     )
     # Static daily-plan snapshot generation. Runs hourly and picks up the
-    # subset of users whose user-local time is currently 00:00. Idempotent
-    # via uq_daily_plan_log_user_date — if the lazy path already created
-    # today's snapshot from a 00:01 GET, the cron job becomes a no-op.
+    # subset of users whose user-local time has just crossed
+    # LEARNING_DAY_START_HOUR (02:00) — the moment the study day turns over,
+    # not calendar midnight. Idempotent via uq_daily_plan_log_user_date — if
+    # the lazy path already created today's snapshot from a 02:01 GET, the
+    # cron job becomes a no-op.
     _scheduler.add_job(
         _generate_daily_plans_hourly,
         'cron',
@@ -363,7 +365,7 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
 def _generate_daily_plans_hourly(app) -> None:
     """Build the new study day's snapshot for users who just rolled over.
 
-    Runs hourly and only proceeds when the user's local hour equals
+    Runs hourly and only proceeds when the user's local hour has just crossed
     :data:`LEARNING_DAY_START_HOUR`, i.e. the moment the study day actually
     turns over. Firing at calendar midnight instead meant the roll-over
     decision for study day D was taken two hours BEFORE day D-1 closed: work
@@ -400,7 +402,14 @@ def _generate_daily_plans_hourly(app) -> None:
                 tz = pytz.timezone(DEFAULT_TIMEZONE)
 
             local_dt = now_utc.astimezone(tz)
-            if local_dt.hour != LEARNING_DAY_START_HOUR:
+            # A window, not an exact hour. In every zone that advances the clock
+            # at 02:00 local (US/Canada, Mexico, most of Australia) local hour 2
+            # DOES NOT EXIST on the spring-forward day — the hourly samples run
+            # ...01:05, 03:05..., so an `== LEARNING_DAY_START_HOUR` gate skipped
+            # those users once a year. The extra fire on the following hour is a
+            # no-op: `resolve_snapshot_for_today` is idempotent through
+            # uq_daily_plan_log_user_date.
+            if local_dt.hour not in (LEARNING_DAY_START_HOUR, LEARNING_DAY_START_HOUR + 1):
                 continue
 
             today_local = study_day_date_for_tz(tz_name, now_utc)

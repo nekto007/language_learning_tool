@@ -605,8 +605,11 @@ def streak():
 def daily_race_status():
     """Return current daily race standings for the authenticated user.
 
-    Query params:
-        tz (str): User timezone, e.g. 'Europe/Moscow'. Default: project default.
+    Takes no effective query params: the zone comes from ``User.timezone`` via
+    ``get_user_timezone_name``, never from the client. Race points are scored
+    over study-day windows that every other reader also derives from the stored
+    zone, so honouring a client ``?tz=`` would bucket the caller's own points
+    into a day nobody else agrees on.
 
     Enrolls the caller into a race cohort on first visit of the local day,
     recomputes points from their current plan snapshot, and returns the

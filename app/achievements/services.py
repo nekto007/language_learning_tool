@@ -1142,8 +1142,10 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
     # Both ends go through study_day_start_utc, never `start + 24h`: a study day
     # is 23 or 25 hours long on DST-transition days, and a fixed delta would leak
     # an hour of the neighbouring day into the window.
-    day_start = study_day_start_utc(tz, target_date).replace(tzinfo=None)
-    day_end = study_day_start_utc(tz, target_date + timedelta(days=1)).replace(tzinfo=None)
+    day_start_aware = study_day_start_utc(tz, target_date)
+    day_end_aware = study_day_start_utc(tz, target_date + timedelta(days=1))
+    day_start = day_start_aware.replace(tzinfo=None)
+    day_end = day_end_aware.replace(tzinfo=None)
     has_listening = (session.query(func.count(ListeningAttempt.id)).filter(
         ListeningAttempt.user_id == user_id,
         ListeningAttempt.created_at >= day_start,
@@ -1162,10 +1164,17 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
         PronunciationAttempt.created_at < day_end,
     ).scalar() or 0) > 0
 
+    # Three columns above are naive UTC; `UserReadingSession.started_at` is
+    # TIMESTAMPTZ, so it gets the AWARE ends. PostgreSQL resolves
+    # `timestamptz >= timestamp` through the session TimeZone GUC, which would
+    # silently shift the reading leg of the four-skill check on any server whose
+    # GUC is not UTC. `get_immersion_streak` already special-cases this same
+    # column (`_study_day_date_expr(..., aware=True)`); the two feed each other
+    # (immersion_daily here, immersion_week from there) and must agree.
     has_reading = (session.query(func.count(UserReadingSession.id)).filter(
         UserReadingSession.user_id == user_id,
-        UserReadingSession.started_at >= day_start,
-        UserReadingSession.started_at < day_end,
+        UserReadingSession.started_at >= day_start_aware,
+        UserReadingSession.started_at < day_end_aware,
     ).scalar() or 0) > 0
 
     if not (has_listening and has_writing and has_speaking and has_reading):
