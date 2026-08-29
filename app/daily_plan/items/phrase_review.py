@@ -236,8 +236,8 @@ def build_phrase_review_item(
 
 __all__ = [
     'PHRASE_REVIEW_SIZE',
-    'normalise_phrase',
     'build_phrase_review_item',
     'get_phrase_review_items',
+    'normalise_phrase',
     'phrase_review_completed_today',
 ]
