@@ -1122,9 +1122,16 @@ def complete_error_review():
 
 
 def _normalise_phrase_answer(value: object) -> str:
-    import re
-    value = re.sub(r"[^\\w\\s']", '', str(value or '').casefold())
-    return ' '.join(value.strip().split())
+    """Delegate to the builder's canonical fold (DP-046/DP-047).
+
+    This used to be a second copy of the same normaliser and carried the
+    same over-escaped character class, so grader and builder could drift
+    (and did: both folded most phrases to ``''``). One definition, one
+    behaviour — the builder owns it because it also keys dedup on it.
+    """
+    from app.daily_plan.items.phrase_review import normalise_phrase
+
+    return normalise_phrase(value)
 
 
 @api_daily_plan.route('/daily-plan/phrase-review/complete', methods=['POST'])
@@ -1152,9 +1159,17 @@ def complete_phrase_review():
             continue
         answer = answers[index] if index < len(answers) else ''
         accepted = item.get('accepted_answers') or [item.get('answer', '')]
-        is_correct = _normalise_phrase_answer(answer) in {
-            _normalise_phrase_answer(candidate) for candidate in accepted
+        # An empty answer is never a correct answer (DP-046). Drop empty
+        # keys from the accepted set too: a reference phrase that folds to
+        # '' (punctuation-only content) must not turn «typed nothing» into
+        # a pass that silently resolves the QuizErrorLog row.
+        given = _normalise_phrase_answer(answer)
+        expected = {
+            key for key in (
+                _normalise_phrase_answer(candidate) for candidate in accepted
+            ) if key
         }
+        is_correct = bool(given) and given in expected
         if is_correct and item.get('error_id') is not None:
             try:
                 resolved_error_ids.append(int(item['error_id']))

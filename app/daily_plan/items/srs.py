@@ -160,6 +160,7 @@ def build_srs_item(
         count_reviews_today,
         get_due_card_budget,
         get_new_card_budget,
+        get_review_batch_budget,
     )
     from app.study.services import SRSService
 
@@ -180,7 +181,17 @@ def build_srs_item(
     due_budget = get_due_card_budget(user_id, db)
     new_show = min(new_pending, remaining_new)
     learning_show = min(learning_due, due_budget)
-    review_show = min(review_due, max(0, due_budget - learning_show), remaining_reviews)
+    # Mature reviews go through the shared floor helper (DP-043): a bare
+    # ``min(..., remaining_reviews)`` reads 0 on the collapse tier and made
+    # the whole slot vanish for a learner whose backlog is pure REVIEW.
+    review_show = min(
+        review_due,
+        get_review_batch_budget(
+            user_id, db,
+            remaining_reviews=remaining_reviews,
+            due_budget_left=max(0, due_budget - learning_show),
+        ),
+    )
     total_show = new_show + learning_show + review_show
 
     reviews_today_total = count_reviews_today(user_id, db)

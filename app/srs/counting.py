@@ -161,6 +161,55 @@ def get_due_card_budget(user_id: int, db: Any = _db, now_utc: Optional[datetime]
     return max(0, base_reviews - rev_today)
 
 
+# Recovery floor for mature reviews. ``TIER_PCT['collapse']`` sets the
+# adaptive review percentage to 0.00, and low/critical round to 0 on a small
+# ``reviews_per_day``, so the adaptive ceiling stops being a reduction and
+# becomes a freeze: with a pure REVIEW backlog every consumer computed
+# ``review_show = 0``, the SRS slot hit its early ``return None`` and vanished
+# from the plan for the whole day, with no way in through /study either
+# (DP-043). ``get_due_card_budget`` already promises this exact learner a
+# "bounded-but-nonzero batch" so they can work the backlog down — this floor
+# is what makes that promise true.
+RECOVERY_REVIEW_FLOOR = 5
+
+
+def get_review_batch_budget(
+    user_id: int,
+    db: Any = _db,
+    now_utc: Optional[datetime] = None,
+    *,
+    remaining_reviews: Optional[int] = None,
+    due_budget_left: Optional[int] = None,
+) -> int:
+    """How many REVIEW-state cards may still be served/shown today.
+
+    The adaptive ceiling (``get_new_card_budget``'s second element) narrows
+    mature reviews while the learner is struggling; the combined ceiling
+    (``get_due_card_budget``) bounds learning + review together. When the
+    adaptive ceiling has collapsed to zero, this falls back to a small fixed
+    daily floor instead of zero — never above what the combined ceiling
+    still allows.
+
+    Pass ``remaining_reviews`` / ``due_budget_left`` when the caller already
+    computed them (all daily-plan call sites do); they are only queried here
+    when omitted.
+    """
+    if remaining_reviews is None:
+        _, remaining_reviews = get_new_card_budget(user_id, db, now_utc=now_utc)
+    if due_budget_left is None:
+        due_budget_left = get_due_card_budget(user_id, db, now_utc=now_utc)
+
+    if remaining_reviews > 0:
+        allowance = remaining_reviews
+    else:
+        # Zero adaptive allowance: grant the recovery floor, minus whatever
+        # of it today's reviews already consumed, so the batch stays bounded
+        # across repeat visits within one day.
+        reviews_today = count_reviews_today(user_id, db, now_utc=now_utc)
+        allowance = max(0, RECOVERY_REVIEW_FLOOR - reviews_today)
+    return max(0, min(allowance, due_budget_left))
+
+
 def count_due_by_states(
     user_id: int,
     db: Any = _db,

@@ -27,7 +27,7 @@ from app.daily_plan.items.curriculum import (
     get_curriculum_lessons_completed_today,
     has_completed_history,
 )
-from app.daily_plan.items.error_review import build_error_review_item, determine_section
+from app.daily_plan.items.error_review import build_optional_error_review_item
 from app.daily_plan.items.grammar_review import build_grammar_review_item
 from app.daily_plan.items.phrase_review import build_phrase_review_item
 from app.daily_plan.items.reading import build_reading_item, reading_preference_needs_setup
@@ -219,6 +219,16 @@ def build_optional(
         graduated=graduated,
     ))
 
+    # Error review is built once here so the acute tier can jump ahead of the
+    # continuation queue (DP-037). ``determine_section`` escalates at 15+
+    # unresolved errors or three failed attempts in a row; that tier means
+    # «more urgent», so burying it behind a dozen upcoming lessons — or, as
+    # before, dropping it from the plan altogether — inverts the signal. The
+    # calm tier keeps its place in ``_OPTIONAL_PRIORITY`` below.
+    error_review_item = build_optional_error_review_item(user_id, db)
+    if error_review_item is not None and (error_review_item.data or {}).get('urgent'):
+        _accept(error_review_item)
+
     # Curriculum continuation queue: anchor on the required curriculum lesson
     # and walk the spine forward. The anchor (and any lesson already seen) is
     # excluded; the queue is intentionally light (no weak-grammar/adaptive
@@ -263,6 +273,10 @@ def build_optional(
 
     # Other practice sources. Each contributes at most one optional item.
     for kind in _OPTIONAL_PRIORITY:
+        if kind == 'error_review':
+            # Already built above; ``_accept`` no-ops when it was hoisted.
+            _accept(error_review_item)
+            continue
         candidate = _build_optional_candidate(
             user_id, db, kind, focus,
             exclude_curriculum_ids=exclude_curriculum_ids,
@@ -306,10 +320,10 @@ def _build_optional_candidate(
             focus=focus,
         )
     if kind == 'error_review':
-        section = determine_section(user_id, db)
-        if section != 'optional':
-            return None
-        return build_error_review_item(user_id, db, section='optional')
+        # Both tiers land in optional; the acute one is only marked
+        # ``data['urgent']`` (DP-037). Dropping the required tier here used
+        # to erase the item from the plan entirely.
+        return build_optional_error_review_item(user_id, db)
     if kind == 'grammar_review':
         return build_grammar_review_item(user_id, db, section='optional')
     if kind == 'word_set_quiz':

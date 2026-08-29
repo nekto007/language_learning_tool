@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 from app import limiter
 from app.api.errors import api_error
 from app.srs.cards import ensure_card_directions
-from app.srs.counting import count_resting_words
+from app.srs.counting import count_resting_words, get_review_batch_budget
 from app.srs.stats_service import srs_stats_service
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import get_audio_url_for_word, study
@@ -379,7 +379,23 @@ def get_study_items():
     # PRIORITY 3: REVIEW cards (due today) — fill whatever the combined budget
     # has left after learning/relearning, additionally capped by the adaptive
     # review limit (mature reviews are reduced when the user is struggling).
-    review_cap = remaining_reviews if due_budget is None else min(due_budget, remaining_reviews)
+    # That adaptive cap goes through the shared recovery floor (DP-043): on
+    # the collapse tier it is 0, which would serve nothing at all and leave a
+    # pure-REVIEW backlog unreachable — the same zero that made the plan tile
+    # disappear. Mirrors app/daily_plan/items/srs.py so tile and queue agree.
+    # Deck sessions keep the plain cap: their zero comes from the deck's own
+    # explicit reviews limit, which is a user setting to respect, not the
+    # adaptive collapse the floor exists for.
+    if due_budget is None:
+        review_cap = remaining_reviews
+    elif deck_id and deck:
+        review_cap = min(due_budget, remaining_reviews)
+    else:
+        review_cap = get_review_batch_budget(
+            current_user.id, db,
+            remaining_reviews=remaining_reviews,
+            due_budget_left=due_budget,
+        )
     if review_cap > 0:
         review_cards = base_due_query(include_today=not is_linear_plan_srs).filter(
             or_(

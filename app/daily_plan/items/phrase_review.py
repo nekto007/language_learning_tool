@@ -16,8 +16,19 @@ PHRASE_REVIEW_SIZE = 3
 _A1_A2 = ('A1', 'A2')
 
 
-def _normalise(value: Any) -> str:
-    value = re.sub(r"[^\\w\\s']", '', str(value or '').casefold())
+def normalise_phrase(value: Any) -> str:
+    """Fold a phrase to its comparison key: casefolded words, punctuation out.
+
+    The character class is a plain raw string on purpose (DP-047). It used
+    to read ``r"[^\\w\\s']"`` — two literal backslashes, so the negated set
+    was «anything but backslash / letter w / letter s / apostrophe», which
+    stripped spaces and every other letter. ``'My name is Anna'``,
+    ``'I am a student'`` and ``'I am not busy'`` all folded to ``'s'``, and
+    since this function is also the ``seen_answers`` dedup key, distinct
+    phrases were discarded as duplicates: 35 real phrases collapsed into 10
+    buckets and the card served 1-2 prompts instead of three.
+    """
+    value = re.sub(r"[^\w\s']", '', str(value or '').casefold())
     return ' '.join(value.strip().split())
 
 
@@ -49,7 +60,7 @@ def _candidate(
     for alternative in alternatives or []:
         if _is_usable_phrase(alternative):
             text = str(alternative).strip()
-            if _normalise(text) not in {_normalise(item) for item in accepted}:
+            if normalise_phrase(text) not in {normalise_phrase(item) for item in accepted}:
                 accepted.append(text)
     return {
         'id': identifier,
@@ -93,10 +104,10 @@ def _error_candidates(user_id: int, db: Any) -> list[dict[str, Any]]:
             module_title=getattr(getattr(row.lesson, 'module', None), 'title', None),
             error_id=row.id,
         )
-        if item is None or _normalise(item['answer']) in seen_answers:
+        if item is None or normalise_phrase(item['answer']) in seen_answers:
             continue
         items.append(item)
-        seen_answers.add(_normalise(item['answer']))
+        seen_answers.add(normalise_phrase(item['answer']))
         if len(items) >= PHRASE_REVIEW_SIZE:
             break
     return items
@@ -144,10 +155,10 @@ def _recent_module_candidates(user_id: int, db: Any) -> list[dict[str, Any]]:
                     source='recent_module',
                     module_title=module.title,
                 )
-                if item is None or _normalise(item['answer']) in seen_answers:
+                if item is None or normalise_phrase(item['answer']) in seen_answers:
                     continue
                 items.append(item)
-                seen_answers.add(_normalise(item['answer']))
+                seen_answers.add(normalise_phrase(item['answer']))
                 if len(items) >= PHRASE_REVIEW_SIZE:
                     return items
     return items
@@ -159,12 +170,12 @@ def get_phrase_review_items(user_id: int, db: Any) -> list[dict[str, Any]]:
     if len(selected) >= PHRASE_REVIEW_SIZE:
         return selected
 
-    seen = {_normalise(item['answer']) for item in selected}
+    seen = {normalise_phrase(item['answer']) for item in selected}
     for item in _recent_module_candidates(user_id, db):
-        if _normalise(item['answer']) in seen:
+        if normalise_phrase(item['answer']) in seen:
             continue
         selected.append(item)
-        seen.add(_normalise(item['answer']))
+        seen.add(normalise_phrase(item['answer']))
         if len(selected) >= PHRASE_REVIEW_SIZE:
             break
     return selected
@@ -196,11 +207,19 @@ def build_phrase_review_item(
     if not items:
         return None
     completed = phrase_review_completed_today(user_id, db)
+    # The card serves whatever the builders found — the pool is small on a
+    # fresh account and the dedup key legitimately merges re-worded
+    # duplicates. Print the real number instead of a fixed «3» that the
+    # activity then fails to deliver (DP-047).
+    title = (
+        'Повтори 1 фразу' if len(items) == 1
+        else f'Повтори {len(items)} фразы'
+    )
     return PlanItem(
         id='phrase_review:daily',
         section=section,  # type: ignore[arg-type]
         kind='phrase_review',  # type: ignore[arg-type]
-        title='Повтори 3 фразы',
+        title=title,
         subtitle='Ошибки и недавно пройденные темы',
         lesson_type=None,
         eta_minutes=3 if not completed else 0,
@@ -217,6 +236,7 @@ def build_phrase_review_item(
 
 __all__ = [
     'PHRASE_REVIEW_SIZE',
+    'normalise_phrase',
     'build_phrase_review_item',
     'get_phrase_review_items',
     'phrase_review_completed_today',
