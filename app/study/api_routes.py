@@ -151,6 +151,20 @@ def get_study_items():
     new_cards_limit_reached = new_cards_today >= new_cards_limit
     reviews_limit_reached = reviews_today >= reviews_limit
 
+    # DP-043: the adaptive review ceiling is 0 on the collapse tier, so the
+    # banner below fired for a learner whose whole backlog is mature REVIEW
+    # cards — «no way in through /study either», the second half of the same
+    # finding. The recovery floor further down would have served a small
+    # batch, but the early return happens first. Deck sessions keep the plain
+    # comparison: their zero is the deck's own explicit reviews limit, a user
+    # setting to respect, not the adaptive collapse the floor exists for.
+    if reviews_limit_reached and not (deck_id and deck):
+        reviews_limit_reached = get_review_batch_budget(
+            current_user.id, db,
+            remaining_reviews=max(0, reviews_limit - reviews_today),
+            due_budget_left=max(0, (settings.reviews_per_day or 0) - reviews_today),
+        ) <= 0
+
     # Daily plan sessions own their own budget via the phase assembler, so
     # never terminate a plan session mid-way with the daily_limit_reached
     # banner — let the flow return empty items when done and the frontend

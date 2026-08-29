@@ -188,22 +188,24 @@ class TestAcuteErrorReviewStaysInThePlan:
         with app.test_request_context():
             assert build_optional_error_review_item(test_user.id, real_db) is None
 
-    def test_optional_candidate_no_longer_drops_required_tier(
+    def test_required_tier_reaches_the_optional_section(
         self, app, db_session, test_user, test_lesson_quiz,
     ):
-        """Точка находки: `_build_optional_candidate` возвращал None при 'required'."""
-        from app.daily_plan.plan import _build_optional_candidate
+        """Точка находки: тир 'required' выпадал из плана целиком."""
+        from app.daily_plan.plan import build_optional
         from app.utils.db import db as real_db
 
         self._acute_backlog(db_session, test_user.id, test_lesson_quiz.id)
 
         with app.test_request_context():
-            candidate = _build_optional_candidate(
-                test_user.id, real_db, 'error_review', None,
+            items, _has_more = build_optional(
+                test_user.id, real_db, required_items=[], focus=None,
             )
 
-        assert candidate is not None
-        assert candidate.id == 'error_review:global'
+        candidates = [it for it in items if it.id == 'error_review:global']
+        assert candidates, 'острый error_review исчез из плана'
+        assert (candidates[0].data or {}).get('tier') == 'required'
+        assert (candidates[0].data or {}).get('urgent') is True
 
     def test_urgent_item_precedes_other_optional_sources(
         self, app, db_session, test_user, test_lesson_quiz,
@@ -265,30 +267,39 @@ class TestAcuteErrorReviewStaysInThePlan:
 class TestCollapseTierKeepsReviewBatch:
     """Нулевой адаптивный лимит ревью не должен обнулять весь слот."""
 
-    def test_floor_applies_when_adaptive_allowance_is_zero(self):
+    # Нулевой `remaining_reviews` уводит хелпер в `count_reviews_today`, то
+    # есть в БД: без фикстур эти тесты проходили только на утёкшем
+    # app-контексте соседнего теста и падали при запуске класса в одиночку.
+    def test_floor_applies_when_adaptive_allowance_is_zero(
+        self, app, db_session, test_user,
+    ):
         from app.srs.counting import RECOVERY_REVIEW_FLOOR, get_review_batch_budget
 
         budget = get_review_batch_budget(
-            user_id=1, remaining_reviews=0, due_budget_left=20,
+            test_user.id, remaining_reviews=0, due_budget_left=20,
         )
         assert budget == RECOVERY_REVIEW_FLOOR
 
-    def test_floor_never_exceeds_the_combined_ceiling(self):
+    def test_floor_never_exceeds_the_combined_ceiling(
+        self, app, db_session, test_user,
+    ):
         from app.srs.counting import get_review_batch_budget
 
         assert get_review_batch_budget(
-            user_id=1, remaining_reviews=0, due_budget_left=2,
+            test_user.id, remaining_reviews=0, due_budget_left=2,
         ) == 2
         assert get_review_batch_budget(
-            user_id=1, remaining_reviews=0, due_budget_left=0,
+            test_user.id, remaining_reviews=0, due_budget_left=0,
         ) == 0
 
-    def test_nonzero_adaptive_allowance_is_respected(self):
+    def test_nonzero_adaptive_allowance_is_respected(
+        self, app, db_session, test_user,
+    ):
         """Регресс-страж: тиры low/critical по-прежнему режут ревью."""
         from app.srs.counting import get_review_batch_budget
 
         assert get_review_batch_budget(
-            user_id=1, remaining_reviews=3, due_budget_left=20,
+            test_user.id, remaining_reviews=3, due_budget_left=20,
         ) == 3
 
     def test_collapse_tier_slot_is_still_built(

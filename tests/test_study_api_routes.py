@@ -288,6 +288,72 @@ class TestGetStudyItems:
         assert data['stats']['reviews_today'] == 10
         assert data['stats']['reviews_limit'] == 50
 
+    def test_collapse_tier_still_serves_the_recovery_floor(
+        self, authenticated_client, db_session, test_user, study_settings,
+    ):
+        """`DP-043`: адаптивный потолок 0 не должен запирать вход через /study.
+
+        Пункт плана после починки обещает небольшую партию ревью, но обычный
+        `/study` до этой правки возвращал `daily_limit_reached` раньше, чем
+        доходил до пола — плитка и сессия расходились.
+        """
+        from app.srs.counting import RECOVERY_REVIEW_FLOOR
+        from app.words.models import CollectionWords
+
+        now = datetime.now(timezone.utc)
+        study_settings.reviews_per_day = 20
+        study_settings.new_words_per_day = 0
+
+        for index in range(10):
+            word = CollectionWords(
+                english_word=f'collapse_{index}',
+                russian_word=f'коллапс_{index}',
+                level='A1',
+            )
+            db_session.add(word)
+            db_session.flush()
+            user_word = UserWord(user_id=test_user.id, word_id=word.id)
+            user_word.status = 'review'
+            db_session.add(user_word)
+            db_session.flush()
+            direction = UserCardDirection(
+                user_word_id=user_word.id, direction='eng-rus',
+            )
+            direction.state = 'review'
+            direction.first_reviewed = now - timedelta(days=20)
+            direction.last_reviewed = now - timedelta(days=2)
+            direction.next_review = now - timedelta(hours=1)
+            db_session.add(direction)
+        db_session.commit()
+
+        with patch(
+            'app.study.services.SRSService.get_adaptive_limits',
+            return_value=(0, 0),
+        ):
+            response = authenticated_client.get(
+                '/study/api/get-study-items?source=auto'
+            )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['status'] == 'success', 'коллапс-тир снова запер вход в /study'
+        assert 0 < len(data['items']) <= RECOVERY_REVIEW_FLOOR
+
+    def test_explicit_zero_reviews_per_day_is_still_respected(
+        self, authenticated_client, user_words, user_card_directions,
+        study_settings, db_session,
+    ):
+        """Пол — про адаптивный коллапс, а не про явный отказ пользователя."""
+        study_settings.new_words_per_day = 0
+        study_settings.reviews_per_day = 0
+        db_session.commit()
+
+        response = authenticated_client.get('/study/api/get-study-items?source=auto')
+
+        data = json.loads(response.data)
+        assert data['status'] == 'daily_limit_reached'
+        assert data['items'] == []
+
     def test_prioritizes_due_reviews(self, authenticated_client, user_words, user_card_directions, study_settings):
         """Test that due reviews are prioritized over new cards"""
         response = authenticated_client.get('/study/api/get-study-items?source=auto')

@@ -33,7 +33,9 @@ def api_auth_required(f):
     DP-098: the JWT branch issues no session cookie. A stateless API call must
     not turn into a browser session, so instead of login_user() the user is
     published request-scoped via g._login_user -- the very attribute
-    flask_login reads current_user from.
+    flask_login reads current_user from. login_user()'s own is_active gate is
+    reproduced explicitly below; it is the only thing that kept deactivated
+    accounts out of the JWT path.
 
     DP-096: the try block covers token parsing only. It used to wrap the
     endpoint body too, so any genuine 500 raised under JWT was reported as
@@ -72,6 +74,20 @@ def api_auth_required(f):
                     'error': 'User not found',
                     'status_code': 401
                 }), 401
+
+            # login_user() refused to publish a deactivated account
+            # (`if not force and not user.is_active: return False`), and the
+            # handler then died on current_user.id. Publishing g._login_user
+            # directly has no such guard, so the check must be explicit:
+            # /api/auth/refresh does not re-check is_active, and a 30-day
+            # refresh token would otherwise outlive deactivation.
+            if not user.is_active:
+                logger.warning("JWT call by inactive user %s rejected", user_id)
+                return jsonify({
+                    'success': False,
+                    'error': 'Account is inactive',
+                    'status_code': 403
+                }), 403
 
             # current_user is published for the duration of the handler and
             # unwound afterwards: under an outer pushed app context (tests,

@@ -18,9 +18,10 @@ from __future__ import annotations
 import pytest
 
 
-# Каждый POST-эндпоинт зоны. `needs_json_ct` — роут, который до разбора тела
-# требует `Content-Type: application/json` (тогда отсутствие тела формы даёт
-# invalid_content_type, а не поле-ошибку).
+# Каждый POST-эндпоинт зоны. Пять из них тело реально читают (список ниже, в
+# `test_body_readers_answer_400_invalid_body`); `/api/plan/resume` и
+# `/api/streak/repair` тела не читают вовсе и включены как страж «здесь тоже
+# нет 500», а не как покрытие `_json_object_body`.
 ZONE_POST_ENDPOINTS = [
     '/api/daily-plan/events',
     '/api/daily-plan/error-review/complete',
@@ -171,14 +172,27 @@ class TestEventsFieldConfusions:
 
     @pytest.mark.parametrize('plan_date', [42, {}, [], True, 3.5])
     def test_non_string_plan_date_falls_back_to_today(
-        self, authenticated_client, db_session, plan_date,
+        self, authenticated_client, db_session, test_user, plan_date,
     ):
         """Не строка — тот же класс, что неразбираемая строка: молча сегодня."""
+        from app.daily_plan.models import DailyPlanEvent
+        from app.utils.db import db as real_db
+        from app.utils.time_utils import get_user_local_date
+
         resp = authenticated_client.post('/api/daily-plan/events', json={
             'event_type': 'next_step_dismissed',
             'plan_date': plan_date,
         })
         assert resp.status_code == 200
+
+        # 200 сам по себе ничего не доказывает: запись с чужой датой (или её
+        # отсутствие) тоже даёт 200.
+        db_session.expire_all()
+        rows = DailyPlanEvent.query.filter_by(
+            user_id=test_user.id, event_type='next_step_dismissed',
+        ).all()
+        assert len(rows) == 1
+        assert rows[0].plan_date == get_user_local_date(test_user.id, real_db)
 
     @pytest.mark.parametrize('meta', [[1], 'x', 42, True])
     def test_non_dict_meta_is_ignored(self, authenticated_client, db_session, meta):
@@ -251,3 +265,60 @@ class TestTimezoneParamNeverCrashes:
         from app.api.daily_plan import _validate_timezone
 
         assert _validate_timezone('Europe/Istanbul') == 'Europe/Istanbul'
+
+
+# ---------------------------------------------------------------------------
+# DP-079 на `/phrase-review/complete`: гейт сессии стоит ПЕРЕД разбором тела
+# ---------------------------------------------------------------------------
+
+
+class TestPhraseReviewBodyContract:
+    """Без засеянной сессии роут отвечает `phrase_review_expired` до разбора тела.
+
+    Поэтому параметризованные кейсы выше его контракт тела не проверяют:
+    возврат к `request.get_json(silent=True) or {}` восстановил бы 500 на
+    `[1].get('answers')` при зелёном наборе.
+    """
+
+    @staticmethod
+    def _seed(client):
+        with client.session_transaction() as sess:
+            sess['daily_phrase_review_items'] = [{
+                'id': 'phrase:1',
+                'prompt': 'Скажите это по-английски.',
+                'answer': 'I love you',
+                'accepted_answers': ['I love you'],
+                'source': 'recent_module',
+                'error_id': None,
+            }]
+
+    @pytest.mark.parametrize('label,raw', NON_OBJECT_BODIES)
+    def test_non_object_body_is_400_invalid_body(
+        self, authenticated_client, db_session, label, raw,
+    ):
+        self._seed(authenticated_client)
+        resp = _post_raw(
+            authenticated_client, '/api/daily-plan/phrase-review/complete', raw,
+        )
+        assert resp.status_code == 400, f'тело {label} → {resp.status_code}'
+        assert resp.get_json()['error'] == 'invalid_body'
+
+    def test_broken_json_is_400_invalid_json(self, authenticated_client, db_session):
+        self._seed(authenticated_client)
+        resp = _post_raw(
+            authenticated_client,
+            '/api/daily-plan/phrase-review/complete',
+            '{"answers": ',
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()['error'] == 'invalid_json'
+
+    def test_non_list_answers_is_named_explicitly(
+        self, authenticated_client, db_session,
+    ):
+        self._seed(authenticated_client)
+        resp = authenticated_client.post(
+            '/api/daily-plan/phrase-review/complete', json={'answers': {'a': 1}},
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()['error'] == 'invalid_answers'

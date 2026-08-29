@@ -171,6 +171,44 @@ class TestErrorReviewRequiresProofOfWork:
         # XP идемпотентен per (user, date, source) — второй раз не доплачивает.
         assert len(_linear_events(db_session, test_user.id, 'linear_error_review')) == 1
 
+    def test_window_is_the_study_day_not_the_calendar_day(
+        self, db_session, authenticated_client, test_user, test_lesson_quiz,
+    ):
+        """Окно — учебный день (якорь 02:00), а не `resolved_at.date()`.
+
+        Строка, разобранная в 01:30 по местному времени, принадлежит ВЧЕРАШНЕМУ
+        учебному дню; замена `study_day_bounds_utc` на сравнение календарных
+        дат этого не различает.
+        """
+        from app.utils.time_utils import get_user_timezone_name, study_day_bounds_utc
+        from app.utils.db import db as real_db
+
+        tz_name = get_user_timezone_name(test_user.id, real_db)
+        start, _end = study_day_bounds_utc(tz_name)
+
+        # За минуту до старта учебного дня — то есть ещё вчера.
+        before = _error_row(
+            db_session, test_user.id, test_lesson_quiz.id,
+            resolved_at=start - timedelta(minutes=1),
+        )
+        resp = authenticated_client.post(
+            '/api/daily-plan/error-review/complete', json={'error_ids': [before.id]},
+        )
+        assert resp.status_code == 400
+        assert resp.get_json()['error'] == 'no_errors_resolved'
+        assert not _linear_events(db_session, test_user.id, 'linear_error_review')
+
+        # Минутой позже старта — уже сегодня.
+        inside = _error_row(
+            db_session, test_user.id, test_lesson_quiz.id,
+            resolved_at=start + timedelta(minutes=1),
+        )
+        resp = authenticated_client.post(
+            '/api/daily-plan/error-review/complete', json={'error_ids': [inside.id]},
+        )
+        assert resp.status_code == 200
+        assert len(_linear_events(db_session, test_user.id, 'linear_error_review')) == 1
+
 
 # ── DP-042 ───────────────────────────────────────────────────────────────────
 

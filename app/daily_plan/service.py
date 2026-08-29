@@ -44,6 +44,13 @@ def compute_day_secured_from_activity(
     from the optional section, and refusing to ever close their day would
     freeze streak, rank and perfect-day for as long as the block lasts.
 
+    The third way required goes empty is the snapshot self-repair
+    (``required_self_healed``): every frozen item became unreachable mid-day
+    (deleted lesson, expired book licence, emptied decks). The learner did
+    nothing wrong and has no required item left to finish, so the day closes
+    on activity exactly like the other two — otherwise the repair that exists
+    to unblock the day would be the thing freezing it.
+
     Skipped or blocked required items only affect navigation. They do not
     represent learning activity and must not satisfy the daily minimum for
     streak/rank purposes.
@@ -57,7 +64,8 @@ def compute_day_secured_from_activity(
         if not required:
             graduated = plan_meta.get('graduated', False)
             spine_blocked = plan_meta.get('blocked_module_id') is not None
-            if not (graduated or spine_blocked):
+            self_healed = plan_meta.get('required_self_healed', False)
+            if not (graduated or spine_blocked or self_healed):
                 return False
             user_id = plan_meta.get('user_id')
             if not user_id:
@@ -150,6 +158,7 @@ def _with_plan_meta(
     graduated: bool = False,
     user_id: Optional[int] = None,
     blocked_module_id: Optional[int] = None,
+    required_self_healed: bool = False,
 ) -> dict[str, Any]:
     enriched = dict(payload)
     enriched['_plan_meta'] = {
@@ -159,6 +168,7 @@ def _with_plan_meta(
         'graduated': graduated,
         'user_id': user_id,
         'blocked_module_id': blocked_module_id,
+        'required_self_healed': required_self_healed,
     }
     return enriched
 
@@ -207,6 +217,7 @@ def get_daily_plan_unified(user_id: int, tz: Optional[str] = None) -> dict[str, 
         return _with_plan_meta(
             payload, effective_mode='unified', graduated=graduated, user_id=user_id,
             blocked_module_id=blocked_module_id,
+            required_self_healed=bool(payload.get('required_self_healed', False)),
         )
     except Exception:
         logger.exception(

@@ -197,6 +197,21 @@ def phrase_review_completed_today(user_id: int, db: Any) -> bool:
     )
 
 
+def phrase_review_title(count: int) -> str:
+    """«Повтори N фраз(у/ы)» — one wording for the plan card and the page.
+
+    The card serves whatever the builders found — the pool is small on a
+    fresh account and the dedup key legitimately merges re-worded
+    duplicates. Print the real number instead of a fixed «3» that the
+    activity then fails to deliver (DP-047).
+    """
+    if count == 1:
+        return 'Повтори 1 фразу'
+    if 2 <= count <= 4:
+        return f'Повтори {count} фразы'
+    return f'Повтори {count} фраз'
+
+
 def build_phrase_review_item(
     user_id: int,
     db: Any,
@@ -207,14 +222,7 @@ def build_phrase_review_item(
     if not items:
         return None
     completed = phrase_review_completed_today(user_id, db)
-    # The card serves whatever the builders found — the pool is small on a
-    # fresh account and the dedup key legitimately merges re-worded
-    # duplicates. Print the real number instead of a fixed «3» that the
-    # activity then fails to deliver (DP-047).
-    title = (
-        'Повтори 1 фразу' if len(items) == 1
-        else f'Повтори {len(items)} фразы'
-    )
+    title = phrase_review_title(len(items))
     return PlanItem(
         id='phrase_review:daily',
         section=section,  # type: ignore[arg-type]
@@ -240,4 +248,5 @@ __all__ = [
     'get_phrase_review_items',
     'normalise_phrase',
     'phrase_review_completed_today',
+    'phrase_review_title',
 ]

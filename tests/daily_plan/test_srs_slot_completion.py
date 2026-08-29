@@ -195,15 +195,17 @@ class TestSrsSlotCompletion:
         assert len(events) == 1
 
 
-class TestDeckQuizStrictCompletion:
-    """allow_fallback=False (deck-quiz): только XP-событие закрывает слот.
+class TestDeckQuizHasItsOwnSignal:
+    """`DP-042`: слот deck-quiz читает собственный маркер, а не XP-ключ.
 
-    Regression: fallback срабатывал от общих SRS-счётчиков, которые
-    поднимает парный curriculum card-урок (он же съедает бюджет → pool=0),
-    и deck-quiz закрывался + награждался без прохождения квиза.
+    Прежний параметр `allow_fallback=False` не помогал: строгий читатель
+    всё равно видел `linear_srs_global`, который пишет и обычная
+    `/study`-сессия, и корректирующий fallback ниже.
     """
 
     def test_card_lesson_activity_does_not_complete_deck_quiz(self, db_session):
+        from app.daily_plan.linear.xp import is_deck_quiz_completed_today
+
         user = _make_user(db_session)
         _make_settings(db_session, user)
         today_midnight = _study_day_start(user.id)
@@ -218,19 +220,36 @@ class TestDeckQuizStrictCompletion:
             next_review=today_midnight + timedelta(days=10),
         )
 
-        result = is_srs_slot_completed_today(user.id, real_db, allow_fallback=False)
-        real_db.session.flush()
+        assert is_deck_quiz_completed_today(user.id, real_db) is False
 
-        assert result is False
-        # И корректирующий XP не начислен.
-        assert not StreakEvent.query.filter_by(
-            user_id=user.id, event_type=LINEAR_XP_EVENT_TYPE,
-        ).all()
+    def test_srs_global_xp_event_does_not_complete_deck_quiz(self, db_session):
+        """Ключевая развязка: `/study`-сессия закрывает srs:global, но не квиз."""
+        from app.daily_plan.linear.xp import is_deck_quiz_completed_today
 
-    def test_xp_event_still_completes_in_strict_mode(self, db_session):
         user = _make_user(db_session)
         _make_settings(db_session, user)
         _seed_xp_event(db_session, user)
-        assert is_srs_slot_completed_today(
-            user.id, real_db, allow_fallback=False,
-        ) is True
+
+        assert is_srs_slot_completed_today(user.id, real_db) is True
+        assert is_deck_quiz_completed_today(user.id, real_db) is False
+
+    def test_marker_completes_the_slot_and_is_idempotent(self, db_session):
+        from app.daily_plan.linear.xp import (
+            DECK_QUIZ_EVENT_TYPE,
+            is_deck_quiz_completed_today,
+            record_deck_quiz_completion,
+        )
+        from app.daily_plan.models import DailyPlanEvent
+
+        user = _make_user(db_session)
+        _make_settings(db_session, user)
+
+        record_deck_quiz_completion(user.id, db_session=real_db)
+        record_deck_quiz_completion(user.id, db_session=real_db)
+        real_db.session.flush()
+
+        assert is_deck_quiz_completed_today(user.id, real_db) is True
+        rows = DailyPlanEvent.query.filter_by(
+            user_id=user.id, event_type=DECK_QUIZ_EVENT_TYPE,
+        ).all()
+        assert len(rows) == 1

@@ -150,3 +150,66 @@ def test_jwt_branch_still_populates_current_user(app, test_user):
 def test_session_cookie_path_is_untouched(authenticated_client):
     """Сессионная ветка декоратора не задета правкой."""
     assert authenticated_client.get('/api/words').status_code == 200
+
+
+# ── Деактивированный аккаунт: `login_user()` его не публиковал ──
+
+
+def test_deactivated_user_is_rejected_under_jwt(app, client, test_user, db_session):
+    """`login_user()` отказывался публиковать `is_active=False`; `g._login_user` — нет.
+
+    `/api/auth/refresh` не перепроверяет `is_active`, поэтому refresh-токен
+    жил бы 30 дней после деактивации.
+    """
+    token = _access_token(app, test_user)
+    assert client.get(
+        '/api/words', headers={'Authorization': f'Bearer {token}'}
+    ).status_code == 200
+
+    test_user.active = False
+    db_session.commit()
+
+    response = client.get(
+        '/api/words', headers={'Authorization': f'Bearer {token}'}
+    )
+    assert response.status_code == 403
+    assert response.get_json()['error'] == 'Account is inactive'
+
+
+def test_missing_user_row_returns_401(app, client, db_session):
+    """Валидный токен несуществующего юзера — 401, а не падение обработчика."""
+    from flask_jwt_extended import create_access_token
+
+    from app.auth.models import User
+
+    largest = db_session.query(User.id).order_by(User.id.desc()).first()
+    ghost_id = (largest[0] if largest else 0) + 10_000
+    with app.app_context():
+        token = create_access_token(identity=str(ghost_id))
+
+    response = client.get(
+        '/api/words', headers={'Authorization': f'Bearer {token}'}
+    )
+    assert response.status_code == 401
+    assert response.get_json()['error'] == 'User not found'
+
+
+def test_outer_g_login_user_is_restored_after_jwt_call(app, test_user):
+    """Под пушнутым внешним контекстом прежний `g._login_user` возвращается на место."""
+    from flask import g
+
+    from app.api.decorators import api_auth_required
+
+    token = _access_token(app, test_user)
+    sentinel = object()
+
+    @api_auth_required
+    def _endpoint():
+        return 'ok'
+
+    with app.test_request_context(
+        '/api/test', headers={'Authorization': f'Bearer {token}'}
+    ):
+        g._login_user = sentinel
+        assert _endpoint() == 'ok'
+        assert g._login_user is sentinel

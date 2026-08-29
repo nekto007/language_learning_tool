@@ -274,7 +274,10 @@ def build_optional(
     # Other practice sources. Each contributes at most one optional item.
     for kind in _OPTIONAL_PRIORITY:
         if kind == 'error_review':
-            # Already built above; ``_accept`` no-ops when it was hoisted.
+            # Built once above so the acute tier can be hoisted; ``_accept``
+            # no-ops when it already was. ``_build_optional_candidate`` has no
+            # error_review branch on purpose — two construction paths for one
+            # item is how the required tier fell through the crack (DP-037).
             _accept(error_review_item)
             continue
         candidate = _build_optional_candidate(
@@ -319,11 +322,6 @@ def _build_optional_candidate(
             user_id, db, section='optional',
             focus=focus,
         )
-    if kind == 'error_review':
-        # Both tiers land in optional; the acute one is only marked
-        # ``data['urgent']`` (DP-037). Dropping the required tier here used
-        # to erase the item from the plan entirely.
-        return build_optional_error_review_item(user_id, db)
     if kind == 'grammar_review':
         return build_grammar_review_item(user_id, db, section='optional')
     if kind == 'word_set_quiz':
@@ -407,6 +405,7 @@ def get_daily_plan(
         )
         blocked_module = _describe_blocking_module(user_id, session, blocking_module_id)
 
+    required_self_healed = False
     if graduated:
         required_dicts = []
         required: list[PlanItem] = []
@@ -416,7 +415,23 @@ def get_daily_plan(
 
         today_local = get_user_local_date(user_id, session)
         snapshot = resolve_snapshot_for_today(user_id, today_local, session)
+        snapshot_had_items = bool(snapshot.get('items'))
         required_dicts = overlay_completion(user_id, snapshot, session)
+        # The self-repair (DP-005/DP-033/DP-044) drops frozen items that can no
+        # longer be finished. When it drops the LAST one, required goes empty
+        # while graduated/blocked_module_id are both false — and
+        # compute_day_secured_from_activity refuses to close an empty required
+        # list without one of those. That freezes streak, rank and perfect-day
+        # for the rest of the study day: the exact outcome the repair exists to
+        # prevent. Reachable with a one-item snapshot (calm tier, no due SRS, no
+        # reading preference) whose lesson an admin deletes mid-day.
+        required_self_healed = snapshot_had_items and not required_dicts
+        if required_self_healed:
+            logger.warning(
+                "unified_plan_assemble user=%s required emptied by self-repair "
+                "— day closes on activity",
+                user_id,
+            )
         # Hydrate PlanItem objects for build_optional (it reads .id/.kind/.data/.completed).
         required = [PlanItem(**d) for d in required_dicts]
 
@@ -425,7 +440,7 @@ def get_daily_plan(
     # the daily budget the same way.
     optional, has_more_optional = build_optional(
         user_id, session, required_items=required, focus=focus,
-        graduated=graduated or spine_blocked,
+        graduated=graduated or spine_blocked or required_self_healed,
     )
     setup = build_setup(user_id, session)
 
@@ -481,6 +496,7 @@ def get_daily_plan(
         'has_more_optional': has_more_optional,
         'graduated': graduated,
         'blocked_module': blocked_module,
+        'required_self_healed': required_self_healed,
     }
 
 

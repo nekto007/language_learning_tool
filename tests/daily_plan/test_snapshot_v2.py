@@ -860,3 +860,155 @@ class TestFrozenSrsCountersAreRefreshed:
         data = overlaid[0]['data']
         assert 'reviews_today' not in data
         assert data['word_limit'] == 3
+
+
+class TestSelfRepairEmptyingRequired:
+    """Починка, выбросившая ПОСЛЕДНИЙ пункт, не вправе заморозить день.
+
+    `compute_day_secured_from_activity` закрывает пустой `required` только у
+    graduated или заблокированного спайна. Дроп даёт третий способ получить
+    пустой список — без флага день не закрывался бы никаким объёмом работы,
+    то есть починка, существующая ради разблокировки дня, сама бы его и
+    блокировала.
+    """
+
+    def test_flag_lets_activity_close_the_day(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        from app.daily_plan.service import compute_day_secured_from_activity
+
+        base_meta = {'effective_mode': 'unified', 'user_id': user.id}
+        plan = {'required': [], 'day_secured': False, '_plan_meta': dict(base_meta)}
+        assert compute_day_secured_from_activity(plan, {}) is False
+
+        healed = {
+            'required': [],
+            'day_secured': False,
+            '_plan_meta': {**base_meta, 'required_self_healed': True},
+        }
+        # Активности нет — флаг сам по себе день не закрывает.
+        assert compute_day_secured_from_activity(healed, {}) is False
+
+        from app.utils.time_utils import day_to_naive_utc
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='completed', score=100.0,
+            last_activity=day_to_naive_utc(user.id, real_db) + timedelta(hours=9),
+        ))
+        db_session.commit()
+
+        assert compute_day_secured_from_activity(healed, {}) is True
+
+    def test_assembly_reports_the_repair(self, db_session, user, vocabulary_lesson):
+        """Сквозная проводка: снапшот был непуст, оверлей его опустошил."""
+        from app.daily_plan.plan import get_daily_plan
+
+        dead = _curriculum_item(vocabulary_lesson.id + 10_000, 'curriculum:dead')
+        db_session.add(DailyPlanLog(
+            user_id=user.id,
+            plan_date=study_today(),
+            plan_json=_snapshot_of([dead]),
+        ))
+        db_session.commit()
+
+        payload = get_daily_plan(user.id)
+
+        assert payload['required'] == []
+        assert payload['required_self_healed'] is True
+        assert payload['graduated'] is False
+
+    def test_untouched_snapshot_does_not_set_the_flag(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        from app.daily_plan.plan import get_daily_plan
+
+        db_session.add(DailyPlanLog(
+            user_id=user.id,
+            plan_date=study_today(),
+            plan_json=_snapshot_of([_curriculum_item(vocabulary_lesson.id)]),
+        ))
+        db_session.commit()
+
+        payload = get_daily_plan(user.id)
+
+        assert [it['id'] for it in payload['required']] == ['curriculum:lesson']
+        assert payload['required_self_healed'] is False
+
+
+class TestTransientFailureKeepsRequired:
+    """Сбой самой проверки не вправе резать `required`.
+
+    Все три ветки `_item_unreachable` глушат исключение и возвращают False.
+    Правило нагружено смыслом: перевернув его в True, транзиентная ошибка БД
+    молча выбрасывала бы обязательные пункты и раздавала ложный `day_secured`
+    вместе с `xp_perfect_day` — и ни один тест этого бы не заметил.
+    """
+
+    def test_curriculum_lookup_failure_keeps_the_item(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        from app.daily_plan import snapshot as snapshot_mod
+
+        class _Boom:
+            class session:  # noqa: N801 — имитируем db.session.get
+                @staticmethod
+                def get(*_args, **_kwargs):
+                    raise RuntimeError('db hiccup')
+
+        assert snapshot_mod._curriculum_lesson_unreachable(
+            user.id, _curriculum_item(vocabulary_lesson.id), _Boom,
+        ) is False
+
+    def test_deck_quiz_counter_failure_keeps_the_item(self, user, monkeypatch):
+        from app.daily_plan import snapshot as snapshot_mod
+        from app.daily_plan.linear.slots import srs_slot
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError('db hiccup')
+
+        monkeypatch.setattr(srs_slot, '_count_user_deck_quiz_words', _boom)
+        assert snapshot_mod._deck_quiz_unreachable(user.id, real_db) is False
+
+    def test_reading_access_failure_keeps_the_item(self, db_session, user, monkeypatch):
+        from app.daily_plan import snapshot as snapshot_mod
+        from app.daily_plan.items import reading as reading_items
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError('db hiccup')
+
+        monkeypatch.setattr(reading_items, 'book_access_ok_for_reading', _boom)
+        item = {
+            'id': 'reading:book',
+            'section': 'required',
+            'kind': 'reading',
+            'title': 'Чтение',
+            'subtitle': None,
+            'lesson_type': None,
+            'eta_minutes': 10,
+            'url': '/read',
+            'completion_signal': 'reading_done',
+            'data': {'book_id': 1},
+        }
+        assert snapshot_mod._reading_book_unreachable(user.id, item, real_db) is False
+
+    def test_srs_counter_refresh_failure_leaves_frozen_numbers(
+        self, user, monkeypatch,
+    ):
+        """Сбой обновления счётчиков не должен ронять отдачу плана."""
+        from app.daily_plan import snapshot as snapshot_mod
+        from app.srs import counting
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError('db hiccup')
+
+        monkeypatch.setattr(counting, 'count_reviews_today', _boom)
+        # 999 — заведомо не то, что вернул бы удачный пересчёт (у свежего
+        # юзера ревью 0), поэтому тест различает «сбой проглочен» и «пересчёт
+        # прошёл».
+        item = {
+            'id': 'srs:global',
+            'kind': 'srs',
+            'data': {'reviews_today': 999, 'goal_total': 30},
+        }
+        snapshot_mod._refresh_srs_counters(user.id, item, real_db)
+        assert item['data'] == {'reviews_today': 999, 'goal_total': 30}
