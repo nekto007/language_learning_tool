@@ -372,6 +372,10 @@ class TestOverlayCompletion:
             level='A1',
             chapters_cnt=2,
             is_published=True,
+            # Without public_domain the DP-033 unreachable-book drop removes the
+            # item first, and this test would pass with _is_finished_reading_book
+            # deleted entirely.
+            rights_status='public_domain',
         )
         db_session.add(book)
         db_session.flush()

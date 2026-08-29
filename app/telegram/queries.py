@@ -37,16 +37,6 @@ def _user_day_boundaries(tz_name: str = DEFAULT_TZ,
     return study_day_bounds_utc(tz_name, offset_days=offset_days)
 
 
-def _user_day_date(tz_name: str = DEFAULT_TZ) -> date:
-    """Study-day date matching :func:`_user_day_boundaries` offset 0.
-
-    Callers that walk days backwards must derive `check_date` from this, not
-    from ``datetime.now(tz).date()`` — otherwise the window and the date key
-    written into ``streak_events`` describe different days again.
-    """
-    return study_day_date_for_tz(tz_name)
-
-
 def has_activity_today(user_id: int, tz: str = DEFAULT_TZ) -> bool:
     """Check if user had any learning activity today in their timezone."""
     from app.utils.activity_tracker import has_learning_activity
@@ -84,7 +74,7 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
     # Study-day date, NOT the calendar date: repair rows in `streak_events`
     # are keyed on the study day, so walking the streak on a calendar basis
     # would look repairs up under the wrong date (DP-001).
-    local_today = _user_day_date(tz)
+    local_today = study_day_date_for_tz(tz)
     earliest_date = local_today - timedelta(days=366)
 
     repairs_by_date: dict[date, bool] = {}

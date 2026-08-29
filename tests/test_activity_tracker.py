@@ -505,12 +505,12 @@ class TestStreakShieldOrder:
         from app.telegram.queries import (
             DEFAULT_TZ,
             _user_day_boundaries,
-            _user_day_date,
             get_current_streak,
         )
+        from app.utils.time_utils import study_day_date_for_tz
         from app.achievements.streak_service import apply_shield_repair
 
-        study_today = _user_day_date(DEFAULT_TZ)
+        study_today = study_day_date_for_tz(DEFAULT_TZ)
         yesterday = study_today - timedelta(days=1)
 
         # Write shield_repair event for the previous study day

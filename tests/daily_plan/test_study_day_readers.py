@@ -515,3 +515,69 @@ class TestOneTodayAcrossSurfaces:
             # страж без наблюдений бесполезен, поэтому это тоже провал.
             assert dates, f'{surface} не вывел ни одной даты — страж ослеп'
             assert dates == {STUDY_DAY}, f'{surface} вывел чужую дату: {dates}'
+
+
+# ── Цель по аудированию: третий читатель того же ответа ──────────────────────
+
+class TestListeningGoalOnStudyDay:
+    """`_compute_listening_goal` живёт на том же дне, что и его соседи.
+
+    В одном теле `/api/daily-status` `minutes_studied_today` и `goal_progress`
+    считаются по учебному дню от `User.timezone`, а этот блок оставался на
+    календарной полуночи от клиентского `tz`: в окне 00:00-02:00 поля называли
+    разные сутки, и клиент мог сдвинуть одно из них, прислав чужую зону.
+    """
+
+    def _add_attempt(self, db_session, user_id, lesson_id, created_at):
+        from app.curriculum.models import ListeningAttempt
+
+        db_session.add(ListeningAttempt(
+            user_id=user_id, lesson_id=lesson_id,
+            score=90.0, replay_count=0, created_at=created_at,
+        ))
+        db_session.commit()
+
+    def test_after_midnight_attempt_counts_for_the_running_study_day(
+        self, app, db_session, utc_user, test_lesson_quiz,
+    ):
+        with app.test_request_context(), freeze_time(NIGHT):
+            # 00:10 UTC 15-го — календарно завтра, учебный день ещё 14-е.
+            self._add_attempt(
+                db_session, utc_user.id, test_lesson_quiz.id,
+                datetime(2026, 9, 15, 0, 10),
+            )
+            result = _compute_listening_goal_for(utc_user)
+
+        assert result['listening_minutes_today'] > 0
+
+    def test_attempt_before_the_study_day_started_is_not_counted(
+        self, app, db_session, utc_user, test_lesson_quiz,
+    ):
+        with app.test_request_context(), freeze_time(NIGHT):
+            # 01:59 UTC 14-го — предыдущий учебный день.
+            self._add_attempt(
+                db_session, utc_user.id, test_lesson_quiz.id,
+                datetime(2026, 9, 14, 1, 59),
+            )
+            result = _compute_listening_goal_for(utc_user)
+
+        assert result['listening_minutes_today'] == 0
+
+    def test_client_tz_cannot_shift_the_window(
+        self, app, db_session, utc_user, test_lesson_quiz,
+    ):
+        with app.test_request_context(), freeze_time(NIGHT):
+            self._add_attempt(
+                db_session, utc_user.id, test_lesson_quiz.id,
+                datetime(2026, 9, 15, 0, 10),
+            )
+            honest = _compute_listening_goal_for(utc_user)
+            lying = _compute_listening_goal_for(utc_user, tz='Pacific/Kiritimati')
+
+        assert honest['listening_minutes_today'] == lying['listening_minutes_today']
+
+
+def _compute_listening_goal_for(user, tz: str = 'UTC') -> dict:
+    from app.api.daily_plan import _compute_listening_goal
+
+    return _compute_listening_goal(user, tz)

@@ -175,8 +175,12 @@ def _try_rollover_from_yesterday(
         return None
 
     from app.utils.activity_tracker import has_learning_activity
+    # The window END is the NEXT study day's start, not `start + 24h`: study days
+    # run 23 or 25 hours across a DST transition, and a fixed delta would let an
+    # hour of today's activity suppress (or an hour of yesterday's escape) the
+    # roll-over decision.
     y_start = _local_date_start_naive_utc(user_id, yesterday, db)
-    y_end = y_start + timedelta(days=1)
+    y_end = _local_date_start_naive_utc(user_id, yesterday + timedelta(days=1), db)
 
     if has_learning_activity(user_id, y_start, y_end, db.session):
         return None

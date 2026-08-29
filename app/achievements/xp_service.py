@@ -266,54 +266,72 @@ def award_perfect_day_xp_idempotent(
     except IntegrityError:
         return None
 
-    # Determine consecutive perfect day count. Paused days are streak-neutral
-    # (a plan_pause StreakEvent is written per paused day), so walk back over
-    # them transparently — otherwise returning from a pause would reset the
-    # perfect-day multiplier even though the streak is preserved (audit E-006).
-    probe = for_date - timedelta(days=1)
-    for _ in range(60):
-        is_paused = StreakEvent.query.filter_by(
+    # Claiming first is only safe if a failed award RELEASES the claim: the
+    # marker IS the idempotency key, and both sweeper call-sites swallow
+    # exceptions and commit anyway, so a row left behind with empty ``details``
+    # and no XP would make `_perfect_day_already_awarded` refuse the day
+    # forever. Anything that goes wrong below therefore un-claims the day and
+    # re-raises — a retry (the next dashboard render or /api/daily-status) can
+    # then still pay the bonus.
+    try:
+        # Determine consecutive perfect day count. Paused days are streak-neutral
+        # (a plan_pause StreakEvent is written per paused day), so walk back over
+        # them transparently — otherwise returning from a pause would reset the
+        # perfect-day multiplier even though the streak is preserved (audit E-006).
+        probe = for_date - timedelta(days=1)
+        for _ in range(60):
+            is_paused = StreakEvent.query.filter_by(
+                user_id=user_id,
+                event_type='plan_pause',
+                event_date=probe,
+            ).first() is not None
+            if not is_paused:
+                break
+            probe -= timedelta(days=1)
+        had_yesterday = StreakEvent.query.filter_by(
             user_id=user_id,
-            event_type='plan_pause',
+            event_type='xp_perfect_day',
             event_date=probe,
         ).first() is not None
-        if not is_paused:
-            break
-        probe -= timedelta(days=1)
-    had_yesterday = StreakEvent.query.filter_by(
-        user_id=user_id,
-        event_type='xp_perfect_day',
-        event_date=probe,
-    ).first() is not None
 
-    stats = UserStatistics.query.filter_by(user_id=user_id).first()
-    if stats is None:
-        stats = UserStatistics(user_id=user_id)
-        db.session.add(stats)
-        db.session.flush()
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id)
+            db.session.add(stats)
+            db.session.flush()
 
-    current_consecutive = int(stats.consecutive_perfect_days or 0)
-    new_consecutive = current_consecutive + 1 if had_yesterday else 1
-    stats.consecutive_perfect_days = new_consecutive
+        current_consecutive = int(stats.consecutive_perfect_days or 0)
+        new_consecutive = current_consecutive + 1 if had_yesterday else 1
+        stats.consecutive_perfect_days = new_consecutive
 
-    perfect_mult = get_perfect_day_multiplier(new_consecutive)
-    bonus_base_xp = PERFECT_DAY_BONUS_XP_LINEAR if is_linear else PERFECT_DAY_BONUS_XP
-    # round() (not int()/floor) to match award_xp / apply_score_to_base — the
-    # floor here systematically under-credited the perfect-day bonus (E-009).
-    adjusted_base = max(1, round(bonus_base_xp * perfect_mult))
+        perfect_mult = get_perfect_day_multiplier(new_consecutive)
+        bonus_base_xp = PERFECT_DAY_BONUS_XP_LINEAR if is_linear else PERFECT_DAY_BONUS_XP
+        # round() (not int()/floor) to match award_xp / apply_score_to_base — the
+        # floor here systematically under-credited the perfect-day bonus (E-009).
+        adjusted_base = max(1, round(bonus_base_xp * perfect_mult))
 
-    # COMPOUNDING (audit E-015): the bonus is multiplied by perfect_mult HERE
-    # and again by the streak multiplier inside award_xp. Theoretical ceiling =
-    # base * MAX_PERFECT_DAY_MULTIPLIER(2.5) * MAX_STREAK_MULTIPLIER(2.0) =
-    # base * 5 (e.g. linear base 25 → 125 XP). Intentional, but keep this in
-    # view when tuning the economy so the cap isn't silently blown past.
-    result = award_xp(user_id, adjusted_base, 'perfect_day')
+        # COMPOUNDING (audit E-015): the bonus is multiplied by perfect_mult HERE
+        # and again by the streak multiplier inside award_xp. Theoretical ceiling =
+        # base * MAX_PERFECT_DAY_MULTIPLIER(2.5) * MAX_STREAK_MULTIPLIER(2.0) =
+        # base * 5 (e.g. linear base 25 → 125 XP). Intentional, but keep this in
+        # view when tuning the economy so the cap isn't silently blown past.
+        result = award_xp(user_id, adjusted_base, 'perfect_day')
 
-    marker.details = {
-        'xp': result.xp_awarded,
-        'consecutive_days': new_consecutive,
-        'perfect_day_multiplier': perfect_mult,
-    }
+        marker.details = {
+            'xp': result.xp_awarded,
+            'consecutive_days': new_consecutive,
+            'perfect_day_multiplier': perfect_mult,
+        }
+    except Exception:
+        try:
+            db.session.delete(marker)
+            db.session.flush()
+        except Exception:
+            logger.warning(
+                "perfect-day claim could not be released for user %s date %s",
+                user_id, for_date, exc_info=True,
+            )
+        raise
     return result
 
 

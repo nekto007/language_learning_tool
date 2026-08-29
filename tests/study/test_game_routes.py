@@ -1057,3 +1057,93 @@ class TestMatchingGameRespectsExclusion:
         db_session.refresh(direction)
         assert direction.first_reviewed is None
         assert (direction.session_attempts or 0) == 0
+
+
+# ---------------------------------------------------------------------------
+# `_session_pk`: a non-integer session_id must be ignored, never 500
+# ---------------------------------------------------------------------------
+
+class TestSessionIdCoercion:
+    """`session_id` arrives as arbitrary JSON.
+
+    Handed straight to `StudySession.query.get()` a non-integer reaches an
+    INTEGER primary key: on PostgreSQL that is a DataError that aborts the
+    transaction, so the request 500s before any ownership guard runs.
+    `_session_pk` coerces or drops it — and rejects `bool` explicitly, because
+    `True` would otherwise look up row 1 (session forgery by literal).
+    """
+
+    UNUSABLE = ['x', '12abc', [1], {'a': 1}, 1.5, True, False, None]
+
+    @pytest.mark.parametrize('bad', UNUSABLE)
+    def test_complete_quiz_ignores_unusable_session_id(
+        self, authenticated_client, study_settings, bad, db_session,
+    ):
+        resp = authenticated_client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps({
+                'total_questions': 10,
+                'correct_answers': 10,
+                'time_taken': 30,
+                'session_id': bad,
+            }),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200, f'{bad!r} produced {resp.status_code}'
+        data = resp.get_json()
+        assert data['success'] is True
+        # No verified session ⇒ no XP. `True` must not resolve to session id 1.
+        assert data['xp_earned'] == 0
+
+    @pytest.mark.parametrize('bad', UNUSABLE)
+    def test_complete_matching_ignores_unusable_session_id(
+        self, authenticated_client, study_settings, bad, db_session,
+    ):
+        resp = authenticated_client.post(
+            '/study/api/complete-matching-game',
+            data=json.dumps({
+                'pairs_matched': 5,
+                'total_pairs': 5,
+                'moves': 10,
+                'time_taken': 30,
+                'difficulty': 'easy',
+                'session_id': bad,
+            }),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200, f'{bad!r} produced {resp.status_code}'
+        data = resp.get_json()
+        assert data['success'] is True
+        assert data['xp_earned'] == 0
+
+    @pytest.mark.parametrize('bad', UNUSABLE)
+    def test_submit_quiz_answer_ignores_unusable_session_id(
+        self, authenticated_client, study_settings, bad, db_session,
+    ):
+        resp = authenticated_client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'word_id': 0,
+                'is_correct': True,
+                'direction': 'eng_to_rus',
+                'session_id': bad,
+            }),
+            content_type='application/json',
+        )
+        assert resp.status_code in (200, 400), f'{bad!r} produced {resp.status_code}'
+
+    def test_true_does_not_impersonate_session_one(
+        self, authenticated_client, study_settings, other_user_quiz_session, db_session,
+    ):
+        """`True == 1` in Python — the bool guard is what stops the forgery.
+
+        Pinned against a session that exists and is NOT ours, so a regression
+        that let `True` through would show up as a resolved session rather than
+        as a lookup miss.
+        """
+        from app.study.game_routes import _session_pk
+
+        assert _session_pk(True) is None
+        assert _session_pk(False) is None
+        assert _session_pk(other_user_quiz_session.id) == other_user_quiz_session.id
+        assert _session_pk(str(other_user_quiz_session.id)) == other_user_quiz_session.id

@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import date as date_cls
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import func
 
@@ -65,7 +66,7 @@ def _apply_queue_filters(candidates: list[NextStep], max_steps: int) -> list[Nex
     return queue
 
 
-def find_unsecured_yesterday(user_id: int):
+def find_unsecured_yesterday(user_id: int) -> Optional[tuple[date_cls, Any]]:
     """Return ``(yesterday, log)`` when yesterday's plan was left unsecured.
 
     The single implementation of "did the user fail to close yesterday?".

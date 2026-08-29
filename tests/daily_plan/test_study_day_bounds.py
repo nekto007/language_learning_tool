@@ -10,7 +10,9 @@
 
 Тесты фиксируют один базис для обоих семейств хелперов.
 """
-from datetime import UTC, datetime, timedelta
+from datetime import UTC
+from datetime import date as date_cls
+from datetime import datetime, timedelta
 from itertools import pairwise
 from unittest.mock import patch
 
@@ -26,6 +28,7 @@ from app.utils.time_utils import (
     get_user_local_date,
     get_user_local_day_bounds,
     study_day_bounds_utc,
+    study_day_start_utc,
 )
 
 MOSCOW = 'Europe/Moscow'  # UTC+3, без DST — локальное = UTC+3 круглый год
@@ -106,6 +109,41 @@ class TestStudyDayBoundsUtc:
         assert start.replace(tzinfo=None) == legacy_start
         assert end.replace(tzinfo=None) == legacy_end
         assert start.replace(tzinfo=None) == day_to_naive_utc(moscow_user.id, db_session)
+
+    @pytest.mark.parametrize('tz_name, transition_day', [
+        # Осенний перевод: 03:00 → 02:00, поэтому 02:00 локального — час,
+        # который случается ДВАЖДЫ. pytz `localize` по умолчанию (is_dst=False)
+        # берёт второе вхождение, ZoneInfo (fold=0) — первое, и два семейства
+        # хелперов расходились на час раз в год ровно в тот момент, ради
+        # согласования которого вся фаза и делалась.
+        ('Europe/Berlin', date_cls(2026, 10, 25)),
+        ('Europe/Kyiv', date_cls(2026, 10, 25)),
+        # Весенний перевод: 02:00 локального не существует вовсе.
+        ('Europe/Berlin', date_cls(2026, 3, 29)),
+        # Зона с переводом не в 03:00 — контроль, что общий случай не сломан.
+        ('America/New_York', date_cls(2026, 11, 1)),
+        ('America/New_York', date_cls(2026, 3, 8)),
+    ])
+    def test_dst_transition_days_agree_with_zoneinfo_basis(self, tz_name, transition_day):
+        """`study_day_start_utc` обязан совпадать с базисом `day_to_naive_utc`.
+
+        `day_to_naive_utc` (SRS-счётчики, дедуп XP) строит 02:00 через ZoneInfo;
+        если оконный хелпер решает ту же дату иначе, активность одного часа
+        уезжает в разные учебные дни у разных потребителей.
+        """
+        from zoneinfo import ZoneInfo
+
+        expected = datetime(
+            transition_day.year, transition_day.month, transition_day.day,
+            LEARNING_DAY_START_HOUR, tzinfo=ZoneInfo(tz_name),
+        ).astimezone(UTC)
+        assert study_day_start_utc(tz_name, transition_day) == expected
+
+    def test_start_and_bounds_share_one_anchor_on_a_dst_day(self):
+        """Окно, построенное «от сейчас», и окно от сохранённой даты — одно и то же."""
+        with freeze_time('2026-10-25 09:00:00'):
+            start, _end = study_day_bounds_utc('Europe/Berlin')
+        assert start == study_day_start_utc('Europe/Berlin', date_cls(2026, 10, 25))
 
 
 # ---------------------------------------------------------------------------

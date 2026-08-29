@@ -624,7 +624,11 @@ class TestResultAttribution:
     ):
         """Sessions from before the binding existed carry NULL — not a licence."""
         word_set, _ = _make_set(db_session)
-        legacy = StudySession(user_id=test_user.id, session_type='quiz_word_set')
+        # words_studied is set so the run clears the "was it played?" gate and
+        # actually reaches the NULL word_set_id guard this test is about.
+        legacy = StudySession(
+            user_id=test_user.id, session_type='quiz_word_set', words_studied=8,
+        )
         db_session.add(legacy)
         db_session.commit()
 

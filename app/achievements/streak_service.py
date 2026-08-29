@@ -8,10 +8,41 @@ from sqlalchemy.exc import IntegrityError
 
 from app.achievements.models import StreakCoins, StreakEvent
 from app.utils.db import db
-from app.utils.time_utils import get_user_local_date
+from app.utils.time_utils import (
+    LEARNING_DAY_START_HOUR,
+    get_user_local_date,
+    study_day_date_for_tz,
+)
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
+
+
+def _study_day_date_expr(col, tz_name: str, *, aware: bool = False):
+    """SQL expression bucketing a timestamp column into its STUDY-day date.
+
+    The study day is anchored at :data:`LEARNING_DAY_START_HOUR` local, so the
+    bucket is the local timestamp shifted back by that many hours and then cast
+    to a date — the SQL twin of :func:`app.utils.time_utils.study_day_date_for_tz`.
+
+    A bare ``::date`` cast buckets on calendar midnight, which is what every
+    skill-streak walker used to do.  That put them on a different day basis
+    than ``get_current_streak`` and ``check_immersion_achievement`` (both on the
+    study day since DP-001/DP-013): a learner practising at 01:00 had the
+    activity credited to the *previous* study day by one consumer and to the
+    calendar day by the other, so e.g. ``immersion_daily`` could be awarded for
+    a night session while ``immersion_week`` never saw the day at all.
+
+    ``aware=True`` for TIMESTAMPTZ columns (``UserReadingSession.started_at``),
+    which need only one ``timezone()`` hop.
+    """
+    from sqlalchemy import Date, cast, func
+
+    local = (
+        func.timezone(tz_name, col) if aware
+        else func.timezone(tz_name, func.timezone('UTC', col))
+    )
+    return cast(local - timedelta(hours=LEARNING_DAY_START_HOUR), Date)
 
 
 def get_required_steps(streak_length: int, steps_total: int) -> int:
@@ -882,18 +913,14 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
     isolated gap that isn't connected to any streak is pointless (streak
     would remain 1), so we return None in that case.
     """
-    from app.telegram.queries import (
-        _has_activity_in_range,
-        _user_day_boundaries,
-        _user_day_date,
-    )
+    from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
 
     # Study-day date, matching the windows below: between 00:00 and 02:00 the
     # calendar date is already one day ahead of the running study day, so
     # deriving `check_date` from `datetime.now(tz).date()` would write the
     # repair into `streak_events` under a different day than the one whose
     # window was actually found empty (DP-001).
-    local_today = _user_day_date(tz)
+    local_today = study_day_date_for_tz(tz)
 
     for offset in range(1, max_days + 1):
         day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
@@ -943,14 +970,10 @@ def find_auto_heal_date(
     Only looks within ``max_days`` from today.  Spent-repair rows are
     treated as gaps so they can be upgraded to free repairs with a refund.
     """
-    from app.telegram.queries import (
-        _has_activity_in_range,
-        _user_day_boundaries,
-        _user_day_date,
-    )
+    from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
 
     # Study-day date — same basis as the windows walked below (DP-001).
-    local_today = _user_day_date(tz)
+    local_today = study_day_date_for_tz(tz)
 
     today_start, today_end = _user_day_boundaries(tz, offset_days=0)
     today_has_activity = _has_activity_in_range(user_id, today_start, today_end)
@@ -1053,7 +1076,6 @@ def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     listening activity the chain is checked from yesterday (today isn't over).
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.curriculum.models import ListeningAttempt
 
@@ -1064,11 +1086,13 @@ def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date — same basis as
+    # get_current_streak and check_immersion_achievement.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     try:
         rows = (
@@ -1105,7 +1129,6 @@ def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE
     Same walk-backward logic as get_listening_streak.
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.curriculum.models import UserWritingAttempt
 
@@ -1116,11 +1139,13 @@ def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date — same basis as
+    # get_current_streak and check_immersion_achievement.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     try:
         rows = (
@@ -1156,7 +1181,6 @@ def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZON
     Same walk-backward logic as get_listening_streak.
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.curriculum.models import PronunciationAttempt
 
@@ -1167,11 +1191,13 @@ def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZON
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date — same basis as
+    # get_current_streak and check_immersion_achievement.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     try:
         rows = (
@@ -1211,7 +1237,6 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     activity, the chain is checked from yesterday (today isn't over).
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.books.reading_session import UserReadingSession
     from app.curriculum.models import ListeningAttempt, PronunciationAttempt, UserWritingAttempt
@@ -1223,18 +1248,22 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date. check_immersion_achievement
+    # builds its immersion_daily window with study_day_start_utc; this walker feeds
+    # immersion_week from the same call, so the two must bucket days identically —
+    # otherwise a night learner earns the daily badge and can never earn the weekly.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
     # UserReadingSession.started_at is TIMESTAMPTZ — must compare to tz-aware datetime,
     # not a bare date object (PostgreSQL has no timestamptz >= date operator).
     cutoff_dt = tz_obj.localize(datetime.combine(cutoff, datetime.min.time()))
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     def _local_date_tz(col):
         # UserReadingSession.started_at is timezone-aware
-        return cast(func.timezone(tz_obj.zone, col), Date)
+        return _study_day_date_expr(col, tz_obj.zone, aware=True)
 
     try:
         listening_dates = {

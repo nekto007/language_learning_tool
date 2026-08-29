@@ -95,6 +95,9 @@ Optional (content tooling only — not needed to run the app):
 - `ANTHROPIC_API_KEY`: required by `scripts/generate_reading_annotations.py`
 - `ANTHROPIC_SONNET_MODEL`: model id for that script (default `claude-sonnet-5`)
 - That script also needs `pip install anthropic`, which is deliberately not in `requirements.txt`
+- `scripts/generate_pilot_audio.py` needs `pip install edge-tts`, also deliberately not in
+  `requirements.txt`; its tests skip when the package is absent. Note this is pilot/lesson audio —
+  per-word pronunciation clips are human-voiced and never TTS
 
 ## Project Structure
 
@@ -121,6 +124,7 @@ docs/                   Documentation
 
 - [API Reference](docs/API.md)
 - [Database](docs/DATABASE.md)
+- [Quiz logic](docs/QUIZ_LOGIC.md)
 
 ## License
 

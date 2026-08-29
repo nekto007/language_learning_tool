@@ -125,27 +125,33 @@ def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
 
 
 def _compute_listening_goal(user, tz: str) -> dict:
-    """Compute listening goal progress for today.
+    """Compute listening goal progress for the user's study day.
 
     Returns dict with listening_goal_minutes, listening_minutes_today,
     listening_goal_reached.
+
+    Anchored on the study day (02:00 local) and keyed on ``User.timezone``,
+    like its two siblings in this response (``_compute_study_minutes``,
+    ``_compute_goal_progress``). It used to sit on a client-``tz`` calendar
+    midnight, so a single ``/api/daily-status`` body reported
+    ``listening_minutes_today`` for a different day than
+    ``minutes_studied_today`` and ``goal_progress`` between 00:00 and 02:00,
+    and a client could shift this one field by sending another zone.
+
+    ``tz`` is accepted for call-site symmetry but deliberately unused.
     """
-    from datetime import datetime
-
-    import pytz
-
     from app.curriculum.models import Lessons, ListeningAttempt
+    from app.utils.time_utils import (
+        get_user_local_date,
+        get_user_timezone_name,
+        study_day_start_utc,
+    )
 
     goal = (user.listening_goal_minutes or 0) if user.listening_goal_minutes is not None else 10
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    now_local = datetime.now(tz_obj)
-    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_start_utc = today_start_local.astimezone(pytz.utc).replace(tzinfo=None)
+    today = get_user_local_date(user.id, db)
+    tz_name = get_user_timezone_name(user.id, db)
+    today_start_utc = study_day_start_utc(tz_name, today).replace(tzinfo=None)
 
     attempts = (
         ListeningAttempt.query
@@ -1226,8 +1232,15 @@ def streak_repair():
     from app.achievements.streak_service import apply_paid_repair, find_missed_date
     from app.telegram.queries import get_current_streak
 
+    from app.utils.time_utils import get_user_timezone_name
+
     user_id = current_user.id
-    tz = _validate_timezone((request.get_json(silent=True) or {}).get('tz', DEFAULT_TZ))
+    # The repaired DATE must come from User.timezone, never the request body
+    # (DP-001): find_missed_date, has_repair_for_date, get_current_streak and
+    # auto_heal_streak_on_activity all read the study day of the stored zone, so
+    # a client-supplied `tz` would spend coins writing a `spent_repair` row onto
+    # a date none of the readers treat as the gap. The body's `tz` is display-only.
+    tz = get_user_timezone_name(user_id, db.session)
 
     missed = find_missed_date(user_id, tz=tz)
     if not missed:

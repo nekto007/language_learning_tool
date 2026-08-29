@@ -14,7 +14,7 @@ Per-lesson-type voice + rate defaults:
     shadow_reading      → en-US, female, -5% (slightly slower for repeat-along)
 
 Usage:
-    PYTHONPATH=. python scripts/generate_pilot_audio.py --dry-run
+    PYTHONPATH=. python scripts/generate_pilot_audio.py             # preview (default)
     PYTHONPATH=. python scripts/generate_pilot_audio.py --apply
     PYTHONPATH=. python scripts/generate_pilot_audio.py --apply --force
 """
@@ -644,11 +644,15 @@ async def amain() -> int:
             "  python scripts/generate_pilot_audio.py --apply --module B1_          # only B1 modules\n"
         ),
     )
-    ap.add_argument(
-        "--dry-run", action="store_true", default=False,
-        help=argparse.SUPPRESS,  # legacy alias; --apply is the real opt-in
+    # Preview is the default; --dry-run exists so it can be stated explicitly.
+    # Mutually exclusive so `--apply --dry-run` is an error rather than one of
+    # the two silently winning.
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--dry-run", action="store_true",
+        help="Preview only, writing nothing. This is the default.",
     )
-    ap.add_argument(
+    mode.add_argument(
         "--apply", action="store_true",
         help="Actually write MP3s. Without this, the script is a no-op preview.",
     )
@@ -697,7 +701,7 @@ async def amain() -> int:
         ),
     )
     args = ap.parse_args()
-    apply = args.apply
+    apply = args.apply and not args.dry_run
     if not apply:
         import sys as _sys
         print(

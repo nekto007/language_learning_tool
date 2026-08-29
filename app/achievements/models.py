@@ -209,9 +209,15 @@ class StreakEvent(db.Model):
         # check-then-insert, and the day-secured sweepers (daily-status,
         # dashboard) call it concurrently (DP-051). Partial — other event
         # types legitimately repeat within a day.
+        # `sqlite_where` mirrors `postgresql_where`: a dialect kwarg the other
+        # dialects silently DROP, so on the SQLite fallback DATABASE_URL this
+        # would build a UNIQUE index over ALL streak_events rows for a
+        # user+date — and the app writes several per day (every xp_linear_*
+        # source is its own row).
         Index(
             'uq_streak_events_perfect_day', 'user_id', 'event_date',
             unique=True,
             postgresql_where=text("event_type = 'xp_perfect_day'"),
+            sqlite_where=text("event_type = 'xp_perfect_day'"),
         ),
     )

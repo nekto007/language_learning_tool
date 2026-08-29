@@ -60,7 +60,12 @@ class TestReadingItemChapterless:
         from app.daily_plan.items.reading import build_reading_item
         from app.daily_plan.linear.models import UserReadingPreference
 
-        book = Book(title='Empty', author='A', level='A1', chapters_cnt=0)
+        # public_domain + published: without them the DP-033 access gate drops
+        # the item before the has-no-chapters branch this test is about.
+        book = Book(
+            title='Empty', author='A', level='A1', chapters_cnt=0,
+            is_published=True, rights_status='public_domain',
+        )
         db_session.add(book)
         db_session.flush()
         db_session.add(UserReadingPreference(user_id=test_user.id, book_id=book.id))
@@ -82,6 +87,9 @@ class TestReadingItemCompletedBook:
             level='A1',
             chapters_cnt=1,
             is_published=True,
+            # Otherwise the DP-033 access gate (no `books` module on test_user)
+            # drops the item first and the completed-book branch is unreached.
+            rights_status='public_domain',
         )
         db_session.add(book)
         db_session.flush()

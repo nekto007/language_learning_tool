@@ -691,10 +691,8 @@ def _record_word_set_result(
 
     from app.study.models import WordSet, WordSetQuizResult
 
-    try:
-        session = StudySession.query.get(int(session_id))
-    except (TypeError, ValueError):
-        return False
+    # `session_id` reached us through `_session_pk`, so it is already an int.
+    session = StudySession.query.get(session_id)
 
     if (
         session is None
@@ -760,7 +758,7 @@ def submit_quiz_answer():
     if not request.is_json:
         return jsonify({'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
-    session_id = data.get('session_id')
+    session_id = _session_pk(data.get('session_id'))
     is_correct = data.get('is_correct', False)
     word_id = data.get('word_id')
     direction_str = data.get('direction')
@@ -806,6 +804,23 @@ def submit_quiz_answer():
         'success': True,
         'srs_graded': graded,
     })
+
+
+def _session_pk(value) -> "int | None":
+    """Coerce a request-body ``session_id`` to an int primary key, or None.
+
+    ``session_id`` arrives as arbitrary JSON, and ``StudySession.query.get()``
+    hands a non-integer straight to an INTEGER primary key: on PostgreSQL that
+    is a ``DataError`` that aborts the transaction, so the request 500s before
+    reaching any of the guards below instead of just ignoring an unusable id.
+    ``bool`` is rejected explicitly — ``True`` would otherwise look up row 1.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 #: The quiz generator and the SRS schema name the same two directions
@@ -1010,7 +1025,7 @@ def complete_matching_game():
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
-    session_id = data.get('session_id')
+    session_id = _session_pk(data.get('session_id'))
     difficulty = data.get('difficulty', 'easy')
 
     try:
@@ -1043,18 +1058,13 @@ def complete_matching_game():
     )
     verified_session_id = None
     if session_id:
-        try:
-            _sid = int(session_id)
-        except (TypeError, ValueError):
-            _sid = None
-        if _sid is not None:
-            _sess = StudySession.query.get(_sid)
-            if (
-                _sess
-                and _sess.user_id == current_user.id
-                and _sess.session_type == 'matching'
-            ):
-                verified_session_id = _sid
+        _sess = StudySession.query.get(session_id)
+        if (
+            _sess
+            and _sess.user_id == current_user.id
+            and _sess.session_type == 'matching'
+        ):
+            verified_session_id = session_id
     xp_award = None
     if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:
         from app.utils.time_utils import get_user_local_date
@@ -1247,8 +1257,11 @@ def _deck_quiz_run_is_real(verified_session) -> bool:
     * ``words_studied``, which only /api/submit-quiz-answer increments, one
       call per answered question — and only for a body shaped like an answer to
       a question the generator could have produced (see
-      ``_quiz_answer_is_answerable``), so a POST that names no question does
-      not manufacture the evidence.
+      ``_quiz_answer_is_answerable``), so a malformed body cannot raise it.
+      Note the limit of that check: a custom deck entry legitimately carries
+      ``word_id: null``, so a well-formed body naming no word still counts.
+      Closing that would mean recording the emitted question keys per session;
+      until then the guard bounds self-fraud, it does not eliminate it.
 
     Deliberately NOT gated on cards having moved (``srs_graded``): a deck may
     hold custom entries or words the learner never added to study, and those
@@ -1275,7 +1288,7 @@ def complete_quiz():
     if not request.is_json:
         return jsonify({'success': False, 'error': 'Content-Type must be application/json'}), 415
     data = request.json or {}
-    session_id = data.get('session_id')
+    session_id = _session_pk(data.get('session_id'))
     deck_id = data.get('deck_id')
     source = data.get('source')
     plan_from = data.get('from')
@@ -1355,18 +1368,15 @@ def complete_quiz():
     from app.achievements.xp_service import award_game_xp_idempotent, get_level_info
     verified_session = None
     if session_id:
-        try:
-            _sid = int(session_id)
-        except (TypeError, ValueError):
-            _sid = None
-        if _sid is not None:
-            _sess = StudySession.query.get(_sid)
-            if (
-                _sess
-                and _sess.user_id == current_user.id
-                and _sess.session_type in QUIZ_SESSION_TYPES
-            ):
-                verified_session = _sess
+        # Same row the block above already resolved — one lookup, one place
+        # that decides what "this user's session" means.
+        _sess = session
+        if (
+            _sess
+            and _sess.user_id == current_user.id
+            and _sess.session_type in QUIZ_SESSION_TYPES
+        ):
+            verified_session = _sess
     verified_session_id = verified_session.id if verified_session else None
     xp_award = None
     if xp_breakdown['total_xp'] > 0 and verified_session_id is not None:

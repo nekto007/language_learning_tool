@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date as date_cls
 from datetime import datetime
 from datetime import time as time_cls
-from datetime import timezone
+from datetime import timedelta, timezone
 from typing import Iterable, List, Mapping, Optional
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
+from app.utils.time_utils import LEARNING_DAY_START_HOUR
 
 
 def is_daily_race_enabled() -> bool:
@@ -512,7 +513,12 @@ def compute_ghost_points(
     else:
         now = now.astimezone(tz_obj)
 
-    local_today = now.date()
+    # `race_date` is a STUDY-day date on both surfaces that build it (DP-012:
+    # /api/daily-race and the dashboard widget both go through
+    # get_user_local_date). Comparing it against the calendar date made every
+    # ghost jump to full target points between 00:00 and 02:00 local — while the
+    # race the user is actually in is still running.
+    local_today = (now - timedelta(hours=LEARNING_DAY_START_HOUR)).date()
     if local_today < race_date:
         # Race hasn't started in local time yet.
         return 0

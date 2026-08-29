@@ -182,19 +182,38 @@ def study_day_start_utc(tz_name: str, local_date: date_cls) -> datetime:
     window (an explicit past date) both go through here, so a window built
     from a stored date and a window built from the clock cannot drift apart.
 
-    Timezone resolution keeps the historical ``_user_day_boundaries`` policy
-    verbatim — see :func:`_local_now_for_tz_name`.
+    Which *zone* an unknown name resolves to keeps the historical
+    ``_user_day_boundaries`` policy verbatim (pytz, DEFAULT_TIMEZONE fallback —
+    see :func:`_local_now_for_tz_name`), but the local→UTC conversion itself
+    goes through ``ZoneInfo``, exactly as :func:`day_to_naive_utc` does. That
+    part is NOT interchangeable: 02:00 local is ambiguous on the autumn
+    fall-back day in every zone that turns the clocks back at 03:00 (all of
+    CET/EET), and pytz's ``localize`` default (``is_dst=False``) picks the
+    second occurrence while ``ZoneInfo``'s ``fold=0`` picks the first. Using
+    pytz here put the streak/telegram/snapshot windows one hour away from the
+    SRS counters and XP dedup keys for one hour a year — the very split DP-001
+    exists to remove.
     """
+    from zoneinfo import ZoneInfo
+
     import pytz
 
     from config.settings import DEFAULT_TIMEZONE
 
     try:
-        tz = pytz.timezone(tz_name)
+        resolved_name = pytz.timezone(tz_name).zone
     except pytz.UnknownTimeZoneError:
-        tz = pytz.timezone(DEFAULT_TIMEZONE)
-    naive = datetime.combine(local_date, time(hour=LEARNING_DAY_START_HOUR))
-    return tz.normalize(tz.localize(naive)).astimezone(pytz.utc)
+        resolved_name = DEFAULT_TIMEZONE
+    try:
+        tz_obj = ZoneInfo(resolved_name)
+    except Exception:
+        tz_obj = timezone.utc
+    local_start = datetime.combine(
+        local_date,
+        time(hour=LEARNING_DAY_START_HOUR),
+        tzinfo=tz_obj,
+    )
+    return local_start.astimezone(timezone.utc)
 
 
 def study_day_bounds_utc(
