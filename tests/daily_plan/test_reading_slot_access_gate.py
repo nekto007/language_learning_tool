@@ -22,6 +22,7 @@ from datetime import timedelta
 import pytest
 
 from app.books.models import Book, Chapter
+from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.daily_plan.items.reading import (
     _book_is_actionable_for_reading,
     book_access_ok_for_reading,
@@ -32,6 +33,7 @@ from app.daily_plan.linear.models import UserReadingPreference
 from app.daily_plan.snapshot import SNAPSHOT_VERSION, overlay_completion
 from app.modules.models import SystemModule, UserModule
 from app.utils.db import db as app_db
+from tests.conftest import unique_level_code
 from tests.support_dates import study_today
 
 
@@ -107,7 +109,33 @@ def _select_book(db_session, user, book, *, days_ago=1):
     return pref
 
 
-def _reading_snapshot(book):
+@pytest.fixture
+def spine_lesson(db_session):
+    """Живой урок для curriculum-пункта снапшота.
+
+    Раньше здесь стоял `lesson_id: 999999`: пункт не мог завершиться, но и не
+    мешал — проверялся только дроп чтения. С DP-005 несуществующий урок сам
+    покидает required, и фикстура обязана быть настоящей, иначе тест перестал
+    бы отличать дроп книги от дропа урока.
+    """
+    code = unique_level_code()
+    level = CEFRLevel(code=code, name=f'L-{code}', order=1)
+    db_session.add(level)
+    db_session.flush()
+    module = Module(
+        level_id=level.id, number=1, title='M1', description='', raw_content={},
+    )
+    db_session.add(module)
+    db_session.flush()
+    lesson = Lessons(
+        module_id=module.id, number=1, title='L1', type='vocabulary', content={},
+    )
+    db_session.add(lesson)
+    db_session.flush()
+    return lesson
+
+
+def _reading_snapshot(book, lesson):
     return {
         'version': SNAPSHOT_VERSION,
         'date': study_today().isoformat(),
@@ -118,7 +146,7 @@ def _reading_snapshot(book):
                 'id': 'curriculum:1',
                 'kind': 'curriculum',
                 'title': 'Урок',
-                'data': {'lesson_id': 999999},
+                'data': {'lesson_id': lesson.id},
             },
             {
                 'id': f'reading:book:{book.id}',
@@ -227,11 +255,11 @@ class TestSnapshotSelfHeal:
     """
 
     def test_revoked_midday_slot_is_dropped_from_required(
-        self, app, db_session, test_user, books_module,
+        self, app, db_session, test_user, books_module, spine_lesson,
     ):
         book = _make_book(db_session, rights_status='companion_only')
         _grant_books_module(db_session, test_user, books_module)
-        snapshot = _reading_snapshot(book)
+        snapshot = _reading_snapshot(book, spine_lesson)
 
         # До отзыва слот в required присутствует.
         before = overlay_completion(test_user.id, snapshot, app_db)
@@ -248,22 +276,22 @@ class TestSnapshotSelfHeal:
         assert ids == ['curriculum:1']
 
     def test_dropped_slot_is_not_credited_as_completed(
-        self, app, db_session, test_user, books_module,
+        self, app, db_session, test_user, books_module, spine_lesson,
     ):
         """Пометить completed нельзя — это фальшивый кредит и ложный perfect-day."""
         book = _make_book(db_session, rights_status='companion_only')
         _grant_books_module(db_session, test_user, books_module)
         _revoke_books_module(db_session, test_user, books_module)
 
-        out = overlay_completion(test_user.id, _reading_snapshot(book), app_db)
+        out = overlay_completion(test_user.id, _reading_snapshot(book, spine_lesson), app_db)
         assert all(it['kind'] != 'reading' for it in out)
 
     def test_expired_licence_midday_drops_slot(
-        self, app, db_session, test_user, books_module,
+        self, app, db_session, test_user, books_module, spine_lesson,
     ):
         _grant_books_module(db_session, test_user, books_module)
         book = _make_book(db_session, rights_status='licensed')
-        snapshot = _reading_snapshot(book)
+        snapshot = _reading_snapshot(book, spine_lesson)
         assert any(it['kind'] == 'reading' for it in overlay_completion(
             test_user.id, snapshot, app_db,
         ))
@@ -276,10 +304,10 @@ class TestSnapshotSelfHeal:
         ))
 
     def test_accessible_book_survives_overlay(
-        self, app, db_session, test_user, books_module,
+        self, app, db_session, test_user, books_module, spine_lesson,
     ):
         book = _make_book(db_session, rights_status='public_domain')
-        out = overlay_completion(test_user.id, _reading_snapshot(book), app_db)
+        out = overlay_completion(test_user.id, _reading_snapshot(book, spine_lesson), app_db)
         assert [it['id'] for it in out] == ['curriculum:1', f'reading:book:{book.id}']
 
     def test_vanished_book_row_is_dropped(

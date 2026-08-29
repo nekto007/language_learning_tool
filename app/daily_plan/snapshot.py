@@ -28,6 +28,11 @@ logger = logging.getLogger(__name__)
 # Bumping forces a fresh rebuild with the corrected URL on next plan load.
 SNAPSHOT_VERSION = 3
 
+# SRS ``data`` keys that describe today's *progress* rather than the day's
+# frozen composition — re-read on every overlay (DP-041). ``goal_total`` is
+# deliberately absent: the denominator stays put for the whole day.
+_SRS_LIVE_COUNTERS = ('reviews_today', 'new_today', 'overdue_reviews')
+
 
 def _get_or_create_log_row(user_id: int, plan_date: Any, db: Any):
     """Race-safe get-or-create по uq_daily_plan_log_user_date (flush-only)."""
@@ -231,17 +236,19 @@ def overlay_completion(
       - ``section='required'`` (snapshots are required-only)
       - ``eta_minutes`` zeroed when completed
       - ``url`` set to None when completed (UI hides the CTA)
+      - the day's live SRS counters refreshed inside ``data``
 
-    Other fields (id, kind, title, subtitle, lesson_type, data,
-    completion_signal) are passed through unchanged.
+    Other fields (id, kind, title, subtitle, lesson_type, completion_signal)
+    and the rest of ``data`` are passed through unchanged.
 
-    Two kinds of reading item are dropped rather than overlaid: a book that
-    has been finished, and a *still-incomplete* slot on a book the user can no
-    longer open. The builder's access gate only covers the day the snapshot is
-    composed — the required list is then frozen, so a licence that expires (or
-    a ``books`` module that is revoked) mid-day would otherwise leave an
-    uncompletable slot blocking ``day_secured`` until the study day rolls over
-    at 02:00. A slot already completed before access was lost is kept: it
+    A finished reading book is dropped outright. Every other drop goes through
+    the single reachability predicate :func:`_item_unreachable`, and only for a
+    *still-incomplete* item: the builder's gates cover only the day the
+    snapshot is composed, the required list is then frozen, and the world under
+    it keeps moving — a licence expires, an admin deletes the lesson, the user
+    empties the decks the frozen deck-quiz was built over. Without the repair
+    such an item blocks ``day_secured`` until the study day rolls over at
+    02:00. An item already completed before it became unreachable is kept: it
     blocks nothing, and dropping it would revoke earned credit.
     """
     items_out: list[dict[str, Any]] = []
@@ -256,14 +263,157 @@ def overlay_completion(
         # finished this morning is not blocking anything. Dropping it anyway
         # would erase credit the user really earned and shrink the
         # steps_done/steps_total pair that feeds get_required_steps.
-        if not completed and _reading_book_unreachable(user_id, merged, db):
+        if not completed and _item_unreachable(user_id, merged, db):
             continue
         merged['completed'] = completed
+        _refresh_srs_counters(user_id, merged, db)
         if completed:
             merged['eta_minutes'] = 0
             merged['url'] = None
         items_out.append(merged)
     return items_out
+
+
+def _item_unreachable(user_id: int, item: dict[str, Any], db: Any) -> bool:
+    """One predicate for «this frozen required item can no longer be finished».
+
+    Every kind that has a live precondition at build time needs the same check
+    again at overlay time, because the snapshot froze the answer at 02:00:
+
+    * ``reading`` — book access (DP-033),
+    * ``curriculum`` — the lesson row still exists (DP-005),
+    * ``srs:deck_quiz`` — the decks still hold quizzable words (DP-044).
+
+    Deliberately one dispatcher and one call-site in ``overlay_completion``:
+    a second pass over ``items`` would drift from the completion pass that
+    decides whether the drop is allowed at all.
+    """
+    kind = item.get('kind') or ''
+    if kind == 'reading':
+        return _reading_book_unreachable(user_id, item, db)
+    if kind == 'curriculum':
+        return _curriculum_lesson_unreachable(user_id, item, db)
+    if (item.get('id') or '') == 'srs:deck_quiz':
+        return _deck_quiz_unreachable(user_id, db)
+    return False
+
+
+def _curriculum_lesson_unreachable(
+    user_id: int,
+    item: dict[str, Any],
+    db: Any,
+) -> bool:
+    """True when the frozen curriculum slot points at a lesson that is gone.
+
+    An admin deleting a lesson (or a module, cascading into its lessons) mid-day
+    leaves the snapshot pointing at ``/curriculum/lesson/<id>/…`` → 404, while
+    ``_curriculum_lesson_done_today`` can never turn True for a row that no
+    longer exists and ``skip-lesson`` rejects the id as ``invalid_lesson``.
+    The day then cannot be closed by any amount of work (DP-005).
+
+    An item whose ``lesson_id`` does not resolve to an int is unreachable for
+    the same reason — its completion detector short-circuits to False forever.
+    A transient lookup failure keeps the item: required must not shrink on a
+    hiccup.
+    """
+    data = item.get('data') or {}
+    lesson_id = data.get('lesson_id')
+    try:
+        lesson_id_int = int(lesson_id) if lesson_id is not None else None
+    except (TypeError, ValueError):
+        lesson_id_int = None
+    if lesson_id_int is None:
+        logger.warning(
+            "snapshot curriculum slot dropped user=%s item=%s reason=no_lesson_id",
+            user_id, item.get('id'),
+        )
+        return True
+    try:
+        from app.curriculum.models import Lessons
+
+        if db.session.get(Lessons, lesson_id_int) is not None:
+            return False
+    except Exception:
+        logger.warning(
+            "snapshot curriculum lesson check failed user=%s lesson=%s",
+            user_id, lesson_id_int, exc_info=True,
+        )
+        return False
+    logger.warning(
+        "snapshot curriculum slot dropped user=%s lesson=%s reason=lesson_deleted",
+        user_id, lesson_id_int,
+    )
+    return True
+
+
+def _deck_quiz_unreachable(user_id: int, db: Any) -> bool:
+    """True when the frozen deck-quiz slot has no words left to quiz over.
+
+    ``_srs_item_dict`` checks ``_count_user_deck_quiz_words > 0`` once, when the
+    snapshot is composed. Deleting a deck (or its last word) later the same day
+    leaves a required slot whose quiz generator returns zero questions, so its
+    own completion signal can never fire (DP-044). Re-reading the same counter
+    here is the repair; the day then closes on the remaining required items.
+    """
+    try:
+        from app.daily_plan.linear.slots.srs_slot import _count_user_deck_quiz_words
+
+        if _count_user_deck_quiz_words(user_id, db) > 0:
+            return False
+    except Exception:
+        logger.warning(
+            "snapshot deck-quiz word count failed user=%s", user_id, exc_info=True,
+        )
+        return False
+    logger.warning(
+        "snapshot deck-quiz slot dropped user=%s reason=no_deck_words", user_id,
+    )
+    return True
+
+
+def _refresh_srs_counters(user_id: int, item: dict[str, Any], db: Any) -> None:
+    """Re-read today's SRS progress into a frozen item's ``data`` (DP-041).
+
+    Only the numerator moves. ``goal_total`` is frozen on purpose (see
+    ``_srs_goal_total`` in ``plan_builder``) so «12 из 30» does not become
+    «12 из 18» as the due pile shrinks — but the snapshot froze the counted
+    side too, so the dashboard read ``reviews_today = 0`` all day and hid the
+    progress caption entirely, no matter how many cards were actually
+    reviewed. The debt badge (``overdue_reviews``) is the same frozen number
+    and moves with them.
+
+    Composition is untouched: no key is added, only the ones the builder
+    already wrote are re-read. The deck-quiz variant carries none of them and
+    is skipped — its data describes decks, not card reviews.
+
+    ``data`` is replaced with a copy: ``overlay_completion`` shallow-copies the
+    item, so mutating the nested dict in place would edit the snapshot held in
+    ``DailyPlanLog.plan_json``.
+    """
+    if (item.get('kind') or '') != 'srs':
+        return
+    data = item.get('data') or {}
+    live_keys = [k for k in _SRS_LIVE_COUNTERS if k in data]
+    if not live_keys:
+        return
+    try:
+        from app.srs.counting import count_new_cards_today, count_reviews_today
+        from app.study.services import SRSService
+
+        fresh = {
+            'reviews_today': int(count_reviews_today(user_id, db) or 0),
+            'new_today': int(count_new_cards_today(user_id, db) or 0),
+            'overdue_reviews': int(SRSService.get_overdue_review_count(user_id) or 0),
+        }
+    except Exception:
+        logger.warning(
+            "snapshot srs counter refresh failed user=%s", user_id, exc_info=True,
+        )
+        return
+    refreshed = dict(data)
+    for key in live_keys:
+        refreshed[key] = fresh[key]
+    item['data'] = refreshed
 
 
 def _is_item_completed(user_id: int, item: dict[str, Any], db: Any) -> bool:

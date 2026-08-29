@@ -525,3 +525,338 @@ class TestGrammarPracticeStudyDayWindow:
             utc_user.id, grammar_lesson.grammar_topic_id,
             grammar_lesson.module_id, real_db,
         ) is False
+
+
+# ── Кластер B фазы 2: заморозка снапшота ────────────────────────────────────
+#
+# Снапшот замораживает состав required на учебный день, а мир под ним живёт:
+# админ удаляет урок (`DP-005`), пользователь чистит колоды (`DP-044`),
+# карточки повторяются, но их счётчик заморожен на моменте сборки (`DP-041`).
+# Первые две — про незакрываемый день, третья — про мёртвый прогресс «X из N».
+
+
+def _snapshot_of(items):
+    return {
+        'version': SNAPSHOT_VERSION,
+        'date': study_today().isoformat(),
+        'tier': 'normal',
+        'rolled_over_from': None,
+        'items': items,
+    }
+
+
+def _curriculum_item(lesson_id, item_id='curriculum:lesson'):
+    return {
+        'id': item_id,
+        'section': 'required',
+        'kind': 'curriculum',
+        'title': 'Урок',
+        'subtitle': None,
+        'lesson_type': 'vocabulary',
+        'eta_minutes': 10,
+        'url': f'/curriculum/lesson/{lesson_id}',
+        'completion_signal': 'lesson_completed',
+        'data': {'lesson_id': lesson_id},
+    }
+
+
+def _day_secured(user_id, overlaid):
+    """day_secured ровно так, как его считает API: по составу required."""
+    from app.daily_plan.service import compute_day_secured_from_activity
+
+    plan = {
+        'required': overlaid,
+        '_plan_meta': {'effective_mode': 'unified', 'user_id': user_id},
+        'day_secured': False,
+    }
+    completion = {it['id']: bool(it.get('completed')) for it in overlaid}
+    return compute_day_secured_from_activity(plan, completion)
+
+
+class TestDeletedLessonSelfHeal:
+    """DP-005: урок, удалённый админом среди дня, обязан покинуть required.
+
+    Пункт ведёт в 404, `_curriculum_lesson_done_today` для несуществующей
+    строки навсегда False, `skip-lesson` отбивает id как `invalid_lesson` —
+    штатного обхода нет, и день не закрывается никаким объёмом работы.
+    """
+
+    def test_deleted_lesson_drops_out_of_required(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        snap = _snapshot_of([_curriculum_item(vocabulary_lesson.id)])
+        assert [it['id'] for it in overlay_completion(user.id, snap, real_db)] == [
+            'curriculum:lesson',
+        ]
+
+        db_session.delete(vocabulary_lesson)
+        db_session.commit()
+
+        assert overlay_completion(user.id, snap, real_db) == []
+
+    def test_day_closes_on_the_remaining_required(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Соседний выполненный пункт закрывает день, когда мёртвый выброшен."""
+        alive = _curriculum_item(vocabulary_lesson.id, item_id='curriculum:alive')
+        doomed = _curriculum_item(vocabulary_lesson.id + 10_000, 'curriculum:doomed')
+        snap = _snapshot_of([alive, doomed])
+
+        from app.utils.time_utils import day_to_naive_utc
+        today_start = day_to_naive_utc(user.id, real_db, days_ahead=0)
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='completed', score=100.0,
+            last_activity=today_start + timedelta(hours=9),
+            completed_at=today_start + timedelta(hours=9),
+        ))
+        db_session.commit()
+
+        overlaid = overlay_completion(user.id, snap, real_db)
+        assert [it['id'] for it in overlaid] == ['curriculum:alive']
+        assert _day_secured(user.id, overlaid) is True
+
+    def test_completed_item_keeps_its_credit(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Выполненный до удаления пункт остаётся — дроп не отбирает кредит.
+
+        Сигнал берётся из `StreakEvent`, строку урока он не трогает, поэтому
+        completed=True переживает удаление и пункт обязан уцелеть.
+        """
+        from app.daily_plan.linear.xp import (
+            LINEAR_XP_EVENT_TYPE,
+            get_linear_event_local_date,
+        )
+
+        lesson_id = vocabulary_lesson.id
+        db_session.add(StreakEvent(
+            user_id=user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=get_linear_event_local_date(user.id, real_db),
+            details={
+                'source': 'linear_curriculum_vocabulary',
+                'lesson_id': str(lesson_id),
+            },
+        ))
+        db_session.delete(vocabulary_lesson)
+        db_session.commit()
+
+        overlaid = overlay_completion(user.id, _snapshot_of([
+            _curriculum_item(lesson_id),
+        ]), real_db)
+        assert [it['id'] for it in overlaid] == ['curriculum:lesson']
+        assert overlaid[0]['completed'] is True
+
+    def test_item_without_lesson_id_is_dropped(self, db_session, user):
+        """Пункт без разрешимого lesson_id так же неисполним навсегда."""
+        broken = _curriculum_item(1)
+        broken['data'] = {}
+        assert overlay_completion(user.id, _snapshot_of([broken]), real_db) == []
+
+    def test_live_lesson_survives(self, db_session, user, vocabulary_lesson):
+        """Страж на нерегрессию: живой урок из required не исчезает."""
+        overlaid = overlay_completion(user.id, _snapshot_of([
+            _curriculum_item(vocabulary_lesson.id),
+        ]), real_db)
+        assert [it['id'] for it in overlaid] == ['curriculum:lesson']
+        assert overlaid[0]['completed'] is False
+
+
+def _deck_quiz_item(deck_word_count=3):
+    return {
+        'id': 'srs:deck_quiz',
+        'section': 'required',
+        'kind': 'srs',
+        'title': f'Квиз по словам — {deck_word_count}',
+        'subtitle': None,
+        'lesson_type': 'quiz',
+        'eta_minutes': 8,
+        'url': '/study/quiz/linear-plan?source=linear_plan_deck_quiz&limit=3',
+        'completion_signal': 'srs_xp_earned',
+        'data': {
+            'mode': 'deck_quiz',
+            'source': 'linear_plan_deck_quiz',
+            'deck_word_count': deck_word_count,
+            'word_limit': deck_word_count,
+            'goal_total': deck_word_count,
+        },
+    }
+
+
+@pytest.fixture
+def deck_with_words(db_session, user):
+    from app.study.models import QuizDeck, QuizDeckWord
+
+    deck = QuizDeck(title='Колода', description='', user_id=user.id, is_public=False)
+    db_session.add(deck)
+    db_session.flush()
+    for i in range(3):
+        db_session.add(QuizDeckWord(
+            deck_id=deck.id,
+            custom_english=f'word {i}',
+            custom_russian=f'слово {i}',
+            order_index=i,
+        ))
+    db_session.commit()
+    return deck
+
+
+class TestDeckQuizWordsGoneSelfHeal:
+    """DP-044: гейт «есть ли слова в колодах» переживал только сборку.
+
+    Удаление колоды среди дня оставляло required-квиз, генератор которого
+    отдаёт ноль вопросов, — собственный сигнал завершения не мог сработать
+    никогда.
+    """
+
+    def test_slot_survives_while_decks_have_words(self, db_session, user, deck_with_words):
+        overlaid = overlay_completion(user.id, _snapshot_of([_deck_quiz_item()]), real_db)
+        assert [it['id'] for it in overlaid] == ['srs:deck_quiz']
+        assert overlaid[0]['completed'] is False
+
+    def test_emptied_decks_drop_the_slot(self, db_session, user, deck_with_words):
+        from app.study.models import QuizDeckWord
+
+        snap = _snapshot_of([_deck_quiz_item()])
+        assert overlay_completion(user.id, snap, real_db) != []
+
+        db_session.query(QuizDeckWord).filter_by(deck_id=deck_with_words.id).delete()
+        db_session.commit()
+
+        assert overlay_completion(user.id, snap, real_db) == []
+
+    def test_day_closes_after_the_dead_quiz_is_dropped(
+        self, db_session, user, vocabulary_lesson, deck_with_words,
+    ):
+        from app.study.models import QuizDeckWord
+
+        from app.utils.time_utils import day_to_naive_utc
+        today_start = day_to_naive_utc(user.id, real_db, days_ahead=0)
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='completed', score=100.0,
+            last_activity=today_start + timedelta(hours=9),
+            completed_at=today_start + timedelta(hours=9),
+        ))
+        db_session.query(QuizDeckWord).filter_by(deck_id=deck_with_words.id).delete()
+        db_session.commit()
+
+        snap = _snapshot_of([
+            _curriculum_item(vocabulary_lesson.id, item_id='curriculum:alive'),
+            _deck_quiz_item(),
+        ])
+        overlaid = overlay_completion(user.id, snap, real_db)
+        assert [it['id'] for it in overlaid] == ['curriculum:alive']
+        assert _day_secured(user.id, overlaid) is True
+
+    def test_srs_global_is_not_touched_by_the_deck_gate(self, db_session, user):
+        """Обычный `srs:global` колод не требует и дропу не подлежит."""
+        item = _srs_global_item()
+        overlaid = overlay_completion(user.id, _snapshot_of([item]), real_db)
+        assert [it['id'] for it in overlaid] == ['srs:global']
+
+
+def _srs_global_item(**data_overrides):
+    data = {
+        'new_show': 4,
+        'learning_due': 2,
+        'learning_show': 2,
+        'review_show': 18,
+        'total_show': 24,
+        'new_pending': 10,
+        'review_due': 18,
+        'overdue_reviews': 7,
+        'new_today': 0,
+        'reviews_today': 0,
+        'remaining_new': 4,
+        'remaining_reviews': 20,
+        'srs_tier': 'normal',
+        'reason_hint': None,
+        'goal_total': 24,
+    }
+    data.update(data_overrides)
+    return {
+        'id': 'srs:global',
+        'section': 'required',
+        'kind': 'srs',
+        'title': 'Повторение слов — 24',
+        'subtitle': '4 новых · 18 на повтор',
+        'lesson_type': None,
+        'eta_minutes': 8,
+        'url': '/study/cards?source=linear_plan&from=linear_plan&slot=srs',
+        'completion_signal': 'srs_xp_earned',
+        'data': data,
+    }
+
+
+def _reviewed_card_today(db_session, user, *, first_reviewed_days_ago=3):
+    """Карточка, повторённая сегодня и впервые увиденная раньше.
+
+    `count_reviews_today` сознательно не считает карточки, впервые увиденные
+    сегодня (E-023), поэтому `first_reviewed` обязан быть в прошлом.
+    """
+    from app.study.models import UserCardDirection, UserWord
+    from app.utils.time_utils import day_to_naive_utc
+    from app.words.models import CollectionWords
+
+    suffix = uuid.uuid4().hex[:8]
+    word = CollectionWords(english_word=f'w{suffix}', russian_word=f'с{suffix}')
+    db_session.add(word)
+    db_session.flush()
+    user_word = UserWord(user_id=user.id, word_id=word.id)
+    user_word.srs_excluded = False
+    db_session.add(user_word)
+    db_session.flush()
+    today_start = day_to_naive_utc(user.id, real_db, days_ahead=0)
+    db_session.add(UserCardDirection(
+        user_word_id=user_word.id,
+        direction='eng-rus',
+        first_reviewed=today_start - timedelta(days=first_reviewed_days_ago),
+        last_reviewed=today_start + timedelta(hours=6),
+    ))
+    db_session.commit()
+
+
+class TestFrozenSrsCountersAreRefreshed:
+    """DP-041: замерзал не только знаменатель, но и числитель.
+
+    `goal_total` заморожен сознательно («12 из 30» не должно превращаться в
+    «12 из 18»), а `reviews_today`/`new_today` — живой прогресс дня: шаблон
+    прячет весь блок при нуле, поэтому каптион «X из N» не рендерился вовсе.
+    """
+
+    def test_live_review_count_reaches_the_overlay(self, db_session, user):
+        _reviewed_card_today(db_session, user)
+
+        overlaid = overlay_completion(user.id, _snapshot_of([_srs_global_item()]), real_db)
+        data = overlaid[0]['data']
+        assert data['reviews_today'] == 1, 'числитель обязан быть живым'
+        assert data['goal_total'] == 24, 'знаменатель заморожен на день — не трогать'
+
+    def test_composition_fields_stay_frozen(self, db_session, user):
+        _reviewed_card_today(db_session, user)
+
+        overlaid = overlay_completion(user.id, _snapshot_of([_srs_global_item()]), real_db)
+        data = overlaid[0]['data']
+        assert data['total_show'] == 24
+        assert data['new_show'] == 4
+        assert data['review_show'] == 18
+        assert overlaid[0]['title'] == 'Повторение слов — 24'
+
+    def test_snapshot_payload_is_not_mutated(self, db_session, user):
+        """Снапшот — это `DailyPlanLog.plan_json`; править его на месте нельзя."""
+        _reviewed_card_today(db_session, user)
+
+        snap = _snapshot_of([_srs_global_item()])
+        overlay_completion(user.id, snap, real_db)
+        assert snap['items'][0]['data']['reviews_today'] == 0
+
+    def test_deck_quiz_gets_no_card_counters(self, db_session, user, deck_with_words):
+        """У квиза свои числа — счётчики карточек ему приписывать нечего."""
+        _reviewed_card_today(db_session, user)
+
+        overlaid = overlay_completion(user.id, _snapshot_of([_deck_quiz_item()]), real_db)
+        data = overlaid[0]['data']
+        assert 'reviews_today' not in data
+        assert data['word_limit'] == 3

@@ -207,6 +207,11 @@ def _srs_item_dict(
     The deck-quiz swap keeps the old user-facing rule: a deck quiz only
     replaces ``srs:global`` when the user actually has
     deck words (otherwise the slot would be a dead placeholder).
+
+    This gate answers the question once, for the day the snapshot is composed.
+    Its other half lives in ``snapshot._deck_quiz_unreachable``: emptying the
+    decks later the same day leaves a frozen required slot whose quiz has no
+    questions, and the overlay drops it (DP-044). Change one, change the other.
     """
     if as_deck_quiz:
         from app.daily_plan.linear.slots.srs_slot import _count_user_deck_quiz_words

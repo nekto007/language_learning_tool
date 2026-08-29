@@ -208,3 +208,107 @@ GROUP BY 1;
 не ходили. Приёмка — тест-страж `TestGrammarRetakeXpGate` (4 теста, по каждому из двух
 URL: проваленная пересдача завершённого урока не платит, сдача — платит). Все четыре
 краснеют при откате гейта на `progress.status == 'completed'`.
+
+---
+
+## Замер (г) — кластер B: заморозка снапшота (`DP-005`, `DP-044`, `DP-041`)
+
+Кластер чинит один механизм: снапшот замораживает состав `required` на учебный
+день, а мир под ним меняется. Замеры «до» — по той же копии прода, read-only.
+
+### `DP-005` — замороженный пункт на удалённый урок
+
+```sql
+WITH items AS (
+  SELECT l.user_id, l.plan_date, it->>'id' AS item_id, it->'data'->>'lesson_id' AS lesson_id
+  FROM daily_plan_log l, jsonb_array_elements((l.plan_json->'items')::jsonb) it
+  WHERE l.plan_json IS NOT NULL AND it->>'kind' = 'curriculum'
+)
+SELECT count(*) AS curriculum_items,
+       count(*) FILTER (WHERE lesson_id IS NULL) AS no_lesson_id,
+       count(*) FILTER (WHERE lesson_id IS NOT NULL
+                        AND NOT EXISTS (SELECT 1 FROM lessons ls WHERE ls.id = lesson_id::int)) AS lesson_gone
+FROM items;
+```
+
+| curriculum-пунктов в снапшотах | без `lesson_id` | урок удалён |
+|---|---|---|
+| 1888 | 0 | **0** |
+
+**Число «до»: 0.** Как и у `DP-050`, это результат, а не пропуск: механизм в коде
+воспроизводится (baseline, секция 4), но админ пока ни разу не удалил урок,
+попавший в чей-то замороженный план. Замер повторяем — он же служит детектором:
+ненулевое значение в этой колонке = чей-то день не закрывается прямо сейчас.
+
+### `DP-044` — замороженный deck-quiz без слов в колодах
+
+Историческое состояние колод не восстанавливается (удаление слова строки не
+оставляет), поэтому меряем текущий срез по тем же 5 дням из замера (б):
+
+| user_id | plan_date | день закрыт | квизуемых слов в колодах сейчас |
+|---|---|---|---|
+| 1 | 2026-06-18 | нет | 463 |
+| 8 | 2026-06-23 | нет | 507 |
+| 8 | 2026-07-08 | да | 507 |
+| 21 | 2026-06-24 | нет | 587 |
+| 21 | 2026-07-08 | нет | 587 |
+
+**Число «до»: 0 из 5.** Ни один из трёх владельцев deck-quiz-дней колоды не
+обнулял. Путь остаётся достижимым одним кликом (`POST /my-decks/<id>/delete`), и
+цена ошибки — незакрываемый день, поэтому правка делается по механизму, а не по
+частоте.
+
+### `DP-041` — замороженный числитель прогресса SRS
+
+```sql
+WITH srs AS (
+  SELECT l.user_id, l.plan_date,
+         coalesce((it->'data'->>'reviews_today')::int,0)
+       + coalesce((it->'data'->>'new_today')::int,0) AS frozen_num
+  FROM daily_plan_log l, jsonb_array_elements((l.plan_json->'items')::jsonb) it
+  WHERE l.plan_json IS NOT NULL AND it->>'id' = 'srs:global'
+)
+SELECT count(*) FROM srs s
+WHERE EXISTS (SELECT 1 FROM streak_events se
+              WHERE se.user_id=s.user_id AND se.event_type='xp_linear'
+                AND se.event_date=s.plan_date
+                AND se.details->>'source'='linear_srs_global');
+```
+
+| слотов `srs:global` в снапшотах | из них с замороженным нулём | дней, где SRS-работа в тот день была | из них каптион «X из N» скрыт |
+|---|---|---|---|
+| 579 | 571 (98.6%) | 69 | **65 (94%)** |
+
+**Число «до»: 65 дней из 69, когда пользователь реально повторял карточки, шли с
+пустым числителем — блок прогресса не рендерился вовсе** (шаблон
+`partials/unified_daily_plan.html` прячет его при `_srs_done == 0`). Знаменатель
+(`goal_total`) при этом заполнен у всех 579 слотов, то есть замысел «живой
+числитель / замороженный знаменатель» держался ровно наполовину.
+
+**После правки:** `overlay_completion` перечитывает три ключа
+(`reviews_today`, `new_today`, `overdue_reviews`) на каждой отдаче плана, а
+`goal_total` и весь состав остаются замороженными. Тот же предикат по тем же 69
+дням дал бы **0 скрытых каптионов**: числитель берётся из `count_reviews_today` /
+`count_new_cards_today` (единственный источник истины `app/srs/counting.py`), а не
+из снапшота. Исторические `plan_json` не переписываются — прошлые дни не
+рендерятся, а сегодняшний чинится на первом же запросе.
+
+**Правки кластера B** — все три в одном проходе `overlay_completion`
+(`app/daily_plan/snapshot.py`), рядом с уже существующим дропом недостижимой книги
+из фазы 1:
+
+- один предикат `_item_unreachable` диспетчеризует по kind: чтение (`DP-033`),
+  curriculum-урок (`DP-005`), deck-quiz (`DP-044`);
+- дроп срабатывает **только для невыполненного** пункта — правило ревью фазы 1
+  (выполненный слот кредит не теряет) распространено на новые ветки;
+- `_refresh_srs_counters` обновляет числитель, не трогая состав, и заменяет
+  `data` копией — снапшот живёт в `DailyPlanLog.plan_json`, править его на месте
+  нельзя.
+
+Тест-стражи — `tests/daily_plan/test_snapshot_v2.py`:
+`TestDeletedLessonSelfHeal` (5), `TestDeckQuizWordsGoneSelfHeal` (4),
+`TestFrozenSrsCountersAreRefreshed` (4). При откате правки краснеют 6 из 13
+(остальные — регресс-стражи на живой путь). Фикстура
+`tests/daily_plan/test_reading_slot_access_gate.py::spine_lesson` заменила
+`lesson_id: 999999` на настоящий урок: с `DP-005` несуществующий урок сам покидает
+`required`, и тест перестал бы отличать дроп книги от дропа урока.
