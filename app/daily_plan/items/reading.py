@@ -70,12 +70,17 @@ def book_access_ok_for_reading(user_id: int, book: Any, db: Any) -> bool:
         logger.warning("reading_item user=%s missing_user access_denied", user_id)
         return False
 
+    # info, not warning: a draft or a title the user has no rights to is an
+    # ordinary, permanent state, and this gate runs on every plan assembly
+    # (required slot, optional slot, snapshot overlay, perfect-day sweeper).
+    # At warning level one such user emits several lines per dashboard render
+    # forever and buries the anomalies below.
     if not book.is_published and not getattr(user, 'is_admin', False):
-        logger.warning("reading_item user=%s book=%s draft_not_readable", user_id, book.id)
+        logger.info("reading_item user=%s book=%s draft_not_readable", user_id, book.id)
         return False
 
     if not can_user_access_book(user, book):
-        logger.warning("reading_item user=%s book=%s access_denied", user_id, book.id)
+        logger.info("reading_item user=%s book=%s access_denied", user_id, book.id)
         return False
 
     return True

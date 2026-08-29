@@ -273,6 +273,11 @@ def award_perfect_day_xp_idempotent(
     # forever. Anything that goes wrong below therefore un-claims the day and
     # re-raises — a retry (the next dashboard render or /api/daily-status) can
     # then still pay the bonus.
+    # Bound before the try so the release handler below can restore them even
+    # when the failure happens before they are assigned.
+    stats = None
+    current_consecutive = 0
+
     try:
         # Determine consecutive perfect day count. Paused days are streak-neutral
         # (a plan_pause StreakEvent is written per paused day), so walk back over
@@ -324,6 +329,12 @@ def award_perfect_day_xp_idempotent(
         }
     except Exception:
         try:
+            # Undo the whole claim, not just the marker: `consecutive_perfect_days`
+            # was already bumped above, and both sweepers swallow this exception and
+            # commit anyway — leaving it raised would make the retry increment a
+            # value that was never paid for and inflate the multiplier for good.
+            if stats is not None:
+                stats.consecutive_perfect_days = current_consecutive
             db.session.delete(marker)
             db.session.flush()
         except Exception:

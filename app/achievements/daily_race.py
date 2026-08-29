@@ -524,9 +524,11 @@ def compute_ghost_points(
 
     # `race_date` is a STUDY-day date on both surfaces that build it (DP-012:
     # /api/daily-race and the dashboard widget both go through
-    # get_user_local_date). Comparing it against the calendar date made every
-    # ghost jump to full target points between 00:00 and 02:00 local — while the
-    # race the user is actually in is still running.
+    # get_user_local_date), so compare it on the same scale rather than against
+    # the calendar date. Output is unchanged today — between 00:00 and 02:00 the
+    # calendar comparison read "race is over" and this one reads "past
+    # _GHOST_END_HOUR", and both mean full target — but the two agree by
+    # coincidence, and only this form keeps agreeing if the window ever moves.
     local_today = (now - timedelta(hours=LEARNING_DAY_START_HOUR)).date()
     if local_today < race_date:
         # Race hasn't started in local time yet.

@@ -585,9 +585,16 @@ def streak():
         streak, coins_balance, has_activity_today, can_repair, missed_date, repair_cost
     """
     from app.achievements.streak_service import get_streak_status
+    from app.utils.time_utils import get_user_timezone_name
 
-    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = current_user.id
+    # Read and write must name the same day (DP-001): this endpoint reports
+    # `missed_date` / `can_repair` straight out of `find_missed_date`, and
+    # `/api/streak/repair` resolves that date from `User.timezone`. Answering on
+    # a client-supplied `tz` let the two disagree — the caller was shown one gap
+    # and repaired another, or got `400 no_missed_date` on an offered repair.
+    # The `tz` query param stays accepted for backward compatibility, display-only.
+    tz = get_user_timezone_name(user_id, db.session)
     status = get_streak_status(user_id, tz=tz)
 
     return jsonify({'success': True, **status})
@@ -613,7 +620,6 @@ def daily_race_status():
     )
     from app.auth.models import User
 
-    tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
 
     if not is_daily_race_enabled():
@@ -635,10 +641,17 @@ def daily_race_status():
 
     # Дата кохорты гонки — по User.timezone: клиентский tz позволял бы
     # зачислиться в две гонки (две даты) за один реальный день.
-    from app.utils.time_utils import get_user_local_date
+    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
     local_today = get_user_local_date(user_id, db.session)
 
-    standings = get_race_standings(user_id, local_today, tz=tz)
+    # The zone must come from the same place as the date above: `compute_ghost_points`
+    # rebuilds its own study day from this `tz` and compares it to `race_date`, so a
+    # client zone a few hours off the stored one pinned every ghost at 0 or at full
+    # target for the whole request. The `tz` query param is ignored for the same
+    # reason the cohort date ignores it.
+    standings = get_race_standings(
+        user_id, local_today, tz=get_user_timezone_name(user_id, db.session)
+    )
     db.session.commit()
 
     return jsonify({'success': True, 'race': standings})
