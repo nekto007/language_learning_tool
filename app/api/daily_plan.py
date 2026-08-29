@@ -102,23 +102,21 @@ def _sync_unified_route_steps(
 
 
 def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
-    """Return recovery suggestion when yesterday's plan was not secured, else None."""
-    from datetime import datetime, timedelta
+    """Return recovery suggestion when yesterday's plan was not secured, else None.
 
-    import pytz
+    Both "was yesterday closed?" call-sites go through the one predicate in
+    ``next_step`` — this route used to answer it on a pytz calendar midnight
+    while ``/api/daily-plan/continuation`` used the study day, so the two
+    disagreed between 00:00 and 02:00 (DP-022). ``tz`` is kept for call-site
+    symmetry; the date must come from ``User.timezone``, which is what
+    ``DailyPlanLog.plan_date`` is keyed on.
+    """
+    from app.daily_plan.next_step import find_unsecured_yesterday
 
-    from app.daily_plan.models import DailyPlanLog
-
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
-    log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
-
-    if log is None or log.secured_at is not None:
+    found = find_unsecured_yesterday(user_id)
+    if found is None:
         return None
+    yesterday, log = found
 
     action_url = '/dashboard'
 
@@ -196,20 +194,22 @@ def _compute_listening_goal(user, tz: str) -> dict:
 
 
 def _compute_study_minutes(user, tz: str) -> int:
-    """Return minutes_studied_today from DailyStudyMinutes for the user's local date."""
-    from datetime import datetime
+    """Return minutes_studied_today from DailyStudyMinutes for the user's study day.
 
-    import pytz
+    The writer (``award_linear_slot_xp_idempotent`` → ``add_study_minutes``)
+    keys the row on ``get_linear_event_local_date``, i.e. the study day.
+    Reading it back by calendar date meant minutes earned between 00:00 and
+    02:00 were written under yesterday and never read by anyone (DP-010).
 
+    ``tz`` is accepted for call-site symmetry but deliberately not used: the
+    lookup key must come from ``User.timezone``, the same source the writer
+    used, so a client-supplied zone cannot shift the date.
+    """
     from app.curriculum.models import get_minutes_today
     from app.utils.db import db
+    from app.utils.time_utils import get_user_local_date
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    today = datetime.now(tz_obj).date()
+    today = get_user_local_date(user.id, db)
     try:
         return get_minutes_today(user.id, today, db)
     except Exception:
@@ -222,28 +222,35 @@ def _compute_goal_progress(user, tz: str) -> dict:
 
     Returns dict with goal_progress containing daily_words and weekly_lessons
     sub-dicts, each with goal, actual, and reached fields.
-    """
-    from datetime import datetime, timedelta
 
-    import pytz
+    Both halves are anchored on the study day. ``daily_words`` always was
+    (``count_new_cards_today`` → ``day_to_naive_utc``); the week used to start
+    at calendar midnight from the client ``tz``, so at 00:30 on a Monday the
+    two disagreed about which week it was — ``daily_words`` still reported
+    Sunday's study day while ``weekly_lessons`` had already reset (DP-026).
+
+    ``tz`` is accepted for call-site symmetry but deliberately unused: the
+    zone must be the one the study day was derived from, i.e. ``User.timezone``.
+    """
+    from datetime import timedelta
 
     from app.curriculum.models import LessonProgress
     from app.srs.counting import count_new_cards_today
+    from app.utils.time_utils import (
+        get_user_local_date,
+        get_user_timezone_name,
+        study_day_start_utc,
+    )
 
     daily_word_goal = user.daily_word_goal if user.daily_word_goal is not None else 10
     weekly_lesson_goal = user.weekly_lesson_goal if user.weekly_lesson_goal is not None else 5
 
     words_today = count_new_cards_today(user.id)
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    now_local = datetime.now(tz_obj)
-    days_since_monday = now_local.weekday()  # 0=Monday
-    monday_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
-    monday_utc = monday_local.astimezone(pytz.utc).replace(tzinfo=None)
+    study_today = get_user_local_date(user.id, db)
+    tz_name = get_user_timezone_name(user.id, db)
+    monday_study_date = study_today - timedelta(days=study_today.weekday())  # 0=Monday
+    monday_utc = study_day_start_utc(tz_name, monday_study_date).replace(tzinfo=None)
 
     lessons_this_week = LessonProgress.query.filter(
         LessonProgress.user_id == user.id,
@@ -364,8 +371,19 @@ def daily_status():
             except Exception:
                 logger.warning("plan-completion / rank-up recording failed for user %s", user_id, exc_info=True)
             try:
+                # check_immersion_achievement's contract: `tz` MUST be the zone
+                # `target_date` was derived from, or the UTC window it builds is
+                # offset from the user's real day. `today` comes from
+                # User.timezone, so the client's `tz` query param cannot be
+                # passed here — it would skew the window by the zone difference
+                # and award/deny immersion on neighbouring days' activity
+                # (DP-013). Same principle as secured_at two blocks up.
                 from app.achievements.services import check_immersion_achievement
-                check_immersion_achievement(user_id, today, db.session, tz=tz)
+                from app.utils.time_utils import get_user_timezone_name
+                check_immersion_achievement(
+                    user_id, today, db.session,
+                    tz=get_user_timezone_name(user_id, db.session),
+                )
             except Exception:
                 logger.warning("immersion achievement check failed for user %s", user_id, exc_info=True)
             try:

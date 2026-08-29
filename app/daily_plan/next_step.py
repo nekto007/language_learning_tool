@@ -65,17 +65,27 @@ def _apply_queue_filters(candidates: list[NextStep], max_steps: int) -> list[Nex
     return queue
 
 
-def _check_recovery(user_id: int, db) -> Optional[NextStep]:
-    """Suggest recovery when yesterday's plan was not secured."""
+def find_unsecured_yesterday(user_id: int):
+    """Return ``(yesterday, log)`` when yesterday's plan was left unsecured.
+
+    The single implementation of "did the user fail to close yesterday?".
+    ``/api/daily-status`` (``_get_recovery_suggestion``) and
+    ``/api/daily-plan/continuation`` (via :func:`_check_recovery`) both ask
+    this question and used to answer it on different day bases — a pytz
+    calendar midnight against this ZoneInfo study-day resolver — so between
+    00:00 and 02:00 the same ``DailyPlanLog`` state produced two different
+    answers (DP-022). ``DailyPlanLog.plan_date`` is written on the study-day
+    basis, so that is the only basis that can read it back.
+
+    Returns ``None`` when yesterday was secured, has no log row, or the
+    lookup fails.
+    """
     from datetime import timedelta
 
     from app.daily_plan.models import DailyPlanLog
+    from app.utils.time_utils import get_user_local_date
 
     try:
-        # Use the same ZoneInfo-based resolver as the rest of the app instead
-        # of a separate pytz stack, so "yesterday" can't diverge for zone
-        # strings the two libraries disagree on (audit E-026).
-        from app.utils.time_utils import get_user_local_date
         yesterday = get_user_local_date(user_id) - timedelta(days=1)
         log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
     except Exception:
@@ -83,6 +93,15 @@ def _check_recovery(user_id: int, db) -> Optional[NextStep]:
 
     if log is None or log.secured_at is not None:
         return None
+    return yesterday, log
+
+
+def _check_recovery(user_id: int, db) -> Optional[NextStep]:
+    """Suggest recovery when yesterday's plan was not secured."""
+    found = find_unsecured_yesterday(user_id)
+    if found is None:
+        return None
+    yesterday, _log = found
 
     return NextStep(
         kind='recovery',

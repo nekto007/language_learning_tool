@@ -318,28 +318,48 @@
 **Files:**
 - Modify: `app/words/routes.py`, `app/api/daily_plan.py`, `app/daily_plan/next_step.py`
 
-- [ ] `DP-008` — «XP сегодня» на дашборде (`app/words/routes.py:1108-1109`) считается по
+- [x] `DP-008` — «XP сегодня» на дашборде (`app/words/routes.py:1108-1109`) считается по
       календарному дню вопреки контракту `get_today_xp`; перевести на учебный день
-- [ ] `DP-010` — `add_study_minutes(when=...)` (`app/api/daily_plan.py:196-216`) получает учебный
+      → виджет зовёт `get_user_local_date(user_id, db)`; заодно ушёл осиротевший модульный
+      `from datetime import datetime`. Страж — `TestDashboardXpTodayIsStudyDay`
+- [x] `DP-010` — `add_study_minutes(when=...)` (`app/api/daily_plan.py:196-216`) получает учебный
       день, а сравнивается с иными базисами; свести
-- [ ] `DP-012` — дашбордная карточка гонки (`app/words/routes.py:715-721`) считает дату кохорты
+      → `_compute_study_minutes` читает по учебному дню, той же дате, что пишет
+      `add_study_minutes(when=…)`. Страж — `TestStudyMinutesReadOnStudyDay` (3 теста)
+- [x] `DP-012` — дашбордная карточка гонки (`app/words/routes.py:715-721`) считает дату кохорты
       иначе, чем `/api/daily-race`: юзер видит на дашборде и в API разные гонки. Свести на общий
       источник даты
-- [ ] `DP-026` — `goal_progress.daily_words` считается от 02:00, `weekly_lessons` — от иной границы
+      → оба пути на `get_user_local_date`. Страж — `TestRaceCohortDateSingleBasis` (2 теста)
+- [x] `DP-026` — `goal_progress.daily_words` считается от 02:00, `weekly_lessons` — от иной границы
       (`app/api/daily_plan.py:139-152`)
-- [ ] `DP-013` — контракт докстринга «`tz` must match the timezone used to derive `target_date`»
+      → неделя якорится в 02:00 учебного понедельника через `study_day_start_utc` (хелпер Task 7,
+      четвёртой копии не появилось). Страж — `TestWeeklyGoalWeekStartsOnStudyMonday` (3 теста)
+- [x] `DP-013` — контракт докстринга «`tz` must match the timezone used to derive `target_date`»
       нарушен на call-site (`app/api/daily_plan.py:368`); после Task 2 это должно стать
       автоматически верным — **проверить и зафиксировать тестом**, а не считать закрытым по факту
-- [ ] `DP-022` — две несогласованные реализации «вчера не закрыто» (pytz-ветка в
+      → проверено: **автоматически верным НЕ стало** — Task 2 не трогал приоритет клиентского
+      `?tz=`, а `today` по-прежнему из `User.timezone`. Call-site переведён на
+      `get_user_timezone_name(user_id, …)`. Страж — `TestImmersionTzMatchesTargetDate` (2 теста)
+- [x] `DP-022` — две несогласованные реализации «вчера не закрыто» (pytz-ветка в
       `app/api/daily_plan.py:117` против ZoneInfo в `app/daily_plan/next_step.py`): оставить одну
-- [ ] `DP-011` — **решение, а не автоматический фикс.** Идемпотентные ключи `(user, дата, source)`
+      → остался один предикат `find_unsecured_yesterday(user_id)` в `next_step.py`, pytz-ветка
+      удалена. Страж — `TestUnsecuredYesterdaySingleImplementation` (3 теста). Три unit-теста в
+      `tests/api/test_daily_status.py` строили «вчера» календарно — переведены на учебный день
+- [x] `DP-011` — **решение, а не автоматический фикс.** Идемпотентные ключи `(user, дата, source)`
       пересчитываются из текущего `User.timezone`, поэтому смена зоны переигрывает прошлое. Полный
       фикс требует хранить дату на момент записи и выходит за рамки фазы. Выбрать: (а) закрыть
       малым средством, если оно есть; (б) явно оставить открытым и записать в реестр причину.
       Не оставлять молча
-- [ ] тест-страж на общий базис: один сценарий, который дёргает дашборд, `/api/daily-status` и
+      → выбран **(б)**. Малого средства нет: дедуп держится на уникальном индексе
+      `uq_streak_events_xp_linear_source` по значению `event_date`, tz-устойчивость требует новой
+      колонки, нового индекса, бэкфилла и правки всех write-path'ов. Причина записана в реестр
+      (`docs/audit/2026-08-26-daily-plan-audit.md`, блок `DP-011`, «Решение ремедиации (фаза 1)»)
+- [x] тест-страж на общий базис: один сценарий, который дёргает дашборд, `/api/daily-status` и
       `/api/daily-plan` для юзера в 00:30 локального времени и требует **одинаковой** «сегодняшней»
       даты во всех трёх
+      → `TestOneTodayAcrossSurfaces`: спай на `get_user_local_date`, три поверхности обязаны дать
+      ровно `{учебный день}`, и пустое множество наблюдений тоже считается провалом — иначе страж
+      слепнет молча, когда путь перестаёт спрашивать канонический резолвер
 
 ### Task 9: Документация
 

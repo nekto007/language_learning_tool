@@ -283,11 +283,13 @@ class TestGetRecoverySuggestionUnit:
         """DailyPlanLog exists with secured_at set → returns None."""
         from app.api.daily_plan import _get_recovery_suggestion
         from app.daily_plan.models import DailyPlanLog
-        import pytz
+        from app.utils.time_utils import get_user_local_date
 
         with app.app_context():
-            tz_obj = pytz.timezone('UTC')
-            yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+            # «Вчера» — относительно учебного дня, того же базиса, на котором
+            # пишется plan_date (DP-022). Календарная полночь между 00:00 и
+            # 02:00 указывала бы на другую строку.
+            yesterday = get_user_local_date(test_user.id) - timedelta(days=1)
 
             log = DailyPlanLog(
                 user_id=test_user.id,
@@ -305,11 +307,10 @@ class TestGetRecoverySuggestionUnit:
         """DailyPlanLog exists with secured_at=None → returns recovery suggestion."""
         from app.api.daily_plan import _get_recovery_suggestion
         from app.daily_plan.models import DailyPlanLog
-        import pytz
+        from app.utils.time_utils import get_user_local_date
 
         with app.app_context():
-            tz_obj = pytz.timezone('UTC')
-            yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+            yesterday = get_user_local_date(test_user.id) - timedelta(days=1)
 
             log = DailyPlanLog(
                 user_id=test_user.id,
@@ -331,11 +332,10 @@ class TestGetRecoverySuggestionUnit:
         """mission_type from DailyPlanLog used as missed_kind when set."""
         from app.api.daily_plan import _get_recovery_suggestion
         from app.daily_plan.models import DailyPlanLog
-        import pytz
+        from app.utils.time_utils import get_user_local_date
 
         with app.app_context():
-            tz_obj = pytz.timezone('UTC')
-            yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
+            yesterday = get_user_local_date(test_user.id) - timedelta(days=1)
 
             log = DailyPlanLog(
                 user_id=test_user.id,

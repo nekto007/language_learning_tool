@@ -1,7 +1,6 @@
 import logging
 import threading
 import time
-from datetime import datetime
 from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
@@ -689,13 +688,12 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from datetime import datetime as _dt_age
 
-    import pytz
-
     from app.achievements.daily_race import get_race_standings
     from app.admin.site_settings import get_site_setting
     from app.auth.models import User
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
+    from app.utils.time_utils import get_user_local_date
 
     def _is_adult(birth_year):
         if birth_year is None:
@@ -712,11 +710,11 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     if user is None or not _is_adult(getattr(user, 'birth_year', None)):
         return None
 
-    try:
-        tz_obj = pytz.timezone(tz or DEFAULT_TIMEZONE)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
-    local_today = datetime.now(tz_obj).date()
+    # Дата кохорты гонки — тот же источник, что берёт `/api/daily-race`:
+    # `get_user_local_date`, граница учебного дня 02:00. Календарная полночь
+    # от клиентского `tz` разводила два пути по разным `race_date` в окне
+    # 00:00-02:00, и один реальный день давал две кохорты (DP-012).
+    local_today = get_user_local_date(current_user_id, db)
 
     standings = get_race_standings(current_user_id, local_today, tz=tz)
     if not standings:
@@ -1109,14 +1107,13 @@ def _render_unified_dashboard(tz: str):
     try:
         # get_today_xp требует date — без него падал в TypeError, и из-за
         # silent except шло «0 XP сегодня» даже после выполненных заданий.
-        from datetime import datetime
+        # Дата — учебная (`get_user_local_date`), тот же базис, под которым
+        # XP-события и записываются: календарная полночь от клиентского `tz`
+        # искала события 00:00-02:00 под завтрашней датой и показывала 0 XP
+        # ровно тем, кто учится ночью (DP-008).
+        from app.utils.time_utils import get_user_local_date as _xp_local_date
 
-        import pytz as _pytz_xp
-        try:
-            _tz = _pytz_xp.timezone(tz)
-        except _pytz_xp.UnknownTimeZoneError:
-            _tz = _pytz_xp.timezone(DEFAULT_TIMEZONE)
-        _today_local = datetime.now(_tz).date()
+        _today_local = _xp_local_date(current_user.id, db)
         xp_today = get_today_xp(current_user.id, _today_local) or 0
     except Exception:
         logger.warning('get_today_xp failed in unified dashboard', exc_info=True)
