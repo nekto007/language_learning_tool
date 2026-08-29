@@ -53,6 +53,12 @@ class DailyPlanEventType(enum.Enum):
     route_step_added = "route_step_added"
     # Server-only: emitted when route progress crosses a checkpoint boundary (H5 measurement).
     checkpoint_reached = "checkpoint_reached"
+    # Server-only: the plan's own completion signals for slots that must not be
+    # inferred from an XP key (DP-042). `event_type` is a plain String column,
+    # so this enum is documentation — keep it exhaustive or the next author
+    # cannot tell what the table actually holds.
+    phrase_review_completed = "phrase_review_completed"
+    deck_quiz_completed = "deck_quiz_completed"
 
 
 class DailyPlanEvent(db.Model):

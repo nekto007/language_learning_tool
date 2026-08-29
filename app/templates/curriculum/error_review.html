@@ -422,7 +422,17 @@
         headers: headers,
         body: JSON.stringify({ error_ids: ALL_ERROR_IDS }),
       })
-        .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+        .then(function (r) {
+          if (r.ok) return r.json();
+          // DP-087 added two PERMANENT 400s (nothing submitted / nothing
+          // resolved inside today's study day). Retrying the same payload can
+          // never succeed, so they must not land in the generic «попробуйте
+          // ещё раз» branch that re-enables the button — a stale tab would
+          // loop forever with no way off the results screen.
+          return r.json().catch(function () { return {}; }).then(function (body) {
+            return Promise.reject({ status: r.status, slug: (body || {}).error });
+          });
+        })
         .then(function () {
           completeBtn.style.display = 'none';
           if (statusEl) statusEl.textContent = '';
@@ -463,8 +473,23 @@
             if (mode !== 'plan') revealFallback();
           }).catch(revealFallback);
         })
-        .catch(function () {
-          if (statusEl) statusEl.textContent = 'Не удалось сохранить. Попробуйте ещё раз.';
+        .catch(function (err) {
+          var slug = err && err.slug;
+          var terminal = slug === 'no_errors_submitted' || slug === 'no_errors_resolved';
+          if (statusEl) {
+            statusEl.textContent = terminal
+              ? 'Этот разбор уже засчитан. Обнови страницу, чтобы продолжить.'
+              : 'Не удалось сохранить. Попробуйте ещё раз.';
+          }
+          if (terminal) {
+            completeBtn.style.display = 'none';
+            var actions = document.getElementById('error-review-results-actions');
+            if (actions) {
+              actions.hidden = false;
+              actions.style.display = 'flex';
+            }
+            return;
+          }
           completeBtn.disabled = false;
           completeBtn.classList.remove('btn--loading');
         });

@@ -18,6 +18,7 @@ in the section it's told.
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -130,6 +131,38 @@ def build_error_review_item(
     )
 
 
+def build_optional_error_review_item(
+    user_id: int,
+    db: Any,
+) -> Optional[PlanItem]:
+    """Build the error-review item for the optional section, or None.
+
+    ``determine_section`` escalates to ``'required'`` at 15+ unresolved
+    errors or three failed attempts in a row. That escalation used to make
+    the item disappear: ``build_optional`` dropped every candidate whose
+    section was not ``'optional'``, and the required snapshot has no
+    error-review branch at all — so the sharper the backlog, the less
+    visible the item (DP-037).
+
+    Error review stays out of ``required`` deliberately. It has never gated
+    ``day_secured``, and ``_is_item_completed`` in the snapshot overlay has
+    no detector for it, so a frozen required error-review item would simply
+    make the day unclosable. The acute tier is expressed as
+    ``data['urgent']`` instead; the orchestrator hoists an urgent item to
+    the head of the optional list.
+    """
+    section = determine_section(user_id, db)
+    if section is None:
+        return None
+    item = build_error_review_item(user_id, db, section='optional')
+    if item is None:
+        return None
+    data = dict(item.data or {})
+    data['tier'] = section
+    data['urgent'] = section == 'required'
+    return replace(item, data=data)
+
+
 __all__ = [
     'REQUIRED_UNRESOLVED_THRESHOLD',
     'RECENT_FAILURE_WINDOW',
@@ -137,4 +170,5 @@ __all__ = [
     'had_recent_failures',
     'determine_section',
     'build_error_review_item',
+    'build_optional_error_review_item',
 ]

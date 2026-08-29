@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 from app import limiter
 from app.api.errors import api_error
 from app.srs.cards import ensure_card_directions
-from app.srs.counting import count_resting_words
+from app.srs.counting import count_resting_words, get_review_batch_budget
 from app.srs.stats_service import srs_stats_service
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import get_audio_url_for_word, study
@@ -150,6 +150,20 @@ def get_study_items():
 
     new_cards_limit_reached = new_cards_today >= new_cards_limit
     reviews_limit_reached = reviews_today >= reviews_limit
+
+    # DP-043: the adaptive review ceiling is 0 on the collapse tier, so the
+    # banner below fired for a learner whose whole backlog is mature REVIEW
+    # cards — «no way in through /study either», the second half of the same
+    # finding. The recovery floor further down would have served a small
+    # batch, but the early return happens first. Deck sessions keep the plain
+    # comparison: their zero is the deck's own explicit reviews limit, a user
+    # setting to respect, not the adaptive collapse the floor exists for.
+    if reviews_limit_reached and not (deck_id and deck):
+        reviews_limit_reached = get_review_batch_budget(
+            current_user.id, db,
+            remaining_reviews=max(0, reviews_limit - reviews_today),
+            due_budget_left=max(0, (settings.reviews_per_day or 0) - reviews_today),
+        ) <= 0
 
     # Daily plan sessions own their own budget via the phase assembler, so
     # never terminate a plan session mid-way with the daily_limit_reached
@@ -379,7 +393,23 @@ def get_study_items():
     # PRIORITY 3: REVIEW cards (due today) — fill whatever the combined budget
     # has left after learning/relearning, additionally capped by the adaptive
     # review limit (mature reviews are reduced when the user is struggling).
-    review_cap = remaining_reviews if due_budget is None else min(due_budget, remaining_reviews)
+    # That adaptive cap goes through the shared recovery floor (DP-043): on
+    # the collapse tier it is 0, which would serve nothing at all and leave a
+    # pure-REVIEW backlog unreachable — the same zero that made the plan tile
+    # disappear. Mirrors app/daily_plan/items/srs.py so tile and queue agree.
+    # Deck sessions keep the plain cap: their zero comes from the deck's own
+    # explicit reviews limit, which is a user setting to respect, not the
+    # adaptive collapse the floor exists for.
+    if due_budget is None:
+        review_cap = remaining_reviews
+    elif deck_id and deck:
+        review_cap = min(due_budget, remaining_reviews)
+    else:
+        review_cap = get_review_batch_budget(
+            current_user.id, db,
+            remaining_reviews=remaining_reviews,
+            due_budget_left=due_budget,
+        )
     if review_cap > 0:
         review_cards = base_due_query(include_today=not is_linear_plan_srs).filter(
             or_(

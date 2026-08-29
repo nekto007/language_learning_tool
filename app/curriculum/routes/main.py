@@ -328,14 +328,24 @@ def error_review_session():
 @learn_bp.route('/phrase-review/', methods=['GET'])
 @login_required
 def phrase_review_session():
-    """Render the optional three-phrase retrieval activity from the daily plan."""
-    from app.daily_plan.items.phrase_review import get_phrase_review_items
+    """Render the optional phrase-retrieval activity from the daily plan."""
+    from app.daily_plan.items.phrase_review import (
+        get_phrase_review_items,
+        phrase_review_title,
+    )
 
     items = get_phrase_review_items(current_user.id, db)
     # Keep the server-side answer key for the completion endpoint.  The
     # template receives only prompts, never the expected English phrases.
     session['daily_phrase_review_items'] = items
-    return render_template('curriculum/phrase_review.html', items=items)
+    # Same wording helper as the plan card (DP-047): the pool can hold fewer
+    # than three phrases, and a page hardcoding «3 фразы» above «Фраза 1 из 1»
+    # contradicts the card the user just clicked.
+    return render_template(
+        'curriculum/phrase_review.html',
+        items=items,
+        page_title=phrase_review_title(len(items)),
+    )
 
 
 @learn_bp.route('/<string:level_code>/')

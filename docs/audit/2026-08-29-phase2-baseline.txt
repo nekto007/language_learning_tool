@@ -1,0 +1,195 @@
+================================================================================
+BASELINE РЕМЕДИАЦИИ «ПЛАН ДНЯ» — ФАЗА 2
+================================================================================
+Дата снятия : 2026-08-29 (локальное время машины 11:58 +03, Europe/Istanbul)
+Ветка       : daily-plan-remediation-phase-2 (создана от daily-plan-remediation@b57b43e5)
+HEAD        : b57b43e5 "fix(daily-plan): доводка ревью фазы 1 — DST, TIMESTAMPTZ,
+              savepoint, базис календаря серии"
+Окружение   : python -m pytest (venv проекта), одиночный процесс, -p no:randomly
+              БД тестов — postgres 15 в контейнере language_learning_tool_db
+              (127.0.0.1:5432, база learn_db_test)
+
+ВАЖНО: прогон сделан ВНЕ окна 00:00–02:00, поэтому времязависимое падение
+tests/srs/test_counting.py::TestCountRestingWords::test_ignores_short_session_bury
+(единственное красное в baseline фазы 1) не воспроизводится. Полный прогон ЗЕЛЁНЫЙ.
+Сверка на приёмке (Task 7) — ПО ИМЕНАМ nodeid, а не по числу.
+
+--------------------------------------------------------------------------------
+1. ПОЛНЫЙ ПРОГОН: python -m pytest -q -p no:randomly
+--------------------------------------------------------------------------------
+Исходов  : 10817
+passed   : 10739
+skipped  : 69
+xpassed  : 5
+xfailed  : 4
+FAILED   : 0
+ERROR    : 0
+exit     : 0
+
+Список FAILED: пуст.
+
+--------------------------------------------------------------------------------
+2. SMOKE: python -m pytest -m smoke -q -p no:randomly
+--------------------------------------------------------------------------------
+Исходов  : 695
+passed   : 695
+FAILED   : 0
+exit     : 0
+
+--------------------------------------------------------------------------------
+3. RUFF: ruff check .
+--------------------------------------------------------------------------------
+Всего    : 5201 errors (2649 fixable)
+
+Гейт фазы 2 — «не выросло ПО ЗАТРОНУТЫМ ФАЙЛАМ», не по общему счётчику.
+Пофайловый срез на HEAD (ruff check <file>):
+
+  app/api/daily_plan.py                          : 5
+  app/api/decorators.py                          : 0
+  app/daily_plan/linear/xp.py                    : 30
+  app/daily_plan/items/srs.py                    : 6
+  app/daily_plan/items/phrase_review.py          : 5
+  app/daily_plan/plan.py                         : 13
+  app/daily_plan/snapshot.py                     : 3
+  app/daily_plan/plan_builder.py                 : 6
+  app/curriculum/routes/grammar_quiz_lessons.py  : 5
+  app/study/game_routes.py                       : 18
+  app/words/routes.py                            : 32
+
+================================================================================
+4. РЕ-ВЕРИФИКАЦИЯ 17 НАХОДОК НА HEAD (b57b43e5)
+================================================================================
+Строки реестра сняты на 0b1f8b7f и сдвинуты фазой 1. Ниже — актуальные якоря
+и вердикт «воспроизводится / отозвана» по каждой находке фазы 2.
+
+--- КЛАСТЕР A: целостность закрытия дня и XP -----------------------------------
+
+DP-037  ВОСПРОИЗВОДИТСЯ   app/daily_plan/plan.py:308-312
+  `_build_optional_candidate`: единственный вызов `determine_section` во всём app/.
+  При `section != 'optional'` (то есть при 'required') → `return None`.
+  `grep -rn "build_error_review_item" app --include=*.py` даёт ровно два хита, оба
+  в plan.py — в `build_required_snapshot` (app/daily_plan/plan_builder.py) ветки
+  для error_review нет вовсе. Инверсия эскалации подтверждена.
+
+DP-042  ВОСПРОИЗВОДИТСЯ   app/daily_plan/linear/xp.py:273-315
+  `is_srs_slot_completed_today(..., allow_fallback=False)` отключает только
+  fallback-ветку; первичный сигнал остаётся `StreakEvent.details->>'source' ==
+  'linear_srs_global'` (строка ~300). Этот же ключ пишут ОБА писателя:
+    app/study/api_routes.py:830   — обычная /study SRS-сессия
+    app/study/game_routes.py:1405 — deck-quiz (после `_deck_quiz_run_is_real`)
+  Собственного сигнала у deck-quiz нет.
+
+DP-043  ВОСПРОИЗВОДИТСЯ   app/daily_plan/items/srs.py:180-195
+  collapse-тир: `TIER_PCT['collapse'] = {'new': 0.00, 'review': 0.00}`
+  (app/study/services/srs_service.py:201) → `get_adaptive_limits` даёт
+  adaptive_reviews=0 → `get_new_card_budget` возвращает remaining_reviews=0 →
+  `review_show = min(review_due, ..., 0) = 0`. При чисто REVIEW-бэклоге
+  (learning_due=0, new_pending=0) total_show=0 → `return None` на строке ~192.
+
+DP-046  ВОСПРОИЗВОДИТСЯ   app/api/daily_plan.py:1066-1069, 1096-1098
+  Гейта «пустой ответ не бывает верным» нет. Усугублено переэкранированной
+  регуляркой (см. DP-047): при ней большинство эталонных ответов нормализуется
+  в пустую строку, и пустой ответ совпадает с ними буквально.
+
+DP-047  ВОСПРОИЗВОДИТСЯ   app/daily_plan/items/phrase_review.py:20
+  `re.sub(r"[^\\w\\s']", ...)` — raw-строка с ДВОЙНЫМИ слэшами, поэтому класс
+  символов означает «не backslash, не буква w, не буква s, не апостроф», а не
+  «не словесный, не пробельный». Замер на HEAD:
+      'I go to school'  -> 's'
+      'She works here'  -> 'sws'
+      'We were happy'   -> 'ww'
+      'Present Simple'  -> 'ss'
+      'How are you'     -> 'w'
+  Эта же функция — ключ дедупа `seen_answers` (строки 96-99, 147-150, 162-167).
+  Копия той же регулярки живёт в app/api/daily_plan.py:1068
+  (`_normalise_phrase_answer`) — правка обязана закрыть ОБЕ.
+
+DP-050  ВОСПРОИЗВОДИТСЯ   app/curriculum/routes/grammar_quiz_lessons.py:307
+  Гейт `if progress and progress.status == 'completed':`. Статус липкий:
+  app/curriculum/services/progress_service.py:283-286 —
+      was_completed = progress.status == 'completed'
+      if not was_completed: progress.status = ...
+  то есть проваленная пересдача уже сданного урока статус не понижает и гейт
+  проходит.
+
+DP-087  ВОСПРОИЗВОДИТСЯ   app/api/daily_plan.py:1003-1023
+  `raw_ids = body.get('error_ids') or []` → пустой список валиден;
+  `resolve_quiz_errors([], ...)` возвращает []; `maybe_award_error_review_xp`
+  вызывается БЕЗУСЛОВНО (строка ~1023), за ним `maybe_award_linear_perfect_day`.
+  Доказательства работы не требуется.
+
+--- КЛАСТЕР B: заморозка снапшота ----------------------------------------------
+
+DP-005  ВОСПРОИЗВОДИТСЯ   app/daily_plan/snapshot.py:222-266 (overlay_completion)
+  Дроп-предикат ровно один — `_reading_book_unreachable` (строка 258), и он
+  специфичен для kind='reading'. Для curriculum-пункта с удалённым уроком
+  ветки нет: `_is_item_completed` вернёт False, пункт останется в required.
+
+DP-041  ВОСПРОИЗВОДИТСЯ   app/daily_plan/snapshot.py:248-265
+  В цикле `merged = dict(item)` меняются только section / completed /
+  eta_minutes / url. `data` проходит насквозь — счётчики SRS (`total_show`,
+  `new_show`, `review_show`, `reviews_today`) заморожены на момент сборки.
+  NB для Task 4: `goal_total` (app/daily_plan/plan_builder.py:224-228) заморожен
+  СОЗНАТЕЛЬНО («X из 30» не должно ползти) — обновлять прогресс, не цель.
+
+DP-044  ВОСПРОИЗВОДИТСЯ   app/daily_plan/plan_builder.py:211-214
+  `_count_user_deck_quiz_words(...) <= 0` проверяется только на сборке снапшота.
+  В `overlay_completion` соответствующего дроп-предиката нет (см. DP-005).
+
+--- КЛАСТЕР C: контракт API ----------------------------------------------------
+
+DP-079  ВОСПРОИЗВОДИТСЯ   app/api/daily_plan.py:797, 1003, 1086, 1170, 1290, 1394
+  Шесть точек `request.get_json(silent=True) or {}` на восьми POST-роутах зоны
+  (роуты: /daily-plan/events, /daily-plan/error-review/complete,
+  /daily-plan/phrase-review/complete, /plan/pause, /plan/resume,
+  /daily-plan/challenge/complete, /daily-plan/skip-lesson, /streak/repair).
+  Валидный не-объект (`[1]`, `"s"`, `42`) переживает `silent=True` и падает на
+  первом `.get()`.
+
+DP-081  ВОСПРОИЗВОДИТСЯ   app/api/daily_plan.py:797-829
+  Три подтверждённых механизма:
+    event_type unhashable ({} / []) → `event_type not in _CLIENT_EVENTS`
+      (set, объявлен на строке 758) → TypeError
+    plan_date не строка (42) → `date.fromisoformat(42)` → TypeError, мимо
+      `except ValueError` (строка ~824)
+    meta не dict ([1]) → `meta.get('kind')` (строка ~831) → AttributeError
+
+DP-102  ВОСПРОИЗВОДИТСЯ   app/api/daily_plan.py:45-51
+  `except (KeyError, ValueError)` не ловит OSError. Замер на HEAD:
+      ZoneInfo('A'*300) → OSError [Errno 63] File name too long
+  Уточнение к реестру: call-site'ов `_validate_timezone` на HEAD **три**
+  (строки 291, 517, 568), а не шесть. Реестр считал эндпоинты по старому срезу.
+
+DP-103  ВОСПРОИЗВОДИТСЯ   app/api/daily_plan.py:797, 1086, 1290 (и остальные три)
+  Битый JSON при Content-Type: application/json проходит `request.is_json`,
+  `silent=True` даёт None → `or {}` → рапортуется как ошибка ПОЛЯ
+  (invalid_event_type и т.п.), а не как invalid_json.
+
+DP-083  ОТОЗВАНА — закрыта попутно хвостом код-ревью фазы 1, коммит b57b43e5
+  app/api/daily_plan.py:1243-1271 (`streak_repair`): `request.get_json` в
+  обработчике НЕТ вовсе; зона берётся `get_user_timezone_name(user_id, db.session)`
+  (строка 1258) с комментарием DP-001. Не-строкового `tz` из тела больше не
+  существует как входа — валидатор им не кормится.
+
+DP-080  ОТОЗВАНА — закрыта попутно хвостом код-ревью фазы 1, коммит b57b43e5
+  app/words/routes.py:1860-1884 (`streak_repair_web`): та же правка,
+  `tz = get_user_timezone_name(current_user.id, db)` (строка 1871), тело запроса
+  не читается. (DP-080 в объём фазы 2 формально не входила — проверена по
+  требованию Task 1, потому что чинилась тем же хвостом.)
+
+--- КЛАСТЕР D: auth-декоратор --------------------------------------------------
+
+DP-096  ВОСПРОИЗВОДИТСЯ   app/api/decorators.py:44-53
+  `return f(*args, **kwargs)` стоит ВНУТРИ `try`, а `except Exception` (строка 45)
+  возвращает 401 «Invalid or expired token». Любое исключение тела эндпоинта под
+  JWT маскируется под ошибку токена.
+
+DP-098  ВОСПРОИЗВОДИТСЯ   app/api/decorators.py:43
+  `login_user(user, remember=False)` в JWT-ветке — чистый API-вызов получает
+  сессионную куку.
+
+--------------------------------------------------------------------------------
+ИТОГ РЕ-ВЕРИФИКАЦИИ: 15 из 17 находок фазы 2 воспроизводятся на HEAD;
+DP-083 отозвана (закрыта хвостом фазы 1). Дополнительно проверена и отозвана
+DP-080. Объём фазы 2 сокращается до 16 находок.
+================================================================================

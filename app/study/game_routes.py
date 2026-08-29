@@ -1397,21 +1397,43 @@ def complete_quiz():
         and int(total_questions or 0) > 0
         and _deck_quiz_run_is_real(verified_session)
     ):
+        from app.daily_plan.linear.xp import (
+            maybe_award_linear_perfect_day,
+            maybe_award_srs_global_xp,
+            record_deck_quiz_completion,
+        )
+        # The slot's own signal, committed on its own BEFORE the XP attempt:
+        # the award is idempotent per day, so a /study session that already
+        # paid `linear_srs_global` makes it return None — and a marker derived
+        # from the award would then be missing for a quiz that really ran
+        # (DP-042). Its own transaction matters just as much: the slot has no
+        # XP-derived fallback left, so an award that raises must not take the
+        # marker down with it and leave the required slot open all day.
+        marker_written = False
         try:
-            from app.daily_plan.linear.xp import (
-                maybe_award_linear_perfect_day,
-                maybe_award_srs_global_xp,
-            )
-            if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
-                maybe_award_linear_perfect_day(current_user.id, db_session=db)
-                db.session.commit()
+            record_deck_quiz_completion(current_user.id, db_session=db)
+            db.session.commit()
+            marker_written = True
         except Exception:
             logger.warning(
-                'linear_xp: deck quiz award failed user=%s',
+                'linear_xp: deck quiz completion marker failed user=%s',
                 current_user.id,
                 exc_info=True,
             )
             db.session.rollback()
+
+        if marker_written:
+            try:
+                if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
+                    maybe_award_linear_perfect_day(current_user.id, db_session=db)
+                db.session.commit()
+            except Exception:
+                logger.warning(
+                    'linear_xp: deck quiz award failed user=%s',
+                    current_user.id,
+                    exc_info=True,
+                )
+                db.session.rollback()
 
     quiz_data = {
         'score': score,

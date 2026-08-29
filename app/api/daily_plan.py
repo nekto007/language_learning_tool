@@ -1,5 +1,6 @@
 """API endpoints for daily plan and summary."""
 
+import json
 import logging
 from zoneinfo import ZoneInfo
 
@@ -42,13 +43,70 @@ def _streak_shield_visible(user) -> bool:
     ) and is_streak_shield_enabled()
 
 
-def _validate_timezone(tz_name: str) -> str:
-    """Validate timezone string against system database. Returns default if invalid."""
+# Longest real IANA zone name is 32 chars ('America/Argentina/ComodRivadavia');
+# anything longer is not a zone anyone can be in.
+_MAX_TZ_NAME_LENGTH = 64
+
+
+def _validate_timezone(tz_name: object) -> str:
+    """Validate a timezone name against the system database.
+
+    Returns ``DEFAULT_TZ`` for anything the zone database cannot honour.
+
+    ``DP-102``: ``ZoneInfo`` builds a filesystem path from the name, so a
+    300-character ``?tz=`` raised ``OSError`` (ENAMETOOLONG) — which the old
+    ``except (KeyError, ValueError)`` did not catch, turning a query
+    parameter into a 500 on every endpoint reading ``tz``. The length check
+    comes first so the hostile input never reaches the filesystem at all;
+    the widened ``except`` covers the rest (a non-string argument raises
+    ``TypeError``/``AttributeError`` inside ``ZoneInfo``, not ``ValueError``).
+    """
+    if not isinstance(tz_name, str) or not tz_name or len(tz_name) > _MAX_TZ_NAME_LENGTH:
+        return DEFAULT_TZ
     try:
         ZoneInfo(tz_name)
         return tz_name
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, OSError, TypeError):
         return DEFAULT_TZ
+
+
+def _json_object_body() -> tuple[dict, tuple | None]:
+    """Parse the request body as a JSON object.
+
+    Returns ``(body, None)`` when the body can be honoured and
+    ``({}, error_response)`` when it cannot — callers return the second
+    element unchanged.
+
+    Replaces six copies of ``request.get_json(silent=True) or {}``:
+
+    - ``DP-079``: ``silent=True`` only survives *broken* JSON. A valid
+      non-object (``[1]``, ``"s"``, ``42``) passed straight through and blew
+      up on the next ``.get()`` with ``AttributeError`` → 500 where the zone
+      contract says 400.
+    - ``DP-103``: broken JSON became ``{}`` and was then reported as a
+      *field* error (``invalid_event_type`` and friends), so a client sending
+      malformed JSON was told its event type was wrong. ``invalid_json`` now
+      names the actual problem, while a genuinely absent body still reads as
+      ``{}`` — endpoints keep reporting their own missing-field errors.
+    """
+    raw = request.get_json(silent=True)
+    if raw is None:
+        # Distinguish "no body at all" (and non-JSON content types, which the
+        # routes that care gate separately) from "JSON that does not parse".
+        payload = request.get_data(cache=True).strip() if request.is_json else b''
+        if not payload:
+            return {}, None
+        # ``get_json`` returns None both for a parse failure and for a literal
+        # ``null``, which is valid JSON — just not an object. Re-parse to tell
+        # the client which of the two it actually sent.
+        try:
+            json.loads(payload)
+        except ValueError:
+            return {}, api_error('invalid_json', 'Request body is not valid JSON', 400)
+        return {}, api_error('invalid_body', 'Request body must be a JSON object', 400)
+    if not isinstance(raw, dict):
+        return {}, api_error('invalid_body', 'Request body must be a JSON object', 400)
+    return raw, None
 
 
 # Map unified plan item kinds to mission phase weights for route progress.
@@ -794,10 +852,16 @@ def record_daily_plan_event():
     if not request.is_json:
         return api_error('invalid_content_type', 'Request must be JSON', 400)
 
-    body = request.get_json(silent=True) or {}
+    body, body_error = _json_object_body()
+    if body_error is not None:
+        return body_error
     event_type = body.get('event_type', '')
 
-    if event_type not in _CLIENT_EVENTS:
+    # DP-081: an unhashable event_type ({} / []) raised TypeError on the set
+    # membership test below — the type check has to come first, not the
+    # lookup. Anything that is not a string is simply not one of the
+    # accepted event types.
+    if not isinstance(event_type, str) or event_type not in _CLIENT_EVENTS:
         return api_error(
             'invalid_event_type',
             f'event_type must be one of: {", ".join(sorted(_CLIENT_EVENTS))}',
@@ -816,8 +880,12 @@ def record_daily_plan_event():
     from app.utils.time_utils import get_user_local_date
     user_today = get_user_local_date(current_user.id, db.session)
 
+    # DP-081: a non-string plan_date (42) hit `date.fromisoformat(42)`, which
+    # raises TypeError and sailed past `except ValueError` → 500. It belongs
+    # to the same class as an unparseable date string, which this endpoint has
+    # always repaired silently to today, so treat it the same way.
     plan_date_str = body.get('plan_date')
-    if plan_date_str:
+    if isinstance(plan_date_str, str) and plan_date_str:
         try:
             plan_date = date_cls.fromisoformat(plan_date_str)
             if plan_date > user_today or plan_date < user_today - timedelta(days=2):
@@ -827,7 +895,12 @@ def record_daily_plan_event():
     else:
         plan_date = user_today
 
-    meta = body.get('meta') or {}
+    # DP-081: `meta` is an optional convenience container; a non-dict ([1])
+    # reached `meta.get('kind')` → AttributeError. Ignore it rather than 400 —
+    # the fields it carries are all optional and also postable at top level.
+    meta = body.get('meta')
+    if not isinstance(meta, dict):
+        meta = {}
     step_kind = body.get('step_kind') or meta.get('kind')
     if step_kind:
         step_kind = str(step_kind)[:40]
@@ -979,6 +1052,33 @@ def error_review_summary():
     })
 
 
+def _count_resolved_today(entries, user_id: int) -> int:
+    """How many of ``entries`` were resolved inside the user's study day.
+
+    ``resolve_quiz_errors`` returns owned rows whether it resolved them
+    just now or found them already resolved — the caller cannot tell the
+    two apart, and an id resolved months ago is not evidence of today's
+    work (``DP-087``). Window comes from the canonical study-day helper,
+    so the 02:00 anchor matches every other daily gate.
+    """
+    from datetime import UTC
+
+    from app.utils.time_utils import get_user_timezone_name, study_day_bounds_utc
+
+    tz_name = get_user_timezone_name(user_id, db)
+    start, end = study_day_bounds_utc(tz_name)
+    count = 0
+    for entry in entries:
+        stamp = getattr(entry, 'resolved_at', None)
+        if stamp is None:
+            continue
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=UTC)
+        if start <= stamp < end:
+            count += 1
+    return count
+
+
 @api_daily_plan.route('/daily-plan/error-review/complete', methods=['POST'])
 @csrf.exempt
 @api_auth_required
@@ -986,13 +1086,24 @@ def complete_error_review():
     """Complete a linear-plan error-review session.
 
     Body JSON:
-        error_ids (list[int], optional): quiz_error_log ids resolved in
-            this session. Unknown ids or ids belonging to other users
-            are skipped silently.
+        error_ids (list[int]): quiz_error_log ids resolved in this
+            session. Unknown ids or ids belonging to other users are
+            skipped; a request left with nothing resolved today is
+            rejected (see below).
 
-    Always attempts the linear ``error_review`` XP award (idempotent per
-    day) and surfaces any level-up / day-secured transitions in the
-    response.
+    Awards the linear ``error_review`` XP (idempotent per day) and
+    surfaces any level-up / day-secured transitions in the response.
+
+    ``DP-087``: the award used to fire unconditionally, so a bare POST
+    paid 10 XP and — for a graduated or prerequisite-blocked user, whose
+    ``required`` is empty and whose day closes on any learning activity —
+    closed the day outright. The endpoint now demands the server's own
+    evidence that work happened: at least one submitted id must belong to
+    the caller and carry a ``resolved_at`` inside the current study day.
+    A row resolved on an earlier day does not qualify (otherwise one old
+    id replayed daily would farm the slot forever), while re-posting the
+    same ids within the day still succeeds — the client retries on
+    network failure and XP is idempotent anyway.
     """
     from app.daily_plan.linear.errors import resolve_quiz_errors
     from app.daily_plan.linear.xp import (
@@ -1000,24 +1111,45 @@ def complete_error_review():
         maybe_award_linear_perfect_day,
     )
 
-    body = request.get_json(silent=True) or {}
+    body, body_error = _json_object_body()
+    if body_error is not None:
+        return body_error
     raw_ids = body.get('error_ids') or []
     if not isinstance(raw_ids, list):
         return api_error('invalid_error_ids', 'error_ids must be a list', 400)
 
     error_ids: list[int] = []
     for raw in raw_ids:
+        if isinstance(raw, bool):
+            continue
         try:
             error_ids.append(int(raw))
         except (TypeError, ValueError):
             continue
 
     user_id = current_user.id
+    if not error_ids:
+        return api_error(
+            'no_errors_submitted',
+            'error_ids must name at least one reviewed error',
+            400,
+        )
+
     resolved = resolve_quiz_errors(error_ids, user_id, db, commit=False)
+    resolved_today = _count_resolved_today(resolved, user_id)
     logger.info(
-        "error_review_complete user=%s resolved=%d of %d submitted",
-        user_id, len(resolved), len(error_ids),
+        "error_review_complete user=%s resolved=%d (today=%d) of %d submitted",
+        user_id, len(resolved), resolved_today, len(error_ids),
     )
+    if resolved_today <= 0:
+        # Nothing was mutated: a row resolved by this call carries `now`,
+        # which is inside today's window by construction. Leave the session
+        # to the request teardown and refuse the award.
+        return api_error(
+            'no_errors_resolved',
+            'None of the submitted errors were resolved today',
+            400,
+        )
 
     xp_award = maybe_award_error_review_xp(user_id, db_session=db)
     perfect_day = None
@@ -1065,9 +1197,16 @@ def complete_error_review():
 
 
 def _normalise_phrase_answer(value: object) -> str:
-    import re
-    value = re.sub(r"[^\\w\\s']", '', str(value or '').casefold())
-    return ' '.join(value.strip().split())
+    """Delegate to the builder's canonical fold (DP-046/DP-047).
+
+    This used to be a second copy of the same normaliser and carried the
+    same over-escaped character class, so grader and builder could drift
+    (and did: both folded most phrases to ``''``). One definition, one
+    behaviour — the builder owns it because it also keys dedup on it.
+    """
+    from app.daily_plan.items.phrase_review import normalise_phrase
+
+    return normalise_phrase(value)
 
 
 @api_daily_plan.route('/daily-plan/phrase-review/complete', methods=['POST'])
@@ -1083,7 +1222,9 @@ def complete_phrase_review():
     if not isinstance(items, list) or not items:
         return api_error('phrase_review_expired', 'Open the phrase review again', 400)
 
-    body = request.get_json(silent=True) or {}
+    body, body_error = _json_object_body()
+    if body_error is not None:
+        return body_error
     answers = body.get('answers') or []
     if not isinstance(answers, list):
         return api_error('invalid_answers', 'answers must be a list', 400)
@@ -1095,9 +1236,17 @@ def complete_phrase_review():
             continue
         answer = answers[index] if index < len(answers) else ''
         accepted = item.get('accepted_answers') or [item.get('answer', '')]
-        is_correct = _normalise_phrase_answer(answer) in {
-            _normalise_phrase_answer(candidate) for candidate in accepted
+        # An empty answer is never a correct answer (DP-046). Drop empty
+        # keys from the accepted set too: a reference phrase that folds to
+        # '' (punctuation-only content) must not turn «typed nothing» into
+        # a pass that silently resolves the QuizErrorLog row.
+        given = _normalise_phrase_answer(answer)
+        expected = {
+            key for key in (
+                _normalise_phrase_answer(candidate) for candidate in accepted
+            ) if key
         }
+        is_correct = bool(given) and given in expected
         if is_correct and item.get('error_id') is not None:
             try:
                 resolved_error_ids.append(int(item['error_id']))
@@ -1167,7 +1316,9 @@ def plan_pause():
     from app.achievements.models import StreakEvent
     from app.auth.models import User
 
-    body = request.get_json(silent=True) or {}
+    body, body_error = _json_object_body()
+    if body_error is not None:
+        return body_error
     days = body.get('days')
     if isinstance(days, bool) or not isinstance(days, int) or not (1 <= days <= 14):
         return api_error('invalid_days', 'days must be an integer between 1 and 14', 400)
@@ -1287,7 +1438,9 @@ def challenge_complete():
     """
     from app.daily_plan.challenge import complete_challenge
 
-    body = request.get_json(silent=True) or {}
+    body, body_error = _json_object_body()
+    if body_error is not None:
+        return body_error
     challenge_id = body.get('challenge_id')
     if isinstance(challenge_id, bool) or not isinstance(challenge_id, int) or challenge_id <= 0:
         return api_error('invalid_input', 'challenge_id is required', 400)
@@ -1391,7 +1544,9 @@ def skip_lesson():
     if not request.is_json:
         return api_error('invalid_content_type', 'Request must be JSON', 400)
 
-    body = request.get_json(silent=True) or {}
+    body, body_error = _json_object_body()
+    if body_error is not None:
+        return body_error
     lesson_id = body.get('lesson_id')
 
     if isinstance(lesson_id, bool) or not isinstance(lesson_id, int) or lesson_id <= 0:

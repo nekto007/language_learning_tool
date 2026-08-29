@@ -270,9 +270,63 @@ def maybe_award_srs_global_xp(
     )
 
 
-def is_srs_slot_completed_today(
-    user_id: int, db_session: Any, *, allow_fallback: bool = True
-) -> bool:
+# Own completion signal for the plan's deck-quiz slot (DP-042). Deliberately
+# NOT an XP source: the quiz pays the shared `linear_srs_global` award, which
+# is idempotent per day and therefore returns None when a /study session
+# already paid it — a marker derived from the award would go missing exactly
+# when the learner did both activities.
+DECK_QUIZ_EVENT_TYPE = 'deck_quiz_completed'
+
+
+def record_deck_quiz_completion(user_id: int, db_session: Any = None) -> None:
+    """Mark today's plan deck-quiz as run. Idempotent, flush only.
+
+    Written by the single verified caller — ``complete_quiz`` in
+    ``app/study/game_routes.py``, behind ``_deck_quiz_run_is_real`` — so
+    the row itself is the server's evidence that a quiz was opened and
+    answered. Mirrors the ``phrase_review_completed`` marker.
+    """
+    from app.daily_plan.models import DailyPlanEvent
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+    if is_deck_quiz_completed_today(user_id, db_obj):
+        return
+    plan_date = get_linear_event_local_date(user_id, db_obj)
+    db_obj.session.add(DailyPlanEvent(
+        user_id=user_id,
+        event_type=DECK_QUIZ_EVENT_TYPE,
+        plan_date=plan_date,
+        step_kind='srs',
+    ))
+    db_obj.session.flush()
+
+
+def is_deck_quiz_completed_today(user_id: int, db_session: Any = None) -> bool:
+    """Did the plan's deck-quiz slot run today?
+
+    ``DP-042``: the slot used to read ``linear_srs_global``, which a plain
+    ``/study`` SRS session writes as well — and which the corrective
+    fallback inside :func:`is_srs_slot_completed_today` can write with no
+    session at all (one production day closed exactly that way). Passing
+    ``allow_fallback=False`` did not help: the strict reader still saw the
+    key the fallback had already written. Hence a separate marker.
+    """
+    from app.daily_plan.models import DailyPlanEvent
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+    today = get_linear_event_local_date(user_id, db_obj)
+    return bool(db_obj.session.query(
+        db_obj.session.query(DailyPlanEvent).filter(
+            DailyPlanEvent.user_id == user_id,
+            DailyPlanEvent.event_type == DECK_QUIZ_EVENT_TYPE,
+            DailyPlanEvent.plan_date == today,
+        ).exists()
+    ).scalar())
+
+
+def is_srs_slot_completed_today(user_id: int, db_session: Any) -> bool:
     """Return True when the linear SRS slot is done for today.
 
     Primary signal: a ``StreakEvent`` with source ``linear_srs_global``
@@ -283,9 +337,10 @@ def is_srs_slot_completed_today(
     a corrective idempotent award and return True. The award uses the
     same key as the normal path — duplicates are silently ignored.
 
-    ``allow_fallback=False`` (deck-quiz слот) отключает fallback: общие
-    SRS-счётчики поднимает и парный curriculum card-урок, который не
-    должен закрывать квиз (см. компенсацию в streak_service).
+    Отвечает только за слот ``srs:global``. У deck-quiz-слота собственный
+    сигнал (:func:`is_deck_quiz_completed_today`) — прежний параметр
+    ``allow_fallback=False`` не помогал, потому что строгий читатель всё
+    равно видел ключ, который fallback уже записал (``DP-042``).
 
     Reconciliation is a side effect of a read path; the corrective call
     only flushes (no commit), so if the caller's transaction rolls back
@@ -305,13 +360,6 @@ def is_srs_slot_completed_today(
     ).scalar() or False
     if has_event:
         return True
-    if not allow_fallback:
-        # Deck-quiz слот: засчитывается ТОЛЬКО по XP-событию. Fallback ниже
-        # срабатывает от общих SRS-счётчиков, которые поднимает парный
-        # curriculum card-урок (он же съедает бюджет → pool=0) — слот
-        # закрывался бы и награждался без прохождения квиза.
-        return False
-
     # No event — look for fallback signal.
     from app.srs.constants import CardState
     from app.srs.counting import (
@@ -321,6 +369,7 @@ def is_srs_slot_completed_today(
         get_due_card_budget,
         count_reviews_today,
         get_new_card_budget,
+        get_review_batch_budget,
     )
 
     activity = count_reviews_today(user_id, db_obj) + count_new_cards_today(user_id, db_obj)
@@ -341,7 +390,13 @@ def is_srs_slot_completed_today(
     pool = (
         min(new_pending, remaining_new)
         + learning_show
-        + min(review_due, max(0, due_budget - learning_show), remaining_reviews)
+        # Same floored review budget the slot builder shows (DP-043) — the
+        # corrective award must not fire while reviews remain servable.
+        + min(review_due, get_review_batch_budget(
+            user_id, db_obj,
+            remaining_reviews=remaining_reviews,
+            due_budget_left=max(0, due_budget - learning_show),
+        ))
     )
     if pool > 0:
         return False
@@ -553,10 +608,15 @@ def maybe_award_linear_perfect_day(
     if plan_meta.get('effective_mode') == 'paused':
         return None
     # Same admission rule as compute_day_secured_from_activity: an empty
-    # required list only counts when the curriculum is exhausted (graduated) or
-    # hidden behind an unmet prerequisite (blocked spine).
+    # required list only counts when the curriculum is exhausted (graduated),
+    # hidden behind an unmet prerequisite (blocked spine), or emptied by the
+    # snapshot self-repair. The three must stay in lockstep — a day that
+    # compute_day_secured_from_activity closes but this rejects hands out the
+    # streak and withholds the bonus.
     if not (plan.get('required') or []) and not (
-        plan_meta.get('graduated') or plan_meta.get('blocked_module_id') is not None
+        plan_meta.get('graduated')
+        or plan_meta.get('blocked_module_id') is not None
+        or plan_meta.get('required_self_healed')
     ):
         return None
 

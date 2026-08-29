@@ -50,11 +50,12 @@ def _build_deck_quiz_plan_item(
         _count_user_deck_quiz_words,
     )
 
-    # Strict (event-only): деку-квиз закрывает только собственное XP-событие,
-    # fallback от общих счётчиков сработал бы от парного card-урока.
-    from app.daily_plan.linear.xp import is_srs_slot_completed_today
+    # Собственный сигнал квиза (DP-042): общий ключ `linear_srs_global`
+    # пишет и обычная /study-сессия, и корректирующая fallback-ветка
+    # `is_srs_slot_completed_today` — ни то, ни другое квизом не является.
+    from app.daily_plan.linear.xp import is_deck_quiz_completed_today
 
-    completed_today = is_srs_slot_completed_today(user_id, db, allow_fallback=False)
+    completed_today = is_deck_quiz_completed_today(user_id, db)
     deck_word_count = _count_user_deck_quiz_words(user_id, db)
     limit = min(_DECK_QUIZ_LIMIT, max(deck_word_count, 0))
 
@@ -159,6 +160,7 @@ def build_srs_item(
         count_reviews_today,
         get_due_card_budget,
         get_new_card_budget,
+        get_review_batch_budget,
     )
     from app.study.services import SRSService
 
@@ -179,7 +181,17 @@ def build_srs_item(
     due_budget = get_due_card_budget(user_id, db)
     new_show = min(new_pending, remaining_new)
     learning_show = min(learning_due, due_budget)
-    review_show = min(review_due, max(0, due_budget - learning_show), remaining_reviews)
+    # Mature reviews go through the shared floor helper (DP-043): a bare
+    # ``min(..., remaining_reviews)`` reads 0 on the collapse tier and made
+    # the whole slot vanish for a learner whose backlog is pure REVIEW.
+    review_show = min(
+        review_due,
+        get_review_batch_budget(
+            user_id, db,
+            remaining_reviews=remaining_reviews,
+            due_budget_left=max(0, due_budget - learning_show),
+        ),
+    )
     total_show = new_show + learning_show + review_show
 
     reviews_today_total = count_reviews_today(user_id, db)

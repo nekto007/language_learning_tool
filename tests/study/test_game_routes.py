@@ -718,6 +718,142 @@ class TestDeckQuizSrsSlotNeedsARealRun:
         )
 
 
+class TestDeckQuizCompletionMarker:
+    """`DP-042`: слот закрывается собственным маркером, а не XP-ключом.
+
+    Роут — единственный писатель `DailyPlanEvent('deck_quiz_completed')`, и
+    без сквозного теста удаление вызова (слот не закрыть никогда) или подъём
+    его выше гейта (голый POST снова закрывает) проходили бы зелёными.
+    """
+
+    _PAYLOAD = {
+        'total_questions': 10,
+        'correct_answers': 8,
+        'time_taken': 60,
+        'source': 'linear_plan_deck_quiz',
+        'from': 'linear_plan',
+        'slot': 'srs',
+    }
+
+    @staticmethod
+    def _marker_count(user_id):
+        from app.daily_plan.linear.xp import DECK_QUIZ_EVENT_TYPE
+        from app.daily_plan.models import DailyPlanEvent
+        return DailyPlanEvent.query.filter_by(
+            user_id=user_id, event_type=DECK_QUIZ_EVENT_TYPE,
+        ).count()
+
+    def _complete(self, client, **extra):
+        payload = dict(self._PAYLOAD)
+        payload.update(extra)
+        return client.post(
+            '/study/api/complete-quiz',
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+    def _play(self, client, session_id):
+        answer = client.post(
+            '/study/api/submit-quiz-answer',
+            data=json.dumps({
+                'session_id': session_id,
+                'word_id': None,
+                'direction': 'eng_to_rus',
+                'is_correct': True,
+            }),
+            content_type='application/json',
+        )
+        assert answer.status_code == 200
+
+    def test_played_quiz_writes_the_marker(
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session,
+    ):
+        self._play(authenticated_client, plan_quiz_session.id)
+        assert self._complete(
+            authenticated_client, session_id=plan_quiz_session.id,
+        ).status_code == 200
+
+        db_session.expire_all()
+        assert self._marker_count(test_user.id) == 1
+
+    def test_marker_is_written_even_when_the_xp_key_is_already_paid(
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session,
+    ):
+        """Мотив находки: `/study`-сессия уже заплатила `linear_srs_global`.
+
+        Награда идемпотентна на день и вернёт None — маркер, выведенный из
+        неё, пропал бы ровно у того, кто квиз реально прошёл.
+        """
+        from app.achievements.models import StreakEvent
+        from app.daily_plan.linear.xp import (
+            LINEAR_XP_EVENT_TYPE,
+            get_linear_event_local_date,
+        )
+        from app.utils.db import db as real_db
+
+        db_session.add(StreakEvent(
+            user_id=test_user.id,
+            event_type=LINEAR_XP_EVENT_TYPE,
+            event_date=get_linear_event_local_date(test_user.id, real_db),
+            details={'source': 'linear_srs_global'},
+        ))
+        db_session.commit()
+
+        self._play(authenticated_client, plan_quiz_session.id)
+        assert self._complete(
+            authenticated_client, session_id=plan_quiz_session.id,
+        ).status_code == 200
+
+        db_session.expire_all()
+        assert self._marker_count(test_user.id) == 1
+
+    def test_bare_post_writes_no_marker(
+        self, authenticated_client, study_settings, db_session, test_user,
+    ):
+        assert self._complete(authenticated_client).status_code == 200
+        db_session.expire_all()
+        assert self._marker_count(test_user.id) == 0
+
+    def test_unplayed_session_writes_no_marker(
+        self, authenticated_client, study_settings, db_session, test_user,
+        plan_quiz_session,
+    ):
+        assert self._complete(
+            authenticated_client, session_id=plan_quiz_session.id,
+        ).status_code == 200
+        db_session.expire_all()
+        assert self._marker_count(test_user.id) == 0
+
+    def test_themed_set_session_writes_no_marker(
+        self, authenticated_client, study_settings, db_session, test_user,
+    ):
+        themed = StudySession(
+            user_id=test_user.id, session_type='quiz_word_set', words_studied=10,
+        )
+        db_session.add(themed)
+        db_session.commit()
+
+        assert self._complete(
+            authenticated_client, session_id=themed.id,
+        ).status_code == 200
+        db_session.expire_all()
+        assert self._marker_count(test_user.id) == 0
+
+    def test_another_users_session_writes_no_marker(
+        self, authenticated_client, study_settings, db_session, test_user,
+        other_user_quiz_session,
+    ):
+        other_user_quiz_session.words_studied = 10
+        db_session.commit()
+
+        assert self._complete(
+            authenticated_client, session_id=other_user_quiz_session.id,
+        ).status_code == 200
+        db_session.expire_all()
+        assert self._marker_count(test_user.id) == 0
+
 
 # ---------------------------------------------------------------------------
 # Matching game — активация новых SRS-карточек уважает дневной бюджет
