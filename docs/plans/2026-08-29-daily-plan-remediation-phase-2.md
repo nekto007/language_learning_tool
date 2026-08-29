@@ -264,20 +264,40 @@ XP как `None`. Кластер B строится **поверх** механ�
 - Modify: `app/api/daily_plan.py`
 - Create: `tests/api/test_daily_plan_body_contract.py`
 
-- [ ] `DP-079`: `request.get_json(silent=True) or {}` спасает от битого JSON, но не от валидного
+- [x] `DP-079`: `request.get_json(silent=True) or {}` спасает от битого JSON, но не от валидного
       не-объекта: `[1]` — правдивый список, и следующий `.get()` даёт `AttributeError` → 500.
       Шесть точек в файле. Один общий хелпер «тело обязано быть JSON-объектом, иначе 400»
-- [ ] `DP-081`: `/events` — три типовые путаницы дают 500 (`plan_date` не строка, `event_type`
+      → `_json_object_body()` (`app/api/daily_plan.py`) возвращает `(body, error)`; все **шесть**
+      точек переведены (`/events`, `/error-review/complete`, `/phrase-review/complete`,
+      `/plan/pause`, `/challenge/complete`, `/skip-lesson`). Не-объект → `400 invalid_body`.
+      Замер «до»: 20 из 40 комбинаций (эндпоинт × тело) отдавали **500**
+- [x] `DP-081`: `/events` — три типовые путаницы дают 500 (`plan_date` не строка, `event_type`
       unhashable, `meta` не dict); закрывается тем же хелпером плюс валидацией полей
-- [ ] `DP-103`: битый JSON молча становится `{}` и рапортуется как ошибка поля вместо
+      → `isinstance(event_type, str)` **перед** проверкой членства в `_CLIENT_EVENTS` (иначе `{}`/`[]`
+      роняли сам `in`); `plan_date` не строка → молча сегодня, тем же путём, что неразбираемая
+      строка (established-контракт `test_record_event_with_invalid_plan_date`); `meta` не dict →
+      игнорируется, а не 400 — все её поля опциональны и постятся ещё и верхним уровнем
+- [x] `DP-103`: битый JSON молча становится `{}` и рапортуется как ошибка поля вместо
       `invalid_json` — после введения хелпера отличать «не JSON» от «нет поля»
-- [ ] `DP-102`: `?tz=` длиной ≥256 роняет `_validate_timezone` через `OSError`, который не ловится
+      → три исхода вместо двух: пустое тело → `{}` (прежние ошибки полей сохранены),
+      непарсящееся → `400 invalid_json`, валидный не-объект → `400 invalid_body`. Литерал `null`
+      требует ре-парса: `get_json` отдаёт `None` и на сбое разбора, и на валидном `null`
+- [x] `DP-102`: `?tz=` длиной ≥256 роняет `_validate_timezone` через `OSError`, который не ловится
       `except (KeyError, ValueError)` → 500 на шести эндпоинтах. Ограничить длину и расширить
-      перехват
-- [ ] `DP-083`: не-строковый `tz` в теле `/streak/repair` ломает сам валидатор — **если не закрыт
-      в Task 1**
-- [ ] тест-матрица: на каждый POST-эндпоинт зоны — `[1]`, `"строка"`, `42`, битый JSON, отсутствие
+      перехват → `_MAX_TZ_NAME_LENGTH=64` (самое длинное реальное имя IANA — 32 символа) проверяется
+      ДО `ZoneInfo`, чтобы враждебный ввод вообще не доходил до файловой системы; перехват расширен
+      до `(KeyError, ValueError, OSError, TypeError)`, не-строка отсекается `isinstance`. Call-site'ов
+      три (`/daily-status`, `/daily-plan`, `/daily-summary`) — сверено `grep` по всему `app/`
+- [x] `DP-083`: не-строковый `tz` в теле `/streak/repair` ломает сам валидатор — **если не закрыт
+      в Task 1** → закрыт в Task 1 (отозван, коммит `b57b43e5`): обработчик тело запроса не читает
+- [x] тест-матрица: на каждый POST-эндпоинт зоны — `[1]`, `"строка"`, `42`, битый JSON, отсутствие
       тела; ожидание 400 с телом по контракту `api_error`, ни одного 500
+      → `tests/api/test_daily_plan_body_contract.py`, **125 тестов**: 8 POST-эндпоинтов × 5 не-объектных
+      тел, битый JSON, отсутствие тела, поля `/events` (`event_type`/`plan_date`/`meta`/`step_kind`),
+      6 враждебных `tz` × 3 GET-эндпоинта. До правки краснели 43 (из них 23 — реальные 500);
+      после — 125/125 зелёные. Зона `pytest tests/daily_plan tests/api tests/curriculum` — 2462
+      passed; smoke 695/695; полный `pytest` — 10 921 passed, 0 failed; `ruff` по
+      `app/api/daily_plan.py` 5 = baseline
 
 ### Task 6: Кластер D — auth-декоратор
 
