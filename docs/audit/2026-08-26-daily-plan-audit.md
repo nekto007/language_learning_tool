@@ -235,6 +235,70 @@ Task 7: заранее красный тест зоны — это либо ба
 | DP-034 | P1 | `app/curriculum/routes/lessons.py:388` | **theory-only** grammar-уроки (без секции `exercises`) платят 9 XP вместо 18: вычищенный ради антифрода `score` доезжает до скейлера как `0.0` | CONFIRMED | код |
 | DP-035 | P1 | `app/daily_plan/linear/xp.py:505` | perfect-day (25 XP) без пассивного «подметальщика»: 30 из 72 закрытых дней прода без `xp_perfect_day` | CONFIRMED | код |
 
+## Статус ремедиации (фаза 1) — 2026-08-29, ветка `daily-plan-remediation`
+
+План ремедиации — `docs/plans/2026-08-29-daily-plan-remediation.md`; замеры «до/после» по копии
+прода — `docs/audit/2026-08-29-remediation-measurements.md`.
+
+**Взято 16 находок из 127: все 4 P1, кластер «граница суток» (11 находок с одной первопричиной —
+два базиса дня в одном коде) и `DP-051` как обязательное предусловие к `DP-035`.
+Закрыто 15, отложена 1 (`DP-011`, сознательно, с причиной). Открытыми остаются 112 находок.**
+
+**Два решения владельца, зафиксированные до старта:**
+
+1. **Границу суток чинили глобально**, а не только в streak-починке: `_user_day_boundaries`
+   переведена на учебный день 02:00 во всех ~20 точках вызова, включая телеграм-планировщик и
+   `get_current_streak`. Сдвиг окон уведомлений — ожидаемая цена, измерена до правки.
+2. **XP — только вперёд.** Исторические недоплаты не добираются: ни SQL, ни backfill-скрипта.
+   Это касается `DP-034` (~20 начислений по 9 XP вместо 18) и `DP-035` (30 закрытых дней без
+   бонуса 25 XP). Следующему читателю искать backfill не нужно — его нет сознательно.
+
+| ID | Sev | Статус | Коммит | Тест-страж |
+|---|---|---|---|---|
+| `DP-001` | P1 | ✅ | `63c1c086` | `tests/daily_plan/test_study_day_bounds.py` (`TestStudyDayBoundsUtc`, `TestUserDayBoundariesBasis`, `TestFindMissedDateStudyDayBasis`, `TestProcessStreakSingleBasis`) + `tests/achievements/test_streak_repair_order.py` (`TestFreeHealerGoesFirst`, `TestShieldStillReachable`) |
+| `DP-033` | P1 | ✅ | `869fac0a` | `tests/daily_plan/test_reading_slot_access_gate.py` (`TestBuilderGate`, `TestNoAccessibleBooksAtAll`, `TestSnapshotSelfHeal`) |
+| `DP-034` | P1 | ✅ | `eadd18e0` | `tests/curriculum/test_theory_only_xp_scaling.py` (+ `TestNeighbouringScoreCallSites` — три соседних call-site) |
+| `DP-051` | P2 | ✅ | `a92f267f` | `tests/daily_plan/test_perfect_day_unified.py::TestPerfectDayIdempotentIsRaceSafe`; арбитр гонки — миграция `20260829_perfect_day_unique_index` |
+| `DP-035` | P1 | ✅ | `a92f267f` | `TestPerfectDaySweeperOnSecuredDay`, `TestPerfectDaySweeperOnDashboard`, `TestPerfectDayAdmissionRules` (там же) |
+| `DP-003` | P2 | ✅ | `db9406f5` | `tests/daily_plan/test_plan_misc_fixes.py::TestDashboardSecuredDateIsStudyDay` |
+| `DP-002` | P2 | ✅ | `db9406f5` | `tests/daily_plan/test_snapshot_v2.py::TestRolloverStudyDayBoundary` |
+| `DP-009` | P2 | ✅ | `db9406f5` | `TestRolloverStudyDayBoundary` (там же) |
+| `DP-027` | P3 | ✅ | `db9406f5` | правка докстрингов; поведение, которое они теперь описывают, держит `TestRolloverStudyDayBoundary` |
+| `DP-008` | P2 | ✅ | `e70d30c3` | `tests/daily_plan/test_study_day_readers.py::TestDashboardXpTodayIsStudyDay` |
+| `DP-010` | P2 | ✅ | `e70d30c3` | `TestStudyMinutesReadOnStudyDay` (там же) |
+| `DP-012` | P2 | ✅ | `e70d30c3` | `TestRaceCohortDateSingleBasis` (там же) |
+| `DP-013` | P2 | ✅ | `e70d30c3` | `TestImmersionTzMatchesTargetDate` (там же) |
+| `DP-022` | P3 | ✅ | `e70d30c3` | `TestUnsecuredYesterdaySingleImplementation` (там же) |
+| `DP-026` | P3 | ✅ | `e70d30c3` | `TestWeeklyGoalWeekStartsOnStudyMonday` (там же) |
+| `DP-011` | P2 | 🟡 **отложена** | — | — (причина — в теле находки, блок «Решение ремедиации (фаза 1)») |
+
+Сверх пятнадцати построчных стражей у кластера есть один сквозной:
+`tests/daily_plan/test_study_day_readers.py::TestOneTodayAcrossSurfaces` — дашборд,
+`/api/daily-status` и `/api/daily-plan` для юзера в 00:30 локального времени обязаны дать
+**одну и ту же** «сегодняшнюю» дату, и пустое множество наблюдений тоже считается провалом
+(иначе страж слепнет молча, когда путь перестаёт спрашивать канонический резолвер).
+
+**Что изменилось в коде, одним абзацем.** Введены два канонических хелпера окна учебного дня —
+`study_day_start_utc` и `study_day_bounds_utc` в `app/utils/time_utils.py`; `_user_day_boundaries`
+стала тонкой обёрткой над вторым (сигнатура и политика фолбэка сохранены дословно). Порядок
+починок серии переставлен на «бесплатная починка → авто-хилер → щит». Required-слот чтения
+гейтится `book_access_ok_for_reading`, а `overlay_completion` выбрасывает из замороженного
+снапшота слот, чья книга стала недоступна посреди дня. Вычищенный антифродом `score` уходит в
+XP как `None`, а не `0.0`. `award_perfect_day_xp_idempotent` переведён на claim-first,
+`maybe_award_linear_perfect_day` добавлен в оба писателя `secured_at`.
+
+**Документ приведён в соответствие.** Все одиннадцать расхождений `CM-1…CM-11` из следующей
+секции внесены в `CLAUDE.md` 2026-08-29 (Task 9), включая формулировку «mission/linear-chain
+**отключены**, а не удалены».
+
+**Прогоны на конец фазы:** `pytest tests/daily_plan -q` и `pytest -m smoke -q` — **0 падений**
+(снято на Task 9). Полный `pytest -q` по последнему кодовому коммиту `e70d30c3` — 4 падения, все
+времязависимые (окно 00:00–02:00) и воспроизводимые на HEAD без правок; сверка с
+`docs/audit/2026-08-29-baseline-remediation.txt` по именам nodeid — новых 0. Итоговая сверка —
+Task 10 плана ремедиации.
+
+---
+
 ## Расхождения с `CLAUDE.md`
 
 Правило зоны: находка против инварианта — баг **либо в коде, либо в `CLAUDE.md`**. Из 127
@@ -243,7 +307,7 @@ Task 7: заранее красный тест зоны — это либо ба
 реализация ему не следует) и у **7** — в **тексте `CLAUDE.md`**. Ниже — только семёрка со стороной «`CLAUDE.md`», плюс три расхождения
 из liveness-среза и одно документарное, найденное ещё на Task 1.
 
-**Аудит документ не правит.** Формулировки ниже — предложение для ремедиации, не внесённая правка.
+**Аудит документ не правит.** Формулировки ниже были предложением для ремедиации; **фаза 1 их внесла** — все `CM-1…CM-11` применены к `CLAUDE.md` 2026-08-29 (Task 9). Колонка «Предлагаемая формулировка» сохранена как след решения, а не как открытая задача.
 
 | # | Находка | Утверждение `CLAUDE.md` | Факт в коде | Предлагаемая формулировка |
 |---|---|---|---|---|
