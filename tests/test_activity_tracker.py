@@ -494,27 +494,35 @@ class TestStreakShieldOrder:
 
         Sets up: activity today + shield_repair for yesterday (all in DEFAULT_TZ).
         Expects streak >= 2.
+
+        The day basis here is the study day (02:00 anchor, DP-001), not calendar
+        midnight: `get_current_streak` keys repair rows on the study-day date and
+        builds its activity windows from the same helper.  Anchoring the fixture
+        on `datetime.now(tz).date()` made the test red for the two hours after
+        midnight, when the two bases name different days — the same window in
+        which production is right and a calendar-based test is wrong.
         """
-        import pytz
-        from app.telegram.queries import get_current_streak, DEFAULT_TZ
+        from app.telegram.queries import (
+            DEFAULT_TZ,
+            _user_day_boundaries,
+            _user_day_date,
+            get_current_streak,
+        )
         from app.achievements.streak_service import apply_shield_repair
 
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-        local_now = datetime.now(tz_obj)
-        local_today = local_now.date()
-        yesterday = local_today - timedelta(days=1)
+        study_today = _user_day_date(DEFAULT_TZ)
+        yesterday = study_today - timedelta(days=1)
 
-        # Write shield_repair event for DEFAULT_TZ yesterday
+        # Write shield_repair event for the previous study day
         apply_shield_repair(shield_user.id, yesterday)
         db_session.flush()
 
-        # Write StudySession within DEFAULT_TZ today (noon local = safe middle of day)
-        local_noon = tz_obj.localize(
-            datetime(local_today.year, local_today.month, local_today.day, 12, 0, 0)
-        )
-        utc_noon = local_noon.astimezone(pytz.utc).replace(tzinfo=None)
+        # Write StudySession inside the current study-day window.  The window
+        # start is always in the past, so start+1min is a safe "already happened"
+        # instant regardless of the hour the suite runs at.
+        day_start, _day_end = _user_day_boundaries(DEFAULT_TZ, offset_days=0)
         ss = StudySession(user_id=shield_user.id, session_type='cards')
-        ss.start_time = utc_noon
+        ss.start_time = (day_start + timedelta(minutes=1)).replace(tzinfo=None)
         db_session.add(ss)
         db_session.flush()
 
