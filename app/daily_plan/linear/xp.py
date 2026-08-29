@@ -270,6 +270,69 @@ def maybe_award_srs_global_xp(
     )
 
 
+# Own completion signal for the plan's deck-quiz slot (DP-042). Deliberately
+# NOT an XP source: the quiz pays the shared `linear_srs_global` award, which
+# is idempotent per day and therefore returns None when a /study session
+# already paid it — a marker derived from the award would go missing exactly
+# when the learner did both activities.
+DECK_QUIZ_EVENT_TYPE = 'deck_quiz_completed'
+
+
+def record_deck_quiz_completion(user_id: int, db_session: Any = None) -> None:
+    """Mark today's plan deck-quiz as run. Idempotent, flush only.
+
+    Written by the single verified caller — ``complete_quiz`` in
+    ``app/study/game_routes.py``, behind ``_deck_quiz_run_is_real`` — so
+    the row itself is the server's evidence that a quiz was opened and
+    answered. Mirrors the ``phrase_review_completed`` marker.
+    """
+    from app.daily_plan.models import DailyPlanEvent
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+    plan_date = get_linear_event_local_date(user_id, db_obj)
+    exists = db_obj.session.query(
+        db_obj.session.query(DailyPlanEvent).filter(
+            DailyPlanEvent.user_id == user_id,
+            DailyPlanEvent.event_type == DECK_QUIZ_EVENT_TYPE,
+            DailyPlanEvent.plan_date == plan_date,
+        ).exists()
+    ).scalar()
+    if exists:
+        return
+    db_obj.session.add(DailyPlanEvent(
+        user_id=user_id,
+        event_type=DECK_QUIZ_EVENT_TYPE,
+        plan_date=plan_date,
+        step_kind='srs',
+    ))
+    db_obj.session.flush()
+
+
+def is_deck_quiz_completed_today(user_id: int, db_session: Any = None) -> bool:
+    """Did the plan's deck-quiz slot run today?
+
+    ``DP-042``: the slot used to read ``linear_srs_global``, which a plain
+    ``/study`` SRS session writes as well — and which the corrective
+    fallback inside :func:`is_srs_slot_completed_today` can write with no
+    session at all (one production day closed exactly that way). Passing
+    ``allow_fallback=False`` did not help: the strict reader still saw the
+    key the fallback had already written. Hence a separate marker.
+    """
+    from app.daily_plan.models import DailyPlanEvent
+    from app.utils.db import db
+
+    db_obj = db_session if db_session is not None else db
+    today = get_linear_event_local_date(user_id, db_obj)
+    return bool(db_obj.session.query(
+        db_obj.session.query(DailyPlanEvent).filter(
+            DailyPlanEvent.user_id == user_id,
+            DailyPlanEvent.event_type == DECK_QUIZ_EVENT_TYPE,
+            DailyPlanEvent.plan_date == today,
+        ).exists()
+    ).scalar())
+
+
 def is_srs_slot_completed_today(
     user_id: int, db_session: Any, *, allow_fallback: bool = True
 ) -> bool:

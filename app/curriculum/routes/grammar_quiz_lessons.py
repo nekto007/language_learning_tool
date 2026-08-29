@@ -182,6 +182,20 @@ def _filter_final_test_questions_for_student(
     return filtered
 
 
+def _submission_passed(result: dict) -> bool:
+    """Did THIS grading event clear the passing score?
+
+    ``LessonProgress.status`` is sticky by design — a failed retake of an
+    already-completed lesson keeps 'completed' so activity trackers still
+    credit the attempt — so it cannot answer this question (``DP-050``).
+    The grader's own score can.
+    """
+    try:
+        return float(result.get('score') or 0) >= PASSING_SCORE_DEFAULT
+    except (TypeError, ValueError):
+        return False
+
+
 def render_grammar_lesson(lesson):
     """Рендер grammar урока"""
     if lesson.type != 'grammar':
@@ -304,7 +318,11 @@ def render_grammar_lesson(lesson):
             passing_score=PASSING_SCORE_DEFAULT
         )
 
-        if progress and progress.status == 'completed':
+        # DP-050: gate on THIS submission's score, not on progress.status.
+        # `update_progress_with_grading` never downgrades a lesson that was
+        # completed before (`was_completed` guard in ProgressService), so a
+        # failed retake still reads 'completed' and used to pay full XP.
+        if progress and _submission_passed(result):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():
@@ -885,7 +903,8 @@ def grammar_lesson(lesson_id):
             passing_score=PASSING_SCORE_DEFAULT
         )
 
-        if progress and progress.status == 'completed':
+        # DP-050, second copy of this handler — same gate, same reason.
+        if progress and _submission_passed(result):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():

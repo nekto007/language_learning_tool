@@ -979,6 +979,33 @@ def error_review_summary():
     })
 
 
+def _count_resolved_today(entries, user_id: int) -> int:
+    """How many of ``entries`` were resolved inside the user's study day.
+
+    ``resolve_quiz_errors`` returns owned rows whether it resolved them
+    just now or found them already resolved — the caller cannot tell the
+    two apart, and an id resolved months ago is not evidence of today's
+    work (``DP-087``). Window comes from the canonical study-day helper,
+    so the 02:00 anchor matches every other daily gate.
+    """
+    from datetime import UTC
+
+    from app.utils.time_utils import get_user_timezone_name, study_day_bounds_utc
+
+    tz_name = get_user_timezone_name(user_id, db)
+    start, end = study_day_bounds_utc(tz_name)
+    count = 0
+    for entry in entries:
+        stamp = getattr(entry, 'resolved_at', None)
+        if stamp is None:
+            continue
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=UTC)
+        if start <= stamp < end:
+            count += 1
+    return count
+
+
 @api_daily_plan.route('/daily-plan/error-review/complete', methods=['POST'])
 @csrf.exempt
 @api_auth_required
@@ -986,13 +1013,24 @@ def complete_error_review():
     """Complete a linear-plan error-review session.
 
     Body JSON:
-        error_ids (list[int], optional): quiz_error_log ids resolved in
-            this session. Unknown ids or ids belonging to other users
-            are skipped silently.
+        error_ids (list[int]): quiz_error_log ids resolved in this
+            session. Unknown ids or ids belonging to other users are
+            skipped; a request left with nothing resolved today is
+            rejected (see below).
 
-    Always attempts the linear ``error_review`` XP award (idempotent per
-    day) and surfaces any level-up / day-secured transitions in the
-    response.
+    Awards the linear ``error_review`` XP (idempotent per day) and
+    surfaces any level-up / day-secured transitions in the response.
+
+    ``DP-087``: the award used to fire unconditionally, so a bare POST
+    paid 10 XP and — for a graduated or prerequisite-blocked user, whose
+    ``required`` is empty and whose day closes on any learning activity —
+    closed the day outright. The endpoint now demands the server's own
+    evidence that work happened: at least one submitted id must belong to
+    the caller and carry a ``resolved_at`` inside the current study day.
+    A row resolved on an earlier day does not qualify (otherwise one old
+    id replayed daily would farm the slot forever), while re-posting the
+    same ids within the day still succeeds — the client retries on
+    network failure and XP is idempotent anyway.
     """
     from app.daily_plan.linear.errors import resolve_quiz_errors
     from app.daily_plan.linear.xp import (
@@ -1007,17 +1045,36 @@ def complete_error_review():
 
     error_ids: list[int] = []
     for raw in raw_ids:
+        if isinstance(raw, bool):
+            continue
         try:
             error_ids.append(int(raw))
         except (TypeError, ValueError):
             continue
 
     user_id = current_user.id
+    if not error_ids:
+        return api_error(
+            'no_errors_submitted',
+            'error_ids must name at least one reviewed error',
+            400,
+        )
+
     resolved = resolve_quiz_errors(error_ids, user_id, db, commit=False)
+    resolved_today = _count_resolved_today(resolved, user_id)
     logger.info(
-        "error_review_complete user=%s resolved=%d of %d submitted",
-        user_id, len(resolved), len(error_ids),
+        "error_review_complete user=%s resolved=%d (today=%d) of %d submitted",
+        user_id, len(resolved), resolved_today, len(error_ids),
     )
+    if resolved_today <= 0:
+        # Nothing was mutated: a row resolved by this call carries `now`,
+        # which is inside today's window by construction. Leave the session
+        # to the request teardown and refuse the award.
+        return api_error(
+            'no_errors_resolved',
+            'None of the submitted errors were resolved today',
+            400,
+        )
 
     xp_award = maybe_award_error_review_xp(user_id, db_session=db)
     perfect_day = None

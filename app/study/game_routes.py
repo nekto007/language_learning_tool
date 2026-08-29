@@ -1401,10 +1401,17 @@ def complete_quiz():
             from app.daily_plan.linear.xp import (
                 maybe_award_linear_perfect_day,
                 maybe_award_srs_global_xp,
+                record_deck_quiz_completion,
             )
+            # The slot's own signal, written before the XP attempt: the
+            # award is idempotent per day, so a /study session that already
+            # paid `linear_srs_global` makes it return None — and a marker
+            # derived from the award would then be missing for a quiz that
+            # really ran (DP-042).
+            record_deck_quiz_completion(current_user.id, db_session=db)
             if maybe_award_srs_global_xp(current_user.id, db_session=db) is not None:
                 maybe_award_linear_perfect_day(current_user.id, db_session=db)
-                db.session.commit()
+            db.session.commit()
         except Exception:
             logger.warning(
                 'linear_xp: deck quiz award failed user=%s',

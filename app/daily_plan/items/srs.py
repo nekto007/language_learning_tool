@@ -50,11 +50,12 @@ def _build_deck_quiz_plan_item(
         _count_user_deck_quiz_words,
     )
 
-    # Strict (event-only): деку-квиз закрывает только собственное XP-событие,
-    # fallback от общих счётчиков сработал бы от парного card-урока.
-    from app.daily_plan.linear.xp import is_srs_slot_completed_today
+    # Собственный сигнал квиза (DP-042): общий ключ `linear_srs_global`
+    # пишет и обычная /study-сессия, и корректирующая fallback-ветка
+    # `is_srs_slot_completed_today` — ни то, ни другое квизом не является.
+    from app.daily_plan.linear.xp import is_deck_quiz_completed_today
 
-    completed_today = is_srs_slot_completed_today(user_id, db, allow_fallback=False)
+    completed_today = is_deck_quiz_completed_today(user_id, db)
     deck_word_count = _count_user_deck_quiz_words(user_id, db)
     limit = min(_DECK_QUIZ_LIMIT, max(deck_word_count, 0))
 

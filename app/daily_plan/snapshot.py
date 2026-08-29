@@ -281,10 +281,11 @@ def _is_item_completed(user_id: int, item: dict[str, Any], db: Any) -> bool:
         return bool(is_srs_slot_completed_today(user_id, db))
 
     if item_id == 'srs:deck_quiz':
-        from app.daily_plan.linear.xp import is_srs_slot_completed_today
-        # Strict: deck-quiz closes only on its own XP event so the
-        # paired card-curriculum lesson doesn't satisfy it via fallback.
-        return bool(is_srs_slot_completed_today(user_id, db, allow_fallback=False))
+        from app.daily_plan.linear.xp import is_deck_quiz_completed_today
+        # Own signal only (DP-042): the shared `linear_srs_global` key is
+        # written by a plain /study session and by the corrective fallback
+        # inside is_srs_slot_completed_today, neither of which is a quiz.
+        return bool(is_deck_quiz_completed_today(user_id, db))
 
     if kind == 'reading':
         from app.daily_plan.items.reading import _read_today
