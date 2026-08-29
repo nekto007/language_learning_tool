@@ -471,10 +471,19 @@ def _ghost_target_points(seed: int) -> int:
 
 
 def _progress_fraction(local_time: time_cls) -> float:
-    """Fraction of the ghost-active window that has elapsed (0.0 - 1.0)."""
+    """Fraction of the ghost-active window that has elapsed (0.0 - 1.0).
+
+    Measured on the STUDY day, like `race_date` itself: hours before
+    ``LEARNING_DAY_START_HOUR`` belong to the study day that began the previous
+    calendar morning, so they read as 24+ and land past ``_GHOST_END_HOUR``.
+    Comparing the raw wall clock instead made every ghost report 0 points
+    between 00:00 and 02:00 — the window the 02:00 anchor exists to serve.
+    """
     if _GHOST_END_HOUR <= _GHOST_START_HOUR:
         return 1.0
     current = local_time.hour + local_time.minute / 60.0
+    if current < LEARNING_DAY_START_HOUR:
+        current += 24.0
     if current <= _GHOST_START_HOUR:
         return 0.0
     if current >= _GHOST_END_HOUR:

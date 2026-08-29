@@ -149,7 +149,15 @@ class TestGhostPointsOnStudyDay:
     """`race_date` — учебная дата (DP-012), значит и сравнение с ней тоже."""
 
     @freeze_time(NIGHT)
-    def test_ghost_is_still_running_before_02_00(self):
+    def test_ghost_keeps_its_full_target_before_02_00(self):
+        """00:30 — учебный день 14-го, но окно призрака 08:00-20:00 уже закрыто.
+
+        Дата сравнивается по учебному дню, и доля пройденного окна обязана
+        считаться на том же базисе. Пока `_progress_fraction` читала голые
+        стенные часы, ветка `local_today == race_date` давала
+        `fraction(00:30) == 0.0`: все призраки когорты падали в 0 очков на два
+        часа каждую ночь, и ночной учащийся ложно выходил на первое место.
+        """
         from app.achievements.daily_race import (
             _ghost_target_points,
             compute_ghost_points,
@@ -159,9 +167,23 @@ class TestGhostPointsOnStudyDay:
         ghost = GhostParticipant(name='G', seed=7)
         points = compute_ghost_points(ghost, STUDY_DAY, tz='UTC')
 
-        # На календарном базисе `now.date()` == 15-е > 14-е, и призрак
-        # мгновенно допрыгивал до полной цели, пока гонка ещё идёт.
-        assert points < _ghost_target_points(ghost.seed)
+        assert points == _ghost_target_points(ghost.seed)
+
+    @freeze_time('2026-09-15 03:00:00')
+    def test_ghost_starts_from_zero_right_after_study_day_start(self):
+        """Обратный конец: 03:00 — учебный день только начался, окно ещё впереди.
+
+        Страховка от переусердствовавшей починки: перенос часов за полночь в
+        +24 не вправе задирать долю у тех часов, что реально лежат до 08:00.
+        """
+        from app.achievements.daily_race import (
+            compute_ghost_points,
+            GhostParticipant,
+        )
+
+        ghost = GhostParticipant(name='G', seed=7)
+
+        assert compute_ghost_points(ghost, date(2026, 9, 15), tz='UTC') == 0
 
     @freeze_time(NIGHT)
     def test_ghost_is_done_for_the_previous_study_day(self):

@@ -42,9 +42,13 @@ def _get_or_create_log_row(user_id: int, plan_date: Any, db: Any):
     )
     if log is None:
         log = DailyPlanLog(user_id=user_id, plan_date=plan_date)
-        db.session.add(log)
         try:
+            # `add` INSIDE the savepoint — begin_nested() flushes the session to
+            # take its snapshot BEFORE emitting SAVEPOINT, so an insert staged
+            # beforehand runs in the outer transaction and its IntegrityError
+            # poisons the session instead of being rolled back here.
             with db.session.begin_nested():
+                db.session.add(log)
                 db.session.flush()
         except IntegrityError:
             log = (
