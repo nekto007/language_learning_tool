@@ -11,9 +11,10 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta
 
 import pytest
+from freezegun import freeze_time
 
 from app.achievements.models import StreakEvent
 from app.auth.models import User
@@ -420,3 +421,107 @@ class TestOverlayCompletion:
         overlaid = overlay_completion(user.id, snap, real_db)
 
         assert overlaid == []
+
+
+# Локальное время == UTC, поэтому 00:30 попадает ровно в полосу до 02:00.
+# Учебный день при этом ещё вчерашний, 14 сентября: он закроется в 02:00.
+GRAMMAR_NIGHT = '2026-09-15 00:30:00'
+
+
+class TestGrammarPracticeStudyDayWindow:
+    """DP-009: окно `_grammar_topic_practiced_today` якорится в 02:00.
+
+    Функция получает **учебную** дату, но строила окно от календарной
+    полуночи — на два часа раньше. Второй сигнал (курсовой grammar-урок)
+    фильтруется по `LessonAttempt.completed_at`, реальному моменту, поэтому
+    урок, сданный в 01:00 локального времени, выпадал из своего же учебного
+    дня (required-пункт не закрыть, `day_secured` недостижим) и попадал в
+    следующий (день без работы закрывался чужой попыткой).
+
+    Часы заморожены: предмет теста — полоса 00:00-02:00, и он не вправе
+    зависеть от того, в какой час суток запустили прогон. Зона юзера — UTC,
+    поэтому локальное время равно замороженному, как в соседних стражах
+    учебного дня (`tests/daily_plan/test_study_day_readers.py`).
+    """
+
+    @pytest.fixture
+    def grammar_lesson(self, db_session):
+        from app.grammar_lab.models import GrammarTopic
+
+        suffix = uuid.uuid4().hex[:10]
+        topic = GrammarTopic(
+            slug=f'snap2-topic-{suffix}', title='Topic', title_ru='Тема',
+            level='A1', order=1, content={},
+        )
+        db_session.add(topic)
+        db_session.commit()
+        code = unique_level_code()
+        level = CEFRLevel(code=code, name=f'L-{code}', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(
+            level_id=level.id, number=1, title='M-gram', description='',
+            raw_content={},
+        )
+        db_session.add(module)
+        db_session.commit()
+        lesson = Lessons(
+            module_id=module.id, number=1, title='Gram', type='grammar',
+            content={}, grammar_topic_id=topic.id,
+        )
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @pytest.fixture
+    def utc_user(self, db_session, user):
+        user.timezone = 'UTC'
+        db_session.commit()
+        return user
+
+    def _attempt(self, db_session, user, lesson, completed_at_utc):
+        from app.curriculum.models import LessonAttempt
+
+        db_session.add(LessonAttempt(
+            user_id=user.id, lesson_id=lesson.id, attempt_number=1,
+            completed_at=completed_at_utc, score=100.0, passed=True,
+        ))
+        db_session.commit()
+
+    @freeze_time(GRAMMAR_NIGHT)
+    def test_lesson_finished_after_midnight_closes_its_own_study_day(
+        self, db_session, utc_user, grammar_lesson,
+    ):
+        from app.daily_plan.snapshot import _grammar_topic_practiced_today
+
+        # 00:30 15 сентября — это ещё учебный день 14 сентября, он закроется
+        # в 02:00. Календарное окно [14 сентября 00:00, 15 сентября 00:00)
+        # эту попытку теряло.
+        self._attempt(
+            db_session, utc_user, grammar_lesson,
+            datetime(2026, 9, 15, 0, 30),
+        )
+
+        assert _grammar_topic_practiced_today(
+            utc_user.id, grammar_lesson.grammar_topic_id,
+            grammar_lesson.module_id, real_db,
+        ) is True
+
+    @freeze_time(GRAMMAR_NIGHT)
+    def test_previous_study_day_attempt_does_not_close_today(
+        self, db_session, utc_user, grammar_lesson,
+    ):
+        from app.daily_plan.snapshot import _grammar_topic_practiced_today
+
+        # 00:30 14 сентября — календарная дата текущего учебного дня, но сам
+        # день тогда ещё не начался (старт в 02:00): это учебный день
+        # 13 сентября. Календарное окно засчитывало эту попытку сегодняшнему.
+        self._attempt(
+            db_session, utc_user, grammar_lesson,
+            datetime(2026, 9, 14, 0, 30),
+        )
+
+        assert _grammar_topic_practiced_today(
+            utc_user.id, grammar_lesson.grammar_topic_id,
+            grammar_lesson.module_id, real_db,
+        ) is False

@@ -262,7 +262,7 @@ Task 7: заранее красный тест зоны — это либо ба
 | `DP-035` | P1 | ✅ | `a92f267f` | `TestPerfectDaySweeperOnSecuredDay`, `TestPerfectDaySweeperOnDashboard`, `TestPerfectDayAdmissionRules` (там же) |
 | `DP-003` | P2 | ✅ | `db9406f5` | `tests/daily_plan/test_plan_misc_fixes.py::TestDashboardSecuredDateIsStudyDay` |
 | `DP-002` | P2 | ✅ | `db9406f5` | `tests/daily_plan/test_snapshot_v2.py::TestRolloverStudyDayBoundary` |
-| `DP-009` | P2 | ✅ | `db9406f5` | `TestRolloverStudyDayBoundary` (там же) |
+| `DP-009` | P2 | ✅ | ремедиация (после `db9406f5`) | `tests/daily_plan/test_snapshot_v2.py::TestGrammarPracticeStudyDayWindow`. **NB:** сначала находка была закрыта ошибочно — `db9406f5` починил окно `_local_date_start_naive_utc` (адрес `DP-002`), а собственный адрес `DP-009` (`_grammar_topic_practiced_today`, окно от календарной полуночи) остался нетронутым. Обе функции живут в `snapshot.py`, поэтому одна строка «✅» перекрыла вторую; внешнее ревью нашло остаток |
 | `DP-027` | P3 | ✅ | `db9406f5` | правка докстрингов; поведение, которое они теперь описывают, держит `TestRolloverStudyDayBoundary` |
 | `DP-008` | P2 | ✅ | `e70d30c3` | `tests/daily_plan/test_study_day_readers.py::TestDashboardXpTodayIsStudyDay` |
 | `DP-010` | P2 | ✅ | `e70d30c3` | `TestStudyMinutesReadOnStudyDay` (там же) |

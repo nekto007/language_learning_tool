@@ -464,28 +464,22 @@ def _grammar_topic_practiced_today(
          is known, restricted to that module so practising the same
          topic via a *different* module's grammar lesson does not
          close the pre-FT step for this module.
-    """
-    from datetime import datetime, timedelta, timezone
 
+    "Today" is the *study* day (02:00 local → 02:00 local), taken from
+    ``get_user_local_day_bounds`` — the same window ``_grammar_reviewed_today``
+    (``app/daily_plan/items/grammar_review.py``) and ``_curriculum_lesson_done_today``
+    above use. A hand-rolled calendar-midnight window was two hours early
+    relative to the study-day date it was derived from (DP-009): the second
+    signal below filters on ``LessonAttempt.completed_at``, a real wall-clock
+    moment, so a curriculum grammar lesson finished at 01:00 local fell outside
+    its own study day (required slot stays open, ``day_secured`` unreachable)
+    and inside the *next* one (a day with no work closes the slot).
+    """
     from app.curriculum.models import LessonAttempt, Lessons
     from app.grammar_lab.models import GrammarExercise, UserGrammarExercise
-    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
+    from app.utils.time_utils import get_user_local_day_bounds
 
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:  # pragma: no cover
-        from backports.zoneinfo import ZoneInfo  # type: ignore
-
-    today = get_user_local_date(user_id, db)
-    tz_name = get_user_timezone_name(user_id, db)
-    try:
-        tz = ZoneInfo(tz_name)
-    except Exception:  # noqa: BLE001
-        tz = timezone.utc
-    start_local = datetime(today.year, today.month, today.day, tzinfo=tz)
-    end_local = start_local + timedelta(days=1)
-    start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
-    end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+    start_utc, end_utc = get_user_local_day_bounds(user_id, db)
 
     standalone_q = (
         db.session.query(UserGrammarExercise.id)

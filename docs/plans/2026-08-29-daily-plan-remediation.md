@@ -300,12 +300,24 @@
       на текущий учебный день
       → сделано; в проде 3 из 72 закрытий писались на чужую дату (замер (ж)), страж —
       `TestDashboardSecuredDateIsStudyDay` в `tests/daily_plan/test_plan_misc_fixes.py`
-- [x] `DP-002`/`DP-009` — `_local_date_start_naive_utc` (`app/daily_plan/snapshot.py:196`) строит
+- [x] `DP-002` — `_local_date_start_naive_utc` (`app/daily_plan/snapshot.py:196`) строит
       окно от `time.min`, тогда как дата приходит уже учебная: перевести анкер на
       `LEARNING_DAY_START_HOUR` (переиспользовать хелпер из Task 2, не писать четвёртую копию)
       → введён канонический `study_day_start_utc(tz_name, local_date)` в `app/utils/time_utils.py`
       (единственное место, превращающее «учебный день D» в момент); `study_day_bounds_utc` из
       Task 2 переведён на него же, копий не прибавилось
+- [x] `DP-009` — **вторая, отдельная копия календарного окна в том же файле**:
+      `_grammar_topic_practiced_today` строила `[дата 00:00, дата+1 00:00)` из учебной даты.
+      Изначально пункт был свёрнут в один с `DP-002` и закрыт вместе с ним — по факту тронули
+      только адрес `DP-002`. Переведено на `get_user_local_day_bounds` — тот же хелпер, что у
+      `_curriculum_lesson_done_today` рядом и у `_grammar_reviewed_today`
+      (`app/daily_plan/items/grammar_review.py`); ручных окон в `snapshot.py` больше не осталось.
+      Стражи — `TestGrammarPracticeStudyDayWindow` (2 теста, оба краснеют при откате фикса):
+      курсовой grammar-урок, сданный в 01:00, закрывает свой учебный день и не закрывает
+      следующий. Часы заморожены (`freeze_time('2026-09-15 00:30:00')` + зона юзера `UTC`,
+      как у соседних стражей учебного дня): предмет теста — полоса 00:00-02:00, и выводить
+      зону из живого часа UTC значило бы ронять тест на переходе часа и терять сам предмет
+      проверки, когда локальное время уезжает за 02:00
 - [x] `DP-027` — докстринги `app/daily_plan/snapshot.py:4-5` описывают границу «полночь»;
       привести к фактическому поведению → плюс две таких же формулировки в `_try_rollover_from_yesterday`
       и `overlay_completion`
