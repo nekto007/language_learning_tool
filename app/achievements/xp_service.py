@@ -209,6 +209,17 @@ class XPAward:
     leveled_up: bool
 
 
+def _perfect_day_already_awarded(user_id: int, for_date: date) -> bool:
+    """True when the perfect-day bonus for ``for_date`` is already on record."""
+    from app.achievements.models import StreakEvent
+
+    return StreakEvent.query.filter_by(
+        user_id=user_id,
+        event_type='xp_perfect_day',
+        event_date=for_date,
+    ).first() is not None
+
+
 def award_perfect_day_xp_idempotent(
     user_id: int,
     for_date: date,
@@ -226,71 +237,121 @@ def award_perfect_day_xp_idempotent(
     Returns XPAward if awarded, None if already awarded today.
     Caller must commit the session.
     """
+    from sqlalchemy.exc import IntegrityError
+
     from app.achievements.models import StreakEvent, UserStatistics
     from app.utils.db import db
 
-    already = StreakEvent.query.filter_by(
-        user_id=user_id,
-        event_type='xp_perfect_day',
-        event_date=for_date,
-    ).first()
-    if already:
+    if _perfect_day_already_awarded(user_id, for_date):
         return None
 
-    # Determine consecutive perfect day count. Paused days are streak-neutral
-    # (a plan_pause StreakEvent is written per paused day), so walk back over
-    # them transparently — otherwise returning from a pause would reset the
-    # perfect-day multiplier even though the streak is preserved (audit E-006).
-    probe = for_date - timedelta(days=1)
-    for _ in range(60):
-        is_paused = StreakEvent.query.filter_by(
-            user_id=user_id,
-            event_type='plan_pause',
-            event_date=probe,
-        ).first() is not None
-        if not is_paused:
-            break
-        probe -= timedelta(days=1)
-    had_yesterday = StreakEvent.query.filter_by(
-        user_id=user_id,
-        event_type='xp_perfect_day',
-        event_date=probe,
-    ).first() is not None
-
-    stats = UserStatistics.query.filter_by(user_id=user_id).first()
-    if stats is None:
-        stats = UserStatistics(user_id=user_id)
-        db.session.add(stats)
-        db.session.flush()
-
-    current_consecutive = int(stats.consecutive_perfect_days or 0)
-    new_consecutive = current_consecutive + 1 if had_yesterday else 1
-    stats.consecutive_perfect_days = new_consecutive
-
-    perfect_mult = get_perfect_day_multiplier(new_consecutive)
-    bonus_base_xp = PERFECT_DAY_BONUS_XP_LINEAR if is_linear else PERFECT_DAY_BONUS_XP
-    # round() (not int()/floor) to match award_xp / apply_score_to_base — the
-    # floor here systematically under-credited the perfect-day bonus (E-009).
-    adjusted_base = max(1, round(bonus_base_xp * perfect_mult))
-
-    # COMPOUNDING (audit E-015): the bonus is multiplied by perfect_mult HERE
-    # and again by the streak multiplier inside award_xp. Theoretical ceiling =
-    # base * MAX_PERFECT_DAY_MULTIPLIER(2.5) * MAX_STREAK_MULTIPLIER(2.0) =
-    # base * 5 (e.g. linear base 25 → 125 XP). Intentional, but keep this in
-    # view when tuning the economy so the cap isn't silently blown past.
-    result = award_xp(user_id, adjusted_base, 'perfect_day')
-
-    db.session.add(StreakEvent(
+    # Claim the day BEFORE crediting anything. The marker row IS the
+    # idempotency key, so the insert has to be the race arbiter — this used to
+    # be a bare check-then-insert (DP-051), and the day-secured sweepers
+    # (daily-status, dashboard) make concurrent calls routine. Claiming first
+    # also means a lost race costs nothing: XP and the consecutive-days
+    # counter only move for the winner. Details are filled in below, once the
+    # award is computed.
+    marker = StreakEvent(
         user_id=user_id,
         event_type='xp_perfect_day',
         event_date=for_date,
         coins_delta=0,
-        details={
+        details={},
+    )
+    # The savepoint is taken OUTSIDE the try on purpose. `begin_nested()` takes
+    # its snapshot by flushing the session BEFORE emitting SAVEPOINT, so an
+    # IntegrityError from some unrelated row a caller staged upstream would
+    # otherwise land in the handler below and be misread as "lost the race" —
+    # returning None (day silently treated as already awarded) with the session
+    # left in PendingRollbackError. Only the marker insert is guarded. The `add`
+    # still happens inside the savepoint so a lost race expunges it.
+    savepoint = db.session.begin_nested()
+    try:
+        db.session.add(marker)
+        db.session.flush()
+        savepoint.commit()
+    except IntegrityError:
+        savepoint.rollback()
+        return None
+
+    # Claiming first is only safe if a failed award RELEASES the claim: the
+    # marker IS the idempotency key, and both sweeper call-sites swallow
+    # exceptions and commit anyway, so a row left behind with empty ``details``
+    # and no XP would make `_perfect_day_already_awarded` refuse the day
+    # forever. Anything that goes wrong below therefore un-claims the day and
+    # re-raises — a retry (the next dashboard render or /api/daily-status) can
+    # then still pay the bonus.
+    # Bound before the try so the release handler below can restore them even
+    # when the failure happens before they are assigned.
+    stats = None
+    current_consecutive = 0
+
+    try:
+        # Determine consecutive perfect day count. Paused days are streak-neutral
+        # (a plan_pause StreakEvent is written per paused day), so walk back over
+        # them transparently — otherwise returning from a pause would reset the
+        # perfect-day multiplier even though the streak is preserved (audit E-006).
+        probe = for_date - timedelta(days=1)
+        for _ in range(60):
+            is_paused = StreakEvent.query.filter_by(
+                user_id=user_id,
+                event_type='plan_pause',
+                event_date=probe,
+            ).first() is not None
+            if not is_paused:
+                break
+            probe -= timedelta(days=1)
+        had_yesterday = StreakEvent.query.filter_by(
+            user_id=user_id,
+            event_type='xp_perfect_day',
+            event_date=probe,
+        ).first() is not None
+
+        stats = UserStatistics.query.filter_by(user_id=user_id).first()
+        if stats is None:
+            stats = UserStatistics(user_id=user_id)
+            db.session.add(stats)
+            db.session.flush()
+
+        current_consecutive = int(stats.consecutive_perfect_days or 0)
+        new_consecutive = current_consecutive + 1 if had_yesterday else 1
+        stats.consecutive_perfect_days = new_consecutive
+
+        perfect_mult = get_perfect_day_multiplier(new_consecutive)
+        bonus_base_xp = PERFECT_DAY_BONUS_XP_LINEAR if is_linear else PERFECT_DAY_BONUS_XP
+        # round() (not int()/floor) to match award_xp / apply_score_to_base — the
+        # floor here systematically under-credited the perfect-day bonus (E-009).
+        adjusted_base = max(1, round(bonus_base_xp * perfect_mult))
+
+        # COMPOUNDING (audit E-015): the bonus is multiplied by perfect_mult HERE
+        # and again by the streak multiplier inside award_xp. Theoretical ceiling =
+        # base * MAX_PERFECT_DAY_MULTIPLIER(2.5) * MAX_STREAK_MULTIPLIER(2.0) =
+        # base * 5 (e.g. linear base 25 → 125 XP). Intentional, but keep this in
+        # view when tuning the economy so the cap isn't silently blown past.
+        result = award_xp(user_id, adjusted_base, 'perfect_day')
+
+        marker.details = {
             'xp': result.xp_awarded,
             'consecutive_days': new_consecutive,
             'perfect_day_multiplier': perfect_mult,
-        },
-    ))
+        }
+    except Exception:
+        try:
+            # Undo the whole claim, not just the marker: `consecutive_perfect_days`
+            # was already bumped above, and both sweepers swallow this exception and
+            # commit anyway — leaving it raised would make the retry increment a
+            # value that was never paid for and inflate the multiplier for good.
+            if stats is not None:
+                stats.consecutive_perfect_days = current_consecutive
+            db.session.delete(marker)
+            db.session.flush()
+        except Exception:
+            logger.warning(
+                "perfect-day claim could not be released for user %s date %s",
+                user_id, for_date, exc_info=True,
+            )
+        raise
     return result
 
 

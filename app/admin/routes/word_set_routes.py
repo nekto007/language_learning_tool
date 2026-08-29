@@ -9,6 +9,7 @@ coverage test derives its route list from the live URL map, so an unaudited
 mutation fails the suite rather than slipping through.
 """
 import logging
+import re
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
@@ -39,11 +40,13 @@ _TRANSLIT = {
 def _slugify(raw: str) -> str:
     """Reduce a name to an ASCII slug usable in a URL.
 
-    May legitimately return '' (a name of only punctuation or unsupported
-    script); callers must handle that rather than persist an empty slug.
+    Applied to a hand-typed slug as well as to an autofilled one: the slug is
+    interpolated straight into learner-facing URLs (`/study/sets/<slug>`, the
+    daily-plan item's `url`), so a value carrying a slash or a space yields a
+    link that cannot route. May legitimately return '' (a name of only
+    punctuation or unsupported script); callers must handle that rather than
+    persist an empty slug.
     """
-    import re
-
     lowered = (raw or '').lower()
     slug = ''.join(_TRANSLIT.get(char, char) for char in lowered)
     slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
@@ -57,15 +60,40 @@ def _slug_taken(slug: str, exclude_id: int | None = None) -> bool:
     return db.session.query(query.exists()).scalar()
 
 
+# Column widths from `WordSet`. Over-length input is truncated here rather
+# than left to raise DataError at commit: `admin_audit_required` calls the view
+# outside its own try block, so a commit-time DataError escapes as a bare 500
+# with the session left dirty instead of a form the admin can correct.
+_MAX_NAME = 120
+_MAX_ICON = 8
+_MAX_LEVEL = 10
+
+# `WordSet.sort_order` is a Postgres INTEGER; anything wider raises DataError at
+# commit, on the same uncaught path as the truncations above.
+_SORT_ORDER_MIN = -(2 ** 31)
+_SORT_ORDER_MAX = 2 ** 31 - 1
+
+
+def _clamp(value: str | None, limit: int) -> str | None:
+    if not value:
+        return None
+    return value[:limit]
+
+
 def _read_form(form) -> dict:
     accent = (form.get('accent') or '').strip()
+    raw_slug = (form.get('slug') or '').strip()
     return {
-        'name': (form.get('name') or '').strip(),
-        'slug': (form.get('slug') or '').strip(),
+        'name': (form.get('name') or '').strip()[:_MAX_NAME],
+        # Both the normalized slug and what was typed: an empty normalized slug
+        # means "autofill from the name" when the field was blank, but
+        # "unusable input" when it was not, and those need different answers.
+        'slug': _slugify(raw_slug),
+        'slug_raw': raw_slug,
         'description': (form.get('description') or '').strip() or None,
-        'icon': (form.get('icon') or '').strip() or None,
+        'icon': _clamp((form.get('icon') or '').strip(), _MAX_ICON),
         'accent': accent if accent in WORD_SET_ACCENTS else WORD_SET_ACCENTS[0],
-        'level': (form.get('level') or '').strip() or None,
+        'level': _clamp((form.get('level') or '').strip(), _MAX_LEVEL),
         'sort_order': _int_or_zero(form.get('sort_order')),
         'is_published': bool(form.get('is_published')),
     }
@@ -73,9 +101,10 @@ def _read_form(form) -> dict:
 
 def _int_or_zero(raw) -> int:
     try:
-        return int(raw)
+        value = int(raw)
     except (TypeError, ValueError):
         return 0
+    return max(_SORT_ORDER_MIN, min(value, _SORT_ORDER_MAX))
 
 
 @word_set_bp.route('/word-sets')
@@ -108,7 +137,12 @@ def word_set_create():
 
         slug = data['slug'] or _slugify(data['name'])
         if not slug:
-            flash('Не удалось построить слаг — задайте его вручную', 'danger')
+            flash(
+                'Слаг состоит из неподдерживаемых символов — задайте его латиницей'
+                if data['slug_raw'] else
+                'Не удалось построить слаг — задайте его вручную',
+                'danger',
+            )
             return render_template(
                 'admin/word_sets/form.html', word_set=None, accents=WORD_SET_ACCENTS, data=data
             ), 400
@@ -147,6 +181,13 @@ def word_set_edit(set_id):
         data = _read_form(request.form)
         if not data['name']:
             flash('Название обязательно', 'danger')
+            return render_template(
+                'admin/word_sets/form.html', word_set=word_set,
+                accents=WORD_SET_ACCENTS, data=data,
+            ), 400
+
+        if data['slug_raw'] and not data['slug']:
+            flash('Слаг состоит из неподдерживаемых символов — задайте его латиницей', 'danger')
             return render_template(
                 'admin/word_sets/form.html', word_set=word_set,
                 accents=WORD_SET_ACCENTS, data=data,
@@ -236,6 +277,15 @@ def word_set_add_word(set_id):
     db.session.add(WordSetWord(set_id=word_set.id, word_id=word.id, order_index=next_index))
     db.session.commit()
     flash(f'«{word.english_word}» добавлено', 'success')
+    # A word without a translation is dropped by ``WordSetService.get_words``:
+    # it can be neither a question nor a distractor, so it sits in the set
+    # without ever reaching a learner. Say so instead of letting the editor
+    # count it as content.
+    if not (word.russian_word or '').strip():
+        flash(
+            f'У «{word.english_word}» нет перевода — в квиз оно не попадёт',
+            'warning',
+        )
     return redirect(url_for('word_set_admin.word_set_words', set_id=set_id))
 
 

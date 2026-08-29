@@ -19,6 +19,11 @@ from app.words.models import CollectionWords
 THEMED_DISTRACTOR_QUOTA = 2
 
 
+def _is_usable(text: Optional[str]) -> bool:
+    """Can this side of a word stand as a prompt or a graded answer?"""
+    return bool(text and text.strip())
+
+
 def _answer_variants(text: Optional[str]) -> Set[str]:
     """Split a stored translation into its comparable variants.
 
@@ -83,8 +88,14 @@ class QuizService:
             if len(questions) >= count:
                 break
 
-            # Skip words without translations
-            if not word.russian_word or word.russian_word.strip() == '':
+            # Skip words blank on either side. Both are answers: the
+            # eng_to_rus question is graded on the Russian side, the
+            # rus_to_eng one on the English side, and each builds its hint by
+            # indexing the stripped answer's first character — a
+            # whitespace-only value there is an IndexError, not a bad
+            # question. Callers filter their own queries, but this is the one
+            # place every caller passes through.
+            if not _is_usable(word.russian_word) or not _is_usable(word.english_word):
                 continue
 
             # Generate English to Russian question
@@ -149,7 +160,13 @@ class QuizService:
             for candidate in candidates:
                 if len(chosen) >= needed or quota <= 0:
                     return
-                if candidate.id == word.id:
+                if candidate is word:
+                    continue
+                # A custom deck entry carries ``id is None`` by design (it has no
+                # CollectionWords row), so an id-only test would read every such
+                # entry as "this is the same word" and strip an all-custom deck
+                # of every distractor it has.
+                if candidate.id is not None and candidate.id == word.id:
                     continue
                 value = getattr(candidate, attribute, None)
                 if not value or not value.strip():

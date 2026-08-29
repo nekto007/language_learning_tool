@@ -345,6 +345,20 @@ class TestCalculateSM2Update:
         assert result['requeue_minutes'] is None
 
 
+def _stub_locked_card(mock_model, card):
+    """Wire the mock the way ``grade_card`` actually loads its row.
+
+    Grading takes a pessimistic lock —
+    ``query.filter_by(id=...).with_for_update().first()`` — so stubbing
+    ``query.get`` leaves the real chain returning a bare ``MagicMock``: the
+    card looks found but its ``user_word.user_id`` never matches, and every
+    assertion downstream reads «Access denied» instead of the graded result.
+    """
+    (mock_model.query.filter_by.return_value
+     .with_for_update.return_value
+     .first.return_value) = card
+
+
 class TestGradeCard:
     """Test card grading with database interaction."""
 
@@ -353,8 +367,13 @@ class TestGradeCard:
         return UnifiedSRSService()
 
     @pytest.fixture
-    def mock_card(self):
-        """Create a mock card with Anki-like state fields."""
+    def mock_card(self, test_user):
+        """Create a mock card with Anki-like state fields.
+
+        Owned by a real user: grading bumps ``UserStatistics``, and a
+        synthetic id fails that insert on the FK, poisoning the session for
+        everything the call does afterwards.
+        """
         card = MagicMock()
         card.id = 123
         card.state = CardState.NEW.value
@@ -366,21 +385,36 @@ class TestGradeCard:
         card.session_attempts = 0
         card.correct_count = 0
         card.incorrect_count = 0
+        # Every field grade_card reads has to be a real value, not an
+        # auto-created child mock: a MagicMock is truthy, so `srs_excluded`
+        # short-circuits to «Word excluded from SRS», and the numeric ones
+        # reach the state machine where comparisons raise into the blanket
+        # `except` and surface as «SRS update failed».
+        card.first_reviewed = None
+        card.buried_until = None
+        card.consecutive_leech_burials = 0
+        card.difficulty_score = 0
+        card.recovery_required = False
+        # No real UserWord row backs this mock, and the parent-status update
+        # runs a real `filter_by(id=card.user_word_id)`: a MagicMock id is not
+        # adaptable to a query parameter, so it would blow up the grade.
+        card.user_word_id = None
         card.user_word = MagicMock()
-        card.user_word.user_id = 1
+        card.user_word.user_id = test_user.id
         card.user_word.status = 'new'
+        card.user_word.srs_excluded = False
         return card
 
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_grade_card_success(self, mock_db, mock_model, service, mock_card):
+    def test_grade_card_success(self, mock_db, mock_model, service, mock_card, app, test_user):
         """Test successful card grading - NEW card with RATING_KNOW skips to REVIEW."""
-        mock_model.query.get.return_value = mock_card
+        _stub_locked_card(mock_model, mock_card)
 
         result = service.grade_card(
             card_id=123,
             rating=RATING_KNOW,
-            user_id=1,
+            user_id=test_user.id,
             session_key='test_session'
         )
 
@@ -398,7 +432,7 @@ class TestGradeCard:
     @patch('app.srs.service.UserCardDirection')
     def test_grade_card_not_found(self, mock_model, service):
         """Test grading non-existent card."""
-        mock_model.query.get.return_value = None
+        _stub_locked_card(mock_model, None)
 
         result = service.grade_card(
             card_id=999,
@@ -413,7 +447,7 @@ class TestGradeCard:
     def test_grade_card_access_denied(self, mock_model, service, mock_card):
         """Test grading card with wrong user."""
         mock_card.user_word.user_id = 2  # Different user
-        mock_model.query.get.return_value = mock_card
+        _stub_locked_card(mock_model, mock_card)
 
         result = service.grade_card(
             card_id=123,
@@ -426,14 +460,14 @@ class TestGradeCard:
 
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_grade_card_requeue_on_dont_know(self, mock_db, mock_model, service, mock_card):
+    def test_grade_card_requeue_on_dont_know(self, mock_db, mock_model, service, mock_card, app, test_user):
         """Test that rating 1 returns requeue position (8-15 range)."""
-        mock_model.query.get.return_value = mock_card
+        _stub_locked_card(mock_model, mock_card)
 
         result = service.grade_card(
             card_id=123,
             rating=RATING_DONT_KNOW,
-            user_id=1
+            user_id=test_user.id
         )
 
         assert result['success'] is True
@@ -441,14 +475,14 @@ class TestGradeCard:
 
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_grade_card_requeue_on_doubt(self, mock_db, mock_model, service, mock_card):
+    def test_grade_card_requeue_on_doubt(self, mock_db, mock_model, service, mock_card, app, test_user):
         """Test that rating 2 returns requeue position (15-25 range)."""
-        mock_model.query.get.return_value = mock_card
+        _stub_locked_card(mock_model, mock_card)
 
         result = service.grade_card(
             card_id=123,
             rating=RATING_DOUBT,
-            user_id=1
+            user_id=test_user.id
         )
 
         assert result['success'] is True
@@ -456,15 +490,15 @@ class TestGradeCard:
 
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_grade_card_no_requeue_at_max_attempts(self, mock_db, mock_model, service, mock_card):
+    def test_grade_card_no_requeue_at_max_attempts(self, mock_db, mock_model, service, mock_card, app, test_user):
         """Test no requeue when max attempts reached."""
         mock_card.session_attempts = 2  # Will become 3 after grading
-        mock_model.query.get.return_value = mock_card
+        _stub_locked_card(mock_model, mock_card)
 
         result = service.grade_card(
             card_id=123,
             rating=RATING_DONT_KNOW,  # Would normally requeue
-            user_id=1
+            user_id=test_user.id
         )
 
         assert result['success'] is True
@@ -472,11 +506,11 @@ class TestGradeCard:
 
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_grade_card_increments_session_attempts(self, mock_db, mock_model, service, mock_card):
+    def test_grade_card_increments_session_attempts(self, mock_db, mock_model, service, mock_card, app, test_user):
         """Test session attempts is incremented."""
-        mock_model.query.get.return_value = mock_card
+        _stub_locked_card(mock_model, mock_card)
 
-        service.grade_card(card_id=123, rating=RATING_KNOW, user_id=1)
+        service.grade_card(card_id=123, rating=RATING_KNOW, user_id=test_user.id)
 
         assert mock_card.session_attempts == 1
 
@@ -907,48 +941,58 @@ class TestGetOrCreateCardsForWord:
     @patch('app.srs.service.UserWord')
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_creates_user_word_if_not_exists(self, mock_db, mock_card, mock_user_word, service):
-        """Test UserWord is created if it doesn't exist."""
-        mock_user_word.query.filter_by.return_value.first.return_value = None
-        mock_card.query.filter_by.return_value.first.return_value = None
+    def test_creates_user_word_if_not_exists(
+        self, mock_db, mock_card, mock_user_word, service, app, test_user
+    ):
+        """A word with no UserWord yet is added to the default deck.
 
-        # Mock the new UserWord
+        Creation goes through the retrying `get_or_create` upserts, not a bare
+        `db.session.add`, so «was it created» is read off the pre-check being
+        empty plus the deck bookkeeping that only fires for a new word.
+        """
+        mock_user_word.query.filter_by.return_value.first.return_value = None
+
         new_user_word = MagicMock()
         new_user_word.id = 1
-        mock_user_word.return_value = new_user_word
+        mock_user_word.get_or_create.return_value = new_user_word
 
-        # Mock the new cards
         new_card = MagicMock()
-        mock_card.return_value = new_card
+        new_card.next_review = None
+        mock_card.get_or_create.return_value = new_card
 
-        # Mock ensure_word_in_default_deck which uses real DB queries
-        with patch('app.study.deck_utils.ensure_word_in_default_deck'):
+        with patch('app.study.deck_utils.ensure_word_in_default_deck') as ensure_deck:
             result = service.get_or_create_cards_for_word(
-                user_id=1,
-                word_id=100
+                user_id=test_user.id,
+                word_id=100,
             )
 
-        mock_db.session.add.assert_called()
+        mock_user_word.get_or_create.assert_called_once_with(test_user.id, 100)
+        ensure_deck.assert_called_once_with(test_user.id, 100, new_user_word.id)
         mock_db.session.flush.assert_called()
         assert len(result) == 2  # Both directions
 
     @patch('app.srs.service.UserWord')
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_uses_existing_user_word(self, mock_db, mock_card, mock_user_word, service):
-        """Test existing UserWord is used."""
+    def test_uses_existing_user_word(
+        self, mock_db, mock_card, mock_user_word, service, app, test_user
+    ):
+        """An existing UserWord is reused and not re-added to a deck."""
         existing_user_word = MagicMock()
         existing_user_word.id = 1
         mock_user_word.query.filter_by.return_value.first.return_value = existing_user_word
+        mock_user_word.get_or_create.return_value = existing_user_word
 
         existing_card = MagicMock()
-        mock_card.query.filter_by.return_value.first.return_value = existing_card
+        mock_card.get_or_create.return_value = existing_card
 
-        result = service.get_or_create_cards_for_word(
-            user_id=1,
-            word_id=100
-        )
+        with patch('app.study.deck_utils.ensure_word_in_default_deck') as ensure_deck:
+            result = service.get_or_create_cards_for_word(
+                user_id=test_user.id,
+                word_id=100,
+            )
 
+        ensure_deck.assert_not_called()
         assert len(result) == 2
         assert all(c == existing_card for c in result)
 

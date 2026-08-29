@@ -102,23 +102,21 @@ def _sync_unified_route_steps(
 
 
 def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
-    """Return recovery suggestion when yesterday's plan was not secured, else None."""
-    from datetime import datetime, timedelta
+    """Return recovery suggestion when yesterday's plan was not secured, else None.
 
-    import pytz
+    Both "was yesterday closed?" call-sites go through the one predicate in
+    ``next_step`` — this route used to answer it on a pytz calendar midnight
+    while ``/api/daily-plan/continuation`` used the study day, so the two
+    disagreed between 00:00 and 02:00 (DP-022). ``tz`` is kept for call-site
+    symmetry; the date must come from ``User.timezone``, which is what
+    ``DailyPlanLog.plan_date`` is keyed on.
+    """
+    from app.daily_plan.next_step import find_unsecured_yesterday
 
-    from app.daily_plan.models import DailyPlanLog
-
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    yesterday = (datetime.now(tz_obj) - timedelta(days=1)).date()
-    log = DailyPlanLog.query.filter_by(user_id=user_id, plan_date=yesterday).first()
-
-    if log is None or log.secured_at is not None:
+    found = find_unsecured_yesterday(user_id)
+    if found is None:
         return None
+    yesterday, log = found
 
     action_url = '/dashboard'
 
@@ -127,27 +125,33 @@ def _get_recovery_suggestion(user_id: int, tz: str) -> dict | None:
 
 
 def _compute_listening_goal(user, tz: str) -> dict:
-    """Compute listening goal progress for today.
+    """Compute listening goal progress for the user's study day.
 
     Returns dict with listening_goal_minutes, listening_minutes_today,
     listening_goal_reached.
+
+    Anchored on the study day (02:00 local) and keyed on ``User.timezone``,
+    like its two siblings in this response (``_compute_study_minutes``,
+    ``_compute_goal_progress``). It used to sit on a client-``tz`` calendar
+    midnight, so a single ``/api/daily-status`` body reported
+    ``listening_minutes_today`` for a different day than
+    ``minutes_studied_today`` and ``goal_progress`` between 00:00 and 02:00,
+    and a client could shift this one field by sending another zone.
+
+    ``tz`` is accepted for call-site symmetry but deliberately unused.
     """
-    from datetime import datetime
-
-    import pytz
-
     from app.curriculum.models import Lessons, ListeningAttempt
+    from app.utils.time_utils import (
+        get_user_local_date,
+        get_user_timezone_name,
+        study_day_start_utc,
+    )
 
     goal = (user.listening_goal_minutes or 0) if user.listening_goal_minutes is not None else 10
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    now_local = datetime.now(tz_obj)
-    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_start_utc = today_start_local.astimezone(pytz.utc).replace(tzinfo=None)
+    today = get_user_local_date(user.id, db)
+    tz_name = get_user_timezone_name(user.id, db)
+    today_start_utc = study_day_start_utc(tz_name, today).replace(tzinfo=None)
 
     attempts = (
         ListeningAttempt.query
@@ -196,20 +200,22 @@ def _compute_listening_goal(user, tz: str) -> dict:
 
 
 def _compute_study_minutes(user, tz: str) -> int:
-    """Return minutes_studied_today from DailyStudyMinutes for the user's local date."""
-    from datetime import datetime
+    """Return minutes_studied_today from DailyStudyMinutes for the user's study day.
 
-    import pytz
+    The writer (``award_linear_slot_xp_idempotent`` → ``add_study_minutes``)
+    keys the row on ``get_linear_event_local_date``, i.e. the study day.
+    Reading it back by calendar date meant minutes earned between 00:00 and
+    02:00 were written under yesterday and never read by anyone (DP-010).
 
+    ``tz`` is accepted for call-site symmetry but deliberately not used: the
+    lookup key must come from ``User.timezone``, the same source the writer
+    used, so a client-supplied zone cannot shift the date.
+    """
     from app.curriculum.models import get_minutes_today
     from app.utils.db import db
+    from app.utils.time_utils import get_user_local_date
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    today = datetime.now(tz_obj).date()
+    today = get_user_local_date(user.id, db)
     try:
         return get_minutes_today(user.id, today, db)
     except Exception:
@@ -222,28 +228,35 @@ def _compute_goal_progress(user, tz: str) -> dict:
 
     Returns dict with goal_progress containing daily_words and weekly_lessons
     sub-dicts, each with goal, actual, and reached fields.
-    """
-    from datetime import datetime, timedelta
 
-    import pytz
+    Both halves are anchored on the study day. ``daily_words`` always was
+    (``count_new_cards_today`` → ``day_to_naive_utc``); the week used to start
+    at calendar midnight from the client ``tz``, so at 00:30 on a Monday the
+    two disagreed about which week it was — ``daily_words`` still reported
+    Sunday's study day while ``weekly_lessons`` had already reset (DP-026).
+
+    ``tz`` is accepted for call-site symmetry but deliberately unused: the
+    zone must be the one the study day was derived from, i.e. ``User.timezone``.
+    """
+    from datetime import timedelta
 
     from app.curriculum.models import LessonProgress
     from app.srs.counting import count_new_cards_today
+    from app.utils.time_utils import (
+        get_user_local_date,
+        get_user_timezone_name,
+        study_day_start_utc,
+    )
 
     daily_word_goal = user.daily_word_goal if user.daily_word_goal is not None else 10
     weekly_lesson_goal = user.weekly_lesson_goal if user.weekly_lesson_goal is not None else 5
 
     words_today = count_new_cards_today(user.id)
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TZ)
-
-    now_local = datetime.now(tz_obj)
-    days_since_monday = now_local.weekday()  # 0=Monday
-    monday_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
-    monday_utc = monday_local.astimezone(pytz.utc).replace(tzinfo=None)
+    study_today = get_user_local_date(user.id, db)
+    tz_name = get_user_timezone_name(user.id, db)
+    monday_study_date = study_today - timedelta(days=study_today.weekday())  # 0=Monday
+    monday_utc = study_day_start_utc(tz_name, monday_study_date).replace(tzinfo=None)
 
     lessons_this_week = LessonProgress.query.filter(
         LessonProgress.user_id == user.id,
@@ -364,10 +377,40 @@ def daily_status():
             except Exception:
                 logger.warning("plan-completion / rank-up recording failed for user %s", user_id, exc_info=True)
             try:
+                # check_immersion_achievement's contract: `tz` MUST be the zone
+                # `target_date` was derived from, or the UTC window it builds is
+                # offset from the user's real day. `today` comes from
+                # User.timezone, so the client's `tz` query param cannot be
+                # passed here — it would skew the window by the zone difference
+                # and award/deny immersion on neighbouring days' activity
+                # (DP-013). Same principle as secured_at two blocks up.
                 from app.achievements.services import check_immersion_achievement
-                check_immersion_achievement(user_id, today, db.session, tz=tz)
+                from app.utils.time_utils import get_user_timezone_name
+                check_immersion_achievement(
+                    user_id, today, db.session,
+                    tz=get_user_timezone_name(user_id, db.session),
+                )
             except Exception:
                 logger.warning("immersion achievement check failed for user %s", user_id, exc_info=True)
+            try:
+                # Perfect-day sweeper (DP-035). Slot handlers award the bonus
+                # only when the LAST action of the day went through one of
+                # them; a day closed by standalone grammar-lab, book SRS or a
+                # game reached no awarding call-site at all, so 30 of 72 closed
+                # days in production carried no xp_perfect_day. Gate is the
+                # already-computed day_secured; idempotency is the helper's
+                # own (StreakEvent per user+date), no extra flag needed.
+                from app.daily_plan.linear.xp import maybe_award_linear_perfect_day
+                perfect_day = maybe_award_linear_perfect_day(
+                    user_id, for_date=today, db_session=db,
+                )
+                if perfect_day is not None:
+                    logger.info(
+                        "perfect_day_bonus user=%s xp=%d total=%d source=daily_status",
+                        user_id, perfect_day.xp_awarded, perfect_day.new_total_xp,
+                    )
+            except Exception:
+                logger.warning("perfect-day sweep failed for user %s", user_id, exc_info=True)
             try:
                 from app.notifications.services import check_plan_streak_milestone_notification
                 _streak = streak_result.get('streak_status', {}).get('streak', 0)
@@ -542,9 +585,16 @@ def streak():
         streak, coins_balance, has_activity_today, can_repair, missed_date, repair_cost
     """
     from app.achievements.streak_service import get_streak_status
+    from app.utils.time_utils import get_user_timezone_name
 
-    tz = _validate_timezone(request.args.get('tz', DEFAULT_TZ))
     user_id = current_user.id
+    # Read and write must name the same day (DP-001): this endpoint reports
+    # `missed_date` / `can_repair` straight out of `find_missed_date`, and
+    # `/api/streak/repair` resolves that date from `User.timezone`. Answering on
+    # a client-supplied `tz` let the two disagree — the caller was shown one gap
+    # and repaired another, or got `400 no_missed_date` on an offered repair.
+    # The `tz` query param stays accepted for backward compatibility, display-only.
+    tz = get_user_timezone_name(user_id, db.session)
     status = get_streak_status(user_id, tz=tz)
 
     return jsonify({'success': True, **status})
@@ -555,8 +605,11 @@ def streak():
 def daily_race_status():
     """Return current daily race standings for the authenticated user.
 
-    Query params:
-        tz (str): User timezone, e.g. 'Europe/Moscow'. Default: project default.
+    Takes no effective query params: the zone comes from ``User.timezone`` via
+    ``get_user_timezone_name``, never from the client. Race points are scored
+    over study-day windows that every other reader also derives from the stored
+    zone, so honouring a client ``?tz=`` would bucket the caller's own points
+    into a day nobody else agrees on.
 
     Enrolls the caller into a race cohort on first visit of the local day,
     recomputes points from their current plan snapshot, and returns the
@@ -570,7 +623,6 @@ def daily_race_status():
     )
     from app.auth.models import User
 
-    tz = _validate_timezone(request.args.get('tz', current_user.timezone or DEFAULT_TZ))
     user_id = current_user.id
 
     if not is_daily_race_enabled():
@@ -592,10 +644,17 @@ def daily_race_status():
 
     # Дата кохорты гонки — по User.timezone: клиентский tz позволял бы
     # зачислиться в две гонки (две даты) за один реальный день.
-    from app.utils.time_utils import get_user_local_date
+    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
     local_today = get_user_local_date(user_id, db.session)
 
-    standings = get_race_standings(user_id, local_today, tz=tz)
+    # The zone must come from the same place as the date above: `compute_ghost_points`
+    # rebuilds its own study day from this `tz` and compares it to `race_date`, so a
+    # client zone a few hours off the stored one pinned every ghost at 0 or at full
+    # target for the whole request. The `tz` query param is ignored for the same
+    # reason the cohort date ignores it.
+    standings = get_race_standings(
+        user_id, local_today, tz=get_user_timezone_name(user_id, db.session)
+    )
     db.session.commit()
 
     return jsonify({'success': True, 'race': standings})
@@ -1189,8 +1248,15 @@ def streak_repair():
     from app.achievements.streak_service import apply_paid_repair, find_missed_date
     from app.telegram.queries import get_current_streak
 
+    from app.utils.time_utils import get_user_timezone_name
+
     user_id = current_user.id
-    tz = _validate_timezone((request.get_json(silent=True) or {}).get('tz', DEFAULT_TZ))
+    # The repaired DATE must come from User.timezone, never the request body
+    # (DP-001): find_missed_date, has_repair_for_date, get_current_streak and
+    # auto_heal_streak_on_activity all read the study day of the stored zone, so
+    # a client-supplied `tz` would spend coins writing a `spent_repair` row onto
+    # a date none of the readers treat as the gap. The body's `tz` is display-only.
+    tz = get_user_timezone_name(user_id, db.session)
 
     missed = find_missed_date(user_id, tz=tz)
     if not missed:

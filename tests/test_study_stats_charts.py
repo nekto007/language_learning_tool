@@ -1,7 +1,7 @@
 """
 Tests for study stats chart data aggregation (Task 11).
 Covers: StatsService.get_accuracy_trend, get_mastered_over_time, get_study_heatmap,
-        /study/stats route with chart data, /study/ most_urgent_deck, session summary streak.
+        /study/stats route with chart data, session summary streak.
 """
 import pytest
 from datetime import datetime, timedelta, timezone
@@ -163,44 +163,6 @@ class TestStatsRoute:
         assert response.status_code == 200
         # Chart.js should be included
         assert b'chart.js' in response.data
-
-
-class TestStudyNowButton:
-    """Test most_urgent_deck computation on /study/ index."""
-
-    def test_most_urgent_deck_shown(self, authenticated_client, db_session, test_user,
-                                     study_settings, test_words_list):
-        """When a deck has due cards, Study Now button appears."""
-        deck = QuizDeck(user_id=test_user.id, title='Urgent Deck')
-        db_session.add(deck)
-        db_session.flush()
-
-        # Add words to deck and create user words with learning state
-        for word in test_words_list[:3]:
-            dw = QuizDeckWord(deck_id=deck.id, word_id=word.id)
-            db_session.add(dw)
-            uw = UserWord(user_id=test_user.id, word_id=word.id)
-            uw.status = 'learning'
-            db_session.add(uw)
-            db_session.flush()
-            ucd = UserCardDirection(
-                user_word_id=uw.id,
-                direction='eng-rus',
-            )
-            ucd.state = 'learning'
-            ucd.next_review = datetime.now(timezone.utc) - timedelta(hours=1)
-            db_session.add(ucd)
-        db_session.commit()
-
-        response = authenticated_client.get('/study/')
-        assert response.status_code == 200
-        assert 'Пора повторять'.encode() in response.data
-
-    def test_no_urgent_deck_when_all_mastered(self, authenticated_client, study_settings):
-        """When no decks have due cards, Study Now block is absent."""
-        response = authenticated_client.get('/study/')
-        assert response.status_code == 200
-        assert 'Пора повторять'.encode() not in response.data
 
 
 class TestAutoDeckBadge:

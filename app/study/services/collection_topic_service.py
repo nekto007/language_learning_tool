@@ -145,6 +145,10 @@ class CollectionTopicService:
         """
         Add all words from collection to user's study list and default deck.
 
+        The insert goes through ``UserWord.get_or_create``: the bulk read below
+        is a snapshot, and ``uix_user_word`` turns a stale one into an
+        ``IntegrityError`` on flush, so a double-click answered 500.
+
         Returns:
             Tuple of (added_count, message)
         """
@@ -164,8 +168,7 @@ class CollectionTopicService:
         added_count = 0
         for word in words:
             if word.id not in existing_word_ids:
-                user_word = UserWord(user_id=user_id, word_id=word.id)
-                db.session.add(user_word)
+                user_word = UserWord.get_or_create(user_id, word.id)
                 db.session.flush()
                 ensure_word_in_default_deck(user_id, word.id, user_word.id)
                 added_count += 1
@@ -253,6 +256,10 @@ class CollectionTopicService:
         """
         Add all words from topic to user's study list and default deck.
 
+        The insert goes through ``UserWord.get_or_create``: the bulk read below
+        is a snapshot, and ``uix_user_word`` turns a stale one into an
+        ``IntegrityError`` on flush, so a double-click answered 500.
+
         Returns:
             Tuple of (added_count, message)
         """
@@ -272,8 +279,7 @@ class CollectionTopicService:
         added_count = 0
         for word in words:
             if word.id not in existing_word_ids:
-                user_word = UserWord(user_id=user_id, word_id=word.id)
-                db.session.add(user_word)
+                user_word = UserWord.get_or_create(user_id, word.id)
                 db.session.flush()
                 ensure_word_in_default_deck(user_id, word.id, user_word.id)
                 added_count += 1

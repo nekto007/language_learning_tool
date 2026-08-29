@@ -122,9 +122,14 @@ def write_secured_at(user_id: int, plan_date: date, mission_type: Optional[str] 
             plan_date=plan_date,
             mission_type=mission_type,
         )
-        db.session.add(log)
         try:
+            # `add` has to happen INSIDE the savepoint: begin_nested() takes a
+            # snapshot by flushing the session BEFORE the SAVEPOINT is emitted,
+            # so an insert staged earlier fires in the OUTER transaction and the
+            # IntegrityError leaves the whole session in PendingRollbackError —
+            # the re-fetch below would then raise instead of recovering.
             with db.session.begin_nested():
+                db.session.add(log)
                 db.session.flush()
         except IntegrityError:
             # Lost the race — the row now exists (committed by the other tx).

@@ -24,6 +24,7 @@ from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.slots import LinearSlot
 from app.srs.constants import CardState
 from app.study.models import QuizDeck, QuizDeckWord
+from app.utils.db_utils import not_blank
 from app.words.models import CollectionWords
 
 _SRS_SLOT_ETA_MINUTES = 8
@@ -52,18 +53,22 @@ def _linear_srs_completed_today(user_id: int, db: Any) -> bool:
 
 
 def _count_user_deck_quiz_words(user_id: int, db: Any) -> int:
+    """How many deck words the deck quiz could actually turn into questions.
+
+    ``not_blank`` rather than ``!= ''`` on purpose: this count decides whether
+    the required SRS slot is swapped for a deck quiz, and the generator drops
+    a word whose either side is blank *after trimming*. A raw ``!= ''`` counts
+    a tab-only word as playable, so the plan would offer a quiz the generator
+    then refuses to fill — an unclosable required slot for the day.
+    """
     valid_custom_word = and_(
-        QuizDeckWord.custom_english.isnot(None),
-        QuizDeckWord.custom_english != '',
-        QuizDeckWord.custom_russian.isnot(None),
-        QuizDeckWord.custom_russian != '',
+        not_blank(QuizDeckWord.custom_english),
+        not_blank(QuizDeckWord.custom_russian),
     )
     valid_collection_word = and_(
         QuizDeckWord.word_id.isnot(None),
-        CollectionWords.english_word.isnot(None),
-        CollectionWords.english_word != '',
-        CollectionWords.russian_word.isnot(None),
-        CollectionWords.russian_word != '',
+        not_blank(CollectionWords.english_word),
+        not_blank(CollectionWords.russian_word),
     )
     rows = (
         db.session.query(

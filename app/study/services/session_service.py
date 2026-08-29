@@ -17,13 +17,20 @@ class SessionService:
     """Service for managing study sessions"""
 
     @staticmethod
-    def start_session(user_id: int, session_type: str) -> StudySession:
+    def start_session(
+        user_id: int,
+        session_type: str,
+        word_set_id: Optional[int] = None,
+    ) -> StudySession:
         """
         Start a new study session
 
         Args:
             user_id: User ID
             session_type: Type of session ('cards', 'quiz', 'matching')
+            word_set_id: Curated set this run belongs to, for themed quizzes.
+                Recorded server-side so completion never has to trust the slug
+                the client posts back.
 
         Returns:
             Created StudySession object
@@ -31,6 +38,7 @@ class SessionService:
         session = StudySession(
             user_id=user_id,
             session_type=session_type,
+            word_set_id=word_set_id,
             start_time=datetime.now(timezone.utc)
         )
         db.session.add(session)

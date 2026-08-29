@@ -7,7 +7,7 @@ Language Learning Tool — каталог HTTP-эндпоинтов прилож
 **Соглашения.**
 - Все ответы — `application/json`, если не указано иное.
 - Ошибки, собранные через `api_error()` (`app/api/errors.py`), имеют вид `{"success": false, "error": "<code>", "message": "<текст>", "status": <int>}`. Часть старых обработчиков отдаёт `{"success": false, "error": "<текст>"}` — это отмечено по месту.
-- `tz` в Daily Plan API валидируется через `ZoneInfo`; невалидное значение молча заменяется на `DEFAULT_TIMEZONE` (env `DEFAULT_TIMEZONE`, дефолт `Europe/Moscow`). Дедуп XP/стриков всё равно считается по `User.timezone`, а не по клиентскому `tz`.
+- `tz` в Daily Plan API валидируется через `ZoneInfo`; невалидное значение молча заменяется на `DEFAULT_TIMEZONE` (env `DEFAULT_TIMEZONE`, дефолт `Europe/Moscow`). `tz` влияет **только на отображение**: все дневные окна ответа (`minutes_studied_today`, `listening_*`, `goal_progress`, `recovery_suggestion`, ачивки иммерсии, кохорта дневной гонки, дедуп XP/стриков и выбор чинимой даты в `streak/repair`) считаются по **учебному дню** (граница 02:00) от `User.timezone` и клиентским `tz` не сдвигаются.
 
 ## Содержание
 
@@ -822,9 +822,10 @@ Health-пинг ридер-API.
 
 | Параметр | Тип | Описание |
 |----------|-----|----------|
-| source | string | `auto` или `linear_plan_deck_quiz` |
-| count | int | Количество (default: 20, max: 200; для слота плана — свой лимит) |
+| source | string | `auto`, `linear_plan_deck_quiz` или `word_set` |
+| count | int | Количество (default: 20, max: 200; для `linear_plan_deck_quiz` — 30) |
 | deck_id | int | ID колоды |
+| set | string | Слаг набора; обязателен при `source=word_set` |
 
 **Response:**
 ```json
@@ -840,15 +841,19 @@ Health-пинг ридер-API.
 ```
 Типы вопросов: `multiple_choice`, `fill_blank`. Нет слов → `{"status": "error", "message": "No words available for quiz", "questions": []}`.
 
+При `source=word_set` весь набор подаётся в дистракторы, даже если в вопросы попадает лишь часть слов: неверные варианты набираются сначала из набора (`THEMED_DISTRACTOR_QUOTA`), остаток — из общего словаря. Ошибки: `404 {"status": "error", "message": "Word set not found"}` (нет набора или он не опубликован), `200 {"status": "error", "message": "No words in set"}`.
+
 ### `POST /study/api/submit-quiz-answer`
-Зафиксировать ответ: обновляет счётчики сессии и продвигает SM-2 состояние карточки.
+Зафиксировать ответ: обновляет счётчики сессии и (кроме тематических наборов) продвигает SM-2 состояние карточки.
 
 **Body:**
 ```json
 { "session_id": 42, "is_correct": true, "word_id": 1, "direction": "eng-rus" }
 ```
 
-**Response:** `{ "success": true, "srs_graded": true }` (`srs_graded=false`, если карточки нет, слово исключено или исчерпан бюджет новых).
+**Response:** `{ "success": true, "srs_graded": true }`.
+
+`srs_graded=false`, если: карточки нет, слово исключено, исчерпан бюджет новых, сессия открыта как тематический квиз набора (`session_type='quiz_word_set'`) — тип читается с сессии, флаг из тела запроса не принимается, — либо `session_id` не передан / не резолвится в сессию текущего пользователя (гейт fail-closed).
 
 ### `POST /study/api/complete-quiz`
 Завершение квиза: результат, XP, ачивки.
@@ -856,8 +861,11 @@ Health-пинг ридер-API.
 **Body:**
 ```json
 { "session_id": 42, "deck_id": 5, "total_questions": 10, "correct_answers": 8,
-  "time_taken": 120, "has_streak": false, "source": "linear_plan_deck_quiz", "from": "linear_plan", "slot": "srs" }
+  "time_taken": 120, "has_streak": false, "source": "linear_plan_deck_quiz", "from": "linear_plan", "slot": "srs",
+  "set_slug": "colors" }
 ```
+
+`set_slug` — только для тематического квиза. Строка `WordSetQuizResult` пишется, если сессия принадлежит текущему пользователю и имеет тип `quiz_word_set`; запись best-effort — её отказ логируется и не валит уже пройденный квиз.
 
 **Response:**
 ```json
@@ -1455,7 +1463,7 @@ SRS-состояние конкретного упражнения; для не�
 ## Daily Plan API
 
 ### `GET /api/daily-status`
-Единый эндпоинт: план + сводка + стрик + цели за один запрос. Побочные эффекты при закрытом дне: `secured_at`, ранги, ачивки иммерсии, майлстоуны стрика, очки дневной гонки.
+Единый эндпоинт: план + сводка + стрик + цели за один запрос. Побочные эффекты при закрытом дне: `secured_at`, ранги, ачивки иммерсии, майлстоуны стрика, бонус perfect-day (25 XP, идемпотентно раз в учебный день), очки дневной гонки.
 
 **Auth:** `@api_auth_required`
 
@@ -1576,7 +1584,7 @@ SRS-состояние конкретного упражнения; для не�
 
 **Auth:** `@api_auth_required`
 
-**Body:** `{ "tz": "Europe/Moscow" }`
+**Body:** `{}` — тело не читается. Зона (а значит и чинимая дата) берётся из `User.timezone`; присланный `tz` игнорируется, иначе монеты уходили бы на починку дня, которого читатели маркера не считают дырой.
 
 **Response:** `{ "success": true, "new_streak": 8 }`
 **Errors:** `400 no_missed_date`; при нехватке монет — `{"success": false, "error": "insufficient_coins", "cost": 5, "balance": 2}`.
@@ -1586,7 +1594,7 @@ SRS-состояние конкретного упражнения; для не�
 
 **Auth:** `@login_required`
 
-**Body:** `{ "tz": "Europe/Moscow" }`
+**Body:** `{}` — как и у `/api/streak/repair`, зона берётся из `User.timezone`.
 
 **Errors:** `400 {"success": false, "error": "no_missed_date"}`.
 
@@ -1630,7 +1638,7 @@ SRS-состояние конкретного упражнения; для не�
 Вложенный `next` — легаси-обёртка над плоскими `next_slot_*`. При внутренней ошибке отдаёт `200 {"success": false, "day_secured": false, "next": null}`.
 
 ### `GET /api/daily-plan/continuation`
-До 3 рекомендаций «что дальше» после закрытия дня (эвристики приоритета: урок > SRS > слабая грамматика > чтение > словарь).
+До 3 рекомендаций «что дальше» после закрытия дня (эвристики приоритета: восстановление незакрытого вчера > урок > SRS > письмо > слабая грамматика > чтение > словарь).
 
 **Auth:** `@api_auth_required`
 

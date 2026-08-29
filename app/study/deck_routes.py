@@ -435,7 +435,10 @@ def add_topic(topic_id):
             'message': _('%(count)d words added to your study list!', count=added_count)
         })
 
-    return redirect(url_for('study.topics'))
+    # Back to collections, not to `study.topics`: that route is now only a
+    # redirect to the curated-sets catalogue, so returning there would drop the
+    # admin onto a page unrelated to the topic they just added from.
+    return redirect(url_for('study.collections'))
 
 
 # ============ Deck API Endpoints ============

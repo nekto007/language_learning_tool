@@ -24,6 +24,7 @@ from typing import Any, Optional
 from app.achievements.xp_service import (
     LINEAR_XP,
     XPAward,
+    _perfect_day_already_awarded,
     award_linear_xp,
     award_perfect_day_xp_idempotent,
 )
@@ -529,6 +530,13 @@ def maybe_award_linear_perfect_day(
 
     from app.utils.time_utils import get_user_timezone_name
     when = for_date or get_linear_event_local_date(user_id, db_session)
+    # Cheap pre-check before assembling anything: the day-secured sweepers
+    # (daily-status, dashboard — DP-035) call this on every request of an
+    # already-closed day, and re-assembling the unified plan only to discover
+    # the bonus is on record is pure waste.
+    if _perfect_day_already_awarded(user_id, when):
+        return None
+
     tz = get_user_timezone_name(user_id, db_session)
 
     try:

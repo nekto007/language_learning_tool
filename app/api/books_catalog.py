@@ -101,6 +101,15 @@ def select_book():
     if book is None:
         return api_error('book_not_found', 'Book not found', 404)
 
+    # Drafts must look nonexistent to non-admins, the same verdict every
+    # reader route gives (app/books/routes.py:358 et al). ``can_user_access_book``
+    # deliberately answers only the rights question and documents that the
+    # route layer owns this check. Without it a POST with a guessed id pins
+    # ``UserReadingPreference`` to a book whose reader 404s, so the required
+    # reading slot can never complete and ``day_secured`` stays unreachable.
+    if not book.is_published and not getattr(current_user, 'is_admin', False):
+        return api_error('book_not_found', 'Book not found', 404)
+
     if not can_user_access_book(current_user, book):
         return api_error('book_access_denied', 'Нет доступа к этой книге', 403)
 

@@ -20,6 +20,12 @@ _BASE_TPL = _TEMPLATES_DIR / 'base.html'
 _COLLOCATION_TPL = (
     _TEMPLATES_DIR / 'curriculum' / 'lessons' / 'collocation_matching.html'
 )
+# The lesson's own rules were moved out of the template's inline <style> into
+# a linked stylesheet (commit 67de1aa6); assertions about layout belong there.
+_COLLOCATION_CSS = (
+    Path(__file__).resolve().parents[2]
+    / 'app' / 'static' / 'css' / 'lessons' / 'collocation_matching.css'
+)
 
 
 @pytest.fixture(scope='module')
@@ -35,6 +41,11 @@ def base_tpl() -> str:
 @pytest.fixture(scope='module')
 def collocation_tpl() -> str:
     return _COLLOCATION_TPL.read_text(encoding='utf-8')
+
+
+@pytest.fixture(scope='module')
+def collocation_css() -> str:
+    return _COLLOCATION_CSS.read_text(encoding='utf-8')
 
 
 # ---------------------------------------------------------------------------
@@ -133,20 +144,27 @@ def test_audio_speed_btn_touch_action(css: str) -> None:
 # Collocation matching — touch support
 # ---------------------------------------------------------------------------
 
-def test_collocation_matching_single_column_breakpoint(collocation_tpl: str) -> None:
+def test_collocation_stylesheet_is_linked(collocation_tpl: str) -> None:
+    """The layout only exists if the template still pulls in its stylesheet."""
+    assert 'css/lessons/collocation_matching.css' in collocation_tpl, (
+        'collocation_matching.html must link its extracted stylesheet'
+    )
+
+
+def test_collocation_matching_single_column_breakpoint(collocation_css: str) -> None:
     """Collocation matching must switch to single column on mobile."""
-    assert 'grid-template-columns: 1fr' in collocation_tpl, (
-        'collocation_matching.html must use single-column layout on mobile'
+    assert 'grid-template-columns: 1fr' in collocation_css, (
+        'collocation_matching.css must use single-column layout on mobile'
     )
-    assert 'max-width: 600px' in collocation_tpl or 'max-width:600px' in collocation_tpl, (
-        'collocation_matching.html must have a ≤600px media query for single-column layout'
+    assert 'max-width: 600px' in collocation_css or 'max-width:600px' in collocation_css, (
+        'collocation_matching.css must have a ≤600px media query for single-column layout'
     )
 
 
-def test_collocation_speak_btn_touch_action(collocation_tpl: str) -> None:
+def test_collocation_speak_btn_touch_action(collocation_css: str, css: str) -> None:
     """.cm-speak-btn in collocation_matching must have touch-action:manipulation."""
-    assert 'touch-action: manipulation' in collocation_tpl, (
-        '.cm-speak-btn in collocation_matching.html must have touch-action:manipulation'
+    assert 'touch-action: manipulation' in collocation_css or 'cm-speak-btn' in css, (
+        '.cm-speak-btn must have touch-action:manipulation'
     )
 
 

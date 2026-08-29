@@ -11,9 +11,10 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta
 
 import pytest
+from freezegun import freeze_time
 
 from app.achievements.models import StreakEvent
 from app.auth.models import User
@@ -219,6 +220,118 @@ class TestRollover:
         assert all(it.get('id') != 'curriculum:lesson:777' for it in snap['items'])
 
 
+class TestRolloverStudyDayBoundary:
+    """DP-002 / DP-009: окно roll-over якорится в 02:00, не в полночь.
+
+    ``plan_date`` приходит уже учебной датой (`get_user_local_date`), поэтому
+    окно `[дата 00:00, дата+1 00:00)` было сдвинуто на два часа: занятие в
+    00:30 роняло снапшот дважды (день «пропущен», хотя юзер занимался);
+    занятие позапрошлой ночью, наоборот, гасило законный перенос.
+    """
+
+    def _seed_yesterday(self, db_session, user, yesterday, lesson_marker):
+        prior = {
+            'version': SNAPSHOT_VERSION,
+            'date': yesterday.isoformat(),
+            'tier': 'calm',
+            'rolled_over_from': None,
+            'items': [{
+                'id': f'curriculum:lesson:{lesson_marker}',
+                'section': 'required',
+                'kind': 'curriculum',
+                'title': 'Yesterday lesson',
+                'subtitle': None,
+                'lesson_type': 'vocabulary',
+                'eta_minutes': 8,
+                'url': f'/learn/{lesson_marker}/',
+                'completion_signal': 'lesson_completed',
+                'data': {'lesson_id': lesson_marker},
+            }],
+        }
+        db_session.add(DailyPlanLog(
+            user_id=user.id, plan_date=yesterday, plan_json=prior,
+        ))
+        return prior
+
+    def test_window_starts_at_learning_day_hour(self, db_session, user):
+        from app.daily_plan.snapshot import _local_date_start_naive_utc
+        from app.utils.time_utils import LEARNING_DAY_START_HOUR
+
+        user.timezone = 'UTC'
+        db_session.commit()
+
+        plan_date = study_today() - timedelta(days=10)
+        start = _local_date_start_naive_utc(user.id, plan_date, real_db)
+
+        assert start == datetime.combine(
+            plan_date, time(hour=LEARNING_DAY_START_HOUR),
+        )
+
+    def test_after_midnight_activity_belongs_to_that_study_day(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Занятие в 01:00 календарного «завтра» — это ещё вчерашний день."""
+        user.timezone = 'UTC'
+        today = study_today() - timedelta(days=10)
+        yesterday = today - timedelta(days=1)
+        self._seed_yesterday(db_session, user, yesterday, 666)
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='in_progress',
+            # 01:00 на календарной дате `today` — внутри учебного дня
+            # `yesterday` (02:00 вчера … 02:00 сегодня).
+            last_activity=datetime.combine(today, time(hour=1)),
+        ))
+        db_session.commit()
+
+        snap = resolve_snapshot_for_today(user.id, today, real_db)
+
+        assert snap['rolled_over_from'] is None
+        assert all(it.get('id') != 'curriculum:lesson:666' for it in snap['items'])
+
+    def test_activity_before_study_day_start_does_not_block_rollover(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Занятие в 01:00 вчерашней календарной даты — это позавчера."""
+        user.timezone = 'UTC'
+        today = study_today() - timedelta(days=10)
+        yesterday = today - timedelta(days=1)
+        prior = self._seed_yesterday(db_session, user, yesterday, 555)
+        db_session.add(LessonProgress(
+            user_id=user.id, lesson_id=vocabulary_lesson.id,
+            status='in_progress',
+            last_activity=datetime.combine(yesterday, time(hour=1)),
+        ))
+        db_session.commit()
+
+        snap = resolve_snapshot_for_today(user.id, today, real_db)
+
+        assert snap['rolled_over_from'] == yesterday.isoformat()
+        assert snap['items'] == prior['items']
+
+    def test_rollover_does_not_fire_twice_for_the_same_day(
+        self, db_session, user, vocabulary_lesson,
+    ):
+        """Повторный resolve возвращает уже записанный снапшот, не переносит заново."""
+        user.timezone = 'UTC'
+        today = study_today() - timedelta(days=10)
+        yesterday = today - timedelta(days=1)
+        self._seed_yesterday(db_session, user, yesterday, 444)
+        db_session.commit()
+
+        first = resolve_snapshot_for_today(user.id, today, real_db)
+        real_db.session.commit()
+        second = resolve_snapshot_for_today(user.id, today, real_db)
+        real_db.session.commit()
+
+        assert first['rolled_over_from'] == yesterday.isoformat()
+        assert second == first
+        rows = DailyPlanLog.query.filter_by(
+            user_id=user.id, plan_date=today,
+        ).all()
+        assert len(rows) == 1
+
+
 class TestOverlayCompletion:
 
     def test_curriculum_completed_today_marks_item_done(
@@ -260,6 +373,10 @@ class TestOverlayCompletion:
             level='A1',
             chapters_cnt=2,
             is_published=True,
+            # Without public_domain the DP-033 unreachable-book drop removes the
+            # item first, and this test would pass with _is_finished_reading_book
+            # deleted entirely.
+            rights_status='public_domain',
         )
         db_session.add(book)
         db_session.flush()
@@ -304,3 +421,107 @@ class TestOverlayCompletion:
         overlaid = overlay_completion(user.id, snap, real_db)
 
         assert overlaid == []
+
+
+# Локальное время == UTC, поэтому 00:30 попадает ровно в полосу до 02:00.
+# Учебный день при этом ещё вчерашний, 14 сентября: он закроется в 02:00.
+GRAMMAR_NIGHT = '2026-09-15 00:30:00'
+
+
+class TestGrammarPracticeStudyDayWindow:
+    """DP-009: окно `_grammar_topic_practiced_today` якорится в 02:00.
+
+    Функция получает **учебную** дату, но строила окно от календарной
+    полуночи — на два часа раньше. Второй сигнал (курсовой grammar-урок)
+    фильтруется по `LessonAttempt.completed_at`, реальному моменту, поэтому
+    урок, сданный в 01:00 локального времени, выпадал из своего же учебного
+    дня (required-пункт не закрыть, `day_secured` недостижим) и попадал в
+    следующий (день без работы закрывался чужой попыткой).
+
+    Часы заморожены: предмет теста — полоса 00:00-02:00, и он не вправе
+    зависеть от того, в какой час суток запустили прогон. Зона юзера — UTC,
+    поэтому локальное время равно замороженному, как в соседних стражах
+    учебного дня (`tests/daily_plan/test_study_day_readers.py`).
+    """
+
+    @pytest.fixture
+    def grammar_lesson(self, db_session):
+        from app.grammar_lab.models import GrammarTopic
+
+        suffix = uuid.uuid4().hex[:10]
+        topic = GrammarTopic(
+            slug=f'snap2-topic-{suffix}', title='Topic', title_ru='Тема',
+            level='A1', order=1, content={},
+        )
+        db_session.add(topic)
+        db_session.commit()
+        code = unique_level_code()
+        level = CEFRLevel(code=code, name=f'L-{code}', order=1)
+        db_session.add(level)
+        db_session.commit()
+        module = Module(
+            level_id=level.id, number=1, title='M-gram', description='',
+            raw_content={},
+        )
+        db_session.add(module)
+        db_session.commit()
+        lesson = Lessons(
+            module_id=module.id, number=1, title='Gram', type='grammar',
+            content={}, grammar_topic_id=topic.id,
+        )
+        db_session.add(lesson)
+        db_session.commit()
+        return lesson
+
+    @pytest.fixture
+    def utc_user(self, db_session, user):
+        user.timezone = 'UTC'
+        db_session.commit()
+        return user
+
+    def _attempt(self, db_session, user, lesson, completed_at_utc):
+        from app.curriculum.models import LessonAttempt
+
+        db_session.add(LessonAttempt(
+            user_id=user.id, lesson_id=lesson.id, attempt_number=1,
+            completed_at=completed_at_utc, score=100.0, passed=True,
+        ))
+        db_session.commit()
+
+    @freeze_time(GRAMMAR_NIGHT)
+    def test_lesson_finished_after_midnight_closes_its_own_study_day(
+        self, db_session, utc_user, grammar_lesson,
+    ):
+        from app.daily_plan.snapshot import _grammar_topic_practiced_today
+
+        # 00:30 15 сентября — это ещё учебный день 14 сентября, он закроется
+        # в 02:00. Календарное окно [14 сентября 00:00, 15 сентября 00:00)
+        # эту попытку теряло.
+        self._attempt(
+            db_session, utc_user, grammar_lesson,
+            datetime(2026, 9, 15, 0, 30),
+        )
+
+        assert _grammar_topic_practiced_today(
+            utc_user.id, grammar_lesson.grammar_topic_id,
+            grammar_lesson.module_id, real_db,
+        ) is True
+
+    @freeze_time(GRAMMAR_NIGHT)
+    def test_previous_study_day_attempt_does_not_close_today(
+        self, db_session, utc_user, grammar_lesson,
+    ):
+        from app.daily_plan.snapshot import _grammar_topic_practiced_today
+
+        # 00:30 14 сентября — календарная дата текущего учебного дня, но сам
+        # день тогда ещё не начался (старт в 02:00): это учебный день
+        # 13 сентября. Календарное окно засчитывало эту попытку сегодняшнему.
+        self._attempt(
+            db_session, utc_user, grammar_lesson,
+            datetime(2026, 9, 14, 0, 30),
+        )
+
+        assert _grammar_topic_practiced_today(
+            utc_user.id, grammar_lesson.grammar_topic_id,
+            grammar_lesson.module_id, real_db,
+        ) is False

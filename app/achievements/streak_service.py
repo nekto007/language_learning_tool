@@ -8,10 +8,41 @@ from sqlalchemy.exc import IntegrityError
 
 from app.achievements.models import StreakCoins, StreakEvent
 from app.utils.db import db
-from app.utils.time_utils import get_user_local_date
+from app.utils.time_utils import (
+    LEARNING_DAY_START_HOUR,
+    get_user_local_date,
+    study_day_date_for_tz,
+)
 from config.settings import DEFAULT_TIMEZONE
 
 logger = logging.getLogger(__name__)
+
+
+def _study_day_date_expr(col, tz_name: str, *, aware: bool = False):
+    """SQL expression bucketing a timestamp column into its STUDY-day date.
+
+    The study day is anchored at :data:`LEARNING_DAY_START_HOUR` local, so the
+    bucket is the local timestamp shifted back by that many hours and then cast
+    to a date — the SQL twin of :func:`app.utils.time_utils.study_day_date_for_tz`.
+
+    A bare ``::date`` cast buckets on calendar midnight, which is what every
+    skill-streak walker used to do.  That put them on a different day basis
+    than ``get_current_streak`` and ``check_immersion_achievement`` (both on the
+    study day since DP-001/DP-013): a learner practising at 01:00 had the
+    activity credited to the *previous* study day by one consumer and to the
+    calendar day by the other, so e.g. ``immersion_daily`` could be awarded for
+    a night session while ``immersion_week`` never saw the day at all.
+
+    ``aware=True`` for TIMESTAMPTZ columns (``UserReadingSession.started_at``),
+    which need only one ``timezone()`` hop.
+    """
+    from sqlalchemy import Date, cast, func
+
+    local = (
+        func.timezone(tz_name, col) if aware
+        else func.timezone(tz_name, func.timezone('UTC', col))
+    )
+    return cast(local - timedelta(hours=LEARNING_DAY_START_HOUR), Date)
 
 
 def get_required_steps(streak_length: int, steps_total: int) -> int:
@@ -291,6 +322,11 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     When ``daily_plan`` and ``plan_completion`` are supplied the race
     scoreboard for the user is updated from the current plan view — points
     stay in sync with completed phases without a separate round trip.
+
+    ``tz`` is accepted for call-site compatibility but no longer read: every
+    date this function derives comes from ``User.timezone`` on the 02:00
+    study day (DP-001).  A client could otherwise pick which day gets
+    repaired by sending a different zone than the one the dedup keys use.
     """
     from app.auth.models import User
     from app.telegram.queries import get_current_streak, has_activity_today
@@ -307,10 +343,15 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
     # auto-completed plan steps (e.g. words 'all_reviewed' when nothing
     # is due), which should not count as real study.
     #
-    # Activity window is keyed on User.timezone (same basis as user_today),
-    # NOT the client ``tz`` param — a divergent client tz would make the
-    # activity-day and the dedup-day belong to different calendar days
-    # (audit E-003).
+    # ONE zone and ONE day boundary for everything below (DP-001): every
+    # activity window, streak walk and repair lookup in this function runs on
+    # ``User.timezone`` and on the 02:00 study day, the same basis that
+    # produced ``user_today``.  The client ``tz`` argument no longer selects
+    # which date gets repaired — it survives only where it affects display.
+    # Before this, three bases coexisted here: dedup dates on the study day,
+    # ``real_activity`` on User.timezone but at calendar midnight, and
+    # ``find_missed_date``/``get_streak_status`` on whatever tz the client
+    # sent (audit E-003 fixed the zone, DP-001 the day boundary).
     _u = db.session.get(User, user_id)
     _user_tz = getattr(_u, 'timezone', None) or DEFAULT_TIMEZONE
     real_activity = has_activity_today(user_id, tz=_user_tz)
@@ -351,13 +392,47 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                     user_id, exc_info=True,
                 )
 
-    streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
+    streak_status = get_streak_status(user_id, tz=_user_tz, steps_total=max(steps_total, 1))
     required_steps = streak_status.get('required_steps', 1)
     streak_repaired = False
 
-    # Shield repair: fires with any real activity regardless of steps_done.
-    # If the user has a shield and missed exactly one day, use the shield to
-    # repair the gap automatically, then deactivate the shield. Gated on the
+    # Attempt free repair if enough steps done AND user has real activity
+    if steps_total > 0 and steps_done >= required_steps and real_activity:
+        missed = find_missed_date(user_id, tz=_user_tz)
+        if missed and apply_free_repair(user_id, missed, steps_done, steps_total):
+            db.session.commit()
+            streak = get_current_streak(user_id, tz=_user_tz)
+            streak_status = get_streak_status(user_id, tz=_user_tz, steps_total=max(steps_total, 1))
+            streak_status['streak'] = streak
+            required_steps = streak_status.get('required_steps', 1)
+            streak_repaired = True
+
+    # Auto-heal: fill in any adjacent gaps on every real-activity session,
+    # up to 3 days back.  Also refunds paid repairs that are now covered.
+    if real_activity:
+        try:
+            healed = auto_heal_streak_on_activity(user_id, tz=_user_tz)
+            if healed > 0:
+                db.session.commit()
+                streak = get_current_streak(user_id, tz=_user_tz)
+                streak_status = get_streak_status(user_id, tz=_user_tz, steps_total=max(steps_total, 1))
+                streak_status['streak'] = streak
+                required_steps = streak_status.get('required_steps', 1)
+                streak_repaired = True
+        except Exception:
+            logger.warning("auto_heal_streak failed for user %s", user_id, exc_info=True)
+
+    # Shield repair — LAST of the three repair mechanisms, deliberately (DP-001).
+    #
+    # The shield is a consumable earned once per 7 streak days; free repair and
+    # the auto-healer cost nothing.  Running the shield first spent it on gaps
+    # the free paths would have closed anyway: `apply_shield_repair` writes a
+    # `shield_repair` row, `has_repair_for_date` counts that as a repair, and so
+    # `find_auto_heal_date` stopped seeing the date the shield had just taken.
+    # Now the free mechanisms run above and the shield only sees what is left —
+    # in practice gaps at offset 4-7, past the auto-healer's `max_days=3` reach.
+    #
+    # Fires with any real activity regardless of steps_done.  Gated on the
     # `streak_shield_enabled` site setting so admins can fully disable the
     # feature — including consumption of shields already in circulation.
     if real_activity:
@@ -373,48 +448,22 @@ def process_streak_on_activity(user_id: int, steps_done: int, steps_total: int,
                 and _shield_user
                 and getattr(_shield_user, 'streak_shield_active', False)
             ):
-                _shield_missed = find_missed_date(user_id, tz=tz)
+                _shield_missed = find_missed_date(user_id, tz=_user_tz)
                 if _shield_missed:
                     if apply_shield_repair(user_id, _shield_missed):
                         _shield_user.streak_shield_active = False
                         db.session.flush()
                         from app.telegram.queries import get_current_streak
                         streak_status = get_streak_status(
-                            user_id, tz=tz, steps_total=max(steps_total, 1)
+                            user_id, tz=_user_tz, steps_total=max(steps_total, 1)
                         )
-                        streak_status['streak'] = get_current_streak(user_id, tz=tz)
+                        streak_status['streak'] = get_current_streak(user_id, tz=_user_tz)
                         required_steps = streak_status.get('required_steps', 1)
                         streak_repaired = True
         except Exception:
             logger.warning(
                 "Shield repair failed for user %s", user_id, exc_info=True
             )
-
-    # Attempt free repair if enough steps done AND user has real activity
-    if steps_total > 0 and steps_done >= required_steps and real_activity:
-        missed = find_missed_date(user_id, tz=tz)
-        if missed and apply_free_repair(user_id, missed, steps_done, steps_total):
-            db.session.commit()
-            streak = get_current_streak(user_id, tz=tz)
-            streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
-            streak_status['streak'] = streak
-            required_steps = streak_status.get('required_steps', 1)
-            streak_repaired = True
-
-    # Auto-heal: fill in any adjacent gaps on every real-activity session,
-    # up to 3 days back.  Also refunds paid repairs that are now covered.
-    if real_activity:
-        try:
-            healed = auto_heal_streak_on_activity(user_id, tz=tz)
-            if healed > 0:
-                db.session.commit()
-                streak = get_current_streak(user_id, tz=tz)
-                streak_status = get_streak_status(user_id, tz=tz, steps_total=max(steps_total, 1))
-                streak_status['streak'] = streak
-                required_steps = streak_status.get('required_steps', 1)
-                streak_repaired = True
-        except Exception:
-            logger.warning("auto_heal_streak failed for user %s", user_id, exc_info=True)
 
     # Check streak milestones and award bonus coins
     milestone_reward = check_streak_milestone(
@@ -565,13 +614,13 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
       - current_streak: current consecutive run
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.books.models import UserChapterProgress
     from app.curriculum.daily_lessons import UserLessonProgress
     from app.curriculum.models import LessonProgress
     from app.grammar_lab.models import UserGrammarExercise
     from app.study.models import UserCardDirection, UserWord
+    from app.utils.time_utils import study_day_date_for_tz
 
     try:
         tz_obj = pytz.timezone(tz)
@@ -579,7 +628,14 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
     tz = tz_obj.zone
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date. This function returns
+    # `current_streak`/`longest_streak` and hands off to `get_current_streak`
+    # once the run reaches the window edge — and that walker has been on the
+    # study day since DP-001. On a calendar basis a learner who studied at
+    # 23:00 and again at 01:00 counted as two days here and one there, so the
+    # public /streak page disagreed with the dashboard, and a single response
+    # could even mix both bases across the hand-off.
+    local_today = study_day_date_for_tz(tz)
     from_date = local_today - timedelta(days=days)
     start_utc = datetime.now(timezone.utc) - timedelta(days=days + 1)
 
@@ -593,7 +649,8 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
         event_dates.add(ev.event_date)
 
     def _local_date(col):
-        return cast(func.timezone(tz, func.timezone('UTC', col)), Date)
+        # All five sources below are naive-UTC columns, so the non-aware form.
+        return _study_day_date_expr(col, tz)
 
     q1 = (
         db.session.query(_local_date(LessonProgress.last_activity).label('d'))
@@ -864,15 +921,18 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
     isolated gap that isn't connected to any streak is pointless (streak
     would remain 1), so we return None in that case.
     """
-    import pytz
-
     from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
 
-    local_now = datetime.now(pytz.timezone(tz))
+    # Study-day date, matching the windows below: between 00:00 and 02:00 the
+    # calendar date is already one day ahead of the running study day, so
+    # deriving `check_date` from `datetime.now(tz).date()` would write the
+    # repair into `streak_events` under a different day than the one whose
+    # window was actually found empty (DP-001).
+    local_today = study_day_date_for_tz(tz)
 
     for offset in range(1, max_days + 1):
         day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
-        check_date = local_now.date() - timedelta(days=offset)
+        check_date = local_today - timedelta(days=offset)
 
         if _has_activity_in_range(user_id, day_start, day_end):
             # Activity found — any gap must be BEFORE this day
@@ -918,12 +978,10 @@ def find_auto_heal_date(
     Only looks within ``max_days`` from today.  Spent-repair rows are
     treated as gaps so they can be upgraded to free repairs with a refund.
     """
-    import pytz
-
     from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
 
-    local_now = datetime.now(pytz.timezone(tz))
-    local_today = local_now.date()
+    # Study-day date — same basis as the windows walked below (DP-001).
+    local_today = study_day_date_for_tz(tz)
 
     today_start, today_end = _user_day_boundaries(tz, offset_days=0)
     today_has_activity = _has_activity_in_range(user_id, today_start, today_end)
@@ -1026,7 +1084,6 @@ def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     listening activity the chain is checked from yesterday (today isn't over).
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.curriculum.models import ListeningAttempt
 
@@ -1037,11 +1094,13 @@ def get_listening_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date — same basis as
+    # get_current_streak and check_immersion_achievement.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     try:
         rows = (
@@ -1078,7 +1137,6 @@ def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE
     Same walk-backward logic as get_listening_streak.
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.curriculum.models import UserWritingAttempt
 
@@ -1089,11 +1147,13 @@ def get_writing_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZONE
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date — same basis as
+    # get_current_streak and check_immersion_achievement.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     try:
         rows = (
@@ -1129,7 +1189,6 @@ def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZON
     Same walk-backward logic as get_listening_streak.
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.curriculum.models import PronunciationAttempt
 
@@ -1140,11 +1199,13 @@ def get_speaking_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZON
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date — same basis as
+    # get_current_streak and check_immersion_achievement.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     try:
         rows = (
@@ -1184,7 +1245,6 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     activity, the chain is checked from yesterday (today isn't over).
     """
     import pytz
-    from sqlalchemy import Date, cast, func
 
     from app.books.reading_session import UserReadingSession
     from app.curriculum.models import ListeningAttempt, PronunciationAttempt, UserWritingAttempt
@@ -1196,18 +1256,22 @@ def get_immersion_streak(user_id: int, db_session=None, tz: str = DEFAULT_TIMEZO
     except pytz.UnknownTimeZoneError:
         tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
 
-    local_today = datetime.now(tz_obj).date()
+    # Study day (02:00 anchor), not the calendar date. check_immersion_achievement
+    # builds its immersion_daily window with study_day_start_utc; this walker feeds
+    # immersion_week from the same call, so the two must bucket days identically —
+    # otherwise a night learner earns the daily badge and can never earn the weekly.
+    local_today = study_day_date_for_tz(tz_obj.zone)
     cutoff = local_today - timedelta(days=365)
     # UserReadingSession.started_at is TIMESTAMPTZ — must compare to tz-aware datetime,
     # not a bare date object (PostgreSQL has no timestamptz >= date operator).
     cutoff_dt = tz_obj.localize(datetime.combine(cutoff, datetime.min.time()))
 
     def _local_date(col):
-        return cast(func.timezone(tz_obj.zone, func.timezone('UTC', col)), Date)
+        return _study_day_date_expr(col, tz_obj.zone)
 
     def _local_date_tz(col):
         # UserReadingSession.started_at is timezone-aware
-        return cast(func.timezone(tz_obj.zone, col), Date)
+        return _study_day_date_expr(col, tz_obj.zone, aware=True)
 
     try:
         listening_dates = {

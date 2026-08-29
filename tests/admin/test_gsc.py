@@ -198,6 +198,10 @@ class TestGSCRoutes:
         """OAuth redirect_uri uses SITE_URL instead of proxy-local request scheme."""
         app.config['GOOGLE_CLIENT_ID'] = 'test_client_id'
         app.config['GOOGLE_CLIENT_SECRET'] = 'test_client_secret'
+        # The `app` fixture is session-scoped, so config has to go back to
+        # exactly what it was: blanking SITE_URL leaked into every later test
+        # that reads it (robots.txt / sitemap host assertions).
+        original_site_url = app.config.get('SITE_URL')
         app.config['SITE_URL'] = 'https://llt-english.com'
         try:
             import app.admin.services.gsc_service as gsc_module
@@ -220,12 +224,19 @@ class TestGSCRoutes:
         finally:
             app.config.pop('GOOGLE_CLIENT_ID', None)
             app.config.pop('GOOGLE_CLIENT_SECRET', None)
-            app.config['SITE_URL'] = ''
+            if original_site_url is None:
+                app.config.pop('SITE_URL', None)
+            else:
+                app.config['SITE_URL'] = original_site_url
 
     def test_connect_normalises_public_site_url_to_https(self, app, client, admin_user):
         """OAuth redirect_uri is HTTPS for public domains even if SITE_URL is http."""
         app.config['GOOGLE_CLIENT_ID'] = 'test_client_id'
         app.config['GOOGLE_CLIENT_SECRET'] = 'test_client_secret'
+        # The `app` fixture is session-scoped, so config has to go back to
+        # exactly what it was: blanking SITE_URL leaked into every later test
+        # that reads it (robots.txt / sitemap host assertions).
+        original_site_url = app.config.get('SITE_URL')
         app.config['SITE_URL'] = 'http://llt-english.com'
         try:
             import app.admin.services.gsc_service as gsc_module
@@ -248,7 +259,10 @@ class TestGSCRoutes:
         finally:
             app.config.pop('GOOGLE_CLIENT_ID', None)
             app.config.pop('GOOGLE_CLIENT_SECRET', None)
-            app.config['SITE_URL'] = ''
+            if original_site_url is None:
+                app.config.pop('SITE_URL', None)
+            else:
+                app.config['SITE_URL'] = original_site_url
 
     def test_callback_fetch_token_uses_public_https_url(
         self, app, client, admin_user, db_session
@@ -256,6 +270,10 @@ class TestGSCRoutes:
         """Token exchange uses public callback URL, not proxy-local request.url."""
         app.config['GOOGLE_CLIENT_ID'] = 'test_client_id'
         app.config['GOOGLE_CLIENT_SECRET'] = 'test_client_secret'
+        # The `app` fixture is session-scoped, so config has to go back to
+        # exactly what it was: blanking SITE_URL leaked into every later test
+        # that reads it (robots.txt / sitemap host assertions).
+        original_site_url = app.config.get('SITE_URL')
         app.config['SITE_URL'] = 'https://llt-english.com'
         try:
             import app.admin.services.gsc_service as gsc_module
@@ -289,7 +307,10 @@ class TestGSCRoutes:
         finally:
             app.config.pop('GOOGLE_CLIENT_ID', None)
             app.config.pop('GOOGLE_CLIENT_SECRET', None)
-            app.config['SITE_URL'] = ''
+            if original_site_url is None:
+                app.config.pop('SITE_URL', None)
+            else:
+                app.config['SITE_URL'] = original_site_url
 
     def test_callback_with_error_param_flashes_danger(self, app, client, admin_user):
         """GET /admin/seo/callback?error=access_denied flashes danger message."""

@@ -138,9 +138,11 @@ def init_scheduler(app) -> None:
         replace_existing=True,
     )
     # Static daily-plan snapshot generation. Runs hourly and picks up the
-    # subset of users whose user-local time is currently 00:00. Idempotent
-    # via uq_daily_plan_log_user_date — if the lazy path already created
-    # today's snapshot from a 00:01 GET, the cron job becomes a no-op.
+    # subset of users whose user-local time has just crossed
+    # LEARNING_DAY_START_HOUR (02:00) — the moment the study day turns over,
+    # not calendar midnight. Idempotent via uq_daily_plan_log_user_date — if
+    # the lazy path already created today's snapshot from a 02:01 GET, the
+    # cron job becomes a no-op.
     _scheduler.add_job(
         _generate_daily_plans_hourly,
         'cron',
@@ -323,16 +325,24 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
                     # Estimate what streak was before the break
                     prev_streak = get_current_streak(user_id, tz=user_tz)
                     # Walk back from missed date to count streak before break
-                    from datetime import datetime, timedelta
-                    from datetime import timezone as tz_mod
+                    from datetime import timedelta
 
                     from app.achievements.models import StreakEvent
-                    from app.telegram.queries import _has_activity_in_range, _user_day_boundaries
+                    from app.telegram.queries import (
+                        _has_activity_in_range,
+                        _user_day_boundaries,
+                    )
+                    from app.utils.time_utils import study_day_date_for_tz
                     old_streak = 0
-                    missed_offset = (datetime.now(tz_mod.utc).date() - missed).days
+                    # Offsets and repair keys are counted from the user's study
+                    # day — the same basis as the windows below and as the dates
+                    # `find_missed_date` writes (DP-001).  Using the UTC calendar
+                    # date here put the walk one day off for eastern zones.
+                    local_today = study_day_date_for_tz(user_tz)
+                    missed_offset = (local_today - missed).days
                     for offset in range(missed_offset + 1, 366):
                         day_start, day_end = _user_day_boundaries(user_tz, offset_days=-offset)
-                        check_date = (datetime.now(tz_mod.utc) - timedelta(days=offset)).date()
+                        check_date = local_today - timedelta(days=offset)
                         if _has_activity_in_range(user_id, day_start, day_end):
                             old_streak += 1
                         else:
@@ -353,24 +363,30 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
 
 
 def _generate_daily_plans_hourly(app) -> None:
-    """Build today's v2 daily-plan snapshot for users whose local hour is 00.
+    """Build the new study day's snapshot for users who just rolled over.
 
-    Runs hourly. For each active user, converts ``now_utc`` to the user's
-    timezone and only proceeds when the local hour is 0 (the post-midnight
-    window). Skips paused-plan users — their snapshot is generated when the
-    pause lifts. Idempotent via the unique ``(user_id, plan_date)`` row in
-    ``daily_plan_log``: if the lazy path already wrote today's snapshot from
-    a fresh GET, the resolver returns the existing row without rewriting.
+    Runs hourly and only proceeds when the user's local hour has just crossed
+    :data:`LEARNING_DAY_START_HOUR`, i.e. the moment the study day actually
+    turns over. Firing at calendar midnight instead meant the roll-over
+    decision for study day D was taken two hours BEFORE day D-1 closed: work
+    done between 00:00 and 02:00 belongs to D-1 but could not influence it, so
+    a learner who closed their plan at 00:30 got D's required list rolled over
+    from D-1 with items already completed. The request path
+    (``get_daily_plan`` → ``get_user_local_date``) has always been on the study
+    day; the job now agrees with it.
+
+    Skips paused-plan users — their snapshot is generated when the pause
+    lifts. Idempotent via the unique ``(user_id, plan_date)`` row in
+    ``daily_plan_log``: if the lazy path already wrote the snapshot from a
+    fresh GET, the resolver returns the existing row without rewriting.
 
     Per-user commit + rollback isolates failures (matches ``_hourly_check``).
-    Daily-plan snapshots are the only required-plan path, so this job always
-    runs for midnight-local active users.
     """
     with app.app_context():
         from app.auth.models import User
         from app.daily_plan.snapshot import resolve_snapshot_for_today
         from app.utils.db import db
-        from app.utils.time_utils import get_user_local_date
+        from app.utils.time_utils import LEARNING_DAY_START_HOUR, study_day_date_for_tz
 
         now_utc = datetime.now(timezone.utc)
         users = User.query.filter(User.active.is_(True)).all()
@@ -379,16 +395,24 @@ def _generate_daily_plans_hourly(app) -> None:
         errors = 0
 
         for user in users:
+            tz_name = user.timezone or DEFAULT_TIMEZONE
             try:
-                tz = pytz.timezone(user.timezone or DEFAULT_TIMEZONE)
+                tz = pytz.timezone(tz_name)
             except pytz.UnknownTimeZoneError:
                 tz = pytz.timezone(DEFAULT_TIMEZONE)
 
             local_dt = now_utc.astimezone(tz)
-            if local_dt.hour != 0:
+            # A window, not an exact hour. In every zone that advances the clock
+            # at 02:00 local (US/Canada, Mexico, most of Australia) local hour 2
+            # DOES NOT EXIST on the spring-forward day — the hourly samples run
+            # ...01:05, 03:05..., so an `== LEARNING_DAY_START_HOUR` gate skipped
+            # those users once a year. The extra fire on the following hour is a
+            # no-op: `resolve_snapshot_for_today` is idempotent through
+            # uq_daily_plan_log_user_date.
+            if local_dt.hour not in (LEARNING_DAY_START_HOUR, LEARNING_DAY_START_HOUR + 1):
                 continue
 
-            today_local = local_dt.date()
+            today_local = study_day_date_for_tz(tz_name, now_utc)
             if user.plan_paused_until and user.plan_paused_until > today_local:
                 skipped += 1
                 continue

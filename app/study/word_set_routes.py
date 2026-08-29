@@ -49,7 +49,10 @@ def word_set_detail(slug):
 @module_required('study')
 def add_word_set(slug):
     """Add every word of a set to the study list."""
-    word_set = WordSetService.get_set(slug)
+    # Same visibility rule as the detail page that renders this button — an
+    # admin previewing a draft otherwise sees a button that 404s.
+    is_admin = bool(getattr(current_user, 'is_admin', False))
+    word_set = WordSetService.get_set(slug, include_unpublished=is_admin)
     if word_set is None:
         abort(404)
 

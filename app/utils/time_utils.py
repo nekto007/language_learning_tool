@@ -147,6 +147,119 @@ def day_to_naive_utc(
     return target_local_start.astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def _local_now_for_tz_name(
+    tz_name: str,
+    now_utc: Optional[datetime] = None,
+) -> tuple[Any, datetime]:
+    """Resolve a timezone NAME to ``(tz, local_now)`` — pytz, DEFAULT_TIMEZONE fallback.
+
+    Kept separate from :func:`_get_user_timezone` (ZoneInfo, ``user_id``-keyed,
+    UTC fallback) on purpose: this is the historical ``_user_day_boundaries``
+    resolution policy, preserved verbatim.  The two fallbacks disagreeing on an
+    unknown zone is audit finding DP-082, deliberately out of scope here.
+    """
+    import pytz
+
+    from config.settings import DEFAULT_TIMEZONE
+
+    try:
+        tz = pytz.timezone(tz_name)
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.timezone(DEFAULT_TIMEZONE)
+
+    if now_utc is None:
+        return tz, datetime.now(tz)
+    ref = now_utc if now_utc.tzinfo is not None else now_utc.replace(tzinfo=timezone.utc)
+    return tz, ref.astimezone(tz)
+
+
+def study_day_start_utc(tz_name: str, local_date: date_cls) -> datetime:
+    """Aware-UTC start of the study day whose date is ``local_date``.
+
+    The one place that turns "study day D in zone Z" into an instant: the
+    anchor is :data:`LEARNING_DAY_START_HOUR` local, never calendar midnight.
+    :func:`study_day_bounds_utc` (relative to now) and the snapshot roll-over
+    window (an explicit past date) both go through here, so a window built
+    from a stored date and a window built from the clock cannot drift apart.
+
+    Which *zone* an unknown name resolves to keeps the historical
+    ``_user_day_boundaries`` policy verbatim (pytz, DEFAULT_TIMEZONE fallback —
+    see :func:`_local_now_for_tz_name`), but the local→UTC conversion itself
+    goes through ``ZoneInfo``, exactly as :func:`day_to_naive_utc` does. That
+    part is NOT interchangeable: 02:00 local is ambiguous on the autumn
+    fall-back day in every zone that turns the clocks back at 03:00 (all of
+    CET/EET), and pytz's ``localize`` default (``is_dst=False``) picks the
+    second occurrence while ``ZoneInfo``'s ``fold=0`` picks the first. Using
+    pytz here put the streak/telegram/snapshot windows one hour away from the
+    SRS counters and XP dedup keys for one hour a year — the very split DP-001
+    exists to remove.
+    """
+    from zoneinfo import ZoneInfo
+
+    import pytz
+
+    from config.settings import DEFAULT_TIMEZONE
+
+    try:
+        resolved_name = pytz.timezone(tz_name).zone
+    except pytz.UnknownTimeZoneError:
+        resolved_name = DEFAULT_TIMEZONE
+    try:
+        tz_obj = ZoneInfo(resolved_name)
+    except Exception:
+        tz_obj = timezone.utc
+    local_start = datetime.combine(
+        local_date,
+        time(hour=LEARNING_DAY_START_HOUR),
+        tzinfo=tz_obj,
+    )
+    return local_start.astimezone(timezone.utc)
+
+
+def study_day_bounds_utc(
+    tz_name: str,
+    offset_days: int = 0,
+    now_utc: Optional[datetime] = None,
+) -> tuple[datetime, datetime]:
+    """Return aware-UTC ``(start, end)`` of a study day for a timezone NAME.
+
+    The single canonical window helper for "did this user study on day X?".
+    Same day, different return shape than :func:`get_user_local_day_bounds`
+    (which is keyed on ``user_id`` and returns naive UTC): both anchor at
+    :data:`LEARNING_DAY_START_HOUR` local, so streak math, telegram windows,
+    SRS counters, and XP dedup keys all agree about what "today" means.
+
+    ``offset_days=-1`` is the previous study day, etc.  Windows are
+    contiguous: ``bounds(-1)[1] == bounds(0)[0]``.
+
+    Timezone resolution keeps the historical ``_user_day_boundaries`` policy
+    verbatim — see :func:`_local_now_for_tz_name`.
+
+    ``now_utc`` lets callers/tests freeze the reference clock.
+    """
+    _tz, local_now = _local_now_for_tz_name(tz_name, now_utc)
+    base_day = _study_day_date(local_now)
+
+    def _start(shift: int) -> datetime:
+        return study_day_start_utc(tz_name, base_day + timedelta(days=shift))
+
+    return _start(offset_days), _start(offset_days + 1)
+
+
+def study_day_date_for_tz(
+    tz_name: str,
+    now_utc: Optional[datetime] = None,
+) -> date_cls:
+    """Study-day date for a timezone NAME (companion to :func:`study_day_bounds_utc`).
+
+    ``get_user_local_date`` answers the same question keyed on ``user_id``;
+    this form is for callers that already hold the zone name (streak repair
+    walkers, telegram queries) and must not derive dates on a second basis.
+    """
+    _tz, local_now = _local_now_for_tz_name(tz_name, now_utc)
+    return _study_day_date(local_now)
+
+
 def naive_utc_to_user_local(
     user_id: int,
     value: Optional[datetime],

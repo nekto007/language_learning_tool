@@ -28,8 +28,14 @@ def _make_writing_lesson(
     min_words: int = 30,
     example_response: str | None = None,
     checklist: list[str] | None = None,
+    level_code: str | None = None,
 ) -> Lessons:
-    level = CEFRLevel(code=unique_level_code(), name="Level", description="d", order=1)
+    # The word-count floor only applies from B1 up (_writing_words_required),
+    # so a test that exercises it has to sit the lesson at such a level; the
+    # generated code is deliberately not a CEFR one.
+    level = CEFRLevel(
+        code=level_code or unique_level_code(), name="Level", description="d", order=1,
+    )
     db_session.add(level)
     db_session.commit()
     module = Module(
@@ -365,7 +371,7 @@ class TestWritingPromptSubmitRoute:
         assert progress.status == "completed"
 
     def test_not_enough_words_does_not_complete(self, app, db_session, test_user, client):
-        lesson = _make_writing_lesson(db_session, min_words=50)
+        lesson = _make_writing_lesson(db_session, min_words=50, level_code="B1")
         _login(client, test_user)
         client.get(f"/curriculum/lesson/{lesson.id}/writing-prompt")
         resp = self._submit(client, lesson.id, response_text="too short", checklist_completed=True)

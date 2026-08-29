@@ -28,7 +28,8 @@
 Группа «Слова» (dropdown):
 - `words.word_list` — `/words/`
 - `study.collections` — `/study/collections/`
-- `study.topics` — `/study/topics/`
+- `study.word_sets` — `/study/sets` (заменил листинг тем в dropdown; страницы `study/word_sets.html` и `study/word_set_detail.html`, обе `extends base.html`)
+- `study.topics` — `/study/topics` — больше не в навигации, остался только как редирект на `/study/sets`
 
 Группа «Карточки»: `study.index` — `/study/`
 

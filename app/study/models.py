@@ -32,6 +32,16 @@ class StudySession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
     session_type = db.Column(db.String(20), nullable=False, default='cards')  # 'cards', 'quiz', etc.
+
+    # Which curated set a themed quiz run belongs to, written when the session
+    # is opened. The completion endpoint used to take the learner's word for it
+    # (the slug travels in the request body), so a run started on set A could
+    # be reported — and ranked, and fed to `suggest_for_user` — as set B.
+    # NULL for every other session type.
+    word_set_id = db.Column(
+        db.Integer, db.ForeignKey('word_sets.id', ondelete='SET NULL'), nullable=True
+    )
+
     start_time = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     end_time = db.Column(db.DateTime, nullable=True)
 

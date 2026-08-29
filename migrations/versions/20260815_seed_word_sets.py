@@ -138,6 +138,38 @@ def upgrade():
         seeded += 1
 
     print(f'seed word sets: created {seeded} of {len(_SETS)} sets')
+    if seeded == 0:
+        already = conn.execute(
+            sa.text('SELECT count(*) FROM word_sets')
+        ).scalar() or 0
+        topics_total = conn.execute(
+            sa.text('SELECT count(*) FROM topics')
+        ).scalar() or 0
+        if already == 0 and topics_total > 0:
+            # Every set is resolved by an exact `topics.name` match. On a
+            # database whose topic names differ, all 19 lookups miss and this
+            # migration succeeds having created nothing — the feature would
+            # ship with an empty catalogue, a hidden dashboard tile and a plan
+            # item that never appears. Fail loudly instead: `flask db upgrade`
+            # aborts and the deploy surfaces it.
+            #
+            # Only when `topics` actually holds rows, though. On a fresh
+            # install the table is empty (nothing seeds it: `init-scripts/` is
+            # empty and `flask seed` covers modules and achievements, and runs
+            # *after* this in the container CMD chain), so raising here would
+            # abort `flask db upgrade heads` and the app would never start.
+            # An empty source table is "nothing to seed yet", not drift.
+            raise RuntimeError(
+                'seed word sets: no sets created and word_sets is empty — the '
+                'expected topic names are absent from this database'
+            )
+        if already == 0 and topics_total == 0:
+            print(
+                'seed word sets: `topics` is empty — nothing to seed from. '
+                'Import the curated topics, then replay this revision '
+                '(`flask db downgrade` + `upgrade`); the insert skips slugs '
+                'that already exist.'
+            )
 
 
 def downgrade():

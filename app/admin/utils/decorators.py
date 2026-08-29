@@ -32,6 +32,10 @@ from app.utils.db import db
 logger = logging.getLogger(__name__)
 audit_logger = logging.getLogger('audit.admin')
 
+# Methods that cannot mutate state, per RFC 9110. A view reached by one of
+# these did not change anything, so it gets no audit row.
+SAFE_HTTP_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS'})
+
 
 def _is_admin_user() -> bool:
     return bool(getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False))
@@ -80,6 +84,14 @@ def admin_audit_required(
     The audit row is staged only when the wrapped view returns a successful
     response (2xx / 3xx). Errors and 4xx responses are not audited because they
     mean no mutation took place.
+
+    Safe (non-mutating) methods are not audited either. A route declared
+    ``methods=['GET', 'POST']`` renders its form on GET, and auditing that
+    would file a mutation that never happened — an admin opens an edit form far
+    more often than they save it, so the false rows would outnumber the real
+    ones. GET handlers that genuinely mutate (exports recording their own
+    download) call ``log_admin_action`` in the body instead, which the coverage
+    test accepts.
     """
 
     def decorator(view_func: Callable[..., Any]) -> Callable[..., Any]:
@@ -88,7 +100,8 @@ def admin_audit_required(
             response = view_func(*args, **kwargs)
             try:
                 resp = make_response(response)
-                if 200 <= resp.status_code < 400:
+                mutating = request.method not in SAFE_HTTP_METHODS
+                if mutating and 200 <= resp.status_code < 400:
                     from app.admin.audit import log_admin_action  # local import to avoid cycle
                     target_id = None
                     if target_id_arg is not None:

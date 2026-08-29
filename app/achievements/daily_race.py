@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date as date_cls
 from datetime import datetime
 from datetime import time as time_cls
-from datetime import timezone
+from datetime import timedelta, timezone
 from typing import Iterable, List, Mapping, Optional
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 
 from app.utils.db import db
+from app.utils.time_utils import LEARNING_DAY_START_HOUR
 
 
 def is_daily_race_enabled() -> bool:
@@ -470,10 +471,19 @@ def _ghost_target_points(seed: int) -> int:
 
 
 def _progress_fraction(local_time: time_cls) -> float:
-    """Fraction of the ghost-active window that has elapsed (0.0 - 1.0)."""
+    """Fraction of the ghost-active window that has elapsed (0.0 - 1.0).
+
+    Measured on the STUDY day, like `race_date` itself: hours before
+    ``LEARNING_DAY_START_HOUR`` belong to the study day that began the previous
+    calendar morning, so they read as 24+ and land past ``_GHOST_END_HOUR``.
+    Comparing the raw wall clock instead made every ghost report 0 points
+    between 00:00 and 02:00 — the window the 02:00 anchor exists to serve.
+    """
     if _GHOST_END_HOUR <= _GHOST_START_HOUR:
         return 1.0
     current = local_time.hour + local_time.minute / 60.0
+    if current < LEARNING_DAY_START_HOUR:
+        current += 24.0
     if current <= _GHOST_START_HOUR:
         return 0.0
     if current >= _GHOST_END_HOUR:
@@ -512,7 +522,14 @@ def compute_ghost_points(
     else:
         now = now.astimezone(tz_obj)
 
-    local_today = now.date()
+    # `race_date` is a STUDY-day date on both surfaces that build it (DP-012:
+    # /api/daily-race and the dashboard widget both go through
+    # get_user_local_date), so compare it on the same scale rather than against
+    # the calendar date. Output is unchanged today — between 00:00 and 02:00 the
+    # calendar comparison read "race is over" and this one reads "past
+    # _GHOST_END_HOUR", and both mean full target — but the two agree by
+    # coincidence, and only this form keeps agreeing if the window ever moves.
+    local_today = (now - timedelta(hours=LEARNING_DAY_START_HOUR)).date()
     if local_today < race_date:
         # Race hasn't started in local time yet.
         return 0

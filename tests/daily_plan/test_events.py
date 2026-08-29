@@ -125,11 +125,26 @@ class TestSlotSkipEndpoint:
             )
         assert r.status_code == 200
 
-    def test_all_valid_reasons_accepted(self, authenticated_client, db_session):
+    def test_all_valid_reasons_accepted(self, authenticated_client, db_session, test_user):
+        """Each reason string is accepted — one at a time.
+
+        The daily quota is enforced by the partial unique index
+        `uq_daily_plan_events_slot_skipped`, not just by the counter this test
+        patches, so a second skip on the same day returns 429 no matter what
+        `get_slot_skips_used_today` reports. Clearing the recorded event
+        between reasons is what lets each string be checked on its own.
+        """
+        from app.daily_plan.models import DailyPlanEvent
+
         with patch('app.daily_plan.skips.get_slot_skips_used_today', return_value=0), \
              patch('app.daily_plan.plan.get_daily_plan',
                    return_value=_plan_for_current('reading')):
             for reason in ('no_time', 'too_hard', 'not_today'):
+                DailyPlanEvent.query.filter_by(
+                    user_id=test_user.id, event_type='slot_skipped'
+                ).delete()
+                db_session.commit()
+
                 r = authenticated_client.post(
                     '/api/daily-plan/events',
                     json={

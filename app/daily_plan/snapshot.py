@@ -1,8 +1,9 @@
 """Daily required-plan snapshot: the fixed plan composition for a day.
 
 This is the only required-plan path. It freezes full item dicts (id, kind,
-title, url, eta, data, completion_signal) at user-local midnight or on the
-first lazy build after midnight. Required composition is fixed for the day;
+title, url, eta, data, completion_signal) on the first build of the user's
+study day — which starts at ``LEARNING_DAY_START_HOUR`` (02:00) local, not at
+calendar midnight. Required composition is fixed for the day;
 only ``completed`` is overlaid live from real activity. Skill slots are
 intentionally absent: the day is closed by curriculum, SRS, reading, and
 final-test prep items sized by the user's tier (see ``tier.py``).
@@ -41,9 +42,13 @@ def _get_or_create_log_row(user_id: int, plan_date: Any, db: Any):
     )
     if log is None:
         log = DailyPlanLog(user_id=user_id, plan_date=plan_date)
-        db.session.add(log)
         try:
+            # `add` INSIDE the savepoint — begin_nested() flushes the session to
+            # take its snapshot BEFORE emitting SAVEPOINT, so an insert staged
+            # beforehand runs in the outer transaction and its IntegrityError
+            # poisons the session instead of being rolled back here.
             with db.session.begin_nested():
+                db.session.add(log)
                 db.session.flush()
         except IntegrityError:
             log = (
@@ -154,9 +159,9 @@ def _try_rollover_from_yesterday(
 
     Roll-over fires only when ALL hold:
       - yesterday has a snapshot row with non-empty items
-      - the user had zero learning activity in yesterday's user-local
-        day window (``has_learning_activity`` over the 24h naive-UTC
-        bounds derived from yesterday's user-local midnight)
+      - the user had zero learning activity in yesterday's study-day
+        window (``has_learning_activity`` over the 24h naive-UTC bounds
+        anchored at 02:00 local — see :func:`_local_date_start_naive_utc`)
     """
     from datetime import timedelta
 
@@ -174,8 +179,12 @@ def _try_rollover_from_yesterday(
         return None
 
     from app.utils.activity_tracker import has_learning_activity
+    # The window END is the NEXT study day's start, not `start + 24h`: study days
+    # run 23 or 25 hours across a DST transition, and a fixed delta would let an
+    # hour of today's activity suppress (or an hour of yesterday's escape) the
+    # roll-over decision.
     y_start = _local_date_start_naive_utc(user_id, yesterday, db)
-    y_end = y_start + timedelta(days=1)
+    y_end = _local_date_start_naive_utc(user_id, yesterday + timedelta(days=1), db)
 
     if has_learning_activity(user_id, y_start, y_end, db.session):
         return None
@@ -194,22 +203,20 @@ def _try_rollover_from_yesterday(
 
 
 def _local_date_start_naive_utc(user_id: int, local_date: Any, db: Any):
-    """Return UTC-naive midnight for an explicit user-local date."""
-    from datetime import datetime, time, timezone
+    """Return UTC-naive study-day start (02:00 local) for an explicit date.
 
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:  # pragma: no cover
-        from backports.zoneinfo import ZoneInfo  # type: ignore
+    ``local_date`` is already a *study-day* date (it comes from
+    ``get_user_local_date``), so anchoring the window at calendar midnight
+    shifted it two hours early: activity between 00:00 and 02:00 fell into
+    the next window, and the roll-over check both missed a real study session
+    and counted the previous day's one (DP-002 / DP-009). Delegates to
+    :func:`app.utils.time_utils.study_day_start_utc` — the same anchor the
+    streak, telegram and SRS windows use.
+    """
+    from app.utils.time_utils import get_user_timezone_name, study_day_start_utc
 
-    from app.utils.time_utils import get_user_timezone_name
-
-    try:
-        tz = ZoneInfo(get_user_timezone_name(user_id, db))
-    except Exception:  # noqa: BLE001
-        tz = timezone.utc
-    local_midnight = datetime.combine(local_date, time.min, tzinfo=tz)
-    return local_midnight.astimezone(timezone.utc).replace(tzinfo=None)
+    tz_name = get_user_timezone_name(user_id, db)
+    return study_day_start_utc(tz_name, local_date).replace(tzinfo=None)
 
 
 def overlay_completion(
@@ -227,6 +234,15 @@ def overlay_completion(
 
     Other fields (id, kind, title, subtitle, lesson_type, data,
     completion_signal) are passed through unchanged.
+
+    Two kinds of reading item are dropped rather than overlaid: a book that
+    has been finished, and a *still-incomplete* slot on a book the user can no
+    longer open. The builder's access gate only covers the day the snapshot is
+    composed — the required list is then frozen, so a licence that expires (or
+    a ``books`` module that is revoked) mid-day would otherwise leave an
+    uncompletable slot blocking ``day_secured`` until the study day rolls over
+    at 02:00. A slot already completed before access was lost is kept: it
+    blocks nothing, and dropping it would revoke earned credit.
     """
     items_out: list[dict[str, Any]] = []
     for item in snapshot.get('items') or []:
@@ -235,6 +251,13 @@ def overlay_completion(
         if _is_finished_reading_book(user_id, merged, db):
             continue
         completed = _is_item_completed(user_id, merged, db)
+        # Reachability is checked AFTER completion: the point of the drop is to
+        # unblock a slot that can no longer be finished, and a slot already
+        # finished this morning is not blocking anything. Dropping it anyway
+        # would erase credit the user really earned and shrink the
+        # steps_done/steps_total pair that feeds get_required_steps.
+        if not completed and _reading_book_unreachable(user_id, merged, db):
+            continue
         merged['completed'] = completed
         if completed:
             merged['eta_minutes'] = 0
@@ -325,6 +348,48 @@ def _is_finished_reading_book(user_id: int, item: dict[str, Any], db: Any) -> bo
         return False
 
 
+def _reading_book_unreachable(user_id: int, item: dict[str, Any], db: Any) -> bool:
+    """True when a frozen reading slot points at a book the user can't open.
+
+    Access is not static: a licence expires, an admin pulls the ``books``
+    module, a book is unpublished. The snapshot is frozen for the day, so the
+    slot keeps pointing at a 403/404 and ``day_secured`` stays unreachable.
+
+    Dropping the item is the only honest repair — marking it ``completed``
+    would be a fake credit and would also fake a perfect day. A book row that
+    has disappeared counts as unreachable for the same reason. Errors keep the
+    item: a transient failure must not silently shrink the required list.
+    """
+    if item.get('kind') != 'reading':
+        return False
+    data = item.get('data') or {}
+    book_id = data.get('book_id')
+    try:
+        book_id_int = int(book_id) if book_id is not None else None
+    except (TypeError, ValueError):
+        book_id_int = None
+    if book_id_int is None:
+        return False
+    try:
+        from app.books.models import Book
+        from app.daily_plan.items.reading import book_access_ok_for_reading
+
+        book = db.session.get(Book, book_id_int)
+        if book_access_ok_for_reading(user_id, book, db):
+            return False
+    except Exception:
+        logger.warning(
+            "snapshot reading access check failed user=%s book=%s",
+            user_id, book_id_int, exc_info=True,
+        )
+        return False
+    logger.warning(
+        "snapshot reading slot dropped user=%s book=%s reason=access_revoked",
+        user_id, book_id_int,
+    )
+    return True
+
+
 def _curriculum_lesson_done_today(
     user_id: int,
     lesson_id: int,
@@ -406,28 +471,22 @@ def _grammar_topic_practiced_today(
          is known, restricted to that module so practising the same
          topic via a *different* module's grammar lesson does not
          close the pre-FT step for this module.
-    """
-    from datetime import datetime, timedelta, timezone
 
+    "Today" is the *study* day (02:00 local → 02:00 local), taken from
+    ``get_user_local_day_bounds`` — the same window ``_grammar_reviewed_today``
+    (``app/daily_plan/items/grammar_review.py``) and ``_curriculum_lesson_done_today``
+    above use. A hand-rolled calendar-midnight window was two hours early
+    relative to the study-day date it was derived from (DP-009): the second
+    signal below filters on ``LessonAttempt.completed_at``, a real wall-clock
+    moment, so a curriculum grammar lesson finished at 01:00 local fell outside
+    its own study day (required slot stays open, ``day_secured`` unreachable)
+    and inside the *next* one (a day with no work closes the slot).
+    """
     from app.curriculum.models import LessonAttempt, Lessons
     from app.grammar_lab.models import GrammarExercise, UserGrammarExercise
-    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
+    from app.utils.time_utils import get_user_local_day_bounds
 
-    try:
-        from zoneinfo import ZoneInfo
-    except ImportError:  # pragma: no cover
-        from backports.zoneinfo import ZoneInfo  # type: ignore
-
-    today = get_user_local_date(user_id, db)
-    tz_name = get_user_timezone_name(user_id, db)
-    try:
-        tz = ZoneInfo(tz_name)
-    except Exception:  # noqa: BLE001
-        tz = timezone.utc
-    start_local = datetime(today.year, today.month, today.day, tzinfo=tz)
-    end_local = start_local + timedelta(days=1)
-    start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
-    end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+    start_utc, end_utc = get_user_local_day_bounds(user_id, db)
 
     standalone_q = (
         db.session.query(UserGrammarExercise.id)

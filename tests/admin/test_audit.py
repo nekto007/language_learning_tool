@@ -227,6 +227,10 @@ class TestAdminAuditRequiredDecorator:
     We patch admin_required to identity (lambda f: f) at decoration time so
     that wrapped_view is tested without the Flask-Login gate. current_user is
     set up via login_user() only for paths that actually read it (2xx/3xx).
+
+    Request contexts are POST: the decorator audits mutating methods only, so
+    a GET context would exercise the safe-method skip instead of the status
+    filtering these tests are about.
     """
 
     @staticmethod
@@ -249,7 +253,7 @@ class TestAdminAuditRequiredDecorator:
         action = f'dec_200_{uuid.uuid4().hex[:8]}'
         view = self._make_view(action, 200)
 
-        with app.test_request_context('/admin/test'):
+        with app.test_request_context('/admin/test', method='POST'):
             login_user(admin_user)
             view()
 
@@ -262,7 +266,7 @@ class TestAdminAuditRequiredDecorator:
         view = self._make_view(action, 400)
 
         # current_user is never accessed on 4xx path — no login_user needed
-        with app.test_request_context('/admin/test'):
+        with app.test_request_context('/admin/test', method='POST'):
             view()
 
         count = db_session.query(AdminAuditLog).filter_by(action=action).count()
@@ -273,7 +277,7 @@ class TestAdminAuditRequiredDecorator:
         action = f'dec_500_{uuid.uuid4().hex[:8]}'
         view = self._make_view(action, 500)
 
-        with app.test_request_context('/admin/test'):
+        with app.test_request_context('/admin/test', method='POST'):
             view()
 
         count = db_session.query(AdminAuditLog).filter_by(action=action).count()
@@ -293,12 +297,32 @@ class TestAdminAuditRequiredDecorator:
             def _redirect_view():
                 return redirect('/admin/')
 
-        with app.test_request_context('/admin/test'):
+        with app.test_request_context('/admin/test', method='POST'):
             login_user(admin_user)
             _redirect_view()
 
         count = db_session.query(AdminAuditLog).filter_by(action=action).count()
         assert count == 1, 'Audit row SHOULD be created for 3xx redirect'
+
+    def test_no_row_on_get(self, app, db_session, admin_user):
+        """A GET renders; it does not mutate, so it must not be audited.
+
+        Routes declared methods=['GET', 'POST'] serve the form on GET, and an
+        admin opens an edit form far more often than they save it — auditing
+        the GET would bury the real mutations under rows for edits that never
+        happened.
+        """
+        from flask_login import login_user
+
+        action = f'dec_get_{uuid.uuid4().hex[:8]}'
+        view = self._make_view(action, 200)
+
+        with app.test_request_context('/admin/test', method='GET'):
+            login_user(admin_user)
+            view()
+
+        count = db_session.query(AdminAuditLog).filter_by(action=action).count()
+        assert count == 0, 'Audit row must NOT be created for a GET'
 
 
 class TestAuditLogNullTargetId:

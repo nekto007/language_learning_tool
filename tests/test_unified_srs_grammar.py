@@ -217,6 +217,20 @@ class TestGrammarExerciseStateMachine:
         assert result['step_index'] == 0
 
 
+def _stub_locked_progress(mock_model, progress):
+    """Wire the mock the way ``grade_grammar_exercise`` loads its row.
+
+    ``get_or_create`` only resolves the id; the row that actually gets graded
+    is re-read under ``filter_by(id=...).with_for_update().first()``. Stubbing
+    only ``get_or_create`` leaves grading a bare ``MagicMock``, so none of the
+    fixture's counters ever move.
+    """
+    mock_model.get_or_create.return_value = progress
+    (mock_model.query.filter_by.return_value
+     .with_for_update.return_value
+     .first.return_value) = progress
+
+
 class TestGradeGrammarExercise:
     """Test grade_grammar_exercise method."""
 
@@ -243,13 +257,19 @@ class TestGradeGrammarExercise:
         progress.first_reviewed = None
         progress.last_reviewed = None
         progress.next_review = datetime.now(timezone.utc)
+        # Real values, not auto-created child mocks: the state machine
+        # compares these, and a MagicMock raises into the blanket `except`
+        # that reports «Grammar SRS update failed».
+        progress.consecutive_leech_burials = 0
+        progress.buried_until = None
+        progress.difficulty_score = 0
         return progress
 
     @patch('app.srs.service.UserGrammarExercise')
     @patch('app.srs.service.db')
-    def test_grade_grammar_exercise_success(self, mock_db, mock_model, service, mock_progress):
+    def test_grade_grammar_exercise_success(self, mock_db, mock_model, service, mock_progress, app):
         """Test successful grammar exercise grading."""
-        mock_model.get_or_create.return_value = mock_progress
+        _stub_locked_progress(mock_model, mock_progress)
 
         result = service.grade_grammar_exercise(
             exercise_id=456,
@@ -265,9 +285,9 @@ class TestGradeGrammarExercise:
 
     @patch('app.srs.service.UserGrammarExercise')
     @patch('app.srs.service.db')
-    def test_grade_grammar_exercise_updates_correct_count(self, mock_db, mock_model, service, mock_progress):
+    def test_grade_grammar_exercise_updates_correct_count(self, mock_db, mock_model, service, mock_progress, app):
         """Test correct_count is updated on correct answer."""
-        mock_model.get_or_create.return_value = mock_progress
+        _stub_locked_progress(mock_model, mock_progress)
 
         service.grade_grammar_exercise(
             exercise_id=456,
@@ -279,9 +299,9 @@ class TestGradeGrammarExercise:
 
     @patch('app.srs.service.UserGrammarExercise')
     @patch('app.srs.service.db')
-    def test_grade_grammar_exercise_updates_incorrect_count(self, mock_db, mock_model, service, mock_progress):
+    def test_grade_grammar_exercise_updates_incorrect_count(self, mock_db, mock_model, service, mock_progress, app):
         """Test incorrect_count is updated on incorrect answer."""
-        mock_model.get_or_create.return_value = mock_progress
+        _stub_locked_progress(mock_model, mock_progress)
 
         service.grade_grammar_exercise(
             exercise_id=456,
@@ -293,9 +313,9 @@ class TestGradeGrammarExercise:
 
     @patch('app.srs.service.UserGrammarExercise')
     @patch('app.srs.service.db')
-    def test_grade_grammar_exercise_sets_first_reviewed(self, mock_db, mock_model, service, mock_progress):
+    def test_grade_grammar_exercise_sets_first_reviewed(self, mock_db, mock_model, service, mock_progress, app):
         """Test first_reviewed is set on first review."""
-        mock_model.get_or_create.return_value = mock_progress
+        _stub_locked_progress(mock_model, mock_progress)
 
         service.grade_grammar_exercise(
             exercise_id=456,
@@ -307,9 +327,9 @@ class TestGradeGrammarExercise:
 
     @patch('app.srs.service.UserGrammarExercise')
     @patch('app.srs.service.db')
-    def test_grade_grammar_exercise_requeue_on_learning(self, mock_db, mock_model, service, mock_progress):
+    def test_grade_grammar_exercise_requeue_on_learning(self, mock_db, mock_model, service, mock_progress, app):
         """Test requeue position is returned for LEARNING state."""
-        mock_model.get_or_create.return_value = mock_progress
+        _stub_locked_progress(mock_model, mock_progress)
 
         result = service.grade_grammar_exercise(
             exercise_id=456,
@@ -323,11 +343,11 @@ class TestGradeGrammarExercise:
 
     @patch('app.srs.service.UserGrammarExercise')
     @patch('app.srs.service.db')
-    def test_grade_grammar_exercise_no_requeue_on_review(self, mock_db, mock_model, service, mock_progress):
+    def test_grade_grammar_exercise_no_requeue_on_review(self, mock_db, mock_model, service, mock_progress, app):
         """Test no requeue for REVIEW state with rating 3."""
         mock_progress.state = CardState.REVIEW.value
         mock_progress.interval = 10
-        mock_model.get_or_create.return_value = mock_progress
+        _stub_locked_progress(mock_model, mock_progress)
 
         result = service.grade_grammar_exercise(
             exercise_id=456,

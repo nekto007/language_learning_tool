@@ -1,7 +1,6 @@
 import logging
 import threading
 import time
-from datetime import datetime
 from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
@@ -11,8 +10,8 @@ from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Query
 
 from app.modules.decorators import module_required
-from app.study.models import GameScore
 from app.utils.db import db
+from app.utils.db_utils import not_blank
 from app.words.detail_service import build_word_profile, build_word_study_summary, get_related_words
 from app.words.forms import WordFilterForm, WordSearchForm
 from app.words.models import CollectionWords
@@ -689,13 +688,12 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from datetime import datetime as _dt_age
 
-    import pytz
-
     from app.achievements.daily_race import get_race_standings
     from app.admin.site_settings import get_site_setting
     from app.auth.models import User
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_current_streak, get_daily_summary
+    from app.utils.time_utils import get_user_local_date
 
     def _is_adult(birth_year):
         if birth_year is None:
@@ -712,11 +710,11 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     if user is None or not _is_adult(getattr(user, 'birth_year', None)):
         return None
 
-    try:
-        tz_obj = pytz.timezone(tz or DEFAULT_TIMEZONE)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.timezone(DEFAULT_TIMEZONE)
-    local_today = datetime.now(tz_obj).date()
+    # Дата кохорты гонки — тот же источник, что берёт `/api/daily-race`:
+    # `get_user_local_date`, граница учебного дня 02:00. Календарная полночь
+    # от клиентского `tz` разводила два пути по разным `race_date` в окне
+    # 00:00-02:00, и один реальный день давал две кохорты (DP-012).
+    local_today = get_user_local_date(current_user_id, db)
 
     standings = get_race_standings(current_user_id, local_today, tz=tz)
     if not standings:
@@ -1044,28 +1042,72 @@ def _render_unified_dashboard(tz: str):
     from app.daily_plan.service import compute_day_secured_from_activity, write_secured_at
     _day_secured = compute_day_secured_from_activity(unified_plan, plan_completion)
     unified_plan['day_secured'] = _day_secured
+    _secured_date = None
     if _day_secured:
+        # DP-003: the plan_date must be the STUDY day (02:00 local), not the
+        # calendar date, and must be keyed on User.timezone rather than the
+        # client-supplied ``tz`` — otherwise a day closed between 00:00 and
+        # 02:00 wrote secured_at into tomorrow's row, and the API writer
+        # (/api/daily-status, already on get_user_local_date) then created a
+        # second row for the same session. Resolved OUTSIDE the try below so
+        # the milestone sweeper further down still has the date if a sweeper
+        # in that block raises.
+        from app.utils.time_utils import get_user_local_date
+        _secured_date = get_user_local_date(current_user.id, db)
         try:
-            from datetime import datetime as _dt_sec
-
-            import pytz as _pytz_sec
             try:
-                _tz_sec = _pytz_sec.timezone(tz)
-            except _pytz_sec.UnknownTimeZoneError:
-                _tz_sec = _pytz_sec.timezone(DEFAULT_TIMEZONE)
-            write_secured_at(current_user.id, _dt_sec.now(_tz_sec).date())
+                # daily_plan_completed milestone. Emitted BEFORE write_secured_at
+                # so the DailyPlanEvent guard sees the pre-secure state, matching
+                # the order in /api/daily-status. Idempotent (Notification check).
+                from app.api.daily_plan import emit_minimum_completed
+                from app.daily_plan.milestones import emit_daily_plan_completed
+                emit_daily_plan_completed(current_user.id, _secured_date, db)
+                # emit_daily_plan_completed dedupes on THIS row; without it the
+                # milestone notification would be re-created on every render.
+                emit_minimum_completed(current_user.id, None, _secured_date)
+            except Exception:
+                logger.warning('daily_plan_completed milestone emit failed', exc_info=True)
+            write_secured_at(current_user.id, _secured_date)
             try:
                 # Rank progression + rank-up notification on a secured day
                 # (idempotent per local day). Gated on the unified day_secured;
                 # record_plan_completion was previously only reachable from dead
                 # mission/phase paths, freezing ranks at Novice.
                 from app.achievements.ranks import record_plan_completion
-                _rank_up = record_plan_completion(current_user.id)
+                _rank_up = record_plan_completion(current_user.id, for_date=_secured_date)
                 if _rank_up is not None:
                     from app.notifications.services import notify_rank_up
                     notify_rank_up(current_user.id, _rank_up.new_name)
             except Exception:
                 logger.warning('rank-up recording failed in unified dashboard', exc_info=True)
+            try:
+                # Immersion achievements. `tz` MUST be the zone `_secured_date`
+                # was derived from, so the client-supplied one cannot be passed
+                # here (DP-013). This and the milestone above used to live only
+                # in /api/daily-status, which no client actually calls — the
+                # dashboard is the real day-closing surface, so both sweepers
+                # were unreachable for web users. Both secured_at writers carry
+                # the same set on purpose; keep them in step.
+                from app.achievements.services import check_immersion_achievement
+                from app.utils.time_utils import get_user_timezone_name
+                check_immersion_achievement(
+                    current_user.id, _secured_date, db.session,
+                    tz=get_user_timezone_name(current_user.id, db),
+                )
+            except Exception:
+                logger.warning('immersion achievement check failed in unified dashboard', exc_info=True)
+            try:
+                # Perfect-day sweeper (DP-035): the bonus used to be reachable
+                # only from slot handlers, so a day closed outside them (book
+                # SRS, standalone grammar-lab) never got it. Pass the same
+                # study-day date secured_at was written under, so the two can
+                # never key off different days.
+                from app.daily_plan.linear.xp import maybe_award_linear_perfect_day
+                maybe_award_linear_perfect_day(
+                    current_user.id, for_date=_secured_date, db_session=db,
+                )
+            except Exception:
+                logger.warning('perfect-day sweep failed in unified dashboard', exc_info=True)
             db.session.commit()
         except Exception:
             logger.warning('write_secured_at failed in unified dashboard', exc_info=True)
@@ -1076,6 +1118,26 @@ def _render_unified_dashboard(tz: str):
         daily_plan=unified_plan, plan_completion=plan_completion,
     )
     streak = streak_result['streak_status'].get('streak', streak)
+
+    if _day_secured and _secured_date is not None:
+        try:
+            # Fifth sweeper of the closed day. It needs the streak, which only
+            # exists after process_streak_on_activity, so it sits here rather
+            # than in the write_secured_at block above. Like the other four it
+            # used to live only in /api/daily-status — which no client calls —
+            # so plan-streak milestones were unreachable for web users
+            # (same defect class as DP-035). Idempotent per local day.
+            from app.notifications.services import check_plan_streak_milestone_notification
+            check_plan_streak_milestone_notification(
+                current_user.id, streak, _secured_date,
+            )
+            db.session.commit()
+        except Exception:
+            logger.warning(
+                'plan streak milestone notification failed in unified dashboard',
+                exc_info=True,
+            )
+            db.session.rollback()
 
     # Daily challenge card (right rail) — best-effort.
     challenge_card = None
@@ -1098,14 +1160,13 @@ def _render_unified_dashboard(tz: str):
     try:
         # get_today_xp требует date — без него падал в TypeError, и из-за
         # silent except шло «0 XP сегодня» даже после выполненных заданий.
-        from datetime import datetime
+        # Дата — учебная (`get_user_local_date`), тот же базис, под которым
+        # XP-события и записываются: календарная полночь от клиентского `tz`
+        # искала события 00:00-02:00 под завтрашней датой и показывала 0 XP
+        # ровно тем, кто учится ночью (DP-008).
+        from app.utils.time_utils import get_user_local_date as _xp_local_date
 
-        import pytz as _pytz_xp
-        try:
-            _tz = _pytz_xp.timezone(tz)
-        except _pytz_xp.UnknownTimeZoneError:
-            _tz = _pytz_xp.timezone(DEFAULT_TIMEZONE)
-        _today_local = datetime.now(_tz).date()
+        _today_local = _xp_local_date(current_user.id, db)
         xp_today = get_today_xp(current_user.id, _today_local) or 0
     except Exception:
         logger.warning('get_today_xp failed in unified dashboard', exc_info=True)
@@ -1294,8 +1355,7 @@ def word_list():
     ).filter(
         UserWord.user_id == current_user.id,
         UserWord.status == 'review',
-        CollectionWords.english_word.isnot(None),
-        func.trim(CollectionWords.english_word) != '',
+        not_blank(CollectionWords.english_word),
         CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     ).group_by(UserWord.word_id).having(
         func.min(UserCardDirection.interval) >= UserWord.MASTERED_THRESHOLD_DAYS
@@ -1330,8 +1390,7 @@ def word_list():
         next_review_subquery,
         CollectionWords.id == next_review_subquery.c.word_id
     ).filter(
-        CollectionWords.english_word.isnot(None),
-        func.trim(CollectionWords.english_word) != '',
+        not_blank(CollectionWords.english_word),
         CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     )
 
@@ -1514,8 +1573,7 @@ def word_list():
     if current_user.is_authenticated:
         _base_filters = [
             UserWord.user_id == current_user.id,
-            CollectionWords.english_word.isnot(None),
-            func.trim(CollectionWords.english_word) != '',
+            not_blank(CollectionWords.english_word),
             CollectionWords.level.in_(PUBLIC_CEFR_CODES),
         ]
         status_rows = db.session.query(
@@ -1543,8 +1601,7 @@ def word_list():
 
     # Получаем количество по типам — один GROUP BY запрос вместо трёх COUNT
     _base_type_filters = [
-        CollectionWords.english_word.isnot(None),
-        func.trim(CollectionWords.english_word) != '',
+        not_blank(CollectionWords.english_word),
         CollectionWords.level.in_(PUBLIC_CEFR_CODES),
     ]
     type_rows = db.session.query(
@@ -1807,7 +1864,11 @@ def streak_repair_web():
     from app.achievements.streak_service import apply_paid_repair, find_missed_date
     from app.telegram.queries import get_current_streak
 
-    tz = request.json.get('tz', DEFAULT_TIMEZONE) if request.is_json else DEFAULT_TIMEZONE
+    # Zone comes from User.timezone, not the request body (DP-001) — see the
+    # matching comment on /api/streak/repair. A client-chosen zone would pick a
+    # different missed DATE than every reader of the repair marker.
+    from app.utils.time_utils import get_user_timezone_name
+    tz = get_user_timezone_name(current_user.id, db)
 
     missed = find_missed_date(current_user.id, tz=tz)
     if not missed:

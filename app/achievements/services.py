@@ -1121,26 +1121,31 @@ def check_speaking_achievements(user_id: int, db_session=None) -> List[Achieveme
 def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: str = 'UTC') -> List[Achievement]:
     """Award immersion_daily / immersion_week after all 4 skills practiced on target_date.
 
-    target_date is the user's LOCAL date. tz must match the timezone used to derive it
-    so that the UTC query window aligns correctly with the user's day.
-    """
-    from datetime import timedelta
+    ``target_date`` is the user's STUDY-day date (the one ``get_user_local_date``
+    returns), and ``tz`` must be the zone it was derived from — otherwise the
+    UTC window built here is offset from the day the caller is asking about.
 
-    import pytz
+    The window is anchored at 02:00 local, not calendar midnight (DP-013): the
+    caller hands over a study-day date, so midnight-anchoring it dropped every
+    attempt made between 00:00 and 02:00 out of its own day — exactly the
+    night-study pattern the 02:00 anchor exists for, which meant a learner who
+    practised all four skills after midnight never got ``immersion_daily``.
+    """
     from sqlalchemy import func
 
     from app.books.reading_session import UserReadingSession
     from app.curriculum.models import ListeningAttempt, PronunciationAttempt, UserWritingAttempt
+    from app.utils.time_utils import study_day_start_utc
 
     session = db_session if db_session is not None else db.session
 
-    try:
-        tz_obj = pytz.timezone(tz)
-    except pytz.UnknownTimeZoneError:
-        tz_obj = pytz.utc
-    day_start_local = tz_obj.localize(datetime(target_date.year, target_date.month, target_date.day))
-    day_start = day_start_local.astimezone(pytz.utc).replace(tzinfo=None)
-    day_end = day_start + timedelta(days=1)
+    # Both ends go through study_day_start_utc, never `start + 24h`: a study day
+    # is 23 or 25 hours long on DST-transition days, and a fixed delta would leak
+    # an hour of the neighbouring day into the window.
+    day_start_aware = study_day_start_utc(tz, target_date)
+    day_end_aware = study_day_start_utc(tz, target_date + timedelta(days=1))
+    day_start = day_start_aware.replace(tzinfo=None)
+    day_end = day_end_aware.replace(tzinfo=None)
     has_listening = (session.query(func.count(ListeningAttempt.id)).filter(
         ListeningAttempt.user_id == user_id,
         ListeningAttempt.created_at >= day_start,
@@ -1159,10 +1164,17 @@ def check_immersion_achievement(user_id: int, target_date, db_session=None, tz: 
         PronunciationAttempt.created_at < day_end,
     ).scalar() or 0) > 0
 
+    # Three columns above are naive UTC; `UserReadingSession.started_at` is
+    # TIMESTAMPTZ, so it gets the AWARE ends. PostgreSQL resolves
+    # `timestamptz >= timestamp` through the session TimeZone GUC, which would
+    # silently shift the reading leg of the four-skill check on any server whose
+    # GUC is not UTC. `get_immersion_streak` already special-cases this same
+    # column (`_study_day_date_expr(..., aware=True)`); the two feed each other
+    # (immersion_daily here, immersion_week from there) and must agree.
     has_reading = (session.query(func.count(UserReadingSession.id)).filter(
         UserReadingSession.user_id == user_id,
-        UserReadingSession.started_at >= day_start,
-        UserReadingSession.started_at < day_end,
+        UserReadingSession.started_at >= day_start_aware,
+        UserReadingSession.started_at < day_end_aware,
     ).scalar() or 0) > 0
 
     if not (has_listening and has_writing and has_speaking and has_reading):

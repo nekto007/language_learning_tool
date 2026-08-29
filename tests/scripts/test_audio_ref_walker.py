@@ -17,7 +17,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.clear_missing_word_audio import audio_filename, file_exists
+from scripts.clear_missing_word_audio import (
+    COVERAGE_FLOOR,
+    audio_filename,
+    coverage_verdict,
+    file_exists,
+)
 from scripts.validate_module_completed_json import _iter_audio_refs
 
 
@@ -131,3 +136,36 @@ class TestVocabularyTemplateHandlesFailure:
         ).read_text(encoding='utf-8')
 
         assert '.audio-btn-card--unavailable' in css
+
+
+class TestApplyRefusesTheWrongDirectory:
+    """The clear-script compares the DB against a local directory.
+
+    A dev checkout carries a 33-file sample of `pronunciation_*.mp3`, while the
+    media host carries the library. Measured against production on 2026-08-23,
+    every sampled word with `get_download=1` serves its clip — so a run from a
+    checkout would clear `listening` for words whose audio exists and was paid
+    for by hand. The gate reads a near-empty directory as "wrong machine".
+    """
+
+    def test_full_library_is_accepted(self):
+        assert coverage_verdict(5990, 6000) is None
+
+    def test_dev_checkout_sample_is_refused(self):
+        verdict = coverage_verdict(33, 6158)
+        assert verdict is not None
+        assert '33 of 6158' in verdict
+        assert '--force' in verdict
+
+    def test_nothing_checkable_does_not_divide_by_zero(self):
+        """All refs external (http) — presence is unknowable, so do not block."""
+        assert coverage_verdict(0, 0) is None
+
+    def test_exactly_at_the_floor_is_accepted(self):
+        checkable = 1000
+        assert coverage_verdict(int(checkable * COVERAGE_FLOOR), checkable) is None
+
+    def test_just_below_the_floor_is_refused(self):
+        checkable = 1000
+        present = int(checkable * COVERAGE_FLOOR) - 1
+        assert coverage_verdict(present, checkable) is not None
