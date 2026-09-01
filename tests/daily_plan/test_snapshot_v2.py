@@ -11,7 +11,7 @@ Tests cover:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 
 import pytest
 from freezegun import freeze_time
@@ -872,6 +872,7 @@ class TestSelfRepairEmptyingRequired:
     блокировала.
     """
 
+    @freeze_time('2026-09-01 12:00:00')
     def test_flag_lets_activity_close_the_day(
         self, db_session, user, vocabulary_lesson,
     ):
@@ -889,11 +890,17 @@ class TestSelfRepairEmptyingRequired:
         # Активности нет — флаг сам по себе день не закрывает.
         assert compute_day_secured_from_activity(healed, {}) is False
 
-        from app.utils.time_utils import day_to_naive_utc
         db_session.add(LessonProgress(
             user_id=user.id, lesson_id=vocabulary_lesson.id,
             status='completed', score=100.0,
-            last_activity=day_to_naive_utc(user.id, real_db) + timedelta(hours=9),
+            # Must be inside the elapsed part of the current study day.  A
+            # fixed 09:00 UTC timestamp is still in the future when this test
+            # runs in the morning, so the real-time activity reader correctly
+            # excludes it and makes the test depend on wall-clock time.
+            last_activity=(
+                datetime.now(timezone.utc).replace(tzinfo=None)
+                - timedelta(seconds=1)
+            ),
         ))
         db_session.commit()
 
