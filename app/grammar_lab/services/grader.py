@@ -37,7 +37,29 @@ class GrammarExerciseGrader:
             }
 
         try:
-            return grader_method(exercise, user_answer)
+            result = grader_method(exercise, user_answer)
+            if not isinstance(result, dict):
+                raise TypeError(
+                    f"grader must return a dict, got {type(result).__name__}"
+                )
+
+            # ``GrammarAttempt.is_correct`` is a strict SQL Boolean.  Keep the
+            # contract enforcement here, before a malformed value can be added
+            # to the session and make an unrelated query fail during autoflush.
+            # Fail closed: an invalid grader result must never award progress.
+            is_correct = result.get('is_correct')
+            if not isinstance(is_correct, bool):
+                logger.error(
+                    "Grader contract violation for exercise %s (%s): "
+                    "is_correct must be bool, got %s %r; treating as False",
+                    exercise.id,
+                    exercise.exercise_type,
+                    type(is_correct).__name__,
+                    is_correct,
+                )
+                result['is_correct'] = False
+
+            return result
         except Exception as e:
             logger.error(f"Error grading exercise {exercise.id}: {e}")
             return {
@@ -196,7 +218,11 @@ class GrammarExerciseGrader:
         user = self._normalize_answer(answer)
 
         # Check if user provided just the corrected word OR the full sentence
-        is_correct = (
+        # ``and``/``or`` return operands, not necessarily booleans.  Without
+        # the explicit conversion, a missing ``full_correct`` made a wrong
+        # answer evaluate to '' and later fail when persisted to a Boolean
+        # database column.
+        is_correct = bool(
             user == correct_word or
             user in alternatives or
             (full_correct and user == full_correct)

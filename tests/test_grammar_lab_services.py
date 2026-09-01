@@ -225,6 +225,42 @@ class TestGraderErrorCorrection:
         result = grader.grade(ex, 'are')
         assert result['is_correct'] is False
 
+    def test_wrong_answer_without_full_correct_is_strict_false(
+        self, grader, db_session, grammar_topic
+    ):
+        """Regression: an empty final ``or`` operand must not leak as ''."""
+        ex = GrammarExercise(
+            topic_id=grammar_topic.id,
+            exercise_type='error_correction',
+            content={
+                'sentence': 'He throwed the ball across the field.',
+                'correct_answer': 'threw',
+                'alternatives': [],
+            },
+            difficulty=1,
+        )
+        db_session.add(ex)
+        db_session.commit()
+
+        result = grader.grade(ex, 'He throw the ball across the field')
+
+        assert result['is_correct'] is False
+        assert isinstance(result['is_correct'], bool)
+
+
+class TestGraderContract:
+    def test_non_boolean_is_correct_fails_closed(self, grader, caplog):
+        exercise = MagicMock(id=80887, exercise_type='contract_test')
+        grader._grade_contract_test = MagicMock(return_value={
+            'is_correct': '',
+            'correct_answer': 'threw',
+        })
+
+        result = grader.grade(exercise, 'wrong answer')
+
+        assert result['is_correct'] is False
+        assert 'Grader contract violation for exercise 80887' in caplog.text
+
 
 class TestGraderTransformation:
     def test_correct(self, grader, grammar_exercises):

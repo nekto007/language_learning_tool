@@ -3,7 +3,12 @@ import uuid
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.grammar_lab.models import GrammarTopic, GrammarExercise, UserGrammarExercise
+from app.grammar_lab.models import (
+    GrammarAttempt,
+    GrammarExercise,
+    GrammarTopic,
+    UserGrammarExercise,
+)
 
 
 @pytest.fixture
@@ -273,6 +278,38 @@ class TestApiSubmitAnswer:
             data="{}",
         )
         assert resp.status_code == 400
+
+    def test_wrong_error_correction_without_full_correct_is_persisted(
+        self, authenticated_client, db_session, grammar_topic
+    ):
+        """A wrong answer must persist as False instead of causing HTTP 500."""
+        exercise = GrammarExercise(
+            topic_id=grammar_topic.id,
+            exercise_type="error_correction",
+            content={
+                "sentence": "He throwed the ball across the field.",
+                "correct_answer": "threw",
+                "alternatives": [],
+            },
+            difficulty=1,
+            order=2,
+        )
+        db_session.add(exercise)
+        db_session.commit()
+
+        resp = authenticated_client.post(
+            f"/grammar-lab/api/exercise/{exercise.id}/submit",
+            json={
+                "answer": "He throw the ball across the field",
+                "session_id": "grammar_40_64_regression",
+                "source": "srs_review",
+            },
+        )
+
+        assert resp.status_code == 200
+        assert resp.get_json()["is_correct"] is False
+        attempt = GrammarAttempt.query.filter_by(exercise_id=exercise.id).one()
+        assert attempt.is_correct is False
 
 
 class TestApiCompleteTheory:
