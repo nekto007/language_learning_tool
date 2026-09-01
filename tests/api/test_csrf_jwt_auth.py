@@ -145,7 +145,8 @@ class TestCSRFExemptAudit:
     """Every @csrf.exempt endpoint must have an equivalent auth mechanism."""
 
     def test_reading_session_end_requires_login(self, client):
-        """books/api reading-session-end is csrf.exempt but gated by @login_required."""
+        """books/api reading-session-end is csrf.exempt at the framework level (sendBeacon),
+        validates the token itself and is gated by @login_required."""
         response = client.post(
             '/api/books/reading-session/end',
             json={'session_id': 999, 'offset_delta': 0.5},
@@ -181,7 +182,8 @@ class TestCSRFExemptAudit:
         assert response.status_code == 200
 
     def test_daily_plan_csrf_exempt_endpoints_require_auth(self, client):
-        """daily_plan.py has several csrf.exempt POST endpoints; all need @api_auth_required."""
+        """daily_plan.py POST endpoints (no longer csrf.exempt since 2026-09-01,
+        see tests/security/test_csrf_sweep.py) all need @api_auth_required."""
         exempt_mutating_endpoints = [
             ('/api/daily-plan/skip-lesson', {'lesson_id': 1}),
             ('/api/daily-plan/events', {'event_type': 'slot_skipped'}),

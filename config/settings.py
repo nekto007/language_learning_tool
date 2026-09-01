@@ -217,6 +217,13 @@ class Config:
     REMEMBER_COOKIE_SECURE = os.environ.get("FLASK_ENV") != "development"
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_DURATION = timedelta(days=30)
+    # Flask-Login сам SameSite на remember_token не ставит (дефолт пустой), и
+    # кросс-сайтовая форма из браузера без Lax-по-умолчанию (Firefox, Safari)
+    # несла куку на POST: Flask-Login поднимал по ней юзера, и любой
+    # @csrf.exempt-обработчик исполнялся без токена (находка 2026-09-01).
+    # Базис тот же, что и для SESSION_COOKIE_SAMESITE, иначе защищена одна кука
+    # из двух.
+    REMEMBER_COOKIE_SAMESITE = 'Lax'
 
     WTF_CSRF_ENABLED = True
     # None = токен живёт столько же, сколько сессия (30 дней), а не 1 час.

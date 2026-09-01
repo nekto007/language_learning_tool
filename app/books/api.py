@@ -10,7 +10,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Optional
 
-from flask import Blueprint, Response, jsonify, request, send_file, url_for
+from flask import Blueprint, Response, current_app, jsonify, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -1147,6 +1147,33 @@ def reading_session_start():
     })
 
 
+def _require_csrf_token(data: dict) -> None:
+    """Manual CSRF check for the beacon endpoint (``@csrf.exempt`` above it).
+
+    Mirrors Flask-WTF's own before_request gate: honours ``WTF_CSRF_ENABLED``
+    (the test suite runs with it off), looks in the JSON body first
+    (``sendBeacon`` can set neither headers nor form fields), then in the
+    configured token headers, and raises ``CSRFError`` so the app-wide handler
+    answers with the same ``{"csrf_expired": true}`` body as every other
+    endpoint.
+    """
+    if not current_app.config.get('WTF_CSRF_ENABLED', True):
+        return
+    from flask_wtf.csrf import CSRFError, validate_csrf
+    from wtforms import ValidationError
+
+    token = data.get('csrf_token') if isinstance(data, dict) else None
+    if not token:
+        for header in current_app.config.get('WTF_CSRF_HEADERS', ('X-CSRFToken', 'X-CSRF-Token')):
+            token = request.headers.get(header)
+            if token:
+                break
+    try:
+        validate_csrf(token)
+    except ValidationError as exc:
+        raise CSRFError(exc.args[0] if exc.args else 'The CSRF token is invalid.') from exc
+
+
 @books_api.route('/api/books/reading-session/end', methods=['POST'])
 @csrf.exempt
 @login_required
@@ -1154,10 +1181,14 @@ def reading_session_end():
     """Close a reading session. Frontend calls this on page-leave/scroll-out.
 
     On `pagehide` the browser uses `navigator.sendBeacon`, which forces
-    Content-Type to text/plain (or multipart). We accept both JSON and
-    text/plain bodies and parse them as JSON. CSRF is exempted because the
-    endpoint is gated by `@login_required` (session cookie required) and only
-    operates on a session whose ownership is verified server-side.
+    Content-Type to text/plain (or multipart) and cannot set headers, so
+    Flask-WTF's header/form lookup can never see a token here. The endpoint is
+    therefore ``@csrf.exempt`` at the framework level and validates the token
+    ITSELF from the JSON body (``csrf_token``, which the reader puts into the
+    beacon payload) or the usual ``X-CSRFToken`` header -- the exemption moves
+    the check, it does not remove it. ``@login_required`` is no substitute:
+    a cross-site form POST is authenticated by remember_token as well as by
+    the session cookie, and a text/plain form body parses as JSON below.
     """
     import json as _json
 
@@ -1174,6 +1205,7 @@ def reading_session_end():
                 data = None
     if not isinstance(data, dict):
         data = {}
+    _require_csrf_token(data)
     session_id = data.get('session_id')
     if not session_id:
         return api_error('missing_session_id', 'session_id is required', 400)

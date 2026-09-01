@@ -41,9 +41,13 @@ def api_auth_required(f):
     endpoint body too, so any genuine 500 raised under JWT was reported as
     401 Invalid or expired token.
 
-    CSRF note: endpoints decorated with @csrf.exempt should only be reachable
-    via JWT in practice (mobile/external clients). Browser-AJAX endpoints
-    keep CSRF protection via Flask-WTF (no @csrf.exempt).
+    CSRF note: do NOT stack @csrf.exempt on top of this decorator. The session
+    fallback means an exempt endpoint is reachable with cookies alone, and a
+    cross-site form POST carries remember_token (Flask-Login) from browsers
+    without Lax-by-default -- eight daily-plan endpoints were exposed that way
+    until 2026-09-01. Browser callers send X-CSRFToken; a future JWT-only
+    client would need an exemption gated on the Bearer header, not a blanket
+    @csrf.exempt. Guard: tests/security/test_csrf_sweep.py.
     """
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):

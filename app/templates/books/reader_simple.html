@@ -539,6 +539,8 @@ setTimeout(updateProgress, 100);
         const payload = {
             session_id: sessionId,
             current_offset_pct: _currentOffsetPct(),
+            // sendBeacon не умеет заголовки — /end проверяет токен из тела сам.
+            csrf_token: csrfToken,
         };
         sessionId = null;  // optimistic clear — prevents double-close races
         if (unloading) {

@@ -7,7 +7,6 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, jsonify, request, session
 from flask_login import current_user
 
-from app import csrf
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.utils.db import db
@@ -830,7 +829,6 @@ _SKIP_SLOT_KINDS = {'curriculum', 'srs', 'reading', 'listening', 'writing', 'err
 
 
 @api_daily_plan.route('/daily-plan/events', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def record_daily_plan_event():
     """Record a Phase 1 behavioral event for H1 hypothesis measurement.
@@ -1080,7 +1078,6 @@ def _count_resolved_today(entries, user_id: int) -> int:
 
 
 @api_daily_plan.route('/daily-plan/error-review/complete', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def complete_error_review():
     """Complete a linear-plan error-review session.
@@ -1210,7 +1207,6 @@ def _normalise_phrase_answer(value: object) -> str:
 
 
 @api_daily_plan.route('/daily-plan/phrase-review/complete', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def complete_phrase_review():
     """Grade and record the optional daily three-phrase retrieval activity."""
@@ -1300,7 +1296,6 @@ def complete_phrase_review():
 
 
 @api_daily_plan.route('/plan/pause', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def plan_pause():
     """Pause daily plan for N days (1–14).
@@ -1359,7 +1354,6 @@ def plan_pause():
 
 
 @api_daily_plan.route('/plan/resume', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def plan_resume():
     """Resume daily plan immediately by clearing plan_paused_until.
@@ -1392,7 +1386,6 @@ def plan_resume():
 
 
 @api_daily_plan.route('/streak/repair', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def streak_repair():
     """Pay streak coins to repair a broken streak."""
@@ -1424,7 +1417,6 @@ def streak_repair():
 
 
 @api_daily_plan.route('/daily-plan/challenge/complete', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def challenge_complete():
     """Mark today's daily challenge as completed for the current user.
@@ -1513,7 +1505,6 @@ def challenge_complete():
 
 
 @api_daily_plan.route('/daily-plan/skip-lesson', methods=['POST'])
-@csrf.exempt
 @api_auth_required
 def skip_lesson():
     """Defer today's curriculum lesson to tomorrow.

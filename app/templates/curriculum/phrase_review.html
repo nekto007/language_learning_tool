@@ -42,9 +42,12 @@
     const answers = Array.from(document.querySelectorAll('[id^="phrase-answer-"]')).map((input) => input.value);
     button.disabled = true;
     try {
+      const tok = document.querySelector('meta[name="csrf-token"]');
+      const headers = {'Content-Type': 'application/json'};
+      if (tok) headers['X-CSRFToken'] = tok.getAttribute('content');
       const response = await fetch('/api/daily-plan/phrase-review/complete', {
         method: 'POST', credentials: 'same-origin',
-        headers: {'Content-Type': 'application/json'},
+        headers,
         body: JSON.stringify({answers}),
       });
       const data = await response.json();
