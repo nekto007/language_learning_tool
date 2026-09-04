@@ -1776,9 +1776,14 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
     """Return next incomplete step from the unified daily plan.
 
     Iterates required then optional in order; the first item whose id is not
-    marked done by plan_completion or item.completed is returned as the next
-    step.  When everything is done returns has_next=False with fallback_url so
-    the frontend can redirect to the dashboard.
+    marked done by plan_completion or item.completed — and not skipped or
+    blocked — is returned as the next step. When nothing is left returns
+    has_next=False with fallback_url so the frontend can redirect to the
+    dashboard; ``all_done`` is true only when no required step is skipped.
+
+    ``steps_done``/``steps_total`` count required items only; ``step_scope``
+    says whether the next step is a required one or a bonus after the
+    minimum, and ``minimum_done`` whether the daily minimum is already met.
     """
     from app.achievements.streak_service import compute_plan_steps
 
@@ -1801,16 +1806,22 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
 
     def _is_done(item: dict) -> bool:
         item_id = item.get('id', '')
-        return (
-            plan_completion.get(item_id, False)
-            or bool(item.get('completed', False))
-            or bool(item.get('skipped', False))
-        )
+        return plan_completion.get(item_id, False) or bool(item.get('completed', False))
+
+    def _is_skipped(item: dict) -> bool:
+        # A skip is navigation only: the step is passed over, not done (the
+        # same rule ``compute_day_secured_from_activity`` applies). Counting
+        # it as done made ``all_done`` true next to «Шаг 0 из 1» (DP-091).
+        return bool(item.get('skipped', False)) and not _is_done(item)
+
+    minimum_done = steps_total > 0 and steps_done >= steps_total
+    skipped_remaining = sum(1 for item in required if _is_skipped(item))
 
     next_item = next(
         (
             item for item in (required + optional)
             if not _is_done(item)
+            and not _is_skipped(item)
             and not item.get('blocked', False)
             and item.get('url')
         ),
@@ -1827,30 +1838,44 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
             return jsonify({
                 'has_next': True,
                 'step_type': 'free_study',
+                'step_scope': 'optional',
                 'step_title': 'Свободная практика',
                 'step_url': '/study?source=infinite_practice',
                 'step_icon': KIND_ICONS.get('srs', '\U0001f4d6'),
                 'steps_done': steps_done,
                 'steps_total': steps_total,
+                'minimum_done': minimum_done,
+                'skipped_remaining': skipped_remaining,
             }), 200
+        # «Nothing left» only when nothing is skipped either: a skipped
+        # required step still waits for the learner.
+        all_done = skipped_remaining == 0 and (steps_total == 0 or minimum_done)
         return jsonify({
             'has_next': False,
-            'all_done': True,
+            'all_done': all_done,
             'steps_done': steps_done,
             'steps_total': steps_total,
+            'minimum_done': minimum_done,
+            'skipped_remaining': skipped_remaining,
             'fallback_url': url_for('words.dashboard'),
             'continue_study_url': '/study?source=free_practice',
         }), 200
 
     kind = next_item.get('kind', '')
+    # ``steps_*`` count required only; an optional next step after the
+    # minimum must not read as «Шаг N+1 из N» on the client (review note).
+    step_scope = 'required' if any(next_item is it for it in required) else 'optional'
     return jsonify({
         'has_next': True,
         'step_type': kind,
+        'step_scope': step_scope,
         'step_title': next_item.get('title') or 'Следующий шаг',
         'step_url': next_item['url'],
         'step_icon': KIND_ICONS.get(kind, '\U0001f4cc'),
         'steps_done': steps_done,
         'steps_total': steps_total,
+        'minimum_done': minimum_done,
+        'skipped_remaining': skipped_remaining,
     }), 200
 
 

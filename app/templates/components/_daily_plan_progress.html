@@ -131,7 +131,11 @@
         credentials: 'same-origin',
         headers: headers
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+        // A 4xx/5xx JSON envelope carries no steps; treat it as an error, not «no plan».
+        if (!r.ok) { throw new Error('next-step HTTP ' + r.status); }
+        return r.json();
+    })
     .then(function(data) {
         var total = data.steps_total || 0;
         var done = data.steps_done || 0;
@@ -156,16 +160,28 @@
         var textEl = bar.querySelector('.dp-bar__text');
         var btnEl = document.getElementById('dp-bar__next');
 
+        var dash = '{{ url_for("words.dashboard") }}';
         if (data.all_done) {
-            textEl.textContent = '\u0428\u0430\u0433 ' + done + ' \u0438\u0437 ' + total;
+            // «Выполнено N из N» — never «Шаг 0 из 1» next to a done badge (DP-115).
+            textEl.textContent = '\u0412\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u043e ' + done + ' \u0438\u0437 ' + total;
             btnEl.textContent = '\u2728 \u041f\u043b\u0430\u043d \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!';
-            btnEl.href = '{{ url_for("words.dashboard") }}';
+            btnEl.href = dash;
             btnEl.classList.add('dp-bar__btn--done');
+        } else if (data.has_next && data.step_scope === 'optional') {
+            // Minimum met, next step is a bonus — not «Шаг N+1 из N».
+            textEl.textContent = '\u041c\u0438\u043d\u0438\u043c\u0443\u043c \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d \u00b7 \u0431\u043e\u043d\u0443\u0441';
+            btnEl.textContent = '\u2192 ' + (data.step_title || '\u0411\u043e\u043d\u0443\u0441\u043d\u043e\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u0435');
+            btnEl.href = data.step_url || dash;
+        } else if (!data.has_next && data.skipped_remaining) {
+            // Only skipped steps remain: the day is not closed, offer the way back.
+            textEl.textContent = '\u0428\u0430\u0433 ' + done + ' \u0438\u0437 ' + total + ' \u00b7 \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043e ' + data.skipped_remaining;
+            btnEl.textContent = '\u21a9 \u0412\u0435\u0440\u043d\u0443\u0442\u044c\u0441\u044f \u043a \u043f\u043b\u0430\u043d\u0443';
+            btnEl.href = dash;
         } else {
-            var currentStep = done + 1;
+            var currentStep = Math.min(done + 1, total);
             textEl.textContent = '\u0428\u0430\u0433 ' + currentStep + ' \u0438\u0437 ' + total;
             btnEl.textContent = '\u2192 \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433';
-            btnEl.href = data.step_url || '{{ url_for("words.dashboard") }}';
+            btnEl.href = data.step_url || dash;
         }
 
         // Show bar. The 48px offset comes from the `.dp-bar--visible ~ nav.navbar`

@@ -92,6 +92,8 @@ class TestNextStepFromUnified:
         assert data['step_title'] == 'Lesson 1'
         assert data['step_url'] == '/lesson/1'
         assert data['step_icon'] == '\U0001f3af'
+        assert data['step_scope'] == 'required'
+        assert data['minimum_done'] is False
 
     def test_skips_completed_required_returns_next(self, authenticated_client):
         """Skips the first required item if it's completed, returns second."""
@@ -208,8 +210,8 @@ class TestNextStepFromUnified:
         assert data['has_next'] is False
         assert data['all_done'] is True
 
-    def test_skipped_item_treated_as_done(self, authenticated_client):
-        """Skipped items are treated as done and skipped over."""
+    def test_skipped_item_is_passed_over_but_not_done(self, authenticated_client):
+        """DP-091: пропуск — навигация, не выполнение."""
         plan = _make_unified_plan(required=[
             _make_item('curriculum:lesson:1', skipped=True, url='/lesson/1'),
             _make_item('srs:global', kind='srs', title='SRS', url='/study'),
@@ -218,6 +220,35 @@ class TestNextStepFromUnified:
 
         assert data['has_next'] is True
         assert data['step_type'] == 'srs'
+        assert data['step_scope'] == 'required'
+        assert data['steps_done'] == 0
+        assert data['skipped_remaining'] == 1
+        assert data['minimum_done'] is False
+
+    def test_last_required_skipped_is_not_all_done(self, authenticated_client):
+        """DP-091 / DP-115: «План выполнен!» рядом с «Шаг 0 из 1» больше невозможно."""
+        plan = _make_unified_plan(required=[
+            _make_item('srs:global', kind='srs', title='SRS', skipped=True, url='/study'),
+        ])
+        data = self._call(authenticated_client, plan, _make_daily_summary())
+
+        assert data['has_next'] is False
+        assert data['all_done'] is False
+        assert data['skipped_remaining'] == 1
+        assert data['steps_done'] == 0 and data['steps_total'] == 1
+
+    def test_optional_next_after_minimum_is_scoped_as_bonus(self, authenticated_client):
+        """Ревью Codex: минимум выполнен, следующий шаг бонусный — не «Шаг N+1 из N»."""
+        plan = _make_unified_plan(
+            required=[_make_item('curriculum:lesson:1', completed=True)],
+            optional=[_make_item('reading:42', kind='reading', title='Read Book', url='/books/42')],
+        )
+        data = self._call(authenticated_client, plan, _make_daily_summary())
+
+        assert data['has_next'] is True
+        assert data['step_scope'] == 'optional'
+        assert data['minimum_done'] is True
+        assert data['steps_done'] == 1 and data['steps_total'] == 1
 
     def test_icon_map_for_various_kinds(self, authenticated_client):
         """Icon is set correctly for each known kind."""
