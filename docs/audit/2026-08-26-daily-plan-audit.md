@@ -514,7 +514,7 @@ Claude (все десять замечаний ревью подтвержден
 | 6 | `DP-048` | P2 | ✅ | `2225a5fb` | `tests/daily_plan/test_challenge_target.py` (8) |
 | 7 | `DP-092` | P2 | ✅ | `b83dd33b` | `tests/daily_plan/test_slot_skip_state.py` (9) |
 | 8 | `DP-004` | P2 | ✅ | `89941285` | `tests/daily_plan/test_snapshot_v2.py::TestCompletedCurriculumAnchorKeepsImmediateNextLessons` (1) |
-| 9 | `DP-091` + `DP-115` | P2 | ✅ | `cde815f5` | `tests/words/test_daily_plan_next_step.py` (`test_skipped_item_is_passed_over_but_not_done`, `test_last_required_skipped_is_not_all_done`, `test_optional_next_after_minimum_is_scoped_as_bonus`); `DP-117` закрыта той же правкой (`r.ok` перед `r.json()`) |
+| 9 | `DP-091` + `DP-115` | P2 | ✅ | `cde815f5` | `tests/words/test_daily_plan_next_step.py` (`test_skipped_item_is_passed_over_but_not_done`, `test_last_required_skipped_is_not_all_done`, `test_optional_next_after_minimum_is_scoped_as_bonus`); `DP-117` закрыта той же правкой (`r.ok` перед `r.json()`); хвост ревью Codex — `bbc25e30` (`test_optional_next_after_a_skip_does_not_claim_the_minimum`, `TestProgressBarBranchesOnMinimumDone`) |
 | 10 | `DP-053` | P2 | ✅ | `50ea04ea` | `tests/daily_plan/test_day_close_integrity.py::TestQuizAndFinalTestRetakeXpGate` (оба URL квиза и финального теста + порог из контента) |
 
 **Что изменилось в коде (половина Claude), одним абзацем.** `build_optional` распределяет бюджет
