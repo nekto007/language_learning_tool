@@ -492,6 +492,57 @@ grammar-урока переведён со липкого `status` на резу
 
 ---
 
+## Статус ремедиации (фаза 3) — 2026-09-05, ветка `daily-plan-top10`
+
+План — `docs/plans/2026-09-04-daily-plan-top10-user-visible.md`: десять самых заметных
+пользователю находок из 94 открытых, отобраны по экспозиции на копии прода (снимок до
+2026-08-28), каждая перечитана на HEAD `0b345cff`, план прошёл перекрёстную проверку Codex ↔
+Claude (все десять замечаний ревью подтверждены по коду и внесены в правки). Апрув владельца —
+2026-09-05. Работа разделена по файлам: Claude — #1, #2, #3, #6, #7, #9; Codex — #4, #5, #8, #10.
+
+**Попутно закрыта без правки:** `DP-014` — на HEAD `write_secured_at` уже держит `add` внутри
+`begin_nested()` (`app/daily_plan/service.py:133-147`), то есть правка вошла хвостом фазы 1, а
+строка реестра осталась открытой. Не чинить повторно.
+
+| # | ID | Sev | Статус | Коммит | Тест-страж |
+|---|---|---|---|---|---|
+| 1 | `DP-036` | P2 | ✅ | `008519f8` | `tests/test_dashboard_ux_audit.py` (`test_inline_script_expands_optional_in_place`, `test_optional_queue_limited_to_five_visible_items`, `test_server_truncation_shows_hint_not_a_pager`, `test_folded_tail_uses_whole_list_for_current_index`) |
+| 2 | `DP-038` + `DP-039` | P2 | ✅ | `56eb716f` | `tests/daily_plan/test_optional_budget.py::TestBudgetByImportance` (4) |
+| 3 | `DP-073` | P3 | ✅ | `5449f14c` | `tests/words/test_challenge_card.py` (5) |
+| 4 | `DP-049` | P2 | 🟡 Codex | — | `tests/daily_plan/test_snapshot_v2.py` (в работе) |
+| 5 | `DP-058` | P2 | 🟡 Codex | — | (в работе) |
+| 6 | `DP-048` | P2 | ✅ | `2225a5fb` | `tests/daily_plan/test_challenge_target.py` (8) |
+| 7 | `DP-092` | P2 | ✅ | `b83dd33b` | `tests/daily_plan/test_slot_skip_state.py` (9) |
+| 8 | `DP-004` | P2 | 🟡 Codex | — | `tests/daily_plan/test_snapshot_v2.py` (в работе) |
+| 9 | `DP-091` + `DP-115` | P2 | ✅ | `cde815f5` | `tests/words/test_daily_plan_next_step.py` (`test_skipped_item_is_passed_over_but_not_done`, `test_last_required_skipped_is_not_all_done`, `test_optional_next_after_minimum_is_scoped_as_bonus`); `DP-117` закрыта той же правкой (`r.ok` перед `r.json()`) |
+| 10 | `DP-053` | P2 | 🟡 Codex | — | `tests/daily_plan/test_day_close_integrity.py` (в работе) |
+
+**Что изменилось в коде (половина Claude), одним абзацем.** `build_optional` распределяет бюджет
+по важности, а не по порядку вставки: места резервируются под короткие пункты, каждый непустой
+источник `_OPTIONAL_PRIORITY` и до `COMPLETED_TODAY_MAX = 2` карточек «пройдено сегодня», очередь
+спайна берёт остаток в коридоре `CONTINUATION_QUEUE_MIN = 6 … CONTINUATION_QUEUE_LIMIT = 12`;
+порядок показа прежний. Челлендж — обёртка над уроком и не гасится дедупом по `lesson_id`
+(раньше он терялся всегда, когда целился в required-урок). Шаблон рендерит весь optional, пункты
+6+ свёрнуты атрибутом `hidden` и раскрываются на месте без сети; серверная обрезка — подсказка,
+а не кнопка-перезагрузка. Цель челленджа — только урок оценочного типа
+(`CHALLENGE_GRADED_LESSON_TYPES`): следующий урок спайна, если он такой; для `accuracy_focus` —
+последний сданный оценочный урок как пересдача с `?retry=true`; для `speed_run` пересдачи нет
+(`LessonAttempt.started_at` копируется из первого открытия); `listening_deep` без доступного
+listening-урока карточки не строит; выполненный челлендж виден всегда. Карточка рейла строится из
+пункта `optional` (`_challenge_card_from_plan`), а не из `DailyChallenge.lesson_id`. Пропуск слота
+матчится по `(step_kind, mission_type)` — один слот на событие, зависимые curriculum-слоты после
+пропущенного получают `blocked` + `locked_reason`, suppression очереди ключуется на конкретном
+якоре. `/api/daily-plan/next-step` не считает `skipped` выполненным, отдаёт `step_scope`,
+`minimum_done`, `skipped_remaining`; бар прогресса различает «выполнено», «минимум выполнен ·
+бонус» и «остались пропущенные».
+
+**Сверх реестра, по ходу:** (1) `speed_run` недостижим и для нового урока, открытого вчера и
+сданного сегодня, — по той же копии `started_at`; кандидат в реестр, в объём не входил.
+(2) `_find_next_skill_lesson` ограничивает кандидата `number <= next_lesson.number`, поэтому
+опасение ревью «карточка listening_deep ведёт в 403» не подтвердилось.
+
+---
+
 ## Расхождения с `CLAUDE.md`
 
 Правило зоны: находка против инварианта — баг **либо в коде, либо в `CLAUDE.md`**. Из 127
