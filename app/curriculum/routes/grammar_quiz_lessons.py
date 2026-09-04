@@ -182,7 +182,10 @@ def _filter_final_test_questions_for_student(
     return filtered
 
 
-def _submission_passed(result: dict) -> bool:
+def _submission_passed(
+    result: dict,
+    passing_score: float = PASSING_SCORE_DEFAULT,
+) -> bool:
     """Did THIS grading event clear the passing score?
 
     ``LessonProgress.status`` is sticky by design — a failed retake of an
@@ -191,7 +194,7 @@ def _submission_passed(result: dict) -> bool:
     The grader's own score can.
     """
     try:
-        return float(result.get('score') or 0) >= PASSING_SCORE_DEFAULT
+        return float(result.get('score') or 0) >= float(passing_score)
     except (TypeError, ValueError):
         return False
 
@@ -544,7 +547,7 @@ def render_quiz_lesson(lesson):
             passing_score=PASSING_SCORE_DEFAULT
         )
 
-        if progress and progress.status == 'completed':
+        if progress and _submission_passed(result):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():
@@ -712,7 +715,7 @@ def render_final_test_lesson(lesson):
             passing_score=passing_score
         )
 
-        if progress and progress.status == 'completed':
+        if progress and _submission_passed(result, passing_score):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():
@@ -1018,7 +1021,7 @@ def quiz_lesson(lesson_id):
             passing_score=PASSING_SCORE_DEFAULT
         )
 
-        if progress and progress.status == 'completed':
+        if progress and _submission_passed(result):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():

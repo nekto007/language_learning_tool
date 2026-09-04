@@ -74,6 +74,43 @@ def _grammar_lesson(db_session, module, exercises) -> Lessons:
     return lesson
 
 
+def _graded_lesson(
+    db_session,
+    module,
+    lesson_type: str,
+    *,
+    passing_score_percent: int | None = None,
+) -> Lessons:
+    question = {
+        'type': 'fill_in_blank',
+        'question': 'Two plus two is ___.',
+        'correct_answer': 'four',
+    }
+    if lesson_type == 'final_test':
+        content = {
+            'test_sections': [{
+                'section': 'Test',
+                'exercises': [question],
+            }],
+        }
+    else:
+        content = {'questions': [question]}
+    if passing_score_percent is not None:
+        content['passing_score_percent'] = passing_score_percent
+
+    lesson = Lessons(
+        module_id=module.id,
+        number=20 if lesson_type == 'quiz' else 21,
+        title=f'{lesson_type} retake',
+        type=lesson_type,
+        order=20 if lesson_type == 'quiz' else 21,
+        content=content,
+    )
+    db_session.add(lesson)
+    db_session.commit()
+    return lesson
+
+
 # ── DP-087 ───────────────────────────────────────────────────────────────────
 
 
@@ -375,3 +412,130 @@ class TestGrammarRetakeXpGate:
         assert len(
             _linear_events(db_session, test_user.id, 'linear_curriculum_grammar')
         ) == 1
+
+
+class TestQuizAndFinalTestRetakeXpGate:
+    """DP-053: failed retries must not pay through sticky completed status."""
+
+    @pytest.mark.parametrize(
+        ('lesson_type', 'url_template', 'source'),
+        [
+            ('quiz', '/learn/{lesson_id}/', 'linear_curriculum_quiz'),
+            ('quiz', '/curriculum/lesson/{lesson_id}/quiz', 'linear_curriculum_quiz'),
+            ('final_test', '/learn/{lesson_id}/', 'linear_curriculum_final_test'),
+            (
+                'final_test',
+                '/curriculum/lesson/{lesson_id}/final_test',
+                'linear_curriculum_final_test',
+            ),
+        ],
+    )
+    def test_failed_retake_of_completed_lesson_awards_nothing(
+        self,
+        db_session,
+        authenticated_client,
+        test_user,
+        test_module,
+        lesson_type,
+        url_template,
+        source,
+    ):
+        from unittest.mock import patch
+
+        lesson = _graded_lesson(db_session, test_module, lesson_type)
+        old = datetime.now(timezone.utc) - timedelta(days=3)
+        db_session.add(LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=100,
+            best_score=100,
+            last_score=100,
+            started_at=old,
+            completed_at=old,
+            last_activity=old,
+        ))
+        db_session.commit()
+
+        failed = {
+            'score': 0,
+            'feedback': {},
+            'correct_answers': 0,
+            'total_questions': 1,
+            'correct_count': 0,
+            'total_count': 1,
+        }
+        with patch(
+            'app.curriculum.routes.grammar_quiz_lessons.process_quiz_submission',
+            return_value=failed,
+        ):
+            response = authenticated_client.post(
+                url_template.format(lesson_id=lesson.id),
+                data={'answer_0': 'three'},
+                headers={'X-Requested-With': 'XMLHttpRequest'},
+            )
+
+        assert response.status_code == 200
+        progress = LessonProgress.query.filter_by(
+            user_id=test_user.id, lesson_id=lesson.id,
+        ).first()
+        assert progress.status == 'completed'
+        assert _linear_events(db_session, test_user.id, source) == []
+
+    @pytest.mark.parametrize(
+        'url_template',
+        [
+            '/learn/{lesson_id}/',
+            '/curriculum/lesson/{lesson_id}/final_test',
+        ],
+    )
+    def test_final_test_uses_its_content_passing_threshold(
+        self,
+        db_session,
+        authenticated_client,
+        test_user,
+        test_module,
+        url_template,
+    ):
+        """80 must not pay when this final test requires 90."""
+        from unittest.mock import patch
+
+        lesson = _graded_lesson(
+            db_session, test_module, 'final_test', passing_score_percent=90,
+        )
+        old = datetime.now(timezone.utc) - timedelta(days=3)
+        db_session.add(LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='completed',
+            score=100,
+            best_score=100,
+            last_score=100,
+            started_at=old,
+            completed_at=old,
+            last_activity=old,
+        ))
+        db_session.commit()
+
+        below_custom_bar = {
+            'score': 80,
+            'feedback': {},
+            'correct_answers': 4,
+            'total_questions': 5,
+            'correct_count': 4,
+            'total_count': 5,
+        }
+        with patch(
+            'app.curriculum.routes.grammar_quiz_lessons.process_quiz_submission',
+            return_value=below_custom_bar,
+        ):
+            response = authenticated_client.post(
+                url_template.format(lesson_id=lesson.id),
+                data={'answer_0': 'four'},
+                headers={'X-Requested-With': 'XMLHttpRequest'},
+            )
+
+        assert response.status_code == 200
+        assert _linear_events(
+            db_session, test_user.id, 'linear_curriculum_final_test',
+        ) == []
