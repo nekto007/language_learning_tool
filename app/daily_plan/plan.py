@@ -41,11 +41,20 @@ logger = logging.getLogger(__name__)
 
 OPTIONAL_MAX = 15
 
-# Length of the Duolingo-style continuation queue of upcoming spine lessons
-# surfaced in the optional section after the required minimum. Kept below
-# ``OPTIONAL_MAX`` so completed-today cards and the other practice sources
-# (SRS, reading, …) still fit under the overall cap.
+# Ceiling of the Duolingo-style continuation queue of upcoming spine lessons
+# surfaced in the optional section after the required minimum. The queue is
+# the LAST source to receive budget (see ``build_optional``): it stretches to
+# this ceiling only when the short practice sources leave room, and never
+# shrinks below ``CONTINUATION_QUEUE_MIN``. A fixed 12-item queue plus one
+# phrase-review card left a single slot for the six practice sources and none
+# for completed-today cards — ``word_set_quiz`` and ``challenge`` were sliced
+# off the tail on every render (DP-038, DP-039).
 CONTINUATION_QUEUE_LIMIT = 12
+CONTINUATION_QUEUE_MIN = 6
+
+# Completed-today curriculum cards kept above the queue as the day's history.
+# Two cover a real day; a third extra lesson is rare and costs a queue slot.
+COMPLETED_TODAY_MAX = 2
 
 def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
     """Return the kinds of required items the user skipped today."""
@@ -194,26 +203,35 @@ def build_optional(
             if cli_lid is not None:
                 seen_lesson_ids.add(cli_lid)
 
-    # Active candidates, in render order. Phrase review goes first so this
-    # short, optional retrieval exercise remains visible instead of being
-    # buried behind the long curriculum continuation queue.
-    active_candidates: list[PlanItem] = []
+    # Budget is allocated by importance, display order stays the designed one:
+    #   completed-today cards → short items (phrase review, acute error
+    #   review) → continuation queue → the other practice sources.
+    # The queue is budgeted LAST so a full spine can never crowd out the
+    # single-card sources or the day's history (DP-038 / DP-039).
+    seen_lesson_ids_for_queue: set[int] = set()
 
-    def _accept(candidate: Optional[PlanItem]) -> bool:
+    def _accept_into(bucket: list[PlanItem], candidate: Optional[PlanItem]) -> bool:
         if candidate is None or candidate.id in seen_ids:
             return False
         candidate_lid = _item_lesson_id(candidate)
-        if candidate_lid is not None and candidate_lid in seen_lesson_ids:
+        # A challenge WRAPS a lesson (its target is usually the required
+        # lesson itself) — it is not a duplicate card for that lesson, so it
+        # neither loses the lesson-id dedup nor claims the lesson for others.
+        is_wrapper = candidate.kind == 'challenge'
+        if not is_wrapper and candidate_lid is not None and candidate_lid in seen_lesson_ids:
             # Same underlying lesson already represented (e.g. surfaced as
             # a completed curriculum card) — drop the duplicate.
             return False
-        active_candidates.append(candidate)
+        bucket.append(candidate)
         seen_ids.add(candidate.id)
-        if candidate_lid is not None:
+        if not is_wrapper and candidate_lid is not None:
             seen_lesson_ids.add(candidate_lid)
         return True
 
-    _accept(_build_optional_candidate(
+    # 1. Short items: phrase review first so this brief retrieval exercise
+    #    stays visible instead of being buried behind the queue.
+    short_items: list[PlanItem] = []
+    _accept_into(short_items, _build_optional_candidate(
         user_id, db, 'phrase_review', focus,
         exclude_curriculum_ids=exclude_curriculum_ids,
         graduated=graduated,
@@ -227,14 +245,39 @@ def build_optional(
     # calm tier keeps its place in ``_OPTIONAL_PRIORITY`` below.
     error_review_item = build_optional_error_review_item(user_id, db)
     if error_review_item is not None and (error_review_item.data or {}).get('urgent'):
-        _accept(error_review_item)
+        _accept_into(short_items, error_review_item)
 
-    # Curriculum continuation queue: anchor on the required curriculum lesson
-    # and walk the spine forward. The anchor (and any lesson already seen) is
-    # excluded; the queue is intentionally light (no weak-grammar/adaptive
-    # hints). Graduated users have no curriculum anchor — they skip the queue.
-    # Over-fetch one extra lesson so we can tell the dashboard there is more
-    # spine beyond the displayed cap (``queue_truncated`` → has_more).
+    # The queue must not exclude lessons the practice sources merely
+    # reference; snapshot the exclusion set before building them.
+    seen_lesson_ids_for_queue = set(seen_lesson_ids)
+
+    # 2. Practice sources — each contributes at most one optional item.
+    practice_items: list[PlanItem] = []
+    for kind in _OPTIONAL_PRIORITY:
+        if kind == 'error_review':
+            # Built once above so the acute tier can be hoisted; ``_accept_into``
+            # no-ops when it already was. ``_build_optional_candidate`` has no
+            # error_review branch on purpose — two construction paths for one
+            # item is how the required tier fell through the crack (DP-037).
+            _accept_into(practice_items, error_review_item)
+            continue
+        _accept_into(practice_items, _build_optional_candidate(
+            user_id, db, kind, focus,
+            exclude_curriculum_ids=exclude_curriculum_ids,
+            graduated=graduated,
+        ))
+
+    # 3. Completed-today cards — the day's history, capped so they never
+    #    crowd out actionable content.
+    completed_subset = completed_curriculum_items[:COMPLETED_TODAY_MAX]
+
+    # 4. Curriculum continuation queue: anchor on the required curriculum
+    #    lesson and walk the spine forward. The anchor (and any lesson already
+    #    seen) is excluded; the queue is intentionally light (no
+    #    weak-grammar/adaptive hints). Graduated users have no curriculum
+    #    anchor — they skip the queue. Over-fetch one extra lesson so we can
+    #    tell the dashboard there is more spine beyond the displayed cap
+    #    (``queue_truncated`` → has_more).
     #
     # Suppress the queue entirely when the required curriculum lesson was
     # *skipped* today AND is still incomplete. The queue is a "continue the
@@ -255,8 +298,14 @@ def build_optional(
         and not required_curriculum_completed
         and 'curriculum' in _get_unified_skipped_kinds(user_id, db)
     )
+    reserved = len(short_items) + len(practice_items) + len(completed_subset)
+    queue_budget = min(
+        CONTINUATION_QUEUE_LIMIT,
+        max(CONTINUATION_QUEUE_MIN, max_items - reserved),
+    )
+    queue_items_accepted: list[PlanItem] = []
     queue_truncated = False
-    if required_curriculum_lesson_id is not None and not curriculum_skipped:
+    if required_curriculum_lesson_id is not None and not curriculum_skipped and queue_budget > 0:
         from app.curriculum.models import Lessons
 
         anchor_lesson = db.session.get(Lessons, required_curriculum_lesson_id)
@@ -264,41 +313,57 @@ def build_optional(
             queue_items = build_curriculum_queue(
                 user_id, db,
                 anchor_lesson=anchor_lesson,
-                limit=CONTINUATION_QUEUE_LIMIT + 1,
-                exclude_lesson_ids=set(seen_lesson_ids),
+                limit=queue_budget + 1,
+                exclude_lesson_ids=seen_lesson_ids_for_queue,
             )
-            queue_truncated = len(queue_items) > CONTINUATION_QUEUE_LIMIT
-            for queue_item in queue_items[:CONTINUATION_QUEUE_LIMIT]:
-                _accept(queue_item)
+            queue_truncated = len(queue_items) > queue_budget
+            for queue_item in queue_items[:queue_budget]:
+                _accept_into(queue_items_accepted, queue_item)
 
-    # Other practice sources. Each contributes at most one optional item.
-    for kind in _OPTIONAL_PRIORITY:
-        if kind == 'error_review':
-            # Built once above so the acute tier can be hoisted; ``_accept``
-            # no-ops when it already was. ``_build_optional_candidate`` has no
-            # error_review branch on purpose — two construction paths for one
-            # item is how the required tier fell through the crack (DP-037).
-            _accept(error_review_item)
-            continue
-        candidate = _build_optional_candidate(
-            user_id, db, kind, focus,
-            exclude_curriculum_ids=exclude_curriculum_ids,
-            graduated=graduated,
-        )
-        _accept(candidate)
+    # Assemble in display order, then enforce the cap. With the default
+    # constants the sum never exceeds ``OPTIONAL_MAX``: phrase review (1) +
+    # the six practice sources (the acute error review is one of them) +
+    # completed cards (2) + the queue floor (6) = 15. A smaller ``max_items``
+    # (tests) trims the least important tail first — queue down to its floor,
+    # then completed cards, then practice sources, then the queue itself —
+    # never the short items.
+    trimmed = False
+    overflow = (
+        len(completed_subset) + len(short_items)
+        + len(queue_items_accepted) + len(practice_items)
+        - max_items
+    )
+    if overflow > 0:
+        trimmed = True
+        cut = min(overflow, max(0, len(queue_items_accepted) - CONTINUATION_QUEUE_MIN))
+        if cut:
+            queue_items_accepted = queue_items_accepted[:len(queue_items_accepted) - cut]
+            overflow -= cut
+    if overflow > 0:
+        cut = min(overflow, len(completed_subset))
+        if cut:
+            completed_subset = completed_subset[:len(completed_subset) - cut]
+            overflow -= cut
+    if overflow > 0:
+        cut = min(overflow, len(practice_items))
+        if cut:
+            practice_items = practice_items[:len(practice_items) - cut]
+            overflow -= cut
+    if overflow > 0:
+        cut = min(overflow, len(queue_items_accepted))
+        if cut:
+            queue_items_accepted = queue_items_accepted[:len(queue_items_accepted) - cut]
+            overflow -= cut
 
-    # Active candidates take priority over completed cards — drop accumulated
-    # completions first if the section would otherwise overflow.
-    active_subset = active_candidates[:max_items]
-    completed_slots = max(0, max_items - len(active_subset))
-    completed_subset = completed_curriculum_items[:completed_slots]
-    items = completed_subset + active_subset
+    items = completed_subset + short_items + queue_items_accepted + practice_items
+    items = items[:max_items]
     has_more = (
         queue_truncated
+        or trimmed
         or len(completed_curriculum_items) > len(completed_subset)
-        or len(active_candidates) > len(active_subset)
     )
-    # ``has_more`` is a soft hint; the dashboard simply re-fetches on demand.
+    # ``has_more`` is a soft hint: the queue advances on its own as lessons
+    # are completed, so the dashboard shows a hint rather than a pager.
     return items, has_more
 
 
