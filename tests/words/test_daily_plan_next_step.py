@@ -237,6 +237,21 @@ class TestNextStepFromUnified:
         assert data['skipped_remaining'] == 1
         assert data['steps_done'] == 0 and data['steps_total'] == 1
 
+    def test_optional_next_after_a_skip_does_not_claim_the_minimum(self, authenticated_client):
+        """Ревью Codex (cde815f5): пропуск открыл бонус, но минимум не выполнен."""
+        plan = _make_unified_plan(
+            required=[_make_item('curriculum:lesson:1', skipped=True, url='/lesson/1')],
+            optional=[_make_item('reading:42', kind='reading', title='Read Book', url='/books/42')],
+        )
+        data = self._call(authenticated_client, plan, _make_daily_summary())
+
+        assert data['has_next'] is True
+        assert data['step_scope'] == 'optional'
+        assert data['minimum_done'] is False
+        assert data['skipped_remaining'] == 1
+        assert data['steps_done'] == 0 and data['steps_total'] == 1
+        assert 'all_done' not in data or data['all_done'] is False
+
     def test_optional_next_after_minimum_is_scoped_as_bonus(self, authenticated_client):
         """Ревью Codex: минимум выполнен, следующий шаг бонусный — не «Шаг N+1 из N»."""
         plan = _make_unified_plan(
@@ -373,3 +388,28 @@ class TestNextStepGraduated:
 
         assert data['has_next'] is False
         assert data['all_done'] is True
+
+
+
+class TestProgressBarBranchesOnMinimumDone:
+    """Фронт бара не вправе объявлять минимум выполненным по одному ``step_scope``."""
+
+    _PATH = 'app/templates/components/_daily_plan_progress.html'
+
+    def _src(self) -> str:
+        with open(self._PATH, encoding='utf-8') as f:
+            return f.read()
+
+    def test_bonus_text_requires_minimum_done(self):
+        src = self._src()
+        assert "data.step_scope === 'optional' && data.minimum_done" in src
+
+    def test_optional_step_without_minimum_reports_skipped_count(self):
+        src = self._src()
+        # The fallback branch for an optional step after a skip prints the
+        # skipped count and never the «минимум выполнен» string.
+        bonus_branch = src.index("data.step_scope === 'optional' && data.minimum_done")
+        fallback_branch = src.index("data.has_next && data.step_scope === 'optional') {", bonus_branch + 1)
+        fallback_body = src[fallback_branch:src.index('} else if', fallback_branch + 1)]
+        assert 'data.skipped_remaining' in fallback_body
+        assert '\\u041c\\u0438\\u043d\\u0438\\u043c\\u0443\\u043c' not in fallback_body  # «Минимум»

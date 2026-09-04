@@ -167,10 +167,19 @@
             btnEl.textContent = '\u2728 \u041f\u043b\u0430\u043d \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d!';
             btnEl.href = dash;
             btnEl.classList.add('dp-bar__btn--done');
-        } else if (data.has_next && data.step_scope === 'optional') {
+        } else if (data.has_next && data.step_scope === 'optional' && data.minimum_done) {
             // Minimum met, next step is a bonus — not «Шаг N+1 из N».
             textEl.textContent = '\u041c\u0438\u043d\u0438\u043c\u0443\u043c \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d \u00b7 \u0431\u043e\u043d\u0443\u0441';
             btnEl.textContent = '\u2192 ' + (data.step_title || '\u0411\u043e\u043d\u0443\u0441\u043d\u043e\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u0435');
+            btnEl.href = data.step_url || dash;
+        } else if (data.has_next && data.step_scope === 'optional') {
+            // A skipped required step unlocked the bonus section (the plan does
+            // that on purpose), but the minimum is NOT met — say so, and still
+            // offer the step the plan itself offers. Branching on step_scope
+            // alone announced «Минимум выполнен» here (review of cde815f5).
+            textEl.textContent = '\u0428\u0430\u0433 ' + done + ' \u0438\u0437 ' + total
+                + (data.skipped_remaining ? ' \u00b7 \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043e ' + data.skipped_remaining : '');
+            btnEl.textContent = '\u2192 ' + (data.step_title || '\u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433');
             btnEl.href = data.step_url || dash;
         } else if (!data.has_next && data.skipped_remaining) {
             // Only skipped steps remain: the day is not closed, offer the way back.
