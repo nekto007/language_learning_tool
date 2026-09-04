@@ -87,11 +87,14 @@ class TestNoSkeletonLoaders:
 class TestBtnLoading:
     """Reload-plan and skip-reason buttons apply btn--loading during fetch."""
 
-    def test_inline_script_adds_btn_loading_on_reload(self):
+    def test_inline_script_expands_optional_in_place(self):
+        """DP-036: «Показать ещё» раскрывает свёрнутый хвост, а не перезагружает страницу."""
         with open(_UNIFIED_PLAN_PATH, encoding='utf-8') as f:
             src = f.read()
-        # The reload-plan click handler must add btn--loading before reload
-        assert "btn.classList.add('btn--loading')" in src
+        assert 'data-action="expand-optional"' in src
+        assert 'reload-plan' not in src
+        # The only reload left is the skip-reason submit (state changed server-side).
+        assert src.count('window.location.reload()') == 1
 
     def test_inline_script_adds_btn_loading_on_skip_reason(self):
         with open(_UNIFIED_PLAN_PATH, encoding='utf-8') as f:
@@ -300,10 +303,14 @@ class TestContinuationQueueSection:
             for i, n in enumerate(range(10, 18))
         ]
         html = _render_partial(env, self._queue_plan(optional=optional))
-        for n in range(10, 15):
-            assert f'Урок очереди {n}' in html
-        assert 'Урок очереди 15' not in html
-        assert 'Показать ещё уроки' in html or 'Продолжить обучение' in html
+        markup = html.split('<script', 1)[0]  # the inline script repeats the selectors
+        for n in range(10, 18):
+            assert f'Урок очереди {n}' in markup
+        # DP-036: items 6+ are in the DOM but folded; the button unfolds them
+        # in place and names the real count.
+        assert markup.count('data-optional-overflow="true"') == 3
+        assert 'Показать ещё 3 задания' in markup
+        assert 'data-action="expand-optional"' in markup
 
     def test_locked_optional_queue_uses_compact_preview_class(self):
         env = _build_env()
@@ -342,11 +349,34 @@ class TestContinuationQueueSection:
         html = _render_partial(env, plan)
         assert '+30 XP' in html
 
-    def test_load_more_label_for_lessons(self):
+    def test_server_truncation_shows_hint_not_a_pager(self):
+        """DP-036: серверная обрезка списка — подсказка, а не кнопка-пустышка."""
         env = _build_env()
         plan = self._queue_plan(has_more_optional=True, day_secured=False)
-        html = _render_partial(env, plan)
-        assert 'Показать ещё уроки' in html
+        markup = _render_partial(env, plan).split('<script', 1)[0]
+        assert 'Следующие уроки появятся после выполнения текущих' in markup
+        assert 'data-action="expand-optional"' not in markup
+        assert 'Показать ещё' not in markup
+
+    def test_folded_tail_uses_whole_list_for_current_index(self):
+        """DP-036 (ревью Codex): при пяти выполненных шестой пункт — current, не locked."""
+        env = _build_env()
+        optional = [
+            {
+                'id': f'curriculum:lesson:{n}',
+                'kind': 'curriculum',
+                'title': f'Урок очереди {n}',
+                'url': f'/lesson/{n}',
+                'completed': i < 5,
+                'lesson_type': 'vocabulary',
+                'data': {'lesson_id': n, 'queue_position': i + 1},
+            }
+            for i, n in enumerate(range(10, 17))
+        ]
+        html = _render_partial(env, self._queue_plan(optional=optional))
+        sixth = html.split('data-item-id="curriculum:lesson:15"', 1)[1].split('</li>', 1)[0]
+        assert 'data-locked="false"' in sixth
+        assert 'plan-item__title--locked' not in sixth
 
     def test_bonus_label_remains_for_non_curriculum_practice(self):
         env = _build_env()

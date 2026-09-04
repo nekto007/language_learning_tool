@@ -8,8 +8,12 @@
 {% set u_has_more = unified_plan.get('has_more_optional', false) %}
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
 {% set u_blocked_module = unified_plan.get('blocked_module') or {} %}
-{% set u_optional_visible = u_optional[:5] %}
-{% set u_has_hidden_optional = (u_optional | length) > (u_optional_visible | length) %}
+{# The first ``u_optional_fold`` optional items render open; the rest render
+   folded (``hidden``) and unfold in place — no network, no reload. A reload
+   re-rendered the same first five and never showed anything new (DP-036). #}
+{% set u_optional_fold = 5 %}
+{% set u_has_hidden_optional = (u_optional | length) > u_optional_fold %}
+{% set u_optional_hidden_count = ((u_optional | length) - u_optional_fold) if u_has_hidden_optional else 0 %}
 
 {# Book selection is the next reading action, so keep it near the top of
    the daily plan whenever it exists. Non-book setup stays in the footer. #}
@@ -581,7 +585,7 @@
        section is locked behind one hint; post-day_secured items unlock
        one at a time. #}
     {% set opt_ns = namespace(current_idx=-1) %}
-    {% for item in u_optional_visible %}
+    {% for item in u_optional %}
       {% set _completed = item.get('completed', false) or (plan_completion and plan_completion.get(item.get('id'), false)) %}
       {% if not _completed and opt_ns.current_idx == -1 %}
         {% set opt_ns.current_idx = loop.index0 %}
@@ -596,8 +600,8 @@
           <p class="daily-plan__section-hint">Откроется после дневного минимума</p>
         {% endif %}
       </div>
-      <ol class="daily-plan__list{% if u_optional_locked %} daily-plan__list--optional-preview{% endif %}">
-        {% for item in u_optional_visible %}
+      <ol id="daily-plan-optional-list" class="daily-plan__list{% if u_optional_locked %} daily-plan__list--optional-preview{% endif %}">
+        {% for item in u_optional %}
           {% set _id = item.get('id') %}
           {% set _kind = item.get('kind', '') %}
           {% set _data = item.get('data') or {} %}
@@ -627,6 +631,7 @@
               data-item-id="{{ _id }}"
               data-item-kind="{{ _kind }}"
               data-locked="{{ 'true' if _is_locked_any else 'false' }}"
+              {% if loop.index0 >= u_optional_fold %}hidden data-optional-overflow="true"{% endif %}
               {% if _is_challenge %}data-challenge="true"{% endif %}>
             {% set _queue_pos = _data.get('queue_position') %}
             <span class="plan-item__badge plan-item__badge--{{ _kind }}">
@@ -639,7 +644,7 @@
               {% if _is_locked_any %}
                 <span class="plan-item__title plan-item__title--locked">{{ item.get('title') }}</span>
                 {% if _is_step_locked %}
-                  {% set _prev_opt = u_optional_visible[loop.index0 - 1] if loop.index0 > 0 else None %}
+                  {% set _prev_opt = u_optional[loop.index0 - 1] if loop.index0 > 0 else None %}
                   {% set _prev_opt_label = '' %}
                   {% if _prev_opt %}
                     {% if _prev_opt.get('kind') == 'curriculum' %}
@@ -678,13 +683,21 @@
           </li>
         {% endfor %}
       </ol>
-      {% if u_has_more or u_has_hidden_optional %}
+      {% if u_has_hidden_optional %}
+        {% set _hc = u_optional_hidden_count %}
+        {% set _hc_word = 'задание' if _hc % 10 == 1 and _hc % 100 != 11 else ('задания' if 2 <= _hc % 10 <= 4 and not 12 <= _hc % 100 <= 14 else 'заданий') %}
         <button type="button"
                 class="daily-plan__load-more{% if u_day_secured %} daily-plan__load-more--primary{% endif %}"
-                data-action="reload-plan"
-                {% if u_optional_locked %}disabled aria-disabled="true"{% endif %}>
-          {% if u_day_secured %}Продолжить обучение{% else %}Показать ещё уроки{% endif %}
+                data-action="expand-optional"
+                aria-expanded="false"
+                aria-controls="daily-plan-optional-list">
+          Показать ещё {{ _hc }} {{ _hc_word }}
         </button>
+      {% elif u_has_more %}
+        {# The server capped the list; there is no page two to fetch — the
+           queue advances on its own as lessons get completed. Say so instead
+           of offering a button that reloads the same list. #}
+        <p class="daily-plan__section-hint daily-plan__section-hint--more">Следующие уроки появятся после выполнения текущих</p>
       {% endif %}
     </div>
   {% endif %}
@@ -735,11 +748,19 @@
 (function() {
     var root = document.querySelector('[data-daily-plan="true"][data-mode="unified"]');
     if (!root) return;
-    var btn = root.querySelector('[data-action="reload-plan"]');
-    if (btn) btn.addEventListener('click', function() {
-        btn.classList.add('btn--loading');
-        btn.textContent = 'Загрузка\u2026';
-        window.location.reload();
+    // «Показать ещё»: the folded tail of the optional list is already in the
+    // DOM — unfold it in place. A reload re-rendered the same first five and
+    // never showed anything new (DP-036).
+    var expandBtn = root.querySelector('[data-action="expand-optional"]');
+    if (expandBtn) expandBtn.addEventListener('click', function() {
+        var revealed = root.querySelectorAll('[data-optional-overflow="true"]');
+        revealed.forEach(function(li) { li.hidden = false; });
+        expandBtn.setAttribute('aria-expanded', 'true');
+        expandBtn.hidden = true;
+        if (revealed.length) {
+            var focusable = revealed[0].querySelector('a, button');
+            if (focusable && typeof focusable.focus === 'function') focusable.focus();
+        }
     });
     root.querySelectorAll('.plan-item--locked .plan-item__link, .plan-item--optional-locked .plan-item__link').forEach(function(a) {
         a.addEventListener('click', function(ev) { ev.preventDefault(); });
