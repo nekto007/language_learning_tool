@@ -56,14 +56,29 @@ CONTINUATION_QUEUE_MIN = 6
 # Two cover a real day; a third extra lesson is rare and costs a queue slot.
 COMPLETED_TODAY_MAX = 2
 
-def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
-    """Return the kinds of required items the user skipped today."""
+# Required kinds that sit behind a curriculum lesson on the route side:
+# ``check_lesson_access`` demands the previous lesson of the module to be
+# completed, so once a curriculum slot is skipped (not completed) every later
+# curriculum-backed slot would 403 on click. Mirrors the retired
+# ``linear/plan.py`` semantics; the module itself is dead code (CM-10) and is
+# deliberately not imported.
+_CURRICULUM_DEPENDENT_KINDS: frozenset[str] = frozenset({'curriculum', 'speaking', 'writing'})
+_SKIP_LOCKED_REASON = 'Сначала завершите урок курса'
+
+
+def _get_unified_skipped_slots(user_id: int, db: Any) -> list[tuple[str, Optional[str]]]:
+    """Return ``[(kind, slot_key)]`` for today's ``slot_skipped`` events.
+
+    ``slot_key`` is what ``/api/daily-plan/events`` stored in ``mission_type``
+    (``get_slot_skip_key`` of the active slot); ``None`` for rows written
+    before the key existed — those match by kind alone.
+    """
     from app.daily_plan.models import DailyPlanEvent
     from app.utils.time_utils import get_user_local_date
 
     today = get_user_local_date(user_id, db)
     rows = (
-        db.session.query(DailyPlanEvent.step_kind)
+        db.session.query(DailyPlanEvent.step_kind, DailyPlanEvent.mission_type)
         .filter(
             DailyPlanEvent.user_id == user_id,
             DailyPlanEvent.event_type == 'slot_skipped',
@@ -71,27 +86,70 @@ def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
         )
         .all()
     )
-    return {row.step_kind for row in rows if row.step_kind}
+    return [(row.step_kind, row.mission_type or None) for row in rows if row.step_kind]
+
+
+def _get_unified_skipped_kinds(user_id: int, db: Any) -> set[str]:
+    """Kinds with at least one skip today (coarse view kept for callers)."""
+    return {kind for kind, _key in _get_unified_skipped_slots(user_id, db)}
+
+
+def _is_curriculum_backed(item: dict[str, Any]) -> bool:
+    return (
+        item.get('kind') in _CURRICULUM_DEPENDENT_KINDS
+        and bool((item.get('data') or {}).get('lesson_id'))
+    )
 
 
 def _apply_unified_skip_state(
     required_dicts: list[dict[str, Any]],
-    skipped_kinds: set[str],
+    skipped_slots: list[tuple[str, Optional[str]]],
 ) -> None:
-    """Mark skipped items.
+    """Mark skipped items and block the curriculum slots that depend on them.
 
     Mutates ``required_dicts`` in place. Idempotent; safe to call multiple
     times. Items that are already completed are never marked skipped:
     completion always wins.
+
+    A skip is matched to ONE slot by ``(kind, slot_key)``; matching by kind
+    alone marked every curriculum slot of a normal/intensive day skipped
+    after a single «Пропустить» (DP-092). Events without a key (legacy rows)
+    still match by kind, one slot each.
+
+    After a skipped, still-incomplete curriculum slot, later curriculum-backed
+    slots become ``blocked`` with a ``locked_reason``: the template would
+    otherwise promote the next lesson to «current» while the route still
+    403s it (previous lesson not completed).
     """
-    if not skipped_kinds:
+    if not skipped_slots:
         return
-    for item in required_dicts:
+    from app.daily_plan.skips import get_slot_skip_key
+
+    remaining = list(skipped_slots)
+    skipped_curriculum = False
+    for index, item in enumerate(required_dicts):
         if item.get('completed', False):
             continue
         kind = item.get('kind', '')
-        if kind in skipped_kinds:
+        slot_key = get_slot_skip_key(item, index)
+        matched = next(
+            (
+                i for i, (skip_kind, skip_key) in enumerate(remaining)
+                if skip_kind == kind and (skip_key is None or skip_key == slot_key)
+            ),
+            None,
+        )
+        if matched is not None:
             item['skipped'] = True
+            remaining.pop(matched)
+            if _is_curriculum_backed(item):
+                skipped_curriculum = True
+            continue
+        if skipped_curriculum and kind in _CURRICULUM_DEPENDENT_KINDS:
+            item['blocked'] = True
+            data = dict(item.get('data') or {})
+            data.setdefault('locked_reason', _SKIP_LOCKED_REASON)
+            item['data'] = data
 
 
 def _annotate_unified_skip_quota(
@@ -123,6 +181,15 @@ _OPTIONAL_PRIORITY = (
     'word_set_quiz',
     'challenge',
 )
+
+
+def _anchor_slot_skipped(user_id: int, db: Any, lesson_id: int) -> bool:
+    """Was THIS curriculum slot skipped today (not merely some curriculum slot)?"""
+    anchor_key = f'lesson:{lesson_id}'
+    return any(
+        kind == 'curriculum' and (key is None or key == anchor_key)
+        for kind, key in _get_unified_skipped_slots(user_id, db)
+    )
 
 
 def build_optional(
@@ -296,7 +363,7 @@ def build_optional(
     curriculum_skipped = (
         required_curriculum_lesson_id is not None
         and not required_curriculum_completed
-        and 'curriculum' in _get_unified_skipped_kinds(user_id, db)
+        and _anchor_slot_skipped(user_id, db, required_curriculum_lesson_id)
     )
     reserved = len(short_items) + len(practice_items) + len(completed_subset)
     queue_budget = min(
@@ -538,9 +605,9 @@ def get_daily_plan(
     # 'skipped'/'blocked' flags and the skip-quota annotation in one place.
     from app.daily_plan.skips import get_slot_skips_used_today
 
-    skipped_kinds = _get_unified_skipped_kinds(user_id, session)
-    if skipped_kinds:
-        _apply_unified_skip_state(required_dicts, skipped_kinds)
+    skipped_slots = _get_unified_skipped_slots(user_id, session)
+    if skipped_slots:
+        _apply_unified_skip_state(required_dicts, skipped_slots)
     from app.utils.time_utils import get_user_local_date
     _annotate_unified_skip_quota(
         required_dicts,
