@@ -66,7 +66,7 @@ _CURRICULUM_DEPENDENT_KINDS: frozenset[str] = frozenset({'curriculum', 'speaking
 _SKIP_LOCKED_REASON = 'Сначала завершите урок курса'
 
 
-def _get_unified_skipped_slots(user_id: int, db: Any) -> list[tuple[str, Optional[str]]]:
+def _get_unified_skipped_slots(user_id: int, db: Any) -> list[tuple[str, str | None]]:
     """Return ``[(kind, slot_key)]`` for today's ``slot_skipped`` events.
 
     ``slot_key`` is what ``/api/daily-plan/events`` stored in ``mission_type``
@@ -103,7 +103,7 @@ def _is_curriculum_backed(item: dict[str, Any]) -> bool:
 
 def _apply_unified_skip_state(
     required_dicts: list[dict[str, Any]],
-    skipped_slots: list[tuple[str, Optional[str]]],
+    skipped_slots: list[tuple[str, str | None]],
 ) -> None:
     """Mark skipped items and block the curriculum slots that depend on them.
 

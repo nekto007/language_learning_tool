@@ -119,7 +119,7 @@ def build_challenge_item(user_id: int, db: Any) -> Optional[PlanItem]:
     )
 
 
-def _resolve_target_lesson(user_id: int, db: Any, category: str) -> tuple[Optional[int], bool]:
+def _resolve_target_lesson(user_id: int, db: Any, category: str) -> tuple[int | None, bool]:
     """Return ``(lesson_id, retry)`` for a pending challenge, or ``(None, False)``.
 
     Only lessons whose completion can satisfy ``check_challenge_criteria``

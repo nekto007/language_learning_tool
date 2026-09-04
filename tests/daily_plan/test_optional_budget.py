@@ -75,13 +75,13 @@ def full_house(db_session, monkeypatch):
 class TestBudgetByImportance:
 
     def test_every_practice_source_and_history_survive_a_full_spine(self, full_house):
-        user, required, lessons = full_house
+        user, required, _lessons = full_house
 
         items, has_more = build_optional(user.id, real_db, required_items=required, focus=None)
 
         kinds = [it.kind for it in items]
         assert len(items) == OPTIONAL_MAX
-        for kind in _PRACTICE_KINDS + ('error_review', 'phrase_review'):
+        for kind in (*_PRACTICE_KINDS, 'error_review', 'phrase_review'):
             assert kind in kinds, f'{kind} squeezed out of optional'
         completed = [it for it in items if it.kind == 'curriculum' and it.completed]
         assert len(completed) == COMPLETED_TODAY_MAX
@@ -100,7 +100,7 @@ class TestBudgetByImportance:
         assert all(it.completed for it in items[:COMPLETED_TODAY_MAX])
         assert kinds[COMPLETED_TODAY_MAX] == 'phrase_review'
         assert first_queue == COMPLETED_TODAY_MAX + 1
-        assert set(kinds[last_queue + 1:]) == set(_PRACTICE_KINDS + ('error_review',))
+        assert set(kinds[last_queue + 1:]) == {*_PRACTICE_KINDS, 'error_review'}
 
     def test_queue_stretches_to_its_ceiling_when_practice_is_sparse(self, db_session, monkeypatch):
         import app.daily_plan.plan as plan_mod
