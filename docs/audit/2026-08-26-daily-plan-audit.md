@@ -509,13 +509,13 @@ Claude (все десять замечаний ревью подтвержден
 | 1 | `DP-036` | P2 | ✅ | `008519f8` | `tests/test_dashboard_ux_audit.py` (`test_inline_script_expands_optional_in_place`, `test_optional_queue_limited_to_five_visible_items`, `test_server_truncation_shows_hint_not_a_pager`, `test_folded_tail_uses_whole_list_for_current_index`) |
 | 2 | `DP-038` + `DP-039` | P2 | ✅ | `56eb716f` | `tests/daily_plan/test_optional_budget.py::TestBudgetByImportance` (4) |
 | 3 | `DP-073` | P3 | ✅ | `5449f14c` | `tests/words/test_challenge_card.py` (5) |
-| 4 | `DP-049` | P2 | 🟡 Codex | — | `tests/daily_plan/test_snapshot_v2.py` (в работе) |
-| 5 | `DP-058` | P2 | 🟡 Codex | — | (в работе) |
+| 4 | `DP-049` | P2 | ✅ | `89941285` | `tests/daily_plan/test_snapshot_v2.py::TestRolledReadingTargetIsRefreshed` (2) |
+| 5 | `DP-058` | P2 | ✅ | `89941285` | `tests/daily_plan/test_curriculum_eta_coverage.py` (1) |
 | 6 | `DP-048` | P2 | ✅ | `2225a5fb` | `tests/daily_plan/test_challenge_target.py` (8) |
 | 7 | `DP-092` | P2 | ✅ | `b83dd33b` | `tests/daily_plan/test_slot_skip_state.py` (9) |
-| 8 | `DP-004` | P2 | 🟡 Codex | — | `tests/daily_plan/test_snapshot_v2.py` (в работе) |
+| 8 | `DP-004` | P2 | ✅ | `89941285` | `tests/daily_plan/test_snapshot_v2.py::TestCompletedCurriculumAnchorKeepsImmediateNextLessons` (1) |
 | 9 | `DP-091` + `DP-115` | P2 | ✅ | `cde815f5` | `tests/words/test_daily_plan_next_step.py` (`test_skipped_item_is_passed_over_but_not_done`, `test_last_required_skipped_is_not_all_done`, `test_optional_next_after_minimum_is_scoped_as_bonus`); `DP-117` закрыта той же правкой (`r.ok` перед `r.json()`) |
-| 10 | `DP-053` | P2 | 🟡 Codex | — | `tests/daily_plan/test_day_close_integrity.py` (в работе) |
+| 10 | `DP-053` | P2 | ✅ | `50ea04ea` | `tests/daily_plan/test_day_close_integrity.py::TestQuizAndFinalTestRetakeXpGate` (оба URL квиза и финального теста + порог из контента) |
 
 **Что изменилось в коде (половина Claude), одним абзацем.** `build_optional` распределяет бюджет
 по важности, а не по порядку вставки: места резервируются под короткие пункты, каждый непустой
@@ -535,6 +535,20 @@ listening-урока карточки не строит; выполненный 
 якоре. `/api/daily-plan/next-step` не считает `skipped` выполненным, отдаёт `step_scope`,
 `minimum_done`, `skipped_remaining`; бар прогресса различает «выполнено», «минимум выполнен ·
 бонус» и «остались пропущенные».
+
+**Что изменилось в коде (половина Codex), одним абзацем.** `_LESSON_ETA_MINUTES` знает все 25
+типов `LESSON_TYPE_TO_SOURCE` (страж на покрытие). `build_curriculum_item` получил
+`anchor_done_today`; `build_required_snapshot` при уроке, пройденном до сборки, ставит его якорем и
+берёт первые `count − 1` невыполненных уроков цепочки (раньше все 2–3 слота схлопывались в одну
+выполненную карточку), warm-up-раскладка финального теста при якоре отключена, `_dedupe_snapshot_items`
+— страховка с warning'ом. `overlay_completion` зовёт `_refresh_reading_target`: на каждой отдаче
+плана `subtitle`, `eta_minutes`, `data.gate_seconds`, `data.time_spent_seconds`, `data.gate_reached`
+пересчитываются от сегодняшней нормы (`data` — копия). `_submission_passed(result, passing_score)`
+гейтит XP у обоих обработчиков квиза и у финального теста (с порогом из `get_lesson_passing_score`) —
+липкий `status == 'completed'` в зоне больше не читает никто.
+
+**Прогоны на 2026-09-05:** `pytest tests/daily_plan -q` — **586 passed / 0 failed**; `pytest -m smoke -q`
+— **696 passed / 0 failed**; полный `pytest` — см. план (`docs/plans/2026-09-04-…`).
 
 **Сверх реестра, по ходу:** (1) `speed_run` недостижим и для нового урока, открытого вчера и
 сданного сегодня, — по той же копии `started_at`; кандидат в реестр, в объём не входил.
