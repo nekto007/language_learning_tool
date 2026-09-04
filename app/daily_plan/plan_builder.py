@@ -79,8 +79,9 @@ def build_required_snapshot(
     lesson). The orchestrator interprets ``required=[]`` as «day cannot
     be closed via the unified path» and surfaces setup items instead.
     """
+    curriculum_count = _TIER_CURRICULUM_COUNT[tier]
     curriculum_lessons = _collect_curriculum_chain(
-        user_id, db, count=_TIER_CURRICULUM_COUNT[tier],
+        user_id, db, count=curriculum_count,
     )
     if not curriculum_lessons:
         return []
@@ -91,13 +92,37 @@ def build_required_snapshot(
         getattr(first_lesson, 'type', None) in _CARD_LESSON_TYPES
     )
 
-    curriculum_item = _curriculum_item_dict(user_id, db, first_lesson)
+    curriculum_item = _curriculum_item_dict(
+        user_id, db, first_lesson, anchor_done_today=True,
+    )
+    # ``build_curriculum_item`` replaces the first pending lesson with the
+    # lesson completed today.  In that case the pending chain must start at
+    # index 0 (and be capped to count - 1); blindly using ``[1:]`` loses the
+    # immediate next lesson and surfaces one too far ahead (DP-004).
+    anchored_completed_lesson = (
+        (curriculum_item.get('data') or {}).get('lesson_id')
+        != getattr(first_lesson, 'id', None)
+    )
+    remaining_curriculum_lessons = (
+        curriculum_lessons[:max(curriculum_count - 1, 0)]
+        if anchored_completed_lesson
+        else curriculum_lessons[1:]
+    )
     srs_item = _srs_item_dict(user_id, db, as_deck_quiz=first_is_card)
     reading_item = _reading_item_dict(user_id, db)
 
-    final_test_lesson, ft_position = _find_final_test(curriculum_lessons)
+    final_test_candidates = (
+        remaining_curriculum_lessons
+        if anchored_completed_lesson
+        else curriculum_lessons
+    )
+    final_test_lesson, ft_position = _find_final_test(final_test_candidates)
 
-    if final_test_lesson is not None and ft_position == 0:
+    if (
+        not anchored_completed_lesson
+        and final_test_lesson is not None
+        and ft_position == 0
+    ):
         # Warmup layout: SRS → reading → grammar_prep → final_test.
         # grammar_prep must sit IMMEDIATELY before the final test: finishing
         # the prep practice returns the user via ``return_url`` straight to
@@ -119,7 +144,7 @@ def build_required_snapshot(
             items.append(prep_item)
 
         items.append(curriculum_item)  # the final_test itself
-        return items
+        return _dedupe_snapshot_items(items)
 
     # Standard layout: curriculum_1, SRS, reading, curriculum_2, curriculum_3.
     items.append(curriculum_item)
@@ -128,14 +153,16 @@ def build_required_snapshot(
     if reading_item is not None:
         items.append(reading_item)
 
-    for i, lesson in enumerate(curriculum_lessons[1:], start=1):
-        if final_test_lesson is not None and i == ft_position:
+    for lesson in remaining_curriculum_lessons:
+        if final_test_lesson is not None and lesson.id == final_test_lesson.id:
             prep_item = _grammar_prep_item_dict(db, final_test_lesson)
             if prep_item is not None:
                 items.append(prep_item)
-        items.append(_curriculum_item_dict(user_id, db, lesson))
+        items.append(_curriculum_item_dict(
+            user_id, db, lesson, anchor_done_today=False,
+        ))
 
-    return items
+    return _dedupe_snapshot_items(items)
 
 
 def _collect_curriculum_chain(
@@ -178,6 +205,8 @@ def _curriculum_item_dict(
     user_id: int,
     db: Any,
     lesson: Any,
+    *,
+    anchor_done_today: bool = True,
 ) -> dict[str, Any]:
     """Build a curriculum PlanItem dict for the snapshot.
 
@@ -188,6 +217,7 @@ def _curriculum_item_dict(
     """
     item = build_curriculum_item(
         user_id, db, section='required', next_lesson=lesson,
+        anchor_done_today=anchor_done_today,
     )
     if item is None:
         # Defensive — caller already verified the lesson exists.
@@ -195,6 +225,25 @@ def _curriculum_item_dict(
             f"build_curriculum_item returned None for lesson {lesson.id}"
         )
     return _strip_for_snapshot(item.to_dict())
+
+
+def _dedupe_snapshot_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Defensively keep one snapshot item per stable id.
+
+    Normal assembly is unique by construction.  This guard prevents a future
+    builder regression from freezing duplicate required cards for the entire
+    study day while leaving a warning with the dropped id.
+    """
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for item in items:
+        item_id = str(item.get('id') or '')
+        if item_id in seen:
+            logger.warning("daily plan snapshot duplicate item dropped id=%s", item_id)
+            continue
+        seen.add(item_id)
+        unique.append(item)
+    return unique
 
 
 def _srs_item_dict(

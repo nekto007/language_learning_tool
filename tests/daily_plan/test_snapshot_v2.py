@@ -862,6 +862,126 @@ class TestFrozenSrsCountersAreRefreshed:
         assert data['word_limit'] == 3
 
 
+class TestRolledReadingTargetIsRefreshed:
+    """DP-049: a rolled snapshot must use today's reading target everywhere."""
+
+    @freeze_time('2026-09-04 12:00:00')
+    def test_target_progress_and_subtitle_move_together(
+        self, user, monkeypatch,
+    ):
+        from app.books import reading_session
+        from app.daily_plan import snapshot as snapshot_mod
+
+        monkeypatch.setattr(
+            reading_session, 'get_book_reading_seconds_today',
+            lambda *_args, **_kwargs: 420,
+        )
+
+        frozen = {
+            'id': 'reading:book:77',
+            'kind': 'reading',
+            'subtitle': 'Глава 3 · Old title · Норма дня — 5 мин',
+            'eta_minutes': 5,
+            'data': {
+                'book_id': 77,
+                'current_chapter_num': 3,
+                'current_chapter_title': 'Old title',
+                'time_spent_seconds': 60,
+                'gate_seconds': 300,
+                'gate_reached': False,
+            },
+        }
+        merged = dict(frozen)
+
+        snapshot_mod._refresh_reading_target(user.id, merged, real_db)
+
+        # 4 September is even: today's canonical target is 10 minutes.
+        assert merged['subtitle'] == 'Глава 3 · Old title · Норма дня — 10 мин'
+        assert merged['eta_minutes'] == 10
+        assert merged['data']['time_spent_seconds'] == 420
+        assert merged['data']['gate_seconds'] == 600
+        assert merged['data']['gate_reached'] is False
+        # The nested snapshot payload remains frozen.
+        assert frozen['data']['gate_seconds'] == 300
+        assert frozen['data']['time_spent_seconds'] == 60
+
+    @freeze_time('2026-09-05 12:00:00')
+    def test_gate_reached_uses_refreshed_odd_day_target(
+        self, user, monkeypatch,
+    ):
+        from app.books import reading_session
+        from app.daily_plan import snapshot as snapshot_mod
+
+        monkeypatch.setattr(
+            reading_session, 'get_book_reading_seconds_today',
+            lambda *_args, **_kwargs: 420,
+        )
+        item = {
+            'kind': 'reading',
+            'subtitle': 'Норма дня — 10 мин',
+            'eta_minutes': 10,
+            'data': {'book_id': 77, 'gate_seconds': 600},
+        }
+
+        snapshot_mod._refresh_reading_target(user.id, item, real_db)
+
+        assert item['subtitle'] == 'Норма дня — 5 мин'
+        assert item['eta_minutes'] == 5
+        assert item['data']['gate_seconds'] == 300
+        assert item['data']['gate_reached'] is True
+
+
+class TestCompletedCurriculumAnchorKeepsImmediateNextLessons:
+    """DP-004: done-today may replace one slot, not the whole pending chain."""
+
+    def test_intensive_snapshot_is_completed_plus_first_two_pending(
+        self, db_session, user,
+    ):
+        from app.daily_plan.plan_builder import build_required_snapshot
+        from app.utils.time_utils import get_user_local_day_bounds
+
+        code = unique_level_code()
+        level = CEFRLevel(code=code, name=f'L-{code}', order=1)
+        module = Module(
+            level=level, number=1, title='M-chain', description='', raw_content={},
+        )
+        lessons = [
+            Lessons(
+                module=module, number=number, order=number,
+                title=f'L{number}', type='vocabulary', content={},
+            )
+            for number in range(1, 5)
+        ]
+        user.onboarding_level = code
+        db_session.add_all([level, module, *lessons])
+        db_session.flush()
+        today_start, _ = get_user_local_day_bounds(user.id, real_db)
+        db_session.add(LessonProgress(
+            user_id=user.id,
+            lesson_id=lessons[0].id,
+            status='completed',
+            score=100,
+            started_at=today_start + timedelta(hours=1),
+            completed_at=today_start + timedelta(hours=2),
+            last_activity=today_start + timedelta(hours=2),
+        ))
+        db_session.commit()
+
+        items = build_required_snapshot(user.id, 'intensive', real_db)
+        curriculum_ids = [
+            item['data']['lesson_id']
+            for item in items
+            if item['kind'] == 'curriculum'
+        ]
+
+        assert curriculum_ids == [
+            lessons[0].id,
+            lessons[1].id,
+            lessons[2].id,
+        ]
+        assert len(curriculum_ids) == len(set(curriculum_ids))
+
+
 class TestSelfRepairEmptyingRequired:
     """Починка, выбросившая ПОСЛЕДНИЙ пункт, не вправе заморозить день.
 

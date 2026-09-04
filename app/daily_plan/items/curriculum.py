@@ -54,6 +54,16 @@ _LESSON_ETA_MINUTES: dict[str, int] = {
     'matching': 5,
     'text': 15,
     'flashcards': 8,
+    'dictation': 8,
+    'audio_fill_blank': 6,
+    'translation': 8,
+    'sentence_correction': 6,
+    'writing_prompt': 12,
+    'sentence_completion': 6,
+    'collocation_matching': 5,
+    'shadow_reading': 8,
+    'pronunciation': 6,
+    'idiom': 6,
 }
 _DEFAULT_ETA_MINUTES = 10
 
@@ -430,6 +440,7 @@ def build_curriculum_item(
     section: str = 'required',
     next_lesson: Optional[Lessons] = None,
     exclude_lesson_ids: Optional[set[int]] = None,
+    anchor_done_today: bool = True,
 ) -> Optional[PlanItem]:
     """Return the curriculum PlanItem or None if no eligible lesson exists.
 
@@ -450,7 +461,7 @@ def build_curriculum_item(
     # the completed-today lesson would land in the optional section instead,
     # confusing the day-summary («что я сегодня прошёл?»).
     done_today = _curriculum_done_today(user_id, db)
-    if done_today and section == 'required':
+    if anchor_done_today and done_today and section == 'required':
         completed_lesson = _get_lesson_completed_today(user_id, db) or next_lesson
         if completed_lesson is None:
             # Defensive: done_today should imply a completed lesson exists.

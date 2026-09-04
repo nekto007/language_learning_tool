@@ -237,6 +237,7 @@ def overlay_completion(
       - ``eta_minutes`` zeroed when completed
       - ``url`` set to None when completed (UI hides the CTA)
       - the day's live SRS counters refreshed inside ``data``
+      - the current reading target/progress refreshed inside ``data``
 
     Other fields (id, kind, title, subtitle, lesson_type, completion_signal)
     and the rest of ``data`` are passed through unchanged.
@@ -267,6 +268,7 @@ def overlay_completion(
             continue
         merged['completed'] = completed
         _refresh_srs_counters(user_id, merged, db)
+        _refresh_reading_target(user_id, merged, db)
         if completed:
             merged['eta_minutes'] = 0
             merged['url'] = None
@@ -414,6 +416,70 @@ def _refresh_srs_counters(user_id: int, item: dict[str, Any], db: Any) -> None:
     for key in live_keys:
         refreshed[key] = fresh[key]
     item['data'] = refreshed
+
+
+def _refresh_reading_target(user_id: int, item: dict[str, Any], db: Any) -> None:
+    """Refresh today's alternating reading target on a frozen item (DP-049).
+
+    Rolled-over snapshots retain yesterday's 5/10 minute subtitle and gate,
+    while completion is evaluated against today's target.  Refresh every
+    target-dependent field together so API consumers never see a mixture of
+    today's completion state and yesterday's progress metadata.
+
+    As with the SRS refresh, replace the nested ``data`` dict instead of
+    mutating the snapshot-owned object in place.
+    """
+    if (item.get('kind') or '') != 'reading':
+        return
+
+    data = item.get('data') or {}
+    book_id = data.get('book_id')
+    try:
+        book_id_int = int(book_id) if book_id is not None else None
+    except (TypeError, ValueError):
+        book_id_int = None
+    if book_id_int is None:
+        return
+
+    try:
+        from app.books.reading_session import (
+            get_book_reading_seconds_today,
+            get_daily_reading_target_seconds,
+        )
+        from app.utils.time_utils import get_user_local_date
+
+        target_seconds = int(
+            get_daily_reading_target_seconds(get_user_local_date(user_id, db))
+        )
+        time_spent_seconds = int(
+            get_book_reading_seconds_today(user_id, book_id_int, db) or 0
+        )
+    except Exception:
+        logger.warning(
+            "snapshot reading target refresh failed user=%s book=%s",
+            user_id, book_id_int, exc_info=True,
+        )
+        return
+
+    target_minutes = target_seconds // 60
+    subtitle_parts: list[str] = []
+    chapter_num = data.get('current_chapter_num')
+    chapter_title = data.get('current_chapter_title')
+    if chapter_num is not None:
+        subtitle_parts.append(f'Глава {chapter_num}')
+    if chapter_title:
+        subtitle_parts.append(str(chapter_title))
+    subtitle_parts.append(f'Норма дня — {target_minutes} мин')
+
+    refreshed = dict(data)
+    refreshed.update({
+        'time_spent_seconds': time_spent_seconds,
+        'gate_seconds': target_seconds,
+        'gate_reached': time_spent_seconds >= target_seconds,
+    })
+    item['data'] = refreshed
+    item['subtitle'] = ' · '.join(subtitle_parts)
+    item['eta_minutes'] = target_minutes
 
 
 def _is_item_completed(user_id: int, item: dict[str, Any], db: Any) -> bool:
