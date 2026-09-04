@@ -1,6 +1,6 @@
 # «План дня» — 10 самых заметных пользователю дефектов (2026-09-04)
 
-**Статус: все десять реализованы на ветке `daily-plan-top10` (Claude — #1, #2, #3, #6, #7, #9; Codex — #4, #5, #8, #10). Ревью Claude → Codex сделано; ревью Codex → Claude ждёт. `pytest tests/daily_plan` — 586 passed / 0 failed, `smoke` — 696 passed / 0 failed; полный прогон — см. процесс ниже.**
+**Статус: все десять реализованы на ветке `daily-plan-top10` (Claude — #1, #2, #3, #6, #7, #9; Codex — #4, #5, #8, #10). Ревью Claude → Codex сделано; ревью Codex → Claude ждёт. `pytest tests/daily_plan` — 586 passed / 0 failed, `smoke` — 696 passed / 0 failed; полный `pytest` — 10 999 passed / 0 failed.**
 
 | Поле | Значение |
 |---|---|
@@ -322,7 +322,7 @@
 - [x] Claude прочитал диффы Codex (`89941285`, `50ea04ea`) — замечаний нет
 - [ ] Codex читает диффы Claude (`56eb716f`, `008519f8`, `2225a5fb`, `5449f14c`, `b83dd33b`, `cde815f5`, `77b430f6`)
 - [x] `pytest tests/daily_plan -q` — 586 passed; `pytest -m smoke -q` — 696 passed
-- [ ] полный `pytest -q` — зелёный (baseline фазы 2: 10 929 passed / 0 failed)
+- [x] полный `pytest -q` — **10 999 passed / 0 failed** (70 skipped, 4 xfailed, 5 xpassed; 2 мин 33 с; baseline фазы 2: 10 929 / 0)
 - [x] Реестр `2026-08-26-daily-plan-audit.md`: секция «Статус ремедиации (фаза 3)» — шесть строк Claude ✅, четыре строки Codex 🟡 (Codex дописывает коммиты и стражи), `DP-014` «закрыта попутно»
 - [x] `CLAUDE.md`: optional-бюджет, раскрытие списка, skip по ключу слота, next-step, цель челленджа и рейл — внесено 2026-09-05; ETA и снапшот (#4, #5, #8, #10) — за Codex
 - [x] Файл плана добавлен в git через `git add -f`

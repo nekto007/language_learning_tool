@@ -548,7 +548,7 @@ listening-урока карточки не строит; выполненный 
 липкий `status == 'completed'` в зоне больше не читает никто.
 
 **Прогоны на 2026-09-05:** `pytest tests/daily_plan -q` — **586 passed / 0 failed**; `pytest -m smoke -q`
-— **696 passed / 0 failed**; полный `pytest` — см. план (`docs/plans/2026-09-04-…`).
+— **696 passed / 0 failed**; полный `pytest -q` — **10 999 passed / 0 failed** (70 skipped, 4 xfailed, 5 xpassed), против 10 929 / 0 на приёмке фазы 2.
 
 **Сверх реестра, по ходу:** (1) `speed_run` недостижим и для нового урока, открытого вчера и
 сданного сегодня, — по той же копии `started_at`; кандидат в реестр, в объём не входил.
