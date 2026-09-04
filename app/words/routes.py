@@ -1139,18 +1139,14 @@ def _render_unified_dashboard(tz: str):
             )
             db.session.rollback()
 
-    # Daily challenge card (right rail) — best-effort.
+    # Daily challenge card (right rail) — the plan's own challenge item is
+    # the single source of target, URL and completion state (DP-073). The old
+    # card required ``DailyChallenge.lesson_id``, which the seeder never sets
+    # (one shared row per day cannot carry a per-user lesson), so the rail
+    # rendered for nobody on any of 85 production days.
     challenge_card = None
     try:
-        from app.daily_plan.challenge import get_today_challenge
-        ch = get_today_challenge(current_user.id, db)
-        if ch and ch.get('lesson_id'):
-            challenge_card = {
-                'title': 'Бонусная цель дня',
-                'badge': f"×{2 if ch.get('bonus_xp') else 1} XP",
-                'completed': bool(ch.get('is_completed')),
-                'url': f"/learn/{ch['lesson_id']}/",
-            }
+        challenge_card = _challenge_card_from_plan(unified_plan)
     except Exception:
         logger.warning('daily_challenge build failed (unified)', exc_info=True)
 
@@ -1747,6 +1743,33 @@ def daily_plan_next_step() -> tuple:
         return _next_step_from_unified(daily_plan, daily_summary)
 
     return _next_step_from_legacy(daily_plan, daily_summary)
+
+
+def _challenge_card_from_plan(unified_plan: dict) -> dict | None:
+    """Right-rail «Челлендж» card built from the plan's own challenge item.
+
+    The plan item is the single source of target, URL and completion state:
+    ``DailyChallenge`` is one shared row per day and cannot carry a per-user
+    lesson, so gating the card on ``DailyChallenge.lesson_id`` (the old code)
+    rendered it for nobody (DP-073). No challenge item in ``optional`` (paused
+    payload, fallback payload, no challenge today) → no card.
+    """
+    item = next(
+        (it for it in ((unified_plan or {}).get('optional') or []) if it.get('kind') == 'challenge'),
+        None,
+    )
+    if not item:
+        return None
+    try:
+        bonus_xp = int((item.get('data') or {}).get('bonus_xp') or 0)
+    except (TypeError, ValueError):
+        bonus_xp = 0
+    return {
+        'title': item.get('title') or 'Бонусная цель дня',
+        'badge': f'+{bonus_xp} XP' if bonus_xp else '',
+        'completed': bool(item.get('completed')),
+        'url': item.get('url'),
+    }
 
 
 def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
