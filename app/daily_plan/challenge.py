@@ -229,6 +229,11 @@ _ACCURACY_FOCUS_GRADED_TYPES = (
     'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
     'dialogue_completion_quiz', 'final_test',
 )
+# Public name for the plan-item builder: the card must point at a lesson the
+# criteria above can actually accept (DP-048).
+CHALLENGE_GRADED_LESSON_TYPES = _ACCURACY_FOCUS_GRADED_TYPES
+CHALLENGE_ACCURACY_MIN_SCORE = _ACCURACY_FOCUS_MIN_SCORE
+CHALLENGE_SPEED_RUN_MAX_SECONDS = _SPEED_RUN_MAX_SECONDS
 
 
 def check_challenge_criteria(
