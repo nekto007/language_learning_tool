@@ -12,11 +12,15 @@ answering N rolled the learner back to N.
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 
 import pytest
 
-from app.curriculum.models import CEFRLevel, Lessons, Module
+from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.routes.grammar_quiz_lessons import (
     _final_test_display_questions,
     _shuffle_question_options,
@@ -86,6 +90,117 @@ def _questions_json(html: str) -> list[dict]:
 def _right_column_ids(html: str, question_index: int) -> list[int]:
     block = html.split(f'id="matching-right-{question_index}"', 1)[1].split('</div>', 1)[0]
     return [int(x) for x in re.findall(r'data-pair-id="(\d+)"', block)]
+
+
+def _run_resume_js(html: str, total: int) -> dict:
+    """Execute the rendered app against a tiny DOM and return its resume state."""
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('node is required for the final-test resume regression')
+    scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, re.S)
+    app_script = next((s for s in scripts if 'window.FinalTestApp = {' in s), None)
+    assert app_script, 'rendered FinalTestApp script not found'
+
+    harness = f"""
+globalThis.window = globalThis;
+window.location = {{ href: '', search: '' }};
+window.matchMedia = () => ({{ matches: false }});
+globalThis.CSS = {{ escape: (value) => String(value) }};
+globalThis.alert = () => {{}};
+
+function classList() {{
+  return {{ add() {{}}, remove() {{}}, toggle() {{}} }};
+}}
+function plainElement() {{
+  return {{
+    style: {{}}, hidden: false, disabled: false, value: '', textContent: '',
+    innerHTML: '', className: '', classList: classList(), dataset: {{}},
+    addEventListener() {{}}, setAttribute() {{}}, focus() {{}}, scrollIntoView() {{}},
+    querySelectorAll() {{ return []; }}, querySelector() {{ return null; }}
+  }};
+}}
+
+const startScreen = plainElement();
+const testScreen = plainElement();
+const progressBar = plainElement();
+const currentNum = plainElement();
+const currentSection = plainElement();
+const cards = [];
+const feedback = [];
+for (let i = 0; i < {total}; i++) {{
+  const answerControl = plainElement();
+  const nextButton = plainElement();
+  nextButton.className = 'quiz-next-btn-full';
+  const icon = plainElement();
+  const text = plainElement();
+  const buttonText = plainElement();
+  const fb = plainElement();
+  fb.querySelector = (selector) => selector === '.feedback-icon' ? icon
+    : selector === '.feedback-text' ? text
+    : selector === '.btn-text' ? buttonText : null;
+  feedback.push(fb);
+
+  const card = plainElement();
+  card.answerControl = answerControl;
+  card.nextButton = nextButton;
+  card.dataset = {{ sectionLabel: '', sectionPosition: '' }};
+  card.querySelectorAll = (selector) => {{
+    if (selector === '.answer-option') return [answerControl];
+    if (selector === 'input, textarea, select') return [];
+    if (selector === 'button[type="button"]') return [answerControl, nextButton];
+    if (selector === 'button, input, textarea, select') return [answerControl, nextButton];
+    return [];
+  }};
+  card.querySelector = (selector) => selector === '.quiz-next-btn-full' ? nextButton : null;
+  cards.push(card);
+}}
+
+const domReady = [];
+globalThis.document = {{
+  addEventListener(event, callback) {{
+    if (event === 'DOMContentLoaded') domReady.push(callback);
+  }},
+  querySelectorAll(selector) {{
+    if (selector === '.question-card') return cards;
+    return [];
+  }},
+  querySelector() {{ return null; }},
+  createElement() {{ return plainElement(); }},
+  getElementById(id) {{
+    if (id === 'start-screen') return startScreen;
+    if (id === 'test-screen') return testScreen;
+    if (id === 'test-progress-bar') return progressBar;
+    if (id === 'current-num') return currentNum;
+    if (id === 'current-section') return currentSection;
+    if (id.startsWith('question-')) return cards[Number(id.slice(9))];
+    if (id.startsWith('feedback-')) return feedback[Number(id.slice(9))];
+    return plainElement();
+  }}
+}};
+
+{app_script}
+domReady.forEach((callback) => callback());
+const idx = FinalTestApp.state.currentQuestion;
+process.stdout.write(JSON.stringify({{
+  started: FinalTestApp.state.started,
+  startHidden: startScreen.style.display === 'none',
+  testVisible: testScreen.style.display === 'block',
+  currentQuestion: idx,
+  correctCount: FinalTestApp.state.correctCount,
+  answerLocked: cards[idx].answerControl.disabled,
+  nextEnabled: !cards[idx].nextButton.disabled,
+  nextText: feedback[idx].querySelector('.btn-text').textContent
+}}));
+"""
+    tmp = tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8')
+    tmp.write(harness)
+    tmp.close()
+    try:
+        result = subprocess.run([node, tmp.name], capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        return json.loads(result.stdout.strip().splitlines()[-1])
+    finally:
+        os.unlink(tmp.name)
 
 
 class TestOptionsShuffled:
@@ -207,3 +322,58 @@ class TestVerdictOnlyFeedbackSource:
         assert "if (!this.state.answers[i]) { firstOpen = i; break; }" in src
         assert 'this.state.answers[this.state.currentQuestion] = undefined;' not in src
         assert "this.showFeedback(index, !!saved.correct);" in src
+
+
+class TestResumeAdversarial:
+
+    def test_lies_in_snapshot_and_all_answered_last_question_is_locked(
+        self, app, db_session, _module, test_user, client
+    ):
+        lesson = _make_lesson(db_session, _module)
+        answers = [
+            {'value': 'ans0', 'text': 'ans0', 'correct': True},
+            {'value': 'wrong', 'text': 'wrong', 'correct': False},
+            {'value': 'ans2', 'text': 'ans2', 'correct': True},
+        ]
+        progress = LessonProgress(
+            user_id=test_user.id,
+            lesson_id=lesson.id,
+            status='in_progress',
+            data={
+                'current_question': 0,
+                'answers': answers,
+                'correct_answers': 999,
+                'total_questions': 11,
+            },
+        )
+        db_session.add(progress)
+        db_session.commit()
+        _login(client, test_user)
+
+        html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
+        resumed = _run_resume_js(html, total=11)
+        assert resumed['started'] and resumed['startHidden'] and resumed['testVisible']
+        assert resumed['currentQuestion'] == 3
+        assert resumed['correctCount'] == 2
+        assert resumed['answerLocked'] is False
+
+        all_answers = [
+            {'value': f'ans{i}', 'text': f'ans{i}', 'correct': i % 3 != 0}
+            for i in range(11)
+        ]
+        progress.data = {
+            'current_question': 0,
+            'answers': all_answers,
+            'correct_answers': -50,
+            'total_questions': 11,
+        }
+        db_session.commit()
+
+        html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
+        completed_answers = _run_resume_js(html, total=11)
+        assert completed_answers['started']
+        assert completed_answers['currentQuestion'] == 10
+        assert completed_answers['correctCount'] == 7
+        assert completed_answers['answerLocked'] is True
+        assert completed_answers['nextEnabled'] is True
+        assert completed_answers['nextText'] == 'Показать результаты'
