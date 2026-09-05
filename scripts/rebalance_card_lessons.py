@@ -17,8 +17,8 @@ What this script does to ``module_completed/fixed/*.json`` (the import source):
    for the two 21-word modules. Card ids and order are untouched.
 
 The DB is the runtime source, so the same change ships as SQL keyed on content
-coordinates (level code + module number + lesson number + old title / old deck
-size), never on ids:
+coordinates (level code + module number + lesson number + old title / the exact
+old deck), never on ids:
 
     python scripts/rebalance_card_lessons.py                  # dry run, summary
     python scripts/rebalance_card_lessons.py --write          # patch the JSON
@@ -171,13 +171,16 @@ def emit_sql(changes: list[Change], out_dir: Path) -> None:
             where = f"WHERE l.module_id = {sub} AND l.number = {number} AND l.type IN ('card', 'flashcards')"
             new_json = json.dumps(new_cards, ensure_ascii=False)
             old_json = json.dumps(old_cards, ensure_ascii=False)
+            # Exact-deck predicates: an editorial change of the same length made
+            # between preflight and apply must not be overwritten, and rollback
+            # must not clobber edits made after apply (Codex review of item 10).
             apply.append(
                 f"UPDATE lessons l SET content = jsonb_set(l.content::jsonb, '{{cards}}', {_dollar(new_json)}::jsonb)::json "
-                f"{where} AND jsonb_array_length(l.content::jsonb->'cards') = {len(old_cards)};"
+                f"{where} AND l.content::jsonb->'cards' = {_dollar(old_json)}::jsonb;"
             )
             rollback.append(
                 f"UPDATE lessons l SET content = jsonb_set(l.content::jsonb, '{{cards}}', {_dollar(old_json)}::jsonb)::json "
-                f"{where} AND jsonb_array_length(l.content::jsonb->'cards') = {len(new_cards)};"
+                f"{where} AND l.content::jsonb->'cards' = {_dollar(new_json)}::jsonb;"
             )
             check_decks.append(f"SELECT 1 FROM lessons l {where} AND l.content::jsonb->'cards' = {_dollar(old_json)}::jsonb")
 
