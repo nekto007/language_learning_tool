@@ -162,3 +162,72 @@ class TestItemsArePaged:
         data = resp.get_json()
         assert data['correct_items'] == 6 and data['total_items'] == 7
         assert data['item_results'][6]['correct'] is False
+
+    def test_completed_restore_then_retry_reload_preserves_global_indices(
+        self, app, db_session, _module, test_user, client
+    ):
+        """A completed replay expands pages; retry survives reload without reindexing."""
+        lesson = _make_lesson(db_session, _module, 11)
+        _login(client, test_user)
+        url = f'/curriculum/lesson/{lesson.id}/audio-fill-blank'
+
+        client.get(url)
+        completed = client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={
+                'answers': [f'ans{i}' for i in range(11)],
+                'lesson_type': 'audio_fill_blank',
+                'replay_count': 0,
+            },
+        ).get_json()
+        assert completed['passed'] is True
+
+        completed_html = client.get(url).get_data(as_text=True)
+        assert 'function _restoreCompleted()' in completed_html
+        assert '_showAllPages();' in completed_html
+        assert "page.hidden = false" in completed_html
+        assert "pager.hidden = true" in completed_html
+
+        # The retry flag lives in the session until submission.  A plain reload
+        # must therefore remain a fresh paged attempt, not replay completion.
+        client.get(f'{url}?retry=true')
+        retry_html = client.get(url).get_data(as_text=True)
+        assert 'function _restoreCompleted()' not in retry_html
+        markup = _lesson_markup(retry_html)
+
+        item_indices = [
+            int(x) for x in re.findall(
+                r'<article class="lesson-shell__card afb-item"[^>]*data-index="(\d+)"',
+                markup,
+                re.S,
+            )
+        ]
+        option_indices = [
+            int(x) for x in re.findall(
+                r'class="option-btn afb-option-btn"[^>]*data-index="(\d+)"',
+                markup,
+                re.S,
+            )
+        ]
+        assert item_indices == list(range(11))
+        assert set(option_indices) == set(range(11))
+        assert all(option_indices.count(i) == 4 for i in range(11))
+        assert re.search(r'data-page="1"[^>]*hidden', markup)
+        assert re.search(r'data-page="2"[^>]*hidden', markup)
+
+        retry_answers = [f'ans{i}' for i in range(11)]
+        retry_answers[8] = 'wrong-on-page-two'
+        retried = client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={
+                'answers': retry_answers,
+                'lesson_type': 'audio_fill_blank',
+                'replay_count': 0,
+            },
+        ).get_json()
+        assert retried['total_items'] == 11
+        assert retried['item_results'][8]['correct'] is False
+        assert all(
+            result['correct'] is (idx != 8)
+            for idx, result in enumerate(retried['item_results'])
+        )
