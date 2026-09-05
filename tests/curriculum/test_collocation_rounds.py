@@ -117,6 +117,26 @@ class TestMissesAreRecordedServerSide:
         client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')  # reload keeps them
         assert _progress(db_session, test_user.id, lesson.id).data['cm_misses'] == {'3': 2}
 
+    def test_other_round_correct_check_and_empty_answer_do_not_create_misses(
+        self, app, db_session, _module, test_user, client
+    ):
+        """Global indices work across rounds; an empty probe is not an attempt."""
+        lesson = _make_lesson(db_session, _module, 12)
+        _login(client, test_user)
+        client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
+
+        # Round 1 is visible, but index 8 belongs to round 2 and must still be
+        # interpreted as the global phrase index rather than re-based to 2.
+        other_round = self._check(client, lesson, 8, 'перевод 8')
+        assert other_round.status_code == 200
+        assert other_round.get_json()['correct'] is True
+        empty = self._check(client, lesson, 1, '   ')
+        assert empty.status_code == 200
+        assert empty.get_json()['correct'] is False
+
+        progress = _progress(db_session, test_user.id, lesson.id)
+        assert not progress.data or 'cm_misses' not in progress.data
+
 
 class TestFirstTryScore:
 
@@ -151,6 +171,22 @@ class TestFirstTryScore:
         data = self._submit(client, lesson, _pairs(6)).get_json()
         assert data['score'] == 100 and data['first_try_items'] == 6 and data['mistakes'] == []
 
+    def test_full_crafted_submit_without_checks_scores_as_clean_first_try(
+        self, app, db_session, _module, test_user, client
+    ):
+        """No miss telemetry plus a server-verified full mapping is a clean run."""
+        lesson = _make_lesson(db_session, _module, 8)
+        _login(client, test_user)
+        assert _progress(db_session, test_user.id, lesson.id) is None
+
+        data = self._submit(client, lesson, _pairs(8)).get_json()
+        assert data['passed'] is True
+        assert data['matched_items'] == 8
+        assert data['first_try_items'] == 8
+        assert data['score'] == 100
+        progress = _progress(db_session, test_user.id, lesson.id)
+        assert progress.status == 'completed' and progress.score == 100
+
     def test_a_terrible_first_try_score_still_completes(self, app, db_session, _module, test_user, client):
         """Owner: the score scales XP, it never blocks completion."""
         lesson = _make_lesson(db_session, _module, 6)
@@ -178,10 +214,31 @@ class TestFirstTryScore:
         _login(client, test_user)
         client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
         client.post(f'/curriculum/api/lesson/{lesson.id}/check-item', json={'index': 0, 'answer': 'перевод 5'})
+        client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
+        client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
+        assert _progress(db_session, test_user.id, lesson.id).data['cm_misses'] == {'0': 1}
         assert self._submit(client, lesson, _pairs(6)).get_json()['score'] == 83
-        # retake: no misses this time
-        client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching?retry=true')
-        assert self._submit(client, lesson, _pairs(6)).get_json()['score'] == 100
+
+        # Retry mode survives a plain reload and starts with no misses from the
+        # completed attempt. A fresh miss must be attributed only to the retake.
+        retry_url = f'/curriculum/lesson/{lesson.id}/collocation-matching?retry=true'
+        retry_html = client.get(retry_url).get_data(as_text=True)
+        reload_html = client.get(
+            f'/curriculum/lesson/{lesson.id}/collocation-matching'
+        ).get_data(as_text=True)
+        assert 'const isAlreadyCompleted = false;' in retry_html
+        assert 'const isAlreadyCompleted = false;' in reload_html
+        assert _progress(db_session, test_user.id, lesson.id).data.get('cm_misses') is None
+
+        client.post(
+            f'/curriculum/api/lesson/{lesson.id}/check-item',
+            json={'index': 2, 'answer': 'перевод 5'},
+        )
+        client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
+        assert _progress(db_session, test_user.id, lesson.id).data['cm_misses'] == {'2': 1}
+        retried = self._submit(client, lesson, _pairs(6)).get_json()
+        assert retried['score'] == 83
+        assert [m['index'] for m in retried['mistakes']] == [2]
 
 
 class TestTemplateSource:
