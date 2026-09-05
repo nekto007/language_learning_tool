@@ -299,12 +299,17 @@ def update_lesson_progress(lesson_id):
         # prevent forgery. 'grammar' is dual-mode: theory-only lessons (no exercises
         # in content) complete via this endpoint; exercise-backed grammar lessons are
         # graded server-side via the grammar form POST and must not be completable here.
+        # 'final_test' was missing (lesson audit 2026-09-05, review of item 2):
+        # a bare POST {status: completed, score: 100} closed the module test
+        # past the server grader and the 3-per-24h attempt limit. Its own
+        # client only ever sends status=in_progress + data (saveProgress),
+        # which this gate keeps.
         _SERVER_GRADED_TYPES = frozenset((
             'dictation', 'audio_fill_blank', 'translation',
             'sentence_correction', 'sentence_completion', 'collocation_matching',
             'matching',
             'quiz', 'ordering_quiz', 'translation_quiz', 'listening_quiz',
-            'dialogue_completion_quiz',
+            'dialogue_completion_quiz', 'final_test',
             'writing_prompt', 'shadow_reading', 'pronunciation',
             'listening_immersion', 'idiom',
         ))

@@ -242,18 +242,11 @@ def _final_test_display_questions(
     if sections_list:
         for s_idx, section in enumerate(sections_list):
             raw_title = str(section.get('title') or section.get('section') or '').strip()
-            if _SECTION_TITLE_RE.match(raw_title):
-                label = raw_title
-            elif raw_title:
-                label = f'Раздел {s_idx + 1}: {raw_title}'
-            else:
-                label = f'Раздел {s_idx + 1}'
             for question in section.get('exercises') or section.get('questions') or []:
                 copy = dict(question)
                 copy['section_index'] = s_idx
-                copy['section_label'] = label
                 questions.append(copy)
-            sections_meta.append({'index': s_idx, 'label': label, 'count': 0})
+            sections_meta.append({'index': s_idx, 'title': raw_title, 'count': 0})
     else:
         questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
         questions = [dict(q) for q in (cleaned_content.get(questions_field) or [])]
@@ -269,8 +262,21 @@ def _final_test_display_questions(
         position = {meta['index']: pos for pos, meta in enumerate(sections_meta, start=1)}
         for pos, meta in enumerate(sections_meta, start=1):
             meta['position'] = pos
+            # The auto-prefix numbers sections by their POSITION among the
+            # non-empty ones, so the kicker («Раздел 2 из 2») and the label
+            # never disagree after an empty section is dropped; an authored
+            # «Раздел N: …» title keeps its own number.
+            raw_title = meta.pop('title')
+            if _SECTION_TITLE_RE.match(raw_title):
+                meta['label'] = raw_title
+            elif raw_title:
+                meta['label'] = f'Раздел {pos}: {raw_title}'
+            else:
+                meta['label'] = f'Раздел {pos}'
+        labels = {meta['index']: meta['label'] for meta in sections_meta}
     else:
         position = {}
+        labels = {}
 
     seen: set[int] = set()
     for question in questions:
@@ -282,6 +288,7 @@ def _final_test_display_questions(
             question['right_order'] = order
         s_idx = question.get('section_index')
         if s_idx is not None:
+            question['section_label'] = labels.get(s_idx, '')
             question['section_position'] = position.get(s_idx)
             question['section_count'] = next(
                 (m['count'] for m in sections_meta if m['index'] == s_idx), 0,

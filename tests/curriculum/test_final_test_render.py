@@ -299,7 +299,9 @@ class TestSectionDividers:
         questions, sections = _final_test_display_questions(content, lesson_id=1)
         assert [s['position'] for s in sections] == [1, 2]
         assert [q['section_position'] for q in questions] == [1, 2]
-        assert questions[1]['section_label'] == 'Раздел 3: C'
+        # auto-prefix follows the position among non-empty sections (review note)
+        assert questions[1]['section_label'] == 'Раздел 2: C'
+        assert [s['label'] for s in sections] == ['Раздел 1: A', 'Раздел 2: C']
 
 
 class TestVerdictOnlyFeedbackSource:
@@ -377,3 +379,36 @@ class TestResumeAdversarial:
         assert completed_answers['answerLocked'] is True
         assert completed_answers['nextEnabled'] is True
         assert completed_answers['nextText'] == 'Показать результаты'
+
+
+class TestProgressEndpointCannotCompleteAFinalTest:
+    """Review of item 2 (Codex): final_test was missing from _SERVER_GRADED_TYPES,
+    so a bare POST to /api/lesson/<id>/progress closed the module test past the
+    grader and the attempt limit."""
+
+    def test_forged_completion_is_stripped(self, app, db_session, _module, test_user, client):
+        lesson = _make_lesson(db_session, _module)
+        _login(client, test_user)
+        resp = client.post(f'/curriculum/api/lesson/{lesson.id}/progress',
+                           json={'status': 'completed', 'score': 100})
+        assert resp.status_code == 200
+        db_session.expire_all()
+        progress = LessonProgress.query.filter_by(user_id=test_user.id, lesson_id=lesson.id).first()
+        assert progress is not None
+        assert progress.status != 'completed'
+        assert not progress.score
+
+    def test_in_progress_snapshot_is_still_saved(self, app, db_session, _module, test_user, client):
+        """saveProgress() from the test page keeps working — only completion is gated."""
+        lesson = _make_lesson(db_session, _module)
+        _login(client, test_user)
+        snapshot = {'current_question': 2, 'answers': [{'value': 'ans0', 'text': 'ans0', 'correct': True}],
+                    'correct_answers': 1, 'total_questions': 11}
+        resp = client.post(f'/curriculum/api/lesson/{lesson.id}/progress',
+                           json={'status': 'in_progress', 'data': snapshot})
+        assert resp.status_code == 200
+        db_session.expire_all()
+        progress = LessonProgress.query.filter_by(user_id=test_user.id, lesson_id=lesson.id).first()
+        assert progress.status == 'in_progress'
+        assert progress.data['current_question'] == 2
+        assert progress.data['answers'][0]['correct'] is True
