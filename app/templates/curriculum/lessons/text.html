@@ -377,49 +377,37 @@
         {% set questions_list = text_content.comprehension_questions or text_content.exercises %}
         {% for question in questions_list %}
           {% set question_index = loop.index0 %}
-          <div class="question-block" data-question-index="{{ question_index }}">
+          {# The answer key is NOT rendered (no data-correct / data-explanation):
+             every answer is checked by POST /api/lesson/<id>/check-item and the
+             final score is graded server-side (lesson audit 2026-09-05, A10).
+             Options arrive pre-shuffled from the route (A9). #}
+          <div class="question-block" data-question-index="{{ question_index }}" data-question-type="{{ question.type }}">
             <p class="question-text">{{ loop.index }}. {{ (question.question or question.statement or question.instruction)|sanitize }}</p>
-
             {% if question.type == 'true_false' %}
-              {# True/False question #}
               <div class="answer-options answer-options-flex">
-                <button class="answer-option-btn flex-fill" data-value="true" data-action="check-true-false" data-question-index="{{ question_index }}" data-bool="true">
+                <button type="button" class="answer-option-btn flex-fill" data-value="true" data-action="check-true-false" data-question-index="{{ question_index }}" data-bool="true">
                   <i class="fas fa-check-circle text-success"></i> {{ _('Правда') }}
                 </button>
-                <button class="answer-option-btn flex-fill" data-value="false" data-action="check-true-false" data-question-index="{{ question_index }}" data-bool="false">
+                <button type="button" class="answer-option-btn flex-fill" data-value="false" data-action="check-true-false" data-question-index="{{ question_index }}" data-bool="false">
                   <i class="fas fa-times-circle text-danger"></i> {{ _('Ложь') }}
                 </button>
               </div>
-
-            {% elif question.type == 'multiple_choice' %}
-              {# Multiple choice question #}
-              <div class="answer-options answer-options-grid">
+            {% elif question.type in ('multiple_choice', 'fill_blank') and question.options %}
+              <div class="answer-options {% if question.type == 'multiple_choice' %}answer-options-grid{% else %}answer-options-grid-2col{% endif %}">
                 {% for option in question.options %}
-                  <button class="answer-option-btn" data-value="{{ option }}" data-action="check-fill-blank" data-question-index="{{ question_index }}" data-option="{{ option }}">
+                  <button type="button" class="answer-option-btn" data-value="{{ option }}" data-action="check-fill-blank" data-question-index="{{ question_index }}" data-option="{{ option }}">
                     {{ option|sanitize }}
                   </button>
                 {% endfor %}
               </div>
-
-            {% elif question.type == 'fill_blank' and question.options %}
-              {# Fill blank with options #}
-              <div class="answer-options answer-options-grid-2col">
-                {% for option in question.options %}
-                  <button class="answer-option-btn" data-value="{{ option }}" data-action="check-fill-blank" data-question-index="{{ question_index }}" data-option="{{ option }}">
-                    {{ option|sanitize }}
-                  </button>
-                {% endfor %}
-              </div>
-
             {% elif question.type == 'ordering' %}
-              {# Ordering question - build sentence from words. The
-                 server renders words in source order; shuffleOrderingWords()
-                 reshuffles them client-side on DOMContentLoaded so the
-                 exercise is not trivially solvable by "click in order". #}
+              {# Ordering question - build sentence from words. The server
+                 renders words in source order; shuffleOrderingWords()
+                 reshuffles them client-side on DOMContentLoaded. #}
               <div class="reorder-answer">
                 <div class="words-container" data-needs-shuffle="true" id="words-container-{{ question_index }}">
                   {% for word in question.words %}
-                    <button type="button" class="word-button" data-word="{{ word }}" data-action="add-word-to-sentence" data-question-index="{{ question_index }}" data-word="{{ word }}">
+                    <button type="button" class="word-button" data-word="{{ word }}" data-action="add-word-to-sentence" data-question-index="{{ question_index }}">
                       {{ word }}
                     </button>
                   {% endfor %}
@@ -433,22 +421,45 @@
                   {{ _('Проверить') }}
                 </button>
               </div>
-
+            {% elif question.type == 'matching' and question.pairs %}
+              {# Matching used to fall into the free-text branch below with the
+                 answer «false» — 112 unanswerable questions (lesson audit
+                 2026-09-05, B6). Click a word, then its translation. #}
+              <div class="rd-match" id="rd-match-{{ question_index }}" data-total="{{ question.pairs|length }}">
+                <div class="rd-match__col" role="group" aria-label="{{ _('Слова') }}">
+                  {% for pair in question.pairs %}
+                    <button type="button" class="answer-option-btn rd-match__btn" aria-pressed="false"
+                            data-action="match-left" data-question-index="{{ question_index }}"
+                            data-pair-id="{{ loop.index0 }}" data-word="{{ pair.english or pair.left }}">
+                      {{ (pair.english or pair.left)|sanitize }}
+                    </button>
+                  {% endfor %}
+                </div>
+                <div class="rd-match__col" role="group" aria-label="{{ _('Перевод') }}">
+                  {% set _right_order = question.right_order or (range(question.pairs|length)|list) %}
+                  {% for pair_id in _right_order %}
+                    {% set pair = question.pairs[pair_id] %}
+                    <button type="button" class="answer-option-btn rd-match__btn" aria-pressed="false"
+                            data-action="match-right" data-question-index="{{ question_index }}"
+                            data-pair-id="{{ pair_id }}" data-word="{{ pair.russian or pair.right }}">
+                      {{ (pair.russian or pair.right)|sanitize }}
+                    </button>
+                  {% endfor %}
+                </div>
+              </div>
             {% else %}
               {# Text input for other types #}
               <div class="answer-input-wrapper">
                 <input type="text"
                        class="answer-input"
                        placeholder="{{ _('Введите ваш ответ...') }}"
-                       data-correct="{{ question.correct_answer or question.correct }}"
-                       data-alternatives="{{ question.alternative_answers|join(',') if question.alternative_answers else '' }}">
-                <button class="check-answer-btn" data-action="check-answer" data-question-index="{{ question_index }}">
+                       data-question-index="{{ question_index }}">
+                <button type="button" class="check-answer-btn" data-action="check-answer" data-question-index="{{ question_index }}">
                   <i class="fas fa-check"></i>
                 </button>
               </div>
             {% endif %}
-
-            <div class="answer-feedback" style="display: none;" data-correct="{{ question.correct|lower if question.correct is not none else '' }}" data-explanation="{{ question.explanation or '' }}"></div>
+            <div class="answer-feedback" style="display: none;" role="status" aria-live="polite"></div>
           </div>
         {% endfor %}
       </div>
@@ -556,65 +567,31 @@ async function _saveReadingAnswers() {
   }
 }
 
-let _readingRestoring = false;
-
-function _recordReadingAnswer(questionIndex, value, type, correct) {
-  _readingAnswers[questionIndex] = {value: value, type: type, correct: !!correct};
-  // Skip the API roundtrip during the replay pass — saved state already
-  // reflects what's about to be re-rendered.
-  if (!_readingRestoring) _saveReadingAnswers();
+// Each entry: {value, type, correct, answer, answer_pairs, explanation} — the
+// verdict and the reveal come from the server (/check-item), so a restore can
+// re-render the state without a network round-trip.
+function _recordReadingAnswer(questionIndex, value, type, correct, extra) {
+  const rec = {value: value, type: type, correct: !!correct};
+  if (extra) {
+    if (extra.answer !== undefined) rec.answer = extra.answer;
+    if (extra.answer_pairs !== undefined) rec.answer_pairs = extra.answer_pairs;
+    if (extra.explanation) rec.explanation = extra.explanation;
+  }
+  _readingAnswers[questionIndex] = rec;
+  _saveReadingAnswers();
 }
-
 function _restoreReadingAnswers() {
   if (!_readingAnswers || typeof _readingAnswers !== 'object') return;
-  const entries = Object.entries(_readingAnswers);
-  if (entries.length === 0) return;
-  _readingRestoring = true;
-  entries.forEach(function(entry) {
+  Object.entries(_readingAnswers).forEach(function(entry) {
     const qIdx = parseInt(entry[0]);
     const saved = entry[1] || {};
     if (isNaN(qIdx) || !saved.type) return;
-    const block = document.querySelector('[data-question-index="' + qIdx + '"]');
-    if (!block) return;
-
-    if (saved.type === 'true_false') {
-      const want = (saved.value === true || saved.value === 'true');
-      const btn = block.querySelector('.answer-option-btn[data-value="' + (want ? 'true' : 'false') + '"]');
-      if (btn) {
-        try { checkTrueFalseAnswer(qIdx, want); } catch (_) {}
-      }
-    } else if (saved.type === 'fill_blank') {
-      const sel = '.answer-option-btn[data-value="' + String(saved.value).replace(/"/g, '\\"') + '"]';
-      const btn = block.querySelector(sel);
-      if (btn) {
-        try { checkFillBlankAnswer(qIdx, saved.value); } catch (_) {}
-      }
-    } else if (saved.type === 'text') {
-      const input = block.querySelector('.answer-input');
-      if (input) {
-        input.value = saved.value || '';
-        try { checkAnswer(qIdx); } catch (_) {}
-      }
-    } else if (saved.type === 'ordering') {
-      // Replay each word click in the saved sentence order, then submit.
-      const wordsContainer = document.getElementById('words-container-' + qIdx);
-      const sentenceDiv = document.getElementById('sentence-' + qIdx);
-      if (!wordsContainer || !sentenceDiv) return;
-      const tokens = (saved.value || '').split(/\s+/).filter(Boolean);
-      tokens.forEach(function(token) {
-        const btn = Array.from(wordsContainer.querySelectorAll('.word-button:not([disabled])'))
-          .find(function(b) {
-            const w = (b.getAttribute('data-word') || b.textContent || '').trim();
-            return w === token;
-          });
-        if (btn) {
-          try { addWordToSentence(qIdx, token, btn); } catch (_) {}
-        }
-      });
-      try { submitOrderingAnswer(qIdx); } catch (_) {}
-    }
+    if (!document.querySelector('[data-question-index="' + qIdx + '"]')) return;
+    _renderReadingVerdict(qIdx, saved.type, saved.value, !!saved.correct, {
+      answer: saved.answer, answer_pairs: saved.answer_pairs, explanation: saved.explanation,
+    });
   });
-  _readingRestoring = false;
+  updateComprehensionResults();
 }
 document.addEventListener('DOMContentLoaded', function() {
   // Shuffle runs first, then we replay saved answers so re-rendered
@@ -793,182 +770,188 @@ function playDialogueAudio(audioFile) {
   };
 }
 
-// Проверка ответов на вопросы
-function checkAnswer(questionIndex) {
-  const questionBlock = document.querySelector(`[data-question-index="${questionIndex}"]`);
-  const input = questionBlock.querySelector('.answer-input');
-  const feedback = questionBlock.querySelector('.answer-feedback');
-  const checkBtn = questionBlock.querySelector('.check-answer-btn');
-
-  const userAnswer = input.value.trim().toLowerCase();
-  const correctAnswer = input.dataset.correct.toLowerCase();
-  const alternatives = input.dataset.alternatives ?
-    input.dataset.alternatives.split(',').map(a => a.trim().toLowerCase()) : [];
-
-  let isCorrect = false;
-
-  if (userAnswer === correctAnswer || alternatives.includes(userAnswer)) {
-    isCorrect = true;
-  }
-
-  feedback.style.display = 'block';
-
-  if (isCorrect) {
-    input.classList.add('correct');
-    input.classList.remove('incorrect');
-    feedback.innerHTML = '<i class="fas fa-check-circle"></i> ' + 'Правильно!';
-    feedback.className = 'answer-feedback correct';
-    checkBtn.disabled = true;
-    input.disabled = true;
-    questionBlock.classList.add('answered-correct');
-  } else {
-    input.classList.add('incorrect');
-    input.classList.remove('correct');
-    feedback.innerHTML = '<i class="fas fa-times-circle"></i> ' + 'Попробуйте еще раз';
-    feedback.className = 'answer-feedback incorrect';
-  }
-
-  _recordReadingAnswer(questionIndex, input.value, 'text', isCorrect);
-  updateComprehensionResults();
+// === Server-checked answers (lesson audit 2026-09-05, A10) ===============
+// The answer key never reaches the DOM. Every answer is posted to
+// /check-item, which grades it with the same process_quiz_submission the
+// final submit uses and returns {correct, answer|answer_pairs, explanation}.
+// One attempt per question — the score is real and only scales XP.
+async function _serverCheckReading(questionIndex, value) {
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  try {
+    const r = await fetch('/curriculum/api/lesson/' + READING_LESSON_ID + '/check-item', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+      body: JSON.stringify({index: questionIndex, answer: value}),
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data && data.success ? data : null;
+  } catch (e) { return null; }
 }
 
-// Check true/false answer
-function checkTrueFalseAnswer(questionIndex, userAnswer) {
-  const questionBlock = document.querySelector(`[data-question-index="${questionIndex}"]`);
-  const feedback = questionBlock.querySelector('.answer-feedback');
-  const buttons = questionBlock.querySelectorAll('.answer-option-btn');
-  const correctAnswer = feedback.dataset.correct === 'true';
-  const explanation = feedback.dataset.explanation || '';
+function _esc(str) { const d = document.createElement('div'); d.textContent = String(str == null ? '' : str); return d.innerHTML; }
 
-  const isCorrect = userAnswer === correctAnswer;
+function _showCheckError(questionIndex) {
+  const block = document.querySelector('[data-question-index="' + questionIndex + '"]');
+  const feedback = block && block.querySelector('.answer-feedback');
+  if (!feedback) return;
+  feedback.style.display = 'block';
+  feedback.className = 'answer-feedback incorrect';
+  feedback.innerHTML = '<i class="fas fa-exclamation-circle"></i> {{ _("Не удалось проверить. Попробуйте ещё раз.") }}';
+}
 
-  // Disable all buttons; highlight the correct option and (if wrong) the picked one.
-  buttons.forEach(btn => {
-    btn.disabled = true;
-    const btnBool = btn.dataset.bool === 'true';
-    if (btnBool === correctAnswer) {
-      btn.classList.add('correct');
-    } else if (btnBool === userAnswer) {
-      btn.classList.add('incorrect');
+function _isAnswered(questionIndex) {
+  return !!(_readingAnswers && _readingAnswers[questionIndex]);
+}
+
+// Render the verdict for a question and lock its inputs. Used both for a
+// live answer (extra = server response) and for a restore (extra = saved).
+function _renderReadingVerdict(questionIndex, type, value, correct, extra) {
+  const block = document.querySelector('[data-question-index="' + questionIndex + '"]');
+  if (!block) return;
+  extra = extra || {};
+  const feedback = block.querySelector('.answer-feedback');
+  block.classList.add('answered');
+  if (correct) block.classList.add('answered-correct');
+
+  const valueStr = String(value == null ? '' : value);
+  if (type === 'true_false') {
+    const revealKnown = typeof extra.answer === 'boolean';
+    block.querySelectorAll('.answer-option-btn').forEach(function(btn) {
+      btn.disabled = true;
+      const isPicked = btn.dataset.bool === valueStr;
+      const isRight = revealKnown && (btn.dataset.bool === String(extra.answer));
+      if (isRight) btn.classList.add('correct');
+      else if (isPicked) btn.classList.add(correct ? 'correct' : 'incorrect');
+    });
+  } else if (type === 'fill_blank') {
+    const rightText = (extra.answer != null ? String(extra.answer) : '').trim().toLowerCase();
+    block.querySelectorAll('.answer-option-btn').forEach(function(btn) {
+      btn.disabled = true;
+      const opt = (btn.dataset.option || '').trim().toLowerCase();
+      if (rightText && opt === rightText) btn.classList.add('correct');
+      else if (opt === valueStr.trim().toLowerCase()) btn.classList.add(correct ? 'correct' : 'incorrect');
+    });
+  } else if (type === 'text') {
+    const input = block.querySelector('.answer-input');
+    const checkBtn = block.querySelector('.check-answer-btn');
+    if (input) { input.value = valueStr; input.disabled = true; input.classList.add(correct ? 'correct' : 'incorrect'); }
+    if (checkBtn) checkBtn.disabled = true;
+  } else if (type === 'ordering') {
+    const wordsContainer = document.getElementById('words-container-' + questionIndex);
+    const sentenceDiv = document.getElementById('sentence-' + questionIndex);
+    if (wordsContainer) wordsContainer.querySelectorAll('.word-button').forEach(function(b) { b.disabled = true; });
+    if (sentenceDiv) {
+      if (!sentenceDiv.querySelector('.sentence-word')) { sentenceDiv.textContent = valueStr; }
+      sentenceDiv.onclick = null;
+      sentenceDiv.dataset.action = '';
+      sentenceDiv.style.cursor = 'default';
+      sentenceDiv.style.borderColor = correct ? '#10b981' : '#ef4444';
     }
-  });
-
-  // Mark the question block as answered
-  if (isCorrect) {
-    questionBlock.classList.add('answered-correct');
+    const submitBtn = block.querySelector('button[data-action="submit-ordering-answer"]');
+    if (submitBtn) submitBtn.disabled = true;
+  } else if (type === 'matching') {
+    block.querySelectorAll('.rd-match__btn').forEach(function(b) {
+      b.disabled = true;
+      b.classList.remove('is-selected');
+      b.classList.add(correct ? 'correct' : 'incorrect');
+    });
   }
 
+  if (!feedback) return;
   feedback.style.display = 'block';
-
-  if (isCorrect) {
-    feedback.innerHTML = '<i class="fas fa-check-circle"></i> Правильно!' + (explanation ? `<br><small>${explanation}</small>` : '');
+  const explanation = extra.explanation ? '<br><small>' + _esc(extra.explanation) + '</small>' : '';
+  if (correct) {
     feedback.className = 'answer-feedback correct';
-  } else {
-    feedback.innerHTML = '<i class="fas fa-times-circle"></i> Неправильно. ' + (explanation ? `<br><small>${explanation}</small>` : '');
-    feedback.className = 'answer-feedback incorrect';
-  }
-
-  _recordReadingAnswer(questionIndex, userAnswer, 'true_false', isCorrect);
-  updateComprehensionResults();
-}
-
-// Check fill blank answer
-function checkFillBlankAnswer(questionIndex, userAnswer) {
-  const questionBlock = document.querySelector(`[data-question-index="${questionIndex}"]`);
-  const feedback = questionBlock.querySelector('.answer-feedback');
-  const buttons = questionBlock.querySelectorAll('.answer-option-btn');
-  const correctAnswer = feedback.dataset.correct;
-  const explanation = feedback.dataset.explanation || '';
-
-  // Normalize both answers to lowercase for case-insensitive comparison
-  const correctLower = correctAnswer.toLowerCase();
-  const userLower = userAnswer.toLowerCase();
-  const isCorrect = userLower === correctLower;
-
-  // Disable all buttons; highlight the correct option and (if wrong) the picked one.
-  buttons.forEach(btn => {
-    btn.disabled = true;
-    const optLower = (btn.dataset.option || '').toLowerCase();
-    if (optLower === correctLower) {
-      btn.classList.add('correct');
-    } else if (optLower === userLower) {
-      btn.classList.add('incorrect');
-    }
-  });
-
-  // Mark the question block as answered
-  if (isCorrect) {
-    questionBlock.classList.add('answered-correct');
-  }
-
-  feedback.style.display = 'block';
-
-  if (isCorrect) {
-    feedback.innerHTML = '<i class="fas fa-check-circle"></i> Правильно!' + (explanation ? `<br><small>${explanation}</small>` : '');
-    feedback.className = 'answer-feedback correct';
-  } else {
-    feedback.innerHTML = '<i class="fas fa-times-circle"></i> Неправильно. Правильный ответ: ' + correctAnswer + (explanation ? `<br><small>${explanation}</small>` : '');
-    feedback.className = 'answer-feedback incorrect';
-  }
-
-  _recordReadingAnswer(questionIndex, userAnswer, 'fill_blank', isCorrect);
-  updateComprehensionResults();
-}
-
-// Submit ordering answer
-function submitOrderingAnswer(questionIndex) {
-  const sentenceDiv = document.getElementById(`sentence-${questionIndex}`);
-  const placeholder = sentenceDiv.querySelector('.placeholder-text');
-  const questionBlock = document.querySelector(`[data-question-index="${questionIndex}"]`);
-  const feedback = questionBlock.querySelector('.answer-feedback');
-  const correctAnswer = feedback.dataset.correct;
-  const explanation = feedback.dataset.explanation || '';
-
-  if (placeholder) {
-    // No sentence formed
-    alert('Пожалуйста, составьте предложение из слов');
+    feedback.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Правильно!") }}' + explanation;
     return;
   }
-
-  // Get the formed sentence
-  const sentenceWords = sentenceDiv.querySelectorAll('.sentence-word');
-  const sentence = Array.from(sentenceWords).map(w => w.textContent).join(' ').trim();
-
-  // Normalize for comparison
-  const normalize = (text) => text ? text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim() : '';
-  const isCorrect = normalize(sentence) === normalize(correctAnswer);
-
-  // Disable all word buttons and submit button
-  const wordsContainer = document.getElementById(`words-container-${questionIndex}`);
-  const wordButtons = wordsContainer.querySelectorAll('.word-button');
-  wordButtons.forEach(button => button.disabled = true);
-
-  const submitBtn = questionBlock.querySelector('button[data-action="submit-ordering-answer"]');
-  if (submitBtn) submitBtn.disabled = true;
-
-  // Disable sentence clearing
-  sentenceDiv.onclick = null;
-  sentenceDiv.style.cursor = 'default';
-
-  // Mark the question block as answered
-  if (isCorrect) {
-    questionBlock.classList.add('answered-correct');
+  feedback.className = 'answer-feedback incorrect';
+  let reveal = '';
+  if (type === 'true_false' && typeof extra.answer === 'boolean') {
+    reveal = extra.answer ? '{{ _("Правда") }}' : '{{ _("Ложь") }}';
+  } else if (type === 'matching' && Array.isArray(extra.answer_pairs)) {
+    reveal = extra.answer_pairs.map(function(p) { return _esc(p.left) + ' — ' + _esc(p.right); }).join('; ');
+  } else if (extra.answer != null && String(extra.answer) !== '') {
+    reveal = _esc(extra.answer);
   }
+  feedback.innerHTML = '<i class="fas fa-times-circle"></i> {{ _("Неправильно.") }}'
+    + (reveal ? ' {{ _("Правильный ответ:") }} <strong>' + reveal + '</strong>' : '')
+    + explanation;
+}
 
-  feedback.style.display = 'block';
-
-  if (isCorrect) {
-    feedback.innerHTML = '<i class="fas fa-check-circle"></i> Правильно!' + (explanation ? `<br><small>${explanation}</small>` : '');
-    feedback.className = 'answer-feedback correct';
-    sentenceDiv.style.borderColor = '#10b981';
-  } else {
-    feedback.innerHTML = '<i class="fas fa-times-circle"></i> Неправильно. Правильный ответ: ' + correctAnswer + (explanation ? `<br><small>${explanation}</small>` : '');
-    feedback.className = 'answer-feedback incorrect';
-    sentenceDiv.style.borderColor = '#ef4444';
-  }
-
-  _recordReadingAnswer(questionIndex, sentence, 'ordering', isCorrect);
+async function _answerReading(questionIndex, type, value) {
+  if (_isAnswered(questionIndex)) return;
+  const block = document.querySelector('[data-question-index="' + questionIndex + '"]');
+  if (!block || block.dataset.pending === '1') return;
+  block.dataset.pending = '1';
+  const res = await _serverCheckReading(questionIndex, value);
+  block.dataset.pending = '';
+  if (!res) { _showCheckError(questionIndex); return; }
+  if (_isAnswered(questionIndex)) return;
+  _renderReadingVerdict(questionIndex, type, value, !!res.correct, res);
+  _recordReadingAnswer(questionIndex, value, type, !!res.correct, res);
   updateComprehensionResults();
+}
+
+// Free-text answer
+function checkAnswer(questionIndex) {
+  const block = document.querySelector('[data-question-index="' + questionIndex + '"]');
+  const input = block && block.querySelector('.answer-input');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) { input.classList.add('incorrect'); return; }
+  _answerReading(questionIndex, 'text', val);
+}
+
+// True/false answer
+function checkTrueFalseAnswer(questionIndex, userAnswer) {
+  _answerReading(questionIndex, 'true_false', userAnswer ? 'true' : 'false');
+}
+
+// Option answer (multiple_choice / fill_blank with options)
+function checkFillBlankAnswer(questionIndex, userAnswer) {
+  _answerReading(questionIndex, 'fill_blank', userAnswer);
+}
+
+// Ordering: the sentence built from the clicked words
+function submitOrderingAnswer(questionIndex) {
+  const sentenceDiv = document.getElementById('sentence-' + questionIndex);
+  if (!sentenceDiv || sentenceDiv.querySelector('.placeholder-text')) {
+    if (sentenceDiv) { sentenceDiv.classList.add('error'); setTimeout(function() { sentenceDiv.classList.remove('error'); }, 1000); }
+    return;
+  }
+  const sentence = Array.from(sentenceDiv.querySelectorAll('.sentence-word')).map(function(w) { return w.textContent; }).join(' ').trim();
+  _answerReading(questionIndex, 'ordering', sentence);
+}
+
+// Matching: click a word, then its translation; the whole question is
+// checked once every pair is chosen.
+const _matchState = {};
+function matchSelect(questionIndex, side, button) {
+  if (_isAnswered(questionIndex) || button.disabled) return;
+  const st = _matchState[questionIndex] || (_matchState[questionIndex] = {left: null, right: null, pairs: []});
+  const container = document.getElementById('rd-match-' + questionIndex);
+  if (!container) return;
+  const prev = st[side];
+  if (prev && prev !== button) { prev.classList.remove('is-selected'); prev.setAttribute('aria-pressed', 'false'); }
+  st[side] = button;
+  button.classList.add('is-selected');
+  button.setAttribute('aria-pressed', 'true');
+  if (!(st.left && st.right)) return;
+  const left = st.left, right = st.right;
+  st.pairs.push({left: left.dataset.word, right: right.dataset.word});
+  [left, right].forEach(function(b) {
+    b.disabled = true;
+    b.classList.remove('is-selected');
+    b.classList.add('is-matched');
+    b.setAttribute('aria-pressed', 'false');
+  });
+  st.left = null; st.right = null;
+  const total = parseInt(container.dataset.total || '0', 10);
+  if (st.pairs.length >= total) {
+    _answerReading(questionIndex, 'matching', st.pairs.slice());
+  }
 }
 
 // Add word to sentence (for ordering questions)
@@ -1073,43 +1056,14 @@ function updateComprehensionResults() {
   }
 }
 
-// Собрать результаты comprehension questions для отправки на сервер
-function collectComprehensionResults() {
-  const totalQuestions = document.querySelectorAll('.question-block').length;
-
-  if (totalQuestions === 0) {
-    // Нет вопросов - 100%
-    return {
-      score: 100,
-      total: 0,
-      correct: 0,
-      questions: []
-    };
-  }
-
-  // Считаем правильные ответы - вопросы с классом answered-correct
-  const correctAnswers = document.querySelectorAll('.question-block.answered-correct').length;
-
-  const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 100;
-
-  const questions = [];
-  document.querySelectorAll('.question-block').forEach((block, idx) => {
-    const questionText = block.querySelector('.question-text')?.textContent || '';
-    const isCorrect = block.classList.contains('answered-correct');
-
-    questions.push({
-      index: idx,
-      question: questionText,
-      correct: isCorrect
-    });
+// Raw answers for the server grader: {questionIndex: value}. No score is
+// computed here any more — the server grades and stores it (A10).
+function collectReadingAnswers() {
+  const answers = {};
+  Object.entries(_readingAnswers || {}).forEach(function(entry) {
+    if (entry[1] && entry[1].value !== undefined) answers[entry[0]] = entry[1].value;
   });
-
-  return {
-    score: score,
-    total: totalQuestions,
-    correct: correctAnswers,
-    questions: questions
-  };
+  return answers;
 }
 
 // Инициализация прогресса чтения
@@ -1173,57 +1127,31 @@ function initReadingProgress() {
     listeningCheckbox.addEventListener('change', checkCompletionStatus);
   }
 
-  // Минимальная доля правильных ответов, чтобы засчитать чтение.
-  // 60% — стандартный пасс «понял в целом»: 5/7 (71%) проходит,
-  // 4/7 (57%) — нет. Без этого порога юзер с одной-двумя ошибками
-  // в комплектах из 7+ вопросов застревает на 100%-гейте и не
-  // может закрыть урок, хотя реально прочёл и осмыслил текст.
-  const READING_PASS_THRESHOLD = 0.6;
-
+  // Completion gate (owner decisions, lesson audit 2026-09-05): a text WITH
+  // questions completes once every question is answered — the score never
+  // blocks completion, it only scales XP; a text without questions completes
+  // on reaching the bottom.
   function checkCompletionStatus() {
     const questionBlocks = document.querySelectorAll('.question-block');
     const hasQuestions = questionBlocks.length > 0;
     const totalQuestions = questionBlocks.length;
-    // ``_readingAnswers`` is keyed by questionIndex and populated by
-    // _recordReadingAnswer after every check_* call (text/true_false/
-    // fill_blank/ordering). Wrong answers do NOT add the
-    // ``answered-correct`` CSS class, so counting via that class would
-    // under-report the "answered" count — we use the answer record
-    // instead, which captures both correct and incorrect attempts.
     const answeredQuestions = (typeof _readingAnswers === 'object' && _readingAnswers)
       ? Object.keys(_readingAnswers).length
       : 0;
-    const correctQuestions = document.querySelectorAll('.question-block.answered-correct').length;
     const allAnswered = hasQuestions && (answeredQuestions >= totalQuestions);
-    const passesAccuracyGate = hasQuestions && allAnswered
-      && (correctQuestions / totalQuestions) >= READING_PASS_THRESHOLD;
-
     let canComplete;
     if (isListeningImmersion) {
       const checked = listeningCheckbox && listeningCheckbox.checked;
-      canComplete = listeningPlayed && listeningProgressOk && checked &&
-        (!hasQuestions || passesAccuracyGate);
+      canComplete = listeningPlayed && listeningProgressOk && checked && (!hasQuestions || allAnswered);
     } else {
-      // Есть вопросы → нужен accuracy-гейт; нет → достаточно дочитать.
-      canComplete = hasQuestions ? passesAccuracyGate : hasScrolledToBottom;
+      canComplete = hasQuestions ? allAnswered : hasScrolledToBottom;
     }
-
-    // Динамический hint показывает что именно нужно сделать сейчас,
-    // вместо общего «прокрутите до конца» (который часто врёт).
     const hintText = document.getElementById('completion-hint-text');
     if (hintText && hasQuestions && !canComplete && !isListeningImmersion) {
-      if (!allAnswered) {
-        const remaining = totalQuestions - answeredQuestions;
-        hintText.textContent = 'Ответьте на оставшиеся вопросы (' + remaining + ' из ' + totalQuestions + ')';
-      } else {
-        const needCorrect = Math.ceil(READING_PASS_THRESHOLD * totalQuestions);
-        hintText.textContent = 'Нужно ' + needCorrect + ' из ' + totalQuestions
-          + ' правильных ответов. Сейчас: ' + correctQuestions
-          + '. Попробуйте перепройти вопросы.';
-      }
+      const remaining = totalQuestions - answeredQuestions;
+      hintText.textContent = 'Ответьте на оставшиеся вопросы (' + remaining + ' из ' + totalQuestions + ')';
       completionHint.style.display = 'block';
     }
-
     if (canComplete) {
       markReadBtn.disabled = false;
       if (completionHint) completionHint.style.display = 'none';
@@ -1281,19 +1209,13 @@ function initReadingProgress() {
       markReadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ _("Сохранение...") }}';
 
       try {
-        // Собираем результаты comprehension questions
-        const comprehensionResults = collectComprehensionResults();
-
-        const formData = new FormData(form);
+        // Raw answers go to the server grader (A10); the score comes back.
         const jsonData = {
-          status: formData.get('status'),
-          score: comprehensionResults.score,  // Используем рассчитанный score
+          lesson_type: 'reading',
+          answers: collectReadingAnswers(),
           reading_time: readingTime,
-          comprehension_results: comprehensionResults,
-          csrf_token: formData.get('csrf_token')
         };
-        
-        const response = await fetch(form.action, {
+        const response = await fetch('/curriculum/api/lesson/' + READING_LESSON_ID + '/submit', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1308,7 +1230,7 @@ function initReadingProgress() {
             if (typeof showSaveToast === 'function') showSaveToast();
             // Show the REAL persisted comprehension score (100 when the text has
             // no questions), not a hardcoded 100.
-            if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: comprehensionResults.score, daily_plan_ctx: responseData.daily_plan_ctx });
+            if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: (responseData.score != null ? responseData.score : 100), daily_plan_ctx: responseData.daily_plan_ctx });
 
             // Показываем результаты завершения
             showCompletionResults();
@@ -1323,6 +1245,15 @@ function initReadingProgress() {
         } else {
           const errorText = await response.text();
           console.error('HTTP error:', response.status, response.statusText, errorText);
+          try {
+            const errJson = JSON.parse(errorText);
+            if (errJson && errJson.error === 'answers_required') {
+              const hint = document.getElementById('completion-hint');
+              const hintText = document.getElementById('completion-hint-text');
+              if (hintText) hintText.textContent = errJson.message || 'Ответьте на все вопросы, чтобы завершить урок.';
+              if (hint) hint.style.display = 'block';
+            }
+          } catch (_) {}
           markReadBtn.disabled = false;
           markReadBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Отметить как прочитано") }}';
         }
@@ -2158,6 +2089,8 @@ document.addEventListener('click', function(e) {
         case 'clear-sentence':            clearSentence(qIdx); break;
         case 'submit-ordering-answer':    submitOrderingAnswer(qIdx); break;
         case 'check-answer':              checkAnswer(qIdx); break;
+        case 'match-left':                matchSelect(qIdx, 'left', target); break;
+        case 'match-right':               matchSelect(qIdx, 'right', target); break;
     }
 });
 </script>

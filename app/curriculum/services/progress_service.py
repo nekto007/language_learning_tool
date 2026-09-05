@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 # callers (text/reading/listening_immersion_quiz from render_text_lesson)
 # submit fabricated 100.0 scores that would otherwise inflate score and
 # pass-rate analytics across LessonAttempt-based dashboards.
+# Sentinel: "scale XP by the stored score" (the default for graded lessons).
+_XP_SCORE_FROM_RESULT = object()
+
 _GRADED_ATTEMPT_TYPES = frozenset((
     'dictation', 'audio_fill_blank', 'translation',
     'sentence_correction', 'sentence_completion', 'collocation_matching',
@@ -252,7 +255,8 @@ class ProgressService:
             user_id: int,
             lesson: 'Lessons',
             result: Dict,
-            passing_score: int = 70
+            passing_score: int = 70,
+            xp_score: object = _XP_SCORE_FROM_RESULT,
     ) -> tuple['LessonProgress', Optional[Dict]]:
         """
         Update lesson progress with score grading and achievements
@@ -271,6 +275,10 @@ class ProgressService:
         score = result.get('score', 0)
         score = round(score, 2)
         is_completed = score >= passing_score
+        # ``xp_score`` lets a caller decouple the XP scale from the stored
+        # score: a reading without questions stores 100 but is «not graded»
+        # (``None`` → full base, see apply_score_to_base), never a 100 % result.
+        xp_score_value = score if xp_score is _XP_SCORE_FROM_RESULT else xp_score
 
         # Find existing progress
         progress = LessonProgress.query.filter_by(
@@ -377,7 +385,7 @@ class ProgressService:
                     maybe_award_linear_perfect_day,
                 )
                 if maybe_award_curriculum_xp(
-                    user_id, lesson, db_session=db, score=score,
+                    user_id, lesson, db_session=db, score=xp_score_value,
                 ) is not None:
                     maybe_award_linear_perfect_day(user_id, db_session=db)
                     db.session.commit()

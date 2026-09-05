@@ -19840,3 +19840,19 @@ body.feedback-modal-open { overflow: hidden; }
 .wset-rail--amber  { --wset-accent: #d97706; --wset-accent-soft: #fffbeb; }
 .wset-rail--rose   { --wset-accent: #e11d48; --wset-accent-soft: #fff1f2; }
 .wset-rail--slate  { --wset-accent: #475569; --wset-accent-soft: #f8fafc; }
+
+/* Reading lesson: click-to-pair matching questions (lesson audit 2026-09-05,
+   B6 — they used to render as a text input expecting «false»). */
+.rd-match {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.75rem;
+  margin: 0.5rem 0 0.75rem;
+}
+.rd-match__col { display: flex; flex-direction: column; gap: 0.5rem; }
+.rd-match__btn { text-align: left; }
+.rd-match__btn.is-selected { outline: 2px solid var(--primary-500, #4f46e5); outline-offset: 1px; }
+.rd-match__btn.is-matched { opacity: 0.7; }
+@media (max-width: 480px) {
+  .rd-match { grid-template-columns: 1fr; }
+}

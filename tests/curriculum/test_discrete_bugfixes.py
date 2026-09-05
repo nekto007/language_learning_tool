@@ -751,7 +751,7 @@ class TestScoreXpFindings:
         # The hidden form input must not steal the banner div's id (duplicate id
         # hid the banner score entirely). Check the actual input attribute form.
         assert 'value="100" id="completion-score"' not in s
-        assert 'showLessonCompletion({ score: comprehensionResults.score' in s
+        assert 'showLessonCompletion({ score: (responseData.score != null ? responseData.score : 100)' in s
 
     def test_quiz_fabricated_xp_card_removed(self):
         s = self._src('quiz.html')

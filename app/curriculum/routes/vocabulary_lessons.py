@@ -1,6 +1,7 @@
 # app/curriculum/routes/vocabulary_lessons.py
 
 import logging
+import random
 
 import bleach
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
@@ -18,6 +19,7 @@ from app.curriculum.models import (
 )
 from app.curriculum.constants import PASSING_SCORE_DEFAULT
 from app.curriculum.routes.lessons import (
+    _process_reading_submission,
     lessons_bp,
     maybe_reset_lesson_progress,
     retry_display_progress,
@@ -288,6 +290,50 @@ def render_matching_lesson(lesson):
     )
 
 
+def _prepare_reading_questions_for_display(cleaned_content: dict) -> None:
+    """Swap the comprehension questions for render copies.
+
+    Options are shuffled on every render (lesson audit 2026-09-05, A9: the
+    correct option came first in 55 % of reading MC questions and nothing
+    reshuffled them) and a matching question gets ``right_order``, a
+    permutation of pair indices for its right column. Copies, not in-place:
+    the validator's ``load`` shares nested lists with ``lesson.content``, so a
+    ``random.shuffle`` on ``question['options']`` would persist the new order
+    on the next commit. The answer key is never rendered — grading and the
+    per-question reveal go through the server (A10).
+    """
+    if not isinstance(cleaned_content, dict):
+        return
+    for key in ('comprehension_questions', 'exercises'):
+        questions = cleaned_content.get(key)
+        if not isinstance(questions, list):
+            continue
+        prepared: list[dict] = []
+        for question in questions:
+            if not isinstance(question, dict):
+                continue
+            copy = dict(question)
+            options = copy.get('options')
+            if isinstance(options, list) and len(options) > 1:
+                perm = list(range(len(options)))
+                random.shuffle(perm)
+                new_pos = {old: new for new, old in enumerate(perm)}
+                for field in ('correct', 'correct_index'):
+                    value = copy.get(field)
+                    if isinstance(value, bool):
+                        continue
+                    if isinstance(value, int) and 0 <= value < len(options):
+                        copy[field] = new_pos[value]
+                copy['options'] = [options[i] for i in perm]
+            pairs = copy.get('pairs')
+            if copy.get('type') == 'matching' and isinstance(pairs, list) and len(pairs) > 1:
+                order = list(range(len(pairs)))
+                random.shuffle(order)
+                copy['right_order'] = order
+            prepared.append(copy)
+        cleaned_content[key] = prepared
+
+
 def render_text_lesson(lesson):
     """Рендер text урока"""
     if lesson.type not in ['text', 'reading', 'listening_immersion_quiz']:
@@ -342,36 +388,15 @@ def render_text_lesson(lesson):
     next_lesson = get_next_lesson(lesson.id)
 
     if request.method == 'POST':
-        comprehension_data = request.json.get('comprehension_results') if request.is_json else None
-
-        if comprehension_data:
-            score = comprehension_data.get('score', 100.0)
-            result = {
-                'score': score,
-                'status': 'completed',
-                'comprehension': comprehension_data
-            }
-        else:
-            result = {'score': 100.0, 'status': 'completed'}
-
-        progress, completion_result = ProgressService.update_progress_with_grading(
-            user_id=current_user.id,
-            lesson=lesson,
-            result=result,
-            passing_score=PASSING_SCORE_DEFAULT
-        )
-
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            response_data = {
-                'success': True,
-                'status': 'completed',
-                'score': 100.0
-            }
-            if completion_result:
-                response_data['grade'] = completion_result['grade']
-                response_data['grade_name'] = completion_result['grade_name']
-                response_data['new_achievements'] = completion_result['new_achievements']
-            return jsonify(response_data)
+        # Server-graded completion (lesson audit 2026-09-05, A10): the client
+        # posts its raw answers, never a score. Shared with /api/lesson/<id>/submit.
+        payload = request.get_json(silent=True) if request.is_json else None
+        result = _process_reading_submission(lesson, current_user.id, payload or {})
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(result), (200 if result.get('success') else 400)
+        if not result.get('success'):
+            flash(result.get('message') or 'Ответьте на все вопросы, чтобы завершить урок.', 'error')
+            return redirect(request.path)
 
         flash('Урок отмечен как прочитанный!', 'success')
         return redirect(f'/learn/{lesson.id}/')
@@ -384,6 +409,8 @@ def render_text_lesson(lesson):
     saved_comprehension = None
     if progress and progress.data:
         saved_comprehension = progress.data.get('comprehension')
+
+    _prepare_reading_questions_for_display(cleaned_content)
 
     return render_template(
         'curriculum/lessons/text.html',
@@ -779,36 +806,15 @@ def text_lesson(lesson_id):
     next_lesson = get_next_lesson(lesson.id)
 
     if request.method == 'POST':
-        comprehension_data = request.json.get('comprehension_results') if request.is_json else None
-
-        if comprehension_data:
-            score = comprehension_data.get('score', 100.0)
-            result = {
-                'score': score,
-                'status': 'completed',
-                'comprehension': comprehension_data
-            }
-        else:
-            result = {'score': 100.0, 'status': 'completed'}
-
-        progress, completion_result = ProgressService.update_progress_with_grading(
-            user_id=current_user.id,
-            lesson=lesson,
-            result=result,
-            passing_score=PASSING_SCORE_DEFAULT
-        )
-
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            response_data = {
-                'success': True,
-                'status': 'completed',
-                'score': 100.0
-            }
-            if completion_result:
-                response_data['grade'] = completion_result['grade']
-                response_data['grade_name'] = completion_result['grade_name']
-                response_data['new_achievements'] = completion_result['new_achievements']
-            return jsonify(response_data)
+        # Server-graded completion (lesson audit 2026-09-05, A10): the client
+        # posts its raw answers, never a score. Shared with /api/lesson/<id>/submit.
+        payload = request.get_json(silent=True) if request.is_json else None
+        result = _process_reading_submission(lesson, current_user.id, payload or {})
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(result), (200 if result.get('success') else 400)
+        if not result.get('success'):
+            flash(result.get('message') or 'Ответьте на все вопросы, чтобы завершить урок.', 'error')
+            return redirect(request.path)
 
         flash('Урок отмечен как прочитанный!', 'success')
         return redirect(url_for('curriculum_lessons.text_lesson', lesson_id=lesson.id))
@@ -824,6 +830,7 @@ def text_lesson(lesson_id):
         saved_comprehension = display_progress.data.get('comprehension')
 
     vocab_js_data = _build_vocab_js_data(cleaned_content.get('vocabulary') or [])
+    _prepare_reading_questions_for_display(cleaned_content)
 
     return render_template(
         'curriculum/lessons/text.html',

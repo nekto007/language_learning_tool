@@ -312,6 +312,12 @@ def update_lesson_progress(lesson_id):
             'dialogue_completion_quiz', 'final_test',
             'writing_prompt', 'shadow_reading', 'pronunciation',
             'listening_immersion', 'idiom',
+            # reading: the text lesson used to complete HERE with a client-
+            # computed score (lesson audit 2026-09-05, A10 — an empty JSON gave
+            # 100 and the full 15 XP). Completion now goes through
+            # _process_reading_submission; this endpoint keeps the mid-lesson
+            # answer snapshot (status=in_progress + data).
+            'reading', 'text',
         ))
         # For these types score must come from the submit endpoint, but status
         # can be set via the progress endpoint (e.g. theory-only auto-complete).
@@ -483,6 +489,8 @@ def check_sentence_completion_item(lesson_id):
     Rate-limited to blunt brute-force extraction via crafted requests.
     """
     lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type in READING_LESSON_TYPES:
+        return _check_reading_item(lesson, request.get_json(silent=True) or {})
     if lesson.type not in ('sentence_completion', 'audio_fill_blank',
                            'translation', 'sentence_correction',
                            'collocation_matching'):
@@ -624,6 +632,10 @@ def submit_lesson(lesson_id):
                     'error': 'grading_failed',
                     'message': 'Не удалось сохранить результат теста. Попробуйте ещё раз.',
                 }), 500
+        elif lesson.type in READING_LESSON_TYPES:
+            result = _process_reading_submission(lesson, current_user.id, data)
+            if result.get('success') is False:
+                return jsonify(result), 400
         elif lesson.type == 'dictation':
             result = _process_dictation_submission(lesson, current_user.id, data)
         elif lesson.type == 'audio_fill_blank':
@@ -1026,6 +1038,185 @@ def dictation_lesson(lesson_id: int):
         next_lesson=next_lesson,
         is_completed=is_completed,
     )
+
+
+# Lesson types rendered by text.html whose comprehension questions are graded
+# server-side (lesson audit 2026-09-05, A10). ``listening_immersion_quiz`` also
+# renders through text.html but keeps its own strip-only completion path.
+READING_LESSON_TYPES = frozenset(('reading', 'text'))
+
+
+def _reading_questions(content: dict) -> list[dict]:
+    """The comprehension questions of a text/reading lesson, in content order."""
+    if not isinstance(content, dict):
+        return []
+    questions = content.get('comprehension_questions') or content.get('exercises') or []
+    return [q for q in questions if isinstance(q, dict)]
+
+
+def _coerce_reading_answer(value):
+    """Keep list/dict answers (matching pairs) as-is, everything else as text."""
+    if isinstance(value, (list, dict)):
+        return value
+    if value is None:
+        return ''
+    return str(value)[:2000]
+
+
+def _reading_answer_is_empty(value) -> bool:
+    if isinstance(value, (list, dict)):
+        return len(value) == 0
+    return not str(value or '').strip()
+
+
+def _reading_correct_display(question: dict, feedback: dict):
+    """What to reveal after an answer — the reading is a learning lesson, not
+    an exam (its score never gates completion), so the answer is shown once
+    the learner has answered."""
+    from app.curriculum.grading import _pair_left, _pair_right
+
+    q_type = question.get('type')
+    if q_type == 'matching':
+        return {'answer_pairs': [
+            {'left': _pair_left(p), 'right': _pair_right(p)}
+            for p in (question.get('pairs') or []) if isinstance(p, dict)
+        ]}
+    if q_type == 'true_false':
+        correct = question.get('correct')
+        if isinstance(correct, str):
+            correct = correct.strip().lower() == 'true'
+        return {'answer': bool(correct)}
+    correct = feedback.get('correct_answer')
+    if correct in (None, '', 'unknown'):
+        correct = question.get('correct_answer') or question.get('correct') or ''
+    if isinstance(correct, list):
+        correct = ' / '.join(str(c) for c in correct)
+    return {'answer': str(correct)}
+
+
+def _check_reading_item(lesson: 'Lessons', data: dict):
+    """Per-question server check for text/reading lessons.
+
+    The answer key is no longer in the DOM (``data-correct`` used to carry it):
+    the client posts ``{index, answer}`` and gets ``{correct, answer|answer_pairs,
+    explanation}`` back, graded by the same ``process_quiz_submission`` that the
+    final submit uses, so the live verdict and the stored score cannot drift.
+    """
+    from app.curriculum.grading import process_quiz_submission
+
+    questions = _reading_questions(lesson.content if isinstance(lesson.content, dict) else {})
+    try:
+        idx = int(data.get('index'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'bad_index'}), 400
+    if idx < 0 or idx >= len(questions):
+        return jsonify({'success': False, 'error': 'index_out_of_range'}), 400
+    question = questions[idx]
+    answer = _coerce_reading_answer(data.get('answer'))
+    if _reading_answer_is_empty(answer):
+        return jsonify({'success': False, 'error': 'empty_answer'}), 400
+    graded = process_quiz_submission([question], {0: answer})
+    feedback = (graded.get('feedback') or {}).get('0') or {}
+    resp = {
+        'success': True,
+        'correct': feedback.get('status') == 'correct',
+        'explanation': str(question.get('explanation') or ''),
+    }
+    resp.update(_reading_correct_display(question, feedback))
+    return jsonify(resp)
+
+
+def _process_reading_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+    """Grade a text/reading lesson server-side and complete it.
+
+    Replaces the client-computed ``comprehension_results.score`` (lesson audit
+    2026-09-05, A10: an empty JSON gave 100 and the full 15 XP). Owner
+    decisions: every question must be answered when the text has any; the
+    score never gates completion (``passing_score=0``) and only scales XP; a
+    text without questions completes with ``score=None`` for XP — «not graded»,
+    the full base — while the stored score stays 100 as before.
+    """
+    from app.curriculum.grading import process_quiz_submission
+    from app.curriculum.services.progress_service import ProgressService
+
+    content = lesson.content if isinstance(lesson.content, dict) else {}
+    questions = _reading_questions(content)
+    raw_answers = data.get('answers') if isinstance(data, dict) else None
+    if not isinstance(raw_answers, dict):
+        raw_answers = {}
+    answers = {str(k): _coerce_reading_answer(v) for k, v in raw_answers.items()}
+    try:
+        reading_time = max(0, int(data.get('reading_time') or 0))
+    except (TypeError, ValueError):
+        reading_time = 0
+
+    if questions:
+        unanswered = [
+            i for i in range(len(questions))
+            if _reading_answer_is_empty(answers.get(str(i)))
+        ]
+        if unanswered:
+            return {
+                'success': False,
+                'error': 'answers_required',
+                'message': 'Ответьте на все вопросы, чтобы завершить урок.',
+                'unanswered': unanswered,
+            }
+        graded = process_quiz_submission(questions, answers)
+        score = float(graded.get('score') or 0)
+        correct = int(graded.get('correct_answers') or 0)
+        total = int(graded.get('total_questions') or len(questions))
+        feedback = graded.get('feedback') or {}
+        result = {
+            'score': score,
+            'status': 'completed',
+            'correct_answers': correct,
+            'total_questions': total,
+            'feedback': feedback,
+            'reading_time': reading_time,
+            'reading_answers': {
+                str(i): {
+                    'value': answers.get(str(i)),
+                    'type': questions[i].get('type'),
+                    'correct': (feedback.get(str(i)) or {}).get('status') == 'correct',
+                }
+                for i in range(len(questions))
+            },
+            # Legacy shape kept for the results block and old restore path.
+            'comprehension': {
+                'score': score, 'correct': correct, 'total': total,
+                'questions': [
+                    {'index': i, 'correct': (feedback.get(str(i)) or {}).get('status') == 'correct'}
+                    for i in range(len(questions))
+                ],
+            },
+        }
+        xp_score = score
+    else:
+        score, correct, total, feedback = 100.0, 0, 0, {}
+        result = {'score': 100.0, 'status': 'completed', 'reading_time': reading_time}
+        xp_score = None
+
+    ProgressService.update_progress_with_grading(
+        user_id=user_id,
+        lesson=lesson,
+        result=result,
+        passing_score=0,
+        xp_score=xp_score,
+    )
+    out: dict = {
+        'success': True,
+        'completed': True,
+        'status': 'completed',
+        'score': score,
+        'correct_answers': correct,
+        'total_questions': total,
+        'feedback': feedback,
+    }
+    next_lesson = _get_next_lesson_for_completion(lesson)
+    if next_lesson:
+        out['next_lesson_url'] = _lesson_completion_url(next_lesson)
+    return out
 
 
 def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
