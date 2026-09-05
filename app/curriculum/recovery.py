@@ -137,6 +137,25 @@ def _iter_stuck_progress(db_session: Any) -> Iterable[tuple[LessonProgress, Less
     return rows
 
 
+def _data_says_forced_failure(data: Any) -> bool:
+    """True when the grading payload stored in ``progress.data`` records a
+    run the grader refused to pass regardless of its score (dictation's
+    ``failed_by_attempt_limit`` cap, or an explicit ``passed: False`` below
+    full mastery). Such a score must not flip the row by threshold alone."""
+    if not isinstance(data, dict):
+        return False
+    if data.get('failed_by_attempt_limit'):
+        return True
+    if data.get('passed') is False:
+        try:
+            correct = int(data.get('correct_words') if data.get('correct_words') is not None else data.get('correct_items') or 0)
+            total = int(data.get('total_words') if data.get('total_words') is not None else data.get('total_items') or 0)
+        except (TypeError, ValueError):
+            return True
+        return not (total > 0 and correct >= total)
+    return False
+
+
 def reconcile_stuck_lesson_progress(
     db_session: Any,
     *,
@@ -174,7 +193,11 @@ def reconcile_stuck_lesson_progress(
                 attempt_score = latest_passed.score if latest_passed else None
 
                 by_attempt = latest_passed is not None
-                by_score = score >= threshold
+                # A stored score that the grader itself marked as a forced
+                # failure (the dictation attempt-limit cap: 79 under the old
+                # 80 % threshold) is not evidence of passing today's lower
+                # threshold — review of lesson-audit item 7 (2026-09-05).
+                by_score = score >= threshold and not _data_says_forced_failure(progress.data)
                 by_data_perfect = _data_says_perfect_mastery(lesson, progress.data)
 
                 if not (by_attempt or by_score or by_data_perfect):

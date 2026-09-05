@@ -31,7 +31,7 @@ def get_lesson_passing_score(lesson: Any) -> int:
     Resolution order:
       1. ``lesson.content['passing_score_percent']`` (preferred).
       2. ``lesson.content['passing_score']`` (legacy alias).
-      3. Type default: ``dictation`` → 80, everything else → 70.
+      3. Type default: ``dictation`` → 75, everything else → 70.
 
     Non-numeric / out-of-range overrides are ignored (fall through to the
     type default) so malformed content can't disable the threshold.
