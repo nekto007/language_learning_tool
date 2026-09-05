@@ -65,8 +65,8 @@ class TestContractions:
         result = grade_translation_multi(["He's a doctor", 'I do not like tea'], items)
         assert result['correct_items'] == 2 and result['score'] == 100
         ft = process_quiz_submission(
-            [{'type': 'translation', 'question': 'Переведите', 'correct': 'My father is a doctor.'}],
-            {'0': "My father's a doctor"},
+            [{'type': 'translation', 'question': 'Переведите', 'correct': 'He is a doctor.'}],
+            {'0': "He's a doctor"},  # noun + 's stays possessive (review), pronoun + 's is the contraction
         )
         assert ft['feedback']['0']['status'] == 'correct'
 

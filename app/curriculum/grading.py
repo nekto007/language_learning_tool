@@ -115,6 +115,13 @@ _APOSTROPHES = "'\u2019\u02bc\u2032"
 # canonical «he is my relative» — three tries burnt on a contraction. Only
 # contractions are canonicalised; articles, word order and multi-word typos
 # stay strict (agreed with the reviewer: an article can change the meaning).
+#
+# ``'s`` is expanded ONLY after a closed set of heads that cannot be a
+# possessive (it's, he's, that's, there's, what's …): a noun possessive such
+# as «Google's history» is left alone, otherwise it aliased «Google is
+# history» (review of item 6). Ambiguous forms branch per occurrence —
+# ``'s`` → is | has, ``'d`` → would | had — so «He'd said she'd leave» meets
+# «He had said she would leave».
 _CONTRACTION_WHOLE_WORDS = (
     (r"\bwon't\b", 'will not'),
     (r"\bcan't\b", 'cannot'),
@@ -128,13 +135,21 @@ _CONTRACTION_SUFFIXES = (
     (r"'ve\b", ' have'),
     (r"'ll\b", ' will'),
     (r"'m\b", ' am'),
-    (r"'s\b", ' is'),
 )
+_S_CONTRACTION_HEADS = (
+    'it', 'he', 'she', 'that', 'there', 'here', 'what', 'who', 'where', 'when',
+    'how', 'why', 'this', 'everyone', 'everybody', 'someone', 'somebody',
+    'nobody', 'nothing', 'something', 'everything',
+)
+_AMBIGUOUS_CONTRACTION_RE = re.compile(
+    r"\b(?P<head>" + '|'.join(_S_CONTRACTION_HEADS) + r")'s\b|(?<=\w)'d\b",
+)
+_CONTRACTION_VARIANTS_CAP = 64
 
 
 def _contraction_variants(text) -> list[str]:
-    """Return the text with contractions expanded — two variants when ``'d``
-    is present (``would`` and ``had`` are both legitimate)."""
+    """Return the text with contractions expanded, one entry per reading of
+    the ambiguous ones (``'s`` → is/has, ``'d`` → would/had), lower-cased."""
     s = str(text or '')
     if not s:
         return ['']
@@ -145,9 +160,20 @@ def _contraction_variants(text) -> list[str]:
         low = re.sub(pattern, repl, low)
     for pattern, repl in _CONTRACTION_SUFFIXES:
         low = re.sub(pattern, repl, low)
-    if "'d" in low:
-        return [re.sub(r"'d\b", ' would', low), re.sub(r"'d\b", ' had', low)]
-    return [low]
+    variants = ['']
+    pos = 0
+    for match in _AMBIGUOUS_CONTRACTION_RE.finditer(low):
+        literal = low[pos:match.start()]
+        if match.group('head'):
+            options = [f"{match.group('head')} is", f"{match.group('head')} has"]
+        else:
+            options = [' would', ' had']
+        variants = [v + literal + opt for v in variants for opt in options]
+        if len(variants) > _CONTRACTION_VARIANTS_CAP:
+            variants = variants[:_CONTRACTION_VARIANTS_CAP]
+        pos = match.end()
+    tail = low[pos:]
+    return [v + tail for v in variants]
 
 
 def _strict_text_match(user_answer, candidates):

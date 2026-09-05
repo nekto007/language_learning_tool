@@ -1517,6 +1517,9 @@ def _translation_key_hint_words(hint_words, english, limit: int = TRANSLATION_HI
             continue
         if text not in cleaned:
             cleaned.append(text)
+    if len(cleaned) <= 1:
+        # One content word IS the answer — a hint would hand it out (review).
+        return []
     ranked = sorted(range(len(cleaned)), key=lambda i: (-len(cleaned[i]), i))
     keep = sorted(ranked[:limit])
     return [cleaned[i] for i in keep]
