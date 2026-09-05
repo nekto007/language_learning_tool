@@ -2140,6 +2140,61 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
     return result
 
 
+SENTENCE_COMPLETION_PAGE_SIZE = 5
+SENTENCE_COMPLETION_IMMEDIATE_HINT_LEVELS = frozenset(('A0', 'A1', 'A2'))
+# Generator artefact rendered as a «context» line above 734 items (lesson
+# audit 2026-09-05, A6-1). Hidden at render time until the content is fixed.
+_SENTENCE_COMPLETION_CONTEXT_ARTEFACTS = frozenset(('vocab use',))
+
+_SENTENCE_COMPLETION_INSTRUCTIONS = {
+    'vocab': 'Впишите слово из словаря модуля, которое подходит по смыслу.',
+    'collocation': 'Подберите слово, которое сочетается с выделенным.',
+    'transformation': 'Измените форму слова так, чтобы предложение стало правильным.',
+    'mixed': 'Заполните пропуск в каждом предложении.',
+}
+
+
+def _sentence_completion_display_items(items: list) -> list[dict]:
+    """Render copies of the items with generator artefacts stripped.
+
+    ``lesson.content`` is never mutated: the copies are what the template
+    reads, the grader keeps working from the original rows.
+    """
+    display: list[dict] = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        copy = dict(item)
+        context = str(copy.get('context') or '').strip()
+        if context.lower() in _SENTENCE_COMPLETION_CONTEXT_ARTEFACTS:
+            copy['context'] = ''
+        display.append(copy)
+    return display
+
+
+def _sentence_completion_instruction(items: list, authored: object) -> str:
+    """Lesson-level instruction: the authored one, else derived from the
+    dominant item ``mode`` (lesson audit 2026-09-05, A6-4: 72 of 86 lessons
+    ship no instruction and the generic «Заполните пропуск» does not say
+    whether the learner is expected to recall a word, a collocation or a
+    transformed form)."""
+    if isinstance(authored, str) and authored.strip():
+        return authored.strip()
+    counts = {'vocab': 0, 'collocation': 0, 'transformation': 0}
+    total = 0
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        total += 1
+        mode = str(item.get('mode') or '').strip().lower()
+        counts['vocab' if mode not in ('collocation', 'transformation') else mode] += 1
+    if total:
+        dominant, dominant_count = max(counts.items(), key=lambda kv: kv[1])
+        if dominant_count * 2 > total:
+            return _SENTENCE_COMPLETION_INSTRUCTIONS[dominant]
+    return _SENTENCE_COMPLETION_INSTRUCTIONS['mixed']
+
+
 @lessons_bp.route('/lesson/<int:lesson_id>/sentence-completion')
 @login_required
 @require_lesson_access
@@ -2151,7 +2206,12 @@ def sentence_completion_lesson(lesson_id: int):
         return redirect('/learn/')
 
     content = lesson.content or {}
-    items = content.get('items', [])
+    items = _sentence_completion_display_items(content.get('items', []))
+    level_code = _dictation_level_code(lesson)
+    # A1-A2 see the masked hint (first letter + length) right away; from B1
+    # the hint sits behind a button (lesson audit 2026-09-05, A7 — the same
+    # hint sat in the placeholder on every level, C1 included).
+    hint_mode = 'immediate' if level_code in SENTENCE_COMPLETION_IMMEDIATE_HINT_LEVELS else 'button'
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -2210,6 +2270,9 @@ def sentence_completion_lesson(lesson_id: int):
         lesson=lesson,
         progress=display_progress,
         items=items,
+        page_size=SENTENCE_COMPLETION_PAGE_SIZE,
+        hint_mode=hint_mode,
+        default_instruction=_sentence_completion_instruction(content.get('items', []), content.get('instruction')),
         module_url=module_url,
         is_completed=is_completed,
         next_lesson_url=next_lesson_url,

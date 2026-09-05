@@ -19856,3 +19856,26 @@ body.feedback-modal-open { overflow: hidden; }
 @media (max-width: 480px) {
   .rd-match { grid-template-columns: 1fr; }
 }
+
+/* Sentence completion: pages of five + hint button (lesson audit 2026-09-05, A2/A7). */
+.sc-page[hidden] { display: none !important; }
+.sc-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem 0 0.5rem;
+}
+.sc-pager__label { font-size: 0.95rem; color: var(--text-muted, #6c757d); }
+.sc-pager__btn--ready { box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.35); }
+.sc-hint-btn {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted, #6c757d);
+  cursor: pointer;
+}
+.sc-hint-btn:disabled { opacity: 0.55; cursor: default; }

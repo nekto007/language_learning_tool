@@ -6,7 +6,7 @@
    otherwise we fall back to a neutral generic prompt. The old text spoke
    about "правильное окончание", which is misleading for the typical
    blank-inside-sentence use case. #}
-{% set instruction_text = (lesson.content.instruction if lesson.content and lesson.content.instruction else _('Заполните пропуск в каждом предложении.')) %}
+{% set instruction_text = (lesson.content.instruction if lesson.content and lesson.content.instruction else (default_instruction or _('Заполните пропуск в каждом предложении.'))) %}
 {% set block_description = _('Практика составления предложений') %}
 
 {% block lesson_content %}
@@ -26,8 +26,20 @@
     </div>
   </header>
 
-  <div class="lesson-shell__body" id="completion-items-list">
+  {% set sc_page_size = page_size if page_size else 5 %}
+  {% set sc_page_count = ((items|length) + sc_page_size - 1) // sc_page_size %}
+  {% set sc_hint_mode = hint_mode if hint_mode else 'immediate' %}
+  <div class="lesson-shell__body" id="completion-items-list"
+       data-page-size="{{ sc_page_size }}" data-page-count="{{ sc_page_count }}">
+    {# Pages of five (lesson audit 2026-09-05, A2): every item keeps its GLOBAL
+       index — check-item, the saved state and the final submit are unchanged. #}
     {% for item in items %}
+    {% if loop.index0 % sc_page_size == 0 %}
+    {% if not loop.first %}</div>{% endif %}
+    <div class="sc-page" data-page="{{ loop.index0 // sc_page_size }}" role="group"
+         aria-label="{{ _('Страница') }} {{ loop.index0 // sc_page_size + 1 }} {{ _('из') }} {{ sc_page_count }}"
+         {% if loop.index0 > 0 %}hidden{% endif %}>
+    {% endif %}
     <div class="lesson-shell__card sentence-completion-item" id="item-{{ loop.index0 }}" data-index="{{ loop.index0 }}">
       {% if item.context %}
       <div class="sentence-completion-context">
@@ -42,11 +54,14 @@
            /api/lesson/<id>/check-item, which returns the canonical answer only
            once the item is solved or given-up. `placeholder` shows a masked
            hint (first letter + length), not the answer. #}
+        {# Hint policy (A7): A1–A2 see the masked hint in the placeholder at
+           once; B1+ get it behind a «Подсказка» button. Using it costs nothing
+           — the hint is teaching, the three tries are the check. #}
         <input
           type="text"
           class="sentence-completion-input{% if item.prompt_after %} sentence-completion-input--short{% endif %}"
           id="answer-{{ loop.index0 }}"
-          placeholder="{{ item.hint or _('ответ') }}"
+          placeholder="{{ item.hint if (item.hint and sc_hint_mode == 'immediate') else _('ответ') }}"
           autocomplete="off"
           autocorrect="off"
           spellcheck="false"
@@ -55,6 +70,12 @@
         {% if item.prompt_after %}
           <span class="sentence-completion-prompt-after">{{ item.prompt_after }}</span>
         {% endif %}
+        {% if item.hint and sc_hint_mode == 'button' %}
+          <button type="button" class="sc-hint-btn" data-hint-for="{{ loop.index0 }}" data-hint="{{ item.hint }}"
+                  aria-label="{{ _('Показать подсказку') }}" title="{{ _('Подсказка') }}">
+            <i class="fas fa-lightbulb" aria-hidden="true"></i> {{ _('Подсказка') }}
+          </button>
+        {% endif %}
         {# Error dots column removed — it confused learners (looked like a
            separate validation indicator next to a correct row). The
            correction block below the row is the canonical error surface. #}
@@ -62,7 +83,21 @@
       <div class="sentence-completion-item-feedback" id="feedback-{{ loop.index0 }}" role="status" style="display: none;"></div>
     </div>
     {% endfor %}
+    {% if items %}</div>{% endif %}
   </div>
+  {% if sc_page_count > 1 %}
+  <nav class="sc-pager" id="sc-pager" aria-label="{{ _('Навигация по заданиям') }}">
+    <button type="button" class="lsn-btn lsn-btn--outline sc-pager__btn" id="sc-prev" disabled>
+      <span aria-hidden="true">&larr;</span> {{ _('Назад') }}
+    </button>
+    <span class="sc-pager__label" aria-live="polite">
+      {{ _('Страница') }} <span id="sc-page-num">1</span> {{ _('из') }} {{ sc_page_count }}
+    </span>
+    <button type="button" class="lsn-btn lsn-btn--primary sc-pager__btn" id="sc-next">
+      {{ _('Далее') }} <span aria-hidden="true">&rarr;</span>
+    </button>
+  </nav>
+  {% endif %}
 
   {# No "Проверить" button — each item is graded the moment the learner
      blurs the input or presses Enter. submission to the server happens
@@ -82,6 +117,68 @@
 const lessonId = {{ lesson.id }};
 const itemCount = {{ items | length }};
 const MAX_ATTEMPTS = 3;
+const PAGE_SIZE = {{ sc_page_size }};
+const pageCount = Math.max(1, Math.ceil(itemCount / PAGE_SIZE));
+let currentPage = 0;
+
+// === Pages ===============================================================
+// A view over the same global item indices: itemState/itemAttempts,
+// /check-item, the saved state and the final submit are untouched.
+function _pageOf(idx) { return Math.floor(idx / PAGE_SIZE); }
+function _pageDone(n) {
+  const start = n * PAGE_SIZE, end = Math.min(itemCount, start + PAGE_SIZE);
+  for (let i = start; i < end; i++) {
+    if (itemState[i] !== 'correct' && itemState[i] !== 'given-up') return false;
+  }
+  return end > start;
+}
+function _refreshPager() {
+  const prev = document.getElementById('sc-prev');
+  const next = document.getElementById('sc-next');
+  if (!prev || !next) return;
+  prev.disabled = currentPage === 0;
+  const last = currentPage >= pageCount - 1;
+  next.disabled = last;
+  next.classList.toggle('sc-pager__btn--ready', !last && _pageDone(currentPage));
+}
+function showPage(n, focusInput) {
+  if (n < 0 || n >= pageCount) return;
+  currentPage = n;
+  document.querySelectorAll('.sc-page').forEach(function(page) {
+    page.hidden = Number(page.dataset.page) !== n;
+  });
+  const num = document.getElementById('sc-page-num');
+  if (num) num.textContent = String(n + 1);
+  _refreshPager();
+  if (focusInput === false) return;
+  const page = document.querySelector('.sc-page[data-page="' + n + '"]');
+  const first = page && page.querySelector('.sentence-completion-input:not([disabled])');
+  if (first && typeof first.focus === 'function') first.focus({ preventScroll: true });
+}
+function _showAllPages() {
+  document.querySelectorAll('.sc-page').forEach(function(page) { page.hidden = false; });
+  const pager = document.getElementById('sc-pager');
+  if (pager) pager.hidden = true;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const prev = document.getElementById('sc-prev');
+  const next = document.getElementById('sc-next');
+  if (prev) prev.addEventListener('click', function() { showPage(currentPage - 1); });
+  if (next) next.addEventListener('click', function() { showPage(currentPage + 1); });
+  _refreshPager();
+});
+
+// Hint button (B1+): reveal the masked hint in the placeholder. Free — the
+// hint is teaching, the three tries are the check (owner decision).
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest && e.target.closest('.sc-hint-btn');
+  if (!btn) return;
+  const input = document.getElementById('answer-' + btn.dataset.hintFor);
+  if (input) input.placeholder = btn.dataset.hint || input.placeholder;
+  btn.disabled = true;
+  btn.setAttribute('aria-pressed', 'true');
+  if (input && !input.disabled) input.focus();
+});
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 // Module URL is used by the final action row (secondary "К списку уроков"
 // button). Falls back to the global lessons index when route did not
@@ -318,6 +415,7 @@ async function checkItem(idx) {
 }
 
 function _updateProgressLabel() {
+  _refreshPager();
   const progressLabelEl = document.getElementById('sc-progress-label');
   if (!progressLabelEl) return;
   const terminal = _terminalCount();
@@ -363,9 +461,12 @@ function _retryGivenUp() {
   // Hide the summary panel so the field-level state is the focus again.
   const resultArea = document.getElementById('completion-result');
   if (resultArea) resultArea.hidden = true;
-  // Bring focus to the first reset input.
+  // Bring focus to the first reset input (on its page).
+  const pager = document.getElementById('sc-pager');
+  if (pager) pager.hidden = false;
   for (let i = 0; i < itemCount; i++) {
     if (itemState[i] === 'pending') {
+      showPage(_pageOf(i), false);
       const input = document.getElementById('answer-' + i);
       if (input) { input.focus(); break; }
     }
@@ -434,6 +535,12 @@ function _restoreState() {
     _restoreCompleted(SAVED_STATE);
     return;
   }
+  const _openPendingPage = function() {
+    for (let i = 0; i < itemCount; i++) {
+      if (itemState[i] !== 'correct' && itemState[i] !== 'given-up') { showPage(_pageOf(i), false); return; }
+    }
+    showPage(pageCount - 1, false);
+  };
 
   if (Array.isArray(SAVED_STATE.items)) {
     SAVED_STATE.items.forEach(function(saved, i) {
@@ -462,6 +569,7 @@ function _restoreState() {
     });
     _updateProgress();
     _updateProgressLabel();
+    _openPendingPage();
     _maybeFinalize();
   }
 }
@@ -472,6 +580,7 @@ function _restoreState() {
 // grading-shaped payload so the existing showResults() branch can be
 // reused for "К списку уроков" + "Следующий урок" actions.
 function _restoreCompleted(grading) {
+  _showAllPages();
   (grading.item_results || []).forEach(function(res, i) {
     if (i >= itemCount) return;
     const input = document.getElementById('answer-' + i);
@@ -587,6 +696,7 @@ function _itemBadge(kind, label) {
 }
 
 function showResults(data) {
+  _showAllPages();
   // Per-item state was already set by checkItem() during the live flow —
   // no need to re-paint here. We only render the final summary card and
   // the "next lesson" CTA. ``correct_items`` from the server is the
@@ -709,9 +819,11 @@ document.addEventListener('keydown', function(e) {
   // is settled before we jump focus. _maybeFinalize() handles auto-submit
   // when every item is in a terminal state.
   checkItem(idx);
-  // Move focus to the next still-pending input (skip those already locked).
+  // Move focus to the next still-pending input (skip those already locked);
+  // it may sit on the next page.
   for (let i = idx + 1; i < itemCount; i++) {
     if (itemState[i] !== 'correct' && itemState[i] !== 'given-up') {
+      if (_pageOf(i) !== currentPage) showPage(_pageOf(i), false);
       const next = document.getElementById('answer-' + i);
       if (next) { next.focus(); break; }
     }
