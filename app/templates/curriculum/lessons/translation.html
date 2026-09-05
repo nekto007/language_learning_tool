@@ -32,9 +32,19 @@
   </header>
 
   <div class="lesson-shell__body">
-    <div class="tr-items" id="tr-items">
+    {% set tr_page_size = page_size if page_size else 5 %}
+    {% set tr_page_count = ((items|length) + tr_page_size - 1) // tr_page_size %}
+    <div class="tr-items" id="tr-items" data-page-size="{{ tr_page_size }}" data-page-count="{{ tr_page_count }}">
+      {# Pages of five (lesson audit 2026-09-05, A2): every item keeps its GLOBAL
+         index — check-item, the saved state and the final submit are unchanged. #}
       {% for item in items %}
       {% set item_idx = loop.index0 %}
+      {% if item_idx % tr_page_size == 0 %}
+      {% if not loop.first %}</div>{% endif %}
+      <div class="tr-page" data-page="{{ item_idx // tr_page_size }}" role="group"
+           aria-label="{{ _('Страница') }} {{ item_idx // tr_page_size + 1 }} {{ _('из') }} {{ tr_page_count }}"
+           {% if item_idx > 0 %}hidden{% endif %}>
+      {% endif %}
       {# A6: answer + alternatives are NOT shipped to the DOM. Per-item checking
          goes through POST /api/lesson/<id>/check-item, which returns the
          canonical answer only when the learner solved it or used the last try. #}
@@ -94,12 +104,26 @@
         <div class="translation-item__reveal" id="tr-reveal-{{ item_idx }}" role="note"></div>
       </article>
       {% endfor %}
+      {% if items %}</div>{% endif %}
     </div>
   </div>
 
   {# Stub-блоки ради единой shell-таксономии
      (см. tests/curriculum/test_audio_lessons_render.py). Финальная плашка
      завершения — в общем lesson_base_template через showLessonCompletion. #}
+  {% if tr_page_count > 1 %}
+  <nav class="tr-pager" id="tr-pager" aria-label="{{ _('Навигация по заданиям') }}">
+    <button type="button" class="lsn-btn lsn-btn--outline tr-pager__btn" id="tr-prev" disabled>
+      <span aria-hidden="true">&larr;</span> {{ _('Назад') }}
+    </button>
+    <span class="tr-pager__label" aria-live="polite">
+      {{ _('Страница') }} <span id="tr-page-num">1</span> {{ _('из') }} {{ tr_page_count }}
+    </span>
+    <button type="button" class="lsn-btn lsn-btn--primary tr-pager__btn" id="tr-next">
+      {{ _('Далее') }} <span aria-hidden="true">&rarr;</span>
+    </button>
+  </nav>
+  {% endif %}
   <div class="lesson-shell__actions" aria-hidden="true"></div>
   <div class="lesson-shell__result" hidden aria-hidden="true">
     <span class="result-badge result-badge--correct" hidden></span>
@@ -110,6 +134,61 @@
 const lessonId = {{ lesson.id }};
 const totalItems = {{ items|length }};
 const MAX_ATTEMPTS = 3;
+const PAGE_SIZE = {{ tr_page_size }};
+const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+let currentPage = 0;
+
+// === Pages ===============================================================
+// A view over the same global item indices: itemState/itemAttempts,
+// /check-item, the saved state and the final submit are untouched.
+function _pageOf(idx) { return Math.floor(idx / PAGE_SIZE); }
+function _pageDone(n) {
+  const start = n * PAGE_SIZE, end = Math.min(totalItems, start + PAGE_SIZE);
+  for (let i = start; i < end; i++) { if (itemState[i] === 'pending') return false; }
+  return end > start;
+}
+function _refreshPager() {
+  const prev = document.getElementById('tr-prev');
+  const next = document.getElementById('tr-next');
+  if (!prev || !next) return;
+  prev.disabled = currentPage === 0;
+  const last = currentPage >= pageCount - 1;
+  next.disabled = last;
+  next.classList.toggle('tr-pager__btn--ready', !last && _pageDone(currentPage));
+}
+function showPage(n, focusInput) {
+  if (n < 0 || n >= pageCount) return;
+  currentPage = n;
+  document.querySelectorAll('.tr-page').forEach(function(page) {
+    page.hidden = Number(page.dataset.page) !== n;
+  });
+  const num = document.getElementById('tr-page-num');
+  if (num) num.textContent = String(n + 1);
+  _refreshPager();
+  if (focusInput === false) return;
+  const page = document.querySelector('.tr-page[data-page="' + n + '"]');
+  const first = page && page.querySelector('.translation-input:not([readonly])');
+  if (first && typeof first.focus === 'function') first.focus({ preventScroll: true });
+}
+function _showAllPages() {
+  document.querySelectorAll('.tr-page').forEach(function(page) { page.hidden = false; });
+  const pager = document.getElementById('tr-pager');
+  if (pager) pager.hidden = true;
+}
+function _showFirstPendingPage() {
+  const pager = document.getElementById('tr-pager');
+  if (pager) pager.hidden = false;
+  for (let i = 0; i < totalItems; i++) {
+    if (itemState[i] === 'pending') { showPage(_pageOf(i), false); return; }
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const prev = document.getElementById('tr-prev');
+  const next = document.getElementById('tr-next');
+  if (prev) prev.addEventListener('click', function() { showPage(currentPage - 1); });
+  if (next) next.addEventListener('click', function() { showPage(currentPage + 1); });
+  _refreshPager();
+});
 const itemState = new Array(totalItems).fill('pending');
 const itemAttempts = new Array(totalItems).fill(0);
 let _finalizing = false;
@@ -450,6 +529,7 @@ function _updateProgress() {
 }
 
 function _maybeFinalize() {
+  _refreshPager();
   if (_finalizing) return;
   let resolved = 0;
   for (let i = 0; i < totalItems; i++) {
@@ -485,6 +565,7 @@ async function _submitFinal() {
 }
 
 function showResults(data) {
+  _showAllPages();
   const score = data.score || 0;
   const passed = !!data.passed;
   const correctItems = data.correct_items || 0;
@@ -538,7 +619,7 @@ function _renderPartialPrompt(correct, total) {
   softBtn.type = 'button';
   softBtn.className = 'lsn-btn lsn-btn--primary';
   softBtn.innerHTML = '<i class="fas fa-pen"></i> {{ _("Исправить ошибку") }}';
-  softBtn.addEventListener('click', _softRetryGivenUp);
+  softBtn.addEventListener('click', function() { _softRetryGivenUp(); _showFirstPendingPage(); });
   actions.appendChild(softBtn);
   const fullReset = document.createElement('a');
   fullReset.className = 'lsn-btn lsn-btn--outline';
@@ -662,6 +743,7 @@ document.addEventListener('DOMContentLoaded', function _restoreSaved() {
   if (!saved || !Array.isArray(saved.item_results)) return;
   const isCompleted = {{ is_completed | tojson }};
   _finalizing = true;
+  _showAllPages();
   saved.item_results.forEach(function(res, idx) {
     if (idx >= totalItems) return;
     const itemEl = document.getElementById('tr-item-' + idx);

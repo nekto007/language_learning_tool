@@ -1478,6 +1478,50 @@ def _process_audio_fill_blank_submission(lesson: 'Lessons', user_id: int, data: 
     return result
 
 
+TRANSLATION_PAGE_SIZE = 5
+TRANSLATION_HINT_WORDS_MAX = 3
+# Function words never worth a hint slot: the learner is being pointed at
+# the lexis of the sentence, not at its articles and pronouns.
+_HINT_STOP_WORDS = frozenset((
+    'a', 'an', 'the', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+    'my', 'your', 'his', 'its', 'our', 'their', 'mine', 'yours', 'hers', 'ours', 'theirs',
+    'this', 'that', 'these', 'those', 'there', 'here',
+    'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'do', 'does', 'did', 'have', 'has', 'had',
+    'will', 'would', 'can', 'could', 'shall', 'should', 'may', 'might', 'must', 'not', 'no', 'yes',
+    'of', 'in', 'on', 'at', 'to', 'for', 'from', 'with', 'by', 'about', 'into', 'over', 'under',
+    'up', 'down', 'off', 'out', 'through',
+    'and', 'or', 'but', 'so', 'because', 'if', 'when', 'while', 'as', 'than', 'then',
+    'very', 'too', 'also', 'just',
+))
+
+
+def _translation_key_hint_words(hint_words, english, limit: int = TRANSLATION_HINT_WORDS_MAX) -> list[str]:
+    """Pick up to ``limit`` key words for the «опорные слова» chips.
+
+    Source: the authored ``hint_words``; function words are dropped, the
+    longest remaining tokens win (ties keep the original order), punctuation
+    is stripped from the chip text. ``english`` is accepted for symmetry but
+    never mined — a lesson without hint words stays without hints.
+    """
+    tokens = [str(w) for w in (hint_words or []) if str(w).strip()]
+    if not tokens:
+        # No authored hint words → no hint section at all (the «open» mode
+        # relies on that); the answer is never mined for hints.
+        return []
+    cleaned: list[str] = []
+    for tok in tokens:
+        text = tok.strip().strip('.,!?;:"«»()\u2019\'')
+        if not text:
+            continue
+        if text.lower() in _HINT_STOP_WORDS:
+            continue
+        if text not in cleaned:
+            cleaned.append(text)
+    ranked = sorted(range(len(cleaned)), key=lambda i: (-len(cleaned[i]), i))
+    keep = sorted(ranked[:limit])
+    return [cleaned[i] for i in keep]
+
+
 def _translation_items_from_content(content: dict) -> list:
     """Normalise translation content into a list of items.
 
@@ -1544,13 +1588,15 @@ def translation_lesson(lesson_id: int):
     # некликабельны (ученик печатает сам). Перемешиваем, чтобы убрать
     # ловушку «слова стоят в порядке ответа → натыкал слева направо».
     # Порядок ответа не утекает; на грейдинг (по item.english) не влияет.
+    # Only 2-3 KEY words survive (lesson audit 2026-09-05, A7): the authored
+    # hint_words were the whole answer in 1 154/1 154 items, so the "show
+    # hint words" button handed out the sentence, shuffled.
     import random as _random
     for _it in items:
-        _hw = _it.get('hint_words')
-        if isinstance(_hw, list) and len(_hw) > 1:
-            _shuffled = list(_hw)
-            _random.shuffle(_shuffled)
-            _it['hint_words'] = _shuffled
+        _hw = _translation_key_hint_words(_it.get('hint_words'), _it.get('english'))
+        if len(_hw) > 1:
+            _random.shuffle(_hw)
+        _it['hint_words'] = _hw
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -1590,6 +1636,7 @@ def translation_lesson(lesson_id: int):
         lesson=lesson,
         progress=display_progress,
         items=items,
+        page_size=TRANSLATION_PAGE_SIZE,
         is_completed=is_completed,
         next_lesson=next_lesson,
         mode=mode,

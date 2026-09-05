@@ -107,6 +107,49 @@ def _levenshtein(a, b):
     return prev[-1]
 
 
+_APOSTROPHES = "'\u2019\u02bc\u2032"
+
+# Contractions expanded on BOTH sides before the strict comparison (lesson
+# audit 2026-09-05, A3): ``normalize_text`` strips every apostrophe, so
+# «he's my relative» became «hes my relative» and could never equal the
+# canonical «he is my relative» — three tries burnt on a contraction. Only
+# contractions are canonicalised; articles, word order and multi-word typos
+# stay strict (agreed with the reviewer: an article can change the meaning).
+_CONTRACTION_WHOLE_WORDS = (
+    (r"\bwon't\b", 'will not'),
+    (r"\bcan't\b", 'cannot'),
+    (r"\bshan't\b", 'shall not'),
+    (r"\bcan not\b", 'cannot'),
+    (r"\blet's\b", 'let us'),
+)
+_CONTRACTION_SUFFIXES = (
+    (r"n't\b", ' not'),
+    (r"'re\b", ' are'),
+    (r"'ve\b", ' have'),
+    (r"'ll\b", ' will'),
+    (r"'m\b", ' am'),
+    (r"'s\b", ' is'),
+)
+
+
+def _contraction_variants(text) -> list[str]:
+    """Return the text with contractions expanded — two variants when ``'d``
+    is present (``would`` and ``had`` are both legitimate)."""
+    s = str(text or '')
+    if not s:
+        return ['']
+    for ch in _APOSTROPHES[1:]:
+        s = s.replace(ch, "'")
+    low = s.lower()
+    for pattern, repl in _CONTRACTION_WHOLE_WORDS:
+        low = re.sub(pattern, repl, low)
+    for pattern, repl in _CONTRACTION_SUFFIXES:
+        low = re.sub(pattern, repl, low)
+    if "'d" in low:
+        return [re.sub(r"'d\b", ' would', low), re.sub(r"'d\b", ' had', low)]
+    return [low]
+
+
 def _strict_text_match(user_answer, candidates):
     """
     Strict grading for fill-in-blank / translation answers.
@@ -120,6 +163,7 @@ def _strict_text_match(user_answer, candidates):
     user_normalized = _normalize_answer(user_answer)
     if not user_normalized:
         return False
+    user_variants = {_normalize_answer(v) for v in _contraction_variants(user_answer)}
     for candidate in candidates:
         if candidate is None:
             continue
@@ -127,6 +171,9 @@ def _strict_text_match(user_answer, candidates):
         if not correct_normalized:
             continue
         if user_normalized == correct_normalized:
+            return True
+        candidate_variants = {_normalize_answer(v) for v in _contraction_variants(candidate)}
+        if user_variants & candidate_variants:
             return True
         # Typo tolerance only for single-word answers >=4 chars; on shorter
         # tokens a 1-edit window admits substantively different words
