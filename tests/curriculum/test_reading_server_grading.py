@@ -157,6 +157,51 @@ class TestProgressEndpointCannotCompleteAReading:
         progress = _progress(db_session, test_user.id, lesson.id)
         assert progress.data['reading_answers']['0']['value'] == 'Peru'
 
+    def test_forged_completion_cannot_poison_later_honest_grade(
+        self, app, db_session, _module, test_user, client
+    ):
+        """A forged 100 must neither complete nor survive the canonical submit."""
+        lesson = _make_lesson(db_session, _module, QUESTIONS)
+        _login(client, test_user)
+        forged = client.post(
+            f'/curriculum/api/lesson/{lesson.id}/progress',
+            json={
+                'status': 'completed',
+                'score': 100,
+                'comprehension_results': {
+                    'score': 100,
+                    'correct': 5,
+                    'total': 5,
+                    'questions': [{'index': i, 'correct': True} for i in range(5)],
+                },
+            },
+        )
+        assert forged.status_code == 200
+        progress = _progress(db_session, test_user.id, lesson.id)
+        assert progress.status != 'completed'
+        assert not progress.score
+
+        answers = dict(ALL_CORRECT)
+        answers['0'] = 'Peru'
+        answers['2'] = 'Spain'
+        honest = client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={
+                'lesson_type': 'reading',
+                'answers': answers,
+                'score': 100,
+                'comprehension_results': {'score': 100, 'correct': 5, 'total': 5},
+            },
+        )
+        assert honest.status_code == 200
+        assert honest.get_json()['score'] == 60
+
+        progress = _progress(db_session, test_user.id, lesson.id)
+        assert progress.status == 'completed' and progress.score == 60
+        stored = progress.data['reading_answers']
+        assert [stored[str(i)]['correct'] for i in range(5)] == [False, True, False, True, True]
+        assert progress.data['comprehension']['score'] == 60
+
 
 class TestPerQuestionCheck:
 
@@ -185,6 +230,44 @@ class TestPerQuestionCheck:
         _login(client, test_user)
         assert self._check(client, lesson, 99, 'x').status_code == 400
         assert self._check(client, lesson, 0, '   ').status_code == 400
+
+    def test_matching_duplicate_translations_grade_by_pairs_without_crashing(
+        self, app, db_session, _module, test_user, client
+    ):
+        question = {
+            'type': 'matching',
+            'instruction': 'Соотнесите',
+            'correct': False,
+            'pairs': [
+                {'english': 'film', 'russian': 'фильм'},
+                {'english': 'movie', 'russian': 'фильм'},
+                {'english': 'book', 'russian': 'книга'},
+            ],
+        }
+        lesson = _make_lesson(db_session, _module, [question])
+        _login(client, test_user)
+        pairs = [
+            {'left': 'film', 'right': 'фильм'},
+            {'left': 'movie', 'right': 'фильм'},
+            {'left': 'book', 'right': 'книга'},
+        ]
+
+        checked = self._check(client, lesson, 0, pairs)
+        assert checked.status_code == 200
+        checked_data = checked.get_json()
+        assert checked_data['correct'] is True
+        assert [p['right'] for p in checked_data['answer_pairs']].count('фильм') == 2
+
+        submitted = client.post(
+            f'/curriculum/api/lesson/{lesson.id}/submit',
+            json={'lesson_type': 'reading', 'answers': {'0': pairs}},
+        )
+        assert submitted.status_code == 200
+        data = submitted.get_json()
+        assert data['score'] == 100
+        assert data['correct_answers'] == 1 and data['total_questions'] == 1
+        progress = _progress(db_session, test_user.id, lesson.id)
+        assert progress.data['reading_answers']['0']['correct'] is True
 
 
 class TestRender:
