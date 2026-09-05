@@ -2781,6 +2781,42 @@ def shadow_reading_lesson(lesson_id: int):
     )
 
 
+SHADOW_READING_RATINGS = frozenset(('easy', 'ok', 'hard'))
+
+
+def _coerce_coverage(value: object) -> float | None:
+    """Clamp a client-reported playback coverage to 0..1; None when absent or junk."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        ratio = float(value)
+    except (TypeError, ValueError):
+        return None
+    if ratio != ratio:  # NaN
+        return None
+    return round(min(1.0, max(0.0, ratio)), 2)
+
+
+def _store_shadow_assessment(progress: LessonProgress, data: dict) -> None:
+    """Keep the shadow-reading self-assessment in progress.data (analytics only).
+
+    Nothing here touches score, completion or XP: the lesson stays honor-system.
+    The rating is client input, so anything outside the three buttons is stored
+    as None rather than verbatim; coverages are clamped to 0..1.
+    """
+    rating = data.get('rating')
+    assessment = {
+        'rating': rating if isinstance(rating, str) and rating in SHADOW_READING_RATINGS else None,
+        'listen_coverage': _coerce_coverage(data.get('listen_coverage')),
+        'shadow_coverage': _coerce_coverage(data.get('shadow_coverage')),
+        'assessed_at': datetime.now(UTC).isoformat(),
+    }
+    existing = dict(progress.data) if isinstance(progress.data, dict) else {}
+    existing['shadow_assessment'] = assessment
+    progress.data = existing
+    flag_modified(progress, 'data')
+
+
 def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
     """Mark a shadow reading lesson complete on self-assessment, award XP, return result."""
     self_assessed = bool(data.get('self_assessed', False))
@@ -2811,6 +2847,7 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
                 last_activity=datetime.now(UTC),
             )
             db.session.add(progress)
+        _store_shadow_assessment(progress, data)
         try:
             db.session.commit()
         except Exception:

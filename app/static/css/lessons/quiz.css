@@ -1055,3 +1055,19 @@ body:has(.quiz-results-compact) #lesson-completion {
 .quiz-reset-modal__actions .btn-danger:hover {
   background: #b91c1c; border-color: #b91c1c;
 }
+
+/* Ordering: Russian translation of the target sentence (inline on A0-A2,
+   behind a button on B1+; JS toggles [hidden]). */
+.quiz-ordering-translation {
+  margin: 0.25rem 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--primary-300, #a5b4fc);
+  background: var(--primary-50, #eef2ff);
+  border-radius: 0.375rem;
+  color: var(--text-secondary, #475569);
+  font-size: 0.95rem;
+}
+.quiz-ordering-translation-btn {
+  padding-left: 0;
+  margin-bottom: 0.25rem;
+}

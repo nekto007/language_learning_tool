@@ -237,7 +237,9 @@ function _initPhaseAudio(phaseId, audioId, loadingId, errorId) {
   const audio = document.getElementById(audioId);
   const loading = document.getElementById(loadingId);
   const errorEl = document.getElementById(errorId);
-  if (!audio) return {wireGate: function() {}};
+  if (!audio) return {wireGate: function() {}, coverage: function() { return 0; }};
+  // Доля реально прослушанного аудио (0..1) — уходит в отчёт при самооценке.
+  let coveredRatio = 0;
 
   function _showReady() {
     if (card) card.dataset.audioState = 'ready';
@@ -291,6 +293,7 @@ function _initPhaseAudio(phaseId, audioId, loadingId, errorId) {
       const delta = t - lastTime;
       if (delta > 0 && delta <= 2) covered += delta;
       lastTime = t;
+      coveredRatio = Math.min(1, covered / dur);
       if (!fired && covered / dur >= PHASE_THRESHOLD) {
         fired = true;
         onThreshold();
@@ -300,7 +303,7 @@ function _initPhaseAudio(phaseId, audioId, loadingId, errorId) {
       if (!fired) { fired = true; onThreshold(); }
     });
   }
-  return {wireGate: wireGate, audio: audio};
+  return {wireGate: wireGate, audio: audio, coverage: function() { return coveredRatio; }};
 }
 
 function _unlockPhase2Button() {
@@ -425,6 +428,15 @@ document.addEventListener('DOMContentLoaded', function() {
   _phase1Ctrl.wireGate(_unlockPhase2Button);
 });
 
+function _coverageOf(ctrl) {
+  try {
+    const ratio = ctrl && typeof ctrl.coverage === 'function' ? ctrl.coverage() : 0;
+    return Number.isFinite(ratio) ? Math.round(ratio * 100) / 100 : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
 async function submitShadowReading() {
   if (!assessRating) return;
 
@@ -438,7 +450,13 @@ async function submitShadowReading() {
     const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ self_assessed: true, rating: assessRating, lesson_type: 'shadow_reading' }),
+      body: JSON.stringify({
+        self_assessed: true,
+        rating: assessRating,
+        listen_coverage: _coverageOf(_phase1Ctrl),
+        shadow_coverage: _coverageOf(_phase2Ctrl),
+        lesson_type: 'shadow_reading'
+      }),
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();

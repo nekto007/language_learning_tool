@@ -504,6 +504,62 @@ def _resolve_grammar_theory(user_id: int, lesson: Lessons):
         return None
 
 
+_ORDERING_INLINE_TRANSLATION_LEVELS = frozenset({'A0', 'A1', 'A2'})
+DIALOGUE_DEFAULT_INSTRUCTION = 'Дополните диалог правильной фразой'
+
+
+def _quiz_lesson_level_code(lesson) -> str:
+    """CEFR code of the lesson's module ('' when the relationship is missing)."""
+    level = getattr(getattr(lesson, 'module', None), 'level', None)
+    return str(getattr(level, 'code', '') or '').upper()
+
+
+def _ordering_translation_mode(lesson) -> str:
+    """How the ordering item shows its Russian translation.
+
+    'inline' on A0-A2: the sentence meaning is visible at once, the learner only
+    orders the words. 'reveal' on B1+ (and when the level is unknown): hidden
+    behind a button and opened automatically once the item is answered.
+    """
+    if _quiz_lesson_level_code(lesson) in _ORDERING_INLINE_TRANSLATION_LEVELS:
+        return 'inline'
+    return 'reveal'
+
+
+def _dialogue_lesson_instruction(questions: list[dict]) -> tuple[str, list[str]]:
+    """One instruction for the whole dialogue lesson plus per-item leftovers.
+
+    The most frequent non-empty per-item instruction becomes the lesson-level
+    one (ties resolve to the first seen); items with no instruction inherit it,
+    items with a *different* instruction keep theirs. Without any authored
+    instruction the default is used. Pure: the questions are not mutated.
+    """
+    counts: dict[str, int] = {}
+    stripped: list[str] = []
+    for question in questions:
+        text = str(question.get('instruction') or '').strip()
+        stripped.append(text)
+        if text:
+            counts[text] = counts.get(text, 0) + 1
+    lesson_instruction = max(counts, key=counts.__getitem__) if counts else DIALOGUE_DEFAULT_INSTRUCTION
+    item_instructions = [text if text and text != lesson_instruction else '' for text in stripped]
+    return lesson_instruction, item_instructions
+
+
+def _quiz_display_context(lesson, questions: list[dict]) -> dict:
+    """Render-only extras for quiz.html shared by both quiz handlers."""
+    context: dict = {
+        'ordering_translation_mode': _ordering_translation_mode(lesson),
+        'lesson_instruction': None,
+        'item_instructions': None,
+    }
+    if lesson.type == 'dialogue_completion_quiz':
+        lesson_instruction, item_instructions = _dialogue_lesson_instruction(questions)
+        context['lesson_instruction'] = lesson_instruction
+        context['item_instructions'] = item_instructions
+    return context
+
+
 def _sanitize_quiz_questions(cleaned_content: dict) -> None:
     """Sanitize and normalize quiz question content in-place."""
     for question in cleaned_content['questions']:
@@ -696,6 +752,7 @@ def render_quiz_lesson(lesson):
     return render_template(
         'curriculum/lessons/quiz.html',
         lesson=lesson,
+        **_quiz_display_context(lesson, cleaned_content['questions']),
         questions=cleaned_content['questions'],
         settings=cleaned_content,
         progress=retry_display_progress(progress, force=reset_progress),
@@ -1164,6 +1221,7 @@ def quiz_lesson(lesson_id):
     return render_template(
         'curriculum/lessons/quiz.html',
         lesson=lesson,
+        **_quiz_display_context(lesson, cleaned_content['questions']),
         questions=cleaned_content['questions'],
         settings=cleaned_content,
         progress=retry_display_progress(progress, force=reset_progress),

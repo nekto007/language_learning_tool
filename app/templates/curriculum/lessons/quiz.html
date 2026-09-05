@@ -1,12 +1,12 @@
 {% extends "lesson_base_template.html" %}
 
 {% set component_name = _('Викторина') %}
-{% set instruction_text = _('Отвечайте на вопросы по одному. После каждого ответа вы увидите результат.') %}
+{% set instruction_text = lesson_instruction or _('Отвечайте на вопросы по одному. После каждого ответа вы увидите результат.') %}
 {% set block_description = _('Проверьте свои знания с помощью интерактивной викторины') %}
 {% set show_score = true %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/quiz.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/quiz.css') }}?v=2">
 <style nonce="{{ csp_nonce }}">
   /* A11Y: respect prefers-reduced-motion — suppress quiz result/modal animations */
   @media (prefers-reduced-motion: reduce) {
@@ -359,6 +359,23 @@
                 <p class="instruction-text">
                   🔤 {{ instruction_text }}
                 </p>
+                {% if question.get('translation') %}
+                  {% if ordering_translation_mode == 'inline' %}
+                    <p class="quiz-ordering-translation" id="ordering-translation-{{ question_index }}">
+                      {{ question.translation }}
+                    </p>
+                  {% else %}
+                    <button type="button"
+                            class="btn btn-link btn-sm quiz-ordering-translation-btn"
+                            data-action="toggle-ordering-translation" data-question-index="{{ question_index }}"
+                            aria-expanded="false" aria-controls="ordering-translation-{{ question_index }}">
+                      {{ _('Показать перевод') }}
+                    </button>
+                    <p class="quiz-ordering-translation" id="ordering-translation-{{ question_index }}" hidden>
+                      {{ question.translation }}
+                    </p>
+                  {% endif %}
+                {% endif %}
                 <div class="words-container" id="words-container-{{ question_index }}">
                   {% set words_to_display = question.get('shuffled_words', question.words) %}
                   {% for word in words_to_display %}
@@ -466,9 +483,10 @@
 
             {% elif question.type == 'dialogue_completion' %}
               {# Dialogue completion question #}
-              {% if question.get('instruction') %}
+              {% set dialogue_item_instruction = item_instructions[question_index] if item_instructions else question.get('instruction') %}
+              {% if dialogue_item_instruction %}
                 <p class="quiz-instruction-text-sm">
-                  {{ question.get('instruction') }}
+                  {{ dialogue_item_instruction }}
                 </p>
               {% endif %}
               {% if question.get('dialogue') %}
@@ -770,8 +788,38 @@ function submitReorderAnswer(questionIndex) {
   // Disable submit button
   const submitBtn = document.querySelector(`.reorder-submit-btn[data-question="${questionIndex}"]`);
   submitBtn.disabled = true;
-  
+
+  // B1+ keeps the translation behind a button while the learner works; once the
+  // answer is in there is nothing left to spoil, so open it for the review.
+  revealOrderingTranslation(questionIndex);
   QuizApp.showFeedback(questionIndex, isCorrect, correctAnswer);
+}
+
+const ORDERING_TRANSLATION_LABELS = {
+  show: {{ _('Показать перевод')|tojson }},
+  hide: {{ _('Скрыть перевод')|tojson }}
+};
+
+function toggleOrderingTranslation(questionIndex, btn) {
+  const box = document.getElementById(`ordering-translation-${questionIndex}`);
+  if (!box) return;
+  const show = box.hidden;
+  box.hidden = !show;
+  if (btn) {
+    btn.setAttribute('aria-expanded', show ? 'true' : 'false');
+    btn.textContent = show ? ORDERING_TRANSLATION_LABELS.hide : ORDERING_TRANSLATION_LABELS.show;
+  }
+}
+
+function revealOrderingTranslation(questionIndex) {
+  const box = document.getElementById(`ordering-translation-${questionIndex}`);
+  if (!box) return;
+  box.hidden = false;
+  const btn = document.querySelector(`.quiz-ordering-translation-btn[data-question-index="${questionIndex}"]`);
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'true');
+    btn.hidden = true;
+  }
 }
 
 // Matching question functions - new row-based layout
@@ -1703,6 +1751,7 @@ document.addEventListener('click', function(e) {
         case 'add-word-to-sentence':        addWordToSentence(qIdx, target.dataset.word, target); break;
         case 'clear-sentence':              clearSentence(qIdx); break;
         case 'submit-reorder-answer':       submitReorderAnswer(qIdx); break;
+        case 'toggle-ordering-translation':  toggleOrderingTranslation(qIdx, target); break;
         case 'select-right-option':         selectRightOption(qIdx, target.dataset.item, target); break;
         case 'submit-matching-answer':      submitMatchingAnswer(qIdx); break;
         case 'submit-transformation-answer': submitTransformationAnswer(qIdx); break;
