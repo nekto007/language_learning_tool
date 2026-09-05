@@ -2,7 +2,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vocabulary-cards.css') }}?v=8">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/vocabulary.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/vocabulary.css') }}?v=2">
 {% endblock %}
 
 {% set component_name = _('Словарь') %}
@@ -37,6 +37,13 @@
       <span class="progress-divider">/</span>
       <span class="progress-total">{{ words|length }}</span>
     </div>
+    <button type="button" class="vocab-autoplay-toggle" id="btn-autoplay"
+            aria-pressed="{{ 'true' if autoplay_default else 'false' }}"
+            data-default="{{ '1' if autoplay_default else '0' }}"
+            title="{{ _('Озвучивать слово при показе карточки') }}">
+      <i class="fas fa-volume-up" aria-hidden="true"></i>
+      <span>{{ _('Авто-озвучка') }}</span>
+    </button>
     <div class="progress-bar-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Прогресс изучения слов">
       <div class="progress-bar-fill" id="cards-progress-bar" style="width: 0%"></div>
     </div>
@@ -61,7 +68,7 @@
             {% if word.ipa_transcription %}
             <div class="word-ipa">/{{ word.ipa_transcription }}/</div>
             {% endif %}
-            {% if word.pronunciation %}
+            {% if word.pronunciation and (transliteration_mode == 'always' or (transliteration_mode == 'fallback' and not word.ipa_transcription)) %}
             <div class="word-pronunciation">{{ word.pronunciation }}</div>
             {% endif %}
             {% if word.get('audio_url') %}
@@ -212,13 +219,6 @@
     {% endfor %}
 
     <!-- Placeholder when no cards -->
-    <div class="no-cards-message" id="no-cards-message" style="display: none;">
-      <div class="completion-icon">
-        <i class="fas fa-check-circle"></i>
-      </div>
-      <h3>{{ _('Все карточки просмотрены!') }}</h3>
-      <p>{{ _('Отличная работа! Вы изучили все слова урока') }}</p>
-    </div>
   </div>
 
   <!-- Navigation Buttons -->
@@ -233,10 +233,21 @@
       <span>{{ _('Перевернуть') }}</span>
     </button>
 
-    <button class="nav-btn btn-next" id="btn-next" aria-label="Следующая карточка">
-      <span>{{ _('Вперед') }}</span>
+    <button class="nav-btn btn-next" id="btn-next" aria-label="Следующая карточка"
+            data-label-next="{{ _('Вперед') }}" data-label-finish="{{ _('Завершить') }}"
+            data-aria-next="{{ _('Следующая карточка') }}" data-aria-finish="{{ _('Завершить урок') }}">
+      <span id="btn-next-label">{{ _('Вперед') }}</span>
       <i class="fas fa-chevron-right" aria-hidden="true"></i>
     </button>
+  </div>
+
+  <!-- Completion banner: shown under the deck, which stays browsable (item 9) -->
+  <div class="no-cards-message vocab-complete-banner" id="no-cards-message" hidden>
+    <div class="completion-icon">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <h3>{{ _('Все карточки просмотрены!') }}</h3>
+    <p>{{ _('Отличная работа! Вы изучили все слова урока') }}</p>
   </div>
 </div>
 
@@ -249,15 +260,21 @@ const lessonConfig = {
   isCompleted: {% if is_completed %}true{% else %}false{% endif %},
   totalWords: {{ words|length }},
   lessonId: {{ lesson.id }},
-  csrfToken: '{{ csrf_token() }}'
+  csrfToken: '{{ csrf_token() }}',
+  autoplayDefault: {{ 'true' if autoplay_default else 'false' }},
+  resume: {{ resume_state|tojson }},
+  progressUrl: {{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id)|tojson }}
 };
 
 // State management
 const cardsState = {
   currentIndex: 0,
   totalCards: {{ words|length }},
+  // "presented", not "learned": a card counts as soon as it has been on screen.
   viewedCards: new Set(),
-  allViewed: false
+  flippedCards: new Set(),
+  completed: lessonConfig.isCompleted,
+  completing: false
 };
 
 // DOM elements
@@ -286,8 +303,21 @@ function markAudioUnavailable(btn) {
 function init() {
   if (cards.length === 0) return;
 
-  // Show first card
-  showCard(0);
+  // Resume where the learner left off (server snapshot). No autoplay and no
+  // snapshot on this first show: the browser blocks play() before a gesture,
+  // and re-saving what was just loaded is noise.
+  let startIndex = 0;
+  const resume = lessonConfig.resume;
+  if (!cardsState.completed && resume && Array.isArray(resume.presented)) {
+    resume.presented.forEach(i => {
+      if (Number.isInteger(i) && i >= 0 && i < cardsState.totalCards) cardsState.viewedCards.add(i);
+    });
+    if (Number.isInteger(resume.index) && resume.index >= 0 && resume.index < cardsState.totalCards) {
+      startIndex = resume.index;
+    }
+  }
+  initAutoplayToggle();
+  showCard(startIndex, { autoplay: false, save: false });
 
   // Add event listeners
   btnPrev.addEventListener('click', prevCard);
@@ -334,7 +364,8 @@ function init() {
 }
 
 // Show specific card
-function showCard(index) {
+function showCard(index, opts) {
+  opts = opts || {};
   cards.forEach((card, i) => {
     if (i === index) {
       card.classList.add('active');
@@ -350,27 +381,42 @@ function showCard(index) {
 
   cardsState.currentIndex = index;
 
-  // Mark as viewed
+  // Mark as presented
   cardsState.viewedCards.add(index);
   cards[index].setAttribute('data-viewed', 'true');
 
   // Update UI
   updateUI();
   updateProgress();
+  if (opts.autoplay !== false) maybeAutoplay(index);
+  if (opts.save !== false) queueSnapshotSave();
 }
 
 // Update UI elements
+function allPresented() {
+  return cardsState.viewedCards.size >= cardsState.totalCards;
+}
+
 function updateUI() {
   currentCardNum.textContent = cardsState.currentIndex + 1;
-
-  // Enable/disable buttons
   btnPrev.disabled = cardsState.currentIndex === 0;
-  btnNext.disabled = cardsState.currentIndex === cardsState.totalCards - 1;
 
-  // Check if all viewed
-  if (cardsState.viewedCards.size === cardsState.totalCards && !cardsState.allViewed) {
-    cardsState.allViewed = true;
-    setTimeout(completeLesson, 500);
+  // The deck used to complete itself 500 ms after the last card appeared and
+  // then hide every card, so the 20th word could be neither read nor flipped.
+  // Completion is now the learner's explicit click on the last card; the deck
+  // stays browsable afterwards.
+  const onLast = cardsState.currentIndex === cardsState.totalCards - 1;
+  const label = document.getElementById('btn-next-label');
+  if (onLast) {
+    btnNext.classList.add('btn-next--finish');
+    if (label) label.textContent = btnNext.dataset.labelFinish;
+    btnNext.setAttribute('aria-label', btnNext.dataset.ariaFinish);
+    btnNext.disabled = !allPresented() || cardsState.completing;
+  } else {
+    btnNext.classList.remove('btn-next--finish');
+    if (label) label.textContent = btnNext.dataset.labelNext;
+    btnNext.setAttribute('aria-label', btnNext.dataset.ariaNext);
+    btnNext.disabled = false;
   }
 }
 
@@ -394,12 +440,16 @@ function prevCard() {
 function nextCard() {
   if (cardsState.currentIndex < cardsState.totalCards - 1) {
     showCard(cardsState.currentIndex + 1);
+  } else if (allPresented()) {
+    completeLesson();
   }
 }
 
 // Flip cards
 function flipCard(card) {
   card.classList.toggle('flipped');
+  const idx = parseInt(card.dataset.index, 10);
+  if (Number.isInteger(idx)) cardsState.flippedCards.add(idx);
 }
 
 function flipCurrentCard() {
@@ -465,7 +515,6 @@ function addSwipeSupport() {
 
   // Keyboard navigation
   document.addEventListener('keydown', (e) => {
-    if (cardsState.allViewed) return;
     // Don't hijack Space/Arrow while typing in an editable field (e.g. the
     // card-back annotation textarea) — let the caret move / space insert.
     const t = e.target;
@@ -482,19 +531,128 @@ function addSwipeSupport() {
   });
 }
 
-// Complete lesson
-async function completeLesson() {
-  // Hide cards and navigation
-  document.getElementById('cards-navigation').style.display = 'none';
-  cards.forEach(card => card.style.display = 'none');
+// --- Auto-play (item 9). The default comes from the level (on for A1-A2);
+// an explicit choice is remembered per browser: it is a sound preference,
+// not learning progress, so localStorage is the right home for it.
+const AUTOPLAY_STORAGE_KEY = 'llt.vocabAutoplay';
+let autoplayEnabled = lessonConfig.autoplayDefault;
 
-  // Show completion message
-  noCardsMessage.style.display = 'flex';
-  noCardsMessage.scrollIntoView({ behavior: 'smooth' });
-
-  // Save progress
+function readAutoplayChoice() {
   try {
-    const resp = await fetch('{{ url_for("curriculum_lessons.update_lesson_progress", lesson_id=lesson.id) }}', {
+    const v = window.localStorage.getItem(AUTOPLAY_STORAGE_KEY);
+    if (v === 'on') return true;
+    if (v === 'off') return false;
+  } catch (e) { /* storage blocked: keep the level default */ }
+  return null;
+}
+
+function initAutoplayToggle() {
+  const stored = readAutoplayChoice();
+  if (stored !== null) autoplayEnabled = stored;
+  const btn = document.getElementById('btn-autoplay');
+  if (!btn) return;
+  const render = () => {
+    btn.setAttribute('aria-pressed', autoplayEnabled ? 'true' : 'false');
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = autoplayEnabled ? 'fas fa-volume-up' : 'fas fa-volume-mute';
+  };
+  render();
+  btn.addEventListener('click', () => {
+    autoplayEnabled = !autoplayEnabled;
+    try { window.localStorage.setItem(AUTOPLAY_STORAGE_KEY, autoplayEnabled ? 'on' : 'off'); } catch (e) { /* ignore */ }
+    render();
+    if (autoplayEnabled) maybeAutoplay(cardsState.currentIndex);
+  });
+}
+
+function maybeAutoplay(index) {
+  if (!autoplayEnabled) return;
+  const card = cards[index];
+  const btn = card ? card.querySelector('.audio-btn-card') : null;
+  if (!btn || btn.disabled) return;
+  const src = btn.getAttribute('data-audio');
+  if (!src) return;
+  audioPlayer.src = src;
+  const played = audioPlayer.play();
+  if (played && typeof played.catch === 'function') {
+    played.catch((err) => {
+      // AbortError: the next card re-pointed the shared player. NotAllowedError:
+      // the browser wants a gesture first. Neither says anything about the clip.
+      if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;
+      markAudioUnavailable(btn);
+    });
+  }
+}
+
+// --- Mid-lesson snapshot (item 9): card position + presented cards, debounced,
+// so a learner who leaves at card 12 resumes at card 12 on any device. A
+// completed deck never snapshots (the server ignores a late one anyway).
+let snapshotTimer = null;
+
+function snapshotPayload() {
+  return {
+    status: 'in_progress',
+    data: {
+      card_index: cardsState.currentIndex,
+      presented: Array.from(cardsState.viewedCards).sort((a, b) => a - b),
+      total_cards: cardsState.totalCards
+    }
+  };
+}
+
+function cancelSnapshotSave() {
+  if (snapshotTimer) { clearTimeout(snapshotTimer); snapshotTimer = null; }
+}
+
+function queueSnapshotSave() {
+  if (cardsState.completed || cardsState.completing) return;
+  cancelSnapshotSave();
+  snapshotTimer = setTimeout(() => { snapshotTimer = null; sendSnapshot(false); }, 600);
+}
+
+function sendSnapshot(keepalive) {
+  if (cardsState.completed || cardsState.completing || cardsState.viewedCards.size === 0) return;
+  try {
+    fetch(lessonConfig.progressUrl, {
+      method: 'POST',
+      keepalive: !!keepalive,
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': lessonConfig.csrfToken },
+      body: JSON.stringify(snapshotPayload())
+    }).catch(() => { /* best effort */ });
+  } catch (e) { /* best effort */ }
+}
+
+function flushSnapshotOnLeave() {
+  if (!snapshotTimer) return;
+  cancelSnapshotSave();
+  sendSnapshot(true);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushSnapshotOnLeave();
+});
+window.addEventListener('pagehide', flushSnapshotOnLeave);
+
+function showCompletionBanner() {
+  if (!noCardsMessage) return;
+  noCardsMessage.hidden = false;
+  noCardsMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Complete lesson: explicit, on the learner's click; cards and navigation stay.
+async function completeLesson() {
+  if (cardsState.completing) return;
+  if (cardsState.completed) {
+    // Saved already (this visit or an earlier one): just show the way forward.
+    showCompletionBanner();
+    if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
+    return;
+  }
+  cardsState.completing = true;
+  cancelSnapshotSave();
+  updateUI();
+
+  try {
+    const resp = await fetch(lessonConfig.progressUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -504,8 +662,9 @@ async function completeLesson() {
         score: 100,
         status: 'completed',
         data: {
-          cards_viewed: cardsState.totalCards,
-          total_cards: cardsState.totalCards
+          cards_viewed: cardsState.viewedCards.size,
+          total_cards: cardsState.totalCards,
+          flipped_count: cardsState.flippedCards.size
         }
       })
     });
@@ -513,20 +672,21 @@ async function completeLesson() {
     if (!resp.ok) {
       throw new Error('Save failed: ' + resp.status);
     }
-
+    cardsState.completed = true;
+    showCompletionBanner();
     if (typeof showSaveToast === 'function') showSaveToast();
     if (typeof showLessonCompletion === 'function') showLessonCompletion({ score: 100 });
   } catch (error) {
     console.error('Error completing lesson:', error);
-    cardsState.allViewed = false;
-    noCardsMessage.style.display = 'none';
-    cards.forEach(card => { card.style.display = ''; });
-    document.getElementById('cards-navigation').style.display = '';
+    const msg = {{ _('Не удалось сохранить прогресс. Попробуйте ещё раз.')|tojson }};
     if (typeof showSaveError === 'function') {
-      showSaveError({{ _('Не удалось сохранить прогресс. Попробуйте ещё раз.')|tojson }});
+      showSaveError(msg);
     } else {
-      alert({{ _('Не удалось сохранить прогресс. Попробуйте ещё раз.')|tojson }});
+      alert(msg);
     }
+  } finally {
+    cardsState.completing = false;
+    updateUI();
   }
 }
 

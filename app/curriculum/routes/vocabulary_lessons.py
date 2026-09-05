@@ -78,6 +78,72 @@ def _load_annotations(user_id: int, word_ids: list[int]) -> dict[int, str]:
 # RENDER FUNCTIONS - called from main.py without redirects
 # =============================================================================
 
+# Lesson audit item 9 (2026-09-05): vocabulary deck UX. The Cyrillic
+# transliteration ("крос зэ рубикэн") is authored for every word; on B2+ it
+# only cements wrong phonetics, so it is shown by level: always on A0-A2,
+# on B1 only where the word has no IPA, never above. Auto-play of the word
+# clip defaults on for A1-A2; the learner's explicit choice lives in the browser.
+_TRANSLIT_ALWAYS_LEVELS = frozenset({'A0', 'A1', 'A2'})
+_TRANSLIT_FALLBACK_LEVELS = frozenset({'B1'})
+_AUTOPLAY_DEFAULT_LEVELS = frozenset({'A0', 'A1', 'A2'})
+
+
+def _vocab_level_code(lesson) -> str:
+    """CEFR code of the lesson's module ('' when the relationship is missing)."""
+    level = getattr(getattr(lesson, 'module', None), 'level', None)
+    return str(getattr(level, 'code', '') or '').upper()
+
+
+def _transliteration_mode(level_code: str) -> str:
+    """'always' (A0-A2 and unknown), 'fallback' (B1: only without IPA), 'never' (B2+)."""
+    code = (level_code or '').upper()
+    if not code or code in _TRANSLIT_ALWAYS_LEVELS:
+        return 'always'
+    if code in _TRANSLIT_FALLBACK_LEVELS:
+        return 'fallback'
+    return 'never'
+
+
+def _autoplay_default(level_code: str) -> bool:
+    return (level_code or '').upper() in _AUTOPLAY_DEFAULT_LEVELS
+
+
+def _is_index(value, total: int) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and 0 <= value < total
+
+
+def _vocabulary_resume_state(progress, total_cards: int) -> dict | None:
+    """Card position saved mid-lesson by the deck's snapshot; None when unusable.
+
+    Only in-progress rows resume (a completed deck opens from the first card),
+    indices outside the current deck are dropped, and a missing/invalid
+    ``card_index`` falls back to the last presented card.
+    """
+    if progress is None or getattr(progress, 'status', None) == 'completed':
+        return None
+    data = progress.data if isinstance(getattr(progress, 'data', None), dict) else {}
+    presented_raw = data.get('presented')
+    if not isinstance(presented_raw, list):
+        return None
+    presented = sorted({i for i in presented_raw if _is_index(i, total_cards)})
+    if not presented:
+        return None
+    index = data.get('card_index')
+    if not _is_index(index, total_cards):
+        index = presented[-1]
+    return {'index': index, 'presented': presented}
+
+
+def _vocabulary_display_context(lesson, progress, words: list) -> dict:
+    """Render-only extras for vocabulary.html shared by both vocabulary handlers."""
+    level_code = _vocab_level_code(lesson)
+    return {
+        'transliteration_mode': _transliteration_mode(level_code),
+        'autoplay_default': _autoplay_default(level_code),
+        'resume_state': _vocabulary_resume_state(progress, len(words)),
+    }
+
+
 def render_vocabulary_lesson(lesson):
     """Рендер vocabulary урока"""
     if lesson.type not in ['vocabulary', 'flashcards']:
@@ -240,6 +306,7 @@ def render_vocabulary_lesson(lesson):
     return render_template(
         'curriculum/lessons/vocabulary.html',
         lesson=lesson,
+        **_vocabulary_display_context(lesson, retry_display_progress(progress), words),
         words=words,
         progress=retry_display_progress(progress),
         next_lesson=next_lesson,
@@ -600,6 +667,7 @@ def vocabulary_lesson(lesson_id):
     return render_template(
         'curriculum/lessons/vocabulary.html',
         lesson=lesson,
+        **_vocabulary_display_context(lesson, retry_display_progress(progress), words),
         words=words,
         progress=retry_display_progress(progress),
         next_lesson=next_lesson,

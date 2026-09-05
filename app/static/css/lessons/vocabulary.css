@@ -143,3 +143,30 @@
   color: var(--color-text-secondary, #888);
   cursor: default;
 }
+
+/* Lesson audit item 9: auto-play toggle in the deck header */
+.cards-progress-header { text-align: center; }
+.vocab-autoplay-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 auto 0.75rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 999px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.vocab-autoplay-toggle[aria-pressed="true"] {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+/* «Завершить» on the last card */
+.nav-btn.btn-next--finish { background: #16a34a; }
+.nav-btn.btn-next--finish:hover:not(:disabled) { background: #15803d; }
+/* Completion banner sits under the navigation; the deck stays visible */
+.no-cards-message.vocab-complete-banner { height: auto; padding: 1.5rem 1rem; }
+.no-cards-message.vocab-complete-banner[hidden] { display: none; }

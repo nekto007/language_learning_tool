@@ -322,6 +322,9 @@ def update_lesson_progress(lesson_id):
         # For these types score must come from the submit endpoint, but status
         # can be set via the progress endpoint (e.g. theory-only auto-complete).
         _SCORE_STRIP_ONLY_TYPES = frozenset(('listening_immersion_quiz',))
+        # Decks that send mid-lesson position snapshots (status=in_progress +
+        # data); such a snapshot must never reopen a completed lesson.
+        _SNAPSHOT_NO_DOWNGRADE_TYPES = frozenset(('vocabulary', 'flashcards'))
         lesson_for_check = Lessons.query.get(lesson_id)
         # Exercise-backed grammar lessons are server-graded; treat them as such.
         # Theory-only grammar lessons (no exercises) still need to auto-complete
@@ -359,6 +362,19 @@ def update_lesson_progress(lesson_id):
                 lesson_id=lesson_id
             )
             db.session.add(progress)
+
+        # Lesson audit item 9: the vocabulary deck saves its card position while
+        # the learner works. The client stops once the deck is completed; this is
+        # the server-side backstop for a late or racing snapshot, which otherwise
+        # flipped a completed row back to in_progress and overwrote its data.
+        if (
+            lesson_for_check
+            and lesson_for_check.type in _SNAPSHOT_NO_DOWNGRADE_TYPES
+            and progress.status == 'completed'
+            and cleaned_data.get('status') == 'in_progress'
+        ):
+            cleaned_data.pop('status', None)
+            cleaned_data.pop('data', None)
 
         if 'status' in cleaned_data:
             progress.status = cleaned_data['status']
