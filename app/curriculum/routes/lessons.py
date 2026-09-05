@@ -2461,11 +2461,19 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
                 'attempts': int(count) + 1,
             })
     mistakes.sort(key=lambda m: m['index'])
-    missed_phrases = {m['phrase'] for m in mistakes}
-    first_try = max(0, total - len(mistakes))
+    missed_indices = {m['index'] for m in mistakes}
+    # A pair counts as first-try only when it is CORRECT in the final
+    # submission AND has no recorded miss. Counting misses alone let a crafted
+    # 5-of-6 POST clear the 70 % completion gate and still score 100 %
+    # (review of item 4).
+    pair_results = grade.get('pair_results') or []
+    first_try = 0
+    for idx, pair_result in enumerate(pair_results):
+        is_first_try = bool(pair_result.get('correct')) and idx not in missed_indices
+        pair_result['first_try'] = is_first_try
+        if is_first_try:
+            first_try += 1
     first_try_score = round(first_try / total * 100) if total else 0
-    for pair_result in grade.get('pair_results') or []:
-        pair_result['first_try'] = pair_result.get('phrase') not in missed_phrases
     grade = {
         **grade,
         'score': first_try_score,

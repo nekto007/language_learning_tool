@@ -251,3 +251,33 @@ class TestTemplateSource:
         assert "data-round=\"{{ round_of_phrase[loop.index0] }}\"" in src
         assert 'С первой попытки:' in src
         assert 'shuffled_pairs' in src  # global translation index is unchanged
+
+
+class TestCraftedPartialSubmitCannotScoreFull:
+    """Review of item 4 (Codex): 5 of 6 pairs clears the 70 % completion gate,
+    and first-try accuracy counted misses only — so the missing pair was
+    scored as a first-try success."""
+
+    def test_five_of_six_without_any_check_scores_83_not_100(self, app, db_session, _module, test_user, client):
+        lesson = _make_lesson(db_session, _module, 6)
+        _login(client, test_user)
+        client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
+        with patch('app.daily_plan.linear.xp.maybe_award_curriculum_xp', return_value=None) as xp:
+            resp = client.post(f'/curriculum/api/lesson/{lesson.id}/submit',
+                               json={'user_pairs': _pairs(5), 'lesson_type': 'collocation_matching'})
+        data = resp.get_json()
+        assert data['passed'] is True and data['matched_items'] == 5
+        assert data['first_try_items'] == 5 and data['score'] == 83
+        assert xp.call_args.kwargs['score'] == 83
+        assert data['pair_results'][5]['correct'] is False and data['pair_results'][5]['first_try'] is False
+
+    def test_wrong_final_pair_with_no_miss_is_not_first_try(self, app, db_session, _module, test_user, client):
+        lesson = _make_lesson(db_session, _module, 6)
+        _login(client, test_user)
+        client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
+        pairs = _pairs(6)
+        pairs[2]['translation'] = 'перевод 4'  # never checked, wrong in the final mapping
+        data = client.post(f'/curriculum/api/lesson/{lesson.id}/submit',
+                           json={'user_pairs': pairs, 'lesson_type': 'collocation_matching'}).get_json()
+        assert data['passed'] is True
+        assert data['first_try_items'] == 5 and data['score'] == 83
