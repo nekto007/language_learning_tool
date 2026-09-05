@@ -49,9 +49,16 @@ def upgrade():
     )
     op.create_index('ix_card_grade_events_user_graded', 'card_grade_events', ['user_id', 'graded_at'])
     op.create_index('ix_card_grade_events_direction', 'card_grade_events', ['direction_id'])
+    # Partial index for the retention metric: last N grades of REVIEW-state cards, newest first.
+    op.create_index(
+        'ix_card_grade_events_mature_recent', 'card_grade_events',
+        ['user_id', sa.text('graded_at DESC'), sa.text('id DESC')],
+        postgresql_where=sa.text("state_before = 'review'"),
+    )
 
 
 def downgrade():
+    op.drop_index('ix_card_grade_events_mature_recent', table_name='card_grade_events')
     op.drop_index('ix_card_grade_events_direction', table_name='card_grade_events')
     op.drop_index('ix_card_grade_events_user_graded', table_name='card_grade_events')
     op.drop_table('card_grade_events')

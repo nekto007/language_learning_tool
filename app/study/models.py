@@ -759,6 +759,13 @@ class CardGradeEvent(db.Model):
     __table_args__ = (
         Index('ix_card_grade_events_user_graded', 'user_id', 'graded_at'),
         Index('ix_card_grade_events_direction', 'direction_id'),
+        # The retention metric reads «last N grades of REVIEW-state cards, newest
+        # first»; a partial index keeps that a short index-only walk as the log grows.
+        Index(
+            'ix_card_grade_events_mature_recent',
+            'user_id', db.desc('graded_at'), db.desc('id'),
+            postgresql_where=db.text("state_before = 'review'"),
+        ),
     )
 
     @property
