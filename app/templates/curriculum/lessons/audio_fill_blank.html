@@ -23,8 +23,12 @@
 
   <div class="lesson-shell__body">
 
+    {% set afb_page_size = page_size if page_size else 5 %}
+    {% set afb_page_count = ((items|length) + afb_page_size - 1) // afb_page_size %}
     {% if audio_url %}
-    <article class="lesson-shell__card afb-master-audio" data-audio-state="loading">
+    {# The player sticks while the learner pages through the items: one
+       listening gate per lesson, replays voluntary (audit B9, round 4). #}
+    <article class="lesson-shell__card afb-master-audio{% if afb_page_count > 1 %} afb-master-audio--sticky{% endif %}" data-audio-state="loading">
       <h3 class="afb-master-audio__title">
         <i class="fas fa-headphones"></i>
         {{ _('Аудио к заданию') }}
@@ -58,12 +62,22 @@
     </div>
     {% endif %}
 
-    <div class="afb-items{% if audio_url %} afb-items--locked{% endif %}" id="afb-items">
+    <div class="afb-items{% if audio_url %} afb-items--locked{% endif %}" id="afb-items"
+         data-page-size="{{ afb_page_size }}" data-page-count="{{ afb_page_count }}">
     {# Захватываем индекс родительского цикла в локальную переменную —
        внутри вложенного {% for opt %} `loop.index0` означал бы индекс
        опции, а не урока, и onclick дёргал бы чужой item. #}
+    {# Items are grouped into pages of ``afb_page_size``; every item keeps its
+       GLOBAL index (``data-index``, ``afb-answer-<i>``) because the final
+       submit sends one ``answers`` list aligned with ``content.items``. #}
     {% for item in items %}
     {% set item_idx = loop.index0 %}
+    {% if item_idx % afb_page_size == 0 %}
+    {% if not loop.first %}</div>{% endif %}
+    <div class="afb-page" data-page="{{ item_idx // afb_page_size }}" role="group"
+         aria-label="{{ _('Страница') }} {{ item_idx // afb_page_size + 1 }} {{ _('из') }} {{ afb_page_count }}"
+         {% if item_idx > 0 %}hidden{% endif %}>
+    {% endif %}
     {# A6: no data-answer here — the answer is NOT shipped to the DOM. Per-item
        checking goes through POST /api/lesson/<id>/check-item, which returns the
        canonical answer only when the learner solved it or used the last try. #}
@@ -119,7 +133,22 @@
       <div class="afb-item__reveal" id="afb-reveal-{{ item_idx }}" role="note"></div>
     </article>
     {% endfor %}
+    {% if items %}</div>{% endif %}
     </div>
+
+    {% if afb_page_count > 1 %}
+    <nav class="afb-pager" id="afb-pager" aria-label="{{ _('Навигация по заданиям') }}">
+      <button type="button" class="btn btn-outline-secondary afb-pager__btn" id="afb-prev" disabled>
+        <span aria-hidden="true">&larr;</span> {{ _('Назад') }}
+      </button>
+      <span class="afb-pager__label" aria-live="polite">
+        {{ _('Страница') }} <span id="afb-page-num">1</span> {{ _('из') }} {{ afb_page_count }}
+      </span>
+      <button type="button" class="btn btn-primary afb-pager__btn" id="afb-next">
+        {{ _('Далее') }} <span aria-hidden="true">&rarr;</span>
+      </button>
+    </nav>
+    {% endif %}
 
   </div>
 
@@ -137,6 +166,64 @@
 <script nonce="{{ csp_nonce }}">
 const lessonId = {{ lesson.id }};
 const totalItems = {{ items | length }};
+const PAGE_SIZE = {{ afb_page_size }};
+const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+let currentPage = 0;
+
+// === Paging =============================================================
+// Pages are a VIEW over the same global item indices: itemState, attempts,
+// /check-item and the final submit all keep addressing items 0..N-1.
+function _pageResolved(n) {
+  const start = n * PAGE_SIZE;
+  const end = Math.min(totalItems, start + PAGE_SIZE);
+  for (let i = start; i < end; i++) {
+    if (itemState[i] === 'pending') return false;
+  }
+  return end > start;
+}
+
+function _refreshPager() {
+  const prev = document.getElementById('afb-prev');
+  const next = document.getElementById('afb-next');
+  if (!prev || !next) return;
+  prev.disabled = currentPage === 0;
+  const last = currentPage >= pageCount - 1;
+  next.disabled = last;
+  next.classList.toggle('afb-pager__btn--ready', !last && _pageResolved(currentPage));
+}
+
+function showPage(n) {
+  if (n < 0 || n >= pageCount) return;
+  currentPage = n;
+  document.querySelectorAll('.afb-page').forEach(function(page) {
+    page.hidden = Number(page.dataset.page) !== n;
+  });
+  const num = document.getElementById('afb-page-num');
+  if (num) num.textContent = String(n + 1);
+  _refreshPager();
+  const items = document.getElementById('afb-items');
+  if (items && typeof items.scrollIntoView === 'function') {
+    // base.html patches scrollIntoView for prefers-reduced-motion.
+    items.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  const page = document.querySelector('.afb-page[data-page="' + n + '"]');
+  const first = page && page.querySelector('.option-btn:not([disabled]), .afb-input:not([readonly])');
+  if (first && typeof first.focus === 'function') first.focus({ preventScroll: true });
+}
+
+function _showAllPages() {
+  document.querySelectorAll('.afb-page').forEach(function(page) { page.hidden = false; });
+  const pager = document.getElementById('afb-pager');
+  if (pager) pager.hidden = true;
+}
+
+document.addEventListener('DOMContentLoaded', function _wirePager() {
+  const prev = document.getElementById('afb-prev');
+  const next = document.getElementById('afb-next');
+  if (prev) prev.addEventListener('click', function() { showPage(currentPage - 1); });
+  if (next) next.addEventListener('click', function() { showPage(currentPage + 1); });
+  _refreshPager();
+});
 
 let replayCount = 0;
 let mainAudioHasPlayed = false;
@@ -479,6 +566,7 @@ function _updateProgress() {
     const bar = fill.parentElement;
     if (bar) bar.setAttribute('aria-valuenow', String(pct));
   }
+  _refreshPager();
   return { resolved: resolved, correct: correct };
 }
 
@@ -581,6 +669,7 @@ document.addEventListener('DOMContentLoaded', function _restoreCompleted() {
   const saved = {{ progress.data | tojson }};
   if (!saved || !Array.isArray(saved.item_results)) return;
   unlockAfbItems();  // снимаем lock — задания уже пройдены
+  _showAllPages();   // результаты всех страниц видны сразу
   _finalizing = true; // подавляем auto-resubmit от _maybeFinalize
   saved.item_results.forEach(function(res, idx) {
     if (idx >= totalItems) return;

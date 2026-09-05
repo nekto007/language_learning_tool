@@ -1119,6 +1119,35 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     return result
 
 
+AFB_PAGE_SIZE = 5
+
+
+def _afb_display_items(items: list) -> list[dict]:
+    """Return a render-only copy of the items with the answer options shuffled.
+
+    The source JSON lists the correct option first in every item (A9 of the
+    2026-09-05 lesson audit: 1 656/1 656), so the lesson could be passed by
+    always taking the first button. Options are reshuffled on EVERY render on
+    purpose — a stable order would let the learner memorise it across reloads.
+    The lesson row is never touched: ``lesson.content`` is a tracked JSON
+    column and shuffling in place would persist the new order on the next
+    commit. Grading (``/check-item`` and the final submit) compares option
+    text, so the order carries no meaning server-side.
+    """
+    display: list[dict] = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        copy = dict(item)
+        options = copy.get('options')
+        if isinstance(options, list) and len(options) > 1:
+            shuffled = list(options)
+            random.shuffle(shuffled)
+            copy['options'] = shuffled
+        display.append(copy)
+    return display
+
+
 @lessons_bp.route('/lesson/<int:lesson_id>/audio-fill-blank')
 @login_required
 @require_lesson_access
@@ -1131,7 +1160,7 @@ def audio_fill_blank_lesson(lesson_id: int):
 
     content = lesson.content or {}
     audio_url = content.get('audio_url', '')
-    items = content.get('items', [])
+    items = _afb_display_items(content.get('items', []))
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -1164,6 +1193,7 @@ def audio_fill_blank_lesson(lesson_id: int):
         progress=display_progress,
         audio_url=audio_url,
         items=items,
+        page_size=AFB_PAGE_SIZE,
         next_lesson=next_lesson,
         is_completed=is_completed,
     )

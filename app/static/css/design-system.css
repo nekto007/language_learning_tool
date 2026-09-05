@@ -13718,6 +13718,26 @@ button.nav-section-title {
     color: #d97706;
 }
 
+/* Paged items (lesson audit 2026-09-05, B9): pages of five under one sticky
+   master player — the listening gate stays one per lesson, replays are
+   voluntary. [hidden] pages are removed from flow, not just visually hidden,
+   so focus and Tab order follow the visible page. */
+.afb-master-audio--sticky {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 5;
+}
+.afb-page[hidden] { display: none !important; }
+.afb-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.afb-pager__label { font-size: 0.95rem; color: var(--text-muted, #6c757d); }
+.afb-pager__btn--ready { box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.35); }
+
 /* Live-feedback per item: появляется сразу после клика/blur, без ожидания
    глобальной проверки. */
 .afb-item__feedback {
