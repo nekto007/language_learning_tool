@@ -205,8 +205,13 @@ class TestBatch3StateAndA5Tail:
     def test_grammar_theory_checks_resp_ok(self):
         assert 'HTTP error! status:' in self._lsrc('grammar.html')
 
-    def test_final_test_resume_drops_current_answer(self):
-        assert 'this.state.answers[this.state.currentQuestion] = undefined;' in self._lsrc('final_test.html')
+    def test_final_test_resume_lands_on_first_unanswered(self):
+        """Lesson audit 2026-09-05 (B17): a reload after answering N resumes on
+        N+1 instead of wiping N and rolling the learner one question back."""
+        src = self._lsrc('final_test.html')
+        assert 'this.state.answers[this.state.currentQuestion] = undefined;' not in src
+        assert "if (!this.state.answers[i]) { firstOpen = i; break; }" in src
+        assert 'this.state.correctCount = this.state.answers.filter(a => a && a.correct).length;' in src
 
     def test_text_restore_single_source(self):
         s = self._lsrc('text.html')

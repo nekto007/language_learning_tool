@@ -514,3 +514,38 @@
     font-size: 1.5rem;
   }
 }
+
+/* Section dividers + verdict-only mid-test feedback (lesson audit 2026-09-05, B17). */
+.final-test-section-divider {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.9rem;
+  border-left: 3px solid var(--primary-500, #4f46e5);
+  background: var(--bg-secondary, #f8f9fa);
+  border-radius: 8px;
+}
+.final-test-section-divider__kicker {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #6b7280);
+}
+.final-test-section-divider__title { font-weight: 600; }
+.final-test-section-divider__count {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.final-test-section-label {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #6b7280);
+}
+.question-feedback .feedback-deferred {
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #6b7280);
+}

@@ -1,7 +1,9 @@
 import html
 import json
 import logging
+from collections import Counter
 import random
+import re
 from datetime import UTC, datetime
 
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
@@ -180,6 +182,113 @@ def _filter_final_test_questions_for_student(
             dropped, lesson_id,
         )
     return filtered
+
+
+def _shuffle_question_options(question: dict) -> None:
+    """Shuffle a question's options on a RENDER copy, keeping the answer intact.
+
+    Final-test content lists the correct option first in 48-70 % of questions
+    and the template rendered options in source order (lesson audit
+    2026-09-05, A9). Grading compares option TEXT, so a text ``correct`` needs
+    no remap; a positional ``correct``/``correct_index`` is remapped to the new
+    position so the client-side verdict stays right. Reshuffled on every
+    render on purpose — a stable order could be memorised across the three
+    attempts.
+    """
+    options = question.get('options')
+    if not isinstance(options, list) or len(options) < 2:
+        return
+    perm = list(range(len(options)))
+    random.shuffle(perm)
+    new_pos = {old: new for new, old in enumerate(perm)}
+    for key in ('correct', 'correct_index'):
+        value = question.get(key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int) and 0 <= value < len(options):
+            question[key] = new_pos[value]
+        elif (
+            isinstance(value, str) and value.isdigit()
+            and int(value) < len(options) and value not in options
+        ):
+            question[key] = str(new_pos[int(value)])
+    question['options'] = [options[i] for i in perm]
+
+
+_SECTION_TITLE_RE = re.compile(r'^\s*Раздел\s+\d+', re.IGNORECASE)
+
+
+def _final_test_display_questions(
+    cleaned_content: dict,
+    *,
+    lesson_id: int,
+) -> tuple[list[dict], list[dict]]:
+    """Flatten ``test_sections`` into render copies and return (questions, sections).
+
+    Every question copy carries its section (``section_index``,
+    ``section_position`` among non-empty sections, ``section_label``,
+    ``section_count``, ``section_start`` on the first question of a section)
+    so the template can show a divider when the section changes — the old
+    flatten dropped the boundaries and the learner jumped from vocabulary to
+    listening without notice (audit B17). Options are shuffled per question
+    and a matching question gets ``right_order``, a permutation of pair
+    indices for its right column (the template used to merely REVERSE it).
+    ``lesson.content`` is never touched: the validator hands over loaded
+    copies and this builds ``dict`` copies on top of them.
+    """
+    sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
+    questions: list[dict] = []
+    sections_meta: list[dict] = []
+    if sections_list:
+        for s_idx, section in enumerate(sections_list):
+            raw_title = str(section.get('title') or section.get('section') or '').strip()
+            if _SECTION_TITLE_RE.match(raw_title):
+                label = raw_title
+            elif raw_title:
+                label = f'Раздел {s_idx + 1}: {raw_title}'
+            else:
+                label = f'Раздел {s_idx + 1}'
+            for question in section.get('exercises') or section.get('questions') or []:
+                copy = dict(question)
+                copy['section_index'] = s_idx
+                copy['section_label'] = label
+                questions.append(copy)
+            sections_meta.append({'index': s_idx, 'label': label, 'count': 0})
+    else:
+        questions_field = 'exercises' if 'exercises' in cleaned_content else 'questions'
+        questions = [dict(q) for q in (cleaned_content.get(questions_field) or [])]
+
+    questions = _filter_final_test_questions_for_student(questions, lesson_id=lesson_id)
+
+    if sections_meta:
+        counts = Counter(q.get('section_index') for q in questions)
+        sections_meta = [
+            {**meta, 'count': counts.get(meta['index'], 0)}
+            for meta in sections_meta if counts.get(meta['index'], 0) > 0
+        ]
+        position = {meta['index']: pos for pos, meta in enumerate(sections_meta, start=1)}
+        for pos, meta in enumerate(sections_meta, start=1):
+            meta['position'] = pos
+    else:
+        position = {}
+
+    seen: set[int] = set()
+    for question in questions:
+        _shuffle_question_options(question)
+        pairs = question.get('pairs')
+        if question.get('type') == 'matching' and isinstance(pairs, list) and len(pairs) > 1:
+            order = list(range(len(pairs)))
+            random.shuffle(order)
+            question['right_order'] = order
+        s_idx = question.get('section_index')
+        if s_idx is not None:
+            question['section_position'] = position.get(s_idx)
+            question['section_count'] = next(
+                (m['count'] for m in sections_meta if m['index'] == s_idx), 0,
+            )
+            question['section_start'] = s_idx not in seen
+            seen.add(s_idx)
+    return questions, sections_meta
 
 
 def _submission_passed(
@@ -756,15 +865,8 @@ def render_final_test_lesson(lesson):
 
     next_lesson = get_next_lesson(lesson.id)
 
-    sections_list = cleaned_content.get('test_sections') or cleaned_content.get('sections') or []
-    if sections_list:
-        questions = []
-        for section in sections_list:
-            questions.extend(section.get('exercises') or section.get('questions') or [])
-    else:
-        questions = cleaned_content.get('exercises', cleaned_content.get('questions', []))
-    questions = _filter_final_test_questions_for_student(
-        questions, lesson_id=lesson.id,
+    questions, sections_meta = _final_test_display_questions(
+        cleaned_content, lesson_id=lesson.id,
     )
 
     return render_template(
@@ -772,6 +874,7 @@ def render_final_test_lesson(lesson):
         lesson=lesson,
         questions=questions,
         exercises=questions,
+        sections=sections_meta,
         settings=cleaned_content,
         progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson,

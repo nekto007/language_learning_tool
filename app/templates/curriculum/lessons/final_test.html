@@ -6,7 +6,7 @@
 {% set show_score = true %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/final_test.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/final_test.css') }}?v=2">
 {% endblock %}
 
 {% block lesson_content %}
@@ -56,7 +56,7 @@
       <!-- Предупреждение -->
       <div class="checkpoint-warning">
         <i class="fas fa-exclamation-triangle"></i>
-        <p>{{ _('Вы увидите результаты после прохождения всех вопросов. Отвечайте внимательно!') }}</p>
+        <p>{{ _('После каждого ответа вы увидите, верен ли он. Правильные ответы и объяснения — на экране результатов.') }}</p>
       </div>
 
       <button type="button" id="start-final-test-btn"{% if not exercises or exercises|length == 0 %} disabled aria-disabled="true"{% endif %}>
@@ -71,6 +71,7 @@
     <div class="final-test-progress-section mb-4">
       <div class="progress-info">
         <span>{{ _('Вопрос') }} <span id="current-num">1</span> {{ _('из') }} {{ exercises|length }}</span>
+        <span class="final-test-section-label" id="current-section" hidden></span>
       </div>
       <div class="final-test-progress-bar">
         <div class="final-test-progress-fill" id="test-progress-bar" style="width: 0%"></div>
@@ -89,7 +90,18 @@
     <div class="questions-container">
       {% for question in exercises %}
         {% set question_index = loop.index0 %}
-        <div class="question-card" id="question-{{ question_index }}" style="display: none;" data-index="{{ question_index }}">
+        <div class="question-card" id="question-{{ question_index }}" style="display: none;" data-index="{{ question_index }}"
+             data-section-label="{{ question.section_label or '' }}"
+             data-section-position="{{ question.section_position or '' }}">
+          {% if question.section_start %}
+          {# Section divider: the route flattens test_sections for the one-at-a-time
+             flow, so the boundary is announced on the section's first question. #}
+          <div class="final-test-section-divider" role="heading" aria-level="3">
+            <span class="final-test-section-divider__kicker">{{ _('Раздел') }} {{ question.section_position }} {{ _('из') }} {{ sections|default([])|length }}</span>
+            <span class="final-test-section-divider__title">{{ question.section_label }}</span>
+            <span class="final-test-section-divider__count">{{ question.section_count }} {{ _('вопр.') }}</span>
+          </div>
+          {% endif %}
           {% set full_question = question.question or question.prompt or question.statement or question.sentence or question.russian or question.dialogue or '' %}
 
           {# Check if it's a dialogue question (contains A: and B:) #}
@@ -280,16 +292,20 @@
 
                 <!-- Right column (Russian) - shuffled -->
                 <div class="matching-right-column" id="matching-right-{{ question_index }}">
-                  {% set shuffled_pairs = question.pairs|list %}
-                  {# Simple shuffle: reverse for now, in real app would use random #}
-                  {% for pair in shuffled_pairs|reverse %}
+                  {# The route shuffles the right column (``right_order`` is a permutation
+                     of pair indices); the template used to only REVERSE it, so the last
+                     pair always came first (lesson audit 2026-09-05, B17). ``data-pair-id``
+                     stays the ORIGINAL pair index — the match check compares ids. #}
+                  {% set _right_order = question.right_order or (range(question.pairs|length)|list|reverse) %}
+                  {% for pair_id in _right_order %}
+                    {% set pair = question.pairs[pair_id] %}
                     <button type="button"
                             class="final-test-matching-btn right-word"
                             aria-pressed="false"
                             data-question="{{ question_index }}"
-                            data-pair-id="{{ (question.pairs|length - loop.index) }}"
+                            data-pair-id="{{ pair_id }}"
                             data-word="{{ pair.russian or pair.right }}"
-                            onclick="selectRightWord({{ question_index }}, {{ (question.pairs|length - loop.index) }}, this)">
+                            onclick="selectRightWord({{ question_index }}, {{ pair_id }}, this)">
                       {{ pair.russian or pair.right }}
                     </button>
                   {% endfor %}
@@ -464,7 +480,7 @@ function submitReorderAnswer(questionIndex) {
   const submitBtn = document.querySelector(`.reorder-submit-btn[data-question="${questionIndex}"]`);
   submitBtn.disabled = true;
 
-  FinalTestApp.showFeedback(questionIndex, isCorrect, correctAnswer);
+  FinalTestApp.showFeedback(questionIndex, isCorrect);
 
   // Save progress immediately after answering
   FinalTestApp.saveProgress();
@@ -606,7 +622,7 @@ function submitMatchingAnswer(questionIndex) {
   const submitBtn = document.getElementById(`matching-submit-${questionIndex}`);
   submitBtn.disabled = true;
 
-  FinalTestApp.showFeedback(questionIndex, isCorrect, null);
+  FinalTestApp.showFeedback(questionIndex, isCorrect);
 
   // Save progress immediately after answering
   FinalTestApp.saveProgress();
@@ -681,31 +697,23 @@ window.FinalTestApp = {
     // the last real question so they can re-submit.
     {% if progress and progress.data and progress.status != 'completed' %}
       const savedData = {{ progress.data|tojson|safe }};
-      if (savedData.current_question !== undefined) {
+      if (savedData && (savedData.current_question !== undefined || Array.isArray(savedData.answers))) {
         const total = Number(window.finalTestData.totalQuestions || 0);
         const maxIdx = Math.max(0, total - 1);
-        const raw = Number(savedData.current_question);
-        this.state.currentQuestion = Math.max(
-          0, Math.min(Number.isFinite(raw) ? raw : 0, maxIdx)
-        );
-        this.state.answers = savedData.answers || [];
-        this.state.correctCount = savedData.correct_answers || 0;
-        // showQuestion() unconditionally clears the current card's DOM
-        // (inputs/buttons/feedback), so any restored answer for the
-        // current question is wiped from screen while still living in
-        // state.answers. That desync makes the user re-answer a question
-        // that already counted: correctCount was restored WITH it, and
-        // re-answering increments again (double-count) or advancing
-        // re-submits the stale value. Drop the current question's saved
-        // answer so DOM and state agree; decrement correctCount if it was
-        // a correct one so the restored tally stays consistent.
-        const restored = this.state.answers[this.state.currentQuestion];
-        if (restored) {
-          if (restored.correct) {
-            this.state.correctCount = Math.max(0, this.state.correctCount - 1);
-          }
-          this.state.answers[this.state.currentQuestion] = undefined;
+        this.state.answers = Array.isArray(savedData.answers) ? savedData.answers.slice(0, total) : [];
+        // Resume at the first UNANSWERED question: an answer is saved the
+        // moment it is given, so a reload right after answering N lands on
+        // N+1 instead of wiping N and rolling the learner one question back
+        // (lesson audit 2026-09-05, B17). When everything is answered, stay on
+        // the last question in its answered state so «Показать результаты»
+        // stays reachable. The tally is recomputed from the answers, never
+        // trusted from the snapshot, so it cannot drift from the screen.
+        let firstOpen = -1;
+        for (let i = 0; i < total; i++) {
+          if (!this.state.answers[i]) { firstOpen = i; break; }
         }
+        this.state.currentQuestion = firstOpen === -1 ? maxIdx : firstOpen;
+        this.state.correctCount = this.state.answers.filter(a => a && a.correct).length;
       }
     {% endif %}
 
@@ -735,8 +743,30 @@ window.FinalTestApp = {
       if (feedbackElement) {
         feedbackElement.style.display = 'none';
       }
+      const saved = this.state.answers[index];
+      if (saved) {
+        // Already answered (resumed on the last question): keep the card
+        // locked and show the verdict so the next-step button stays usable
+        // without re-answering — re-answering would count twice.
+        currentCard.querySelectorAll('button, input, textarea, select').forEach(el => { el.disabled = true; });
+        this.showFeedback(index, !!saved.correct);
+        const nextBtn = currentCard.querySelector('.quiz-next-btn-full');
+        if (nextBtn) nextBtn.disabled = false;
+      }
+      this._updateSectionLabel(currentCard);
       this.updateProgress();
     }
+  },
+
+  _updateSectionLabel(card) {
+    const el = document.getElementById('current-section');
+    if (!el) return;
+    const label = card ? (card.dataset.sectionLabel || '') : '';
+    const pos = card ? (card.dataset.sectionPosition || '') : '';
+    const total = {{ sections|default([])|length }};
+    if (!label) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = (pos && total ? '{{ _("Раздел") }} ' + pos + ' {{ _("из") }} ' + total + ' · ' : '') + label;
   },
 
   selectAnswer(button) {
@@ -786,22 +816,10 @@ window.FinalTestApp = {
       isCorrect = parseInt(value) === correctAnswer;
     }
 
-    button.classList.add('selected');
-    if (isCorrect) {
-      button.classList.add('correct');
-    } else {
-      button.classList.add('incorrect');
-
-      const normalize = (str) => str ? str.toLowerCase().trim() : '';
-      const correctIndex = typeof correctAnswer === 'string' && !correctAnswer.match(/^\d+$/)
-        ? question.options.findIndex(opt => normalize(opt) === normalize(correctAnswer))
-        : (typeof correctAnswer === 'string' ? parseInt(correctAnswer) : correctAnswer);
-
-      const correctButton = button.closest('.answer-options').querySelector(`.answer-option[data-value="${correctIndex}"]`);
-      if (correctButton) {
-        correctButton.classList.add('correct');
-      }
-    }
+    // Verdict only: the right option is NOT highlighted mid-test — correct
+    // answers and explanations live on the results page, otherwise three
+    // attempts a day hand out every answer (lesson audit 2026-09-05, D-1).
+    button.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
 
     // Save answer TEXT, not index (for questions with options)
     this.state.answers[questionIndex] = {
@@ -814,7 +832,7 @@ window.FinalTestApp = {
       this.state.correctCount++;
     }
 
-    this.showFeedback(questionIndex, isCorrect, correctAnswer);
+    this.showFeedback(questionIndex, isCorrect);
 
     // Save progress immediately after answering
     this.saveProgress();
@@ -868,7 +886,7 @@ window.FinalTestApp = {
       this.state.correctCount++;
     }
 
-    this.showFeedback(questionIndex, isCorrect, correctAnswer);
+    this.showFeedback(questionIndex, isCorrect);
 
     // Save progress immediately after answering
     this.saveProgress();
@@ -926,69 +944,33 @@ window.FinalTestApp = {
     }, 1000); // Wait 1 second before saving
   },
 
-  showFeedback(questionIndex, isCorrect, correctAnswer) {
+  showFeedback(questionIndex, isCorrect) {
     const feedbackEl = document.getElementById(`feedback-${questionIndex}`);
     const iconEl = feedbackEl.querySelector('.feedback-icon');
     const textEl = feedbackEl.querySelector('.feedback-text');
     const question = window.finalTestData.questions[questionIndex];
     const userAnswer = this.state.answers[questionIndex];
 
+    function esc(s) { var d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+
     if (isCorrect) {
       feedbackEl.className = 'question-feedback correct';
       iconEl.innerHTML = '<i class="fas fa-check-circle"></i>';
       textEl.innerHTML = '<strong>{{ _("Правильно!") }}</strong>';
     } else {
+      // Verdict only (audit D-1): the correct answer and the explanation are
+      // shown on the results page, not mid-test. This also retires the
+      // «Ответ не указан» fallback that listening_choice (correct index 0) and
+      // matching (null) used to hit (D-2, D-3).
       feedbackEl.className = 'question-feedback incorrect';
       iconEl.innerHTML = '<i class="fas fa-times-circle"></i>';
-
-      let correctText = '';
-      let userText = userAnswer ? userAnswer.text : '';
-
-      if ((question.type === 'multiple_choice' || question.type === 'reading_comprehension' || question.type === 'dialogue_completion' || question.type === 'fill_in_blank' || question.type === 'fill_blank') && question.options) {
-        if (typeof correctAnswer === 'number' && correctAnswer >= 0 && correctAnswer < question.options.length) {
-          correctText = question.options[correctAnswer];
-        } else if (typeof correctAnswer === 'string' && correctAnswer.match(/^\d+$/)) {
-          const index = parseInt(correctAnswer);
-          if (index >= 0 && index < question.options.length) {
-            correctText = question.options[index];
-          } else if (index >= 1 && index <= question.options.length) {
-            correctText = question.options[index - 1];  // 1-indexed fallback
-          } else {
-            correctText = correctAnswer;
-          }
-        } else {
-          correctText = correctAnswer;
-        }
-      } else if (question.type === 'true_false') {
-        if (typeof correctAnswer === 'boolean') {
-          correctText = correctAnswer ? '{{ _("Верно") }}' : '{{ _("Неверно") }}';
-        } else if (typeof correctAnswer === 'string') {
-          correctText = (correctAnswer === 'true' || correctAnswer === true) ? '{{ _("Верно") }}' : '{{ _("Неверно") }}';
-        } else {
-          correctText = correctAnswer ? '{{ _("Верно") }}' : '{{ _("Неверно") }}';
-        }
-      } else {
-        if (Array.isArray(correctAnswer)) {
-          correctText = correctAnswer.join(' / ');
-        } else {
-          correctText = correctAnswer || '{{ _("Ответ не указан") }}';
-        }
-      }
-
-      function esc(s) { var d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
-
-      textEl.innerHTML = `<strong>{{ _("Неправильно") }}</strong><br>`;
-
-      const hideUserAnswer = ['reorder'].includes(question.type);
-
+      const hideUserAnswer = ['reorder', 'ordering', 'matching'].includes(question.type);
+      const userText = userAnswer ? userAnswer.text : '';
+      textEl.innerHTML = '<strong>{{ _("Неправильно") }}</strong>';
       if (userText && !hideUserAnswer) {
-        textEl.innerHTML += `{{ _("Ваш ответ:") }} <strong>${esc(userText)}</strong><br>`;
+        textEl.innerHTML += `<br>{{ _("Ваш ответ:") }} <strong>${esc(userText)}</strong>`;
       }
-      textEl.innerHTML += `{{ _("Правильный ответ:") }} <strong>${esc(correctText)}</strong>`;
-
-      if (question.explanation) {
-        textEl.innerHTML += `<br><br><strong>{{ _("Объяснение:") }}</strong> ${esc(question.explanation)}`;
-      }
+      textEl.innerHTML += '<br><span class="feedback-deferred">{{ _("Правильный ответ и объяснение — на экране результатов.") }}</span>';
     }
 
     const isLastQuestion = questionIndex >= window.finalTestData.totalQuestions - 1;
