@@ -70,6 +70,33 @@ class TestContractions:
         )
         assert ft['feedback']['0']['status'] == 'correct'
 
+    def test_possessive_s_does_not_alias_is_in_translation_or_final_test(self):
+        """A noun possessive is not a contraction merely because ``'s`` fits."""
+        user = "Google's history"
+        canonical = 'Google is history.'
+        assert not _strict_text_match(user, [canonical])
+        standalone = grade_translation_multi(
+            [user], [{'english': canonical, 'alternatives': []}]
+        )
+        assert standalone['correct_items'] == 0
+        final_test = process_quiz_submission(
+            [{'type': 'translation', 'question': 'Переведите', 'correct': canonical}],
+            {'0': user},
+        )
+        assert final_test['feedback']['0']['status'] == 'incorrect'
+
+    def test_each_ambiguous_contraction_expands_independently(self):
+        assert _strict_text_match(
+            "He'd said she'd leave.",
+            ['He had said she would leave.'],
+        )
+
+    def test_s_also_has_the_has_reading(self):
+        assert _strict_text_match(
+            "She's finished her work.",
+            ['She has finished her work.'],
+        )
+
 
 class TestKeyHintWords:
 
@@ -92,8 +119,11 @@ class TestKeyHintWords:
 
     def test_short_a1_answer_is_not_handed_out_whole(self):
         picked = _translation_key_hint_words(['Hello!', 'Nice', 'to', 'meet', 'you.'], 'Hello! Nice to meet you.')
-        assert 1 <= len(picked) <= 3
+        assert picked == ['Hello', 'Nice', 'meet']
         assert 'you' not in picked and 'to' not in picked
+
+    def test_one_word_answer_has_no_answer_shaped_hint(self):
+        assert _translation_key_hint_words(['Hello!'], 'Hello!') == []
 
 
 @pytest.fixture()
@@ -121,6 +151,59 @@ def _items(n: int) -> list[dict]:
          'alternatives': []}
         for i in range(n)
     ]
+
+
+def _translation_lesson(db_session, module, english: str) -> Lessons:
+    lesson = Lessons(
+        module_id=module.id,
+        number=1,
+        title='TR check-item',
+        type='translation',
+        content={
+            'items': [{
+                'russian': 'Он врач.',
+                'english': english,
+                'hint_words': [],
+                'alternatives': [],
+            }],
+        },
+    )
+    db_session.add(lesson)
+    db_session.commit()
+    return lesson
+
+
+class TestCheckItemReveal:
+
+    def test_contractions_do_not_change_final_reveal_contract(
+        self, app, db_session, _module, test_user, client
+    ):
+        canonical = 'He is a doctor.'
+        lesson = _translation_lesson(db_session, _module, canonical)
+        _login(client, test_user)
+        url = f'/curriculum/api/lesson/{lesson.id}/check-item'
+
+        correct = client.post(
+            url, json={'index': 0, 'answer': "He's a doctor", 'final': False}
+        )
+        assert correct.status_code == 200
+        assert correct.get_json() == {
+            'success': True, 'correct': True, 'answer': canonical,
+        }
+
+        pending = client.post(
+            url, json={'index': 0, 'answer': 'He was a doctor', 'final': False}
+        )
+        assert pending.status_code == 200
+        assert pending.get_json() == {'success': True, 'correct': False}
+
+        revealed = client.post(
+            url, json={'index': 0, 'answer': 'He was a doctor', 'final': True}
+        )
+        assert revealed.status_code == 200
+        assert revealed.get_json() == {
+            'success': True, 'correct': False, 'answer': canonical,
+        }
 
 
 class TestRender:
