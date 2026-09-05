@@ -643,7 +643,7 @@ def update_study_item():
     # let quality=0 be graded as a failure but re-queued as a success.
     rating = quality_to_rating(quality)
 
-    interval = direction.update_after_review(quality)
+    interval = direction.update_after_review(quality, context='study', session_id=session_id)
 
     if session_id:
         session = StudySession.query.get(session_id)

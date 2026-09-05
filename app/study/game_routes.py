@@ -914,7 +914,7 @@ def _grade_quiz_answer(word_id, direction_str, is_correct: bool) -> bool:
             if direction is None:
                 return False
 
-        direction.update_after_review(RATING_KNOW if is_correct else RATING_DONT_KNOW)
+        direction.update_after_review(RATING_KNOW if is_correct else RATING_DONT_KNOW, context='game')
         db.session.commit()
         return True
     except Exception:
@@ -1146,7 +1146,7 @@ def complete_matching_game():
                                 continue
                             remaining_new -= 1
 
-                        direction.update_after_review(quality)
+                        direction.update_after_review(quality, context='game')
 
             except (IntegrityError, OperationalError) as e:
                 srs_errors.append(f'word_id={word_id}: {e}')

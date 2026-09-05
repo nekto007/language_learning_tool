@@ -468,7 +468,7 @@ class BookSRSIntegration:
                 return {'success': False, 'error': 'Card not found or access denied'}
 
             # Обновляем карточку согласно алгоритму SM-2
-            card.update_after_review(grade)
+            card.update_after_review(grade, context='book')
 
             # Логируем review
             self._log_card_review(card, grade, session_key)

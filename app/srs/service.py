@@ -47,6 +47,7 @@ from app.srs.constants import (
     REQUEUE_RANGE_STEP_1,
     CardState,
 )
+from app.srs.grade_log import CardSnapshot, record_grade_event
 from app.srs.scheduling import apply_review_schedule
 from app.srs.difficulty import miss_penalty, update_recovery_state
 from app.study.models import UserCardDirection, UserWord
@@ -511,6 +512,7 @@ class UnifiedSRSService:
 
             # Capture first-review flag before state changes
             is_first_review = card.first_reviewed is None
+            before = CardSnapshot.of(card)  # item 11: the grade log keeps the pre-answer state
 
             # Calculate new parameters using state machine
             update_result = self.calculate_sm2_update(
@@ -558,6 +560,7 @@ class UnifiedSRSService:
 
             # Increment session_attempts
             card.session_attempts = (card.session_attempts or 0) + 1
+            record_grade_event(card, rating=rating, before=before, user_id=user_id, context='srs_api')
 
             # Increment total_cards_reviewed in UserStatistics (best-effort)
             try:

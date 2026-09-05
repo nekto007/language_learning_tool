@@ -356,7 +356,7 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
         # rest (which keys off difficulty_score) could never fire here.
         # update_after_review also owns session_attempts, incorrect_count and
         # the day-anchored last_reviewed, so they are not written by hand.
-        card_direction.update_after_review(0)
+        card_direction.update_after_review(0, context='lesson')
 
         # Обновляем статистику урока
         progress.data['total_answers'] = progress.data.get('total_answers', 0) + 1
@@ -432,7 +432,7 @@ def process_card_review_for_lesson(lesson_id, user_id, word_id, direction, ratin
     # ВАЖНО: старую логику shown_card_ids больше не используем, так как теперь используем studied_cards
 
     # Обновляем SRS параметры с учетом эффективной оценки
-    interval = card_direction.update_after_review(effective_rating)
+    interval = card_direction.update_after_review(effective_rating, context='lesson')
 
 
     # Сбрасываем счетчик попыток текущей сессии после успешного ответа

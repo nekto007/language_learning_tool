@@ -256,7 +256,7 @@ class SRSService:
 
             # Update card based on review
             old_interval = card_dir.interval
-            new_interval = card_dir.update_after_review(quality)
+            new_interval = card_dir.update_after_review(quality, context='curriculum_srs')
 
             # Note: session_attempts is already incremented inside update_after_review()
 

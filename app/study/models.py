@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import Index, func
@@ -9,6 +9,7 @@ from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS
 from app.srs.constants import (
     DIRECTION_ENG_RUS,
     DIRECTION_RUS_ENG,
+    RATING_DOUBT,
     STATUS_LEARNING,
     STATUS_NEW,
     STATUS_REVIEW,
@@ -564,7 +565,7 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         from app.srs.constants import LEECH_THRESHOLD
         return (self.lapses or 0) >= LEECH_THRESHOLD
 
-    def update_after_review(self, quality):
+    def update_after_review(self, quality, *, context: str | None = None, session_id=None):
         """
         Update SRS parameters after review using Anki-like state machine.
 
@@ -586,11 +587,13 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             quality_to_rating,
         )
         from app.srs.difficulty import update_recovery_state
+        from app.srs.grade_log import CardSnapshot, record_grade_event
         from app.srs.scheduling import apply_review_schedule
         from app.srs.service import UnifiedSRSService
 
         # Map to unified 1-2-3 scale for legacy compatibility
         rating = quality_to_rating(quality)
+        before = CardSnapshot.of(self)  # item 11: the grade log keeps the pre-answer state
 
         # Update correct/incorrect count
         if rating >= RATING_DOUBT:
@@ -647,6 +650,10 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
         )
 
         # Update the parent UserWord status if needed
+        record_grade_event(
+            self, rating=rating, before=before, user_id=user_id,
+            context=context, session_id=session_id,
+        )
         self.update_user_word_status()
 
         # Increment total_cards_reviewed in UserStatistics (best-effort)
@@ -704,6 +711,63 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
 
         delta = next_review_aware - datetime.now(timezone.utc)
         return max(0, delta.days)
+
+
+class CardGradeEvent(db.Model):
+    """One row per grade of one card direction (lesson audit item 11, 2026-09-06).
+
+    The adaptive SRS tier used to infer «recent accuracy» from the lifetime
+    ``correct_count`` / ``incorrect_count`` of the recently touched cards, so a
+    learner coming back to an old deck stayed in ``collapse`` on years-old
+    misses and the review budget shrank to the 5-card floor. This log keeps
+    every grade together with the card state *before* the answer, so
+    retention is measured on genuine mature reviews and nothing else.
+
+    Appended by both grading surfaces (``UnifiedSRSService.grade_card`` and
+    ``UserCardDirection.update_after_review``) through
+    :func:`app.srs.grade_log.record_grade_event`. Flush-only; the caller
+    commits together with the grade itself, so a rolled-back grade leaves no
+    orphan event. Append-only: rows are never updated.
+    """
+    __tablename__ = 'card_grade_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    direction_id = db.Column(
+        db.Integer, db.ForeignKey('user_card_directions.id', ondelete='CASCADE'), nullable=False
+    )
+    word_id = db.Column(db.Integer, nullable=True)  # denormalised for analytics; no FK on purpose
+    rating = db.Column(db.SmallInteger, nullable=False)  # 1 don't know · 2 doubt · 3 know
+    state_before = db.Column(db.String(16), nullable=False)
+    step_before = db.Column(db.SmallInteger, nullable=False, default=0)
+    interval_before = db.Column(db.Integer, nullable=False, default=0)
+    ease_before = db.Column(db.Float, nullable=True)
+    lapses_before = db.Column(db.Integer, nullable=False, default=0)
+    state_after = db.Column(db.String(16), nullable=False)
+    interval_after = db.Column(db.Integer, nullable=False, default=0)
+    ease_after = db.Column(db.Float, nullable=True)
+    is_first_review = db.Column(db.Boolean, nullable=False, default=False)
+    context = db.Column(db.String(32), nullable=True)  # study / lesson / game / book / srs_api …
+    session_id = db.Column(
+        db.Integer, db.ForeignKey('study_sessions.id', ondelete='SET NULL'), nullable=True
+    )
+    graded_at = db.Column(
+        db.DateTime, nullable=False,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None),  # naive UTC, like the SRS columns
+    )
+
+    __table_args__ = (
+        Index('ix_card_grade_events_user_graded', 'user_id', 'graded_at'),
+        Index('ix_card_grade_events_direction', 'direction_id'),
+    )
+
+    @property
+    def is_correct(self) -> bool:
+        """«Сомневаюсь» counts as recalled, the same rule as the lifetime counters."""
+        return (self.rating or 0) >= RATING_DOUBT
+
+    def __repr__(self) -> str:
+        return f'<CardGradeEvent user={self.user_id} dir={self.direction_id} {self.state_before}->{self.state_after} r={self.rating}>'
 
 
 class QuizDeck(db.Model):

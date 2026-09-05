@@ -253,19 +253,30 @@ class SRSService:
 
     @staticmethod
     def _accuracy_on_recent_reviews(user_id: int, reviews_per_day: int) -> float:
-        """Percent correct on the last `window` REVIEW/RELEARNING-state cards.
+        """Percent recalled on the learner's recent *mature* reviews.
 
         Window = min(200, max(20, 2 × reviews_per_day)) — scales with the
-        user's own daily target (≈ last 2 sessions). Cards in NEW / LEARNING
-        do not affect the metric (Anki convention: only graduated cards
-        measure true retention; LEARNING failures are part of acquisition).
+        user's own daily target (≈ last 2 sessions).
 
-        `correct_count` / `incorrect_count` are lifetime aggregates per
-        direction, but ordering by `last_reviewed.desc()` and capping to
-        `window` rows approximates recent activity well enough without a
-        per-grade log.
+        Source of truth (lesson audit item 11): the grade log
+        (``CardGradeEvent``) — the last ``window`` grades of cards that were in
+        REVIEW state when asked. Learning steps and relearning re-asks do not
+        count (Anki convention: only graduated cards measure retention).
+
+        Fallback while the log holds fewer than
+        ``MIN_MATURE_GRADES_FOR_ACCURACY`` such grades (fresh deployment, new
+        learner): the legacy lifetime ``correct_count`` / ``incorrect_count``
+        of the last ``window`` REVIEW/RELEARNING cards. That aggregate kept a
+        learner returning to an old deck in ``collapse`` on years-old misses
+        (user 1 in the prod copy: lifetime 37 % against 48-55 % per session),
+        which is exactly why the log exists; it stays only as a bridge.
         """
+        from app.srs.grade_log import recent_mature_accuracy
+
         window = min(200, max(20, 2 * max(reviews_per_day, 0)))
+        logged = recent_mature_accuracy(user_id, window)
+        if logged is not None:
+            return logged
         recent = (
             db.session.query(UserCardDirection)
             .filter(
