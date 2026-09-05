@@ -224,3 +224,17 @@
 /* Buttons inside the final-action row inherit .lsn-btn / .lsn-btn--primary
    / .lsn-btn--outline from lesson_base_template.html so all lesson types
    share one button look. No local overrides needed. */
+
+/* Rounds of six (lesson audit 2026-09-05, A2/B3). [hidden] rows/cards leave
+   the flow so Tab order follows the visible round. */
+.cm-row[hidden],
+.collocation-translation-card[hidden] { display: none !important; }
+.cm-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 1rem 0 0.5rem;
+}
+.cm-pager__label { font-size: 0.95rem; color: var(--text-muted, #6c757d); }
+.cm-pager__btn--ready { box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.35); }

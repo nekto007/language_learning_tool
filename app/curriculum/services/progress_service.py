@@ -357,6 +357,8 @@ class ProgressService:
                 attempt.passed = is_completed
                 attempt.correct_answers = result.get('correct_answers', 0)
                 attempt.total_questions = result.get('total_questions', 0)
+                if isinstance(result.get('mistakes'), list):
+                    attempt.mistakes = result['mistakes']
                 db.session.commit()
             except Exception:
                 logger.warning(

@@ -5,7 +5,7 @@
 {% set block_description = _('Практика устойчивых словосочетаний') %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/collocation_matching.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/collocation_matching.css') }}?v=2">
 {% endblock %}
 
 {% block lesson_content %}
@@ -40,7 +40,7 @@
       <div class="cm-column">
         <div class="cm-column-header">{{ _('Фраза') }}</div>
         {% for pair in pairs %}
-        <div class="cm-row" id="phrase-row-{{ loop.index0 }}">
+        <div class="cm-row" id="phrase-row-{{ loop.index0 }}" data-round="{{ round_of_phrase[loop.index0] }}"{% if round_of_phrase[loop.index0] > 0 %} hidden{% endif %}>
           <button
             class="option-btn collocation-card collocation-phrase-card"
             id="phrase-{{ loop.index0 }}"
@@ -72,9 +72,11 @@
           id="trans-{{ loop.index0 }}"
           type="button"
           data-index="{{ loop.index0 }}"
+          data-round="{{ round_of_translation[loop.index0] }}"
           data-translation="{{ pair.translation | e }}"
           aria-pressed="false"
           onclick="selectTranslation({{ loop.index0 }})"
+          {% if round_of_translation[loop.index0] > 0 %}hidden{% endif %}
         >
           {{ pair.translation }}
         </button>
@@ -82,6 +84,19 @@
       </div>
     </div>
 
+    {% if round_count > 1 %}
+    {# Rounds of six (lesson audit 2026-09-05, A2/B3): one round on screen,
+       translations shuffled inside the round. «Далее» opens once the round's
+       pairs are all matched. #}
+    <nav class="cm-pager" id="cm-pager" aria-label="{{ _('Раунды') }}">
+      <span class="cm-pager__label" aria-live="polite">
+        {{ _('Раунд') }} <span id="cm-round-num">1</span> {{ _('из') }} {{ round_count }}
+      </span>
+      <button type="button" class="lsn-btn lsn-btn--primary cm-pager__btn" id="cm-next-round" disabled>
+        {{ _('Далее') }} <span aria-hidden="true">&rarr;</span>
+      </button>
+    </nav>
+    {% endif %}
     <div class="cm-matched-zone" id="cm-matched-zone" hidden>
       <div class="cm-matched-zone__header">{{ _('Готовые пары') }}</div>
       <div id="cm-matched-list"></div>
@@ -129,6 +144,54 @@ const translationData = [
 // lesson is already completed (to replay the matched state on reload). Empty []
 // for an in-progress lesson, so a fresh page never ships the answer key.
 const completedPairs = {{ completed_pairs | tojson }};
+const roundCount = {{ round_count | default(1) }};
+const roundOfPhrase = {{ round_of_phrase | tojson }};
+let currentRound = 0;
+let lastSubmitData = null;
+
+// === Rounds ==============================================================
+// A view over the same global indices: ``matched``, /check-item and the
+// final submit keep addressing pairs 0..N-1.
+function _roundDone(n) {
+  let any = false;
+  for (let i = 0; i < roundOfPhrase.length; i++) {
+    if (roundOfPhrase[i] !== n) continue;
+    any = true;
+    if (matched[i] === undefined) return false;
+  }
+  return any;
+}
+function _refreshPager() {
+  const next = document.getElementById('cm-next-round');
+  if (!next) return;
+  const last = currentRound >= roundCount - 1;
+  next.disabled = last || !_roundDone(currentRound);
+  next.classList.toggle('cm-pager__btn--ready', !next.disabled);
+}
+function showRound(n) {
+  if (n < 0 || n >= roundCount) return;
+  currentRound = n;
+  document.querySelectorAll('[data-round]').forEach(function(el) {
+    el.hidden = Number(el.dataset.round) !== n;
+  });
+  const num = document.getElementById('cm-round-num');
+  if (num) num.textContent = String(n + 1);
+  selectedPhrase = null;
+  selectedTrans = null;
+  _refreshPager();
+  const first = document.querySelector('.cm-row[data-round="' + n + '"] .collocation-phrase-card:not([disabled])');
+  if (first && typeof first.focus === 'function') first.focus({ preventScroll: true });
+}
+function _showAllRounds() {
+  document.querySelectorAll('[data-round]').forEach(function(el) { el.hidden = false; });
+  const pager = document.getElementById('cm-pager');
+  if (pager) pager.hidden = true;
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const next = document.getElementById('cm-next-round');
+  if (next) next.addEventListener('click', function() { showRound(currentRound + 1); });
+  _refreshPager();
+});
 
 // A6: server-side per-pair grading. Posts {index: phraseIndex, answer: chosen
 // translation text}; the endpoint compares against pairs[index].translation and
@@ -277,6 +340,7 @@ function handleCorrect(pi, ti) {
       interactionLocked = false;
     }, 280);
     _updateProgress();
+    _refreshPager();
     if (Object.keys(matched).length === totalPairs) {
       finalizeLesson();
     }
@@ -380,7 +444,17 @@ function renderFinalState(nextLessonUrl, dailyPlanCtx) {
   // Natural-language summary: "Отлично! 6 из 6 пар собраны." replaces the
   // earlier "Все пары собраны. (6/6)" — the parenthesised count read like
   // a debug artefact next to the celebratory praise.
-  label.textContent = '{{ _("Отлично!") }} ' + totalPairs + ' {{ _("из") }} ' + totalPairs + ' {{ _("пар собраны.") }}';
+  // First-try accuracy is the lesson's score (owner: «XP за правильные ответы»);
+  // matching everything is how the lesson ends, not what it measures.
+  const firstTry = lastSubmitData && typeof lastSubmitData.first_try_items === 'number'
+    ? lastSubmitData.first_try_items : null;
+  const scoreVal = lastSubmitData && typeof lastSubmitData.score === 'number' ? lastSubmitData.score : null;
+  let labelText = '{{ _("Отлично!") }} ' + totalPairs + ' {{ _("из") }} ' + totalPairs + ' {{ _("пар собраны.") }}';
+  if (firstTry !== null) {
+    labelText += ' {{ _("С первой попытки:") }} ' + firstTry + ' {{ _("из") }} ' + totalPairs
+      + (scoreVal !== null ? ' (' + scoreVal + '%).' : '.');
+  }
+  label.textContent = labelText;
   badge.appendChild(label);
   summaryDiv.appendChild(badge);
 
@@ -472,6 +546,7 @@ async function finalizeLesson() {
     return;
   }
 
+  lastSubmitData = data;
   renderFinalState(data.next_lesson_url, data.daily_plan_ctx);
   document.getElementById('matching-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -481,6 +556,7 @@ async function finalizeLesson() {
 // "Готовые пары" list and show the final actions row. No re-submit happens —
 // LessonProgress already carries status='completed' from the original run.
 function restoreCompletedState() {
+  _showAllRounds();
   // A6: the correct mapping comes from the server (completedPairs), shipped only
   // because this lesson is already done — never present on an in-progress page.
   // completedPairs is shipped in `pairs` order, identical to phraseData's order,

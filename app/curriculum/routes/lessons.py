@@ -538,6 +538,8 @@ def check_sentence_completion_item(lesson_id):
         is_correct = bool(user_answer.strip()) and (
             _normalize_answer(user_answer) == _normalize_answer(canonical)
         )
+        if not is_correct and user_answer.strip():
+            _record_collocation_miss(current_user.id, lesson.id, idx)
     else:
         is_correct = _strict_text_match(user_answer, candidates)
     resp = {'success': True, 'correct': is_correct}
@@ -2277,8 +2279,24 @@ def collocation_matching_lesson(lesson_id: int):
 
     content = lesson.content or {}
     pairs = content.get('pairs', [])
-    shuffled_pairs = pairs[:]
-    random.shuffle(shuffled_pairs)
+    # Rounds of COLLOCATION_ROUND_SIZE pairs (lesson audit 2026-09-05, A2/B3):
+    # twenty pairs in two columns did not fit a phone screen. The translation
+    # column is shuffled INSIDE each round only — a translation from another
+    # round can never appear on the current one — and ``shuffled_pairs`` is
+    # the per-round shuffles concatenated, so the global translation index
+    # the client already uses stays unique.
+    rounds = _collocation_rounds(len(pairs))
+    round_of_phrase = [0] * len(pairs)
+    shuffled_pairs = []
+    round_of_translation = []
+    for round_idx, members in enumerate(rounds):
+        order = list(members)
+        random.shuffle(order)
+        for global_idx in members:
+            round_of_phrase[global_idx] = round_idx
+        for global_idx in order:
+            shuffled_pairs.append(pairs[global_idx])
+            round_of_translation.append(round_idx)
 
     progress = LessonProgress.query.filter_by(
         user_id=current_user.id,
@@ -2326,6 +2344,9 @@ def collocation_matching_lesson(lesson_id: int):
         progress=display_progress,
         pairs=pairs,
         shuffled_pairs=shuffled_pairs,
+        round_of_phrase=round_of_phrase,
+        round_of_translation=round_of_translation,
+        round_count=len(rounds),
         is_completed=is_completed,
         # A6: the correct phrase→translation mapping is shipped to the page ONLY
         # for an already-completed lesson (to replay the matched state). An
@@ -2337,8 +2358,67 @@ def collocation_matching_lesson(lesson_id: int):
     )
 
 
+COLLOCATION_ROUND_SIZE = 6
+COLLOCATION_MISSES_KEY = 'cm_misses'
+
+
+def _collocation_rounds(total: int) -> list[list[int]]:
+    """Split ``range(total)`` into rounds of ``COLLOCATION_ROUND_SIZE``.
+
+    A trailing round of one pair is folded into the previous one — a single
+    phrase against a single translation is not an exercise.
+    """
+    if total <= 0:
+        return []
+    rounds = [
+        list(range(start, min(start + COLLOCATION_ROUND_SIZE, total)))
+        for start in range(0, total, COLLOCATION_ROUND_SIZE)
+    ]
+    if len(rounds) > 1 and len(rounds[-1]) == 1:
+        rounds[-2].extend(rounds.pop())
+    return rounds
+
+
+def _record_collocation_miss(user_id: int, lesson_id: int, phrase_idx: int) -> None:
+    """Count a wrong pair server-side, in ``LessonProgress.data['cm_misses']``.
+
+    The client only ever finalises with the correct pairs (a wrong pick flashes
+    and is not kept), so the final submit cannot tell a first-try lesson from a
+    guess-until-green one — every lesson reported 100 % (lesson audit
+    2026-09-05, B3, review). Misses are recorded where the check happens and
+    read back by the submit, never trusted from the request; they survive a
+    reload and go away with the finished attempt's data.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+
+    progress = LessonProgress.query.filter_by(user_id=user_id, lesson_id=lesson_id).first()
+    if progress is None:
+        return
+    data = dict(progress.data) if isinstance(progress.data, dict) else {}
+    misses = dict(data.get(COLLOCATION_MISSES_KEY) or {})
+    key = str(phrase_idx)
+    misses[key] = int(misses.get(key) or 0) + 1
+    data[COLLOCATION_MISSES_KEY] = misses
+    progress.data = data
+    flag_modified(progress, 'data')
+    progress.last_activity = datetime.now(UTC)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.warning("collocation miss not recorded user=%s lesson=%s", user_id, lesson_id, exc_info=True)
+
+
 def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
-    """Grade a collocation matching submission, update progress, award XP, return result."""
+    """Grade a collocation matching submission, update progress, award XP, return result.
+
+    Completion still needs the pairs matched: the ``passing_score`` gate on the
+    matched fraction stops a crafted partial POST from completing the lesson.
+    The stored score and the XP scale are the FIRST-TRY accuracy — pairs
+    solved without a server-recorded miss over all pairs (the owner's call,
+    «XP за правильные ответы»). A low first-try score never blocks completion
+    (``passing_score=0`` for the persisted result).
+    """
     from app.curriculum.grading import grade_collocation_matching
     from app.curriculum.services.progress_service import ProgressService
 
@@ -2353,20 +2433,56 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     passing = get_lesson_passing_score(lesson)
     grade = grade_collocation_matching(user_pairs, correct_pairs, passing_score=passing)
 
+    if not grade.get('passed'):
+        ProgressService.update_progress_with_grading(
+            user_id=user_id,
+            lesson=lesson,
+            result=grade,
+            passing_score=passing,
+        )
+        db.session.commit()
+        return {**grade}
+
+    progress = LessonProgress.query.filter_by(user_id=user_id, lesson_id=lesson.id).first()
+    recorded = {}
+    if progress is not None and isinstance(progress.data, dict):
+        recorded = progress.data.get(COLLOCATION_MISSES_KEY) or {}
+    total = int(grade.get('total_items') or len(correct_pairs))
+    mistakes = []
+    for key, count in recorded.items():
+        try:
+            idx = int(key)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= idx < len(correct_pairs) and int(count or 0) > 0:
+            mistakes.append({
+                'index': idx,
+                'phrase': str(correct_pairs[idx].get('phrase') or ''),
+                'attempts': int(count) + 1,
+            })
+    mistakes.sort(key=lambda m: m['index'])
+    missed_phrases = {m['phrase'] for m in mistakes}
+    first_try = max(0, total - len(mistakes))
+    first_try_score = round(first_try / total * 100) if total else 0
+    for pair_result in grade.get('pair_results') or []:
+        pair_result['first_try'] = pair_result.get('phrase') not in missed_phrases
+    grade = {
+        **grade,
+        'score': first_try_score,
+        'passed': True,
+        'matched_items': int(grade.get('correct_items') or 0),
+        'first_try_items': first_try,
+        'mistakes': mistakes,
+    }
+    # XP is awarded inside update_progress_with_grading, scaled by the
+    # first-try score through ``xp_score``; no second award here.
     ProgressService.update_progress_with_grading(
         user_id=user_id,
         lesson=lesson,
         result=grade,
-        passing_score=passing,
+        passing_score=0,
+        xp_score=first_try_score,
     )
-
-    if grade.get('passed'):
-        try:
-            from app.daily_plan.linear.xp import maybe_award_curriculum_xp
-            with db.session.begin_nested():
-                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade['score'])
-        except Exception as xp_err:
-            logger.warning(f"Collocation matching XP award failed for lesson {lesson.id}: {xp_err}")
     db.session.commit()
 
     # Return the full per-pair grading including the correct translation for
@@ -2375,7 +2491,7 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     # testing; a guess-and-retry loop without feedback teaches nothing.
     result = {**grade}
     next_lesson = _get_next_lesson_for_completion(lesson)
-    if grade.get('passed') and next_lesson:
+    if next_lesson:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result
