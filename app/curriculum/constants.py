@@ -17,7 +17,12 @@ from __future__ import annotations
 from typing import Any
 
 PASSING_SCORE_DEFAULT = 70
-PASSING_SCORE_DICTATION = 80
+# 75, not 80 (lesson audit 2026-09-05, B11): 52 of 86 dictations are a
+# 4-gap cloze, and at 80 % the only passing outcome was 4/4 — the threshold
+# shown to the learner was a lie. At 75 one miss passes (3/4, 4/5) while the
+# bar stays above the quizzes' 70. The owner's call: «не надо быть слишком
+# строгими, иначе будут убегать и не завершать».
+PASSING_SCORE_DICTATION = 75
 
 
 def get_lesson_passing_score(lesson: Any) -> int:

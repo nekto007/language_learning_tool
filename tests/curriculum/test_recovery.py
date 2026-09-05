@@ -91,9 +91,10 @@ def _make_attempt(db_session, user, lesson, *, score=85.0, passed=True) -> Lesso
 
 
 class TestEffectivePassingScore:
-    def test_dictation_default_is_80(self, db_session):
+    def test_dictation_default_is_75(self, db_session):
+        """Lesson audit 2026-09-05 (B11): 75, so one miss in a 4-gap cloze passes."""
         lesson = _make_lesson(db_session, lesson_type='dictation', content={})
-        assert _effective_passing_score(lesson) == 80
+        assert _effective_passing_score(lesson) == 75
 
     def test_audio_fill_blank_default_is_70(self, db_session):
         """audio_fill_blank uses PASSING_SCORE_DEFAULT in both grader and
@@ -212,16 +213,18 @@ class TestReconcile:
         assert progress.score == 90.0
 
     def test_dictation_perfect_mastery_in_data_flips(self, db_session):
-        """Regression: dictation rows stuck below threshold (e.g. score=79
-        capped by the old attempt-limit override) flip when progress.data
+        """Regression: dictation rows stuck below threshold (e.g. capped by
+        the attempt-limit override) flip when progress.data
         shows correct_words >= total_words. Without this, pre-fix users
         stay 'in_progress' forever despite typing every word correctly.
         """
         user = _make_user(db_session)
         lesson = _make_lesson(db_session, lesson_type='dictation', content={})
-        progress = _make_progress(db_session, user, lesson, score=79.0)
+        # 74 = one below today's threshold (75): the row must flip through
+        # the data-perfect path, not merely because the score now passes.
+        progress = _make_progress(db_session, user, lesson, score=74.0)
         progress.data = {
-            'score': 79,
+            'score': 74,
             'passed': False,
             'correct_words': 4,
             'total_words': 4,

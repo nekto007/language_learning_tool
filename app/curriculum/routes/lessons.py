@@ -1283,9 +1283,22 @@ def _process_dictation_submission(lesson: 'Lessons', user_id: int, data: dict) -
     full_mastery = total_words > 0 and correct_words >= total_words
     if failed_indices and not full_mastery:
         grade['passed'] = False
-        grade['score'] = min(int(grade.get('score') or 0), 79)
+        # Cap strictly BELOW the threshold, whatever it is — a literal 79 was
+        # tied to the old 80 and would pass at 75.
+        grade['score'] = min(int(grade.get('score') or 0), max(0, passing - 1))
         grade['failed_by_attempt_limit'] = True
         grade['failed_indices'] = failed_indices
+    # Per-word analytics for the attempt row (lesson audit 2026-09-05, B11:
+    # ``mistakes`` was empty in 57/57 production attempts — nobody could see
+    # which words learners actually miss). ProgressService copies
+    # ``mistakes`` into LessonAttempt.mistakes.
+    grade['correct_answers'] = correct_words
+    grade['total_questions'] = total_words
+    grade['mistakes'] = [
+        {'word': str(w.get('word') or ''), 'user_word': str(w.get('user_word') or '')}
+        for w in (grade.get('word_results') or [])
+        if isinstance(w, dict) and not w.get('correct')
+    ]
 
     progress, _ = ProgressService.update_progress_with_grading(
         user_id=user_id,
@@ -2147,7 +2160,12 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 maybe_award_writing_xp,
             )
             with db.session.begin_nested():
-                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=writing_score)
+                # ``writing_score`` is the share of self-checked checklist
+                # items, not a grade: paying XP by it charged 20 instead of 25
+                # for an honestly written text in 83/86 lessons (lesson audit
+                # 2026-09-05, B16-2). Honor-system completion is «not graded»
+                # → full base, the same contract as a reading without questions.
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
                 maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
