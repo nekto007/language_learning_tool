@@ -117,6 +117,9 @@ class TestOrderingTranslationMode:
         assert 'id="ordering-translation-0" hidden' in html
         # the answer handler opens the box so the review shows the meaning
         assert 'revealOrderingTranslation(questionIndex);' in html
+        # a retry of a failed attempt hides it again (inline mode is left alone)
+        retry = html.split('startRetryPhase() {', 1)[1].split('updateProgress() {', 1)[0]
+        assert 'hideOrderingTranslation(qIndex);' in retry
         assert "case 'toggle-ordering-translation'" in html
 
     def test_no_translation_renders_nothing(self, app, db_session, test_user, client):
@@ -196,6 +199,7 @@ class TestDialogueInstruction:
 class TestCoerceCoverage:
     @pytest.mark.parametrize('value, expected', [
         (None, None), (True, None), ('abc', None), ([], None), (float('nan'), None),
+        (float('inf'), None), (float('-inf'), None), ('1e309', None), ('-1e309', None),
         (0.5, 0.5), ('0.734', 0.73), (1.7, 1.0), (-3, 0.0), (0, 0.0),
     ])
     def test_values(self, value, expected):

@@ -811,6 +811,16 @@ function toggleOrderingTranslation(questionIndex, btn) {
   }
 }
 
+function hideOrderingTranslation(questionIndex) {
+  const btn = document.querySelector(`.quiz-ordering-translation-btn[data-question-index="${questionIndex}"]`);
+  if (!btn) return; // inline mode (A0-A2): the translation is meant to stay visible
+  const box = document.getElementById(`ordering-translation-${questionIndex}`);
+  if (box) box.hidden = true;
+  btn.hidden = false;
+  btn.setAttribute('aria-expanded', 'false');
+  btn.textContent = ORDERING_TRANSLATION_LABELS.show;
+}
+
 function revealOrderingTranslation(questionIndex) {
   const box = document.getElementById(`ordering-translation-${questionIndex}`);
   if (!box) return;
@@ -1506,6 +1516,8 @@ window.QuizApp = {
           if (sentenceDisplay) {
             sentenceDisplay.innerHTML = '<span class="placeholder-text">{{ _("Нажмите на слова выше, чтобы составить предложение") }}</span>';
           }
+          // The auto-reveal of the failed attempt must not leak into the retry.
+          hideOrderingTranslation(qIndex);
         }
 
         // Hide previous feedback

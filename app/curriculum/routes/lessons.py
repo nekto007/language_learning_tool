@@ -2792,7 +2792,7 @@ def _coerce_coverage(value: object) -> float | None:
         ratio = float(value)
     except (TypeError, ValueError):
         return None
-    if ratio != ratio:  # NaN
+    if not math.isfinite(ratio):  # NaN and +-inf (also '1e309' parsed as inf)
         return None
     return round(min(1.0, max(0.0, ratio)), 2)
 
