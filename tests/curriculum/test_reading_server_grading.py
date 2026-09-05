@@ -319,3 +319,33 @@ class TestRender:
         assert "lesson_type: 'reading'" in src and 'collectReadingAnswers()' in src
         assert 'READING_PASS_THRESHOLD' not in src
         assert 'canComplete = hasQuestions ? allAnswered : hasScrolledToBottom' in src
+
+
+class TestLegacyListeningImmersionQuizSharesTheGrader:
+    """Review of item 3 (Codex): the shared text.html now posts to /submit, and
+    the legacy listening_immersion_quiz type had no dispatch branch there."""
+
+    def test_submit_grades_and_pays_listening_xp(self, app, db_session, _module, test_user, client):
+        lesson = Lessons(module_id=_module.id, number=1, title='LIQ', type='listening_immersion_quiz',
+                         content={'title': 'Dialogue', 'text': 'A: Hi. B: Hello.', 'exercises': QUESTIONS[:2]})
+        db_session.add(lesson)
+        db_session.commit()
+        _login(client, test_user)
+        with patch('app.daily_plan.linear.xp.maybe_award_curriculum_xp', return_value=None) as cxp, \
+             patch('app.daily_plan.linear.xp.maybe_award_listening_xp', return_value=None) as lxp:
+            resp = client.post(f'/curriculum/api/lesson/{lesson.id}/submit',
+                               json={'lesson_type': 'reading', 'answers': {'0': 'Australia', '1': 'true'}})
+        assert resp.status_code == 200, resp.get_data(as_text=True)
+        assert resp.get_json()['score'] == 50
+        assert cxp.call_args.kwargs['score'] == 50
+        assert lxp.call_args.kwargs['score'] == 50
+        assert _progress(db_session, test_user.id, lesson.id).status == 'completed'
+
+    def test_check_item_serves_the_legacy_type_too(self, app, db_session, _module, test_user, client):
+        lesson = Lessons(module_id=_module.id, number=1, title='LIQ', type='listening_immersion_quiz',
+                         content={'title': 'Dialogue', 'text': 'A: Hi. B: Hello.', 'exercises': QUESTIONS[:1]})
+        db_session.add(lesson)
+        db_session.commit()
+        _login(client, test_user)
+        resp = client.post(f'/curriculum/api/lesson/{lesson.id}/check-item', json={'index': 0, 'answer': 'Peru'})
+        assert resp.status_code == 200 and resp.get_json()['correct'] is False

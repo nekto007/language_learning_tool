@@ -1041,9 +1041,12 @@ def dictation_lesson(lesson_id: int):
 
 
 # Lesson types rendered by text.html whose comprehension questions are graded
-# server-side (lesson audit 2026-09-05, A10). ``listening_immersion_quiz`` also
-# renders through text.html but keeps its own strip-only completion path.
-READING_LESSON_TYPES = frozenset(('reading', 'text'))
+# server-side (lesson audit 2026-09-05, A10). ``listening_immersion_quiz`` is a
+# legacy type (no rows in the current catalogue) that shares the template, so
+# it shares the grader too — review of item 3 caught it landing on «Invalid
+# lesson type» after the template moved to /submit. It additionally pays the
+# listening XP the progress endpoint used to award for it.
+READING_LESSON_TYPES = frozenset(('reading', 'text', 'listening_immersion_quiz'))
 
 
 def _reading_questions(content: dict) -> list[dict]:
@@ -1204,6 +1207,15 @@ def _process_reading_submission(lesson: 'Lessons', user_id: int, data: dict) -> 
         passing_score=0,
         xp_score=xp_score,
     )
+    if lesson.type == 'listening_immersion_quiz':
+        try:
+            from app.daily_plan.linear.xp import maybe_award_listening_xp
+            with db.session.begin_nested():
+                maybe_award_listening_xp(user_id, lesson.id, score=xp_score, db_session=db)
+            db.session.commit()
+        except Exception as xp_err:
+            db.session.rollback()
+            logger.warning(f"Listening XP award failed for lesson {lesson.id}: {xp_err}")
     out: dict = {
         'success': True,
         'completed': True,
