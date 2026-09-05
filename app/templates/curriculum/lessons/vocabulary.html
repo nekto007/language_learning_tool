@@ -312,6 +312,11 @@ function init() {
     resume.presented.forEach(i => {
       if (Number.isInteger(i) && i >= 0 && i < cardsState.totalCards) cardsState.viewedCards.add(i);
     });
+    if (Array.isArray(resume.flipped)) {
+      resume.flipped.forEach(i => {
+        if (Number.isInteger(i) && i >= 0 && i < cardsState.totalCards) cardsState.flippedCards.add(i);
+      });
+    }
     if (Number.isInteger(resume.index) && resume.index >= 0 && resume.index < cardsState.totalCards) {
       startIndex = resume.index;
     }
@@ -595,6 +600,7 @@ function snapshotPayload() {
     data: {
       card_index: cardsState.currentIndex,
       presented: Array.from(cardsState.viewedCards).sort((a, b) => a - b),
+      flipped: Array.from(cardsState.flippedCards).sort((a, b) => a - b),
       total_cards: cardsState.totalCards
     }
   };

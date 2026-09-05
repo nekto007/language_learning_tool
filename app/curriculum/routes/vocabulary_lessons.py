@@ -85,7 +85,7 @@ def _load_annotations(user_id: int, word_ids: list[int]) -> dict[int, str]:
 # clip defaults on for A1-A2; the learner's explicit choice lives in the browser.
 _TRANSLIT_ALWAYS_LEVELS = frozenset({'A0', 'A1', 'A2'})
 _TRANSLIT_FALLBACK_LEVELS = frozenset({'B1'})
-_AUTOPLAY_DEFAULT_LEVELS = frozenset({'A0', 'A1', 'A2'})
+_AUTOPLAY_DEFAULT_LEVELS = frozenset({'A1', 'A2'})  # owner decision: A1-A2 only
 
 
 def _vocab_level_code(lesson) -> str:
@@ -115,23 +115,35 @@ def _is_index(value, total: int) -> bool:
 def _vocabulary_resume_state(progress, total_cards: int) -> dict | None:
     """Card position saved mid-lesson by the deck's snapshot; None when unusable.
 
-    Only in-progress rows resume (a completed deck opens from the first card),
-    indices outside the current deck are dropped, and a missing/invalid
-    ``card_index`` falls back to the last presented card.
+    Only ``in_progress`` rows resume (a completed deck opens from the first
+    card, ``not_started`` has nothing to resume). A snapshot taken against a
+    deck of a different size is stale: its indices point at other words. The
+    current card must itself have been presented; otherwise the last presented
+    card wins. Flipped cards ride along (only when any) so the final
+    ``flipped_count`` survives a reload.
     """
-    if progress is None or getattr(progress, 'status', None) == 'completed':
+    if progress is None or getattr(progress, 'status', None) != 'in_progress':
         return None
     data = progress.data if isinstance(getattr(progress, 'data', None), dict) else {}
     presented_raw = data.get('presented')
     if not isinstance(presented_raw, list):
         return None
+    saved_total = data.get('total_cards')
+    if saved_total is not None and saved_total != total_cards:
+        return None
     presented = sorted({i for i in presented_raw if _is_index(i, total_cards)})
     if not presented:
         return None
     index = data.get('card_index')
-    if not _is_index(index, total_cards):
+    if not (_is_index(index, total_cards) and index in presented):
         index = presented[-1]
-    return {'index': index, 'presented': presented}
+    state: dict = {'index': index, 'presented': presented}
+    flipped_raw = data.get('flipped')
+    if isinstance(flipped_raw, list):
+        flipped = sorted({i for i in flipped_raw if _is_index(i, total_cards)})
+        if flipped:
+            state['flipped'] = flipped
+    return state
 
 
 def _vocabulary_display_context(lesson, progress, words: list) -> dict:

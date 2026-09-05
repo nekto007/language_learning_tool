@@ -365,16 +365,19 @@ def update_lesson_progress(lesson_id):
 
         # Lesson audit item 9: the vocabulary deck saves its card position while
         # the learner works. The client stops once the deck is completed; this is
-        # the server-side backstop for a late or racing snapshot, which otherwise
-        # flipped a completed row back to in_progress and overwrote its data.
+        # the server-side backstop for a late, racing or crafted snapshot, which
+        # otherwise flipped a completed row back to in_progress, overwrote its
+        # final data or (with a score in the body) its last_score. Anything but
+        # an explicit re-completion is ignored on a completed deck.
         if (
             lesson_for_check
             and lesson_for_check.type in _SNAPSHOT_NO_DOWNGRADE_TYPES
             and progress.status == 'completed'
-            and cleaned_data.get('status') == 'in_progress'
+            and cleaned_data.get('status') != 'completed'
         ):
             cleaned_data.pop('status', None)
             cleaned_data.pop('data', None)
+            cleaned_data.pop('score', None)
 
         if 'status' in cleaned_data:
             progress.status = cleaned_data['status']

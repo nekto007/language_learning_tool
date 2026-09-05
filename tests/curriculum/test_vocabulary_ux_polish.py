@@ -99,7 +99,7 @@ class TestLevelPolicy:
     def test_transliteration_mode(self, code, mode):
         assert _transliteration_mode(code) == mode
 
-    @pytest.mark.parametrize('code, on', [('A1', True), ('a2', True), ('B1', False), ('C1', False), ('', False)])
+    @pytest.mark.parametrize('code, on', [('A1', True), ('a2', True), ('A0', False), ('B1', False), ('C1', False), ('', False)])
     def test_autoplay_default(self, code, on):
         assert _autoplay_default(code) is on
 
@@ -119,6 +119,15 @@ class TestResumeState:
     def test_none_and_completed_do_not_resume(self):
         assert _vocabulary_resume_state(None, 20) is None
         assert _vocabulary_resume_state(self._progress('completed', {'presented': [0, 1], 'card_index': 1}), 20) is None
+        assert _vocabulary_resume_state(self._progress('not_started', {'presented': [0, 1], 'card_index': 1}), 20) is None
+
+    def test_stale_deck_size_and_unpresented_index(self):
+        stale = self._progress('in_progress', {'presented': [0, 1], 'card_index': 1, 'total_cards': 19})
+        assert _vocabulary_resume_state(stale, 20) is None
+        crafted = self._progress('in_progress', {'presented': [0, 1], 'card_index': 7, 'total_cards': 20})
+        assert _vocabulary_resume_state(crafted, 20) == {'index': 1, 'presented': [0, 1]}
+        flipped = self._progress('in_progress', {'presented': [0, 1, 2], 'card_index': 2, 'flipped': [2, 0, 40, True]})
+        assert _vocabulary_resume_state(flipped, 20) == {'index': 2, 'presented': [0, 1, 2], 'flipped': [0, 2]}
 
     def test_junk_is_dropped(self):
         assert _vocabulary_resume_state(self._progress('in_progress', None), 20) is None
