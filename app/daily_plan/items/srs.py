@@ -129,7 +129,7 @@ def _pause_reason_hint(pause: dict[str, Any], review_show: int = 0) -> str | Non
     overdue = int(pause.get('overdue') or 0)
     base = int(pause.get('reviews_per_day') or 0)
     backlog_tier = pause.get('backlog_tier')
-    # Backlog tiers: ≤1 day normal, ≤3 low (NEW ×0.3), ≤7 critical, >7 collapse
+    # Backlog tiers: ≤1 day normal, ≤3 low (NEW x0.3), ≤7 critical, >7 collapse
     # (NEW off). New words start coming back below 3 daily norms.
     comeback_at = 3 * base if base > 0 else 0
     if backlog_tier in ('critical', 'collapse'):
