@@ -9,7 +9,7 @@ Responsibilities:
 """
 import logging
 from datetime import date, datetime, timezone
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from sqlalchemy import and_, case, func, or_
 
@@ -194,11 +194,17 @@ class SRSService:
     # Percentages applied to user's base settings per accuracy tier.
     # LEARNING / RELEARNING are NOT capped — Anki-style commit semantics:
     # once started a card must be finished, otherwise it rots half-learned.
+    #
+    # Lesson audit item 12 (2026-09-06): accuracy throttles NEW cards only.
+    # ``review`` stays 1.00 on every tier: a learner whose mature recall is
+    # low is exactly the one who needs the reviews, and cutting them to 20 %
+    # (or to the 5-card floor on collapse) froze a 400-card debt in place.
+    # The key is kept so callers indexing ``TIER_PCT[tier]['review']`` work.
     TIER_PCT: Dict[str, Dict[str, float]] = {
         'normal':   {'new': 1.00, 'review': 1.00},
-        'low':      {'new': 0.60, 'review': 0.60},
-        'critical': {'new': 0.20, 'review': 0.20},
-        'collapse': {'new': 0.00, 'review': 0.00},
+        'low':      {'new': 0.60, 'review': 1.00},
+        'critical': {'new': 0.20, 'review': 1.00},
+        'collapse': {'new': 0.00, 'review': 1.00},
     }
 
     # Backlog remains deliberately stricter than accuracy: admitting extra
@@ -429,11 +435,12 @@ class SRSService:
         """Internal: returns (adaptive_new, adaptive_reviews, accuracy_tier).
 
         ``accuracy_tier`` ∈ {'normal', 'low', 'critical', 'collapse'} is
-        the accuracy-driven recovery tier (drives ``review`` and ``new``).
-
-        Backlog is folded in separately: it only caps NEW (cf. Bug #2 —
-        a huge overdue pile must not zero out reviews because reviews
-        are exactly how the user works through that pile).
+        the accuracy-driven recovery tier. Since item 12 it drives NEW only;
+        ``adaptive_reviews`` equals the base ``reviews_per_day`` on every
+        tier (``TIER_PCT[*]['review'] == 1.0``). Backlog is folded in
+        separately and also caps NEW only (cf. Bug #2: a huge overdue pile
+        must not zero out reviews because reviews are exactly how the user
+        works through that pile).
         """
         settings = StudySettings.get_settings(user_id)
         base_new = settings.new_words_per_day or 0
@@ -465,6 +472,53 @@ class SRSService:
         """
         adaptive_new, adaptive_reviews, _ = SRSService._compute_adaptive_state(user_id)
         return (adaptive_new, adaptive_reviews)
+
+    @staticmethod
+    def get_new_card_pause(user_id: int) -> dict[str, Any]:
+        """Why NEW cards are reduced or paused today, both signals side by side.
+
+        The tile used to explain a pause with the accuracy tier only, so a
+        learner with fine recall and a week of backlog saw zero new cards
+        without a word of explanation (lesson audit item 12). Returns::
+
+            {'accuracy_tier', 'accuracy_pct', 'backlog_tier', 'overdue',
+             'days_behind', 'new_pct', 'binding'}
+
+        ``binding`` names the signal that actually limits NEW:
+        ``'backlog'``, ``'accuracy'``, ``'both'`` (equal cut) or ``None``
+        (no reduction). Pure read.
+        """
+        # Read-only on StudySettings (no auto-create, like get_due_card_budget):
+        # this runs on every plan render, inside other transactions.
+        settings = StudySettings.query.filter_by(user_id=user_id).first()
+        base_reviews = (settings.reviews_per_day if settings else 20) or 0
+        # Public accessors on purpose: the plan builders and their tests
+        # patch these, and the pause must agree with the tier they show.
+        accuracy_tier = SRSService.get_adaptive_limit_reason(user_id)
+        accuracy_pct = SRSService._accuracy_on_recent_reviews(user_id, base_reviews)
+        overdue = SRSService.get_overdue_review_count(user_id)
+        backlog_tier = SRSService._tier_from_backlog(overdue, base_reviews)
+        by_accuracy = SRSService.TIER_PCT[accuracy_tier]['new']
+        by_backlog = SRSService.BACKLOG_NEW_PCT[backlog_tier]
+        new_pct = min(by_accuracy, by_backlog)
+        if new_pct >= 1.0:
+            binding = None
+        elif by_backlog < by_accuracy:
+            binding = 'backlog'
+        elif by_accuracy < by_backlog:
+            binding = 'accuracy'
+        else:
+            binding = 'both'
+        days_behind = round(overdue / base_reviews, 1) if base_reviews > 0 else 0.0
+        return {
+            'accuracy_tier': accuracy_tier,
+            'accuracy_pct': round(accuracy_pct, 1),
+            'backlog_tier': backlog_tier,
+            'overdue': int(overdue),
+            'days_behind': days_behind,
+            'new_pct': new_pct,
+            'binding': binding,
+        }
 
     @staticmethod
     def get_adaptive_limit_reason(user_id: int) -> str:

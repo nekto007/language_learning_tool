@@ -17,6 +17,7 @@ Design:
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from typing import Any, Optional, Sequence
 
@@ -208,6 +209,51 @@ def get_review_batch_budget(
         reviews_today = count_reviews_today(user_id, db, now_utc=now_utc)
         allowance = max(0, RECOVERY_REVIEW_FLOOR - reviews_today)
     return max(0, min(allowance, due_budget_left))
+
+
+# Lesson audit item 12 (2026-09-06). Learning/relearning used to take the whole
+# combined ceiling first: the 20 directions a card lesson activates were all
+# due the next day and left mature reviews with 0 of the 20 slots, so the
+# review debt only grew on lesson days. This share of the day's remaining
+# ceiling is held for REVIEW cards while any are due; learning takes the rest
+# and anything the reserve does not need.
+REVIEW_RESERVE_SHARE = 0.5
+
+
+def split_due_budget(
+    user_id: int,
+    db: Any = _db,
+    now_utc: datetime | None = None,
+    *,
+    learning_due: int,
+    review_due: int,
+    due_budget: int,
+    remaining_reviews: int,
+) -> tuple[int, int]:
+    """How many (learning+relearning, mature review) cards fit into today.
+
+    Single split used by the plan tile, the /study queue, the session
+    completion check and the slot completion check: they must agree or the
+    slot never closes / the tile promises cards the queue refuses.
+
+    ``due_budget`` is the combined ceiling left today (``get_due_card_budget``),
+    ``remaining_reviews`` the adaptive review allowance left
+    (``get_new_card_budget()[1]``; equal to the base since item 12).
+    """
+    due_budget = max(0, int(due_budget))
+    learning_due = max(0, int(learning_due))
+    review_due = max(0, int(review_due))
+    reserve = min(review_due, math.ceil(due_budget * REVIEW_RESERVE_SHARE)) if due_budget > 0 else 0
+    learning_show = min(learning_due, max(0, due_budget - reserve))
+    review_show = min(
+        review_due,
+        get_review_batch_budget(
+            user_id, db, now_utc=now_utc,
+            remaining_reviews=remaining_reviews,
+            due_budget_left=max(0, due_budget - learning_show),
+        ),
+    )
+    return learning_show, review_show
 
 
 def count_due_by_states(

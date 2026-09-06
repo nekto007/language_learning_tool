@@ -165,7 +165,7 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
         count_reviews_today,
         get_due_card_budget,
         get_new_card_budget,
-        get_review_batch_budget,
+        split_due_budget,
     )
     from app.study.services import SRSService
 
@@ -181,12 +181,11 @@ def build_srs_slot(user_id: int, db: Any, curriculum_lesson: Any = None) -> Line
     # Learning/relearning get priority over mature review; new keeps its own budget.
     due_budget = get_due_card_budget(user_id, db)
     new_show = min(new_pending, remaining_new)
-    learning_show = min(learning_due, due_budget)
-    review_show = min(review_due, get_review_batch_budget(
+    learning_show, review_show = split_due_budget(
         user_id, db,
-        remaining_reviews=remaining_reviews,
-        due_budget_left=max(0, due_budget - learning_show),
-    ))
+        learning_due=learning_due, review_due=review_due,
+        due_budget=due_budget, remaining_reviews=remaining_reviews,
+    )
     total_show = new_show + learning_show + review_show
 
     new_today = count_new_cards_today(user_id, db)

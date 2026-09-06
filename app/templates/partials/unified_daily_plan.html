@@ -408,6 +408,9 @@
                   <span class="plan-item__hint" title="{{ _item_data.get('reason_hint') }}" tabindex="0">
                     <span class="plan-item__hint-icon" aria-hidden="true">ⓘ</span>
                     <span class="plan-item__hint-text">{{ _item_data.get('reason_hint') }}</span>
+                    {% if _item_data.get('new_pause_reason') %}
+                      <a class="plan-item__hint-link" href="{{ url_for('study.settings') }}">{{ _('Лимиты') }}</a>
+                    {% endif %}
                   </span>
                 {% endif %}
                 {# Частичный прогресс SRS: «12 из 30» со стабильным знаменателем

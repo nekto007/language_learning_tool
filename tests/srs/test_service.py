@@ -497,7 +497,7 @@ class TestAdaptiveLimitReason:
         assert SRSService.get_adaptive_limit_reason(user.id) == 'collapse'
         new, reviews = SRSService.get_adaptive_limits(user.id)
         assert new == 0
-        assert reviews == 0
+        assert reviews == 100  # item 12: accuracy throttles NEW only, reviews stay at base
 
     def test_backlog_caps_new_but_not_reviews(self, db_session):
         """51 overdue REVIEW cards with reviews_per_day=10 = 5+ days behind.
@@ -574,7 +574,7 @@ class TestAdaptiveLimitReason:
 
         new, reviews = SRSService.get_adaptive_limits(user.id)
         assert new == 2
-        assert reviews == 20
+        assert reviews == 100  # item 12: critical accuracy no longer cuts reviews to 20 %
 
 
 class TestAdaptiveTierLadder:

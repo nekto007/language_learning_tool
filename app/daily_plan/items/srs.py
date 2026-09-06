@@ -115,6 +115,36 @@ def _build_deck_quiz_plan_item(
     )
 
 
+def _pause_reason_hint(pause: dict[str, Any]) -> str | None:
+    """Human text for the NEW-card cut, naming the signal that binds (item 12).
+
+    Before, the hint only knew the accuracy tier, so a learner with good
+    recall and a week of backlog saw zero new words without any explanation.
+    """
+    binding = pause.get('binding')
+    if binding is None:
+        return None
+    overdue = int(pause.get('overdue') or 0)
+    days = pause.get('days_behind') or 0
+    if pause.get('backlog_tier') in ('critical', 'collapse'):
+        backlog_text = (
+            f'Долг {overdue} карточек (≈{days:g} дн. повторений) — '
+            'новые слова на паузе, пока долг не разобран'
+        )
+    else:
+        backlog_text = f'Долг {overdue} карточек (≈{days:g} дн. повторений) — новых слов меньше'
+    accuracy_text = {
+        'low':      'Точность 65–80% — количество новых слов снижено',
+        'critical': 'Точность 45–65% — новых слов меньше, повторения идут полностью',
+        'collapse': 'Точность ниже 45% — новые слова временно остановлены, повторения идут полностью',
+    }.get(pause.get('accuracy_tier') or '')
+    if binding == 'backlog':
+        return backlog_text
+    if binding == 'accuracy':
+        return accuracy_text
+    return f'{backlog_text}; {accuracy_text[0].lower() + accuracy_text[1:]}' if accuracy_text else backlog_text
+
+
 def _srs_completed_today(user_id: int, db: Any) -> bool:
     """Return True when the SRS slot is done for today.
 
@@ -160,7 +190,7 @@ def build_srs_item(
         count_reviews_today,
         get_due_card_budget,
         get_new_card_budget,
-        get_review_batch_budget,
+        split_due_budget,
     )
     from app.study.services import SRSService
 
@@ -180,17 +210,13 @@ def build_srs_item(
     remaining_new, remaining_reviews = get_new_card_budget(user_id, db)
     due_budget = get_due_card_budget(user_id, db)
     new_show = min(new_pending, remaining_new)
-    learning_show = min(learning_due, due_budget)
-    # Mature reviews go through the shared floor helper (DP-043): a bare
-    # ``min(..., remaining_reviews)`` reads 0 on the collapse tier and made
-    # the whole slot vanish for a learner whose backlog is pure REVIEW.
-    review_show = min(
-        review_due,
-        get_review_batch_budget(
-            user_id, db,
-            remaining_reviews=remaining_reviews,
-            due_budget_left=max(0, due_budget - learning_show),
-        ),
+    # One split for tile, queue and completion checks (item 12): a share of
+    # the ceiling is reserved for mature reviews, and the review side still
+    # goes through the floored batch helper (DP-043).
+    learning_show, review_show = split_due_budget(
+        user_id, db,
+        learning_due=learning_due, review_due=review_due,
+        due_budget=due_budget, remaining_reviews=remaining_reviews,
     )
     total_show = new_show + learning_show + review_show
 
@@ -210,14 +236,9 @@ def build_srs_item(
     if section == 'optional' and total_show <= 0 and completed_today and not ignore_daily_budget:
         return None
 
-    tier = SRSService.get_adaptive_limit_reason(user_id)  # one of normal/low/critical/collapse
-    reason_hint: Optional[str] = None
-    if total_show > 0 and tier != 'normal':
-        reason_hint = {
-            'low':      'Точность 65–80% — количество новых слов снижено',
-            'critical': 'Точность 45–65% — фокус на повторении',
-            'collapse': 'Точность ниже 45% — новые слова временно остановлены',
-        }.get(tier)
+    pause = SRSService.get_new_card_pause(user_id)
+    tier = pause['accuracy_tier']  # one of normal/low/critical/collapse
+    reason_hint: Optional[str] = _pause_reason_hint(pause) if total_show > 0 else None
 
     data: dict[str, Any] = {
         'new_show': new_show,
@@ -234,6 +255,8 @@ def build_srs_item(
         'remaining_reviews': remaining_reviews,
         'srs_tier': tier,
         'reason_hint': reason_hint,
+        # item 12: which signal holds NEW back: 'backlog' / 'accuracy' / 'both' / None
+        'new_pause_reason': pause['binding'],
     }
 
     if total_show <= 0 and completed_today:

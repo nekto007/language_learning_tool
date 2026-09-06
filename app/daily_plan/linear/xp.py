@@ -369,7 +369,7 @@ def is_srs_slot_completed_today(user_id: int, db_session: Any) -> bool:
         get_due_card_budget,
         count_reviews_today,
         get_new_card_budget,
-        get_review_batch_budget,
+        split_due_budget,
     )
 
     activity = count_reviews_today(user_id, db_obj) + count_new_cards_today(user_id, db_obj)
@@ -386,18 +386,14 @@ def is_srs_slot_completed_today(user_id: int, db_session: Any) -> bool:
     )
     remaining_new, remaining_reviews = get_new_card_budget(user_id, db_obj)
     due_budget = get_due_card_budget(user_id, db_obj)
-    learning_show = min(learning_due, due_budget)
-    pool = (
-        min(new_pending, remaining_new)
-        + learning_show
-        # Same floored review budget the slot builder shows (DP-043) — the
-        # corrective award must not fire while reviews remain servable.
-        + min(review_due, get_review_batch_budget(
-            user_id, db_obj,
-            remaining_reviews=remaining_reviews,
-            due_budget_left=max(0, due_budget - learning_show),
-        ))
+    learning_show, review_show = split_due_budget(
+        user_id, db_obj,
+        learning_due=learning_due, review_due=review_due,
+        due_budget=due_budget, remaining_reviews=remaining_reviews,
     )
+    # Same split the slot builder shows (item 12 / DP-043): the corrective
+    # award must not fire while cards remain servable today.
+    pool = min(new_pending, remaining_new) + learning_show + review_show
     if pool > 0:
         return False
 

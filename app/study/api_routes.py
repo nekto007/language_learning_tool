@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 from app import limiter
 from app.api.errors import api_error
 from app.srs.cards import ensure_card_directions
-from app.srs.counting import count_resting_words, get_review_batch_budget
+from app.srs.counting import count_resting_words, get_review_batch_budget, split_due_budget
 from app.srs.stats_service import srs_stats_service
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import get_audio_url_for_word, study
@@ -311,20 +311,38 @@ def get_study_items():
     # unbounded; the plan tile (build_srs_item) applies the same cap, so the
     # count and this queue stay in sync. `due_budget is None` = extra-study
     # (uncapped). Cards over the cap aren't lost — they surface next day.
+    #
+    # Item 12: learning + relearning together may take at most what
+    # ``split_due_budget`` leaves after the mature-review reserve, the same
+    # split the tile shows. Deck sessions keep their own explicit limits.
+    if due_budget is None or (deck_id and deck):
+        learning_cap = due_budget
+    else:
+        from app.srs.counting import count_due_by_states as _count_due_by_states
+        learning_cap, _ = split_due_budget(
+            current_user.id, db,
+            learning_due=_count_due_by_states(
+                current_user.id, db,
+                states=(CardState.LEARNING.value, CardState.RELEARNING.value),
+            ),
+            review_due=_count_due_by_states(current_user.id, db, states=(CardState.REVIEW.value,)),
+            due_budget=due_budget, remaining_reviews=remaining_reviews,
+        )
     relearning_query = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
         UserCardDirection.state == CardState.RELEARNING.value
     ).order_by(
         UserCardDirection.recovery_required.desc(),
         UserCardDirection.next_review
     )
-    if due_budget is None:
+    if learning_cap is None:
         relearning_cards = relearning_query.all()
-    elif due_budget > 0:
-        relearning_cards = relearning_query.limit(due_budget).all()
+    elif learning_cap > 0:
+        relearning_cards = relearning_query.limit(learning_cap).all()
     else:
         relearning_cards = []
     if due_budget is not None:
         due_budget -= len(relearning_cards)
+        learning_cap -= len(relearning_cards)
 
     for direction in relearning_cards:
         word = direction.user_word.word
@@ -338,10 +356,10 @@ def get_study_items():
         UserCardDirection.recovery_required.desc(),
         UserCardDirection.next_review
     )
-    if due_budget is None:
+    if learning_cap is None:
         learning_cards = learning_query.all()
-    elif due_budget > 0:
-        learning_cards = learning_query.limit(due_budget).all()
+    elif learning_cap > 0:
+        learning_cards = learning_query.limit(learning_cap).all()
     else:
         learning_cards = []
     if due_budget is not None:
@@ -833,6 +851,7 @@ def complete_session():
                     count_pending_new,
                     get_due_card_budget,
                     get_new_card_budget,
+                    split_due_budget,
                 )
                 from app.srs.constants import CardState as _CS
 
@@ -849,11 +868,11 @@ def complete_session():
                     states=(_CS.LEARNING.value, _CS.RELEARNING.value),
                 )
                 due_budget = get_due_card_budget(current_user.id, db)
-                learning_remaining = min(learning_remaining, due_budget)
-                review_remaining = min(
-                    count_due_by_states(current_user.id, db, states=(_CS.REVIEW.value,)),
-                    max(0, due_budget - learning_remaining),
-                    remaining_reviews,
+                learning_remaining, review_remaining = split_due_budget(
+                    current_user.id, db,
+                    learning_due=learning_remaining,
+                    review_due=count_due_by_states(current_user.id, db, states=(_CS.REVIEW.value,)),
+                    due_budget=due_budget, remaining_reviews=remaining_reviews,
                 )
                 total_remaining = new_remaining + learning_remaining + review_remaining
                 if total_remaining <= 0:

@@ -536,6 +536,9 @@ def daily_status():
     }
     if srs_limit_reason != 'normal':
         payload['srs_limit_reason'] = srs_limit_reason
+    srs_pause = SRSService.get_new_card_pause(user_id)
+    if srs_pause['binding'] is not None:
+        payload['srs_new_pause_reason'] = srs_pause['binding']
     if recovery_suggestion is not None:
         payload['recovery_suggestion'] = recovery_suggestion
     if plan.get('mode') == 'paused':
