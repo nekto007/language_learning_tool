@@ -120,19 +120,23 @@ def _days_hit_in_window(user_id: int, db: Any, pace: int) -> tuple[int, bool]:
         get_user_local_date,
         get_user_timezone_name,
         study_day_date_for_tz,
+        study_day_start_utc,
     )
 
     tz_name = get_user_timezone_name(user_id, db)
     today = get_user_local_date(user_id, db)
     window_start = today - timedelta(days=WINDOW_DAYS)
-    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=WINDOW_DAYS + 2)
+    # The window boundary is the 02:00-anchored start of its first study day,
+    # naive UTC like ``completed_at``. Anything before it is «history» — a
+    # lesson eight days ago must count (Codex review of item 15).
+    boundary = study_day_start_utc(tz_name, window_start).astimezone(UTC).replace(tzinfo=None)
     rows = (
         db.session.query(LessonProgress.completed_at)
         .filter(
             LessonProgress.user_id == user_id,
             LessonProgress.status == 'completed',
             LessonProgress.completed_at.isnot(None),
-            LessonProgress.completed_at >= since,
+            LessonProgress.completed_at >= boundary,
         )
         .all()
     )
@@ -149,7 +153,7 @@ def _days_hit_in_window(user_id: int, db: Any, pace: int) -> tuple[int, bool]:
             LessonProgress.user_id == user_id,
             LessonProgress.status == 'completed',
             LessonProgress.completed_at.isnot(None),
-            LessonProgress.completed_at < since,
+            LessonProgress.completed_at < boundary,
         )
         .first()
     )

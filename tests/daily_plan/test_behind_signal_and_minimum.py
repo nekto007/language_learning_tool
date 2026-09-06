@@ -20,7 +20,7 @@ from app.daily_plan.plan_builder import (
     _ensure_minimum_items,
     build_required_snapshot,
 )
-from app.daily_plan.snapshot import _is_item_completed
+from app.daily_plan.snapshot import _is_item_completed, _item_unreachable
 from app.daily_plan.tier import PACE_BEHIND_DAYS, PACE_UP_DAYS, pace_status
 from app.study.models import WordSet, WordSetQuizResult, WordSetWord
 from app.utils.db import db as real_db
@@ -187,3 +187,29 @@ class TestMinimumFloor:
             plan = get_daily_plan(user.id, real_db)
         assert plan['pace']['behind'] is True
         assert plan['pace']['lessons_per_day'] == 1
+
+    def test_unpublished_filler_becomes_unreachable(self, app, db_session):
+        ws = _published_set(db_session)
+        item = {'id': f'word_set_quiz:{ws.slug}', 'kind': 'word_set_quiz', 'data': {'set_slug': ws.slug, 'minimum_filler': True}}
+        with app.test_request_context():
+            assert _item_unreachable(1, item, real_db) is False
+            ws.is_published = False
+            db_session.commit()
+            assert _item_unreachable(1, item, real_db) is True
+        assert _item_unreachable(1, {'id': 'word_set_quiz:missing', 'kind': 'word_set_quiz', 'data': {}}, real_db) is True
+
+
+class TestHistoryBoundary:
+    def test_lesson_eight_days_ago_is_history(self, app, db_session):
+        user = _user(db_session)
+        lesson = _lessons(db_session, 1)[0]
+        _complete(db_session, user, lesson, _now() - timedelta(days=8))
+        status = pace_status(user.id, real_db)
+        assert status['days_hit'] == 0 and status['behind'] is True
+
+    def test_lesson_inside_the_window_is_not_history(self, app, db_session):
+        user = _user(db_session)
+        lesson = _lessons(db_session, 1)[0]
+        _complete(db_session, user, lesson, (_now() - timedelta(days=3)).replace(hour=12))
+        status = pace_status(user.id, real_db)
+        assert status['days_hit'] == 1 and status['behind'] is False

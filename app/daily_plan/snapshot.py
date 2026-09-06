@@ -292,7 +292,8 @@ def _item_unreachable(user_id: int, item: dict[str, Any], db: Any) -> bool:
 
     * ``reading`` — book access (DP-033),
     * ``curriculum`` — the lesson row still exists (DP-005),
-    * ``srs:deck_quiz`` — the decks still hold quizzable words (DP-044).
+    * ``srs:deck_quiz`` — the decks still hold quizzable words (DP-044),
+    * ``word_set_quiz`` — the set is still published (item 15 filler).
 
     Deliberately one dispatcher and one call-site in ``overlay_completion``:
     a second pass over ``items`` would drift from the completion pass that
@@ -305,7 +306,30 @@ def _item_unreachable(user_id: int, item: dict[str, Any], db: Any) -> bool:
         return _curriculum_lesson_unreachable(user_id, item, db)
     if (item.get('id') or '') == 'srs:deck_quiz':
         return _deck_quiz_unreachable(user_id, db)
+    if kind == 'word_set_quiz':
+        return _word_set_quiz_unreachable(item)
     return False
+
+
+def _word_set_quiz_unreachable(item: dict[str, Any]) -> bool:
+    """True when the frozen themed-quiz filler points at a set nobody can open.
+
+    The minimum-floor filler (item 15) is chosen at 02:00 among published
+    sets; an admin unpublishing (or deleting) the set later the same day
+    leaves a required item whose URL 404s and whose completion can never
+    fire. Same contract as the other branches: an error keeps the item.
+    """
+    data = item.get('data') or {}
+    slug = data.get('set_slug') or str(item.get('id') or '').removeprefix('word_set_quiz:')
+    if not slug:
+        return True
+    try:
+        from app.study.services import WordSetService
+
+        return WordSetService.get_set(slug) is None
+    except Exception:
+        logger.warning("snapshot word-set lookup failed slug=%s", slug, exc_info=True)
+        return False
 
 
 def _curriculum_lesson_unreachable(
