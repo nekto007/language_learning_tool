@@ -794,7 +794,17 @@ def emit_sql(all_changes: dict[str, list[dict]], theory: dict[str, tuple[dict, d
     def _match_keys(expr: str, values: dict, keys) -> str:
         # Every key the patch overwrites must still hold the expected value —
         # an independent prod edit of notes/tldr/summary must not be lost.
-        return ' AND '.join(f"{expr} -> {_s(k)} = {_j(values[k])}" for k in keys)
+        # An EMPTY expected value ('' / None / []) also matches an absent key:
+        # the lesson may carry ``rule: ""`` where the topic mirror has no
+        # ``rule`` at all (a1-1) — both mean "nothing authored".
+        parts = []
+        for k in keys:
+            value = values[k]
+            if value in ('', None, [], {}):
+                parts.append(f"coalesce({expr} -> {_s(k)}, {_j(value)}) = {_j(value)}")
+            else:
+                parts.append(f"{expr} -> {_s(k)} = {_j(value)}")
+        return ' AND '.join(parts)
 
     for topic, (old_extra, new_extra) in theory.items():
         slug = TOPICS[topic]['slug']

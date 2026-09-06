@@ -103,6 +103,7 @@ def topic_detail_legacy(topic_id):
 _THEORY_CELL_ORDER = (
     # label-like cells first (what the row is about) …
     'percentage', 'pronoun', 'person', 'subject', 'label', 'word', 'expression', 'phrase',
+    'singular', 'plural', 'distance', 'position', 'use', 'case',
     'idiom', 'adjective', 'noun', 'article', 'modal', 'preposition', 'time_expression',
     'marker', 'type', 'rule', 'pattern', 'structure', 'verb', 'form', 'ending', 'action',
     'usage', 'meaning', 'base', 'stem', 'infinitive', 'positive', 'comparative', 'superlative',
@@ -112,7 +113,7 @@ _THEORY_CELL_ORDER = (
     # … then the example pair; ``translation`` is placed by ``_order_theory_cells``
     # (before the example when the row carries its own ``example_translation``,
     # i.e. it translates the word, after it otherwise) …
-    'example', 'example_translation',
+    'example', 'example_translation', 'translation_sg', 'translation_pl',
     # … then commentary cells.
     'explanation', 'context', 'logic', 'note',
 )
