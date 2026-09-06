@@ -12,7 +12,7 @@ from sqlalchemy.orm import joinedload
 from app import limiter
 from app.api.errors import api_error
 from app.srs.cards import ensure_card_directions
-from app.srs.counting import count_resting_words, get_review_batch_budget, split_due_budget
+from app.srs.counting import count_resting_words, get_review_batch_budget, learning_budget_after_reserve
 from app.srs.stats_service import srs_stats_service
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import get_audio_url_for_word, study
@@ -313,21 +313,23 @@ def get_study_items():
     # (uncapped). Cards over the cap aren't lost — they surface next day.
     #
     # Item 12: learning + relearning together may take at most what
-    # ``split_due_budget`` leaves after the mature-review reserve, the same
-    # split the tile shows. Deck sessions keep their own explicit limits.
+    # ``learning_budget_after_reserve`` leaves once the mature-review reserve
+    # is held (the tile applies the same rule through ``split_due_budget``).
+    # Deck sessions keep their own explicit limits.
     if due_budget is None or (deck_id and deck):
         learning_cap = due_budget
     else:
-        from app.srs.counting import count_due_by_states as _count_due_by_states
-        learning_cap, _ = split_due_budget(
-            current_user.id, db,
-            learning_due=_count_due_by_states(
-                current_user.id, db,
-                states=(CardState.LEARNING.value, CardState.RELEARNING.value),
-            ),
-            review_due=_count_due_by_states(current_user.id, db, states=(CardState.REVIEW.value,)),
-            due_budget=due_budget, remaining_reviews=remaining_reviews,
-        )
+        # The reserve pool is the review query THIS session will serve (same
+        # time window, exclude_card_ids, list filter). A global due-now count
+        # diverged from the queue: it starved learning cards inside the grace
+        # window and held slots for excluded reviews (Codex review, item 12).
+        review_pool = base_due_query(include_today=not is_linear_plan_srs).filter(
+            or_(
+                UserCardDirection.state == CardState.REVIEW.value,
+                UserCardDirection.state.is_(None),
+            )
+        ).count()
+        learning_cap = learning_budget_after_reserve(due_budget, review_pool)
     relearning_query = base_due_query(include_learning_grace=not is_linear_plan_srs).filter(
         UserCardDirection.state == CardState.RELEARNING.value
     ).order_by(

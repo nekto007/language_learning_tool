@@ -220,6 +220,21 @@ def get_review_batch_budget(
 REVIEW_RESERVE_SHARE = 0.5
 
 
+def learning_budget_after_reserve(due_budget: int, review_pool: int) -> int:
+    """Ceiling left for learning/relearning once the mature-review reserve is held.
+
+    ``review_pool`` must be the number of review cards the *caller* can
+    actually serve (its own time window and exclusions), not a global count:
+    a reserve held for cards the queue will never hand out leaves half the
+    budget idle (Codex review of item 12).
+    """
+    due_budget = max(0, int(due_budget))
+    if due_budget <= 0:
+        return 0
+    reserve = min(max(0, int(review_pool)), math.ceil(due_budget * REVIEW_RESERVE_SHARE))
+    return max(0, due_budget - reserve)
+
+
 def split_due_budget(
     user_id: int,
     db: Any = _db,
@@ -243,8 +258,7 @@ def split_due_budget(
     due_budget = max(0, int(due_budget))
     learning_due = max(0, int(learning_due))
     review_due = max(0, int(review_due))
-    reserve = min(review_due, math.ceil(due_budget * REVIEW_RESERVE_SHARE)) if due_budget > 0 else 0
-    learning_show = min(learning_due, max(0, due_budget - reserve))
+    learning_show = min(learning_due, learning_budget_after_reserve(due_budget, review_due))
     review_show = min(
         review_due,
         get_review_batch_budget(
