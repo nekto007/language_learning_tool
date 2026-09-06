@@ -547,6 +547,16 @@ def _is_item_completed(user_id: int, item: dict[str, Any], db: Any) -> bool:
             user_id, topic_id_int, module_id_int, db,
         )
 
+    if kind == 'word_set_quiz':
+        # Item 15: the minimum-floor filler. Same per-day, set-agnostic signal
+        # the builder uses, so a frozen required item can always be closed.
+        from app.study.services import WordSetService
+        try:
+            return bool(WordSetService.completed_on(user_id))
+        except Exception:
+            logger.warning("word_set_quiz completion check failed user=%s", user_id, exc_info=True)
+            return False
+
     return False
 
 

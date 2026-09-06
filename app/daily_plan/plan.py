@@ -614,17 +614,16 @@ def get_daily_plan(
         get_slot_skips_used_today(user_id, get_user_local_date(user_id, session), session),
     )
 
-    # Item 14: the learner's pace and an upward-only nudge for the header.
-    from app.daily_plan.tier import pace_for_user, recommend_pace
-    pace_info: dict[str, Any] = {'lessons_per_day': pace_for_user(user_id, session), 'recommended': None, 'days_hit': 0}
+    # Items 14/15: the learner's pace, the upward nudge and the «behind» signal.
+    from app.daily_plan.tier import pace_for_user, pace_status
     try:
-        recommendation = recommend_pace(user_id, session)
+        pace_info: dict[str, Any] = pace_status(user_id, session)
     except Exception:
-        logger.warning("recommend_pace failed user=%s", user_id, exc_info=True)
-        recommendation = None
-    if recommendation:
-        pace_info['recommended'] = recommendation['recommended']
-        pace_info['days_hit'] = recommendation['days_hit']
+        logger.warning("pace_status failed user=%s", user_id, exc_info=True)
+        pace_info = {
+            'lessons_per_day': pace_for_user(user_id, session),
+            'recommended': None, 'days_hit': 0, 'behind': False,
+        }
 
     return {
         'mode': 'unified',

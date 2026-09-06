@@ -148,7 +148,7 @@ def build_required_snapshot(
             items.append(prep_item)
 
         items.append(curriculum_item)  # the final_test itself
-        return _dedupe_snapshot_items(items)
+        return _dedupe_snapshot_items(_ensure_minimum_items(user_id, db, items))
 
     # Standard layout: curriculum_1, SRS, reading, curriculum_2, curriculum_3.
     items.append(curriculum_item)
@@ -166,7 +166,46 @@ def build_required_snapshot(
             user_id, db, lesson, anchor_done_today=False,
         ))
 
-    return _dedupe_snapshot_items(items)
+    return _dedupe_snapshot_items(_ensure_minimum_items(user_id, db, items))
+
+
+# Lesson audit item 15 (2026-09-06): the required section never shrinks to a
+# single lesson. With pace 1, no SRS work and no reading goal the day used to
+# close on one two-minute lesson; a short filler from the optional sources
+# keeps a floor of two items. Only kinds whose completion the snapshot can
+# detect (``_is_item_completed``) may serve as filler.
+REQUIRED_MIN_ITEMS = 2
+
+
+def _minimum_filler_item_dict(user_id: int, db: Any) -> dict[str, Any] | None:
+    """A short, always-closable item for the minimum floor, or None."""
+    from app.daily_plan.items.grammar_review import build_grammar_review_item
+    from app.daily_plan.items.word_set_quiz import build_word_set_quiz_item
+
+    for builder in (build_word_set_quiz_item, build_grammar_review_item):
+        try:
+            item = builder(user_id, db, section='required')
+        except Exception:
+            logger.warning("minimum filler builder %s failed user=%s", builder.__name__, user_id, exc_info=True)
+            continue
+        if item is None:
+            continue
+        payload = _strip_for_snapshot(item.to_dict())
+        data = dict(payload.get('data') or {})
+        data['minimum_filler'] = True
+        payload['data'] = data
+        return payload
+    return None
+
+
+def _ensure_minimum_items(user_id: int, db: Any, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Append one short filler when the required section is thinner than the floor."""
+    if len(items) >= REQUIRED_MIN_ITEMS or not items:
+        return items
+    filler = _minimum_filler_item_dict(user_id, db)
+    if filler is None or any(it.get('id') == filler.get('id') for it in items):
+        return items
+    return [*items, filler]
 
 
 def _collect_curriculum_chain(

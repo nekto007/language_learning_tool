@@ -104,16 +104,14 @@ def compute_user_tier(user_id: int, db: Any) -> Tier:
     return tier
 
 
-def recommend_pace(user_id: int, db: Any) -> dict[str, int] | None:
-    """Suggest one more lesson a day when the learner keeps hitting the pace.
+# Below this many pace-hit days in the window a learner with prior history is
+# «behind» (item 15). Newcomers without any lesson before the window are never
+# told they are behind.
+PACE_BEHIND_DAYS = 3
 
-    Counts study days in the last ``WINDOW_DAYS`` (today excluded) on which
-    the learner completed at least ``pace`` curriculum lessons — course
-    completion, not secured days (Codex, 2026-09-06): the day-secured signal
-    depends on SRS and reading and says nothing about course appetite.
-    Returns ``{'current', 'recommended', 'days_hit'}`` or None. Never
-    suggests slowing down.
-    """
+
+def _days_hit_in_window(user_id: int, db: Any, pace: int) -> tuple[int, bool]:
+    """(study days in the last WINDOW_DAYS with >= pace lessons done, has_history_before_window)."""
     from collections import Counter
     from datetime import UTC, datetime
 
@@ -124,9 +122,6 @@ def recommend_pace(user_id: int, db: Any) -> dict[str, int] | None:
         study_day_date_for_tz,
     )
 
-    pace = pace_for_user(user_id, db)
-    if pace >= max(TIER_BY_PACE):
-        return None
     tz_name = get_user_timezone_name(user_id, db)
     today = get_user_local_date(user_id, db)
     window_start = today - timedelta(days=WINDOW_DAYS)
@@ -148,9 +143,57 @@ def recommend_pace(user_id: int, db: Any) -> dict[str, int] | None:
         if window_start <= day < today:
             per_day[day] += 1
     days_hit = sum(1 for n in per_day.values() if n >= pace)
+    has_history = bool(
+        db.session.query(LessonProgress.id)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.completed_at.isnot(None),
+            LessonProgress.completed_at < since,
+        )
+        .first()
+    )
+    return days_hit, has_history
+
+
+def recommend_pace(user_id: int, db: Any) -> dict[str, int] | None:
+    """Suggest one more lesson a day when the learner keeps hitting the pace.
+
+    Counts study days in the last ``WINDOW_DAYS`` (today excluded) on which
+    the learner completed at least ``pace`` curriculum lessons — course
+    completion, not secured days (Codex, 2026-09-06): the day-secured signal
+    depends on SRS and reading and says nothing about course appetite.
+    Returns ``{'current', 'recommended', 'days_hit'}`` or None. Never
+    suggests slowing down.
+    """
+    pace = pace_for_user(user_id, db)
+    if pace >= max(TIER_BY_PACE):
+        return None
+    days_hit, _ = _days_hit_in_window(user_id, db, pace)
     if days_hit < PACE_UP_DAYS:
         return None
     return {'current': pace, 'recommended': pace + 1, 'days_hit': days_hit}
+
+
+def pace_status(user_id: int, db: Any) -> dict[str, Any]:
+    """Everything the plan header needs about the pace, in one pass (item 15).
+
+    ``recommended`` (upward nudge, see :func:`recommend_pace`) and ``behind``
+    are mutually exclusive by construction: behind needs fewer than
+    ``PACE_BEHIND_DAYS`` hit days, the nudge at least ``PACE_UP_DAYS``.
+    A learner with no completed lesson before the window is never behind —
+    a newcomer's first week is not a slump.
+    """
+    pace = pace_for_user(user_id, db)
+    days_hit, has_history = _days_hit_in_window(user_id, db, pace)
+    recommended = pace + 1 if (pace < max(TIER_BY_PACE) and days_hit >= PACE_UP_DAYS) else None
+    behind = bool(has_history and days_hit < PACE_BEHIND_DAYS)
+    return {
+        'lessons_per_day': pace,
+        'days_hit': days_hit,
+        'recommended': recommended,
+        'behind': behind,
+    }
 
 
 def _count_secured_days(
