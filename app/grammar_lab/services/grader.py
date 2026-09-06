@@ -83,6 +83,19 @@ class GrammarExerciseGrader:
 
     _HINT_RE = re.compile(r"\s*\([^()]*\)")
 
+    # «Нулевой артикль» in fill_blank items is authored as an em dash («—»),
+    # which no learner can type: accept the usual ways of saying «nothing
+    # goes here» when — and only when — the expected answer is such a marker
+    # (lesson audit item 25; 14 items in a2-13 / a2-14).
+    _ZERO_ARTICLE_MARKERS = frozenset({
+        '—', '–', '-', '−', 'x', 'ø', '∅', '0', 'zero', 'zero article', 'no article',
+        'none', 'nothing', 'нет', 'ничего', 'нет артикля', 'без артикля', 'пусто',
+    })
+
+    @classmethod
+    def _is_zero_marker(cls, text) -> bool:
+        return str(text or '').strip().lower() in cls._ZERO_ARTICLE_MARKERS
+
     @classmethod
     def _strip_hints(cls, text: str) -> str:
         """Drop parenthesised author hints — ``Tom ___ (wake up) at sunrise``
@@ -109,6 +122,10 @@ class GrammarExerciseGrader:
         for candidate in candidates:
             if candidate is None or not str(candidate).strip():
                 continue
+            if self._is_zero_marker(candidate):
+                if self._is_zero_marker(user):
+                    return True
+                continue
             if user_norm == self._normalize_answer(candidate):
                 return True
             if self._same_text(user, str(candidate)):
@@ -132,8 +149,9 @@ class GrammarExerciseGrader:
             for candidate in candidates:
                 if not str(candidate or '').strip():
                     continue
+                filler = '' if self._is_zero_marker(candidate) else str(candidate)
                 for template in (stripped, question):
-                    if self._text_matches(answer, [template.replace('___', str(candidate))]):
+                    if self._text_matches(answer, [template.replace('___', filler)]):
                         is_correct = True
                         break
                 if is_correct:
