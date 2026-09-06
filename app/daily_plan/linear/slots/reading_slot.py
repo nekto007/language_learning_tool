@@ -182,7 +182,7 @@ def build_reading_slot(
 
     time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
     today_target_seconds = get_daily_reading_target_seconds(
-        get_user_local_date(user_id, db)
+        get_user_local_date(user_id, db), user_id=user_id,
     )
     gate_reached = time_spent_seconds >= today_target_seconds
 

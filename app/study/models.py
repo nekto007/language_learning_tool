@@ -111,6 +111,9 @@ class StudySettings(db.Model):
 
     # Difficulty settings
     show_hint_time = db.Column(db.Integer, default=10)  # Seconds until hint is shown
+    # Item 14: personal daily reading goal in minutes; 0 = reading stays optional
+    # (no required slot, no norm). Replaces the 5/10 day-of-month alternation.
+    reading_minutes_per_day = db.Column(db.SmallInteger, nullable=False, default=0, server_default='0')
 
     # Relationship
     user = db.relationship('User', backref=db.backref('study_settings', uselist=False, cascade='all, delete-orphan'))

@@ -38,6 +38,8 @@ def _make_user(db_session, **kwargs) -> User:
         active=True,
     )
     user.set_password('secret123')
+    # Item 14: pace is explicit; these scenarios were written for one lesson a day.
+    kwargs.setdefault('plan_difficulty', 'light')
     for k, v in kwargs.items():
         setattr(user, k, v)
     db_session.add(user)

@@ -93,6 +93,24 @@
                             {{ _('Максимальное количество повторений в день') }}
                         </span>
                     </div>
+                    <div class="ss-form__group">
+                        <label class="ss-form__label">{{ _('Уроков курса в день') }}</label>
+                        <div class="ss-radio-group" role="radiogroup" aria-label="{{ _('Уроков курса в день') }}">
+                            {% for sub in form.lessons_per_day %}
+                            <label>{{ sub }} {{ sub.label.text }}</label>
+                            {% endfor %}
+                        </div>
+                        <span class="ss-form__hint">
+                            {{ _('Сколько уроков курса план дня просит каждый день. Больше — быстрее по курсу, меньше — легче закрывать день.') }}
+                        </span>
+                    </div>
+                    <div class="ss-form__group">
+                        <label class="ss-form__label" for="{{ form.reading_minutes_per_day.id }}">{{ _('Чтение в плане дня') }}</label>
+                        {{ form.reading_minutes_per_day(class="ss-form__input") }}
+                        <span class="ss-form__hint">
+                            {{ _('С нормой чтение становится обязательным пунктом дня; без неё книга остаётся в разделе «Дополнительно».') }}
+                        </span>
+                    </div>
                 </div>
 
                 <!-- Learning Settings -->

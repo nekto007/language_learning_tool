@@ -19891,3 +19891,14 @@ body.feedback-modal-open { overflow: hidden; }
 }
 .tr-pager__label { font-size: 0.95rem; color: var(--text-muted, #6c757d); }
 .tr-pager__btn--ready { box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.35); }
+
+/* Daily plan: pace line under the required-section header (lesson audit item 14) */
+.daily-plan__pace {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #6b7280);
+}
+.daily-plan__pace a { font-weight: 600; }
+/* Study settings: pace radio group (item 14) */
+.ss-radio-group { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.ss-radio-group label { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }

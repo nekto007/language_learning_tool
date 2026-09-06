@@ -54,48 +54,103 @@ _OPTIONAL_SOURCES: frozenset[str] = frozenset({
 })
 
 
+# Lesson audit item 14 (2026-09-06): the pace is the learner's explicit choice.
+# ``User.plan_difficulty`` ('light' / 'normal' / 'intensive') maps to 1 / 2 / 3
+# curriculum lessons per day. The automatic ladder that used to pick the tier
+# from secured days kept 98 % of snapshots on ``calm`` — a day rarely closed
+# because the reading slot was unmet, so nobody ever left one lesson a day.
+PACE_BY_DIFFICULTY: dict[str, int] = {'light': 1, 'normal': 2, 'intensive': 3}
+DIFFICULTY_BY_PACE: dict[int, str] = {1: 'light', 2: 'normal', 3: 'intensive'}
+TIER_BY_PACE: dict[int, Tier] = {1: 'calm', 2: 'normal', 3: 'intensive'}
+DEFAULT_PACE = 2
+# Recommend one more lesson a day when the learner hit the current pace on
+# at least this many of the last WINDOW_DAYS study days.
+PACE_UP_DAYS = 5
+
+
+def pace_from_difficulty(value: Any) -> int:
+    return PACE_BY_DIFFICULTY.get(str(value or '').lower(), DEFAULT_PACE)
+
+
+def difficulty_for_pace(pace: int) -> str:
+    return DIFFICULTY_BY_PACE.get(int(pace), DIFFICULTY_BY_PACE[DEFAULT_PACE])
+
+
+def pace_for_user(user_id: int, db: Any) -> int:
+    """Curriculum lessons per day the learner asked for (1..3)."""
+    from app.auth.models import User
+
+    value = db.session.query(User.plan_difficulty).filter(User.id == user_id).scalar()
+    return pace_from_difficulty(value)
+
+
 def compute_user_tier(user_id: int, db: Any) -> Tier:
     """Return the tier the user should receive for today.
 
-    Forces ``calm`` when a ``final_test`` is the next spine lesson — the
-    final test plus a grammar-prep step is already heavy enough; we do
-    not want to pile a second/third curriculum slot on top.
+    The tier is the learner's explicit pace (item 14). ``calm`` is still
+    forced when a ``final_test`` is the next spine lesson — the final test
+    plus a grammar-prep step is already heavy enough; we do not want to
+    pile a second/third curriculum slot on top.
     """
     from app.daily_plan.linear.progression import find_next_lesson_linear
-    from app.utils.time_utils import get_user_local_date
 
     next_lesson = find_next_lesson_linear(user_id, db)
     if next_lesson is not None and getattr(next_lesson, 'type', None) == 'final_test':
         logger.debug("tier user=%s -> calm (final_test ahead)", user_id)
         return 'calm'
+    pace = pace_for_user(user_id, db)
+    tier = TIER_BY_PACE.get(pace, 'normal')
+    logger.debug("tier user=%s -> %s (pace=%d)", user_id, tier, pace)
+    return tier
 
+
+def recommend_pace(user_id: int, db: Any) -> dict[str, int] | None:
+    """Suggest one more lesson a day when the learner keeps hitting the pace.
+
+    Counts study days in the last ``WINDOW_DAYS`` (today excluded) on which
+    the learner completed at least ``pace`` curriculum lessons — course
+    completion, not secured days (Codex, 2026-09-06): the day-secured signal
+    depends on SRS and reading and says nothing about course appetite.
+    Returns ``{'current', 'recommended', 'days_hit'}`` or None. Never
+    suggests slowing down.
+    """
+    from collections import Counter
+    from datetime import UTC, datetime
+
+    from app.curriculum.models import LessonProgress
+    from app.utils.time_utils import (
+        get_user_local_date,
+        get_user_timezone_name,
+        study_day_date_for_tz,
+    )
+
+    pace = pace_for_user(user_id, db)
+    if pace >= max(TIER_BY_PACE):
+        return None
+    tz_name = get_user_timezone_name(user_id, db)
     today = get_user_local_date(user_id, db)
     window_start = today - timedelta(days=WINDOW_DAYS)
-
-    secured_days = _count_secured_days(user_id, window_start, today, db)
-    if secured_days < SECURED_LOW:
-        logger.debug(
-            "tier user=%s -> calm secured=%d/%d window=%dd",
-            user_id, secured_days, SECURED_LOW, WINDOW_DAYS,
+    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=WINDOW_DAYS + 2)
+    rows = (
+        db.session.query(LessonProgress.completed_at)
+        .filter(
+            LessonProgress.user_id == user_id,
+            LessonProgress.status == 'completed',
+            LessonProgress.completed_at.isnot(None),
+            LessonProgress.completed_at >= since,
         )
-        return 'calm'
-
-    if secured_days >= SECURED_HIGH:
-        optional_days = _count_days_with_optional_completion(
-            user_id, window_start, today, db,
-        )
-        if optional_days >= OPTIONAL_HIGH:
-            logger.debug(
-                "tier user=%s -> intensive secured=%d optional=%d window=%dd",
-                user_id, secured_days, optional_days, WINDOW_DAYS,
-            )
-            return 'intensive'
-
-    logger.debug(
-        "tier user=%s -> normal secured=%d window=%dd",
-        user_id, secured_days, WINDOW_DAYS,
+        .all()
     )
-    return 'normal'
+    per_day: Counter = Counter()
+    for (ts,) in rows:
+        aware = ts.replace(tzinfo=UTC) if ts.tzinfo is None else ts
+        day = study_day_date_for_tz(tz_name, now_utc=aware)
+        if window_start <= day < today:
+            per_day[day] += 1
+    days_hit = sum(1 for n in per_day.values() if n >= pace)
+    if days_hit < PACE_UP_DAYS:
+        return None
+    return {'current': pace, 'recommended': pace + 1, 'days_hit': days_hit}
 
 
 def _count_secured_days(

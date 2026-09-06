@@ -1131,7 +1131,7 @@ def reading_session_start():
     from app.books.reading_session import get_daily_reading_target_seconds
     from app.utils.time_utils import get_user_local_date
     study_date = get_user_local_date(current_user.id, db)
-    today_target_seconds = get_daily_reading_target_seconds(study_date)
+    today_target_seconds = get_daily_reading_target_seconds(study_date, user_id=current_user.id)
 
     logger.info(
         "reading-session/start user=%s chapter=%s book=%s session=%s book_seconds_today=%s target=%s",

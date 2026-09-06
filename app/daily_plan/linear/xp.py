@@ -459,7 +459,7 @@ def maybe_award_book_reading_xp(
     # user reached today's TRUE target, not the static 5-min floor. Without
     # this, a 10-min day would award XP at 5 min while the UI still claims
     # the slot needs 10 min — slot would flicker between done/not-done.
-    target_today = get_daily_reading_target_seconds(get_user_local_date(user_id, db_obj))
+    target_today = get_daily_reading_target_seconds(get_user_local_date(user_id, db_obj), user_id=user_id)
     if not has_min_reading_time_today(
         user_id, int(preference.book_id), db_obj,
         minimum_seconds=target_today,

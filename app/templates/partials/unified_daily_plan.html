@@ -8,6 +8,7 @@
 {% set u_has_more = unified_plan.get('has_more_optional', false) %}
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
 {% set u_blocked_module = unified_plan.get('blocked_module') or {} %}
+{% set u_pace = unified_plan.get('pace') or {} %}
 {# The first ``u_optional_fold`` optional items render open; the rest render
    folded (``hidden``) and unfold in place — no network, no reload. A reload
    re-rendered the same first five and never showed anything new (DP-036). #}
@@ -253,6 +254,18 @@
           <span class="daily-plan__eta">· ~{{ u_eta_left }} мин</span>
         {% endif %}
       </h3>
+      {% if u_pace.get('lessons_per_day') %}
+        {% set _pace_n = u_pace.get('lessons_per_day')|int %}
+        {% set _pace_word = 'урок' if _pace_n == 1 else 'урока' %}
+        <div class="daily-plan__pace">
+          {% if u_pace.get('recommended') %}
+            Темп: {{ _pace_n }} {{ _pace_word }} в день · вы держите его {{ u_pace.get('days_hit') }} дней из 7 —
+            <a href="{{ url_for('study.settings') }}">попробовать {{ u_pace.get('recommended') }}?</a>
+          {% else %}
+            Темп: {{ _pace_n }} {{ _pace_word }} в день · <a href="{{ url_for('study.settings') }}">изменить</a>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
 
     {% if u_required %}

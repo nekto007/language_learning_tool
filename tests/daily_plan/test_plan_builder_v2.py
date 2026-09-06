@@ -101,6 +101,9 @@ def user_with_book(db_session, user_no_book, book_with_chapter):
         selected_at=datetime.now(timezone.utc).replace(tzinfo=None).replace(year=2025),
     )
     db_session.add(pref)
+    # Item 14: reading joins required only for a learner with a daily goal.
+    from app.study.models import StudySettings
+    db_session.add(StudySettings(user_id=user_no_book.id, new_words_per_day=5, reviews_per_day=20, reading_minutes_per_day=5))
     db_session.commit()
     return user_no_book
 

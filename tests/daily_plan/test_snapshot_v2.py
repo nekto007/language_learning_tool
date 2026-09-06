@@ -891,11 +891,13 @@ class TestRolledReadingTargetIsRefreshed:
                 'gate_reached': False,
             },
         }
+        # Item 14: the target is the learner's own goal (10 min here), no more
+        # day-of-month alternation; a goal raised mid-day must reach the snapshot.
+        from app.study.models import StudySettings
+        real_db.session.add(StudySettings(user_id=user.id, new_words_per_day=5, reviews_per_day=20, reading_minutes_per_day=10))
+        real_db.session.commit()
         merged = dict(frozen)
-
         snapshot_mod._refresh_reading_target(user.id, merged, real_db)
-
-        # 4 September is even: today's canonical target is 10 minutes.
         assert merged['subtitle'] == 'Глава 3 · Old title · Норма дня — 10 мин'
         assert merged['eta_minutes'] == 10
         assert merged['data']['time_spent_seconds'] == 420

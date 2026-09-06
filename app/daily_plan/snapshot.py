@@ -31,7 +31,10 @@ logger = logging.getLogger(__name__)
 # the deploy kept showing the old review budget («4 на повтор», «фокус на
 # повторении») for a whole study day. The roll-over from yesterday goes
 # through the same version check, so a bump rebuilds everyone once.
-SNAPSHOT_VERSION = 4
+# v5 (2026-09-06, lesson audit item 14): reading left the required section
+# unless the learner set a goal, and the tier is now the explicit pace; v4
+# rows built before the deploy would keep the old composition for a day.
+SNAPSHOT_VERSION = 5
 
 # SRS ``data`` keys that describe today's *progress* rather than the day's
 # frozen composition — re-read on every overlay (DP-041). ``goal_total`` is
@@ -454,7 +457,7 @@ def _refresh_reading_target(user_id: int, item: dict[str, Any], db: Any) -> None
         from app.utils.time_utils import get_user_local_date
 
         target_seconds = int(
-            get_daily_reading_target_seconds(get_user_local_date(user_id, db))
+            get_daily_reading_target_seconds(get_user_local_date(user_id, db), user_id=user_id)
         )
         time_spent_seconds = int(
             get_book_reading_seconds_today(user_id, book_id_int, db) or 0

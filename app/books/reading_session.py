@@ -36,30 +36,38 @@ MIN_READING_SECONDS = 300
 # pause/resume cycles (which split a long read into many short sessions) are
 # summed honestly.
 #
-# 5/10 alternation: odd days of the month → 5 minutes, even → 10 minutes
-# (see ``get_daily_reading_target_seconds``). The legacy constant remains
-# at the lower bound for backward compat with code paths that haven't
-# migrated to the function yet, and as the minimum credible engagement
-# session length.
+# Fixed 5-minute floor; a learner's own goal (StudySettings.reading_minutes_per_day)
+# overrides it through ``get_daily_reading_target_seconds(user_id=...)``.
+# ``_LONG`` is kept for imports only: the 5/10 day-of-month alternation was
+# retired in lesson audit item 14 (2026-09-06).
 DAILY_READING_TARGET_SECONDS = 300
 DAILY_READING_TARGET_SECONDS_LONG = 600
 
 
-def get_daily_reading_target_seconds(today: 'date | None' = None) -> int:
-    """Return today's reading target, alternating 300/600 by day-of-month.
+def get_daily_reading_target_seconds(
+    today: 'date | None' = None,
+    user_id: int | None = None,
+) -> int:
+    """Today's reading target in seconds for ``user_id``.
 
-    Odd days (1, 3, 5, …) → 300 seconds (5 min).
-    Even days (2, 4, 6, …) → 600 seconds (10 min).
-
-    ``today`` defaults to today in UTC; callers that care about
-    user-local study day should pass the date from ``get_user_local_date``;
-    it turns over at 02:00 local time (matching the daily plan, streak, and
-    book-reading aggregation).
+    Lesson audit item 14 (2026-09-06): the target is the learner's own goal
+    (``StudySettings.reading_minutes_per_day``); without one (0, or no
+    settings row) the fixed 5-minute floor applies. The 5/10 alternation by
+    day-of-month parity is gone — it made the required slot unpredictable
+    and was the single biggest reason a study day stayed unsecured.
+    ``today`` is accepted for call-site compatibility and no longer matters.
     """
-    from datetime import date as _date
-    if today is None:
-        today = _date.today()
-    return DAILY_READING_TARGET_SECONDS if today.day % 2 == 1 else DAILY_READING_TARGET_SECONDS_LONG
+    if user_id is not None:
+        from app.study.models import StudySettings
+
+        minutes = (
+            StudySettings.query.with_entities(StudySettings.reading_minutes_per_day)
+            .filter_by(user_id=user_id)
+            .scalar()
+        )
+        if minutes and int(minutes) > 0:
+            return int(minutes) * 60
+    return DAILY_READING_TARGET_SECONDS
 # Per-chapter offset-advance gate for the daily reading target. Set to 0 so
 # the slot completes on time alone: idle-pause (60s no activity → no time
 # accrued) + 60s heartbeat + ``OPEN_SESSION_GRACE_SECONDS`` cap already
@@ -533,7 +541,7 @@ def compute_chapter_daily_target_state(
     from app.utils.time_utils import get_user_local_date
 
     today_local = get_user_local_date(user_id, db_session)
-    target_seconds = get_daily_reading_target_seconds(today_local)
+    target_seconds = get_daily_reading_target_seconds(today_local, user_id=user_id)
     daily_target_met = (
         active_seconds >= target_seconds
         and offset_advance >= DAILY_CHAPTER_ADVANCE_MIN
@@ -573,6 +581,6 @@ def is_daily_reading_target_met_today(
     from app.utils.time_utils import get_user_local_date
 
     today_local = get_user_local_date(user_id, db_session)
-    target_seconds = get_daily_reading_target_seconds(today_local)
+    target_seconds = get_daily_reading_target_seconds(today_local, user_id=user_id)
     total_seconds = get_book_reading_seconds_today(user_id, book_id, db_session)
     return total_seconds >= target_seconds

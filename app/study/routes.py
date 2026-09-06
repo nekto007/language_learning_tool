@@ -351,16 +351,22 @@ def vocab_map():
 @login_required
 @module_required('study')
 def settings():
+    from app.daily_plan.tier import difficulty_for_pace, pace_for_user
+
     user_settings = StudySettings.get_settings(current_user.id)
 
     form = StudySettingsForm(obj=user_settings)
 
     if form.validate_on_submit():
         form.populate_obj(user_settings)
+        # Pace lives on the user, not on StudySettings (item 14).
+        current_user.plan_difficulty = difficulty_for_pace(int(form.lessons_per_day.data))
         db.session.commit()
         flash(_('Your study settings have been updated!'), 'success')
         return redirect(url_for('study.index'))
 
+    if not form.is_submitted():
+        form.lessons_per_day.data = str(pace_for_user(current_user.id, db))
     bot_username = current_app.config.get('TELEGRAM_BOT_USERNAME', 'llt_englishbot')
     return render_template('study/settings.html', form=form,
                            telegram_bot_username=bot_username)

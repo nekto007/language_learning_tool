@@ -1,6 +1,6 @@
 from flask_babel import lazy_gettext as _l
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, IntegerField, SelectField, SubmitField
+from wtforms import BooleanField, IntegerField, RadioField, SelectField, SubmitField
 from wtforms.validators import DataRequired, NumberRange
 
 
@@ -26,6 +26,16 @@ class StudySettingsForm(FlaskForm):
                                   validators=[DataRequired(),
                                               NumberRange(min=0, max=60)],
                                   default=10)
+    # Lesson audit item 14: explicit pace (stored on User.plan_difficulty) and a
+    # personal daily reading goal (0 = reading stays optional in the plan).
+    lessons_per_day = RadioField(_l('Lessons Per Day'),
+                                 choices=[('1', _l('1 урок')), ('2', _l('2 урока')), ('3', _l('3 урока'))],
+                                 default='2',
+                                 validators=[DataRequired()])
+    reading_minutes_per_day = SelectField(_l('Daily Reading Goal'),
+                                          choices=[(0, _l('По желанию, без нормы')), (5, _l('5 минут')),
+                                                   (10, _l('10 минут')), (15, _l('15 минут'))],
+                                          coerce=int, default=0)
 
     submit = SubmitField(_l('Save Settings'))
 

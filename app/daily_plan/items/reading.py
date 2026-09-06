@@ -114,6 +114,23 @@ def _book_is_actionable_for_reading(user_id: int, book_id: int, db: Any) -> bool
     return True
 
 
+def reading_goal_enabled(user_id: int, db: Any) -> bool:
+    """True when the learner set a daily reading goal (minutes > 0).
+
+    Item 14: reading is optional by default. Only a learner who chose a goal
+    gets a *required* reading slot; everyone else sees the book in
+    «Дополнительно» and the day closes without it.
+    """
+    from app.study.models import StudySettings
+
+    minutes = (
+        StudySettings.query.with_entities(StudySettings.reading_minutes_per_day)
+        .filter_by(user_id=user_id)
+        .scalar()
+    )
+    return bool(minutes and int(minutes) > 0)
+
+
 def reading_preference_needs_setup(user_id: int, db: Any) -> bool:
     """Return True when the plan should show the setup-book card."""
     pref = get_user_reading_preference(user_id, db)
@@ -206,7 +223,7 @@ def build_reading_item(
     from app.utils.time_utils import get_user_local_date
 
     today_target_seconds = get_daily_reading_target_seconds(
-        get_user_local_date(user_id, db)
+        get_user_local_date(user_id, db), user_id=user_id,
     )
     time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
     gate_reached = time_spent_seconds >= today_target_seconds

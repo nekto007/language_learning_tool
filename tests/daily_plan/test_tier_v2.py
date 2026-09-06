@@ -90,106 +90,49 @@ def _seed_optional_days(user_id: int, today: date, n: int, db_session) -> None:
 
 
 class TestTierSelection:
+    """Item 14: the tier is the learner's explicit pace; the secured-day ladder is gone."""
 
-    def test_calm_when_few_secured_days(self, db_session, user, vocabulary_lesson):
-        # 0 secured days in the past 7 → calm.
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'calm'
+    def test_light_pace_gives_calm(self, db_session, user, vocabulary_lesson):
+        user.plan_difficulty = 'light'
+        db_session.commit()
+        assert compute_user_tier(user.id, real_db) == 'calm'
 
-    def test_calm_when_below_secured_low_threshold(self, db_session, user, vocabulary_lesson):
-        # SECURED_LOW - 1 secured days → still calm.
-        today = study_today()
-        _seed_secured_days(user.id, today, SECURED_LOW - 1, db_session)
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'calm'
+    def test_default_pace_is_normal(self, db_session, user, vocabulary_lesson):
+        assert user.plan_difficulty == 'normal'
+        assert compute_user_tier(user.id, real_db) == 'normal'
 
-    def test_normal_at_secured_low(self, db_session, user, vocabulary_lesson):
-        # SECURED_LOW secured days, no optional → normal.
-        today = study_today()
-        _seed_secured_days(user.id, today, SECURED_LOW, db_session)
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'normal'
+    def test_intensive_pace_gives_intensive(self, db_session, user, vocabulary_lesson):
+        user.plan_difficulty = 'intensive'
+        db_session.commit()
+        assert compute_user_tier(user.id, real_db) == 'intensive'
 
-    def test_normal_when_high_secured_but_no_optional(
-        self, db_session, user, vocabulary_lesson,
-    ):
-        # Many secured days but zero optional activity → still normal.
-        today = study_today()
-        _seed_secured_days(user.id, today, SECURED_HIGH, db_session)
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'normal'
+    def test_secured_and_optional_days_no_longer_move_the_tier(self, db_session, user, vocabulary_lesson):
+        today = study_today(user.id)
+        _seed_secured_days(user.id, today, SECURED_HIGH + 1, db_session)
+        _seed_optional_days(user.id, today, WINDOW_DAYS, db_session)
+        user.plan_difficulty = 'light'
+        db_session.commit()
+        assert compute_user_tier(user.id, real_db) == 'calm'
+        user.plan_difficulty = 'normal'
+        db_session.commit()
+        assert compute_user_tier(user.id, real_db) == 'normal'
 
-    def test_intensive_when_high_secured_and_optional(
-        self, db_session, user, vocabulary_lesson,
-    ):
-        today = study_today()
-        _seed_secured_days(user.id, today, SECURED_HIGH, db_session)
-        _seed_optional_days(user.id, today, OPTIONAL_HIGH, db_session)
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'intensive'
-
-    def test_intensive_requires_both_thresholds(
-        self, db_session, user, vocabulary_lesson,
-    ):
-        # SECURED_HIGH secured but OPTIONAL_HIGH-1 optional days → not intensive.
-        today = study_today()
-        _seed_secured_days(user.id, today, SECURED_HIGH, db_session)
-        _seed_optional_days(user.id, today, OPTIONAL_HIGH - 1, db_session)
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'normal'
+    def test_unknown_difficulty_falls_back_to_normal(self, db_session, user, vocabulary_lesson):
+        user.plan_difficulty = 'weird'
+        db_session.commit()
+        assert compute_user_tier(user.id, real_db) == 'normal'
 
     def test_final_test_forces_calm(self, db_session, user):
-        """final_test as next spine lesson → calm even when metrics scream intensive."""
+        """A final_test next on the spine keeps the day to one curriculum slot."""
         code = unique_level_code()
-        level = CEFRLevel(
-            code=code, name=f'L-{code}', order=1,
-        )
+        level = CEFRLevel(code=code, name=f'L-{code}', order=1)
         db_session.add(level)
         db_session.commit()
         module = Module(level_id=level.id, number=1, title='M1', description='', raw_content={})
         db_session.add(module)
         db_session.commit()
-        ft = Lessons(
-            module_id=module.id, number=1, title='Final', type='final_test', content={},
-        )
-        db_session.add(ft)
+        db_session.add(Lessons(module_id=module.id, number=1, title='FT', type='final_test', content={}))
         db_session.commit()
-
-        today = study_today()
-        _seed_secured_days(user.id, today, SECURED_HIGH + 2, db_session)
-        _seed_optional_days(user.id, today, OPTIONAL_HIGH + 2, db_session)
-
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'calm'
-
-    def test_today_secured_does_not_count(self, db_session, user, vocabulary_lesson):
-        """Tier window is yesterday-and-back; today is excluded.
-
-        The tier shapes today's plan, so today's secured state is not
-        yet observable when ``compute_user_tier`` runs (and counting it
-        would create a tautology).
-        """
-        today = study_today()
-        # Add today's row as secured — should be ignored.
-        db_session.add(DailyPlanLog(
-            user_id=user.id, plan_date=today,
-            secured_at=datetime(2026, 1, 1, 12),
-        ))
-        # And enough yesterday-and-back to JUST hit calm boundary.
-        _seed_secured_days(user.id, today, SECURED_LOW - 1, db_session)
+        user.plan_difficulty = 'intensive'
         db_session.commit()
-        tier = compute_user_tier(user.id, real_db)
-        assert tier == 'calm'
-
-    def test_outside_window_does_not_count(self, db_session, user, vocabulary_lesson):
-        """Secured days older than WINDOW_DAYS are ignored."""
-        today = study_today()
-        old = today - timedelta(days=WINDOW_DAYS + 1)
-        db_session.add(DailyPlanLog(
-            user_id=user.id, plan_date=old,
-            secured_at=datetime(2026, 1, 1, 12),
-        ))
-        db_session.commit()
-        tier = compute_user_tier(user.id, real_db)
-        # Still calm: the one old secured day is outside the window.
-        assert tier == 'calm'
+        assert compute_user_tier(user.id, real_db) == 'calm'

@@ -43,7 +43,11 @@ import logging
 from typing import Any, Optional
 
 from app.daily_plan.items.curriculum import build_curriculum_item
-from app.daily_plan.items.reading import build_reading_item, get_user_reading_preference
+from app.daily_plan.items.reading import (
+    build_reading_item,
+    get_user_reading_preference,
+    reading_goal_enabled,
+)
 from app.daily_plan.items.setup import book_selected_today
 from app.daily_plan.items.srs import build_srs_item
 from app.daily_plan.linear.progression import find_next_lesson_linear
@@ -312,6 +316,9 @@ def _reading_item_dict(
     """
     pref = get_user_reading_preference(user_id, db)
     if pref is None:
+        return None
+    # Item 14: reading is required only for a learner who set a daily goal.
+    if not reading_goal_enabled(user_id, db):
         return None
     if book_selected_today(user_id, db):
         return None
