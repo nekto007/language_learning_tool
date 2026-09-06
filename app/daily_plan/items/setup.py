@@ -30,7 +30,7 @@ def build_setup_book_item() -> PlanItem:
         section='setup',
         kind='setup_book',
         title='Выбрать книгу',
-        subtitle='Чтение появится в плане после выбора',
+        subtitle='Чтение появится в плане после выбора — норма 5 минут в день',
         lesson_type=None,
         eta_minutes=2,
         url='#book-select-modal',

@@ -128,6 +128,10 @@ def select_book():
             selected_at=datetime.now(timezone.utc),
         )
         db.session.add(pref)
+        # Item 16: the first book turns the daily reading goal on (5 min);
+        # switching books later leaves an explicit «по желанию» alone.
+        from app.daily_plan.items.reading import ensure_reading_goal_on_first_book
+        ensure_reading_goal_on_first_book(current_user.id, db)
     else:
         pref.book_id = book.id
         pref.selected_at = datetime.now(timezone.utc)

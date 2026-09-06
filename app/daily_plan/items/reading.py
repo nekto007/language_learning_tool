@@ -114,6 +114,27 @@ def _book_is_actionable_for_reading(user_id: int, book_id: int, db: Any) -> bool
     return True
 
 
+# Item 16 (2026-09-06): picking a book is the reading goal. The first pick
+# turns the goal on at this norm; later picks leave the setting alone so a
+# learner who chose «по желанию» is not re-enrolled by switching books.
+DEFAULT_READING_GOAL_MINUTES = 5
+
+
+def ensure_reading_goal_on_first_book(user_id: int, db: Any) -> bool:
+    """Set the daily reading goal to the default when it is still unset (0).
+
+    Flush-only; the caller commits. Returns True when the goal was set.
+    """
+    from app.study.models import StudySettings
+
+    settings = StudySettings.get_settings(user_id)
+    if int(settings.reading_minutes_per_day or 0) > 0:
+        return False
+    settings.reading_minutes_per_day = DEFAULT_READING_GOAL_MINUTES
+    db.session.flush()
+    return True
+
+
 def reading_goal_enabled(user_id: int, db: Any) -> bool:
     """True when the learner set a daily reading goal (minutes > 0).
 
