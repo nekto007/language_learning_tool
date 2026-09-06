@@ -275,6 +275,8 @@ def create_app(config_class=Config):
     app.jinja_env.globals.update(has_module=has_module)
     app.jinja_env.globals.update(get_user_modules=get_user_modules)
     app.jinja_env.globals.update(books_nav_visible=books_nav_visible)
+    from app.curriculum.grammar_digest import grammar_digest_for_template
+    app.jinja_env.globals.update(grammar_digest_for=grammar_digest_for_template)
 
     # CSRF token refresh endpoint (for long-lived pages like quizzes)
     from flask import jsonify as _jsonify

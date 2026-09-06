@@ -1,0 +1,35 @@
+{# Compact reminder of the module's grammar before lessons 6+ (grammar_digest.py). #}
+{% if lesson is defined and lesson %}
+  {% set _gd = grammar_digest_for(lesson) %}
+  {% if _gd %}
+  <section class="lsn-grammar-digest{% if _gd.weak %} lsn-grammar-digest--weak{% endif %}" aria-label="{{ _('Грамматика модуля') }}">
+    <div class="lsn-grammar-digest__head">
+      <span class="lsn-grammar-digest__label">{{ _('Грамматика модуля') }}</span>
+      <span class="lsn-grammar-digest__title">{{ _gd.title }}</span>
+      {% if _gd.weak %}
+        <span class="lsn-grammar-digest__badge">{{ _('по этой теме были ошибки — освежите правило') }}</span>
+      {% endif %}
+    </div>
+    {% if _gd.rule %}<p class="lsn-grammar-digest__rule">{{ _gd.rule }}</p>{% endif %}
+    {% if _gd.notes %}
+      <ul class="lsn-grammar-digest__notes">
+        {% for note in _gd.notes %}<li>{{ note }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% if _gd.examples %}
+      <details class="lsn-grammar-digest__more"{% if _gd.weak %} open{% endif %}>
+        <summary>{{ _('Примеры') }}</summary>
+        <ul class="lsn-grammar-digest__examples">
+          {% for ex in _gd.examples %}
+            <li><span lang="en">{{ ex.en }}</span>{% if ex.ru %} <span class="lsn-grammar-digest__ru">— {{ ex.ru }}</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+    <div class="lsn-grammar-digest__links">
+      <a href="{{ _gd.theory_url }}">{{ _('Полная теория') }} ({{ _('урок') }} {{ _gd.lesson_number }})</a>
+      {% if _gd.practice_url %} · <a href="{{ _gd.practice_url }}">{{ _('Тренажёр темы') }}</a>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+{% endif %}
