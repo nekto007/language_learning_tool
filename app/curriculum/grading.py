@@ -180,18 +180,18 @@ def _contraction_variants(text) -> list[str]:
 # (lesson audit item 20, owner: «вариации mother/mom учитывать»). Only
 # register pairs of the SAME word (mum/mom/mother) and BrE/AmE spellings —
 # never synonyms that change meaning (flat/apartment, film/movie stay
-# distinct, the author lists those in ``alternatives``). Whole words only,
-# applied after lower-casing, on both sides of the comparison.
+# distinct, the author lists those in ``alternatives``) and never a form
+# with a second sense or part of speech (mummy = мумия, kid = to joke —
+# Codex review). Whole words only, applied after lower-casing, on both
+# sides of the comparison.
 _LEXICAL_VARIANTS = {
-    'mum': 'mother', 'mom': 'mother', 'mummy': 'mother', 'mommy': 'mother',
+    'mum': 'mother', 'mom': 'mother', 'mommy': 'mother',
     'mama': 'mother', 'mamma': 'mother',
     'mums': 'mothers', 'moms': 'mothers',
     'dad': 'father', 'daddy': 'father', 'papa': 'father',
     'dads': 'fathers',
     'grandma': 'grandmother', 'granny': 'grandmother', 'gran': 'grandmother',
-    'nana': 'grandmother',
     'grandpa': 'grandfather', 'granddad': 'grandfather', 'grandad': 'grandfather',
-    'kid': 'child', 'kids': 'children',
     'neighbor': 'neighbour', 'neighbors': 'neighbours',
     'neighborhood': 'neighbourhood', 'neighborhoods': 'neighbourhoods',
     'color': 'colour', 'colors': 'colours', 'colored': 'coloured',
@@ -225,16 +225,31 @@ def fold_lexical_variants(text) -> str:
     )
 
 
+_KEEP_APOSTROPHE_RE = re.compile(r"[^\w\s']")
+
+
+def _normalize_keep_apostrophes(text) -> str:
+    """Like ``normalize_text`` but apostrophes survive: after the contraction
+    expansion the ones left are possessives, and «the girl's books» must not
+    equal «the girls' books» (Codex review of item 20)."""
+    low = str(text or '').lower()
+    for ch in _APOSTROPHES[1:]:
+        low = low.replace(ch, "'")
+    low = _KEEP_APOSTROPHE_RE.sub('', low)
+    return re.sub(r'\s+', ' ', low).strip()
+
+
 def text_answer_variants(text) -> set[str]:
     """Normalised readings of a free-text answer: contractions expanded
-    (each ambiguous one branching) and lexical variants folded.
+    (each ambiguous one branching), lexical variants folded, punctuation
+    dropped except apostrophes.
 
     Two answers are the same sentence iff their variant sets intersect.
     Shared by the course translation grader and the grammar-lab grader so
     both accept «my mom's a doctor» for «My mum is a doctor.» without the
     author listing every register × contraction combination."""
     return {
-        _normalize_answer(fold_lexical_variants(v))
+        _normalize_keep_apostrophes(fold_lexical_variants(v))
         for v in _contraction_variants(text)
     }
 

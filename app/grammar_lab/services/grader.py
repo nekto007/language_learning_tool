@@ -235,8 +235,16 @@ class GrammarExerciseGrader:
         else:
             user_sentence = answer
 
+        # ``alternatives`` lists other orders of the SAME tokens that are
+        # also correct («Now Mark is sweeping the yard.» next to «Mark is
+        # sweeping the yard now.» — Codex review of item 20); the tokens
+        # themselves are what the exercise fixes, so the comparison stays
+        # exact on the lab normalisation.
         user_normalized = self._normalize_answer(user_sentence)
-        is_correct = user_normalized == correct_sentence
+        accepted = [correct_sentence] + [
+            self._normalize_answer(a) for a in content.get('alternatives', []) or []
+        ]
+        is_correct = bool(user_normalized) and user_normalized in accepted
 
         return {
             'is_correct': is_correct,

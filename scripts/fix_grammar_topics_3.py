@@ -51,7 +51,9 @@ TOPICS = {
     'A2_15': {'slug': 'a2-15', 'level': 'A2', 'module': 15,
               'module_file': 'module_A2_15_household_chores.json'},
 }
-EXTRA_KEYS = ('sections', 'important_notes', 'tldr', 'summary')
+EXTRA_KEYS = ('rule', 'description', 'sections', 'important_notes', 'tldr', 'summary')
+# grammar_topics.content has no ``description`` — it is patched on the lesson only.
+TOPIC_KEYS = tuple(k for k in EXTRA_KEYS if k != 'description')
 
 
 def difficulty_for(session: int) -> int:
@@ -228,6 +230,7 @@ replace(T, 1, 6, 'multiple_choice',
 replace(T, 1, 10, 'reorder',
         words=['is', 'Mark', 'the', 'sweeping', 'now', 'yard', '.'],
         correct_answer='Mark is sweeping the yard now.',
+        alternatives=['Now Mark is sweeping the yard.', 'Mark is now sweeping the yard.'],
         explanation='Present Continuous: Mark + is + sweeping. Now подсказывает, что действие идёт сейчас. '
                     'Перевод: Марк сейчас подметает двор.')
 # Session 2 (d1)
@@ -260,6 +263,7 @@ replace(T, 2, 8, 'translation',
 replace(T, 2, 10, 'reorder',
         words=['now', 'the', 'is', 'ironing', 'Mum', 'shirts', '.'],
         correct_answer='Mum is ironing the shirts now.',
+        alternatives=['Now Mum is ironing the shirts.', 'Mum is now ironing the shirts.'],
         explanation='Present Continuous: Mum + is + ironing. Now подсказывает, что действие происходит сейчас. '
                     'Перевод: Мама сейчас гладит рубашки.')
 # Session 3 (d1)
@@ -281,6 +285,7 @@ fix(T, 3, 6, question='Mike ___ in the river with his brother right now.',
 replace(T, 3, 10, 'reorder',
         words=['Sara', 'the', 'is', 'sink', 'cleaning', 'now', '.'],
         correct_answer='Sara is cleaning the sink now.',
+        alternatives=['Now Sara is cleaning the sink.', 'Sara is now cleaning the sink.'],
         explanation='Present Continuous: Sara + is + cleaning. Перевод: Сара сейчас чистит раковину.')
 # Session 4 (d2)
 fix(T, 4, 1, question='The teacher ___ (explain) a new topic on the board right now.')
@@ -296,7 +301,8 @@ replace(T, 4, 4, 'multiple_choice',
         question='Mr. Brown ___ the floor every Monday.',
         correct_answer='mops', options=['mops', 'is mopping', 'mop', 'mopping'],
         explanation='Every Monday — регулярное действие, поэтому Present Simple: mops. Present Continuous '
-                    '(is mopping) нужен только для действия сейчас. Перевод: Мистер Браун моет пол каждый понедельник.')
+                    '(is mopping) описывает действие сейчас или в текущий период, а не привычку. '
+                    'Перевод: Мистер Браун моет пол каждый понедельник.')
 replace(T, 4, 6, 'translation',
         question='Ты сейчас выносишь мусор?',
         correct_answer='Are you taking out the trash now?',
@@ -340,8 +346,8 @@ replace(T, 6, 3, 'true_false',
                     'I want a new vacuum cleaner. Так же ведут себя like, love, know, understand, need.')
 fix(T, 6, 4,
     correct_answer='The children are not doing their homework. They are watching a cartoon.',
-    alternatives=["The children aren't doing their homework, they're watching a cartoon.",
-                  'The kids are not doing homework, they are watching a cartoon.',
+    alternatives=["The children aren't doing their homework. They're watching a cartoon.",
+                  'The kids are not doing their homework. They are watching a cartoon.',
                   'The children are not doing homework. They are watching a cartoon.'],
     explanation='Отрицание: are + not + V-ing. Два действия в Present Continuous для контраста. '
                 'Перевод: The children are not doing their homework. They are watching a cartoon.')
@@ -354,6 +360,7 @@ replace(T, 6, 5, 'translation',
 replace(T, 6, 9, 'reorder',
         words=['is', 'Julia', 'the', 'rinsing', 'now', 'plates', '.'],
         correct_answer='Julia is rinsing the plates now.',
+        alternatives=['Now Julia is rinsing the plates.', 'Julia is now rinsing the plates.'],
         explanation='Present Continuous: Julia + is + rinsing. Rinse → rinsing (немая e убирается). '
                     'Перевод: Джулия сейчас ополаскивает тарелки.')
 # Session 7 (d3)
@@ -361,14 +368,16 @@ fix(T, 7, 1, question='The tourists ___ (take) photos near the old castle right 
     explanation='The tourists — мн. число, значит are + taking. Take → taking (немая e убирается). '
                 'Перевод: Туристы прямо сейчас фотографируют возле старого замка.')
 replace(T, 7, 3, 'true_false',
-        statement='Предложение «I am cleaning the kitchen every day» построено правильно.',
-        correct_answer=False,
-        explanation='Неверно. Every day — регулярное действие, нужен Present Simple: I clean the kitchen every day. '
-                    'Present Continuous — для действия сейчас: I am cleaning the kitchen now.')
+        statement='Every day — маркер привычки: о том, что делаешь каждый день, обычно говорят в Present Simple '
+                  '(I clean the kitchen every day), а не в Present Continuous.',
+        correct_answer=True,
+        explanation='Верно. Привычка и регулярное действие — Present Simple: I clean the kitchen every day. '
+                    'Present Continuous — действие сейчас или в текущий период: I am cleaning the kitchen now; '
+                    'This week I am cleaning the kitchen every day (временно, только на этой неделе).')
 fix(T, 7, 4,
     correct_answer='She is not sleeping. She is reading a magazine.',
-    alternatives=["She isn't sleeping, she's reading a magazine.", "She's not sleeping, she is reading a magazine.",
-                  'She is not sleeping, she is reading a magazine.'],
+    alternatives=["She isn't sleeping. She's reading a magazine.", "She's not sleeping. She is reading a magazine.",
+                  'She is not sleeping; she is reading a magazine.'],
     explanation='Два контрастных действия в Present Continuous с отрицанием: is not sleeping / is reading. '
                 'Перевод: She is not sleeping. She is reading a magazine.')
 replace(T, 7, 6, 'translation',
@@ -382,6 +391,7 @@ replace(T, 7, 6, 'translation',
 replace(T, 7, 10, 'reorder',
         words=['are', 'They', 'the', 'bathroom', 'cleaning', 'now', '.'],
         correct_answer='They are cleaning the bathroom now.',
+        alternatives=['Now they are cleaning the bathroom.', 'They are now cleaning the bathroom.'],
         explanation='Present Continuous: They + are + cleaning. Перевод: Они сейчас убирают ванную.')
 # Session 8 (d3)
 replace(T, 8, 1, 'fill_blank',
@@ -580,6 +590,12 @@ def theory_A2_15(content: dict) -> dict:
     assert extra['table'][0]['example'] == 'I clean my room every day.', extra['table'][0]
     extra['table'][0] = _set_example(extra['table'][0], 'I am cleaning my room now.',
                                      'Я убираю свою комнату сейчас.')
+    assert new['rule'].startswith('Present Continuous (настоящее длительное время) используется'), new['rule']
+    new['rule'] = ('Present Continuous (настоящее длительное время) используется для действий, которые происходят '
+                   'сейчас, в момент речи, или в текущий период (сегодня, на этой неделе).')
+    new['description'] = ('Present Continuous (настоящее длительное время) описывает действие, которое происходит '
+                          'сейчас, в момент речи, или временно в текущий период (сегодня, на этой неделе). '
+                          'Привычки и регулярные действия (every day, usually) — это Present Simple.')
     new['important_notes'] = [
         "⚠️ Формула: am/is/are + verb-ing — не забывай глагол to be: She is cleaning (не She cleaning)",
         '⚠️ Present Continuous — для действия, которое происходит сейчас или в этот период (сегодня, на этой неделе)',
@@ -680,7 +696,7 @@ def _topic_id(slug: str) -> str:
 def _where_exercise(slug: str, exercise: dict) -> str:
     content = {k: v for k, v in exercise['content'].items() if k != 'source'}
     return (f"topic_id = {_topic_id(slug)} AND exercise_type = {_s(exercise['exercise_type'])} "
-            f"AND (content - 'source') = {_j(content)}")
+            f"AND content ->> 'source' = 'json_import' AND (content - 'source') = {_j(content)}")
 
 
 def _with_source(content: dict) -> dict:
@@ -702,7 +718,11 @@ def emit_sql(all_changes: dict[str, list[dict]], theory: dict[str, tuple[dict, d
     head = ('-- Lesson audit item 20: grammar content of a1-10 / a1-11 / a2-15.\n'
             '-- Generated by scripts/fix_grammar_topics_3.py. Rows are matched by exact content, never by id.\n')
     check.append(head + '-- Expect found = 1 for every "old" line and found = 0 for every "new" line.\n')
-    apply.append(head + '-- Expected row counts are in the trailing comments; run 1_check first.\n')
+    apply.append(head + '-- Expected row counts are in the trailing comments; run 1_check first.\n'
+                 '-- Run as ONE transaction (DBeaver: auto-commit off, commit at the end). Every statement is\n'
+                 '-- keyed on the exact old content and guarded, so a replay or a half-applied run changes nothing\n'
+                 '-- it should not: an UPDATE/DELETE misses a changed row, an INSERT needs its predecessor present\n'
+                 '-- and its successor absent.\n')
     rollback.append(head + '-- Reverses 2_apply. Rows re-inserted for "replace" slots get new ids: learner\n'
                     '-- history on the deleted originals is NOT restored.\n')
     check_rows = []
@@ -732,30 +752,48 @@ def emit_sql(all_changes: dict[str, list[dict]], theory: dict[str, tuple[dict, d
                     f"-- {label} (expect INSERT 1, DELETE 1)\n"
                     f"INSERT INTO grammar_exercises (topic_id, exercise_type, content, difficulty, \"order\", created_at) "
                     f"SELECT id, {_s(new['exercise_type'])}, {_j(_with_source(new['content']))}, "
-                    f"{new['difficulty']}, {new['order']}, now() FROM grammar_topics WHERE slug = {_s(slug)};\n"
+                    f"{new['difficulty']}, {new['order']}, now() FROM grammar_topics WHERE slug = {_s(slug)} "
+                    f"AND EXISTS (SELECT 1 FROM grammar_exercises WHERE {_where_exercise(slug, old)}) "
+                    f"AND NOT EXISTS (SELECT 1 FROM grammar_exercises WHERE {_where_exercise(slug, new_row)});\n"
                     f"DELETE FROM grammar_exercises WHERE {_where_exercise(slug, old)};\n")
                 rollback.append(
                     f"-- {label} (expect DELETE 1, INSERT 1)\n"
                     f"DELETE FROM grammar_exercises WHERE {_where_exercise(slug, new_row)};\n"
                     f"INSERT INTO grammar_exercises (topic_id, exercise_type, content, difficulty, \"order\", created_at) "
                     f"SELECT id, {_s(old['exercise_type'])}, {_j(_with_source(old['content']))}, "
-                    f"{old['difficulty']}, {old['order']}, now() FROM grammar_topics WHERE slug = {_s(slug)};\n")
+                    f"{old['difficulty']}, {old['order']}, now() FROM grammar_topics WHERE slug = {_s(slug)} "
+                    f"AND NOT EXISTS (SELECT 1 FROM grammar_exercises WHERE {_where_exercise(slug, old)});\n")
     check.append('\nUNION ALL\n'.join(check_rows) + ';\n')
+    # Loud preflight: the same expectations as the listing above, raised as
+    # one error so a mismatch cannot be overlooked in a 140-row result.
+    check.append(
+        "\n-- Preflight assertion: raises if any old row is missing/duplicated or any new row already exists.\n"
+        "DO $$\nDECLARE bad text;\nBEGIN\n  SELECT string_agg(slot, ', ') INTO bad FROM (\n"
+        + '\nUNION ALL\n'.join('    ' + r for r in check_rows)
+        + "\n  ) s WHERE (slot LIKE '% old' AND s.found <> 1) OR (slot LIKE '% new' AND s.found <> 0);\n"
+        "  IF bad IS NOT NULL THEN RAISE EXCEPTION 'item20 preflight failed: %', bad; END IF;\n"
+        "  RAISE NOTICE 'item20 preflight ok';\nEND $$;\n")
+    def _match_keys(expr: str, values: dict, keys) -> str:
+        # Every key the patch overwrites must still hold the expected value —
+        # an independent prod edit of notes/tldr/summary must not be lost.
+        return ' AND '.join(f"{expr} -> {_s(k)} = {_j(values[k])}" for k in keys)
+
     for topic, (old_extra, new_extra) in theory.items():
         slug = TOPICS[topic]['slug']
         check.append(
             f"\n-- theory {topic}: expect lesson_old = 1, topic_old = 1 before apply\n"
             f"SELECT (SELECT count(*) FROM lessons WHERE id = {_lesson_id(topic)} "
-            f"AND content::jsonb -> 'sections' = {_j(old_extra['sections'])}) AS lesson_old, "
+            f"AND {_match_keys('content::jsonb', old_extra, EXTRA_KEYS)}) AS lesson_old, "
             f"(SELECT count(*) FROM grammar_topics WHERE slug = {_s(slug)} "
-            f"AND content -> 'sections' = {_j(old_extra['sections'])}) AS topic_old;\n")
+            f"AND {_match_keys('content', old_extra, TOPIC_KEYS)}) AS topic_old;\n")
         for label, src, dst, sink in (('apply', old_extra, new_extra, apply), ('rollback', new_extra, old_extra, rollback)):
+            topic_patch = {k: dst[k] for k in TOPIC_KEYS}
             sink.append(
                 f"-- theory {topic} {label} (expect UPDATE 1 + UPDATE 1)\n"
                 f"UPDATE lessons SET content = (content::jsonb || {_j(dst)})::json "
-                f"WHERE id = {_lesson_id(topic)} AND content::jsonb -> 'sections' = {_j(src['sections'])};\n"
-                f"UPDATE grammar_topics SET content = content || {_j(dst)} "
-                f"WHERE slug = {_s(slug)} AND content -> 'sections' = {_j(src['sections'])};\n")
+                f"WHERE id = {_lesson_id(topic)} AND {_match_keys('content::jsonb', src, EXTRA_KEYS)};\n"
+                f"UPDATE grammar_topics SET content = content || {_j(topic_patch)} "
+                f"WHERE slug = {_s(slug)} AND {_match_keys('content', src, TOPIC_KEYS)};\n")
     counts = ', '.join(f"{TOPICS[t]['slug']} = 104" for t in all_changes)
     tail = ("\n-- After apply every topic must still hold 104 exercises (" + counts + "):\n"
             "SELECT t.slug, count(e.id) FROM grammar_topics t LEFT JOIN grammar_exercises e ON e.topic_id = t.id "
