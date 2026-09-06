@@ -104,16 +104,16 @@ _THEORY_CELL_ORDER = (
     # label-like cells first (what the row is about) …
     'percentage', 'pronoun', 'person', 'subject', 'label', 'word', 'expression', 'phrase',
     'singular', 'plural', 'distance', 'position', 'use', 'case',
-    'idiom', 'adjective', 'noun', 'article', 'modal', 'preposition', 'time_expression',
+    'idiom', 'adjective', 'noun', 'article', 'modal', 'preposition', 'time_expression', 'time_indicator',
     'marker', 'type', 'rule', 'pattern', 'structure', 'verb', 'form', 'ending', 'action',
-    'usage', 'meaning', 'base', 'stem', 'infinitive', 'positive', 'comparative', 'superlative',
+    'usage', 'meaning', 'base', 'stem', 'infinitive', 'positive', 'negative', 'comparative', 'superlative',
     'present', 'past',
     'gerund', 'v3', 'if_clause', 'main_clause', 'question', 'translation_q', 'answer',
-    'translation_a',
+    'translation_a', 'countable', 'question_c', 'uncountable', 'question_u',
     # … then the example pair; ``translation`` is placed by ``_order_theory_cells``
     # (before the example when the row carries its own ``example_translation``,
     # i.e. it translates the word, after it otherwise) …
-    'example', 'example_translation', 'translation_sg', 'translation_pl',
+    'example', 'example_translation', 'translation_sg', 'translation_pl', 'examples',
     # … then commentary cells.
     'explanation', 'context', 'logic', 'note',
 )
