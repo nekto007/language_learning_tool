@@ -95,6 +95,42 @@ def topic_detail_legacy(topic_id):
     )
 
 
+# JSONB stores object keys sorted by length, not in authored order, so a theory
+# row {pronoun, form, example, translation} comes back as form, example,
+# pronoun, translation. Cells are re-ordered before rendering: label-like
+# keys first, then example and translation, then anything else as stored
+# (lesson audit item 21, Codex review).
+_THEORY_CELL_ORDER = (
+    'pronoun', 'person', 'subject', 'label', 'rule', 'pattern', 'structure', 'verb', 'form',
+    'ending', 'action', 'marker', 'usage', 'meaning', 'adjective', 'preposition',
+    'past', 'present', 'example', 'translation',
+)
+
+
+def _order_theory_cells(content):
+    """Return ``content`` with every section-table row rebuilt in
+    ``_THEORY_CELL_ORDER`` (non-mapping rows and non-dict content untouched)."""
+    if not isinstance(content, dict):
+        return content
+    sections = content.get('sections')
+    if not isinstance(sections, list):
+        return content
+    for section in sections:
+        table = section.get('table') if isinstance(section, dict) else None
+        if not isinstance(table, list):
+            continue
+        ordered_rows = []
+        for row in table:
+            if not isinstance(row, dict):
+                ordered_rows.append(row)
+                continue
+            ordered = {key: row[key] for key in _THEORY_CELL_ORDER if key in row}
+            ordered.update({key: value for key, value in row.items() if key not in ordered})
+            ordered_rows.append(ordered)
+        section['table'] = ordered_rows
+    return content
+
+
 @grammar_lab_bp.route('/topic/<slug>')
 def topic_detail(slug):
     """Topic detail page with theory — public, exercises require auth"""
@@ -114,6 +150,7 @@ def topic_detail(slug):
     if topic.get('level') not in PUBLIC_CEFR_CODES:
         abort(404)
 
+    _order_theory_cells(topic.get('content'))
     # SEO meta description
     intro = (topic.get('content') or {}).get('introduction', '')
     meta_description = intro[:150].rstrip() if intro else f'{topic["title"]} — правила, примеры, таблицы.'

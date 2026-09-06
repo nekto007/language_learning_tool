@@ -255,7 +255,7 @@
                   {% for row in section.table %}
                   {% if row is mapping %}
                   <tr>
-                    {% for key, val in row.items() if key != 'audio' and val %}
+                    {% for key, val in row.items() if key != 'audio' and val is not none and val != '' %}
                     <td class="{% if loop.first %}theory-table__pronoun{% elif 'translation' in key %}theory-table__translation{% elif key == 'form' %}theory-table__form{% endif %}">{{ val|unescape }}</td>
                     {% endfor %}
                   </tr>

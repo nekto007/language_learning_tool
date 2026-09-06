@@ -8,7 +8,7 @@ topics and fixed where the data allows:
   authored ``alternatives`` with the fronted / mid-position order of the
   same tokens, only where that order is natural (questions, ``always`` /
   ``never``, inverted and conditional sentences are left alone);
-* **C — hintless verb blanks in tense topics** (124 flagged, 77 real): the
+* **C — hintless verb blanks in tense topics** (129 real, incl. irregular past forms found on the Codex rescan): the
   base verb is added in brackets after the blank («he ___ (conduct) the
   interview»), so the item tests the tense form, not the lexical guess;
   blanks whose target IS the grammar word (used to, have to, has been,
@@ -53,9 +53,9 @@ REORDER_ALTS: dict[str, dict[str, list[str]]] = {
     },
     'A1_10': {
         'Ben does his homework every evening.': ['Every evening Ben does his homework.'],
-        'He goes to work at nine every day.': ['Every day he goes to work at nine.'],
+        'He goes to work at nine every day.': ['Every day he goes to work at nine.', 'He goes to work every day at nine.'],
         'Grandpa often reads books at midnight.': ['At midnight Grandpa often reads books.'],
-        'Grandma has dinner at sunset every day.': ['Every day Grandma has dinner at sunset.'],
+        'Grandma has dinner at sunset every day.': ['Every day Grandma has dinner at sunset.', 'Grandma has dinner every day at sunset.'],
     },
     'A1_12': {
         'She usually eats breakfast.': ['Usually she eats breakfast.'],
@@ -82,12 +82,13 @@ REORDER_ALTS: dict[str, dict[str, list[str]]] = {
         'He is not working hard today.': ['Today he is not working hard.'],
     },
     'A2_16': {
-        'We are having dinner at 6 tonight.': ['Tonight we are having dinner at 6.'],
+        'We are having dinner at 6 tonight.': ['Tonight we are having dinner at 6.', 'We are having dinner tonight at 6.'],
         'He is starting his job next month.': ['Next month he is starting his job.'],
         'You are presenting the project at noon tomorrow.': ['At noon tomorrow you are presenting the project.',
-                                                             'Tomorrow at noon you are presenting the project.'],
+                                                             'Tomorrow at noon you are presenting the project.',
+                                                             'You are presenting the project tomorrow at noon.'],
         'We are cancelling the appointment next week.': ['Next week we are cancelling the appointment.'],
-        'We are signing the contract tomorrow at 10.': ['Tomorrow at 10 we are signing the contract.'],
+        'We are signing the contract tomorrow at 10.': ['Tomorrow at 10 we are signing the contract.', 'We are signing the contract at 10 tomorrow.'],
         'We are meeting the team next month.': ['Next month we are meeting the team.'],
         'They are finalising the deal next week.': ['Next week they are finalising the deal.'],
         'My colleagues are launching the product next month.': ['Next month my colleagues are launching the product.'],
@@ -124,20 +125,29 @@ REORDER_ALTS: dict[str, dict[str, list[str]]] = {
 # --------------------------------------------------------------- C -------
 # topic -> {(session, order): base verb shown in brackets after the blank}
 VERB_HINTS: dict[str, dict[tuple[int, int], str]] = {
-    'A2_20': {(1, 1): 'melt', (1, 2): 'rain', (2, 1): 'expand', (2, 2): 'set', (3, 1): 'taste',
-              (3, 3): 'ring', (4, 2): 'blow', (5, 2): 'snow'},
-    'A2_21': {(1, 1): 'rain', (2, 1): 'leave'},
-    'A2_23': {(5, 2): 'pass'},
+    'A2_20': {(1, 1): 'melt', (1, 2): 'rain', (1, 3): 'heat', (2, 1): 'expand', (2, 2): 'set', (2, 3): 'get',
+              (3, 1): 'taste', (3, 2): 'exercise', (3, 3): 'ring', (4, 1): 'drink', (4, 2): 'blow', (5, 1): 'cut',
+              (5, 2): 'snow', (6, 1): 'stand', (7, 1): 'drink', (8, 1): 'work'},
+    'A2_21': {(1, 1): 'rain', (2, 1): 'leave', (2, 3): 'drink', (3, 1): 'work', (3, 2): 'go', (4, 1): 'leave',
+              (6, 1): 'change', (7, 1): 'catch', (8, 1): 'eat'},
+    'A2_23': {(1, 1): 'go', (1, 2): 'see', (2, 1): 'give', (2, 2): 'find', (2, 3): 'come', (3, 1): 'see', (4, 1): 'give',
+              (4, 2): 'eat', (5, 1): 'take', (5, 2): 'pass', (6, 1): 'think', (7, 1): 'say', (8, 1): 'fall'},
+    'B1_1': {(1, 1): 'go', (1, 2): 'hear', (1, 3): 'leave', (2, 1): 'swim', (2, 2): 'write', (2, 3): 'drink',
+             (3, 1): 'teach', (3, 2): 'feel', (3, 3): 'give', (4, 1): 'spend', (4, 2): 'make', (5, 1): 'begin',
+             (5, 2): 'find', (6, 1): 'sit', (7, 1): 'find'},
     'B1_14': {(2, 1): 'stay', (2, 3): 'book', (4, 1): 'take', (5, 1): 'book'},
-    'B1_2': {(1, 1): 'cook', (1, 3): 'run', (2, 1): 'watch', (2, 2): 'finish', (2, 3): 'listen', (3, 1): 'make',
-             (3, 2): 'shine', (4, 1): 'sleep', (5, 2): 'talk', (6, 1): 'blow', (7, 1): 'write', (8, 1): 'review'},
-    'B2_10': {(1, 1): 'repair', (1, 3): 'renovate', (2, 1): 'fit', (2, 2): 'repair', (2, 3): 'paint',
+    'B1_2': {(1, 1): 'cook', (1, 2): 'take', (1, 3): 'run', (2, 1): 'watch', (2, 2): 'finish', (2, 3): 'listen',
+             (3, 1): 'make', (3, 2): 'shine', (3, 3): 'drink', (4, 1): 'sleep', (4, 2): 'go', (5, 1): 'break',
+             (5, 2): 'talk', (6, 1): 'blow', (7, 1): 'write', (8, 1): 'review'},
+    'B2_10': {(1, 1): 'repair', (1, 2): 'make', (1, 3): 'renovate', (2, 1): 'fit', (2, 2): 'repair', (2, 3): 'paint',
+              (4, 1): 'rehearse',
               (3, 2): 'write', (3, 3): 'redesign', (5, 1): 'upgrade', (7, 1): 'remove', (8, 2): 'void'},
     'B2_11': {(2, 3): 'treat'},
-    'B2_12': {(1, 1): 'walk', (1, 2): 'exhaust', (2, 1): 'look', (2, 3): 'know', (3, 1): 'realise', (3, 2): 'pack',
-              (4, 1): 'see', (5, 2): 'situate', (6, 1): 'recover', (7, 1): 'base', (8, 4): 'consider'},
+    'B2_12': {(1, 1): 'walk', (1, 2): 'exhaust', (2, 1): 'look', (2, 2): 'build', (2, 3): 'know', (3, 1): 'realise',
+              (3, 2): 'pack', (4, 1): 'see', (4, 2): 'catch', (5, 2): 'situate', (6, 1): 'recover', (7, 1): 'base',
+              (8, 4): 'consider'},
     'B2_3': {(1, 1): 'write', (2, 1): 'conduct', (4, 1): 'receive', (5, 1): 'grow', (7, 1): 'approve', (8, 1): 'review'},
-    'B2_5': {(3, 1): 'train', (4, 1): 'allow', (6, 1): 'invest', (7, 1): 'take over', (8, 1): 'place'},
+    'B2_5': {(2, 3): 'know', (3, 1): 'train', (4, 1): 'allow', (6, 1): 'invest', (7, 1): 'take over', (8, 1): 'place'},
     'B2_7': {(1, 1): 'listen', (1, 2): 'rent', (1, 3): 'laugh', (2, 1): 'open', (2, 2): 'sign', (2, 3): 'take',
              (3, 1): 'see', (3, 2): 'speak', (3, 3): 'buy', (4, 1): 'reach', (4, 2): 'use', (5, 1): 'have',
              (5, 2): 'make', (6, 1): 'see', (7, 1): 'reduce', (8, 1): 'launch'},

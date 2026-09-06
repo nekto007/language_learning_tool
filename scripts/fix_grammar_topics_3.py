@@ -814,10 +814,11 @@ def emit_sql(all_changes: dict[str, list[dict]], theory: dict[str, tuple[dict, d
 
     check.append('\nUNION ALL\n'.join(rows) + ';\n')
     check.append(_assert_block(rows, 1, 0, f'{ASSERT_LABEL} preflight'))
-    counts = ', '.join(f"{TOPICS[t]['slug']} = 104" for t in all_changes)
-    tail = ("\n-- After apply every topic must still hold 104 exercises (" + counts + "):\n"
+    slugs = ', '.join(_s(TOPICS[t]['slug']) for t in all_changes)
+    tail = ("\n-- After apply every topic must still hold the same number of exercises as before it "
+            "(a fix is an UPDATE, a replace is INSERT + DELETE):\n"
             "SELECT t.slug, count(e.id) FROM grammar_topics t LEFT JOIN grammar_exercises e ON e.topic_id = t.id "
-            "WHERE t.slug IN ('a1-10', 'a1-11', 'a2-15') GROUP BY t.slug ORDER BY t.slug;\n")
+            f"WHERE t.slug IN ({slugs}) GROUP BY t.slug ORDER BY t.slug;\n")
     apply.append(tail)
     apply.append(_assert_block(rows, 0, 1, f'{ASSERT_LABEL} apply post-check'))
     rollback.append(_assert_block(rows, 1, 0, f'{ASSERT_LABEL} rollback post-check'))
