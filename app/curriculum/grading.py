@@ -184,12 +184,12 @@ def _contraction_variants(text) -> list[str]:
 # applied after lower-casing, on both sides of the comparison.
 _LEXICAL_VARIANTS = {
     'mum': 'mother', 'mom': 'mother', 'mummy': 'mother', 'mommy': 'mother',
-    'mama': 'mother', 'mamma': 'mother', 'ma': 'mother',
+    'mama': 'mother', 'mamma': 'mother',
     'mums': 'mothers', 'moms': 'mothers',
-    'dad': 'father', 'daddy': 'father', 'papa': 'father', 'pa': 'father',
+    'dad': 'father', 'daddy': 'father', 'papa': 'father',
     'dads': 'fathers',
     'grandma': 'grandmother', 'granny': 'grandmother', 'gran': 'grandmother',
-    'nan': 'grandmother', 'nana': 'grandmother',
+    'nana': 'grandmother',
     'grandpa': 'grandfather', 'granddad': 'grandfather', 'grandad': 'grandfather',
     'kid': 'child', 'kids': 'children',
     'neighbor': 'neighbour', 'neighbors': 'neighbours',
