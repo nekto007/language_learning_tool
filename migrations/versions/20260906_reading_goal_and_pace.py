@@ -6,7 +6,10 @@ number of curriculum lessons per day is the learner's explicit choice
 (users.plan_difficulty: light=1, normal=2, intensive=3). Existing accounts
 keep their effective pace: the automatic ladder kept them on one lesson a
 day, so 'normal' (the never-used column default) is rewritten to 'light';
-new sign-ups keep the model default of two lessons.
+new sign-ups keep the model default of two lessons. The column was never
+consumed by the unified plan, so an admin-set 'normal' cannot be told apart
+from the default and is rewritten too (Codex review); downgrade leaves the
+values in place.
 
 Revision ID: 20260906_reading_goal_and_pace
 Revises: 20260906_card_grade_events
