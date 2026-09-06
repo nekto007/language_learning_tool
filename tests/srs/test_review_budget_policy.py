@@ -118,8 +118,9 @@ class TestPauseReason:
         assert pause['backlog_tier'] == 'collapse'
         assert pause['days_behind'] == pytest.approx(20.45, abs=0.06)
         assert pause['new_pct'] == 0.0
-        hint = _pause_reason_hint(pause)
-        assert hint.startswith('Долг 409 карточек') and 'на паузе' in hint
+        hint = _pause_reason_hint(pause, review_show=24)
+        assert hint == 'Долг 409 карточек. Сегодня разбираем 24. Новые слова начнут возвращаться, когда долг станет меньше 60.'
+        assert 'дн.' not in hint
 
     def test_accuracy_binds_when_no_backlog(self, app, db_session, test_user):
         self._settings(db_session, test_user)
@@ -127,8 +128,7 @@ class TestPauseReason:
              patch.object(SRSService, 'get_overdue_review_count', return_value=0):
             pause = SRSService.get_new_card_pause(test_user.id)
         assert pause['binding'] == 'accuracy'
-        assert 'Точность ниже 45%' in _pause_reason_hint(pause)
-        assert 'повторения идут полностью' in _pause_reason_hint(pause)
+        assert _pause_reason_hint(pause, 10) == 'Точность ниже 45 % — пауза на новые слова, повторения вернут форму.'
 
     def test_no_reduction_means_no_hint(self, app, db_session, test_user):
         self._settings(db_session, test_user)
@@ -144,8 +144,8 @@ class TestPauseReason:
              patch.object(SRSService, 'get_overdue_review_count', return_value=100):
             pause = SRSService.get_new_card_pause(test_user.id)
         assert pause['binding'] == 'both'
-        hint = _pause_reason_hint(pause)
-        assert hint.startswith('Долг 100 карточек') and 'точность ниже 45%' in hint
+        hint = _pause_reason_hint(pause, 12)
+        assert hint.startswith('Долг 100 карточек. Сегодня разбираем 12.') and hint.endswith('повторения вернут форму.')
 
     def test_reader_does_not_create_settings(self, app, db_session, test_user):
         assert StudySettings.query.filter_by(user_id=test_user.id).first() is None
@@ -196,3 +196,31 @@ class TestTileAndQueueAgree:
         states = [i['state'] for i in client.get(url).get_json()['items']]
         assert states.count(CardState.LEARNING.value) == 4
         assert states.count(CardState.REVIEW.value) == 16
+
+
+class TestMotivatingHint:
+    """Owner's rule: the hint talks about today's portion and the comeback, never about days of work."""
+
+    def _pause(self, **over):
+        base = {'binding': 'backlog', 'backlog_tier': 'collapse', 'accuracy_tier': 'normal',
+                'overdue': 415, 'days_behind': 13.8, 'reviews_per_day': 30}
+        base.update(over)
+        return base
+
+    def test_big_debt_names_portion_and_comeback(self):
+        assert _pause_reason_hint(self._pause(), review_show=24) == (
+            'Долг 415 карточек. Сегодня разбираем 24. Новые слова начнут возвращаться, когда долг станет меньше 90.'
+        )
+
+    def test_no_portion_left_today(self):
+        hint = _pause_reason_hint(self._pause(), review_show=0)
+        assert hint == 'Долг 415 карточек. Новые слова начнут возвращаться, когда долг станет меньше 90.'
+
+    def test_small_debt_is_reassuring(self):
+        hint = _pause_reason_hint(self._pause(backlog_tier='low', overdue=45, days_behind=1.5), review_show=20)
+        assert hint == 'Долг 45 карточек — новых слов сегодня меньше. Такой долг закрывается за пару дней.'
+
+    def test_never_mentions_days_or_decimals(self):
+        for tier in ('low', 'critical', 'collapse'):
+            hint = _pause_reason_hint(self._pause(backlog_tier=tier), review_show=24)
+            assert 'дн.' not in hint and '13.8' not in hint and '13,8' not in hint

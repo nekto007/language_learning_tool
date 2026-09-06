@@ -115,34 +115,39 @@ def _build_deck_quiz_plan_item(
     )
 
 
-def _pause_reason_hint(pause: dict[str, Any]) -> str | None:
-    """Human text for the NEW-card cut, naming the signal that binds (item 12).
+def _pause_reason_hint(pause: dict[str, Any], review_show: int = 0) -> str | None:
+    """Text for the NEW-card cut, naming the signal that binds (item 12).
 
-    Before, the hint only knew the accuracy tier, so a learner with good
-    recall and a week of backlog saw zero new words without any explanation.
+    Owner's rule (2026-09-06): everything on the tile must motivate. So the
+    hint talks about today's portion and the moment new words come back, not
+    about the size of the problem: «13.8 дн. повторений» read as a sentence,
+    and a debt that only ever shrinks is shown as such by the badge itself.
     """
     binding = pause.get('binding')
     if binding is None:
         return None
     overdue = int(pause.get('overdue') or 0)
-    days = pause.get('days_behind') or 0
-    if pause.get('backlog_tier') in ('critical', 'collapse'):
-        backlog_text = (
-            f'Долг {overdue} карточек (≈{days:g} дн. повторений) — '
-            'новые слова на паузе, пока долг не разобран'
-        )
+    base = int(pause.get('reviews_per_day') or 0)
+    backlog_tier = pause.get('backlog_tier')
+    # Backlog tiers: ≤1 day normal, ≤3 low (NEW ×0.3), ≤7 critical, >7 collapse
+    # (NEW off). New words start coming back below 3 daily norms.
+    comeback_at = 3 * base if base > 0 else 0
+    if backlog_tier in ('critical', 'collapse'):
+        today = f' Сегодня разбираем {review_show}.' if review_show > 0 else ''
+        comeback = f' Новые слова начнут возвращаться, когда долг станет меньше {comeback_at}.' if comeback_at else ''
+        backlog_text = f'Долг {overdue} карточек.{today}{comeback}'
     else:
-        backlog_text = f'Долг {overdue} карточек (≈{days:g} дн. повторений) — новых слов меньше'
+        backlog_text = f'Долг {overdue} карточек — новых слов сегодня меньше. Такой долг закрывается за пару дней.'
     accuracy_text = {
-        'low':      'Точность 65–80% — количество новых слов снижено',
-        'critical': 'Точность 45–65% — новых слов меньше, повторения идут полностью',
-        'collapse': 'Точность ниже 45% — новые слова временно остановлены, повторения идут полностью',
+        'low':      'Точность 65–80 % — новых слов чуть меньше, чтобы закрепить текущие.',
+        'critical': 'Точность 45–65 % — сначала закрепляем то, что уже учили, новых слов меньше.',
+        'collapse': 'Точность ниже 45 % — пауза на новые слова, повторения вернут форму.',
     }.get(pause.get('accuracy_tier') or '')
     if binding == 'backlog':
         return backlog_text
     if binding == 'accuracy':
         return accuracy_text
-    return f'{backlog_text}; {accuracy_text[0].lower() + accuracy_text[1:]}' if accuracy_text else backlog_text
+    return f'{backlog_text} {accuracy_text}' if accuracy_text else backlog_text
 
 
 def _srs_completed_today(user_id: int, db: Any) -> bool:
@@ -246,7 +251,7 @@ def build_srs_item(
 
     pause = SRSService.get_new_card_pause(user_id)
     tier = pause['accuracy_tier']  # one of normal/low/critical/collapse
-    reason_hint: Optional[str] = _pause_reason_hint(pause) if total_show > 0 else None
+    reason_hint: Optional[str] = _pause_reason_hint(pause, review_show) if total_show > 0 else None
 
     data: dict[str, Any] = {
         'new_show': new_show,

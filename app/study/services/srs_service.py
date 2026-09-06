@@ -518,6 +518,7 @@ class SRSService:
             'days_behind': days_behind,
             'new_pct': new_pct,
             'binding': binding,
+            'reviews_per_day': int(base_reviews),
         }
 
     @staticmethod

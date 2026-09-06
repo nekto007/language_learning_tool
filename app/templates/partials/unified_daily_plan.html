@@ -344,7 +344,7 @@
                 {% endif %}
                 <span class="plan-item__lock-hint">{% if _prev_label %}Откроется после шага «{{ _prev_label }}»{% else %}Откроется после предыдущего шага{% endif %}</span>
                 {% if _kind == 'srs' and _overdue_reviews > 0 %}
-                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}</span>
+                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}{% if (_item_data.get('reviews_today') or 0) > 0 %} · повторено сегодня: {{ _item_data.get('reviews_today') }}{% endif %}</span>
                 {% endif %}
               </div>
             {% elif _state == 'blocked' %}
@@ -360,7 +360,7 @@
                 <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
                 <span class="plan-item__lock-hint">{{ _item_data.get('locked_reason') or 'Сначала завершите урок курса' }}</span>
                 {% if _kind == 'srs' and _overdue_reviews > 0 %}
-                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}</span>
+                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}{% if (_item_data.get('reviews_today') or 0) > 0 %} · повторено сегодня: {{ _item_data.get('reviews_today') }}{% endif %}</span>
                 {% endif %}
               </div>
             {% elif _state == 'skipped' %}
@@ -402,7 +402,7 @@
                   {% endif %}
                 </a>
                 {% if _kind == 'srs' and _overdue_reviews > 0 %}
-                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}</span>
+                  <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}{% if (_item_data.get('reviews_today') or 0) > 0 %} · повторено сегодня: {{ _item_data.get('reviews_today') }}{% endif %}</span>
                 {% endif %}
                 {% if _kind == 'srs' and _item_data.get('reason_hint') %}
                   <span class="plan-item__hint" title="{{ _item_data.get('reason_hint') }}" tabindex="0">
