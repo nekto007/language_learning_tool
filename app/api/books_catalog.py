@@ -116,27 +116,31 @@ def select_book():
     if get_book_completion_state(current_user.id, book.id, db)['is_completed']:
         return api_error('book_already_completed', 'Эта книга уже прочитана', 409)
 
-    pref = (
-        db.session.query(UserReadingPreference)
-        .filter(UserReadingPreference.user_id == current_user.id)
-        .first()
-    )
-    if pref is None:
-        pref = UserReadingPreference(
-            user_id=current_user.id,
-            book_id=book.id,
-            selected_at=datetime.now(timezone.utc),
-        )
-        db.session.add(pref)
-        # Item 16: the first book turns the daily reading goal on (5 min);
-        # switching books later leaves an explicit «по желанию» alone.
-        from app.daily_plan.items.reading import ensure_reading_goal_on_first_book
-        ensure_reading_goal_on_first_book(current_user.id, db)
-    else:
-        pref.book_id = book.id
-        pref.selected_at = datetime.now(timezone.utc)
-
     try:
+        # Serialise concurrent first picks: the user row is the lock, so the
+        # second request sees the preference the first one wrote (item 16).
+        from app.auth.models import User
+        db.session.query(User.id).filter(User.id == current_user.id).with_for_update().scalar()
+        pref = (
+            db.session.query(UserReadingPreference)
+            .filter(UserReadingPreference.user_id == current_user.id)
+            .first()
+        )
+        if pref is None:
+            pref = UserReadingPreference(
+                user_id=current_user.id,
+                book_id=book.id,
+                selected_at=datetime.now(timezone.utc),
+            )
+            db.session.add(pref)
+            # Item 16: the first book turns the daily reading goal on (5 min);
+            # switching books later leaves an explicit «по желанию» alone. Same
+            # transaction as the preference: a failure rolls both back.
+            from app.daily_plan.items.reading import ensure_reading_goal_on_first_book
+            ensure_reading_goal_on_first_book(current_user.id, db)
+        else:
+            pref.book_id = book.id
+            pref.selected_at = datetime.now(timezone.utc)
         db.session.commit()
     except Exception:
         db.session.rollback()

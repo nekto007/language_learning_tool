@@ -124,10 +124,23 @@ def ensure_reading_goal_on_first_book(user_id: int, db: Any) -> bool:
     """Set the daily reading goal to the default when it is still unset (0).
 
     Flush-only; the caller commits. Returns True when the goal was set.
+    ``StudySettings.get_settings`` is deliberately not used: it commits when
+    it creates the row, which would persist the caller's pending preference
+    before the goal is set and break the caller's rollback (Codex review).
     """
     from app.study.models import StudySettings
 
-    settings = StudySettings.get_settings(user_id)
+    settings = (
+        db.session.query(StudySettings)
+        .filter_by(user_id=user_id)
+        .with_for_update()
+        .first()
+    )
+    if settings is None:
+        settings = StudySettings(user_id=user_id, reading_minutes_per_day=DEFAULT_READING_GOAL_MINUTES)
+        db.session.add(settings)
+        db.session.flush()
+        return True
     if int(settings.reading_minutes_per_day or 0) > 0:
         return False
     settings.reading_minutes_per_day = DEFAULT_READING_GOAL_MINUTES
