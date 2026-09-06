@@ -105,7 +105,8 @@ _THEORY_CELL_ORDER = (
     'percentage', 'pronoun', 'person', 'subject', 'label', 'word', 'expression', 'phrase',
     'idiom', 'adjective', 'noun', 'article', 'modal', 'preposition', 'time_expression',
     'marker', 'type', 'rule', 'pattern', 'structure', 'verb', 'form', 'ending', 'action',
-    'usage', 'meaning', 'positive', 'comparative', 'superlative', 'present', 'past',
+    'usage', 'meaning', 'base', 'stem', 'infinitive', 'positive', 'comparative', 'superlative',
+    'present', 'past',
     'gerund', 'v3', 'if_clause', 'main_clause', 'question', 'translation_q', 'answer',
     'translation_a',
     # … then the example pair; ``translation`` is placed by ``_order_theory_cells``

@@ -45,7 +45,7 @@ fix(T, 2, 3,
     explanation='Rarely (редко) — очень низкая частота; синонимы seldom, hardly ever. '
                 '«Two or three times a year» — явная редкость.')
 fix(T, 2, 4,
-    question='My grandmother has a strict bedtime routine. She is ___ in bed by nine.',
+    question='My grandmother has a strict bedtime routine: every night without exception. She is ___ in bed by nine.',
     explanation='Always (всегда) — «strict routine» указывает на 100% частоту. С глаголом to be наречие стоит ПОСЛЕ него: '
                 'She is always in bed by nine (не She always is).')
 fix(T, 2, 8,
@@ -71,6 +71,9 @@ fix(T, 3, 8,
 fix(T, 3, 10,
     alternatives=['After work Lisa often exercises.', 'Often Lisa exercises after work.'])
 # ------------------------------------------------------------ session 4 ---
+fix(T, 3, 7,
+    explanation='Неверно. Never уже содержит отрицание, поэтому второе (don\'t) не нужно: в стандартном английском '
+                'одно отрицание на предложение. Правильно: «I never eat breakfast» или «I don\'t eat breakfast».')
 fix(T, 4, 1,
     question='Susan has a morning habit: she gets dressed at 7:45 and leaves the house at 8 a.m. every day. '
              'She ___ gets dressed before eight.',
@@ -168,7 +171,8 @@ replace(T, 8, 8, 'error_correction',
         sentence='We every day have breakfast at seven.',
         correct_answer='We have breakfast at seven every day.',
         error_word='every day have breakfast at seven', correct_word='have breakfast at seven every day',
-        alternatives=['have breakfast at seven every day', 'Every day we have breakfast at seven.'],
+        alternatives=['have breakfast at seven every day', 'have breakfast every day at seven',
+                      'Every day we have breakfast at seven.', 'We have breakfast every day at seven.'],
         explanation='Ошибка: every day не ставится между подлежащим и глаголом. Выражение частоты стоит в конце '
                     '(или в начале для акцента). Правильно: We have breakfast at seven every day.')
 replace(T, 8, 9, 'reorder',
