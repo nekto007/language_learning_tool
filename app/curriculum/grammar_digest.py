@@ -59,18 +59,28 @@ def _examples_from_content(content: dict[str, Any]) -> list[dict[str, str]]:
     return out[:MAX_EXAMPLES]
 
 
-def _module_grammar_lesson(module_id: int) -> Lessons | None:
-    return (
-        Lessons.query.filter_by(module_id=module_id, type='grammar')
-        .order_by(Lessons.number)
-        .first()
-    )
+def _module_grammar_lesson(module_id: int, before_number: int | None = None) -> Lessons | None:
+    """The grammar lesson whose theory the current lesson practises.
+
+    With one grammar lesson per module (the whole corpus today) this is it.
+    Should a module ever carry several, the nearest one *before* the current
+    lesson wins; a lesson ahead of every grammar lesson gets the first
+    (Codex review, 2026-09-06).
+    """
+    query = Lessons.query.filter_by(module_id=module_id, type='grammar')
+    if before_number is not None:
+        preceding = query.filter(Lessons.number < before_number).order_by(Lessons.number.desc()).first()
+        if preceding is not None:
+            return preceding
+    return query.order_by(Lessons.number).first()
 
 
 def _topic_is_weak(user_id: int, topic_id: int, db: Any) -> bool:
     from app.daily_plan.items.curriculum import _get_weak_grammar_topic_ids
 
-    return int(topic_id) in _get_weak_grammar_topic_ids(user_id, db)
+    # One topic, not the user's whole grammar history: this runs on every
+    # lesson page (Codex review, 2026-09-06).
+    return int(topic_id) in _get_weak_grammar_topic_ids(user_id, db, topic_ids=[int(topic_id)])
 
 
 def build_grammar_digest(lesson: Any, user_id: int | None = None, db: Any = None) -> dict[str, Any] | None:
@@ -88,7 +98,7 @@ def build_grammar_digest(lesson: Any, user_id: int | None = None, db: Any = None
     module_id = getattr(lesson, 'module_id', None)
     if module_id is None:
         return None
-    grammar = _module_grammar_lesson(module_id)
+    grammar = _module_grammar_lesson(module_id, before_number=int(getattr(lesson, 'number', 0) or 0))
     if grammar is None:
         return None
     content = grammar.content if isinstance(grammar.content, dict) else {}

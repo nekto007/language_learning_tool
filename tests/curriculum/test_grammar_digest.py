@@ -167,3 +167,25 @@ class TestRender:
             html = self._open(app, client, lesson)
         assert 'lsn-grammar-digest--weak' in html and 'были ошибки' in html
         assert '<details class="lsn-grammar-digest__more" open>' in html
+
+
+class TestCodexRemarks:
+    def test_nearest_preceding_grammar_lesson_wins(self, app, db_session):
+        module = _module(db_session)  # grammar at 4
+        db_session.add(Lessons(module_id=module.id, number=12, title='Грамматика: Вторая', type='grammar',
+                               content={'rule': 'Второе правило.', 'important_notes': [], 'sections': []}))
+        db_session.commit()
+        with app.test_request_context():
+            assert gd.build_grammar_digest(_lesson(db_session, module, 10))['title'] == 'Наречия частотности'
+            assert gd.build_grammar_digest(_lesson(db_session, module, 13))['title'] == 'Вторая'
+            assert gd._module_grammar_lesson(module.id, before_number=2).number == 4  # nothing before: first
+
+    def test_weak_check_is_scoped_to_the_topic(self, app, db_session, test_user):
+        module = _module(db_session)
+        grammar = gd._module_grammar_lesson(module.id)
+        grammar.grammar_topic_id = _topic(db_session).id
+        db_session.commit()
+        lesson = _lesson(db_session, module, 7)
+        with app.test_request_context(), patch('app.daily_plan.items.curriculum._get_weak_grammar_topic_ids', return_value={}) as weak:
+            gd.build_grammar_digest(lesson, user_id=test_user.id)
+        assert weak.call_args.kwargs.get('topic_ids') == [grammar.grammar_topic_id]

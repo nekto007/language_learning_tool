@@ -335,7 +335,10 @@ def _get_weak_grammar_topic_ids(
     *,
     min_attempts: int = _WEAK_MIN_ATTEMPTS,
     max_accuracy: float = _WEAK_ACCURACY_MAX,
+    topic_ids: list[int] | None = None,
 ) -> dict[int, dict[str, Any]]:
+    """Weak grammar topics for the user; ``topic_ids`` narrows both
+    aggregations to those topics (the lesson-page digest asks about one)."""
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
     from app.grammar_lab.models import (
         GrammarExercise,
@@ -343,6 +346,7 @@ def _get_weak_grammar_topic_ids(
         UserGrammarExercise,
     )
 
+    _topic_filter = [] if topic_ids is None else [GrammarTopic.id.in_([int(t) for t in topic_ids])]
     correct_sum = func.sum(UserGrammarExercise.correct_count)
     total_sum = func.sum(
         UserGrammarExercise.correct_count + UserGrammarExercise.incorrect_count
@@ -362,6 +366,7 @@ def _get_weak_grammar_topic_ids(
             # Public CEFR levels only — match the sibling grammar-SRS consumers
             # so a non-public/draft topic can't surface as a weak hint (E-042).
             GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+            *_topic_filter,
         )
         .group_by(GrammarTopic.id, GrammarTopic.title)
         .having(total_sum >= min_attempts)
@@ -399,6 +404,7 @@ def _get_weak_grammar_topic_ids(
             LessonAttempt.user_id == user_id,
             Lessons.type == 'grammar',
             GrammarTopic.level.in_(PUBLIC_CEFR_CODES),  # public levels only (E-042)
+            *_topic_filter,
         )
         .group_by(GrammarTopic.id, GrammarTopic.title)
         .having(c_total >= min_attempts)

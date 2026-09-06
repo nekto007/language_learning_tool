@@ -32,7 +32,7 @@ def test_missing_number_does_not_query_module(app):
     query.assert_not_called()
 
 
-def test_two_grammar_lessons_select_first_by_number(app, db_session):
+def test_two_grammar_lessons_select_nearest_preceding(app, db_session):
     module = _module(db_session)
     db_session.add(Lessons(module_id=module.id, number=8, title='Later grammar',
                            type='grammar', content={'rule': 'Later rule'}))
@@ -40,7 +40,9 @@ def test_two_grammar_lessons_select_first_by_number(app, db_session):
     lesson = _lesson(db_session, module, 10)
     with app.test_request_context():
         digest = gd.build_grammar_digest(lesson)
-    assert digest['lesson_number'] == 4
+    # Rule chosen after this review: the nearest grammar lesson *before* the
+    # current one (8 for lesson 10), the first only when none precedes.
+    assert digest['lesson_number'] == 8
 
 
 def test_weak_signal_failure_keeps_theory_visible(app, db_session, test_user):
