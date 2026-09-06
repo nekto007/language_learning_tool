@@ -34,12 +34,12 @@ EXPECTED_LESSON_TYPES_18 = [
     "reading",
     "listening_immersion",
     "listening_quiz",
+    "flashcards",  # item 18 (2026-09-06): second deck moved from 14 to 9
     "audio_fill_blank",
     "shadow_reading",
     "dictation",
     "dialogue_completion_quiz",
     "ordering_quiz",
-    "flashcards",
     "translation",
     "translation_quiz",
     "writing_prompt",
