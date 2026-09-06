@@ -26,7 +26,12 @@ logger = logging.getLogger(__name__)
 # v3: bumped to invalidate v2 snapshots that froze a broken grammar-prep
 # return_url (/lesson/<id>/final_test, missing the /curriculum prefix → 404).
 # Bumping forces a fresh rebuild with the corrected URL on next plan load.
-SNAPSHOT_VERSION = 3
+# v4 (2026-09-06, lesson audit items 12-13): the SRS tile's composition,
+# subtitle and pause hint are frozen in the snapshot; v3 rows built before
+# the deploy kept showing the old review budget («4 на повтор», «фокус на
+# повторении») for a whole study day. The roll-over from yesterday goes
+# through the same version check, so a bump rebuilds everyone once.
+SNAPSHOT_VERSION = 4
 
 # SRS ``data`` keys that describe today's *progress* rather than the day's
 # frozen composition — re-read on every overlay (DP-041). ``goal_total`` is
