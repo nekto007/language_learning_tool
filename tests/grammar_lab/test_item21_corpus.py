@@ -87,3 +87,21 @@ def test_topic_page_renders_non_standard_theory_cells(db_session, authenticated_
     html = response.data.decode('utf-8')
     assert 'Глаголы на -ch' in html and '+ es' in html and 'Do ... work?' in html
     assert '[sound:x.mp3]' not in html and 'not a mapping row' not in html
+
+
+def test_theory_cell_order_handles_scale_rows_and_translation_placement():
+    from app.grammar_lab.routes import _order_theory_cells
+
+    content = {'sections': [{'table': [
+        {'example_translation': 'Я всегда', 'example': 'I always wake up early.',
+         'translation': 'всегда', 'word': 'always', 'percentage': '100%'},
+        {'translation': 'Он работает', 'example': 'He works.', 'form': 'works', 'pronoun': 'He'},
+        {'translation': 'x', 'example': 'y', 'note': 'n', 'expression': 'every day'},
+        'not a row',
+    ]}]}
+    _order_theory_cells(content)
+    rows = content['sections'][0]['table']
+    assert list(rows[0]) == ['percentage', 'word', 'translation', 'example', 'example_translation']
+    assert list(rows[1]) == ['pronoun', 'form', 'example', 'translation']
+    assert list(rows[2]) == ['expression', 'example', 'translation', 'note']
+    assert rows[3] == 'not a row'

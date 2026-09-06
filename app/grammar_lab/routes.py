@@ -101,9 +101,19 @@ def topic_detail_legacy(topic_id):
 # keys first, then example and translation, then anything else as stored
 # (lesson audit item 21, Codex review).
 _THEORY_CELL_ORDER = (
-    'pronoun', 'person', 'subject', 'label', 'rule', 'pattern', 'structure', 'verb', 'form',
-    'ending', 'action', 'marker', 'usage', 'meaning', 'adjective', 'preposition',
-    'past', 'present', 'example', 'translation',
+    # label-like cells first (what the row is about) …
+    'percentage', 'pronoun', 'person', 'subject', 'label', 'word', 'expression', 'phrase',
+    'idiom', 'adjective', 'noun', 'article', 'modal', 'preposition', 'time_expression',
+    'marker', 'type', 'rule', 'pattern', 'structure', 'verb', 'form', 'ending', 'action',
+    'usage', 'meaning', 'positive', 'comparative', 'superlative', 'present', 'past',
+    'gerund', 'v3', 'if_clause', 'main_clause', 'question', 'translation_q', 'answer',
+    'translation_a',
+    # … then the example pair; ``translation`` is placed by ``_order_theory_cells``
+    # (before the example when the row carries its own ``example_translation``,
+    # i.e. it translates the word, after it otherwise) …
+    'example', 'example_translation',
+    # … then commentary cells.
+    'explanation', 'context', 'logic', 'note',
 )
 
 
@@ -124,7 +134,14 @@ def _order_theory_cells(content):
             if not isinstance(row, dict):
                 ordered_rows.append(row)
                 continue
-            ordered = {key: row[key] for key in _THEORY_CELL_ORDER if key in row}
+            ordered = {}
+            for key in _THEORY_CELL_ORDER:
+                if key == 'example' and 'translation' in row and 'example_translation' in row:
+                    ordered['translation'] = row['translation']
+                if key in row:
+                    ordered[key] = row[key]
+                if key == 'example' and 'translation' in row and 'translation' not in ordered:
+                    ordered['translation'] = row['translation']
             ordered.update({key: value for key, value in row.items() if key not in ordered})
             ordered_rows.append(ordered)
         section['table'] = ordered_rows
