@@ -61,8 +61,9 @@ def test_fill_blank_hints_are_base_forms_not_answers():
         # The hint may equal the answer for I/you/we/they («They ___ (play)» → play):
         # what it must never be is an auxiliary that spells the tense out.
         assert answer, (name, session, question)
-        # Lexical do / be / have are fine hints; an inflected auxiliary would spell the tense out.
-        assert hint.split()[0] not in ('does', 'did', 'is', 'are', 'am', 'was', 'were', 'has', 'had', 'not'), (name, session, question)
+        # Lexical do / be / have and an instruction such as «(not)» are fine hints;
+        # an inflected auxiliary would spell the tense out.
+        assert hint.split()[0] not in ('does', 'did', 'is', 'are', 'am', 'was', 'were', 'has', 'had'), (name, session, question)
     assert hinted >= 70
 
 
