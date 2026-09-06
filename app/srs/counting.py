@@ -18,7 +18,7 @@ Design:
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional, Sequence
 
 from sqlalchemy import func, or_
@@ -218,6 +218,54 @@ def get_review_batch_budget(
 # ceiling is held for REVIEW cards while any are due; learning takes the rest
 # and anything the reserve does not need.
 REVIEW_RESERVE_SHARE = 0.5
+
+
+# Lesson audit item 13 (2026-09-06): how a day's review batch is composed.
+# Mature cards overdue longer than ``OLD_DEBT_DAYS`` are «old debt»; the batch
+# guarantees them ``OLD_DEBT_QUOTA_SHARE`` of its slots, fresh overdue cards
+# take the rest, and whatever fresh cards do not fill goes to old debt. Dates
+# are never rewritten: the debt shrinks by at least the quota every day while
+# each session still opens with the cards that are easiest to recall.
+OLD_DEBT_DAYS = 30
+OLD_DEBT_QUOTA_SHARE = 1 / 3
+
+
+def old_debt_cutoff(now_utc: datetime | None = None) -> datetime:
+    """Naive-UTC moment before which a due REVIEW card counts as old debt."""
+    return _naive_utc_now(now_utc) - timedelta(days=OLD_DEBT_DAYS)
+
+
+def old_debt_quota(review_cap: int, old_available: int, fresh_available: int) -> tuple[int, int]:
+    """Split ``review_cap`` slots into (fresh_take, old_take).
+
+    Old debt keeps at least ``ceil(cap * share)`` slots (never more than there
+    are old cards); fresh cards take the remainder; unused fresh slots fall
+    back to old debt so the batch is always as full as the cards allow.
+    """
+    cap = max(0, int(review_cap))
+    old_available = max(0, int(old_available))
+    fresh_available = max(0, int(fresh_available))
+    if cap == 0:
+        return 0, 0
+    old_min = min(old_available, math.ceil(cap * OLD_DEBT_QUOTA_SHARE))
+    fresh_take = min(fresh_available, cap - old_min)
+    old_take = min(old_available, cap - fresh_take)
+    return fresh_take, old_take
+
+
+def count_old_review_debt(user_id: int, db: Any = _db, now_utc: datetime | None = None) -> int:
+    """Due REVIEW cards overdue longer than ``OLD_DEBT_DAYS`` (servable ones only)."""
+    now = _naive_utc_now(now_utc)
+    return int(
+        db.session.query(func.count(UserCardDirection.id))
+        .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
+        .filter(
+            srs_servable_filter(user_id, now),
+            UserCardDirection.state == CardState.REVIEW.value,
+            UserCardDirection.next_review < old_debt_cutoff(now),
+        )
+        .scalar() or 0
+    )
 
 
 def learning_budget_after_reserve(due_budget: int, review_pool: int) -> int:

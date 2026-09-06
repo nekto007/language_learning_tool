@@ -12,7 +12,13 @@ from sqlalchemy.orm import joinedload
 from app import limiter
 from app.api.errors import api_error
 from app.srs.cards import ensure_card_directions
-from app.srs.counting import count_resting_words, get_review_batch_budget, learning_budget_after_reserve
+from app.srs.counting import (
+    count_resting_words,
+    get_review_batch_budget,
+    learning_budget_after_reserve,
+    old_debt_cutoff,
+    old_debt_quota,
+)
 from app.srs.stats_service import srs_stats_service
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import get_audio_url_for_word, study
@@ -431,15 +437,37 @@ def get_study_items():
             due_budget_left=due_budget,
         )
     if review_cap > 0:
-        review_cards = base_due_query(include_today=not is_linear_plan_srs).filter(
+        review_query = base_due_query(include_today=not is_linear_plan_srs).filter(
             or_(
                 UserCardDirection.state == CardState.REVIEW.value,
                 UserCardDirection.state.is_(None)
             )
-        ).order_by(
-            UserCardDirection.recovery_required.desc(),
-            UserCardDirection.next_review
-        ).limit(review_cap).all()
+        )
+        if deck_id and deck:
+            # Deck sessions keep the plain oldest-first order and their own limits.
+            review_cards = review_query.order_by(
+                UserCardDirection.recovery_required.desc(),
+                UserCardDirection.next_review
+            ).limit(review_cap).all()
+        else:
+            # Item 13: fresh overdue first (closest to its date, easiest to
+            # recall), then a guaranteed quota of old debt, oldest first, so
+            # the tail past 90 days is the part that visibly melts.
+            cutoff = old_debt_cutoff(now)
+            old_query = review_query.filter(UserCardDirection.next_review < cutoff).order_by(
+                UserCardDirection.recovery_required.desc(),
+                UserCardDirection.next_review.asc(),
+            )
+            fresh_query = review_query.filter(UserCardDirection.next_review >= cutoff).order_by(
+                UserCardDirection.recovery_required.desc(),
+                UserCardDirection.next_review.desc(),
+            )
+            fresh_take, old_take = old_debt_quota(review_cap, old_query.count(), fresh_query.count())
+            review_cards = []
+            if fresh_take > 0:
+                review_cards.extend(fresh_query.limit(fresh_take).all())
+            if old_take > 0:
+                review_cards.extend(old_query.limit(old_take).all())
 
         for direction in review_cards:
             word = direction.user_word.word

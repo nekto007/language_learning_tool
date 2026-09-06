@@ -188,8 +188,10 @@ def build_srs_item(
         count_new_cards_today,
         count_pending_new,
         count_reviews_today,
+        count_old_review_debt,
         get_due_card_budget,
         get_new_card_budget,
+        old_debt_quota,
         split_due_budget,
     )
     from app.study.services import SRSService
@@ -219,6 +221,12 @@ def build_srs_item(
         due_budget=due_budget, remaining_reviews=remaining_reviews,
     )
     total_show = new_show + learning_show + review_show
+    # Item 13: the review batch is fresh-overdue first plus a quota of old debt;
+    # mirror the queue's composition so the subtitle can say «из них N давних».
+    old_review_due = min(review_due, count_old_review_debt(user_id, db)) if review_show > 0 else 0
+    review_fresh_show, review_old_show = old_debt_quota(
+        review_show, old_review_due, max(0, review_due - old_review_due),
+    )
 
     reviews_today_total = count_reviews_today(user_id, db)
     new_today = count_new_cards_today(user_id, db)
@@ -249,6 +257,8 @@ def build_srs_item(
         'new_pending': new_pending,
         'review_due': review_due,
         'overdue_reviews': overdue_reviews,
+        'review_old_show': review_old_show,
+        'review_fresh_show': review_fresh_show,
         'new_today': new_today,
         'reviews_today': reviews_today_total,
         'remaining_new': remaining_new,
@@ -274,7 +284,12 @@ def build_srs_item(
         if learning_show > 0:
             subtitle_bits.append(f'{learning_show} в изучении')
         if review_show > 0:
-            subtitle_bits.append(f'{review_show} на повтор')
+            if 0 < review_old_show < review_show:
+                subtitle_bits.append(f'{review_show} на повтор, из них {review_old_show} давних')
+            elif review_old_show and review_old_show == review_show:
+                subtitle_bits.append(f'{review_show} давних на повтор')
+            else:
+                subtitle_bits.append(f'{review_show} на повтор')
         subtitle = ' · '.join(subtitle_bits) or 'все типы доступны'
 
     return PlanItem(
