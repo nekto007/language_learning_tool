@@ -253,6 +253,38 @@ def old_debt_quota(review_cap: int, old_available: int, fresh_available: int) ->
     return fresh_take, old_take
 
 
+def interleave_old_debt(fresh: list, old: list) -> list:
+    """Spread ``old`` items evenly through ``fresh`` ones, fresh first.
+
+    Appending old debt at the end meant an interrupted session never touched
+    it (Codex, item 13). Proportional spacing keeps the opening card easy
+    (the first slot is fresh whenever a fresh card exists) while the old ones
+    surface every few cards instead of all at the end.
+    """
+    fresh = list(fresh)
+    old = list(old)
+    total = len(fresh) + len(old)
+    if not fresh or not old:
+        return fresh + old
+    ratio = len(old) / total
+    acc = 0.0
+    out: list = []
+    fi = oi = 0
+    for _ in range(total):
+        acc += ratio
+        if acc >= 1.0 and oi < len(old):
+            out.append(old[oi])
+            oi += 1
+            acc -= 1.0
+        elif fi < len(fresh):
+            out.append(fresh[fi])
+            fi += 1
+        else:
+            out.append(old[oi])
+            oi += 1
+    return out
+
+
 def count_old_review_debt(user_id: int, db: Any = _db, now_utc: datetime | None = None) -> int:
     """Due REVIEW cards overdue longer than ``OLD_DEBT_DAYS`` (servable ones only)."""
     now = _naive_utc_now(now_utc)

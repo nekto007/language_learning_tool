@@ -498,7 +498,9 @@ class SRSService:
         accuracy_pct = SRSService._accuracy_on_recent_reviews(user_id, base_reviews)
         overdue = SRSService.get_overdue_review_count(user_id)
         backlog_tier = SRSService._tier_from_backlog(overdue, base_reviews)
-        by_accuracy = SRSService.TIER_PCT[accuracy_tier]['new']
+        # Tolerate a tier name the tables do not know (tests patch the reason
+        # with legacy labels): an unknown tier means «no accuracy cut».
+        by_accuracy = SRSService.TIER_PCT.get(accuracy_tier, SRSService.TIER_PCT['normal'])['new']
         by_backlog = SRSService.BACKLOG_NEW_PCT[backlog_tier]
         new_pct = min(by_accuracy, by_backlog)
         if new_pct >= 1.0:

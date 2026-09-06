@@ -121,15 +121,13 @@
     var bar = document.getElementById('daily-plan-bar');
     if (!bar) return;
 
-    var headers = {};
-    var jwtToken = localStorage.getItem('jwt_token');
-    if (jwtToken) {
-        headers['Authorization'] = 'Bearer ' + jwtToken;
-    }
+    // Old builds kept a JWT in localStorage and sent it as Bearer; nothing
+    // writes it any more and this route is session-authenticated. Drop the
+    // stale key so no tab keeps carrying a token around.
+    try { localStorage.removeItem('jwt_token'); } catch (e) { /* storage blocked */ }
 
     fetch('/api/daily-plan/next-step', {
-        credentials: 'same-origin',
-        headers: headers
+        credentials: 'same-origin'
     })
     .then(function(r) {
         // A 4xx/5xx JSON envelope carries no steps; treat it as an error, not «no plan».

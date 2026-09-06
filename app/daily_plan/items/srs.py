@@ -17,6 +17,7 @@ of the daily plan as a dedicated slot.
 """
 from __future__ import annotations
 
+import math
 import logging
 from typing import Any, Optional
 
@@ -25,7 +26,14 @@ from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 
 logger = logging.getLogger(__name__)
 
-_SRS_ITEM_ETA_MINUTES = 8
+_SRS_ITEM_ETA_MINUTES = 8  # legacy constant: deck-quiz item only
+# Card sessions in the prod copy: p75 5.7 min for ~42 grades, ~8 s per grade;
+# a card is usually graded twice per session, so 15 s per card, floor 2 min.
+_SRS_SECONDS_PER_CARD = 15
+
+
+def _srs_eta_minutes(total_show: int) -> int:
+    return max(2, math.ceil(max(0, int(total_show)) * _SRS_SECONDS_PER_CARD / 60))
 _DECK_QUIZ_DEFAULT_LIMIT = 30
 
 
@@ -304,7 +312,7 @@ def build_srs_item(
         title=title,
         subtitle=subtitle,
         lesson_type=None,
-        eta_minutes=0 if completed_today and total_show <= 0 else _SRS_ITEM_ETA_MINUTES,
+        eta_minutes=0 if completed_today and total_show <= 0 else _srs_eta_minutes(total_show),
         url=build_slot_url('/study/cards?source=linear_plan', LinearSlotKind.SRS),
         completed=completed_today,
         completion_signal='srs_xp_earned',

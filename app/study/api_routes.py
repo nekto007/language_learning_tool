@@ -16,6 +16,7 @@ from app.srs.counting import (
     count_resting_words,
     get_review_batch_budget,
     learning_budget_after_reserve,
+    interleave_old_debt,
     old_debt_cutoff,
     old_debt_quota,
 )
@@ -463,11 +464,11 @@ def get_study_items():
                 UserCardDirection.next_review.desc(),
             )
             fresh_take, old_take = old_debt_quota(review_cap, old_query.count(), fresh_query.count())
-            review_cards = []
-            if fresh_take > 0:
-                review_cards.extend(fresh_query.limit(fresh_take).all())
-            if old_take > 0:
-                review_cards.extend(old_query.limit(old_take).all())
+            fresh_cards = fresh_query.limit(fresh_take).all() if fresh_take > 0 else []
+            old_cards = old_query.limit(old_take).all() if old_take > 0 else []
+            # Old debt is spread through the batch, not parked at its end, so a
+            # session cut short still touches it.
+            review_cards = interleave_old_debt(fresh_cards, old_cards)
 
         for direction in review_cards:
             word = direction.user_word.word

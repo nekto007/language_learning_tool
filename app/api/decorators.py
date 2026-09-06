@@ -57,9 +57,19 @@ def api_auth_required(f):
                 verify_jwt_in_request()
                 identity = get_jwt_identity()
             except Exception as exc:
-                logger.warning(
-                    "JWT verification failed: %s", exc, exc_info=True
-                )
+                # An expired or malformed token is routine (a stale token in some
+                # client), not an incident: one INFO line carrying what is needed
+                # to find that client. Anything else keeps the traceback.
+                from flask_jwt_extended.exceptions import JWTExtendedException
+                from jwt import PyJWTError
+
+                ua = (request.user_agent.string or '')[:120]
+                if isinstance(exc, (JWTExtendedException, PyJWTError)):
+                    logger.info("JWT rejected: %s path=%s ua=%s", exc, request.path, ua)
+                else:
+                    logger.warning(
+                        "JWT verification failed: %s path=%s ua=%s", exc, request.path, ua, exc_info=True,
+                    )
                 return _invalid_token_response()
 
             # The identity is signed by us, but a non-numeric sub must not

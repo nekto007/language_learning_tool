@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 from unittest.mock import patch
 
 import pytest
@@ -19,6 +20,7 @@ from app.srs.counting import (
     OLD_DEBT_DAYS,
     OLD_DEBT_QUOTA_SHARE,
     count_old_review_debt,
+    interleave_old_debt,
     old_debt_cutoff,
     old_debt_quota,
 )
@@ -122,10 +124,14 @@ class TestQueueComposition:
         assert resp.status_code == 200, resp.get_data(as_text=True)
         served = [i['id'] for i in resp.get_json()['items']]
         assert len(served) == 20
-        fresh_part, old_part = served[:12], served[12:]
-        assert all(i in fresh for i in fresh_part) and all(i in old for i in old_part)
+        fresh_part = [i for i in served if i in fresh]
+        old_part = [i for i in served if i in old]
+        assert (len(fresh_part), len(old_part)) == (12, 8)
         assert [fresh[i] for i in fresh_part] == sorted(fresh.values())          # closest to its date first
         assert [old[i] for i in old_part] == sorted(old.values(), reverse=True)[:8]  # oldest first
+        # old debt is spread through the batch, not parked at the end
+        assert served[0] in fresh
+        assert served.index(old_part[0]) < 6
 
     def test_few_fresh_cards_let_old_debt_fill_the_batch(self, app, db_session, test_user, client):
         _settings(db_session, test_user)
@@ -134,8 +140,9 @@ class TestQueueComposition:
         _login(client, test_user)
         served = [i['id'] for i in client.get(_plan_queue_url(app)).get_json()['items']]
         assert len(served) == 20
-        assert served[:2] == sorted(fresh, key=fresh.get)
-        assert all(i in old for i in served[2:]) and len(served[2:]) == 18
+        assert served[0] in fresh
+        assert [i for i in served if i in fresh] == sorted(fresh, key=fresh.get)
+        assert sum(1 for i in served if i in old) == 18
 
     def test_no_fresh_cards_means_all_old(self, app, db_session, test_user, client):
         _settings(db_session, test_user)
@@ -179,3 +186,22 @@ class TestTileSubtitle:
         with app.test_request_context(), patch('app.study.services.SRSService.get_adaptive_limit_reason', return_value='normal'):
             item = build_srs_item(test_user.id, real_db, section='required')
         assert '2 давних на повтор' in item.subtitle
+
+
+class TestInterleave:
+    def test_fresh_opens_and_old_is_spread(self):
+        out = interleave_old_debt(list('FFFFFFFFF'), list('OOOOO'))
+        assert len(out) == 14 and out[0] == 'F' and out.count('O') == 5
+        positions = [i for i, x in enumerate(out) if x == 'O']
+        assert positions[0] <= 3 and max(b - a for a, b in pairwise(positions)) <= 4
+
+    def test_edges(self):
+        assert interleave_old_debt([], list('OO')) == ['O', 'O']
+        assert interleave_old_debt(list('FF'), []) == ['F', 'F']
+        assert interleave_old_debt(['F'], ['O']) == ['F', 'O']
+        assert interleave_old_debt(list('FF'), ['O']) == ['F', 'F', 'O']
+
+    def test_keeps_relative_order_inside_groups(self):
+        out = interleave_old_debt([1, 2, 3], ['a', 'b', 'c', 'd'])
+        assert [x for x in out if isinstance(x, int)] == [1, 2, 3]
+        assert [x for x in out if isinstance(x, str)] == ['a', 'b', 'c', 'd']

@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Optional
 
@@ -657,6 +658,23 @@ class UserCardDirection(SRSFieldsMixin, db.Model):
             self, rating=rating, before=before, user_id=user_id,
             context=context, session_id=session_id,
         )
+        # The grade event must reach the database before anything best-effort
+        # runs: an INSERT failure here has to surface to the caller (and roll
+        # the grade back), not be swallowed by the guard below.
+        db.session.flush()
+        # The accuracy-tier floor used to be persisted only by grade_card;
+        # every /study, lesson, game and book grade goes through here, so a
+        # drop measured on those grades never stuck. Best-effort in a savepoint
+        # so a failure leaves the session usable for the rest of the grade.
+        if user_id is not None:
+            try:
+                from app.study.services import SRSService
+                with db.session.begin_nested():
+                    SRSService.record_tier_state(user_id)
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "record_tier_state failed for user=%s", user_id, exc_info=True,
+                )
         self.update_user_word_status()
 
         # Increment total_cards_reviewed in UserStatistics (best-effort)

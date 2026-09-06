@@ -39,33 +39,39 @@ _CURRICULUM_XP_SOURCES: frozenset[str] = frozenset(LESSON_TYPE_TO_SOURCE.values(
 _CURRICULUM_LESSON_TYPES: frozenset[str] = frozenset(LESSON_TYPE_TO_SOURCE)
 
 _LESSON_ETA_MINUTES: dict[str, int] = {
-    'vocabulary': 8,
-    'card': 10,
-    'grammar': 12,
-    'quiz': 6,
-    'reading': 10,
-    'listening_quiz': 8,
-    'dialogue_completion_quiz': 8,
-    'ordering_quiz': 6,
-    'translation_quiz': 8,
-    'listening_immersion': 12,
-    'listening_immersion_quiz': 8,
-    'final_test': 15,
-    'matching': 5,
-    'text': 15,
-    'flashcards': 8,
-    'dictation': 8,
-    'audio_fill_blank': 6,
-    'translation': 8,
-    'sentence_correction': 6,
-    'writing_prompt': 12,
+    # Recalibrated 2026-09-06 from the prod copy: p75 of same-day first
+    # completions (started_at to completed_at), rounded up, floor 2 minutes.
+    # The old table promised 6-15 minutes where learners spent 1-3; the plan
+    # header summed it into a scary «~39 мин». Types without measurements are
+    # scaled by the same ~0.4 ratio. Samples are small (8-34 per type):
+    # revisit when the grade log and lesson timings accumulate.
+    'vocabulary': 3,
+    'card': 3,
+    'flashcards': 3,
+    'grammar': 3,
+    'quiz': 3,
+    'reading': 5,
+    'text': 6,
+    'listening_quiz': 2,
+    'dialogue_completion_quiz': 3,
+    'ordering_quiz': 4,
+    'translation_quiz': 7,
+    'listening_immersion': 5,
+    'listening_immersion_quiz': 3,
+    'final_test': 8,
+    'matching': 2,
+    'dictation': 2,
+    'audio_fill_blank': 2,
+    'translation': 10,
+    'sentence_correction': 3,
+    'writing_prompt': 8,
     'sentence_completion': 6,
-    'collocation_matching': 5,
-    'shadow_reading': 8,
-    'pronunciation': 6,
-    'idiom': 6,
+    'collocation_matching': 3,
+    'shadow_reading': 2,
+    'pronunciation': 3,
+    'idiom': 4,
 }
-_DEFAULT_ETA_MINUTES = 10
+_DEFAULT_ETA_MINUTES = 4
 
 _CARD_LESSON_TYPES = frozenset({'card', 'flashcards'})
 
