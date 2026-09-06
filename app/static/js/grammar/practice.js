@@ -233,18 +233,28 @@ function renderExercise(exercise) {
         <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
       `;
 
-    case 'multiple_choice':
+    case 'multiple_choice': {
       let html = `<label>${question || 'Выберите правильный ответ:'}</label>`;
-      options.forEach((option, i) => {
+      // Options are shown in a random order (the authored files put the
+      // key in position 2 in 40 of 48 items — a positional cue), but the
+      // value sent to the server stays the ORIGINAL index: the grader
+      // compares indexes against content.options as authored.
+      const order = options.map((_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      order.forEach((origIndex) => {
         html += `
-          <label class="practice-option" data-action="select-option" data-value="${i}">
-            <input type="radio" name="answer" value="${i}">
+          <label class="practice-option" data-action="select-option" data-value="${origIndex}">
+            <input type="radio" name="answer" value="${origIndex}">
             <span class="practice-option__radio"></span>
-            <span class="practice-option__text">${option}</span>
+            <span class="practice-option__text">${options[origIndex]}</span>
           </label>
         `;
       });
       return html;
+    }
 
     case 'true_false':
       return `
@@ -647,7 +657,14 @@ document.getElementById('check-btn').addEventListener('click', async function() 
         </div>
         <div>Правильный ответ: <span class="practice-exercise__feedback-answer"></span></div>
       `;
-      feedback.querySelector('.practice-exercise__feedback-answer').textContent = data.correct_answer;
+      // The true/false grader reports the key as the strings 'True'/'False';
+      // show the same labels the learner clicked, not the raw literal.
+      let correctLabel = data.correct_answer;
+      if (exerciseType === 'true_false') {
+        const key = String(data.correct_answer).toLowerCase();
+        correctLabel = (key === 'true' || key === '1' || key === 'yes') ? 'Верно' : 'Неверно';
+      }
+      feedback.querySelector('.practice-exercise__feedback-answer').textContent = correctLabel;
     }
     feedback.style.display = 'block';
 

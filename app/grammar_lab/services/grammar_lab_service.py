@@ -327,6 +327,17 @@ class GrammarLabService:
                 if _make_aware(progress.next_review) <= now:
                     review.append(ex)
 
+        def _shuffled_by_difficulty(pool):
+            # Unseen exercises are served easiest-first (lesson audit item 20):
+            # the authored files carry a 1 → 3 progression per topic, and a
+            # plain shuffle handed a beginner difficulty-3 items in the first
+            # session. The order stays random WITHIN a level (stable sort
+            # after the shuffle). Due pools keep the plain shuffle —
+            # scheduling, not difficulty, decides what is reviewed.
+            random.shuffle(pool)
+            pool.sort(key=lambda item: item.difficulty or 1)
+            return pool
+
         # Build priority queue
         selected = []
         remaining = max_exercises
@@ -334,14 +345,18 @@ class GrammarLabService:
         for pool in [relearning, learning, review, new]:
             if remaining <= 0:
                 break
-            random.shuffle(pool)
+            if pool is new:
+                _shuffled_by_difficulty(pool)
+            else:
+                random.shuffle(pool)
             selected.extend(pool[:remaining])
             remaining = max_exercises - len(selected)
 
-        # Fill if needed
+        # Fill if needed: nothing due and nothing unseen is left, so top up
+        # with exercises whose review is not due yet — easiest-first too.
         if len(selected) < min(max_exercises, len(all_exercises)):
             remaining_pool = [e for e in all_exercises if e not in selected]
-            random.shuffle(remaining_pool)
+            _shuffled_by_difficulty(remaining_pool)
             selected.extend(remaining_pool[:max_exercises - len(selected)])
 
         # Prepare exercise data

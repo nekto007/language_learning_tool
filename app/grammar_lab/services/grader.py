@@ -9,6 +9,7 @@ import logging
 import re
 from typing import Any, Dict
 
+from app.curriculum.grading import text_answer_variants
 from app.grammar_lab.models import GrammarExercise
 
 logger = logging.getLogger(__name__)
@@ -80,22 +81,62 @@ class GrammarExerciseGrader:
         normalized = re.sub(r'[.!?]+$', '', normalized)
         return normalized
 
+    _HINT_RE = re.compile(r"\s*\([^()]*\)")
+
+    @classmethod
+    def _strip_hints(cls, text: str) -> str:
+        """Drop parenthesised author hints — ``Tom ___ (wake up) at sunrise``
+        → ``Tom ___ at sunrise`` — so a full-sentence answer can be compared
+        with the question text the learner actually reproduces."""
+        return cls._HINT_RE.sub('', text or '')
+
+    @staticmethod
+    def _same_text(user: str, candidate: str) -> bool:
+        """Free-text equality that tolerates contractions (doesn't / does
+        not) and lexical variants (mum / mom / mother) on both sides —
+        shared with the course translation grader (``text_answer_variants``)
+        so the two zones accept the same answers. Empty strings never match."""
+        if not (user or '').strip() or not (candidate or '').strip():
+            return False
+        return bool(text_answer_variants(user) & text_answer_variants(candidate))
+
+    def _text_matches(self, user: str, candidates) -> bool:
+        """``user`` equals one of ``candidates`` after the lab normalisation
+        or after contraction/lexical folding."""
+        user_norm = self._normalize_answer(user)
+        if not user_norm:
+            return False
+        for candidate in candidates:
+            if candidate is None or not str(candidate).strip():
+                continue
+            if user_norm == self._normalize_answer(candidate):
+                return True
+            if self._same_text(user, str(candidate)):
+                return True
+        return False
+
     def _grade_fill_blank(self, exercise: GrammarExercise, answer: str) -> Dict:
         """Grade fill-in-the-blank exercise"""
         content = exercise.content
-        correct = self._normalize_answer(content.get('correct_answer', ''))
-        alternatives = [self._normalize_answer(a) for a in content.get('alternatives', [])]
-        user = self._normalize_answer(answer)
+        candidates = [content.get('correct_answer', '')] + list(content.get('alternatives', []) or [])
 
-        is_correct = user == correct or user in alternatives
+        is_correct = self._text_matches(answer, candidates)
 
-        # If not matched and question has a blank, check if user typed the full sentence
-        if not is_correct and '___' in content.get('question', ''):
+        # If not matched and question has a blank, check if user typed the
+        # full sentence. The author hint in brackets («(wake up)») is NOT part
+        # of what the learner reproduces, so it is stripped before the
+        # substitution; the raw question is still tried for hint-less items.
+        if not is_correct and '___' in (content.get('question') or ''):
             question = content.get('question', '')
-            for candidate in [correct] + alternatives:
-                full_sentence = self._normalize_answer(question.replace('___', candidate))
-                if user == full_sentence:
-                    is_correct = True
+            stripped = self._strip_hints(question)
+            for candidate in candidates:
+                if not str(candidate or '').strip():
+                    continue
+                for template in (stripped, question):
+                    if self._text_matches(answer, [template.replace('___', str(candidate))]):
+                        is_correct = True
+                        break
+                if is_correct:
                     break
 
         return {
@@ -212,21 +253,16 @@ class GrammarExerciseGrader:
         - The full corrected sentence (e.g., "We are happy")
         """
         content = exercise.content
-        correct_word = self._normalize_answer(content.get('correct_answer', ''))
-        full_correct = self._normalize_answer(content.get('full_correct', ''))
-        alternatives = [self._normalize_answer(a) for a in content.get('alternatives', [])]
-        user = self._normalize_answer(answer)
-
-        # Check if user provided just the corrected word OR the full sentence
-        # ``and``/``or`` return operands, not necessarily booleans.  Without
-        # the explicit conversion, a missing ``full_correct`` made a wrong
-        # answer evaluate to '' and later fail when persisted to a Boolean
-        # database column.
-        is_correct = bool(
-            user == correct_word or
-            user in alternatives or
-            (full_correct and user == full_correct)
+        # Either the corrected word OR the full sentence is accepted; the
+        # comparison tolerates contractions and lexical variants, so «does
+        # not talk» passes for a key written as «doesn't talk». The bool()
+        # stays: an empty ``full_correct`` must never make a wrong answer
+        # evaluate to '' when persisted to a Boolean column.
+        candidates = (
+            [content.get('correct_answer', ''), content.get('full_correct', '')]
+            + list(content.get('alternatives', []) or [])
         )
+        is_correct = bool(self._text_matches(answer, candidates))
 
         return {
             'is_correct': is_correct,
@@ -240,10 +276,9 @@ class GrammarExerciseGrader:
         """Grade transformation exercise"""
         content = exercise.content
         correct = self._normalize_answer(content.get('correct_answer', ''))
-        alternatives = [self._normalize_answer(a) for a in content.get('alternatives', [])]
-        user = self._normalize_answer(answer)
+        candidates = [content.get('correct_answer', '')] + list(content.get('alternatives', []) or [])
 
-        is_correct = user == correct or user in alternatives
+        is_correct = self._text_matches(answer, candidates)
 
         return {
             'is_correct': is_correct,
@@ -255,13 +290,11 @@ class GrammarExerciseGrader:
     def _grade_translation(self, exercise: GrammarExercise, answer: str) -> Dict:
         """Grade translation exercise"""
         content = exercise.content
-        correct = self._normalize_answer(content.get('correct_answer', ''))
         # Check both 'alternatives' and 'acceptable_answers' fields
         alt_list = content.get('alternatives', []) or content.get('acceptable_answers', [])
-        alternatives = [self._normalize_answer(a) for a in alt_list]
-        user = self._normalize_answer(answer)
+        candidates = [content.get('correct_answer', '')] + list(alt_list or [])
 
-        is_correct = user == correct or user in alternatives
+        is_correct = self._text_matches(answer, candidates)
 
         return {
             'is_correct': is_correct,

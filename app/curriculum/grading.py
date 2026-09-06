@@ -176,6 +176,69 @@ def _contraction_variants(text) -> list[str]:
     return [v + tail for v in variants]
 
 
+# Lexical variants folded to one spelling before the strict comparison
+# (lesson audit item 20, owner: «вариации mother/mom учитывать»). Only
+# register pairs of the SAME word (mum/mom/mother) and BrE/AmE spellings —
+# never synonyms that change meaning (flat/apartment, film/movie stay
+# distinct, the author lists those in ``alternatives``). Whole words only,
+# applied after lower-casing, on both sides of the comparison.
+_LEXICAL_VARIANTS = {
+    'mum': 'mother', 'mom': 'mother', 'mummy': 'mother', 'mommy': 'mother',
+    'mama': 'mother', 'mamma': 'mother', 'ma': 'mother',
+    'mums': 'mothers', 'moms': 'mothers',
+    'dad': 'father', 'daddy': 'father', 'papa': 'father', 'pa': 'father',
+    'dads': 'fathers',
+    'grandma': 'grandmother', 'granny': 'grandmother', 'gran': 'grandmother',
+    'nan': 'grandmother', 'nana': 'grandmother',
+    'grandpa': 'grandfather', 'granddad': 'grandfather', 'grandad': 'grandfather',
+    'kid': 'child', 'kids': 'children',
+    'neighbor': 'neighbour', 'neighbors': 'neighbours',
+    'neighborhood': 'neighbourhood', 'neighborhoods': 'neighbourhoods',
+    'color': 'colour', 'colors': 'colours', 'colored': 'coloured',
+    'favorite': 'favourite', 'favorites': 'favourites',
+    'center': 'centre', 'centers': 'centres',
+    'theater': 'theatre', 'theaters': 'theatres',
+    'gray': 'grey', 'programme': 'program', 'programmes': 'programs',
+    'practise': 'practice', 'practises': 'practices',
+    'practised': 'practiced', 'practising': 'practicing',
+    'organise': 'organize', 'organises': 'organizes',
+    'organised': 'organized', 'organising': 'organizing',
+    'realise': 'realize', 'realises': 'realizes',
+    'realised': 'realized', 'realising': 'realizing',
+    'recognise': 'recognize', 'recognises': 'recognizes',
+    'recognised': 'recognized', 'recognising': 'recognizing',
+    'apologise': 'apologize', 'apologises': 'apologizes',
+    'apologised': 'apologized', 'apologising': 'apologizing',
+    'travelling': 'traveling', 'travelled': 'traveled',
+    'traveller': 'traveler', 'travellers': 'travelers',
+    'ok': 'okay',
+}
+_LEXICAL_WORD_RE = re.compile(r"[a-z]+")
+
+
+def fold_lexical_variants(text) -> str:
+    """Lower-case ``text`` and replace every whole word listed in
+    ``_LEXICAL_VARIANTS`` by its canonical spelling."""
+    low = str(text or '').lower()
+    return _LEXICAL_WORD_RE.sub(
+        lambda m: _LEXICAL_VARIANTS.get(m.group(0), m.group(0)), low,
+    )
+
+
+def text_answer_variants(text) -> set[str]:
+    """Normalised readings of a free-text answer: contractions expanded
+    (each ambiguous one branching) and lexical variants folded.
+
+    Two answers are the same sentence iff their variant sets intersect.
+    Shared by the course translation grader and the grammar-lab grader so
+    both accept «my mom's a doctor» for «My mum is a doctor.» without the
+    author listing every register × contraction combination."""
+    return {
+        _normalize_answer(fold_lexical_variants(v))
+        for v in _contraction_variants(text)
+    }
+
+
 def _strict_text_match(user_answer, candidates):
     """
     Strict grading for fill-in-blank / translation answers.
@@ -189,7 +252,7 @@ def _strict_text_match(user_answer, candidates):
     user_normalized = _normalize_answer(user_answer)
     if not user_normalized:
         return False
-    user_variants = {_normalize_answer(v) for v in _contraction_variants(user_answer)}
+    user_variants = text_answer_variants(user_answer)
     for candidate in candidates:
         if candidate is None:
             continue
@@ -198,8 +261,7 @@ def _strict_text_match(user_answer, candidates):
             continue
         if user_normalized == correct_normalized:
             return True
-        candidate_variants = {_normalize_answer(v) for v in _contraction_variants(candidate)}
-        if user_variants & candidate_variants:
+        if user_variants & text_answer_variants(candidate):
             return True
         # Typo tolerance only for single-word answers >=4 chars; on shorter
         # tokens a 1-edit window admits substantively different words
