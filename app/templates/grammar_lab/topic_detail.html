@@ -247,13 +247,19 @@
               <div class="theory-table-wrapper">
                 <table class="theory-table">
                   <tbody>
+                  {# Every authored cell is rendered, in authored order, like the course
+                     lesson does (lesson audit item 21): 987 of 2 282 theory rows use keys
+                     other than pronoun/form/example/translation (verb, note, marker,
+                     pattern …) and the fixed four-column loop silently dropped them —
+                     the learner saw the example and its translation without the rule. #}
                   {% for row in section.table %}
+                  {% if row is mapping %}
                   <tr>
-                    {% if row.pronoun %}<td class="theory-table__pronoun">{{ row.pronoun|unescape }}</td>{% endif %}
-                    {% if row.form %}<td class="theory-table__form">{{ row.form|unescape }}</td>{% endif %}
-                    {% if row.example %}<td>{{ row.example|unescape }}</td>{% endif %}
-                    {% if row.translation %}<td class="theory-table__translation">{{ row.translation|unescape }}</td>{% endif %}
+                    {% for key, val in row.items() if key != 'audio' and val %}
+                    <td class="{% if loop.first %}theory-table__pronoun{% elif 'translation' in key %}theory-table__translation{% elif key == 'form' %}theory-table__form{% endif %}">{{ val|unescape }}</td>
+                    {% endfor %}
                   </tr>
+                  {% endif %}
                   {% endfor %}
                   </tbody>
                 </table>

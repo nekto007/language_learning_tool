@@ -42,6 +42,7 @@ EXTRA_DIR = ROOT / 'grammar_exercises_extra'
 MODULE_DIR = ROOT / 'module_completed' / 'fixed'
 EXPORT_DIR = ROOT / 'local_exports'
 SQL_PREFIX = 'item20_grammar_3topics'
+ASSERT_LABEL = 'item20'  # prefix of the DO-block notices; item 21 reuses emit_sql with its own label
 
 TOPICS = {
     'A1_10': {'slug': 'a1-10', 'level': 'A1', 'module': 10,
@@ -812,14 +813,14 @@ def emit_sql(all_changes: dict[str, list[dict]], theory: dict[str, tuple[dict, d
                 f"WHERE slug = {_s(slug)} AND {_match_keys('content', src, TOPIC_KEYS)};\n")
 
     check.append('\nUNION ALL\n'.join(rows) + ';\n')
-    check.append(_assert_block(rows, 1, 0, 'item20 preflight'))
+    check.append(_assert_block(rows, 1, 0, f'{ASSERT_LABEL} preflight'))
     counts = ', '.join(f"{TOPICS[t]['slug']} = 104" for t in all_changes)
     tail = ("\n-- After apply every topic must still hold 104 exercises (" + counts + "):\n"
             "SELECT t.slug, count(e.id) FROM grammar_topics t LEFT JOIN grammar_exercises e ON e.topic_id = t.id "
             "WHERE t.slug IN ('a1-10', 'a1-11', 'a2-15') GROUP BY t.slug ORDER BY t.slug;\n")
     apply.append(tail)
-    apply.append(_assert_block(rows, 0, 1, 'item20 apply post-check'))
-    rollback.append(_assert_block(rows, 1, 0, 'item20 rollback post-check'))
+    apply.append(_assert_block(rows, 0, 1, f'{ASSERT_LABEL} apply post-check'))
+    rollback.append(_assert_block(rows, 1, 0, f'{ASSERT_LABEL} rollback post-check'))
     return {'1_check': ''.join(check), '2_apply': ''.join(apply), '3_rollback': ''.join(rollback)}
 
 
