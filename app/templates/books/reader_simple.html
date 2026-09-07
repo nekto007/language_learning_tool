@@ -439,7 +439,7 @@ setTimeout(updateProgress, 100);
     const IDLE_THRESHOLD_MS = 60000;            // auto-pause after 60s no activity
     const TARGET_FALLBACK_SECONDS = 300;        // used until /start response brings today's real target
 
-    let dailyTargetSeconds = TARGET_FALLBACK_SECONDS;  // updated from /start (5/10-min day-of-month alternation)
+    let dailyTargetSeconds = TARGET_FALLBACK_SECONDS;  // personal goal returned by /start
     let sessionId = null;
     let state = 'idle';                          // 'idle' | 'active' | 'paused'
     let heartbeatTimer = null;
@@ -457,7 +457,7 @@ setTimeout(updateProgress, 100);
     let displayTickerInterval = null;            // 1Hz interval for timer display refresh
     let nextCheckpoint = TARGET_FALLBACK_SECONDS; // active-seconds boundary for the next banner
     let lastBannerData = null;                   // latest server end-response carrying a banner_state + CTA urls
-    let didSeedFromServer = false;               // first /start response seeds today-total once
+    let didSeedFromServer = false;               // only the first response chooses the initial checkpoint
     let studyDate = null;                         // server-authoritative study date (02:00 → 02:00)
 
     function _currentOffsetPct() {
@@ -497,8 +497,7 @@ setTimeout(updateProgress, 100);
                 if (data && data.session_id) {
                     sessionId = data.session_id;
                 }
-                // Pick up today's reading target (5/10-min alternation by
-                // day-of-month). The server's study day turns over at 02:00,
+                // Pick up the personal reading target. The study day turns over at 02:00,
                 // not at calendar midnight.
                 if (data && typeof data.today_target_seconds === 'number'
                     && data.today_target_seconds > 0) {
@@ -508,33 +507,43 @@ setTimeout(updateProgress, 100);
                 // server reports a new study date, reset the client-side
                 // accumulator to the new day's server total instead of
                 // carrying yesterday's seconds into the new progress bar.
-                if (data && data.study_date && studyDate && data.study_date !== studyDate) {
-                    activeSecondsToday = Number(data.book_seconds_today) || 0;
-                    nextCheckpoint = (Math.floor(activeSecondsToday / dailyTargetSeconds) + 1) * dailyTargetSeconds;
-                    _renderTimer();
-                }
+                const newStudyDay = data && data.study_date && studyDate && data.study_date !== studyDate;
                 if (data && data.study_date) studyDate = data.study_date;
-                // Seed today's accumulated reading time from server on the
-                // very first /start of this page load. Heartbeat-driven
-                // re-opens of subsequent sessions do not re-seed (we already
-                // own the local count from then on).
+                // Reconcile on EVERY open: time between /end and /start is
+                // not a reading session, and the server rounds each session
+                // separately. A page-long local clock drifts ahead by seconds
+                // and can pause at 300 while the server has only credited 291.
                 if (
-                    !didSeedFromServer
-                    && data
+                    data && data.session_id
                     && typeof data.book_seconds_today === 'number'
+                    && Number.isFinite(data.book_seconds_today)
                 ) {
-                    didSeedFromServer = true;
-                    activeSecondsToday = data.book_seconds_today;
+                    activeSecondsToday = Math.max(0, data.book_seconds_today);
                     // Следующий чекпоинт — ближайшая граница цели выше уже
                     // прочитанного сегодня: открыв читалку с добитой нормой,
                     // юзер не получит мгновенный баннер.
-                    nextCheckpoint = (Math.floor(activeSecondsToday / dailyTargetSeconds) + 1) * dailyTargetSeconds;
+                    if (!didSeedFromServer || newStudyDay) {
+                        nextCheckpoint = (Math.floor(activeSecondsToday / dailyTargetSeconds) + 1) * dailyTargetSeconds;
+                    }
+                    didSeedFromServer = true;
+                    activeTickAnchor = state === 'active' ? Date.now() : null;
                     _renderTimer();
                 }
+                // A pause/hidden-tab event may have happened while /start
+                // was in flight. Do not leave that late session accruing time.
+                if (state !== 'active' && sessionId) return _closeSession(false);
             });
     }
 
+    function _freezeActiveClock() {
+        if (activeTickAnchor !== null) {
+            activeSecondsToday += Math.floor((Date.now() - activeTickAnchor) / 1000);
+            activeTickAnchor = null;
+        }
+    }
+
     function _closeSession(unloading) {
+        _freezeActiveClock();
         if (!sessionId) return Promise.resolve(null);
         const payload = {
             session_id: sessionId,
@@ -580,10 +589,8 @@ setTimeout(updateProgress, 100);
             _showBookCompleted(data);
             return;
         }
-        // The local ticker tracks active time independently via
-        // activeTickAnchor; we do NOT add data.duration_seconds here
-        // because the heartbeat path closes a session without moving
-        // the anchor, and adding both would double-count.
+        // Do not add duration_seconds: the local clock was frozen on close,
+        // and the next /start reconciles it with the server's book total.
         //
         // Кэшируем последний осмысленный payload баннера (state + CTA-url).
         // Время показа решает 1-секундный тик — на каждой границе цели
@@ -833,8 +840,14 @@ setTimeout(updateProgress, 100);
         if (state === 'active') return;
         if (manualPause) return;          // honour user's manual pause
         state = 'active';
-        activeTickAnchor = Date.now();
+        activeTickAnchor = null;  // count only after /start acknowledges a session
         _openSession().then(() => {
+            if (state !== 'active') return;
+            if (!sessionId) {
+                state = 'paused';
+                _updatePauseBtn();  // allow an explicit retry after a failed /start
+                return;
+            }
             _scheduleHeartbeat();
             _scheduleIdleCheck();
             _startDisplayTicker();
@@ -845,10 +858,7 @@ setTimeout(updateProgress, 100);
     function _pause() {
         if (state !== 'active') return;
         // Freeze tick anchor — drop accumulated active time into the bucket.
-        if (activeTickAnchor !== null) {
-            activeSecondsToday += Math.floor((Date.now() - activeTickAnchor) / 1000);
-            activeTickAnchor = null;
-        }
+        _freezeActiveClock();
         state = 'paused';
         _clearTimers();
         _stopDisplayTicker();
