@@ -707,8 +707,7 @@ for (_s, _o), (_ans, _first) in _ZERO_ITEMS.items():
     assert not _q.startswith('Zero'), (_s, _o)
     fix(T, _s, _o, question=_ZERO_TASK + _q, alternatives=[],
         explanation=f'Задание требует Zero Conditional, поэтому обе части стоят в Present Simple → «{_ans}». '
-                    f'Сам по себе английский допускает и «{_first}», но это уже First Conditional — про один '
-                    f'конкретный случай в будущем, а не про общее правило.')
+                    f'Вариант «{_first}» возможен в английском, но не соответствует требуемой в этом задании форме.')
 fix(T, 1, 8, alternatives=['If you heat water to one hundred degrees, it boils.', 'When you heat water to 100 degrees, it boils.'],
     explanation='Русское предложение стоит в настоящем времени и описывает физический закон, поэтому Zero Conditional: '
                 'If + Present Simple, Present Simple («it boils»).')
