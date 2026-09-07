@@ -692,27 +692,23 @@ base.EDITS[T] = {}
 # The eight Zero-Conditional items accepted «will …» as an alternative while their own explanation
 # said the answer must be Present Simple. Dropping the alternative alone would create false
 # rejections: «If you don't book early, the tickets will sell out» is perfectly good English about
-# one occasion (review of item 26). So the general reading is made explicit in the sentence with
-# always / usually — the marker rules First Conditional out — and only then is the alternative
-# dropped. The three items that already carried usually / gradually / regularly keep their wording.
-_ZERO_ALWAYS = {
-    (1, 1): ('If you heat ice, it always ___ (melt).', 'Если нагреваешь лёд, он всегда тает.'),
-    (2, 1): ("If you don't water plants, they always ___ (die).", 'Если не поливать растения, они всегда погибают.'),
-    (3, 1): ("If you don't sleep enough, you always ___ (feel) tired the next day.", 'Если не высыпаешься, на следующий день всегда чувствуешь усталость.'),
-    (5, 1): ('If you touch fire, you always ___ (burn) yourself.', 'Если трогаешь огонь, всегда обжигаешься.'),
-    (8, 1): ("If you don't back up your files regularly, you always ___ (risk) losing your data.", 'Если не делать резервные копии регулярно, всегда рискуешь потерять данные.'),
+# one occasion — and, as the second review round pointed out, «always» and «usually» do NOT rule
+# «will» out either (Cambridge lists will for general truths and habitual events; «gradually» is
+# about slowness, not regularity). So the exercise states its own requirement before the sentence,
+# and the single accepted answer follows from that instruction rather than from an invented ban.
+_ZERO_TASK = 'Zero Conditional (обе части в Present Simple): '
+_ZERO_ITEMS = {
+    (1, 1): ('melts', 'will melt'), (2, 1): ('die', 'will die'), (3, 1): ('feel', 'will feel'),
+    (4, 1): ('sell', 'will sell'), (5, 1): ('burn', 'will burn'), (6, 1): ('work', 'will work'),
+    (7, 1): ('loses', 'will lose'), (8, 1): ('risk', 'will risk'),
 }
-for (_s, _o), (_q, _ru) in _ZERO_ALWAYS.items():
-    fix(T, _s, _o, question=_q, alternatives=[],
-        explanation=f'Zero Conditional: наречие always/usually в предложении говорит, что речь о постоянной закономерности, '
-                    f'а не об одном будущем случае, поэтому обе части стоят в Present Simple. Перевод: {_ru}')
-fix(T, 4, 1, question="If you don't book early, the tickets usually ___ (sell) out.", alternatives=[],
-    explanation='Zero Conditional: наречие usually говорит, что это обычный исход, а не один конкретный случай, '
-                'поэтому обе части в Present Simple. Перевод: Если не бронировать заранее, билеты обычно раскупают.')
-fix(T, 6, 1, alternatives=[],
-    explanation='Zero Conditional: маркер usually задаёт общую закономерность, поэтому обе части в Present Simple → «work».')
-fix(T, 7, 1, alternatives=[],
-    explanation='Zero Conditional: наречие gradually описывает постоянную закономерность бизнеса, поэтому обе части в Present Simple → «loses».')
+for (_s, _o), (_ans, _first) in _ZERO_ITEMS.items():
+    _q = _exercise(T, _s, _o)['content']['question']
+    assert not _q.startswith('Zero'), (_s, _o)
+    fix(T, _s, _o, question=_ZERO_TASK + _q, alternatives=[],
+        explanation=f'Задание требует Zero Conditional, поэтому обе части стоят в Present Simple → «{_ans}». '
+                    f'Сам по себе английский допускает и «{_first}», но это уже First Conditional — про один '
+                    f'конкретный случай в будущем, а не про общее правило.')
 fix(T, 1, 8, alternatives=['If you heat water to one hundred degrees, it boils.', 'When you heat water to 100 degrees, it boils.'],
     explanation='Русское предложение стоит в настоящем времени и описывает физический закон, поэтому Zero Conditional: '
                 'If + Present Simple, Present Simple («it boils»).')
@@ -910,6 +906,7 @@ _HEAD_END = {
 
 def drift_alignment_sql() -> str:
     lines = ['-- Item 26 pre-step: align ONE stale cell of the grammar_topics mirror with the lesson',
+             '-- (in 1_check this is the ONLY statement that writes; everything below it only counts rows).',
              '-- (expected: 1 row on a copy that still carries the stale value, 0 rows once aligned).',
              '-- Only this cell is touched: an unrelated prod edit elsewhere in the theory must still',
              '-- make the preflight fail rather than be overwritten here.']
