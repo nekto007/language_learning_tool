@@ -914,7 +914,7 @@ def drift_alignment_sql() -> str:
              '-- Only this cell is touched: an unrelated prod edit elsewhere in the theory must still',
              '-- make the preflight fail rather than be overwritten here.']
     for topic, (path, stale, fresh) in DRIFT_PROBES.items():
-        probe = "content #>> '{}'".format(path)
+        probe = f"content #>> '{path}'"
         lines.append(f"UPDATE grammar_topics SET content = jsonb_set(content, '{path}', to_jsonb($q${fresh}$q$::text))\n"
                      f"WHERE slug = '{base.TOPICS[topic]['slug']}' AND {probe} = $q${stale}$q$;  -- {topic}")
     return '\n'.join(lines) + '\n\n'
