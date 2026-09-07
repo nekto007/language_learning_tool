@@ -4,8 +4,9 @@ Guards:
 * every cell key used by the module corpus is known to ``_THEORY_CELL_ORDER``
   (an unknown key renders after the translation, at the end of the row);
 * the B1 row shapes keep their authored reading order;
-* a section that carries only a bare ``examples`` list renders in no template,
-  so the corpus must not contain one.
+* a section that carries only a bare ``examples`` list is invisible in BOTH grammar
+  templates (the book-course ``language_focus.html`` does render one, but that is a
+  different content family), so the grammar corpus must not contain one.
 """
 import glob
 import json
@@ -42,13 +43,20 @@ def test_every_corpus_cell_key_is_ordered():
 
 @pytest.mark.skipif(not CORPUS, reason='content corpus is gitignored')
 def test_no_section_is_rendered_by_no_template():
-    """``table`` / ``rules`` / ``usage`` are the only shapes the two grammar
-    templates render; a section with only ``examples`` is invisible."""
+    """``table`` / ``rules`` / ``usage`` are the only content shapes the two
+    grammar templates render (``subtitle`` and ``description`` are printed as
+    text). A section whose content sits anywhere else — a section-level
+    ``examples`` list — or a section with no content at all shows nothing."""
     invisible = []
     for path in CORPUS:
         for i, section in enumerate(_grammar_sections(path)):
-            if isinstance(section, dict) and not any(k in section for k in ('table', 'rules', 'usage')):
-                invisible.append(f'{path.split("/")[-1]}#{i}')
+            if not isinstance(section, dict):
+                continue
+            renderable = any(section.get(k) for k in ('table', 'rules', 'usage'))
+            if section.get('examples') and not renderable:
+                invisible.append(f'{path.split("/")[-1]}#{i} (examples list)')
+            elif not renderable and not section.get('description'):
+                invisible.append(f'{path.split("/")[-1]}#{i} (no content)')
     assert not invisible, f'sections no template renders: {invisible}'
 
 

@@ -162,12 +162,20 @@ def theory_B1_3(content: dict) -> dict:
     dup['subtitle'] = 'Не путать: used to / be used to / there used to be'
     dup['description'] = ('Used to + инфинитив — прошлая привычка; be used to + -ing — «привык к» (любое время); '
                           'there used to be — «раньше здесь был/была».')
+    # The two constructions mean different things, so each gets its own row with its own
+    # translation: «I am used to live here» is not a misspelling of «I used to live here»,
+    # it is a broken «I am used to living here» (review of item 26).
     dup['table'] = [
-        row(pronoun='used to + V', form='прошлая привычка', example='I used to play in the yard.', translation='Раньше я играл во дворе.'),
-        row(pronoun='be used to + V-ing', form='«привык к»', example='I am used to getting up early.', translation='Я привык рано вставать.'),
-        row(pronoun='there used to be', form='раньше существовало', example='There used to be a playground here.', translation='Раньше здесь была детская площадка.'),
-        row(pronoun='WRONG', form="didn't used to / am used to + V", example="❌ I didn't used to like it. ❌ I am used to live here.",
-            translation="Правильно: I didn't use to like it. I used to live here."),
+        row(pronoun='used to + V', form='прошлая привычка, которой больше нет', example='I used to live here.',
+            translation='Раньше я жил здесь (сейчас нет).'),
+        row(pronoun='be used to + V-ing', form='«привык к», состояние сейчас', example='I am used to living here.',
+            translation='Я привык здесь жить (и живу).'),
+        row(pronoun='there used to be', form='раньше существовало', example='There used to be a playground here.',
+            translation='Раньше здесь была детская площадка.'),
+        row(pronoun='WRONG', form="после didn't — use to, без -d", example="❌ I didn't used to like it. → ✅ I didn't use to like it.",
+            translation='Вспомогательный did уже несёт прошедшее время.'),
+        row(pronoun='WRONG', form='после be used to — герундий', example='❌ I am used to live here. → ✅ I am used to living here.',
+            translation='«Привык жить», а не «раньше жил».'),
     ]
     base._rebuild_tldr_summary(new)
     return new
@@ -356,7 +364,7 @@ def theory_B1_8(content: dict) -> dict:
         'We have a limited budget.': ('We have little room in the budget for extras.', 'В бюджете мало места для лишнего.'),
         'I need to take out a loan.': ('Few students take out a loan for a car.', 'Мало студентов берут кредит на машину.'),
         'I have a lot of debt.': ('I have less debt than a year ago.', 'У меня меньше долгов, чем год назад.'),
-        'She has small savings.': ('She has little savings, but a few good investments.', 'У неё мало сбережений, но несколько удачных инвестиций.'),
+        'She has small savings.': ('She has little money saved, but a few good investments.', 'У неё мало накопленных денег, но несколько удачных инвестиций.'),
         'Real estate is a long investment.': ('There are fewer safe investments than people think.', 'Надёжных инвестиций меньше, чем думают люди.'),
         'The local currency is the euro.': ('I have a little foreign currency left from the trip.', 'У меня осталось немного иностранной валюты после поездки.'),
         'His salary doubled.': ('A few employees got a higher salary this year.', 'Несколько сотрудников получили в этом году более высокую зарплату.'),
@@ -446,6 +454,21 @@ base.EDITS[T] = {}
 
 def theory_B1_12(content: dict) -> dict:
     new = copy.deepcopy(content)
+    # Section 1 listed four use cases as «1. … 2. … 3. …» inside the description, with an empty
+    # table underneath: everything ran together in one paragraph (review of item 26).
+    use = new['sections'][1]
+    assert use['subtitle'].startswith('Когда использовать') and not use.get('table'), use['subtitle']
+    use['description'] = 'Страдательный залог выбирают, когда важно действие, а не тот, кто его совершает.'
+    use['table'] = [
+        {'situation': 'Действующее лицо неизвестно или неважно', 'example': 'Messages are sent every day.',
+         'translation': 'Сообщения отправляются каждый день.'},
+        {'situation': 'Акцент на действии, а не на исполнителе', 'example': 'New videos are uploaded weekly.',
+         'translation': 'Новые видео загружаются еженедельно.'},
+        {'situation': 'Формальная речь и письмо', 'example': 'Passwords are changed regularly.',
+         'translation': 'Пароли меняются регулярно.'},
+        {'situation': 'Научные и технические тексты', 'example': 'Data is stored in the cloud.',
+         'translation': 'Данные хранятся в облаке.'},
+    ]
     extra = _extra_section(new)
     _swap_examples(extra, {
         'I use the internet every day.': ('The internet is used by billions of people every day.', 'Интернетом пользуются миллиарды людей каждый день.'),
@@ -469,6 +492,26 @@ THEORY[T] = theory_B1_12
 # ================================================== B1_11 -ed / -ing adjectives
 T = 'B1_11'
 base.EDITS[T] = {}
+# All 16 fill_blanks asked the learner to guess a lexeme («The documentary was absolutely ___»),
+# and the subjective synonym lists papered over it — «an ___ speech» even accepted «moving» and
+# «powerful», producing «an moving speech» (review of item 26). The topic is the -ed/-ing
+# contrast, so the base verb is given and the item drills the form, not the vocabulary.
+_ED_ING_HINTS = {
+    (1, 1): ('fascinate', 'fascinating'), (1, 2): ('exhaust', 'exhausted'), (1, 3): ('amaze', 'amazed'),
+    (2, 1): ('annoy', 'annoyed'), (2, 2): ('confuse', 'confusing'), (2, 3): ('embarrass', 'embarrassed'),
+    (3, 1): ('fascinate', 'fascinating'), (3, 2): ('confuse', 'confused'), (3, 3): ('annoy', 'annoying'),
+    (4, 1): ('annoy', 'annoying'), (4, 2): ('disappoint', 'disappointed'),
+    (5, 1): ('fascinate', 'fascinating'), (5, 2): ('shock', 'shocked'),
+    (6, 1): ('confuse', 'confusing'), (7, 1): ('inspire', 'inspiring'), (8, 1): ('annoy', 'annoying'),
+}
+for (_s, _o), (_base, _ans) in _ED_ING_HINTS.items():
+    _ex = _exercise(T, _s, _o)
+    _q = _ex['content']['question']
+    assert _ex['exercise_type'] == 'fill_blank' and _q.count('___') == 1 and '(' not in _q, (_s, _o, _q)
+    _who = 'испытывает чувство' if _ans.endswith('ed') else 'вызывает чувство'
+    fix(T, _s, _o, question=_q.replace('___', f'___ ({_base})', 1), correct_answer=_ans, alternatives=[],
+        explanation=f'Подлежащее {_who}, поэтому нужна форма на -{"ed" if _ans.endswith("ed") else "ing"}: {_base} → {_ans}. '
+                    f'Правило: люди чувствуют (-ed), а предметы, события и ситуации вызывают чувство (-ing).')
 
 
 def theory_B1_11(content: dict) -> dict:
@@ -524,7 +567,7 @@ def theory_B1_13(content: dict) -> dict:
         'The tablet is perfect for reading.': ('The tablet is perfect for reading in bed.', 'Планшет идеален для чтения в постели.'),
         'The keyboard is wireless.': ('I bought a wireless keyboard so that I could type faster.', 'Я купил беспроводную клавиатуру, чтобы печатать быстрее.'),
         'I need a new mouse for my computer.': ('I need a new mouse for my computer so as not to strain my wrist.', 'Мне нужна новая мышь для компьютера, чтобы не перегружать запястье.'),
-        'The screen is too bright.': ('Lower the screen brightness in order to save battery.', 'Уменьшите яркость экрана, чтобы сберечь батарею.'),
+        'The screen is too bright.': ('Lower the screen brightness in order to save battery life.', 'Уменьшите яркость экрана, чтобы сберечь заряд батареи.'),
         'We need to update the software.': ('We update the software regularly so that the laptop stays secure.', 'Мы регулярно обновляем ПО, чтобы ноутбук оставался защищённым.'),
         'The hardware is outdated.': ('They replaced the old hardware in order to run new programs.', 'Они заменили старое оборудование, чтобы запускать новые программы.'),
         'I need to download the file.': ('I connected to Wi-Fi to download the file faster.', 'Я подключился к Wi-Fi, чтобы скачать файл быстрее.'),
@@ -544,6 +587,10 @@ THEORY[T] = theory_B1_13
 # ========================================== B1_14 Present Perfect ever / never
 T = 'B1_14'
 base.EDITS[T] = {}
+# «It is the best vacation I ___ ever had» accepted «have ever» → «have ever ever had» (review of item 26).
+fix(T, 7, 1, alternatives=[],
+    explanation='Конструкция «the best … I have ever had» — Present Perfect после превосходной степени. '
+                'Слово ever уже стоит в предложении, поэтому в пропуск идёт только have.')
 replace(T, 3, 2, 'fill_blank', question='They have not returned from their vacation ___.', correct_answer='yet', alternatives=[],
         explanation='Yet (ещё) ставится в конец отрицательного предложения: have not + V3 + yet = ещё не. Перевод: Они ещё не вернулись из отпуска.')
 replace(T, 7, 8, 'error_correction', sentence='I have never see the Northern Lights on my travels.', correct_answer='I have never seen the Northern Lights on my travels.',
@@ -563,8 +610,8 @@ def theory_B1_14(content: dict) -> dict:
             row(pronoun='already', form='have + already + V3', example='We have already packed our luggage.', translation='Мы уже собрали багаж.'),
             row(pronoun='just', form='have + just + V3', example='She has just collected her baggage.', translation='Она только что забрала багаж.'),
             row(pronoun='yet', form='в конце отрицания / вопроса', example="They haven't checked in yet. Have you booked a hotel yet?", translation='Они ещё не зарегистрировались. Ты уже забронировал отель?'),
-            row(pronoun='been to', form='побывал и вернулся', example='I have been to Japan twice.', translation='Я дважды бывал в Японии.'),
-            row(pronoun='gone to', form='уехал и ещё там', example='He has gone to Japan — he is there now.', translation='Он уехал в Японию — он сейчас там.'),
+            row(pronoun='been to', form='побывал и вернулся', example='I have been to Japan twice.', translation='Я дважды бывал в Японии (и вернулся).'),
+            row(pronoun='gone to', form='уехал и ещё не вернулся', example='He has gone to Japan — he is not back yet.', translation='Он уехал в Японию и ещё не вернулся.'),
             row(pronoun='WRONG', form='Present Perfect + yesterday / last year', example='❌ I have been to Rome last year. → ✅ I went to Rome last year.',
                 translation='С точным временем в прошлом — Past Simple.'),
         ],
@@ -642,27 +689,38 @@ THEORY[T] = theory_B1_15
 # ======================================================== B1_16 conditionals
 T = 'B1_16'
 base.EDITS[T] = {}
-fix(T, 1, 1, alternatives=[],
-    explanation='Zero Conditional (общая истина о физике): обе части в Present Simple → «melts». Вариант «will melt» перевёл бы фразу '
-                'в First Conditional — про один конкретный случай в будущем, а не про закон природы.')
-fix(T, 2, 1, alternatives=[],
-    explanation='Zero Conditional (общая закономерность о растениях): обе части в Present Simple → «die».')
-fix(T, 3, 1, alternatives=[],
-    explanation='Zero Conditional (закономерность про сон): обе части в Present Simple → «feel».')
-fix(T, 4, 1, alternatives=[],
-    explanation='Zero Conditional (типичный результат): обе части в Present Simple → «sell out».')
-fix(T, 5, 1, alternatives=[],
-    explanation='Zero Conditional (общая истина): обе части в Present Simple → «burn».')
+# The eight Zero-Conditional items accepted «will …» as an alternative while their own explanation
+# said the answer must be Present Simple. Dropping the alternative alone would create false
+# rejections: «If you don't book early, the tickets will sell out» is perfectly good English about
+# one occasion (review of item 26). So the general reading is made explicit in the sentence with
+# always / usually — the marker rules First Conditional out — and only then is the alternative
+# dropped. The three items that already carried usually / gradually / regularly keep their wording.
+_ZERO_ALWAYS = {
+    (1, 1): ('If you heat ice, it always ___ (melt).', 'Если нагреваешь лёд, он всегда тает.'),
+    (2, 1): ("If you don't water plants, they always ___ (die).", 'Если не поливать растения, они всегда погибают.'),
+    (3, 1): ("If you don't sleep enough, you always ___ (feel) tired the next day.", 'Если не высыпаешься, на следующий день всегда чувствуешь усталость.'),
+    (5, 1): ('If you touch fire, you always ___ (burn) yourself.', 'Если трогаешь огонь, всегда обжигаешься.'),
+    (8, 1): ("If you don't back up your files regularly, you always ___ (risk) losing your data.", 'Если не делать резервные копии регулярно, всегда рискуешь потерять данные.'),
+}
+for (_s, _o), (_q, _ru) in _ZERO_ALWAYS.items():
+    fix(T, _s, _o, question=_q, alternatives=[],
+        explanation=f'Zero Conditional: наречие always/usually в предложении говорит, что речь о постоянной закономерности, '
+                    f'а не об одном будущем случае, поэтому обе части стоят в Present Simple. Перевод: {_ru}')
+fix(T, 4, 1, question="If you don't book early, the tickets usually ___ (sell) out.", alternatives=[],
+    explanation='Zero Conditional: наречие usually говорит, что это обычный исход, а не один конкретный случай, '
+                'поэтому обе части в Present Simple. Перевод: Если не бронировать заранее, билеты обычно раскупают.')
 fix(T, 6, 1, alternatives=[],
-    explanation='Zero Conditional (общая закономерность, маркер «usually»): обе части в Present Simple → «work».')
+    explanation='Zero Conditional: маркер usually задаёт общую закономерность, поэтому обе части в Present Simple → «work».')
 fix(T, 7, 1, alternatives=[],
-    explanation='Zero Conditional (общая закономерность бизнеса, маркер «gradually»): обе части в Present Simple → «loses».')
-fix(T, 8, 1, alternatives=[],
-    explanation='Zero Conditional (общая закономерность): обе части в Present Simple → «risk».')
+    explanation='Zero Conditional: наречие gradually описывает постоянную закономерность бизнеса, поэтому обе части в Present Simple → «loses».')
 fix(T, 1, 8, alternatives=['If you heat water to one hundred degrees, it boils.', 'When you heat water to 100 degrees, it boils.'],
-    explanation='Общая истина → Zero Conditional: If + Present Simple, Present Simple («it boils»). Вариант с will описывал бы один конкретный случай.')
-fix(T, 1, 3, alternatives=[],
-    explanation='Second Conditional: после if в гипотетике «be» принимает форму «were» для всех лиц (If I were you…). Разговорное «was» здесь считается ошибкой.')
+    explanation='Русское предложение стоит в настоящем времени и описывает физический закон, поэтому Zero Conditional: '
+                'If + Present Simple, Present Simple («it boils»).')
+# «If I was you» is informal but real English; the item teaches «were», so it stays the key while
+# «was» remains an accepted answer (review of item 26).
+fix(T, 1, 3, alternatives=['was'],
+    explanation='Second Conditional: в гипотетике «be» принимает форму were для всех лиц — If I were you… Разговорное '
+                '«If I was you» тоже встречается, но в учебной и письменной норме используется were.')
 
 
 def theory_B1_16(content: dict) -> dict:
@@ -812,7 +870,7 @@ def theory_B1_19(content: dict) -> dict:
             ('We meet once in a blue moon.', 'Мы видимся очень редко.'),
             ("I'm under the weather today.", 'Сегодня мне нездоровится.'),
             ("It's raining cats and dogs outside.", 'На улице льёт как из ведра.'),
-            ('Let us make sure we are on the same page.', 'Давайте убедимся, что мы понимаем всё одинаково.'),
+            ("Let's make sure we are on the same page.", 'Давайте убедимся, что мы понимаем всё одинаково.'),
             ("Don't spill the beans before the party.", 'Не выдавай секрет до вечеринки.'),
             ('He let the cat out of the bag by accident.', 'Он случайно проговорился.'),
             ('Break a leg at the concert tonight!', 'Удачи на сегодняшнем концерте!'),
@@ -831,16 +889,18 @@ THEORY[T] = theory_B1_19
 
 # grammar_topics.content mirrors the grammar lesson of the module, but on the prod copy the
 # b1-11 mirror lags behind the lesson: it still carries the older translation of the first
-# -ed/-ing row. The item-26 patch is keyed on the lesson's content, so the mirror is aligned
-# first. The UPDATE is keyed on the stale value it fixes: a no-op once aligned, and a no-op on
-# a mirror that drifted some other way (the preflight then reports that instead). The rollback
-# file leaves the alignment in place — a mirror equal to its lesson is never wrong.
+# -ed/-ing row. The item-26 patch is keyed on the lesson's content, so that one cell is aligned
+# first — and ONLY that cell (`jsonb_set` on its exact path, keyed on the stale value). Rewriting
+# the whole theory blob here would silently swallow any independent editorial fix made in prod
+# and then let the preflight validate the state this file itself produced (review of item 26);
+# with a surgical write, an unrelated prod edit still makes the preflight fail loudly.
+# The rollback file leaves the alignment in place — a mirror equal to its lesson is never wrong.
 #
 # NB (trap found replaying item 25): the pre-step must be emitted BEFORE every other statement.
 # Item 25 inserted it at the first blank line, which landed after some of its own theory
 # updates, so its check file had to run first. Here it is anchored to the end of the header.
 DRIFT_PROBES = {
-    'B1_11': ("content->'sections'->2->'table'->0->>'ed_translation'", 'Мне скучно с этим меню.'),
+    'B1_11': ('{sections,2,table,0,ed_translation}', 'Мне скучно с этим меню.', 'Мне надоело это меню.'),
 }
 _HEAD_END = {
     '1_check': '-- the DO block at the end raises the list of mismatching slots.\n',
@@ -848,14 +908,14 @@ _HEAD_END = {
 }
 
 
-def drift_alignment_sql(olds: dict[str, dict]) -> str:
-    lines = ['-- Item 26 pre-step: align the grammar_topics mirror with the lesson where it lags behind',
-             '-- (expected: 1 row on a copy that still carries the stale value, 0 rows once aligned).']
-    for topic, (probe, stale) in DRIFT_PROBES.items():
-        payload = {k: olds[topic][k] for k in base.TOPIC_KEYS if k in olds[topic]}
-        blob = json.dumps(payload, ensure_ascii=False)
-        assert '$q$' not in blob
-        lines.append(f"UPDATE grammar_topics SET content = content || $q${blob}$q$::jsonb\n"
+def drift_alignment_sql() -> str:
+    lines = ['-- Item 26 pre-step: align ONE stale cell of the grammar_topics mirror with the lesson',
+             '-- (expected: 1 row on a copy that still carries the stale value, 0 rows once aligned).',
+             '-- Only this cell is touched: an unrelated prod edit elsewhere in the theory must still',
+             '-- make the preflight fail rather than be overwritten here.']
+    for topic, (path, stale, fresh) in DRIFT_PROBES.items():
+        probe = "content #>> '{}'".format(path)
+        lines.append(f"UPDATE grammar_topics SET content = jsonb_set(content, '{path}', to_jsonb($q${fresh}$q$::text))\n"
                      f"WHERE slug = '{base.TOPICS[topic]['slug']}' AND {probe} = $q${stale}$q$;  -- {topic}")
     return '\n'.join(lines) + '\n\n'
 
@@ -874,13 +934,12 @@ def main(argv=None) -> int:
     base.TOPICS.update(topic_meta())
     base.THEORY.clear()
     base.THEORY.update(THEORY)
-    all_changes, theory, outputs, olds = {}, {}, [], {}
+    all_changes, theory, outputs = {}, {}, []
     for topic in sorted(base.TOPICS, key=lambda t: int(t.split('_')[1])):
         base.EDITS.setdefault(topic, {})
         data, changes = base.build_exercises(topic)
         base.validate_exercises(topic, data)
         module, old_extra, new_extra = base.build_theory(topic)
-        olds[topic] = old_extra
         theory_changed = old_extra != new_extra
         kinds = {'fix': 0, 'replace': 0}
         for change in changes:
@@ -902,7 +961,7 @@ def main(argv=None) -> int:
         base._dump_json(path, payload)
     print('wrote', len(outputs), 'JSON files')
     sql = base.emit_sql(all_changes, theory)
-    pre = drift_alignment_sql(olds)
+    pre = drift_alignment_sql()
     for suffix, head_end in _HEAD_END.items():
         assert sql[suffix].count(head_end) == 1, suffix
         sql[suffix] = sql[suffix].replace(head_end, head_end + pre, 1)
