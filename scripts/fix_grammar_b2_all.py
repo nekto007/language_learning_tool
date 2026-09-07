@@ -373,7 +373,7 @@ def theory_B2_6(content: dict) -> dict:
         'direct': 'Is it a strength or a weakness?',
         'embedded': 'She asked whether it was a strength or a weakness.',
         'translation': 'Она спросила, сила это или слабость.',
-        'note': 'перед «or» и после предлога — только whether',
+        'note': 'после предлога — только whether; перед «or» whether предпочтительнее, но if не запрещён',
     })
     sections.insert(4, {
         'subtitle': 'Встроенный вопрос в прошедшем времени',
@@ -423,12 +423,13 @@ THEORY[T] = theory_B2_6
 T = 'B2_7'
 base.EDITS[T] = {}
 # The single alternative repeated the key verbatim, so it was no alternative at all.
-fix(T, 4, 6, alternatives=['They decided not to buy a new car this year.'.replace('a new car', 'a car'),
-                           "They've decided not to buy a new car this year."],
-    explanation='После глагола decide идёт инфинитив с to, а отрицание ставится ПЕРЕД to: decided not to buy '
-                '(не «decided to not buy»).')
+fix(T, 4, 6, alternatives=['They decided not to buy a car this year.',
+                           "They've decided not to buy a new car this year.",
+                           'They decided to not buy a new car this year.'],
+    explanation='После глагола decide идёт инфинитив с to. Обычное место отрицания — перед to: decided not to buy; '
+                'вариант decided to not buy тоже встречается и здесь принимается.')
 fix(T, 5, 3, question='We were warned ___ that dark street at night.',
-    options=['not to take', 'not taking', 'to not take', 'taking not'], correct_answer='not to take',
+    options=['not to take', 'not taking', 'not take', 'taking not'], correct_answer='not to take',
     explanation='После глагола warn идёт инфинитив с to, а отрицание ставится перед to: warned not to take. '
                 'Перевод: Нас предупредили не ходить по той тёмной улице ночью.')
 THEORY[T] = copy.deepcopy
@@ -690,7 +691,9 @@ def theory_B2_12(content: dict) -> dict:
     assert tail['subtitle'].startswith('Дополнительные примеры (закрепление)') and len(tail['table']) == 1, tail
     tail['subtitle'] = 'Причастие вместо придаточного и висящее причастие'
     tail['description'] = ('Причастие сокращает определительное придаточное (who is / which was), а отрицание ставится '
-                           'перед ним. Главная ловушка: причастие всегда относится к подлежащему главного предложения.')
+                           'перед ним. Ловушка касается только обстоятельственного оборота, отделённого запятой в начале '
+                           'предложения: он относится к подлежащему главного предложения. Причастие, стоящее сразу после '
+                           'существительного, определяет именно это существительное, в том числе дополнение.')
     tail['table'] = [
         {'usage': 'вместо who is / which is', 'full_sentence': 'The woman who is sitting at the desk is the receptionist.',
          'participle_clause': 'The woman sitting at the desk is the receptionist.', 'translation': 'Женщина, сидящая за стойкой, — администратор.'},
@@ -698,8 +701,10 @@ def theory_B2_12(content: dict) -> dict:
          'participle_clause': 'The documents left on the table belong to the director.', 'translation': 'Документы, оставленные на столе, принадлежат директору.'},
         {'usage': 'отрицание', 'full_sentence': 'She did not know what to say, so she remained silent.',
          'participle_clause': 'Not knowing what to say, she remained silent.', 'translation': 'Не зная, что сказать, она промолчала.'},
-        {'usage': 'висящее причастие', 'full_sentence': '❌ Walking home, the bridge looked beautiful.',
-         'participle_clause': '✅ Walking home, I thought the bridge looked beautiful.', 'translation': 'Мост сам домой не шёл: причастие относится к подлежащему.'},
+        {'usage': 'определяет дополнение', 'full_sentence': 'I saw the documents which had been left on the table.',
+         'participle_clause': 'I saw the documents left on the table.', 'translation': 'Здесь причастие относится к дополнению documents, а не к подлежащему I.'},
+        {'usage': 'висящее причастие (оборот с запятой)', 'full_sentence': '❌ Walking home, the bridge looked beautiful.',
+         'participle_clause': '✅ Walking home, I thought the bridge looked beautiful.', 'translation': 'Мост сам домой не шёл: вынесенный вперёд оборот относится к подлежащему.'},
     ]
     base._rebuild_tldr_summary(new)
     return new
@@ -878,15 +883,16 @@ def main(argv=None) -> int:
 # ---------------------------------------------------------------- late findings
 # Read of sessions 6-8 across the level (the mechanical scan is clean; these are semantic).
 # B2_9 7#2: "species" is both singular and plural, so "was protected" is as correct as the key.
-fix('B2_9', 7, 2, question='The endangered animals ___ protected under new environmental legislation.',
+fix('B2_9', 7, 2, question='The endangered animals ___ under new environmental legislation.',
     explanation='Подлежащее «animals» стоит во множественном числе, поэтому пассив строится через were + V3. '
                 'Перевод: Животные, находящиеся под угрозой, были защищены новым природоохранным законом.')
 # B2_10 4#1: the bracketed hint printed the answer verbatim; the get-construction tests the same rule.
-fix('B2_10', 4, 1, question='The director got the actors ___ (rehearse) the scene five times before filming.',
-    correct_answer='to rehearse', alternatives=[],
-    explanation='После get + человек идёт инфинитив С to: got the actors to rehearse. Голая форма без to '
-                'нужна только после have (had the actors rehearse). Перевод: Режиссёр добился, чтобы актёры '
-                'отрепетировали сцену пять раз перед съёмкой.')
+replace('B2_10', 4, 1, 'fill_blank',
+        question='The director got the actors ___ (rehearse) the scene five times before filming.',
+        correct_answer='to rehearse', alternatives=[],
+        explanation='После get + человек идёт инфинитив С to: got the actors to rehearse. Голая форма без to '
+                    'нужна только после have (had the actors rehearse). Перевод: Режиссёр добился, чтобы актёры '
+                    'отрепетировали сцену пять раз перед съёмкой.')
 # B2_10 8#1: "have sb do" (поручить) and "get sb to do" (уговорить) are not identical in meaning;
 # the statement is restated so that it tests the grammar it was written to test.
 fix('B2_10', 8, 1,
