@@ -251,6 +251,7 @@
         let timer = null;
         let timeRemaining = 30; // Seconds per question
         let selectedOption = null;
+        let answerSubmitted = false;
         let sessionStats = {
             total: 0,
             correct: 0,
@@ -590,14 +591,22 @@
             };
 
             fillBlankInput.onkeydown = function(e) {
-                if (e.key === 'Enter' && this.value.trim() !== '') {
-                    submitAnswer();
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (e.repeat) return;
+                    if (answerSubmitted) {
+                        if (nextBtn.style.display !== 'none') nextQuestion();
+                    } else if (this.value.trim() !== '') {
+                        submitAnswer();
+                    }
                 }
             };
         }
 
         function resetQuestionState() {
             selectedOption = null;
+            answerSubmitted = false;
+            fillBlankInput.readOnly = false;
 
             submitAnswerBtn.style.display = 'block';
             submitAnswerBtn.disabled = true;
@@ -655,12 +664,21 @@
         }
 
         async function submitAnswer() {
+            // All entry points (Enter, button, options, timeout) share this
+            // lock. Acquire before changing counters or awaiting the request;
+            // hiding the submit button after fetch is too late to stop repeats.
+            if (answerSubmitted) return;
+            const question = questions[currentQuestionIndex];
+            if (!question) return;
+            answerSubmitted = true;
+            submitAnswerBtn.disabled = true;
+            fillBlankInput.readOnly = true;
+
             if (timer) {
                 clearInterval(timer);
                 timer = null;
             }
 
-            const question = questions[currentQuestionIndex];
             let userAnswer = '';
             let isCorrect = false;
 
@@ -756,6 +774,7 @@
         }
 
         function nextQuestion() {
+            if (!answerSubmitted || nextBtn.style.display === 'none') return;
             showQuestion(currentQuestionIndex + 1);
             saveQuizState();
         }
