@@ -18,7 +18,7 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d  # Add initialization scripts
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: [ "CMD-SHELL", "pg_isready" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -88,21 +88,6 @@ services:
     networks:
       - app_network
 
-  nginx:
-    image: nginx:1.25  # Updated from 1.27 to latest stable version
-    container_name: language_learning_tool_nginx
-    ports:
-      - "81:80"
-      - "8443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl
-      - ./app/static:/var/www/html/static
-      - ./app/static/audio:/var/www/html/media
-    depends_on:
-      - web
-    networks:
-      - app_network
 
   opendkim:
     build:
@@ -125,8 +110,6 @@ services:
       - opendkim
     networks:
       - app_network
-    ports:
-      - "25:25"
 
 volumes:
   pgdata:
