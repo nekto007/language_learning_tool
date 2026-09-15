@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -372,12 +371,12 @@ def _try_get_db_session():
     """Try to import the Flask app and return (app, db). (None, None) on failure."""
     try:
         from app import create_app
-        from extensions import db
+        from app.utils.db import db
     except Exception as exc:  # noqa: BLE001
         print(f"WARN: cannot import Flask app: {exc}", file=sys.stderr)
         return None, None
     try:
-        app = create_app(os.environ.get("FLASK_ENV", "development"))
+        app = create_app()
     except Exception as exc:  # noqa: BLE001
         print(f"WARN: create_app() failed: {exc}", file=sys.stderr)
         return None, None

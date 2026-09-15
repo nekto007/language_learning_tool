@@ -19,6 +19,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY run.py .
 COPY babel.cfg .
 COPY cli.py .
+COPY create_admin.py .
 COPY convert_fb2_to_txt.py .
 COPY app app/
 COPY config config/

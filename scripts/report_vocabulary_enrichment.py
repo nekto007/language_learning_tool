@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -345,12 +344,12 @@ def collect_words(session) -> list[dict[str, Any]]:
 def _try_get_db():
     try:
         from app import create_app
-        from extensions import db as _db
+        from app.utils.db import db as _db
     except Exception as exc:
         print(f"WARN: cannot import Flask app: {exc}", file=sys.stderr)
         return None, None
     try:
-        app = create_app(os.environ.get("FLASK_ENV", "development"))
+        app = create_app()
     except Exception as exc:
         print(f"WARN: create_app() failed: {exc}", file=sys.stderr)
         return None, None

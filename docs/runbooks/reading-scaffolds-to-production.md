@@ -24,7 +24,7 @@ production that destroys the lessons users are studying.
 - `master` contains the `dump`/`load` subcommands, and the production host has
   pulled it.
 - **The script still has to be copied into the container.** `Dockerfile`
-  (lines 19-25) copies only `run.py`, `cli.py`, `babel.cfg`,
+  copies `run.py`, `cli.py`, `babel.cfg`, `create_admin.py`,
   `convert_fb2_to_txt.py`, `app/`, `config/` and `migrations/`; `scripts/` and
   `work/` are not in the image and are not mounted by `docker-compose.yml`.
   A `git pull` alone therefore does not make `load` runnable — step 3 does.

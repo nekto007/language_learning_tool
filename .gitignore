@@ -261,7 +261,6 @@ cleanup_duplicate_achievement_tables.py
 generate_audio.py
 !scripts/generate_audio.py
 generate_reading_audio.py
-import_module.py
 import_module_simple.py
 migrate_words_cli.py
 run_achievement_migration.py
@@ -400,3 +399,9 @@ app/temp/
 
 # Locally extracted external project
 /book_translator-master/
+
+# Retired root helpers kept only as local references
+/add_reading_tables.sql
+/add_new_achievements.py
+/extensions.py
+/test_pages.py
