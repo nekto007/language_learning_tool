@@ -1,6 +1,31 @@
 # Language Learning Tool
 
-A Flask web application for English language learning with spaced repetition, structured curriculum, grammar exercises, book integration, and a Telegram bot.
+A production-deployed English learning platform built with Python and Flask.
+Language Learning Tool combines structured lessons, vocabulary review, spaced repetition, grammar practice, and book reading in one application. A daily study plan brings these activities together, helping learners decide what to work on next and track their progress.
+**Live application:** https://llt-english.com
+
+## Features
+
+- **Daily study plan** — follow a schedule of lessons, vocabulary reviews, and reading based on your selected study intensity.
+- **Structured curriculum** — work through levels, modules, and lessons with progress tracking.
+- **Vocabulary practice** — organize words into decks, take quizzes, and review cards with spaced repetition (SRS).
+- **Grammar Lab** — study topic explanations, practice exercises, and revisit grammar through spaced repetition.
+- **Book reading** — read books in the browser, track reading progress, and explore vocabulary from the text.
+- **Telegram companion** — receive study reminders and check your daily plan and statistics from a linked account.
+
+## Tech Stack
+
+| Area | Technologies |
+|------|--------------|
+| Backend | Python, Flask |
+| Web interface | Jinja2 templates, Bootstrap, JavaScript |
+| API | REST endpoints built with Flask |
+| Database | PostgreSQL, SQLAlchemy |
+| Database migrations | Flask-Migrate, Alembic |
+| Rate limiting | Flask-Limiter, optional Redis storage |
+| Telegram integration | Telegram Bot API via requests |
+| Deployment | Docker Compose, Gunicorn |
+| Testing and linting | pytest, Ruff |
 
 ## Requirements
 
@@ -111,7 +136,7 @@ app/                    Application package
   grammar_lab/          Grammar exercises
   study/                SRS study features, decks, quizzes
   words/                Vocabulary management and dashboard
-  telegram/             Telegram bot (aiogram 3.x)
+  telegram/             Telegram bot (Bot API via requests)
   notifications/        In-app notification system
   achievements/         Achievements and streaks
 migrations/             Alembic database migrations
