@@ -142,7 +142,7 @@
           </svg>
         </div>
         <h1 class="onboarding-step__title">Всё готово!</h1>
-        <p class="onboarding-step__subtitle">Ваш план обучения создан. Начнём?</p>
+        <p class="onboarding-step__subtitle">Покажем, с какого занятия начать. Весь план сразу выполнять необязательно.</p>
       </div>
       <div class="onboarding-ready">
         <div class="onboarding-ready__summary" id="readySummary"></div>
@@ -151,7 +151,7 @@
           <input type="hidden" name="level" id="selectedLevel" value="">
           <input type="hidden" name="focus" id="selectedFocus" value="">
           <input type="hidden" name="next" value="{{ next_url }}">
-          <button type="submit" class="onboarding-start-btn">Начать обучение</button>
+          <button type="submit" class="onboarding-start-btn">{% if next_url %}Продолжить{% else %}Перейти к первому занятию{% endif %}</button>
         </form>
       </div>
     </div>

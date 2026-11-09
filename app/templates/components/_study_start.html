@@ -1,0 +1,14 @@
+<section class="study-start" aria-labelledby="study-start-title" data-study-start="true"
+         data-level="{{ study_start.level or '' }}" data-lesson-type="{{ study_start.lesson_type }}"
+         data-resume="{{ 'true' if study_start.resumed else 'false' }}">
+  <p class="study-start__eyebrow">{{ study_start.eyebrow }}</p>
+  <div class="study-start__meta">
+    {% if study_start.level %}<span>{{ study_start.level }}</span>{% endif %}
+    {% if study_start.minutes %}<span>Около {{ study_start.minutes }} мин</span>{% endif %}
+  </div>
+  <h1 id="study-start-title">{{ study_start.title }}</h1>
+  {% if study_start.topic %}<p class="study-start__topic">{{ study_start.topic }}</p>{% endif %}
+  <p class="study-start__outcome">{{ study_start.outcome }}</p>
+  <a class="study-start__cta" href="{{ study_start.url }}">{{ study_start.cta }} <span aria-hidden="true">→</span></a>
+  <p class="study-start__note">Начните с одного занятия. Остальной план можно посмотреть ниже.</p>
+</section>

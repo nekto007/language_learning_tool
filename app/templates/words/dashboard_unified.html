@@ -17,8 +17,17 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 
 {% block body_class %}dashboard-path-wide{% endblock %}
 
+{% block extra_css %}
+{{ super() }}
+{% if study_start %}<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/study-start.css') }}">{% endif %}
+{% endblock %}
+
 {% block content %}
-<div class="dash-unified-wrap">
+<div class="dash-unified-wrap{% if study_start %} dash-unified-wrap--study-start{% endif %}">
+
+  {% if study_start %}
+    {% include 'components/_study_start.html' %}
+  {% else %}
 
   {# ── HERO BANNER (full width, top of dashboard) ── #}
   <a href="#daily-plan" class="dash-hero-banner" aria-label="Перейти к плану дня">
@@ -28,9 +37,10 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
          loading="eager"
          decoding="async">
   </a>
+  {% endif %}
 
   {# ── RANK BAND (full width, above the plan) ── #}
-  {% if rank_info %}
+  {% if rank_info and not study_start %}
   <div class="dash-rank dash-rank--{{ rank_info.code }} dash-rank--band"
        data-rank-code="{{ rank_info.code }}"
        data-rank-plans="{{ rank_info.plans_completed }}"
@@ -56,10 +66,13 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 
   <div class="dash-path" data-unified-plan="true">
     <section class="dash-path__plan" aria-label="План на сегодня">
+      {% if study_start %}<details class="study-start-plan"><summary>Показать план на сегодня</summary>{% endif %}
       {% include 'components/_dashboard_hero.html' %}
       {% include 'partials/unified_daily_plan.html' %}
+      {% if study_start %}</details>{% endif %}
     </section>
 
+    {% if not study_start %}
     <div class="dash-path__rail-wrap">
       {% include 'components/_dashboard_rail.html' %}
     </div>
@@ -88,9 +101,10 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
       </div>
       {% endif %}
     </main>
+    {% endif %}
 
     {# ── ACHIEVEMENTS (right column on desktop, after module on mobile) ── #}
-    {% if achievements_by_category and achievements_by_category.by_category %}
+    {% if not study_start and achievements_by_category and achievements_by_category.by_category %}
     <div class="dash-achievements dash-achievements--rail">
       <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
       <div class="dash-achievements__summary">
@@ -160,4 +174,5 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 </div>
 
 <script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}"></script>
+{% if study_start %}<script src="{{ url_for('static', filename='js/onboarding/study-start.js') }}" defer></script>{% endif %}
 {% endblock %}

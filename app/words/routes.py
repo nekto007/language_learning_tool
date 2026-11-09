@@ -530,21 +530,11 @@ def _get_next_plan_action(plan: dict, daily_summary: dict) -> tuple[str | None, 
 
     if plan.get('mode') == 'unified':
         from app.achievements.streak_service import compute_plan_steps
+        from app.daily_plan.action_selection import next_unified_item
         plan_completion, _avail, _done, _total = compute_plan_steps(plan, daily_summary)
-        all_items = list(plan.get('required') or []) + list(plan.get('optional') or [])
-        for item in all_items:
-            item_id = item.get('id', '')
-            summary_done = plan_completion.get(item_id, False)
-            if (
-                item.get('completed')
-                or item.get('skipped')
-                or item.get('blocked')
-                or summary_done
-            ):
-                continue
-            item_url = item.get('url')
-            if item_url:
-                return item.get('title') or 'Следующий шаг', item_url
+        item = next_unified_item(plan, plan_completion)
+        if item:
+            return item.get('title') or 'Следующий шаг', item['url']
         return None, None
 
     if plan.get('mode') == 'linear':
@@ -1228,21 +1218,27 @@ def _render_unified_dashboard(tz: str):
         ],
     }
 
-    week_rhythm = _build_week_rhythm(current_user.id, tz)
+    from app.onboarding.study_start import build_study_start_card
+    study_start = _safe_widget_call(
+        'study_start', build_study_start_card, current_user.id, db,
+        unified_plan, plan_completion, default=None)
+
+    week_rhythm = _build_week_rhythm(current_user.id, tz) if not study_start else {}
 
     # Social-row widgets: rank (титул), leaderboard, achievements.
     # All three live next to the unified plan in dedicated layout slots:
     #   - rank_info → full-width band above the plan
     #   - achievements_by_category → right rail, below week rhythm
     #   - xp_leaderboard → left column, below «Показать ещё задания»
-    weekly_report = _build_weekly_report()
+    weekly_report = _build_weekly_report() if not study_start else None
 
-    rank_info = _safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
+    rank_info = (_safe_widget_call('rank_info', _build_rank_info, current_user.id, default=None)
+                 if not study_start else None)
     try:
         from app.study.services.stats_service import StatsService
     except Exception:
         StatsService = None
-    if StatsService is not None:
+    if StatsService is not None and not study_start:
         xp_leaderboard = _safe_widget_call(
             'xp_leaderboard', _get_cached_leaderboard, StatsService, limit=5, default=[])
         user_xp_rank = _safe_widget_call(
@@ -1269,6 +1265,7 @@ def _render_unified_dashboard(tz: str):
 
     return render_template(
         'words/dashboard_unified.html',
+        study_start=study_start,
         unified_plan=unified_plan,
         plan_completion=plan_completion,
         stats_card=stats_card,
@@ -1786,6 +1783,7 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
     minimum, and ``minimum_done`` whether the daily minimum is already met.
     """
     from app.achievements.streak_service import compute_plan_steps
+    from app.daily_plan.action_selection import next_unified_item
 
     plan_completion, _, steps_done, steps_total = compute_plan_steps(plan, daily_summary)
 
@@ -1802,7 +1800,6 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
     }
 
     required = plan.get('required') or []
-    optional = plan.get('optional') or []
 
     def _is_done(item: dict) -> bool:
         item_id = item.get('id', '')
@@ -1817,16 +1814,7 @@ def _next_step_from_unified(plan: dict, daily_summary: dict) -> tuple:
     minimum_done = steps_total > 0 and steps_done >= steps_total
     skipped_remaining = sum(1 for item in required if _is_skipped(item))
 
-    next_item = next(
-        (
-            item for item in (required + optional)
-            if not _is_done(item)
-            and not _is_skipped(item)
-            and not item.get('blocked', False)
-            and item.get('url')
-        ),
-        None,
-    )
+    next_item = next_unified_item(plan, plan_completion)
 
     if next_item is None:
         # Graduated users always get a free-study CTA instead of a dead end.
