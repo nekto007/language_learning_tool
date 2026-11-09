@@ -107,7 +107,7 @@ class TestFetchLessonCompleted:
         mod = Module(level_id=level.id, number=1, title="Mod")
         db_session.add(mod)
         db_session.flush()
-        lesson = Lessons(module_id=mod.id, number=1, title="Les", type="text", order=1)
+        lesson = Lessons(module_id=mod.id, number=1, title="Les", type="quiz", order=1)
         db_session.add(lesson)
         db_session.flush()
         now = _now()
@@ -203,7 +203,7 @@ class TestFetchLessonCompleted:
         mod = Module(level_id=level.id, number=1, title="Mod")
         db_session.add(mod)
         db_session.flush()
-        lesson = Lessons(module_id=mod.id, number=1, title="ScoreLes", type="text", order=1)
+        lesson = Lessons(module_id=mod.id, number=1, title="ScoreLes", type="quiz", order=1)
         db_session.add(lesson)
         db_session.flush()
         now = _now()
@@ -584,3 +584,176 @@ class TestGetRecentEvents:
             limit=10,
         )
         assert all("old.action" not in e.description for e in events)
+
+
+class TestLearningDiagnostics:
+    @staticmethod
+    def _lesson(db_session, lesson_type='translation'):
+        from app.curriculum.models import CEFRLevel, Lessons, Module
+        level = CEFRLevel(code=unique_level_code(), name='Test', order=100)
+        db_session.add(level)
+        db_session.flush()
+        module = Module(level_id=level.id, number=1, title='Diagnostic module')
+        db_session.add(module)
+        db_session.flush()
+        lesson = Lessons(module_id=module.id, number=1, title='Diagnostic lesson',
+                         type=lesson_type, order=1)
+        db_session.add(lesson)
+        db_session.flush()
+        return lesson
+
+    def test_registration_and_first_open_have_distinct_dates_and_links(self, app, db_session):
+        from app.curriculum.models import LessonProgress
+        user = _make_user(db_session)
+        lesson = self._lesson(db_session)
+        opened_at = _now() - timedelta(days=2)
+        user.created_at = opened_at - timedelta(hours=1)
+        db_session.add(LessonProgress(user_id=user.id, lesson_id=lesson.id,
+                                    started_at=opened_at, last_activity=_now()))
+        db_session.commit()
+        events = get_recent_events(db_session, user_id=user.id,
+                                   event_types=['registered', 'lesson_opened'])
+        assert [event.event_type for event in events] == ['lesson_opened', 'registered']
+        assert events[0].timestamp == opened_at
+        assert events[0].lesson_id == lesson.id
+        assert events[0].module_title == 'Diagnostic module'
+        assert events[0].detail_url.endswith(f'/students/{user.id}#lesson-{lesson.id}')
+        assert events[0].user_name == user.username
+        recent_events = get_recent_events(db_session, user_id=user.id,
+                                          event_types=['lesson_opened'], date_from=_now() - timedelta(days=1))
+        assert recent_events == []  # last_activity is not a new opening
+
+    def test_real_zero_counter_translation_is_included_passive_reading_is_not(self, app, db_session):
+        from app.curriculum.models import LessonAttempt
+        user = _make_user(db_session)
+        translation = self._lesson(db_session, 'translation')
+        reading = self._lesson(db_session, 'reading')
+        for lesson in (translation, reading):
+            db_session.add(LessonAttempt(user_id=user.id, lesson_id=lesson.id, attempt_number=1,
+                                        completed_at=_now(), score=0, passed=False, total_questions=0))
+        db_session.commit()
+        events = get_recent_events(db_session, user_id=user.id, event_types=['lesson_attempt'])
+        assert len(events) == 1
+        assert events[0].lesson_id == translation.id
+        assert events[0].score == 0
+        assert 'не пройдено' in events[0].description
+
+    @pytest.mark.parametrize('lesson_type', [
+        'vocabulary', 'card', 'flashcards', 'reading', 'listening_immersion', 'writing_prompt', 'grammar',
+    ])
+    def test_passive_completion_does_not_claim_accuracy(self, app, db_session, lesson_type):
+        from app.curriculum.models import LessonProgress
+        user = _make_user(db_session)
+        lesson = self._lesson(db_session, lesson_type)
+        db_session.add(LessonProgress(user_id=user.id, lesson_id=lesson.id,
+                                    status='completed', completed_at=_now(), score=100, data={}))
+        db_session.commit()
+        events = get_recent_events(db_session, user_id=user.id, event_types=['lesson_completed'])
+        assert len(events) == 1
+        assert events[0].score is None
+        assert '%' not in events[0].description
+
+    def test_testout_completion_has_no_per_lesson_accuracy(self, app, db_session):
+        from app.curriculum.models import LessonProgress
+        user = _make_user(db_session)
+        lesson = self._lesson(db_session, 'quiz')
+        db_session.add(LessonProgress(user_id=user.id, lesson_id=lesson.id,
+                                    status='completed', completed_at=_now(), score=100,
+                                    data={'test_out': True}))
+        db_session.commit()
+        events = get_recent_events(db_session, user_id=user.id,
+                                   event_types=['lesson_completed', 'lesson_opened'])
+        assert len(events) == 1
+        assert events[0].score is None and '%' not in events[0].description
+        assert 'экстерном' in events[0].description
+
+    def test_completion_score_requires_real_grading_semantics(self):
+        from types import SimpleNamespace
+        from app.admin.services.activity_feed_service import _completion_score
+        progress = SimpleNamespace(score=100, data={})
+        assert _completion_score(progress, SimpleNamespace(type='reading')) is None
+        assert _completion_score(progress, SimpleNamespace(type='grammar')) is None
+        assert _completion_score(progress, SimpleNamespace(type='quiz')) == 100
+        progress.data = {'test_out': True}
+        assert _completion_score(progress, SimpleNamespace(type='quiz')) is None
+        progress.data = {'total_questions': 3}
+        assert _completion_score(progress, SimpleNamespace(type='grammar')) == 100
+
+    def test_writing_and_pronunciation_do_not_expose_answers(self, app, db_session):
+        from app.curriculum.models import PronunciationAttempt, UserWritingAttempt
+        user = _make_user(db_session)
+        lesson = self._lesson(db_session, 'writing_prompt')
+        secret = 'private answer never in timeline'
+        db_session.add(UserWritingAttempt(user_id=user.id, lesson_id=lesson.id,
+                                         response_text=secret, word_count=5))
+        db_session.add(PronunciationAttempt(user_id=user.id, word='privateword',
+                                           recognized_text=secret, matched=False))
+        db_session.commit()
+        events = get_recent_events(db_session, user_id=user.id,
+                                   event_types=['writing_submitted', 'pronunciation_attempt'])
+        assert len(events) == 2
+        assert {event.event_type for event in events} == {'writing_submitted', 'pronunciation_attempt'}
+        assert all(secret not in event.description and 'privateword' not in event.description for event in events)
+
+    def test_equal_time_pagination_is_stable(self, app, db_session):
+        from app.curriculum.models import LessonAttempt
+        user = _make_user(db_session)
+        lesson = self._lesson(db_session)
+        stamp = _now()
+        for number in range(1, 5):
+            db_session.add(LessonAttempt(user_id=user.id, lesson_id=lesson.id, attempt_number=number,
+                                        completed_at=stamp, score=20, passed=False))
+        db_session.commit()
+        first = get_recent_events(db_session, user_id=user.id, event_types=['lesson_attempt'], limit=2)
+        second = get_recent_events(db_session, user_id=user.id, event_types=['lesson_attempt'], limit=2, offset=2)
+        assert [e.attempt_number for e in first + second] == [4, 3, 2, 1]
+
+    def test_audio_sources_are_preserved_and_paginate_without_inferred_merging(self):
+        from unittest.mock import MagicMock, patch
+        stamp = _now()
+        common = {'user_id': 5, 'user_email': None, 'lesson_id': 9, 'score': 50,
+                  'lesson_type': 'dictation'}
+        grade = ActivityEvent(timestamp=stamp, event_type='lesson_attempt', description='graded',
+                              attempt_number=2, **common)
+        audio = ActivityEvent(timestamp=stamp + timedelta(seconds=1), event_type='listening_submitted',
+                              description='audio', **common)
+        with patch('app.admin.services.activity_feed_service._fetch_lesson_attempts', return_value=[grade]), \
+             patch('app.admin.services.activity_feed_service._fetch_listening_submissions', return_value=[audio]):
+            first = get_recent_events(MagicMock(), event_types=['lesson_attempt', 'listening_submitted'], limit=1)
+            second = get_recent_events(MagicMock(), event_types=['lesson_attempt', 'listening_submitted'],
+                                       limit=1, offset=1)
+        assert first == [audio]
+        assert second == [grade]
+        assert audio.attempt_number is None  # no invented cross-source association
+
+    def test_source_errors_are_visible_and_mixed_timezones_sort_safely(self):
+        from unittest.mock import MagicMock, patch
+        stamp = _now()
+        first = ActivityEvent(stamp, 1, None, 'registered', 'first')
+        second = ActivityEvent((stamp + timedelta(hours=1)).replace(tzinfo=timezone.utc),
+                               1, None, 'lesson_opened', 'second')
+        errors = []
+        with patch('app.admin.services.activity_feed_service._fetch_registered', return_value=[first]), \
+             patch('app.admin.services.activity_feed_service._fetch_lesson_opened', return_value=[second]), \
+             patch('app.admin.services.activity_feed_service._fetch_lesson_attempts', side_effect=RuntimeError):
+            result = get_recent_events(MagicMock(), event_types=['registered', 'lesson_opened', 'lesson_attempt'],
+                                       source_errors=errors)
+        assert result == [second, first]
+        assert errors == ['lesson_attempt']
+
+    def test_sql_failure_rolls_back_only_its_source_savepoint(self, app, db_session):
+        from sqlalchemy import text
+        from unittest.mock import patch
+        user = _make_user(db_session)
+        db_session.commit()
+        errors = []
+
+        def invalid_query(*args):
+            db_session.execute(text('SELECT missing_activity_diagnostic_column'))
+
+        with patch('app.admin.services.activity_feed_service._fetch_lesson_attempts', side_effect=invalid_query):
+            events = get_recent_events(db_session, user_id=user.id,
+                                       event_types=['lesson_attempt', 'registered'], source_errors=errors)
+        assert errors == ['lesson_attempt']
+        assert len(events) == 1 and events[0].event_type == 'registered'
+        assert db_session.query(User).filter_by(id=user.id).count() == 1

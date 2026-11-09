@@ -1,0 +1,13 @@
+<nav aria-label="Учебная аналитика" class="mb-4">
+  <ul class="nav nav-tabs flex-wrap">
+    {% for endpoint, label, icon in [
+      ('activity_admin.activity_students', 'Ученики', 'users'),
+      ('activity_admin.activity_index', 'Лента событий', 'stream'),
+      ('activity_admin.activity_funnel', 'Воронка конверсий', 'filter'),
+      ('activity_admin.activity_lessons', 'Точки остановки', 'map-marker-alt')
+    ] %}
+    <li class="nav-item"><a class="nav-link{% if request.endpoint == endpoint or (endpoint == 'activity_admin.activity_students' and request.endpoint == 'activity_admin.activity_student_detail') %} active{% endif %}"
+      href="{{ url_for(endpoint) }}"><i class="fas fa-{{ icon }} me-1" aria-hidden="true"></i>{{ label }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>

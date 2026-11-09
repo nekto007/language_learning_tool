@@ -1,235 +1,48 @@
 {% extends 'admin/base.html' %}
 {% from 'admin/components.html' import page_header, breadcrumb %}
-
-{% macro heatmap_class(pct) %}
-{%- if pct is none -%}
-{%- elif pct >= 50 -%}admin-funnel-heatmap--high
-{%- elif pct >= 25 -%}admin-funnel-heatmap--mid
-{%- else -%}admin-funnel-heatmap--low
-{%- endif -%}
-{% endmacro %}
-
-{% block title %}Воронка конверсий{% endblock %}
-
-{% block breadcrumb %}
-{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Активность', url_for('activity_admin.activity_index')), ('Воронка', '')]) }}
-{% endblock %}
-
+{% block title %}Воронка учебного пути{% endblock %}
+{% block breadcrumb %}{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Ученики', url_for('activity_admin.activity_students')), ('Воронка', '')]) }}{% endblock %}
 {% block content %}
-{{ page_header('Воронка конверсий', 'Прохождение пользователей по этапам онбординга и удержание') }}
-
-<!-- Tabs -->
-<ul class="nav nav-tabs mb-4">
-    <li class="nav-item">
-        <a class="nav-link" href="{{ url_for('activity_admin.activity_index') }}">
-            <i class="fas fa-stream me-1"></i>Лента событий
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link active" href="{{ url_for('activity_admin.activity_funnel') }}">
-            <i class="fas fa-filter me-1"></i>Воронка конверсий
-        </a>
-    </li>
-</ul>
-
-<!-- Controls -->
-<div class="card mb-4">
-    <div class="card-body py-2">
-        <form method="GET" action="{{ url_for('activity_admin.activity_funnel') }}" class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="d-flex align-items-center gap-2">
-                <label class="mb-0 text-nowrap">Окно регистрации:</label>
-                <select name="days" class="form-select form-select-sm admin-funnel-select" onchange="this.form.submit()">
-                    {% for d in [7, 14, 30, 60, 90] %}
-                    <option value="{{ d }}" {% if d == days %}selected{% endif %}>{{ d }} дней</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <label class="mb-0 text-nowrap">Недели когорт:</label>
-                <select name="weeks" class="form-select form-select-sm admin-funnel-select" onchange="this.form.submit()">
-                    {% for w in [4, 8, 12, 16] %}
-                    <option value="{{ w }}" {% if w == weeks %}selected{% endif %}>{{ w }} нед.</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <span class="text-muted small ms-auto">
-                Обновлено: {{ funnel.generated_at.strftime('%d.%m.%Y %H:%M') }} UTC
-            </span>
-        </form>
-    </div>
-</div>
-
-<!-- Funnel Chart -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h6 class="mb-0">
-            <i class="fas fa-filter me-2"></i>Воронка — пользователи за последние {{ days }} дней
-        </h6>
-    </div>
-    <div class="card-body">
-        <canvas id="funnelChart" height="80"></canvas>
-    </div>
-</div>
-
-<!-- Funnel Table -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h6 class="mb-0"><i class="fas fa-table me-2"></i>Конверсия по шагам</h6>
-    </div>
-    <div class="card-body p-0">
-        <table class="table mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Шаг</th>
-                    <th class="text-end">Пользователей</th>
-                    <th class="text-end">от предыдущего</th>
-                    <th class="text-end">от начала</th>
-                    <th class="admin-funnel-share-col">Доля</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for step in funnel.steps %}
-                <tr>
-                    <td>{{ step.label }}</td>
-                    <td class="text-end fw-bold">{{ '{:,}'.format(step.count).replace(',', '\u202f') }}</td>
-                    <td class="text-end">
-                        {% if step.conversion_from_prev is not none %}
-                            <span class="badge {% if step.conversion_from_prev >= 70 %}bg-success{% elif step.conversion_from_prev >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
-                                {{ step.conversion_from_prev }}%
-                            </span>
-                        {% else %}
-                            <span class="text-muted">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end text-muted small">{{ step.conversion_from_top }}%</td>
-                    <td>
-                        <div class="progress admin-funnel-progress">
-                            <div class="progress-bar
-                                {% if step.conversion_from_top >= 70 %}bg-success
-                                {% elif step.conversion_from_top >= 40 %}bg-warning
-                                {% else %}bg-danger{% endif %}"
-                                style="width: {{ step.conversion_from_top }}%;">
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Cohort Retention Heatmap -->
-<div class="card">
-    <div class="card-header">
-        <h6 class="mb-0">
-            <i class="fas fa-th me-2"></i>Когортное удержание — по неделям регистрации
-        </h6>
-    </div>
-    <div class="card-body p-0">
-        {% if cohorts %}
-        <div class="table-responsive">
-            <table class="table table-bordered mb-0 admin-funnel-cohort-table">
-                <thead class="table-light">
-                    <tr>
-                        <th>Неделя</th>
-                        <th class="text-center">Размер</th>
-                        <th class="text-center" title="Вернулись в первые 48 часов">День 1</th>
-                        <th class="text-center" title="Активны в первые 7 дней">День 7</th>
-                        <th class="text-center" title="Активны в первые 30 дней">День 30</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cohort in cohorts %}
-                    <tr>
-                        <td class="fw-medium">{{ cohort.week_label }}</td>
-                        <td class="text-center text-muted">
-                            {% if cohort.cohort_size > 0 %}{{ cohort.cohort_size }}{% else %}<span class="text-muted">—</span>{% endif %}
-                        </td>
-                        <td class="text-center {{ heatmap_class(cohort.day1_pct) }}">
-                            {% if cohort.day1_pct is not none %}{{ cohort.day1_pct }}%{% else %}<span class="text-muted small">—</span>{% endif %}
-                        </td>
-                        <td class="text-center {{ heatmap_class(cohort.day7_pct) }}">
-                            {% if cohort.day7_pct is not none %}{{ cohort.day7_pct }}%{% else %}<span class="text-muted small">н/д</span>{% endif %}
-                        </td>
-                        <td class="text-center {{ heatmap_class(cohort.day30_pct) }}">
-                            {% if cohort.day30_pct is not none %}{{ cohort.day30_pct }}%{% else %}<span class="text-muted small">н/д</span>{% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <div class="p-3 text-muted small">
-            <i class="fas fa-info-circle me-1"></i>
-            «н/д» — данных ещё недостаточно (нужно подождать 7 или 30 дней с момента окончания недели).
-            Цвет: <span class="admin-funnel-legend-swatch admin-funnel-heatmap--high">зелёный</span> ≥ 50%,
-            <span class="admin-funnel-legend-swatch admin-funnel-heatmap--mid">жёлтый</span> ≥ 25%,
-            <span class="admin-funnel-legend-swatch admin-funnel-heatmap--low">красный</span> < 25%.
-        </div>
-        {% else %}
-        <div class="text-center text-muted py-5">
-            <i class="fas fa-chart-bar fa-3x mb-3"></i>
-            <p>Нет данных о когортах</p>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
+{{ page_header('Воронка учебного пути', 'От регистрации до следующего урока — с переходом к конкретным ученикам') }}
+{% include 'admin/activity/_tabs.html' %}
+<div class="card mb-4"><div class="card-body"><form method="get" class="d-flex flex-wrap align-items-end gap-3">
+  <div><label class="form-label" for="funnel-days">Регистрации за период</label><select class="form-select" id="funnel-days" name="days">{% for d in [7,14,30,60,90] %}<option value="{{ d }}"{% if d == days %} selected{% endif %}>{{ d }} дней</option>{% endfor %}</select></div>
+  <div><label class="form-label" for="funnel-weeks">Недельные когорты</label><select class="form-select" id="funnel-weeks" name="weeks">{% for w in [4,8,12,16] %}<option value="{{ w }}"{% if w == weeks %} selected{% endif %}>{{ w }} недель</option>{% endfor %}</select></div>
+  <button class="btn btn-primary">Применить</button>
+  {% if curriculum_report %}<span class="small text-muted">Расчёт UTC · {{ curriculum_report.as_of_utc[:19]|replace('T', ' ') }}</span>{% endif %}
+</form></div></div>
+{% if curriculum_report %}
+{% set actual = curriculum_report.overall %}
+<div class="row g-3 mb-4">{% for label,value in [('Регистраций', actual.registered), ('Завершили onboarding', actual.onboarding_completed_current_state), ('Полное окно первых 24 ч', actual.first_24h.eligible)] %}<div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">{{ label }}</div><div class="h3 mb-0">{{ value }}</div></div></div></div>{% endfor %}</div>
+<div class="card mb-4"><div class="card-header"><h2 class="h6 mb-0">Первые 24 часа: прохождение уроков</h2></div><div class="card-body">
+  <p class="small text-muted">Только пользователи с полным окном 24 часа после регистрации. Карточки и чтение учитываются как завершение; синтетические открытия при сдаче экстерном исключены. Нажмите на число, чтобы открыть учеников.</p>
+  <canvas id="funnelChart" height="100" aria-label="Число учеников на последовательных этапах" role="img"></canvas>
+</div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Последовательный этап</th><th>Учеников</th><th>От предыдущего</th><th>Не перешли на этот этап</th></tr></thead><tbody>
+{% for step in curriculum_report.progress_funnel.steps %}<tr>
+  <td>{{ step.label }}</td><td><a href="{{ url_for('activity_admin.activity_students', days=days, stage=step.key) }}">{{ step.count }}</a> / {{ step.eligible }}</td>
+  <td>{{ step.conversion_from_prev ~ '%' if step.conversion_from_prev is not none else '—' }}</td>
+  <td>{% if not loop.first %}{% set previous = curriculum_report.progress_funnel.steps[loop.index0 - 1] %}<a href="{{ url_for('activity_admin.activity_students', days=days, stage=previous.key ~ '_without_' ~ step.key) }}">{{ step.lost_from_prev }} учеников</a>{% else %}—{% endif %}</td>
+</tr>{% endfor %}</tbody></table></div></div>
+<div class="card mb-4"><div class="card-header"><h2 class="h6 mb-0">Учебные действия за первые 24 часа</h2></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Независимый показатель</th><th>Учеников / доступно наблюдению</th><th>Доля</th></tr></thead><tbody>
+{% for key,label in [('lesson_opened','Открыли урок'),('submission_recorded','Отправили работу на проверку'),('one_lesson_completed','Завершили хотя бы один урок'),('two_lessons_completed','Завершили хотя бы два разных урока')] %}{% set metric = actual.first_24h[key] %}<tr><td>{{ label }}</td><td>{{ metric.count }} / {{ metric.eligible }}</td><td>{{ metric.percent ~ '%' if metric.percent is not none else 'н/д' }}</td></tr>{% endfor %}
+</tbody></table></div><div class="card-body small text-muted">Эти действия могут происходить в разном порядке. Завершение включает просмотр материалов и экстерн; это не оценка усвоения. Первый ответ внутри задания и посещения до регистрации из старых таблиц не восстанавливаются.</div></div>
+<div class="card mb-4"><div class="card-header"><h2 class="h6 mb-0">Возврат к учебной отправке</h2></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>День</th><th>Вернулись / полное окно</th><th>Доля</th></tr></thead><tbody>
+{% for key,metric in actual.curriculum_submission_retention.items() %}<tr><td>Отправили работу строго на {{ key }}</td><td><a href="{{ url_for('activity_admin.activity_students', days=days, stage='retained_' ~ key) }}">{{ metric.count }}</a> / <a href="{{ url_for('activity_admin.activity_students', days=days, stage='eligible_' ~ key) }}">{{ metric.eligible }}</a></td><td>{{ metric.percent ~ '%' if metric.percent is not none else 'н/д' }}</td></tr>{% endfor %}
+</tbody></table></div><div class="card-body small text-muted">Календарный D1/D7/D30 после регистрации, UTC. Незавершённые окна исключены. Учитываются и неудачные отправки, без требования закрыть день. Это curriculum: отдельное чтение книг и SRS сюда не входят.</div></div>
+<div class="card mb-4"><div class="card-header"><h2 class="h6 mb-0">Когортное удержание: последние {{ weeks }} недель</h2></div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Неделя с понедельника</th><th>Учеников</th><th>D1</th><th>D7</th><th>D30</th></tr></thead><tbody>
+{% for cohort in curriculum_report.weekly_cohorts %}<tr><td>{{ cohort.week_start }}</td><td>{{ cohort.cohort_size }}</td>{% for key in ['D1','D7','D30'] %}{% set m = cohort.retention[key] %}<td>{{ m.percent ~ '%' if m.percent is not none else 'н/д' }}<div class="small text-muted">{{ m.count }} / {{ m.eligible }}</div></td>{% endfor %}</tr>{% else %}<tr><td colspan="5" class="text-muted text-center py-4">Нет регистраций за выбранный период.</td></tr>{% endfor %}</tbody></table></div></div>
+<details class="card mb-4"><summary class="card-header">Путь практики с серверной проверкой</summary><div class="card-body small text-muted">Отдельная последовательность для уроков с отправкой работы. Пассивное прохождение карточек/чтения без отправки не входит.</div><div class="table-responsive"><table class="table mb-0"><thead><tr><th>Этап</th><th>Учеников</th><th>От предыдущего</th></tr></thead><tbody>{% for step in curriculum_report.ordered_funnel.steps %}<tr><td>{{ step.label }}</td><td><a href="{{ url_for('activity_admin.activity_students', days=days, stage=step.key) }}">{{ step.count }}</a></td><td>{{ step.conversion_from_prev ~ '%' if step.conversion_from_prev is not none else '—' }}</td></tr>{% endfor %}</tbody></table></div></details>
+{% if curriculum_report.missing_sources %}<div class="alert alert-warning">Часть источников отправок недоступна: {{ curriculum_report.missing_sources|join(', ') }}. Показатели могут быть неполными.</div>{% endif %}
+<p class="small text-muted">Открытие — первая сохранённая запись урока, не каждое посещение. История прогресса изменяема; повторные попытки и импорт могут менять старые даты. При малой выборке рассматривайте конкретные пути учеников, а не только проценты.</p>
+{% else %}<div class="alert alert-warning">Учебный отчёт недоступен. Нули не подставлены. Проверьте журнал приложения и схему БД.</div>{% endif %}
 {% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+{% block scripts %}{{ super() }}
+{% if curriculum_report %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script nonce="{{ csp_nonce }}">
 (function () {
-    const labels = {{ funnel.steps | map(attribute='label') | list | tojson }};
-    const counts = {{ funnel.steps | map(attribute='count') | list | tojson }};
-    const maxCount = Math.max(...counts, 1);
-
-    const colors = counts.map(c => {
-        const ratio = c / maxCount;
-        if (ratio >= 0.7) return 'rgba(40,167,69,0.75)';
-        if (ratio >= 0.4) return 'rgba(255,193,7,0.75)';
-        return 'rgba(220,53,69,0.75)';
-    });
-
-    new Chart(document.getElementById('funnelChart'), {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Пользователей',
-                data: counts,
-                backgroundColor: colors,
-                borderColor: colors.map(c => c.replace('0.75', '1')),
-                borderWidth: 1,
-                borderRadius: 4,
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ' ' + ctx.raw.toLocaleString('ru-RU') + ' пользователей',
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(0,0,0,0.05)' },
-                    ticks: { callback: v => v.toLocaleString('ru-RU') }
-                },
-                y: {
-                    grid: { display: false }
-                }
-            }
-        }
-    });
+  if (typeof Chart === 'undefined') return;
+  var steps = {{ curriculum_report.progress_funnel.steps|tojson }};
+  new Chart(document.getElementById('funnelChart'), {type:'bar', data:{labels:steps.map(function(s){return s.label;}), datasets:[{data:steps.map(function(s){return s.count;}),backgroundColor:'#16a34a',borderRadius:5}]}, options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
 })();
-</script>
+</script>{% endif %}
 {% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header, breadcrumb %}
+{% block title %}Учебный путь учеников{% endblock %}
+{% block breadcrumb %}{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Ученики', '')]) }}{% endblock %}
+{% block content %}
+{{ page_header('Учебный путь учеников', 'Кто начал учиться, что прошёл и на каком шаге остановился') }}
+{% include 'admin/activity/_tabs.html' %}
+<div class="row g-3 mb-4">
+  {% for label, value in [('Учеников в выборке', result.total), ('Завершено уроков', result.summary.lessons_completed), ('В среднем на ученика', result.summary.avg_lessons_completed), ('Медиана на ученика', result.summary.median_lessons_completed)] %}
+  <div class="col-sm-6 col-xl-3"><div class="card h-100"><div class="card-body"><div class="text-muted small">{{ label }}</div><div class="h3 mb-0">{{ value if value is not none else "—" }}</div></div></div></div>
+  {% endfor %}
+</div>
+<div class="card mb-4"><div class="card-body">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-4"><label class="form-label" for="student-search">Ученик</label><input class="form-control" id="student-search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Имя, email или ID" maxlength="120"></div>
+    <div class="col-md-2"><label class="form-label" for="student-days">Регистрация</label><select class="form-select" id="student-days" name="days"><option value="">За всё время</option>{% for n in [7,14,30,60,90] %}<option value="{{ n }}"{% if result.filters.days == n %} selected{% endif %}>За {{ n }} дней</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label" for="student-level">Уровень</label><select class="form-select" id="student-level" name="level"><option value="">Все</option>{% for code in ['A1','A2','B1','B2','C1'] %}<option{% if request.args.get('level', '')|upper == code %} selected{% endif %}>{{ code }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label" for="student-status">Состояние</label><select class="form-select" id="student-status" name="status"><option value="">Все состояния</option>{% for key,label in status_labels.items() %}<option value="{{ key }}"{% if request.args.get('status') == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label" for="student-source">Источник регистрации</label><input class="form-control" id="student-source" name="source" value="{{ request.args.get('source', '') }}" placeholder="utm_source или unknown" maxlength="100"></div>
+    <div class="col-md-4"><label class="form-label" for="student-active">Записанные действия за период</label><select class="form-select" id="student-active" name="active_days"><option value="">Без ограничения</option>{% for n in [1,3,7,14,30] %}<option value="{{ n }}"{% if request.args.get('active_days') == n|string %} selected{% endif %}>За {{ n }} дней</option>{% endfor %}</select></div>
+    {% if stage %}<input type="hidden" name="stage" value="{{ stage }}">{% endif %}
+    {% if request.args.get('lesson_id') %}<input type="hidden" name="lesson_id" value="{{ request.args.get('lesson_id') }}">{% endif %}
+    {% if request.args.get('lesson_state') %}<input type="hidden" name="lesson_state" value="{{ request.args.get('lesson_state') }}">{% endif %}
+    <div class="col-12 d-flex gap-2"><button class="btn btn-primary">Применить</button><a class="btn btn-outline-secondary" href="{{ url_for('activity_admin.activity_students') }}">Сбросить</a></div>
+  </form>
+  {% if stage %}<p class="small mt-3 mb-0">{{ stage_label }}. Первые 24 часа, только полностью наблюдаемые регистрации.</p>{% endif %}
+  {% if request.args.get('lesson_id') %}<p class="small mt-3 mb-0">Урок #{{ request.args.get('lesson_id') }}: {{ {'opened':'открывали', 'submitted':'отправляли работу', 'completed':'завершили', 'idle_unfinished':'не завершили и нет действий 24 ч'}.get(request.args.get('lesson_state', 'opened'), 'открывали') }}.</p>{% endif %}
+</div></div>
+<div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+  <thead><tr><th>Ученик</th><th>Последний урок с действиями</th><th>Пройдено</th><th>Проверки и учебные дни</th><th>Последнее действие, UTC</th><th>Состояние</th></tr></thead>
+  <tbody>{% for s in result.students %}<tr>
+    <td><a class="fw-semibold" href="{{ url_for('activity_admin.activity_student_detail', user_id=s.user_id) }}">{{ s.username }}</a><div class="small text-muted">#{{ s.user_id }} · {{ s.level or 'уровень не выбран' }}</div><div class="small">{{ s.email or '' }}</div><div class="small text-muted">Регистрация {{ s.created_at.strftime('%d.%m.%Y') if s.created_at else '—' }}</div></td>
+    <td>{% if s.latest_lesson %}<a href="{{ url_for('activity_admin.activity_student_detail', user_id=s.user_id) }}#lesson-{{ s.latest_lesson.lesson_id }}">{{ s.latest_lesson.title }}</a><div class="small text-muted">{{ s.latest_lesson.level or '' }} · М{{ s.latest_lesson.module_number }} · урок {{ s.latest_lesson.number }}</div>{% else %}<span class="text-muted">Уроки не открывал</span>{% endif %}</td>
+    <td><strong>{{ s.lessons_completed }}</strong> уроков<div class="small text-muted">Открыто {{ s.lessons_opened }} · экстерном {{ s.lessons_tested_out }}</div><div class="small">Модулей {{ s.modules_completed }}</div>{% if s.latest_lesson %}<div class="small text-muted">Текущий модуль {{ s.latest_lesson.module_lessons_completed }} / {{ s.latest_lesson.module_lessons_total }}</div>{% endif %}</td>
+    <td>{{ s.graded_attempts }} проверок<div class="small text-muted">Неудачных {{ s.failed_attempts }}</div><div class="small text-muted">Учебных дней {{ s.submission_days }}</div></td>
+    <td>{{ s.last_activity_at.strftime('%d.%m.%Y %H:%M') if s.last_activity_at else '—' }}<div class="small text-muted">Отправка: {{ s.last_submission_at.strftime('%d.%m.%Y %H:%M') if s.last_submission_at else 'нет записи' }}</div></td>
+    <td><span class="badge {{ s.status_class }}">{{ s.status_label }}</span></td>
+  </tr>{% else %}<tr><td colspan="6" class="text-center text-muted py-5">Нет учеников по выбранным условиям.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% if result.pages > 1 %}<div class="card-footer d-flex justify-content-between align-items-center">
+  {% set prev_args = request.args.to_dict() %}{% set _ = prev_args.update({'page': result.page - 1}) %}
+  {% set next_args = request.args.to_dict() %}{% set _ = next_args.update({'page': result.page + 1}) %}
+  <div>{% if result.page > 1 %}<a class="btn btn-outline-secondary" href="{{ url_for('activity_admin.activity_students', **prev_args) }}">Назад</a>{% endif %}</div>
+  <span>Страница {{ result.page }} из {{ result.pages }}</span>
+  <div>{% if result.page < result.pages %}<a class="btn btn-outline-secondary" href="{{ url_for('activity_admin.activity_students', **next_args) }}">Далее</a>{% endif %}</div>
+</div>{% endif %}</div>
+<p class="small text-muted mt-3">Администраторы исключены. Прогресс и средние — за всё время для выбранных учеников, включая нулевой прогресс. Состояние показывает наблюдаемые действия в curriculum, а не доказанную причину ухода. Завершённые уроки могут включать карточки и сдачу экстерном. Проверки — серверные оценки; учебные дни считаются по отправкам в UTC, включая письмо и аудио. Открытие страницы не является отправкой.</p>
+{% endblock %}

@@ -107,8 +107,8 @@ def get_funnel_data(db_session: Any, days: int = 30) -> FunnelData:
         ('onboarding_completed', 'Прошли онбординг', onboarding),
         ('first_plan_built', 'Построили план', first_plan),
         ('day_secured', 'Закрыли день', day_secured_count),
-        ('retention_7d', 'Активны на 7-й день', retention_7),
-        ('retention_30d', 'Активны на 30-й день', retention_30),
+        ('retention_7d', 'Активность в первые 7 дней среди закрывших день*', retention_7),
+        ('retention_30d', 'Активность в первые 30 дней среди закрывших день*', retention_30),
     ]
 
     steps: List[FunnelStep] = []

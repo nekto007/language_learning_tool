@@ -72,7 +72,7 @@ class TestFetchLessonCompleted:
         module = Module(level_id=level.id, number=1, title='M2')
         db_session.add(module)
         db_session.flush()
-        lesson = Lessons(module_id=module.id, number=1, title='Scored Lesson', type='text', order=1)
+        lesson = Lessons(module_id=module.id, number=1, title='Scored Lesson', type='quiz', order=1)
         db_session.add(lesson)
         db_session.flush()
 

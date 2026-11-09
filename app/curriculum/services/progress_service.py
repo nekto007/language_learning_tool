@@ -339,8 +339,9 @@ class ProgressService:
         # client-driven scores into this method and must not pollute attempt
         # analytics. `started_at` is taken from `progress.started_at` (set when
         # the lesson was first opened) so that `completed_at - started_at`
-        # reflects the actual time the user spent in the lesson — the daily
-        # challenge `speed_run` check relies on this duration. Date-based
+        # remains the historical wall-clock span, including pauses/retries —
+        # not a measurement of active study time. The existing daily challenge
+        # `speed_run` check uses this duration. Date-based
         # analytics filter on `completed_at`, so a retry days later still
         # surfaces in today's reports.
         if getattr(lesson, 'type', None) in _GRADED_ATTEMPT_TYPES:
@@ -355,8 +356,10 @@ class ProgressService:
                 attempt.completed_at = now
                 attempt.score = score
                 attempt.passed = is_completed
-                attempt.correct_answers = result.get('correct_answers', 0)
-                attempt.total_questions = result.get('total_questions', 0)
+                # Input-based graders use *_items; quiz/grammar graders use
+                # *_questions. Preserve actual counts for both result contracts.
+                attempt.correct_answers = result.get('correct_answers', result.get('correct_items', 0))
+                attempt.total_questions = result.get('total_questions', result.get('total_items', 0))
                 if isinstance(result.get('mistakes'), list):
                     attempt.mistakes = result['mistakes']
                 db.session.commit()

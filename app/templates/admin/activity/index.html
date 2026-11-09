@@ -8,21 +8,11 @@
 {% endblock %}
 
 {% block content %}
-{{ page_header('Активность пользователей', 'Хронологический журнал событий по всем пользователям') }}
+{{ page_header('Лента событий', 'Открытия уроков, проверки, завершения и действия пользователей — время UTC') }}
 
-<!-- Tabs -->
-<ul class="nav nav-tabs mb-4">
-    <li class="nav-item">
-        <a class="nav-link active" href="{{ url_for('activity_admin.activity_index') }}">
-            <i class="fas fa-stream me-1"></i>Лента событий
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="{{ url_for('activity_admin.activity_funnel') }}">
-            <i class="fas fa-filter me-1"></i>Воронка конверсий
-        </a>
-    </li>
-</ul>
+{% include 'admin/activity/_tabs.html' %}
+{% if source_errors %}<div class="alert alert-warning">Не все источники событий доступны: {{ source_errors|join(', ') }}. Лента может быть неполной.</div>{% endif %}
+{% if filter_user_id %}<p><a href="{{ url_for('activity_admin.activity_student_detail', user_id=filter_user_id|int) }}">Открыть учебный путь ученика #{{ filter_user_id }}</a></p>{% endif %}
 
 <!-- Filter Bar -->
 <div class="card mb-4">
@@ -119,7 +109,10 @@
                             {{ event.timestamp.strftime('%d.%m.%Y %H:%M:%S') if event.timestamp else '—' }}
                         </td>
                         <td>
-                            {% if event.user_email %}
+                            {% if event.user_id %}
+                              <a href="{{ url_for('activity_admin.activity_student_detail', user_id=event.user_id) }}">{{ event.user_name or event.user_email or ('#' ~ event.user_id) }}</a>
+                              <div class="small text-muted">#{{ event.user_id }}</div>
+                            {% elif event.user_email %}
                                 <span class="text-truncate d-inline-block admin-activity-user-truncate"
                                       title="{{ event.user_email }}">
                                     {{ event.user_email }}
