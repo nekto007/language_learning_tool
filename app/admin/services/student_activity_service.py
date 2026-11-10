@@ -27,14 +27,14 @@ _GRADED_TYPES = (
     'dictation', 'audio_fill_blank', 'translation', 'sentence_correction',
     'sentence_completion', 'collocation_matching', 'quiz', 'ordering_quiz',
     'translation_quiz', 'listening_quiz', 'dialogue_completion_quiz',
-    'grammar', 'matching', 'final_test',
+    'grammar', 'matching', 'final_test', 'listening_immersion',
 )
 
 
 def _graded_condition(lesson, attempt):
-    """Grammar theory carries no questions; other legacy graders used total_items."""
-    return and_(lesson.type.in_(_GRADED_TYPES),
-                or_(lesson.type != 'grammar', attempt.total_questions > 0))
+    """Dual-mode theory/listening needs actual questions; self-review is ungraded."""
+    return and_(lesson.type.in_(_GRADED_TYPES), attempt.score.isnot(None),
+                or_(lesson.type.notin_(('grammar', 'listening_immersion')), attempt.total_questions > 0))
 
 
 def _now(value=None):

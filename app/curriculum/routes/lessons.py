@@ -530,6 +530,12 @@ def check_sentence_completion_item(lesson_id):
 
     from app.curriculum.grading import _strict_text_match, _normalize_answer
     item = items[idx]
+    if lesson.type == 'translation' and content.get('mode') in ('open', 'rubric'):
+        from app.curriculum.translation_review import review_item
+        return jsonify(review_item(
+            lesson, current_user.id, idx, str(data.get('answer', '')),
+            review_token=data.get('review_token'), confirm=data.get('confirm_review') is True,
+        ))
     is_collocation = lesson.type == 'collocation_matching'
     # Canonical answer field varies by lesson type. collocation_matching grades
     # a (phrase, translation) pair: the canonical is the phrase's `translation`
@@ -547,6 +553,12 @@ def check_sentence_completion_item(lesson_id):
             or item.get('correct_sentence') or ''
         )
         extra = list(item.get('acceptable_answers') or []) + list(item.get('alternatives') or [])
+        if lesson.type == 'translation':
+            from app.curriculum.translation_variants import get_translation_variants, translation_reference
+            russian = str(item.get('russian') or '')
+            extra.extend(get_translation_variants(canonical, russian))
+            canonical, _ = translation_reference(canonical, russian)
+            extra = [translation_reference(str(value), russian)[0] for value in extra]
     candidates = [canonical] + [str(a) for a in extra if str(a).strip()]
     user_answer = str(data.get('answer', ''))
     if is_collocation:
@@ -677,6 +689,8 @@ def submit_lesson(lesson_id):
             result = _process_shadow_reading_submission(lesson, current_user.id, data)
         elif lesson.type == 'listening_immersion':
             result = _process_listening_immersion_submission(lesson, current_user.id, data)
+            if result.get('success') is False:
+                return jsonify(result), 400
         elif lesson.type == 'pronunciation':
             result = _process_pronunciation_submission(lesson, current_user.id, data)
             if not result.get('success') and result.get('error') == 'requires_attempt':
@@ -693,7 +707,7 @@ def submit_lesson(lesson_id):
             if lesson.type in {
                 'writing_prompt', 'shadow_reading', 'listening_immersion',
                 'pronunciation', 'idiom',
-            }:
+            } and not (lesson.type == 'listening_immersion' and result.get('total_questions')):
                 _record_self_assessed_attempt(lesson, current_user.id, result)
             try:
                 from app.daily_plan.challenge import maybe_auto_complete_challenge
@@ -1564,15 +1578,22 @@ def _translation_items_from_content(content: dict) -> list:
     single-item content gets wrapped into a one-element list so the template
     can branch on items uniformly.
     """
+    from app.curriculum.translation_variants import get_translation_variants, translation_reference
+
+    def project(item):
+        english, russian = str(item['english']).strip(), str(item['russian']).strip()
+        variants = get_translation_variants(english, russian)
+        reference, russian = translation_reference(english, russian)
+        alternatives = [translation_reference(str(alt), str(item['russian']).strip())[0]
+                        for alt in (item.get('alternatives') or []) if isinstance(alt, str)]
+        return {'russian': russian, 'english': reference,
+                'hint_words': item.get('hint_words') or [],
+                'alternatives': list(dict.fromkeys([*alternatives, *variants]))}
+
     items = content.get('items') if isinstance(content, dict) else None
     if isinstance(items, list) and items:
         return [
-            {
-                'russian': (it.get('russian') or '').strip(),
-                'english': (it.get('english') or '').strip(),
-                'hint_words': it.get('hint_words') or [],
-                'alternatives': it.get('alternatives') or [],
-            }
+            project(it)
             for it in items
             if isinstance(it, dict) and it.get('russian') and it.get('english')
         ]
@@ -1580,12 +1601,7 @@ def _translation_items_from_content(content: dict) -> list:
     russian = (content.get('russian') or '').strip()
     english = (content.get('english') or '').strip()
     if russian and english:
-        return [{
-            'russian': russian,
-            'english': english,
-            'hint_words': content.get('hint_words') or [],
-            'alternatives': content.get('alternatives') or [],
-        }]
+        return [project(content)]
     return []
 
 
@@ -1694,7 +1710,21 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
     passing = get_lesson_passing_score(lesson)
 
     answers_payload = data.get('answers')
-    if isinstance(answers_payload, list) and items:
+    if isinstance(answers_payload, list):
+        answers_payload = [(str(a) if a is not None else '')[:2000] for a in answers_payload]
+    self_review = content.get('mode') == 'rubric'
+    if content.get('mode') == 'open' and isinstance(answers_payload, list):
+        preview_grade = grade_translation_multi(answers_payload, items, passing_score=passing)
+        self_review = preview_grade['correct_items'] < len(items)
+    if self_review:
+        from app.curriculum.translation_review import review_submission
+        user_answers = [(str(a) if a is not None else '')[:2000] for a in (answers_payload or [])] if isinstance(answers_payload, list) else []
+        grade = review_submission(lesson, user_id, items, user_answers, data.get('review_tokens') or [])
+        if not grade.get('success'):
+            return grade
+        passed = grade['passed']
+        combined_text = ' | '.join(user_answers)
+    elif isinstance(answers_payload, list) and items:
         user_answers = [(str(a) if a is not None else '')[:2000] for a in answers_payload]
         grade = grade_translation_multi(user_answers, items, passing_score=passing)
         passed = grade['passed']
@@ -1726,18 +1756,20 @@ def _process_translation_submission(lesson: 'Lessons', user_id: int, data: dict)
         logger.warning(f"Translation writing attempt save failed for lesson {lesson.id}: {save_err}")
         db.session.rollback()
 
-    ProgressService.update_progress_with_grading(
-        user_id=user_id,
-        lesson=lesson,
-        result=grade,
-        passing_score=passing,
-    )
+    if self_review:
+        progress = ProgressService.create_or_update_progress(
+            user_id, lesson.id, status='completed', score=None, data=grade)
+        progress.last_score = None
+        db.session.commit()
+    else:
+        ProgressService.update_progress_with_grading(
+            user_id=user_id, lesson=lesson, result=grade, passing_score=passing)
 
     if passed:
         try:
             from app.daily_plan.linear.xp import maybe_award_curriculum_xp, maybe_award_writing_xp
             with db.session.begin_nested():
-                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=grade.get('score', 100))
+                maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None if self_review else grade.get('score', 100))
                 maybe_award_writing_xp(user_id, lesson.id, db_session=db)
             db.session.commit()
         except Exception as xp_err:
@@ -2892,10 +2924,54 @@ def _process_shadow_reading_submission(lesson: 'Lessons', user_id: int, data: di
 
 
 def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
-    """Mark listening immersion lesson complete on self-assessment.
+    """Grade authored comprehension; preserve legacy self-assessed listening.
 
     Awards curriculum + listening XP and logs a ListeningAttempt.
     """
+    content = lesson.content if isinstance(lesson.content, dict) else {}
+    authored_questions = content.get('comprehension_questions')
+    if authored_questions:
+        if not isinstance(authored_questions, list) or not all(isinstance(q, dict) for q in authored_questions):
+            return {'success': False, 'completed': False, 'error': 'invalid_questions',
+                    'message': 'Не удалось загрузить вопросы урока. Попробуйте позже.'}
+        result = _process_reading_submission(lesson, user_id, data)
+        if not result.get('success'):
+            return result
+        # Transcript evidence is feedback after an actual submission, never
+        # part of the initial question payload rendered into the page.
+        for index, question in enumerate(authored_questions):
+            feedback = (result.get('feedback') or {}).get(str(index))
+            if isinstance(feedback, dict) and isinstance(question.get('evidence'), str):
+                feedback['evidence'] = question['evidence']
+        # Reading's existing learning policy requires an answer to each
+        # question, but does not gate progression on accuracy. Persist the
+        # actual score/counts rather than a checkbox-generated 100 percent.
+        from app.curriculum.listening_service import log_listening_attempt
+        from app.curriculum.models import LessonAttempt
+        from app.daily_plan.linear.xp import maybe_award_listening_xp
+
+        progress = LessonProgress.query.filter_by(user_id=user_id, lesson_id=lesson.id).one()
+        now = datetime.now(UTC)
+        attempt = LessonAttempt.create_attempt(user_id, lesson.id, progress.id)
+        attempt.started_at = progress.started_at or now
+        attempt.completed_at = now
+        attempt.score = result['score']
+        # Completion records practice; the attempt's pass flag records the
+        # actual assessment threshold for diagnostics and failed-attempt counts.
+        attempt.passed = result['score'] >= get_lesson_passing_score(lesson)
+        attempt.correct_answers = result['correct_answers']
+        attempt.total_questions = result['total_questions']
+        log_listening_attempt(user_id, lesson.id, result['score'], 0, db)
+        db.session.commit()
+        try:
+            with db.session.begin_nested():
+                maybe_award_listening_xp(user_id, lesson.id, score=result['score'], db_session=db)
+            db.session.commit()
+        except Exception as xp_err:
+            db.session.rollback()
+            logger.warning('Listening comprehension XP award failed for lesson %s: %s', lesson.id, xp_err)
+        return result
+
     self_assessed = bool(data.get('self_assessed', False))
     if not self_assessed:
         return {'success': True, 'completed': False}

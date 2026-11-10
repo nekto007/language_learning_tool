@@ -26,6 +26,19 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_CEFR_LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
 
+# Owner-selected dictionary senses. Lessons retain their own contextual Russian
+# in content.vocabulary; importing another topic must not redefine a shared word.
+CURRICULUM_DICTIONARY_DEFAULTS = {
+    'account': 'счёт',
+    'raise': 'растить, воспитывать',
+    'abstract': 'аннотация (статьи)',
+}
+CURRICULUM_DICTIONARY_EXAMPLES = {
+    'account': 'I opened a bank account.\nЯ открыл банковский счёт.',
+    'raise': 'They raise their children together.\nОни вместе воспитывают детей.',
+    'abstract': 'Read the abstract before the full article.\nПрочитайте аннотацию перед полной статьёй.',
+}
+
 
 class CurriculumImportService:
     """Сервис для импорта и обработки учебных материалов"""
@@ -89,6 +102,7 @@ class CurriculumImportService:
             # Поддержка обоих форматов: {word, translation} и {english, russian}
             english_word = (word_data.get('word') or word_data.get('english', '')).lower()
             translation = word_data.get('translation') or word_data.get('russian', '')
+            dictionary_translation = CURRICULUM_DICTIONARY_DEFAULTS.get(english_word, translation)
 
             # Формируем sentences как plain text (en\nru) для фронтенда
             sentences_text = None
@@ -101,11 +115,11 @@ class CurriculumImportService:
             if not word:
                 word = CollectionWords(
                     english_word=english_word,
-                    russian_word=translation,
+                    russian_word=dictionary_translation,
                     level=level_code,
                     frequency_rank=word_data.get('frequency_rank', 0),
                     listening=normalize_listening(word_data.get('audio', ''), english_word),
-                    sentences=sentences_text
+                    sentences=sentences_text if dictionary_translation == translation else None
                 )
                 db.session.add(word)
                 db.session.flush()
@@ -114,14 +128,21 @@ class CurriculumImportService:
                 # Update all fields if provided
                 if word_data.get('frequency_rank'):
                     word.frequency_rank = word_data['frequency_rank']
-                # Always update both english and russian to fix any data issues
+                # The dictionary word is shared by SRS and unrelated lessons.
+                # Keep its existing meaning; contextual senses belong to the
+                # authored lesson, not to whichever module was imported last.
                 word.english_word = english_word
-                word.russian_word = translation
-                # Update listening and sentences if provided
-                if word_data.get('audio'):
+                if english_word in CURRICULUM_DICTIONARY_DEFAULTS or not word.russian_word:
+                    word.russian_word = dictionary_translation
+                # Fill missing reusable metadata without replacing another
+                # sense's examples during a routine curriculum re-import.
+                if word_data.get('audio') and not word.listening:
                     word.listening = normalize_listening(word_data['audio'], english_word)
-                if sentences_text:
+                if sentences_text and not word.sentences and word.russian_word == translation:
                     word.sentences = sentences_text
+
+            if english_word in CURRICULUM_DICTIONARY_EXAMPLES:
+                word.sentences = CURRICULUM_DICTIONARY_EXAMPLES[english_word]
 
             # Link the word to the collection (guard against duplicate words in source)
             if word.id not in linked_word_ids:
@@ -505,7 +526,7 @@ class CurriculumImportService:
                     title=title,
                     type=lesson_type if lesson_type != 'text' else 'text',
                     order=number,
-                    description=lesson_data.get('grammar_focus') or title
+                    description=lesson_data.get('description') or lesson_data.get('grammar_focus') or title
                 )
                 # НЕ используем explicit_lesson_id - это относительные ID внутри модуля,
                 # не глобально уникальные. Пусть БД генерирует ID автоматически.
@@ -516,8 +537,8 @@ class CurriculumImportService:
                 # Update existing lesson metadata
                 if title:
                     lesson.title = title
-                if lesson_data.get('grammar_focus'):
-                    lesson.description = lesson_data.get('grammar_focus')
+                if lesson_data.get('description') or lesson_data.get('grammar_focus'):
+                    lesson.description = lesson_data.get('description') or lesson_data.get('grammar_focus')
                 elif title:
                     lesson.description = title
                 if lesson_type:
@@ -553,7 +574,10 @@ class CurriculumImportService:
                 lesson.collection_id = collection.id
                 lesson.content = {
                     'vocabulary': vocab_list,
-                    'xp_reward': lesson_data.get('xp_reward')
+                    'xp_reward': lesson_data.get('xp_reward'),
+                    **({'starter': lesson_data['content']['starter']}
+                       if isinstance(lesson_data.get('content'), dict)
+                       and isinstance(lesson_data['content'].get('starter'), dict) else {}),
                 }
 
             elif lesson_type == 'card':
@@ -585,12 +609,20 @@ class CurriculumImportService:
                 lesson.content = content
             elif lesson_type == 'final_test':
                 content = lesson_data.get('content', {})
+                extra_exercises = content.get('exercises', lesson_data.get('exercises', []))
+                if (content.get('test_sections') or content.get('sections')) and extra_exercises:
+                    logger.warning(
+                        'Final test lesson #%s contains %s additional exercises alongside canonical sections; '
+                        'preserving them, but sections remain authoritative for display and grading',
+                        number, len(extra_exercises),
+                    )
                 lesson.content = {
+                    **content,
                     'passing_score': content.get('passing_score', lesson_data.get('passing_score_percent', 75)),
                     'total_points': content.get('total_points', 100),
                     'test_sections': content.get('test_sections', []),
-                    'exercises': lesson_data.get('exercises', []),
-                    'xp_reward': lesson_data.get('xp_reward')
+                    'exercises': extra_exercises,
+                    'xp_reward': lesson_data.get('xp_reward', content.get('xp_reward'))
                 }
             elif lesson_type in ('reading', 'listening_quiz', 'dialogue_completion_quiz',
                                  'ordering_quiz', 'translation_quiz', 'listening_immersion'):

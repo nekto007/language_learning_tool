@@ -29,7 +29,7 @@ _GRADED_LESSON_TYPES = frozenset((
     'dictation', 'audio_fill_blank', 'translation', 'sentence_correction',
     'sentence_completion', 'collocation_matching', 'quiz', 'ordering_quiz',
     'translation_quiz', 'listening_quiz', 'dialogue_completion_quiz',
-    'grammar', 'matching', 'final_test',
+    'grammar', 'matching', 'final_test', 'listening_immersion',
 ))
 
 
@@ -186,7 +186,7 @@ def _fetch_lesson_attempts(db_session, user_id, date_from, date_to, limit):
              .outerjoin(Module, Module.id == Lessons.module_id)
              .filter(LessonAttempt.completed_at.isnot(None), LessonAttempt.score.isnot(None),
                      Lessons.type.in_(_GRADED_LESSON_TYPES),
-                     or_(Lessons.type != 'grammar', LessonAttempt.total_questions > 0)))
+                     or_(Lessons.type.notin_(('grammar', 'listening_immersion')), LessonAttempt.total_questions > 0)))
     query = _filtered(query, LessonAttempt.user_id, LessonAttempt.completed_at,
                       user_id, date_from, date_to, limit, LessonAttempt.id)
     events = []
@@ -214,16 +214,26 @@ def _fetch_listening_submissions(db_session, user_id, date_from, date_to, limit)
              .outerjoin(Module, Module.id == Lessons.module_id))
     query = _filtered(query, ListeningAttempt.user_id, ListeningAttempt.created_at,
                       user_id, date_from, date_to, limit, ListeningAttempt.id)
-    return [ActivityEvent(
-        timestamp=attempt.created_at, user_id=user.id, user_email=user.email,
-        event_type='listening_submitted',
-        description=f'Аудиоотправка «{lesson.title if lesson else "Удалённый урок"}»: {attempt.score:g}%, '
-                    f'повторов аудио: {attempt.replay_count}',
-        detail_url=_student_url(user.id, attempt.lesson_id), user_name=user.username,
-        lesson_id=attempt.lesson_id, lesson_type=lesson.type if lesson else None,
-        module_title=module.title if module else None, score=attempt.score,
-        source='listening_attempts', event_id=attempt.id,
-    ) for attempt, user, lesson, module in query]
+    events = []
+    for attempt, user, lesson, module in query:
+        # Legacy immersion wrote 100 after a checkbox; this table alone cannot
+        # distinguish it from comprehension. Actual immersion grades now have
+        # a separate positive-question LessonAttempt, displayed above.
+        score = attempt.score if lesson and lesson.type in ('dictation', 'audio_fill_blank') else None
+        percentage = f': {score:g}%' if score is not None else ''
+        replay_detail = ('повторы не измерялись' if lesson and lesson.type == 'listening_immersion'
+                         else f'повторов аудио: {attempt.replay_count}')
+        events.append(ActivityEvent(
+            timestamp=attempt.created_at, user_id=user.id, user_email=user.email,
+            event_type='listening_submitted',
+            description=f'Аудиоотправка «{lesson.title if lesson else "Удалённый урок"}»{percentage}, '
+                        f'{replay_detail}',
+            detail_url=_student_url(user.id, attempt.lesson_id), user_name=user.username,
+            lesson_id=attempt.lesson_id, lesson_type=lesson.type if lesson else None,
+            module_title=module.title if module else None, score=score,
+            source='listening_attempts', event_id=attempt.id,
+        ))
+    return events
 
 
 def _fetch_writing_submissions(db_session, user_id, date_from, date_to, limit):
@@ -270,9 +280,9 @@ def _fetch_pronunciation_attempts(db_session, user_id, date_from, date_to, limit
 def _completion_score(progress, lesson):
     """Return only a graded result, never a synthetic completion percentage."""
     data = progress.data if isinstance(progress.data, dict) else {}
-    if data.get('test_out') is True or lesson is None or lesson.type not in _GRADED_LESSON_TYPES:
+    if data.get('test_out') is True or data.get('assessment') == 'self_review' or lesson is None or lesson.type not in _GRADED_LESSON_TYPES:
         return None
-    if lesson.type == 'grammar':
+    if lesson.type in ('grammar', 'listening_immersion'):
         count = data.get('total_questions') or data.get('total_exercises') or 0
         if not isinstance(count, (int, float)) or count <= 0:
             return None

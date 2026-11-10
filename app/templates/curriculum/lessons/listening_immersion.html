@@ -6,6 +6,7 @@
 
 {% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else 'A1' %}
 {% set is_advanced = level_code in ('B1', 'B2', 'C1') %}
+{% set listening_questions = listening_questions | default([]) %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/listening_immersion.css') }}?v=1">
@@ -117,6 +118,44 @@
       </div>
     {% endif %}
 
+    {% if listening_questions %}
+    <article class="lesson-shell__card li-comprehension" aria-labelledby="li-comprehension-title">
+      <h3 id="li-comprehension-title">{{ _('Проверьте понимание диалога') }}</h3>
+      <p>{{ _('Ответьте на каждый вопрос. После проверки вы увидите результат и пояснения.') }}</p>
+      {% set saved_answers = progress.data.get('reading_answers', {}) if progress and progress.data else {} %}
+      {% for question in listening_questions %}
+        {% set question_index = loop.index0 %}
+        {% set saved_value = saved_answers.get(question_index|string, {}).get('value') %}
+        <fieldset class="li-comprehension-question mb-4" data-listening-question="{{ question_index }}">
+          <legend class="fs-6 fw-semibold">{{ loop.index }}. {{ question.question }}</legend>
+          {% if question.options %}
+            {% for option in question.options %}
+            <label class="li-comprehension-option d-flex align-items-start gap-2 p-2">
+              <input type="radio" name="li-answer-{{ question_index }}" value="{{ loop.index0 }}"
+                     {% if saved_value|string == loop.index0|string or saved_value == option %}checked{% endif %}
+                     onchange="onSelfAssessChange()">
+              <span>{{ option }}</span>
+            </label>
+            {% endfor %}
+          {% elif question.type == 'true_false' %}
+            {% for value, label in [('true', _('Верно')), ('false', _('Неверно'))] %}
+            <label class="li-comprehension-option d-flex align-items-start gap-2 p-2">
+              <input type="radio" name="li-answer-{{ question_index }}" value="{{ value }}"
+                     {% if saved_value == value %}checked{% endif %} onchange="onSelfAssessChange()">
+              <span>{{ label }}</span>
+            </label>
+            {% endfor %}
+          {% else %}
+            <label for="li-answer-{{ question_index }}">{{ _('Ваш ответ') }}</label>
+            <input id="li-answer-{{ question_index }}" name="li-answer-{{ question_index }}"
+                   type="text" value="{{ saved_value or '' }}" maxlength="2000" oninput="onSelfAssessChange()">
+          {% endif %}
+          <p id="li-feedback-{{ question_index }}" role="status" hidden></p>
+        </fieldset>
+      {% endfor %}
+    </article>
+    {% endif %}
+
     {# Gated self-assess. Чекбокс заблокирован, пока учащийся не прослушал
        хотя бы 50 % аудио (считаем реально воспроизведённые сегменты, а не
        прыжки по seek-бару). Если урок уже пройден — стартуем разблокированным
@@ -155,6 +194,17 @@
 <script nonce="{{ csp_nonce }}">
 const lessonId = {{ lesson.id }};
 const ALLOWED_SPEEDS = [0.75, 1, 1.25, 1.5];
+const HAS_COMPREHENSION = {{ (listening_questions|length > 0)|tojson }};
+
+function listeningAnswers() {
+  const answers = {};
+  document.querySelectorAll('[data-listening-question]').forEach(question => {
+    const index = question.dataset.listeningQuestion;
+    const input = question.querySelector('input[type="radio"]:checked, input[type="text"]');
+    if (input && input.value.trim()) answers[index] = input.value;
+  });
+  return answers;
+}
 
 function setAudioSpeed(speed) {
   if (![0.75, 1, 1.25, 1.5].includes(speed)) return;
@@ -309,11 +359,16 @@ function onSelfAssessChange() {
   const cb = document.getElementById('li-self-cb');
   const btn = document.getElementById('li-submit-btn');
   const hint = document.getElementById('listening-gate-hint');
-  btn.disabled = !cb.checked;
+  const questionCount = document.querySelectorAll('[data-listening-question]').length;
+  const allAnswered = !HAS_COMPREHENSION || Object.keys(listeningAnswers()).length === questionCount;
+  btn.disabled = !cb.checked || !allAnswered;
   // Когда галка поставлена, подсказка должна вести к кнопке, а не повторять
   // «Отметьте чекбокс». Когда снимают — возвращаемся к unlocked-копии.
   if (!hint) return;
-  if (cb.checked) {
+  if (cb.checked && !allAnswered) {
+    hint.classList.remove('listening-gate-hint--ready');
+    hint.textContent = '{{ _("Ответьте на все вопросы, чтобы завершить урок.") }}';
+  } else if (cb.checked) {
     hint.classList.add('listening-gate-hint--ready');
     hint.innerHTML = '<i class="fas fa-arrow-down"></i> {{ _("Нажмите «Завершить урок», чтобы зафиксировать прохождение.") }}';
   } else if (!cb.disabled) {
@@ -332,10 +387,25 @@ async function finishLesson() {
     const resp = await fetch('/curriculum/api/lesson/' + lessonId + '/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ self_assessed: true, lesson_type: 'listening_immersion' }),
+      body: JSON.stringify({ self_assessed: true, lesson_type: 'listening_immersion', answers: listeningAnswers() }),
     });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
+    if (!resp.ok || data.success === false || data.completed !== true) {
+      const error = new Error('Listening submission rejected');
+      error.userMessage = data.message || '{{ _("Не удалось завершить урок. Проверьте ответы и попробуйте ещё раз.") }}';
+      throw error;
+    }
+    if (HAS_COMPREHENSION) {
+      Object.entries(data.feedback || {}).forEach(([index, feedback]) => {
+        const block = document.getElementById('li-feedback-' + index);
+        if (!block) return;
+        const verdict = feedback.status === 'correct' ? '{{ _("Верно.") }}' :
+          '{{ _("Правильный ответ:") }} ' + String(feedback.correct_answer ?? '');
+        block.textContent = verdict + (feedback.explanation ? ' ' + feedback.explanation : '') +
+          (feedback.evidence ? ' {{ _("В записи:") }} «' + feedback.evidence + '»' : '');
+        block.hidden = false;
+      });
+    }
 
     // Скрываем гейт + кнопку, чтобы серая disabled-кнопка не висела рядом
     // с глобальной плашкой завершения. Используем общий showLessonCompletion()
@@ -349,7 +419,7 @@ async function finishLesson() {
 
     if (typeof window.showLessonCompletion === 'function') {
       const dpCtx = data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
-      window.showLessonCompletion({ score: 100, daily_plan_ctx: dpCtx });
+      window.showLessonCompletion({ score: HAS_COMPREHENSION ? data.score : 100, daily_plan_ctx: dpCtx });
     }
   } catch (err) {
     console.error('Listening immersion finish error:', err);
@@ -365,7 +435,7 @@ async function finishLesson() {
       if (actions) actions.appendChild(errBox);
     }
     errBox.hidden = false;
-    errBox.textContent = '{{ _("Не удалось завершить урок. Проверьте соединение и попробуйте ещё раз.") }}';
+    errBox.textContent = err.userMessage || '{{ _("Не удалось завершить урок. Проверьте соединение и попробуйте ещё раз.") }}';
   }
 }
 
@@ -373,13 +443,14 @@ document.addEventListener('DOMContentLoaded', function() {
   initAudioSpeed();
   initTranscriptToggle();
   initListeningGate();
-  {% if is_completed %}
+  onSelfAssessChange();
+  {% if is_completed and (not listening_questions or (progress and progress.data and progress.data.get('total_questions'))) %}
   // Если урок открыт повторно после завершения — сразу разворачиваем
   // глобальную плашку «Урок завершён!» (silent=true, без авто-скролла,
   // чтобы пользователь сначала видел сам контент).
   if (typeof window.showLessonCompletion === 'function') {
     const dpCtx = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
-    window.showLessonCompletion({ score: 100, silent: true, daily_plan_ctx: dpCtx });
+    window.showLessonCompletion({ score: {{ (progress.data.get('score') if listening_questions else 100)|tojson }}, silent: true, daily_plan_ctx: dpCtx });
   }
   {% endif %}
 });

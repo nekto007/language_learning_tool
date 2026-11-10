@@ -17,6 +17,55 @@ from app.words.models import CollectionWords
 logger = logging.getLogger(__name__)
 
 
+def apply_lesson_card_context(cards, content):
+    """Overlay an authored lesson sense without changing word/SRS identity.
+
+    General SRS keeps dictionary senses. Only cards explicitly authored for
+    this lesson receive contextual text; unrelated review cards are untouched.
+    """
+    import json
+
+    from app.curriculum.security import sanitize_html
+
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except (TypeError, ValueError):
+            return cards
+    if not isinstance(content, dict):
+        return cards
+    contexts = {}
+    for source in content.get('cards') or []:
+        if not isinstance(source, dict):
+            continue
+        english = source.get('english') or source.get('front')
+        russian = source.get('russian') or source.get('translation') or source.get('back')
+        if isinstance(english, str) and isinstance(russian, str) and english.strip() and russian.strip():
+            contexts[english.strip().casefold()] = (source, english, russian)
+    if not contexts:
+        return cards
+    result = []
+    for card in cards:
+        english = card.get('english') or (card.get('front') if card.get('direction') == 'eng-rus' else card.get('back'))
+        context = contexts.get(str(english or '').strip().casefold())
+        if context is None:
+            result.append(card)
+            continue
+        source, english, russian = context
+        english, russian = sanitize_html(english), sanitize_html(russian)
+        front, back = (russian, english) if card.get('direction') == 'rus-eng' else (english, russian)
+        display = {**card, 'front': front, 'back': back, 'word': front, 'translation': back,
+                   'english': english, 'russian': russian}
+        if source.get('example'):
+            example_en = sanitize_html(source['example'])
+            example_ru = sanitize_html(source.get('example_translation') or '')
+            display.update(example=example_en, example_en=example_en, example_ru=example_ru,
+                           examples=f'{example_en}|{example_ru}' if example_ru else example_en,
+                           sentences=f'{example_en}<br>{example_ru}' if example_ru else example_en)
+        result.append(display)
+    return result
+
+
 def get_audio_filename(word):
     """
     Получает имя аудио файла для слова.
@@ -173,7 +222,7 @@ def get_cards_for_lesson(lesson_id, user_id):
                 cards.append(card_data)
 
     # Перемешиваем карточки
-    cards = smart_shuffle_cards(cards)
+    cards = apply_lesson_card_context(smart_shuffle_cards(cards), lesson.content)
 
     # Подсчитываем текущие показатели
     new_cards_count = sum(1 for c in cards if c['is_new'])

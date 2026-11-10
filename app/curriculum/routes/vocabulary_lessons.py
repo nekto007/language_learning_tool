@@ -108,6 +108,15 @@ def _autoplay_default(level_code: str) -> bool:
     return (level_code or '').upper() in _AUTOPLAY_DEFAULT_LEVELS
 
 
+def _lesson_russian(word_data: dict, word=None) -> str:
+    """A shared dictionary headword cannot identify the lesson's intended sense."""
+    for key in ('russian', 'translation', 'back'):
+        value = word_data.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return (getattr(word, 'russian_word', None) or '') if word is not None else ''
+
+
 def _is_index(value, total: int) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and 0 <= value < total
 
@@ -240,7 +249,7 @@ def render_vocabulary_lesson(lesson):
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
-                    'russian': sanitize_html(word.russian_word),
+                    'russian': sanitize_html(_lesson_russian(word_data, word)),
                     'pronunciation': word_data.get('pronunciation', ''),
                     'ipa_transcription': word.ipa_transcription or '',
                     'example': sanitize_html(word_data.get('example', '')),
@@ -273,7 +282,7 @@ def render_vocabulary_lesson(lesson):
                 }
                 words.append(word_dict)
             else:
-                russian_word = word_data.get('russian', word_data.get('translation', word_data.get('back', '')))
+                russian_word = _lesson_russian(word_data)
                 audio_from_json = word_data.get('audio', '')
                 word_dict = {
                     'id': 10000 + idx,
@@ -600,7 +609,7 @@ def vocabulary_lesson(lesson_id):
                 word_dict = {
                     'id': word.id,
                     'english': sanitize_html(word.english_word),
-                    'russian': sanitize_html(word.russian_word),
+                    'russian': sanitize_html(_lesson_russian(word_data, word)),
                     'pronunciation': word_data.get('pronunciation', ''),
                     'ipa_transcription': word.ipa_transcription or '',
                     'example': sanitize_html(word_data.get('example', '')),
@@ -633,7 +642,7 @@ def vocabulary_lesson(lesson_id):
                 }
                 words.append(word_dict)
             else:
-                russian_word = word_data.get('russian', word_data.get('translation', word_data.get('back', '')))
+                russian_word = _lesson_russian(word_data)
 
                 word_dict = {
                     'id': 10000 + idx,
@@ -815,6 +824,13 @@ def listening_immersion_lesson(lesson_id):
         'curriculum/lessons/listening_immersion.html',
         lesson=lesson,
         text_content=cleaned_content,
+        listening_questions=[
+            {'question': str(question.get('question') or question.get('prompt') or ''),
+             'type': str(question.get('type') or 'multiple_choice'),
+             'options': [str(option) for option in (question.get('options') or [])]}
+            for question in (cleaned_content.get('comprehension_questions') or [])
+            if isinstance(question, dict)
+        ],
         progress=display_progress,
         is_completed=is_completed,
         next_lesson=next_lesson,

@@ -170,3 +170,9 @@
 /* Completion banner sits under the navigation; the deck stays visible */
 .no-cards-message.vocab-complete-banner { height: auto; padding: 1.5rem 1rem; }
 .no-cards-message.vocab-complete-banner[hidden] { display: none; }
+.vocab-starter { padding: 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--color-border, #d1d5db); border-radius: 1rem; }
+.vocab-starter h2 { font-size: 1.3rem; }
+.vocab-starter-line { margin: .75rem 0; }
+.vocab-starter form { display: grid; gap: .5rem; max-width: 30rem; margin: 1rem 0; }
+.vocab-starter input { width: 100%; padding: .6rem; border: 1px solid var(--color-border, #d1d5db); border-radius: .5rem; color: inherit; background: var(--color-surface, #fff); }
+#vocab-starter-speech { white-space: pre-line; font-size: 1.1rem; }

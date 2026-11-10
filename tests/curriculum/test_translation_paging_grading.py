@@ -27,6 +27,26 @@ TEMPLATE = 'app/templates/curriculum/lessons/translation.html'
 
 class TestContractions:
 
+    def test_reviewed_variants_reach_server_grading_without_relaxing_meaning(self):
+        item = {'english': 'The investigative team spent six months verifying the anonymous documents.',
+                'russian': 'Расследовательская команда потратила полгода на проверку анонимных документов.'}
+        assert grade_translation_multi(
+            ['The investigative team spent half a year checking the anonymous documents.'], [item])['score'] == 100
+        assert grade_translation_multi(
+            ['The investigative team spent half a year checking the public documents.'], [item])['score'] == 0
+
+    def test_wrong_old_reference_is_replaced_in_grading_and_page_projection(self):
+        from app.curriculum.routes.lessons import _translation_items_from_content
+
+        item = {'english': 'The ambulance arrived within five minutes.',
+                'russian': 'Скорая приехала через пять минут.'}
+        from app.curriculum.translation_variants import translation_reference
+        expected, _ = translation_reference(item['english'], item['russian'])
+        assert expected == 'The ambulance arrived after five minutes.'
+        assert _translation_items_from_content({'items': [item]})[0]['english'] == expected
+        assert grade_translation_multi([expected], [item])['score'] == 100
+        assert grade_translation_multi([item['english']], [item])['score'] == 0
+
     @pytest.mark.parametrize('user, canonical', [
         ("He's my distant relative", 'He is my distant relative.'),
         ('He is my distant relative', "He's my distant relative."),

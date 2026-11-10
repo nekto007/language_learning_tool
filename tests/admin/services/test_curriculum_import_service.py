@@ -104,6 +104,7 @@ class TestProcessVocabulary:
         mock_existing_word = MagicMock()
         mock_existing_word.id = 10
         mock_existing_word.english_word = 'test'
+        mock_existing_word.russian_word = 'исходный перевод'
 
         # Batch lookup returns the existing word
         mock_words.query.filter.return_value.all.return_value = [mock_existing_word]
@@ -114,8 +115,8 @@ class TestProcessVocabulary:
 
         CurriculumImportService.process_vocabulary(vocabulary_data, mock_collection, 'A1')
 
-        # Word fields must be updated in place
-        assert mock_existing_word.russian_word == 'новый перевод'
+        # Curriculum context must not redefine the globally shared dictionary.
+        assert mock_existing_word.russian_word == 'исходный перевод'
         assert mock_existing_word.frequency_rank == 50
 
 

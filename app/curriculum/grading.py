@@ -569,6 +569,8 @@ def grade_translation_multi(
         {score, passed, correct_items, total_items, item_results}.
         Each item_result: {answer, user_answer, correct}.
     """
+    from app.curriculum.translation_variants import get_translation_variants, translation_reference
+
     total = len(items or [])
     if total == 0:
         return {
@@ -583,10 +585,13 @@ def grade_translation_multi(
     for i, item in enumerate(items):
         user_answer = (user_answers[i] if i < len(user_answers) else '') or ''
         canonical = item.get('english', '') or ''
+        russian = item.get('russian', '') or ''
+        variants = get_translation_variants(canonical, russian)
+        canonical, _ = translation_reference(canonical, russian)
         candidates = [canonical]
-        for alt in (item.get('alternatives') or []):
+        for alt in [*(item.get('alternatives') or []), *variants]:
             if isinstance(alt, str) and alt.strip():
-                candidates.append(alt)
+                candidates.append(translation_reference(alt, russian)[0])
         is_correct = _strict_text_match(user_answer, candidates)
         if is_correct:
             correct += 1

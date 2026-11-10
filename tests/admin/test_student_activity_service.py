@@ -390,3 +390,29 @@ def test_grammar_theory_is_excluded_but_real_grammar_and_legacy_translation_coun
     diagnostic = next(row for row in service.get_lesson_diagnostics(session, now=NOW) if row['lesson_id'] == 1)
     assert diagnostic['submitted'] == 1
     assert diagnostic['attempts'] == 1
+
+
+def test_graded_listening_counts_but_legacy_and_self_review_do_not(diagnostic_db):
+    session, models = diagnostic_db
+    for uid in (1, 2, 3):
+        add_user(session, models, uid)
+        add_progress(session, models, uid)
+    session.get(models[4], 1).type = 'listening_immersion'
+    add_attempt(session, models, 1, passed=True)
+    add_attempt(session, models, 2, passed=True)
+    graded = session.query(models[2]).filter(models[2].user_id == 2).one()
+    graded.total_questions = 3
+    graded.score = 50
+    # A self-reviewed written answer is activity, never an automatic grade.
+    session.add(models[8](user_id=3, lesson_id=1, created_at=NOW - timedelta(minutes=10), word_count=15))
+    session.flush()
+    rows = {row['user_id']: row for row in service.get_students(session, now=NOW)['students']}
+    assert rows[1]['graded_attempts'] == 0
+    assert rows[1]['avg_score'] is None
+    assert rows[2]['graded_attempts'] == 1
+    assert rows[2]['avg_score'] == 50
+    assert rows[3]['graded_attempts'] == 0
+    assert rows[3]['avg_score'] is None
+    assert rows[3]['last_submission_at'] == NOW - timedelta(minutes=10)
+    assert service.get_student_detail(session, 1, now=NOW)['lessons'][0]['recent_attempts'] == []
+    assert service.get_student_detail(session, 2, now=NOW)['lessons'][0]['attempts'] == 1

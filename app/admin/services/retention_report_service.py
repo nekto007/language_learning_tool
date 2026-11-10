@@ -22,7 +22,7 @@ GRADED_LESSON_TYPES = frozenset((
     'dictation', 'audio_fill_blank', 'translation', 'sentence_correction',
     'sentence_completion', 'collocation_matching', 'quiz', 'ordering_quiz',
     'translation_quiz', 'listening_quiz', 'dialogue_completion_quiz',
-    'grammar', 'matching', 'final_test',
+    'grammar', 'matching', 'final_test', 'listening_immersion',
 ))
 
 
@@ -388,7 +388,8 @@ def build_report(users, progress, events, *, as_of, days, timezone_name, missing
             'LessonProgress is mutable; historical completion may have changed on retry or import.',
             'First submission latency is not active time or time to first answer.',
             'Legacy zero-question attempts count for explicit server-graded lesson types except '
-            'grammar: grammar requires a positive question count to exclude theory-only records.',
+            'grammar and listening immersion: both require a positive question count to exclude '
+            'theory-only or self-assessed records. Ungraded null-score records do not count as grades.',
             'The graded path requires a same-lesson submission before completion; the main lesson '
             'path includes passive completion. Synthetic test-out progress is excluded from both paths.',
         ] + [f'Missing source: {source}; counts may be incomplete.' for source in missing_sources],
@@ -450,7 +451,8 @@ def read_snapshot(connection, *, cutoff, as_of):
     # Passive lesson types are excluded even if old synthetic attempts say 100%.
     specs = [
         ('lesson_attempts', 'completed_at',
-         f"l.type IN ({graded_types}) AND (l.type != 'grammar' OR s.total_questions > 0)",
+         f"l.type IN ({graded_types}) AND s.score IS NOT NULL "
+         "AND (l.type NOT IN ('grammar', 'listening_immersion') OR s.total_questions > 0)",
          's.lesson_id', 's.score', 's.passed', 'JOIN lessons l ON l.id=s.lesson_id'),
         ('listening_attempts', 'created_at', 'true', 's.lesson_id', 's.score', 'NULL', ''),
         ('user_writing_attempts', 'created_at', 's.word_count > 0', 's.lesson_id', 'NULL', 'NULL', ''),

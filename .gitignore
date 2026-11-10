@@ -391,6 +391,9 @@ grammar_extra_audit_report.md
 /content/
 # Якорь к корню: без него правило глотало и tests/scripts/
 /scripts/
+!/scripts/
+/scripts/*
+!/scripts/complete_lesson_explanations.py
 work/
 /reports/
 module_completed/

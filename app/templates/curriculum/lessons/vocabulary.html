@@ -2,12 +2,13 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vocabulary-cards.css') }}?v=8">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/vocabulary.css') }}?v=2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/vocabulary.css') }}?v=3">
 {% endblock %}
 
 {% set component_name = _('Словарь') %}
 {% set instruction_text = _('Пролистай все карточки и запомни слова') %}
 {% set block_description = _('Изучение новых слов') %}
+{% set starter = (lesson.content or {}).get('starter') %}
 
 {% block lesson_content %}
 <!-- Получаем данные о предыдущей сессии -->
@@ -30,6 +31,30 @@
 {% endif %}
 
 <div class="vocabulary-cards-lesson">
+  {% if starter %}
+  <section class="vocab-starter" aria-labelledby="vocab-starter-title">
+    <h2 id="vocab-starter-title">{{ starter.title }}</h2>
+    <p>{{ starter.goal }}</p>
+    {% for line in starter.lines %}
+    <p class="vocab-starter-line"><strong lang="en">{{ line.english }}</strong><br>{{ line.russian }}</p>
+    {% endfor %}
+    {% if starter.builder %}
+    <form id="vocab-starter-form">
+      {% for field in starter.builder.fields %}
+      <label for="vocab-starter-{{ field.name }}">{{ field.label }}</label>
+      <input id="vocab-starter-{{ field.name }}" type="text"
+             maxlength="{{ field.max_length }}" placeholder="{{ field.placeholder }}" required autocomplete="off">
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">{{ starter.builder.button_label }}</button>
+    </form>
+    <div id="vocab-starter-result" hidden role="status" aria-live="polite">
+      <h3>{{ starter.builder.result_title }}</h3>
+      <p lang="en" id="vocab-starter-speech"></p>
+      <p>{{ _('Произнесите вслух. Затем изучите слова ниже, чтобы увереннее знакомиться.') }}</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
   <!-- Progress Header -->
   <div class="cards-progress-header">
     <div class="progress-info" role="status" aria-live="polite" aria-atomic="true">
@@ -267,6 +292,15 @@ const lessonConfig = {
 };
 
 // State management
+{% if starter and starter.builder %}
+document.getElementById('vocab-starter-form').addEventListener('submit', function (event) {
+  event.preventDefault();
+  const template = {{ starter.builder.template|tojson }};
+  document.getElementById('vocab-starter-speech').textContent = template.replace(
+    /\{(name|country)\}/g, (_, field) => String(document.getElementById('vocab-starter-' + field).value || '').trim());
+  document.getElementById('vocab-starter-result').hidden = false;
+});
+{% endif %}
 const cardsState = {
   currentIndex: 0,
   totalCards: {{ words|length }},

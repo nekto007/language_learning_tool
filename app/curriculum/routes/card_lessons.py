@@ -323,10 +323,99 @@ def _build_cards_for_words(
     return cards_list
 
 
-def render_card_lesson(lesson):
-    """Рендер card урока"""
+def _card_content(value) -> dict:
+    try:
+        parsed = json.loads(value) if isinstance(value, str) else value
+        return parsed if isinstance(parsed, dict) else {}
+    except (TypeError, ValueError):
+        logger.warning('Invalid authored card content')
+        return {}
+
+
+def _positive_word_id(value) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value > 0:
+        return value
+    if isinstance(value, str) and value.isdecimal() and int(value) > 0:
+        return int(value)
+    return None
+
+
+def _resolve_lesson_deck(lesson) -> tuple[list, list[dict], dict]:
+    """Resolve the authored deck without widening it to a module collection.
+
+    Explicit numeric word IDs remain authoritative. English/front text resolves
+    to existing word IDs case-insensitively, preferring the lesson's collection
+    when the database contains case variants. Missing words stay display-only;
+    they never cause unrelated collection words to enter the lesson or SRS.
+    Legacy lessons without an authored cards list retain collection fallback.
+    """
+    from sqlalchemy import func, or_
     from app.words.models import CollectionWordLink
 
+    content = _card_content(lesson.content)
+    authored = content.get('cards')
+    has_authored_deck = isinstance(authored, list)
+    previous = []
+    if not lesson.collection_id and lesson.module_id and lesson.number is not None:
+        previous = Lessons.query.filter(
+            Lessons.module_id == lesson.module_id, Lessons.number < lesson.number,
+            Lessons.type.in_(['vocabulary', 'card', 'flashcards']),
+        ).order_by(Lessons.number).all()
+    collection_ids = ([lesson.collection_id] if lesson.collection_id else
+                      [item.collection_id for item in previous if item.collection_id])
+    linked_ids = set()
+    if collection_ids:
+        linked_ids = {link.word_id for link in CollectionWordLink.query.filter(
+            CollectionWordLink.collection_id.in_(collection_ids)).all()}
+
+    if not has_authored_deck:
+        word_ids = set(linked_ids)
+        for item in previous:
+            if not item.collection_id:
+                for card in _card_content(item.content).get('cards') or []:
+                    if isinstance(card, dict):
+                        word_id = _positive_word_id(card.get('word_id'))
+                        if word_id is not None:
+                            word_ids.add(word_id)
+        words = (CollectionWords.query.filter(CollectionWords.id.in_(word_ids))
+                 .order_by(CollectionWords.id).all()) if word_ids else []
+        return words, [], content
+
+    cards = [card for card in authored if isinstance(card, dict)]
+    explicit_ids = {_positive_word_id(card.get('word_id')) for card in cards}
+    explicit_ids.discard(None)
+    names = {(card.get('english') or card.get('front') or '').strip().casefold()
+             for card in cards if _positive_word_id(card.get('word_id')) is None}
+    names.discard('')
+    conditions = []
+    if explicit_ids:
+        conditions.append(CollectionWords.id.in_(explicit_ids))
+    if names:
+        conditions.append(func.lower(func.trim(CollectionWords.english_word)).in_(names))
+    candidates = CollectionWords.query.filter(or_(*conditions)).all() if conditions else []
+    by_id = {word.id: word for word in candidates}
+    by_name = {}
+    for word in sorted(candidates, key=lambda word: (word.id not in linked_ids, word.id)):
+        by_name.setdefault(word.english_word.strip().casefold(), word)
+    words, missing, seen_words, seen_missing = [], [], set(), set()
+    for card in cards:
+        word_id = _positive_word_id(card.get('word_id'))
+        name = (card.get('english') or card.get('front') or '').strip().casefold()
+        word = by_id.get(word_id) if word_id is not None else by_name.get(name)
+        if word is not None:
+            if word.id not in seen_words:
+                words.append(word)
+                seen_words.add(word.id)
+        elif name and name not in seen_missing:
+            missing.append(card)
+            seen_missing.add(name)
+    return words, _build_display_cards_from_content({'cards': missing}), content
+
+
+def render_card_lesson(lesson):
+    """Рендер card урока"""
     if lesson.type not in ['card', 'flashcards']:
         from flask import abort
         abort(400, "This is not a card lesson")
@@ -347,59 +436,15 @@ def render_card_lesson(lesson):
             Lessons.number > lesson.number
         ).order_by(Lessons.number).first()
 
-    word_ids = []
-    content = {}
-
-    if lesson.collection_id:
-        word_links = CollectionWordLink.query.filter_by(
-            collection_id=lesson.collection_id
-        ).all()
-        word_ids = [link.word_id for link in word_links]
-
-    if lesson.content:
-        try:
-            content = json.loads(lesson.content) if isinstance(lesson.content, str) else lesson.content
-            if isinstance(content, dict) and 'cards' in content:
-                for card in content['cards']:
-                    if isinstance(card, dict) and 'word_id' in card:
-                        word_ids.append(card['word_id'])
-        except Exception as e:
-            logger.error(f"Error parsing lesson content: {e}")
-
-    if not word_ids and lesson.module_id and lesson.number is not None:
-        previous_lessons = Lessons.query.filter(
-            Lessons.module_id == lesson.module_id,
-            Lessons.number < lesson.number,
-            Lessons.type.in_(['vocabulary', 'card', 'flashcards'])
-        ).all()
-
-        for prev_lesson in previous_lessons:
-            if prev_lesson.collection_id:
-                word_links = CollectionWordLink.query.filter_by(
-                    collection_id=prev_lesson.collection_id
-                ).all()
-                word_ids.extend([link.word_id for link in word_links])
-            elif prev_lesson.content:
-                try:
-                    prev_content = json.loads(prev_lesson.content) if isinstance(prev_lesson.content, str) else prev_lesson.content
-                    if isinstance(prev_content, dict) and 'cards' in prev_content:
-                        for card in prev_content['cards']:
-                            if isinstance(card, dict) and 'word_id' in card:
-                                word_ids.append(card['word_id'])
-                except Exception:
-                    logger.exception("Failed to parse lesson content for word_ids")
-
-        word_ids = list(set(word_ids))
-
+    word_objects, display_cards, content = _resolve_lesson_deck(lesson)
+    word_ids = [word.id for word in word_objects]
     cards_list = []
-    if word_ids:
-        word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
+    if word_objects:
         _reset_lesson_session_attempts(current_user.id, word_ids)
         cards_list = _build_cards_for_words(
             word_objects, current_user.id, activate_srs=True,
         )
-    if not cards_list and isinstance(content, dict):
-        cards_list = _build_display_cards_from_content(content)
+    cards_list.extend(display_cards)
 
     next_review_time = None
     if len(cards_list) == 0:
@@ -428,6 +473,8 @@ def render_card_lesson(lesson):
                     days = int(hours / 24)
                     next_review_time = f"{days} д"
 
+    from app.curriculum.card_service import apply_lesson_card_context
+    cards_list = apply_lesson_card_context(cards_list, content)
     cards_data = {
         'cards': cards_list,
         'srs_settings': {
@@ -531,8 +578,6 @@ def render_card_lesson(lesson):
 @require_lesson_access
 def card_lesson(lesson_id):
     """Display SRS card lesson"""
-    from app.words.models import CollectionWordLink
-
     lesson = Lessons.query.get_or_404(lesson_id)
 
     if lesson.type not in ['card', 'flashcards']:
@@ -551,59 +596,15 @@ def card_lesson(lesson_id):
             Lessons.number > lesson.number
         ).order_by(Lessons.number).first()
 
-    word_ids = []
-    content = {}
-
-    if lesson.collection_id:
-        word_links = CollectionWordLink.query.filter_by(
-            collection_id=lesson.collection_id
-        ).all()
-        word_ids = [link.word_id for link in word_links]
-
-    if lesson.content:
-        try:
-            content = json.loads(lesson.content) if isinstance(lesson.content, str) else lesson.content
-            if isinstance(content, dict) and 'cards' in content:
-                for card in content['cards']:
-                    if isinstance(card, dict) and 'word_id' in card:
-                        word_ids.append(card['word_id'])
-        except Exception as e:
-            logger.error(f"Error parsing lesson content: {e}")
-
-    if not word_ids and lesson.module_id and lesson.number is not None:
-        previous_lessons = Lessons.query.filter(
-            Lessons.module_id == lesson.module_id,
-            Lessons.number < lesson.number,
-            Lessons.type.in_(['vocabulary', 'card', 'flashcards'])
-        ).all()
-
-        for prev_lesson in previous_lessons:
-            if prev_lesson.collection_id:
-                word_links = CollectionWordLink.query.filter_by(
-                    collection_id=prev_lesson.collection_id
-                ).all()
-                word_ids.extend([link.word_id for link in word_links])
-            elif prev_lesson.content:
-                try:
-                    prev_content = json.loads(prev_lesson.content) if isinstance(prev_lesson.content, str) else prev_lesson.content
-                    if isinstance(prev_content, dict) and 'cards' in prev_content:
-                        for card in prev_content['cards']:
-                            if isinstance(card, dict) and 'word_id' in card:
-                                word_ids.append(card['word_id'])
-                except Exception:
-                    logger.exception("Failed to parse lesson content for word_ids")
-
-        word_ids = list(set(word_ids))
-
+    word_objects, display_cards, content = _resolve_lesson_deck(lesson)
+    word_ids = [word.id for word in word_objects]
     cards_list = []
-    if word_ids:
-        word_objects = CollectionWords.query.filter(CollectionWords.id.in_(word_ids)).all()
+    if word_objects:
         _reset_lesson_session_attempts(current_user.id, word_ids)
         cards_list = _build_cards_for_words(
             word_objects, current_user.id, activate_srs=True,
         )
-    if not cards_list and isinstance(content, dict):
-        cards_list = _build_display_cards_from_content(content)
+    cards_list.extend(display_cards)
 
     next_review_time = None
     if len(cards_list) == 0:
@@ -632,6 +633,8 @@ def card_lesson(lesson_id):
                     days = int(hours / 24)
                     next_review_time = f"{days} д"
 
+    from app.curriculum.card_service import apply_lesson_card_context
+    cards_list = apply_lesson_card_context(cards_list, content)
     cards_data = {
         'cards': cards_list,
         'srs_settings': {
@@ -704,69 +707,9 @@ def card_lesson(lesson_id):
 
 
 def _lesson_deck_size(lesson) -> int:
-    """Count distinct cards available for this lesson's SRS session.
-
-    Mirrors the ``word_ids`` derivation in :func:`render_card_lesson`
-    (collection link -> embedded content cards -> previous-lesson
-    fallback) but returns only the distinct count. Used to cap the
-    completion threshold so a legit deck with fewer than the default
-    ``min_cards_required`` cards can still complete once fully studied.
-    Returns ``0`` when the deck size cannot be determined (caller then
-    falls back to the configured ``min_cards_required``).
-    """
-    from app.words.models import CollectionWordLink
-
-    word_ids: set[int] = set()
-
-    if lesson.collection_id:
-        links = CollectionWordLink.query.filter_by(
-            collection_id=lesson.collection_id
-        ).all()
-        word_ids.update(link.word_id for link in links)
-
-    if lesson.content:
-        try:
-            content = (
-                json.loads(lesson.content)
-                if isinstance(lesson.content, str)
-                else lesson.content
-            )
-            if isinstance(content, dict) and 'cards' in content:
-                for card in content['cards']:
-                    if isinstance(card, dict) and 'word_id' in card:
-                        word_ids.add(card['word_id'])
-        except Exception:
-            logger.exception("deck_size: failed to parse lesson content")
-
-    if not word_ids and lesson.module_id and lesson.number is not None:
-        previous_lessons = Lessons.query.filter(
-            Lessons.module_id == lesson.module_id,
-            Lessons.number < lesson.number,
-            Lessons.type.in_(['vocabulary', 'card', 'flashcards'])
-        ).all()
-        for prev_lesson in previous_lessons:
-            if prev_lesson.collection_id:
-                links = CollectionWordLink.query.filter_by(
-                    collection_id=prev_lesson.collection_id
-                ).all()
-                word_ids.update(link.word_id for link in links)
-            elif prev_lesson.content:
-                try:
-                    prev_content = (
-                        json.loads(prev_lesson.content)
-                        if isinstance(prev_lesson.content, str)
-                        else prev_lesson.content
-                    )
-                    if isinstance(prev_content, dict) and 'cards' in prev_content:
-                        for card in prev_content['cards']:
-                            if isinstance(card, dict) and 'word_id' in card:
-                                word_ids.add(card['word_id'])
-                except Exception:
-                    logger.exception(
-                        "deck_size: failed to parse prev lesson content"
-                    )
-
-    return len(word_ids)
+    """Count the same authored words/display cards used by both render routes."""
+    words, display_cards, _ = _resolve_lesson_deck(lesson)
+    return len(words) + len(display_cards)
 
 
 @lessons_bp.route('/lessons/<int:lesson_id>/complete-srs', methods=['POST'])

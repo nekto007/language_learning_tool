@@ -6,11 +6,11 @@
   {% set instruction_text = _('Переведите предложения с русского на английский и впишите ответ. Сначала попробуйте сами; если нужна поддержка — нажмите «Показать опорные слова» (это ключевая лексика, а не готовый ответ). На каждое — 3 попытки.') %}
   {% set block_description = _('Тренировка письменного перевода с опорными словами') %}
 {% elif _mode == 'open' %}
-  {% set instruction_text = _('Переведите предложения с русского на английский и впишите ответ. Опорные слова скрыты — нажмите «Показать подсказки», если нужна поддержка. На каждое — 3 попытки.') %}
+  {% set instruction_text = _('Переведите предложения. Известные варианты проверяются автоматически; другую формулировку сверьте с образцом и критериями смысла и грамматики. Опорные слова доступны по кнопке.') %}
   {% set block_description = _('Перевод с минимальной опорой — для B1+') %}
 {% else %}
-  {% set instruction_text = _('Переведите тексты с русского на английский. Учитывайте стиль и регистр; принимаются разные правильные варианты.') %}
-  {% set block_description = _('Аналитический перевод — для C1+') %}
+  {% set instruction_text = _('Переведите предложения, сохраняя смысл и стиль. Известные варианты проверяются автоматически. Другую формулировку сверьте с образцом: смысл, грамматика, тон. Это практика с самопроверкой, без автоматической оценки смысла.') %}
+  {% set block_description = _('Свободный перевод с самопроверкой') %}
 {% endif %}
 
 {% block lesson_content %}
@@ -190,6 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
   _refreshPager();
 });
 const itemState = new Array(totalItems).fill('pending');
+const reviewTokens = new Array(totalItems).fill(null);
 const itemAttempts = new Array(totalItems).fill(0);
 let _finalizing = false;
 
@@ -260,7 +261,7 @@ function _setFeedback(idx, kind, label) {
   el.className = 'translation-item__feedback translation-item__feedback--' + kind;
   el.innerHTML = (kind === 'correct'
     ? '<i class="fas fa-check-circle"></i> '
-    : '<i class="fas fa-times-circle"></i> ') + label;
+    : (kind === 'review' ? '<i class="fas fa-book-open"></i> ' : '<i class="fas fa-times-circle"></i> ')) + label;
 }
 
 function _showCorrect(idx, canonical) {
@@ -466,13 +467,14 @@ function _markTryAgain(idx, remaining) {
 // A6: per-item grading is server-side — the answer is never in the DOM.
 // POST {index, answer, final}; the endpoint returns {correct, answer?} and
 // reveals `answer` only when correct or on the final try.
-async function _serverCheck(idx, value, isFinalTry) {
+async function _serverCheck(idx, value, isFinalTry, reviewToken, confirmReview) {
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   try {
     const r = await fetch('/curriculum/api/lesson/' + lessonId + '/check-item', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ index: idx, answer: value, final: isFinalTry }),
+      body: JSON.stringify({ index: idx, answer: value, final: isFinalTry,
+        review_token: reviewToken || null, confirm_review: confirmReview === true }),
     });
     return r.ok ? await r.json() : null;
   } catch (e) { return null; }
@@ -491,9 +493,16 @@ async function checkTranslationItem(idx, consume) {
   const res = await _serverCheck(idx, val, isFinalTry);
   if (!res || res.success === false) {
     // Сеть/валидация подвели — не сжигаем попытку, даём повторить.
+    _setFeedback(idx, 'review', res && res.error === 'invalid_answer'
+      ? '{{ _("Введите перевод на английском: хотя бы два слова.") }}'
+      : '{{ _("Не удалось проверить ответ. Попробуйте ещё раз.") }}');
     return;
   }
   if (itemState[idx] !== 'pending') return;  // залочено параллельной проверкой
+  if (res.status === 'needs_review') {
+    _showReviewChoice(idx, val, res);
+    return;
+  }
   if (res.correct) {
     _showCorrect(idx, res.answer || val);
     return;
@@ -510,6 +519,51 @@ async function checkTranslationItem(idx, consume) {
     inp.classList.add('input--wrong');
     _markTryAgain(idx, MAX_ATTEMPTS - itemAttempts[idx]);
   }
+}
+
+function _showReviewed(idx, token) {
+  itemState[idx] = 'reviewed';
+  reviewTokens[idx] = token || reviewTokens[idx];
+  const inp = document.getElementById('tr-answer-' + idx);
+  if (inp) inp.readOnly = true;
+  _setFeedback(idx, 'review', '{{ _("Сверено самостоятельно — без автоматической оценки") }}');
+  _updateProgress();
+  _maybeFinalize();
+}
+
+function _showReviewChoice(idx, value, res) {
+  const reveal = document.getElementById('tr-reveal-' + idx);
+  if (!reveal) return;
+  reveal.replaceChildren();
+  reveal.classList.add('visible');
+  const model = document.createElement('p');
+  model.textContent = '{{ _("Вариант для сравнения:") }} ' + (res.reference_answer || res.answer || '');
+  reveal.appendChild(model);
+  const criteria = document.createElement('p');
+  criteria.textContent = '{{ _("Сверьте участников и действия, числа и отрицания, время и стиль. Другая формулировка сама по себе не ошибка.") }}';
+  reveal.appendChild(criteria);
+  const confirm = document.createElement('button');
+  confirm.type = 'button';
+  confirm.className = 'btn btn-outline-primary';
+  confirm.textContent = '{{ _("Сверил(а): смысл, грамматика и стиль сохранены") }}';
+  confirm.addEventListener('click', async function () {
+    const inp = document.getElementById('tr-answer-' + idx);
+    if (!inp || String(inp.value || '').trim() !== value) {
+      reveal.replaceChildren();
+      return;
+    }
+    confirm.disabled = true;
+    const result = await _serverCheck(idx, value, false, res.review_token, true);
+    if (result && result.success && result.status === 'self_reviewed') {
+      reveal.replaceChildren(model, criteria);
+      _showReviewed(idx, result.review_token || res.review_token);
+    } else {
+      confirm.disabled = false;
+      _setFeedback(idx, 'review', '{{ _("Не удалось сохранить сверку. Проверьте ответ ещё раз.") }}');
+    }
+  });
+  reveal.appendChild(confirm);
+  _setFeedback(idx, 'review', '{{ _("Формулировка отличается от известных вариантов — нужна сверка") }}');
 }
 
 function _updateProgress() {
@@ -551,10 +605,23 @@ async function _submitFinal() {
     const resp = await fetch(`/curriculum/api/lesson/${lessonId}/submit`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-      body: JSON.stringify({answers: answers, lesson_type: 'translation'}),
+      body: JSON.stringify({answers: answers, review_tokens: reviewTokens, lesson_type: 'translation'}),
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
+    if (data.success === false && data.error === 'review_required') {
+      _finalizing = false;
+      (data.item_results || []).forEach(function (res, idx) {
+        if (res.status === 'needs_review') {
+          itemState[idx] = 'pending';
+          const inp = document.getElementById('tr-answer-' + idx);
+          if (inp) inp.readOnly = false;
+          _showReviewChoice(idx, inp ? inp.value.trim() : '', res);
+        }
+      });
+      return;
+    }
+    if (data.success === false) throw new Error(data.error || 'submit_failed');
     showResults(data);
     if (typeof showSaveToast === 'function') showSaveToast();
   } catch (err) {
@@ -566,6 +633,14 @@ async function _submitFinal() {
 
 function showResults(data) {
   _showAllPages();
+  if (data.assessment === 'self_review' && data.passed) {
+    const label = document.getElementById('tr-progress-label');
+    if (label) label.textContent = '{{ _("Практика завершена с самопроверкой. Автоматическая оценка смысла не выставлялась.") }}';
+    if (typeof window.showLessonCompletion === 'function') {
+      window.showLessonCompletion({grade_name: '{{ _("Самопроверка выполнена") }}', daily_plan_ctx: data.daily_plan_ctx, allowRetry: false});
+    }
+    return;
+  }
   const score = data.score || 0;
   const passed = !!data.passed;
   const correctItems = data.correct_items || 0;
@@ -751,7 +826,8 @@ document.addEventListener('DOMContentLoaded', function _restoreSaved() {
     const expected = res.answer || itemEl.dataset.answer || '';
     const inp = document.getElementById('tr-answer-' + idx);
     if (inp) inp.value = res.user_answer || '';
-    if (res.correct) _showCorrect(idx, expected);
+    if (res.status === 'self_reviewed') _showReviewed(idx, null);
+    else if (res.correct || res.status === 'matched') _showCorrect(idx, expected);
     else _showGivenUp(idx, res.user_answer || '', expected);
   });
   const progLabel = document.getElementById('tr-progress-label');
@@ -762,7 +838,10 @@ document.addEventListener('DOMContentLoaded', function _restoreSaved() {
   }
   if (isCompleted) {
     if (typeof window.showLessonCompletion === 'function') {
-      window.showLessonCompletion({score: saved.score || 100, silent: true});
+      if (saved.assessment === 'self_review') {
+        progLabel.textContent = '{{ _("Практика завершена с самопроверкой") }}';
+        window.showLessonCompletion({grade_name: '{{ _("Самопроверка выполнена") }}', silent: true, allowRetry: false});
+      } else window.showLessonCompletion({score: saved.score || 100, silent: true});
     }
   } else {
     // Partial-pass — снова покажем баннер «Почти!» с soft-retry кнопкой.

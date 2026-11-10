@@ -275,6 +275,7 @@ class RetentionReportTests(unittest.TestCase):
                 "INSERT INTO lessons VALUES (11, 'translation')",
                 "INSERT INTO lessons VALUES (12, 'reading')",
                 "INSERT INTO lessons VALUES (13, 'grammar')",
+                "INSERT INTO lessons VALUES (14, 'listening_immersion')",
                 "INSERT INTO users VALUES (1, '2026-11-01', false, true, 'A1', '{}')",
                 "INSERT INTO users VALUES (2, '2026-11-01', true, true, 'A1', '{}')",
                 '''INSERT INTO lesson_progress VALUES (1, 11, '2026-11-01', '2026-11-01', '2026-11-01', '{"test_out": true, "response_text": "private answer"}')''',
@@ -283,13 +284,16 @@ class RetentionReportTests(unittest.TestCase):
                 "INSERT INTO lesson_attempts VALUES (2, 11, '2026-11-08', 5, 100, true)",
                 "INSERT INTO lesson_attempts VALUES (1, 13, '2026-11-08', 0, 100, true)",
                 "INSERT INTO lesson_attempts VALUES (1, 13, '2026-11-08', 3, 80, true)",
+                "INSERT INTO lesson_attempts VALUES (1, 14, '2026-11-08', 0, 100, true)",
+                "INSERT INTO lesson_attempts VALUES (1, 14, '2026-11-08', 3, 50, true)",
+                "INSERT INTO lesson_attempts VALUES (1, 11, '2026-11-08', 0, NULL, true)",
             ):
                 conn.exec_driver_sql(statement)
             users, progress, events, missing = report.read_snapshot(
                 conn, cutoff=NOW - timedelta(days=30), as_of=NOW)
         self.assertEqual([u['id'] for u in users], [1])
-        self.assertEqual(len(events), 2)
-        self.assertEqual({(event['lesson_id'], event['score']) for event in events}, {(11, 0), (13, 80)})
+        self.assertEqual(len(events), 3)
+        self.assertEqual({(event['lesson_id'], event['score']) for event in events}, {(11, 0), (13, 80), (14, 50)})
         self.assertEqual(len(missing), 3)
         self.assertEqual(len(progress), 1)
         self.assertTrue(progress[0]['is_test_out'])

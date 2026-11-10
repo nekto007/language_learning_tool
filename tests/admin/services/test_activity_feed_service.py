@@ -673,11 +673,47 @@ class TestLearningDiagnostics:
         progress = SimpleNamespace(score=100, data={})
         assert _completion_score(progress, SimpleNamespace(type='reading')) is None
         assert _completion_score(progress, SimpleNamespace(type='grammar')) is None
+        assert _completion_score(progress, SimpleNamespace(type='listening_immersion')) is None
         assert _completion_score(progress, SimpleNamespace(type='quiz')) == 100
         progress.data = {'test_out': True}
         assert _completion_score(progress, SimpleNamespace(type='quiz')) is None
         progress.data = {'total_questions': 3}
         assert _completion_score(progress, SimpleNamespace(type='grammar')) == 100
+        assert _completion_score(progress, SimpleNamespace(type='listening_immersion')) == 100
+        progress.data = {'assessment': 'self_review', 'total_questions': 3}
+        assert _completion_score(progress, SimpleNamespace(type='translation')) is None
+
+    def test_only_question_backed_listening_is_a_graded_attempt(self, app, db_session):
+        from app.curriculum.models import LessonAttempt
+        user = _make_user(db_session)
+        lesson = self._lesson(db_session, 'listening_immersion')
+        for number, questions in ((1, 0), (2, 3)):
+            db_session.add(LessonAttempt(user_id=user.id, lesson_id=lesson.id, attempt_number=number,
+                                        completed_at=_now(), score=50, passed=True, total_questions=questions))
+        db_session.commit()
+        events = get_recent_events(db_session, user_id=user.id, event_types=['lesson_attempt'])
+        assert len(events) == 1
+        assert events[0].attempt_number == 2
+        assert events[0].score == 50
+
+    def test_legacy_listening_percentage_is_not_a_grade(self, app, db_session):
+        from app.curriculum.models import LessonAttempt, ListeningAttempt
+        user = _make_user(db_session)
+        immersion = self._lesson(db_session, 'listening_immersion')
+        dictation = self._lesson(db_session, 'dictation')
+        db_session.add(ListeningAttempt(user_id=user.id, lesson_id=immersion.id, score=100, replay_count=0))
+        db_session.add(ListeningAttempt(user_id=user.id, lesson_id=dictation.id, score=75, replay_count=1))
+        db_session.add(LessonAttempt(user_id=user.id, lesson_id=immersion.id, attempt_number=1,
+                                    completed_at=_now(), score=50, passed=True, total_questions=3))
+        db_session.commit()
+        events = get_recent_events(db_session, user_id=user.id,
+                                   event_types=['listening_submitted', 'lesson_attempt'])
+        by_type = {(event.event_type, event.lesson_id): event for event in events}
+        legacy = by_type['listening_submitted', immersion.id]
+        assert legacy.score is None
+        assert '%' not in legacy.description
+        assert by_type['lesson_attempt', immersion.id].score == 50
+        assert by_type['listening_submitted', dictation.id].score == 75
 
     def test_writing_and_pronunciation_do_not_expose_answers(self, app, db_session):
         from app.curriculum.models import PronunciationAttempt, UserWritingAttempt
