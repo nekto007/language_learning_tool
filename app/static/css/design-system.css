@@ -13997,6 +13997,12 @@ button.nav-section-title {
     color: #b91c1c;
 }
 .translation-item__feedback--wrong i { color: #dc2626; }
+.translation-item__feedback--review {
+    display: flex;
+    background: #eff6ff;
+    color: #1e40af;
+}
+.translation-item__feedback--review i { color: #2563eb; }
 .translation-item__attempts {
     margin-left: auto;
     font-size: 0.8rem;
