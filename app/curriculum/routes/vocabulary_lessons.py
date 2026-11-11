@@ -820,6 +820,23 @@ def listening_immersion_lesson(lesson_id):
     is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson = get_next_lesson(lesson.id)
 
+    listening_result = None
+    saved = display_progress.data if display_progress and isinstance(display_progress.data, dict) else {}
+    if is_completed and saved.get('total_questions'):
+        questions = (lesson.content or {}).get('comprehension_questions') or []
+        feedback = {}
+        for index, item in (saved.get('feedback') or {}).items():
+            if not isinstance(item, dict):
+                continue
+            row = dict(item)
+            if str(index).isdigit() and int(index) < len(questions):
+                question = questions[int(index)]
+                for field in ('explanation', 'evidence'):
+                    row[field] = question.get(field, '')
+            feedback[str(index)] = row
+        listening_result = {key: saved.get(key) for key in ('score', 'correct_answers', 'total_questions')}
+        listening_result['feedback'] = feedback
+
     return render_template(
         'curriculum/lessons/listening_immersion.html',
         lesson=lesson,
@@ -833,6 +850,7 @@ def listening_immersion_lesson(lesson_id):
         ],
         progress=display_progress,
         is_completed=is_completed,
+        listening_result=listening_result,
         next_lesson=next_lesson,
     )
 

@@ -100,6 +100,7 @@ def test_actual_answers_determine_score_and_attempts_not_client_claim(
     assert result['correct_answers'] == expected_correct
     assert result['total_questions'] == 2
     assert result['feedback']['0']['evidence'] == 'PRIVATE_EVIDENCE_NOT_FOR_INITIAL_DOM'
+    assert result['feedback']['0']['explanation'] == 'PRIVATE_EXPLANATION_NOT_FOR_INITIAL_DOM'
     progress = db_session.query(LessonProgress).filter_by(user_id=test_user.id, lesson_id=listening_lesson.id).one()
     assert progress.status == 'completed'
     assert progress.last_score == expected_score
@@ -133,3 +134,71 @@ def test_legacy_lesson_without_questions_keeps_checkbox_completion(db_session, l
     assert response.status_code == 200
     assert response.get_json()['completed'] is True
     assert db_session.query(ListeningAttempt).filter_by(lesson_id=listening_lesson.id).count() == 1
+
+
+def test_saved_result_restores_explanations_and_retry_clears_only_display(
+    db_session, test_user, learner_client, listening_lesson, tmp_path,
+):
+    _submit(learner_client, listening_lesson, {'answers': {'0': '1', '1': '0'}})
+    url = f'/curriculum/lesson/{listening_lesson.id}/listening-immersion'
+    html = learner_client.get(url).get_data(as_text=True)
+    assert 'showListeningResult({' in html
+    assert 'PRIVATE_EXPLANATION_NOT_FOR_INITIAL_DOM' in html
+    assert 'PRIVATE_EVIDENCE_NOT_FOR_INITIAL_DOM' in html
+    assert 'Попытка завершена' in html and 'Попробовать ещё раз' in html
+    (tmp_path / 'listening-result.html').write_text(html)
+
+    retry_html = learner_client.get(url + '?retry=true').get_data(as_text=True)
+    assert 'showListeningResult({' not in retry_html
+    assert 'PRIVATE_EXPLANATION_NOT_FOR_INITIAL_DOM' not in retry_html
+    assert 'PRIVATE_EVIDENCE_NOT_FOR_INITIAL_DOM' not in retry_html
+    progress = db_session.query(LessonProgress).filter_by(user_id=test_user.id, lesson_id=listening_lesson.id).one()
+    assert progress.status == 'completed' and progress.last_score == 0
+    assert db_session.query(LessonAttempt).filter_by(lesson_id=listening_lesson.id).count() == 1
+
+
+def test_listening_quiz_type_link_redirects_to_canonical_quiz_preserving_query(
+    db_session, learner_client, listening_lesson,
+):
+    from urllib.parse import parse_qs, urlparse
+
+    listening_lesson.type = 'listening_quiz'
+    listening_lesson.content = {'exercises': [
+        {'type': 'listening_choice', 'question': 'What is said?', 'options': ['Hello', 'Goodbye'],
+         'correct': 'Hello', 'audio': '[sound:greeting.mp3]', 'audio_text': 'Hello'},
+    ]}
+    db_session.commit()
+    url = f'/curriculum/lesson/{listening_lesson.id}/listening_quiz'
+    response = learner_client.get(url + '?retry=true&from=linear_plan&tag=a&tag=b')
+    assert response.status_code == 302
+    location = urlparse(response.location)
+    assert location.path == f'/curriculum/lesson/{listening_lesson.id}/quiz'
+    assert parse_qs(location.query) == {'retry': ['true'], 'from': ['linear_plan'], 'tag': ['a', 'b']}
+    assert learner_client.get(location.path).status_code == 200
+
+
+def test_listening_quiz_alias_does_not_accept_another_lesson_type(learner_client, listening_lesson):
+    response = learner_client.get(f'/curriculum/lesson/{listening_lesson.id}/listening_quiz')
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize('prompt,options,correct', [
+    ('She can dance very well.', ['True', 'False'], 'True'),
+    ('The speaker has a leash.', ['True', 'False'], 'False'),
+    ('I ___ swim.', ['can', "can't", 'do'], 'can'),
+])
+def test_listening_choice_displays_the_statement_or_question_above_options(
+    db_session, learner_client, listening_lesson, prompt, options, correct,
+):
+    listening_lesson.type = 'listening_quiz'
+    listening_lesson.content = {'exercises': [
+        {'type': 'listening_choice', 'question': prompt, 'options': options, 'correct': correct,
+         'instruction': 'Прослушайте реплику. Верно ли утверждение?',
+         'audio': '[sound:statement.mp3]', 'audio_text': 'PRIVATE_AUDIO_TRANSCRIPT'},
+    ]}
+    db_session.commit()
+    html = learner_client.get(f'/curriculum/lesson/{listening_lesson.id}/quiz').get_data(as_text=True)
+    expected = f'<h3 class="question-text">{prompt}</h3>'
+    assert expected in html
+    assert '<h3 class="question-text">PRIVATE_AUDIO_TRANSCRIPT</h3>' not in html
+    assert html.index(expected) < html.index('data-action="play-question-audio"')

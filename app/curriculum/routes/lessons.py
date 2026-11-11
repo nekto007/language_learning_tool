@@ -2941,8 +2941,10 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
         # part of the initial question payload rendered into the page.
         for index, question in enumerate(authored_questions):
             feedback = (result.get('feedback') or {}).get(str(index))
-            if isinstance(feedback, dict) and isinstance(question.get('evidence'), str):
-                feedback['evidence'] = question['evidence']
+            if isinstance(feedback, dict):
+                for field in ('explanation', 'evidence'):
+                    if isinstance(question.get(field), str):
+                        feedback[field] = question[field]
         # Reading's existing learning policy requires an answer to each
         # question, but does not gate progression on accuracy. Persist the
         # actual score/counts rather than a checkbox-generated 100 percent.
@@ -2951,6 +2953,8 @@ def _process_listening_immersion_submission(lesson: 'Lessons', user_id: int, dat
         from app.daily_plan.linear.xp import maybe_award_listening_xp
 
         progress = LessonProgress.query.filter_by(user_id=user_id, lesson_id=lesson.id).one()
+        progress.data = {**(progress.data or {}), 'feedback': result.get('feedback') or {}}
+        flag_modified(progress, 'data')
         now = datetime.now(UTC)
         attempt = LessonAttempt.create_attempt(user_id, lesson.id, progress.id)
         attempt.started_at = progress.started_at or now

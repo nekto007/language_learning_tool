@@ -46,6 +46,7 @@
     if (!el) return;
     var gradeEl = document.getElementById('completion-grade');
     var scoreEl = document.getElementById('completion-score');
+    var titleEl = el.querySelector('.lsn-completion__title');
 
     // UI-010: grade and score used to be written while the container was still
     // display:none. Revealing a hidden node is not a content mutation, so the
@@ -54,6 +55,9 @@
     // into the panel, which in plan mode replaces the footer the learner's
     // focus was sitting in.
     function _fillResult() {
+      if (titleEl && opts.title) {
+        titleEl.textContent = opts.title;
+      }
       if (gradeEl && opts.grade_name) {
         gradeEl.textContent = opts.grade_name;
       }
@@ -97,6 +101,8 @@
         nextBtn.setAttribute('href', nextUrl);
         _setLeadingText(nextBtn, _t('plan_next', 'Следующий урок плана'));
         nextBtn.style.display = '';
+      } else if (nextBtn) {
+        nextBtn.style.display = 'none';
       }
       var dashBtn = actions.querySelector('[data-plan-cta="dashboard"]');
       if (dashBtn) {
@@ -120,8 +126,14 @@
       retry.id = 'completion-retry-lesson';
       retry.className = 'lsn-btn lsn-btn--outline';
       retry.href = retryUrl.toString();
-      retry.textContent = _t('retry_lesson', 'Пройти ещё раз');
+      retry.textContent = opts.retry_label || _t('retry_lesson', 'Пройти ещё раз');
       actions.insertBefore(retry, actions.firstChild);
+    }
+
+    // Question-based practice keeps its result and explanations visible in
+    // the daily plan as well as the catalogue, including after the final slot.
+    if (opts.allowRetry === true) {
+      _renderRetryCta();
     }
 
     var ctx = window.linearPlanContext;
@@ -132,12 +144,13 @@
     // saves the extra fetchNextSlot round-trip.
     if (opts.daily_plan_ctx && opts.daily_plan_ctx.is_daily_plan) {
       var dp = opts.daily_plan_ctx;
-      if (dp.day_secured && !dp.next_slot_url) {
+      if (dp.day_secured && !dp.next_slot_url && !opts.reviewResults) {
         try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
         window.location.href = (dp.dashboard_url || '/dashboard') + '?day_secured=1';
         return;
       }
-      _renderPlanCtas(dp.next_slot_url, dp.next_slot_title, dp.dashboard_url);
+      _renderPlanCtas(dp.next_slot_url, dp.next_slot_title,
+        dp.day_secured && !dp.next_slot_url ? (dp.dashboard_url || '/dashboard') + '?day_secured=1' : dp.dashboard_url);
       _revealCompletion('plan');
       return;
     }
@@ -162,13 +175,14 @@
         _revealCompletion('standalone');
         return;
       }
-      if (data.day_secured && !data.next) {
+      if (data.day_secured && !data.next && !opts.reviewResults) {
         try { if (ctx && typeof ctx.clear === 'function') { ctx.clear(); } } catch (_e) {}
         window.location.href = '/dashboard?day_secured=1';
         return;
       }
       var next = data.next || {};
-      _renderPlanCtas(next.url, next.title, '/dashboard');
+      _renderPlanCtas(next.url, next.title,
+        data.day_secured && !data.next ? '/dashboard?day_secured=1' : '/dashboard');
       _revealCompletion('plan');
     }).catch(function () {
       _revealCompletion('standalone');

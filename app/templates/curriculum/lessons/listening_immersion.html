@@ -377,6 +377,44 @@ function onSelfAssessChange() {
   }
 }
 
+function showListeningResult(data, silent) {
+  Object.entries(data.feedback || {}).forEach(([index, feedback]) => {
+    const block = document.getElementById('li-feedback-' + index);
+    if (!block) return;
+    const verdict = feedback.status === 'correct' ? '{{ _("Верно.") }}' :
+      '{{ _("Правильный ответ:") }} ' + String(feedback.correct_answer ?? '');
+    block.textContent = verdict + (feedback.explanation ? ' ' + feedback.explanation : '') +
+      (feedback.evidence ? ' {{ _("В записи:") }} «' + feedback.evidence + '»' : '');
+    block.hidden = false;
+  });
+  document.querySelectorAll('[data-listening-question] input').forEach(input => { input.disabled = true; });
+  const gate = document.getElementById('listening-completion-gate');
+  if (gate) gate.hidden = true;
+  const actions = document.getElementById('li-submit-btn')?.closest('.lesson-shell__actions');
+  if (actions) actions.hidden = true;
+  const completionActions = document.getElementById('completion-actions');
+  if (completionActions && !document.getElementById('li-review-answers')) {
+    const review = document.createElement('a');
+    review.id = 'li-review-answers';
+    review.className = 'lsn-btn lsn-btn--outline';
+    review.href = '#li-comprehension-title';
+    review.textContent = '{{ _("Разобрать ответы") }}';
+    completionActions.appendChild(review);
+  }
+  if (typeof window.showLessonCompletion === 'function') {
+    window.showLessonCompletion({
+      title: '{{ _("Попытка завершена") }}',
+      grade_name: '{{ _("Правильно") }} ' + data.correct_answers + ' {{ _("из") }} ' + data.total_questions,
+      score: data.score,
+      allowRetry: true,
+      retry_label: '{{ _("Попробовать ещё раз") }}',
+      reviewResults: true,
+      silent: !!silent,
+      daily_plan_ctx: data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }},
+    });
+  }
+}
+
 async function finishLesson() {
   const btn = document.getElementById('li-submit-btn');
   btn.disabled = true;
@@ -396,15 +434,8 @@ async function finishLesson() {
       throw error;
     }
     if (HAS_COMPREHENSION) {
-      Object.entries(data.feedback || {}).forEach(([index, feedback]) => {
-        const block = document.getElementById('li-feedback-' + index);
-        if (!block) return;
-        const verdict = feedback.status === 'correct' ? '{{ _("Верно.") }}' :
-          '{{ _("Правильный ответ:") }} ' + String(feedback.correct_answer ?? '');
-        block.textContent = verdict + (feedback.explanation ? ' ' + feedback.explanation : '') +
-          (feedback.evidence ? ' {{ _("В записи:") }} «' + feedback.evidence + '»' : '');
-        block.hidden = false;
-      });
+      showListeningResult(data, false);
+      return;
     }
 
     // Скрываем гейт + кнопку, чтобы серая disabled-кнопка не висела рядом
@@ -419,7 +450,7 @@ async function finishLesson() {
 
     if (typeof window.showLessonCompletion === 'function') {
       const dpCtx = data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
-      window.showLessonCompletion({ score: HAS_COMPREHENSION ? data.score : 100, daily_plan_ctx: dpCtx });
+      window.showLessonCompletion({ score: 100, daily_plan_ctx: dpCtx });
     }
   } catch (err) {
     console.error('Listening immersion finish error:', err);
@@ -444,13 +475,15 @@ document.addEventListener('DOMContentLoaded', function() {
   initTranscriptToggle();
   initListeningGate();
   onSelfAssessChange();
-  {% if is_completed and (not listening_questions or (progress and progress.data and progress.data.get('total_questions'))) %}
+  {% if is_completed and listening_questions and listening_result %}
+  showListeningResult({{ listening_result|tojson }}, true);
+  {% elif is_completed and not listening_questions %}
   // Если урок открыт повторно после завершения — сразу разворачиваем
   // глобальную плашку «Урок завершён!» (silent=true, без авто-скролла,
   // чтобы пользователь сначала видел сам контент).
   if (typeof window.showLessonCompletion === 'function') {
     const dpCtx = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
-    window.showLessonCompletion({ score: {{ (progress.data.get('score') if listening_questions else 100)|tojson }}, silent: true, daily_plan_ctx: dpCtx });
+    window.showLessonCompletion({ score: 100, silent: true, daily_plan_ctx: dpCtx });
   }
   {% endif %}
 });

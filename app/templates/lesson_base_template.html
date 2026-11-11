@@ -588,7 +588,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
 {% include 'components/_lesson_i18n.html' %}
-<script src="{{ url_for('static', filename='js/lesson-completion.js') }}"></script>
+<script src="{{ url_for('static', filename='js/lesson-completion.js') }}?v=20261112a"></script>
 <script nonce="{{ csp_nonce }}">
 // Keep retry state server-side. The one-shot query parameter must not remain
 // in a copied or refreshed URL after the first page render.

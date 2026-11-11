@@ -5,6 +5,7 @@ from collections import Counter
 import random
 import re
 from datetime import UTC, datetime
+from urllib.parse import urlencode
 
 from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -1117,6 +1118,20 @@ def grammar_lesson(lesson_id):
         progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson
     )
+
+
+@lessons_bp.route('/lesson/<int:lesson_id>/listening_quiz')
+@login_required
+@require_lesson_access
+def listening_quiz_alias(lesson_id):
+    """Keep type-based listening links usable via the canonical quiz route."""
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'listening_quiz':
+        abort(404)
+    target = url_for('curriculum_lessons.quiz_lesson', lesson_id=lesson_id)
+    if request.args:
+        target += '?' + urlencode(list(request.args.items(multi=True)))
+    return redirect(target)
 
 
 @lessons_bp.route('/lesson/<int:lesson_id>/quiz', methods=['GET', 'POST'])
