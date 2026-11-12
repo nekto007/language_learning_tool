@@ -1,4 +1,4 @@
-"""Tests for landing page improvements: testimonials, FAQ, stats, JSON-LD, SEO."""
+"""Tests for public landing access, preview, FAQ, stats, JSON-LD and SEO."""
 import os
 import uuid
 import xml.etree.ElementTree as ET
@@ -15,11 +15,22 @@ class TestLandingPage:
         response = client.get('/')
         assert response.status_code == 200
 
-    def test_landing_has_testimonials(self, client):
+    def test_preview_and_share_work_without_an_account(self, client):
+        from bs4 import BeautifulSoup
+        from urllib.parse import parse_qs, urlparse
+
         response = client.get('/')
-        html = response.data.decode()
-        assert 'land-testimonials' in html
-        assert 'Что говорят наши ученики' in html
+        assert response.status_code == 200
+        page = BeautifulSoup(response.data, 'html.parser')
+        target = page.select_one('a[href="#try-english"]')
+        assert target and page.select_one(target['href'])
+        preview = page.select_one('#landing-preview')
+        assert len(preview.select('input[type="radio"]')) == 3
+        assert preview.select_one('noscript')  # Explanation remains available without JS.
+        assert preview.find_parent('form') is None  # Demo never submits a lesson attempt.
+        share_url = urlparse(page.select_one('#landing-share-url')['value'])
+        assert share_url.netloc == 'llt-english.com'
+        assert parse_qs(share_url.query)['utm_source'] == ['friend']
 
     def test_landing_has_faq(self, client):
         response = client.get('/')
@@ -235,10 +246,12 @@ class TestLandingMetaCompleteness:
 
     def test_landing_title_and_meta_description_are_unique(self, client):
         """Landing title and description should differ from generic defaults."""
+        from bs4 import BeautifulSoup
+
         response = client.get('/')
-        html = response.data.decode()
-        # The landing page sets a specific title block
-        assert 'Платформа для изучения английского языка' in html
+        page = BeautifulSoup(response.data, 'html.parser')
+        assert page.title.string != 'LLT English'
+        assert page.title.string != page.select_one('meta[name="description"]')['content']
 
 
 class TestLandingAnonymousAccess:
@@ -262,7 +275,7 @@ class TestLandingAnonymousAccess:
         html = response.data.decode()
         # The grammar lab link is only shown for authenticated users
         # Anonymous should see the register button instead
-        assert 'Начать обучение' in html
+        assert 'Начать бесплатно' in html
 
     def test_authenticated_user_redirected_from_landing(self, authenticated_client):
         """Authenticated users with words module enabled should be redirected."""

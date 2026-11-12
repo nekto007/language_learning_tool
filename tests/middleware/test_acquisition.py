@@ -109,18 +109,16 @@ def test_register_persists_acquisition_meta(client, db_session):
             '/register',
             data={
                 'username': f'utm_user_{suffix}',
-                'email': f'utm_user_{suffix}@example.test',
+                'email': f'utm_user_{suffix}@example.com',
                 'password': 'StrongPass1!',
-                'confirm_password': 'StrongPass1!',
+                'password2': 'StrongPass1!',
             },
             follow_redirects=False,
         )
-        # Either redirect on success or 200 if validation rejected something.
-        assert response.status_code in (200, 302)
+        assert response.status_code == 302
 
-    user = User.query.filter_by(email=f'utm_user_{suffix}@example.test').first()
-    if user is None:
-        pytest.skip('Register form rejected the test payload; skipping persistence check')
+    user = User.query.filter_by(email=f'utm_user_{suffix}@example.com').first()
+    assert user is not None
     assert user.acquisition_meta is not None
     assert user.acquisition_meta['utm_source'] == 'telegram'
     assert user.acquisition_meta['utm_medium'] == 'channel'

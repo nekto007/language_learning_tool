@@ -1,16 +1,16 @@
 {% extends 'public_base.html' %}
 
-{% block title %}LLT English — Платформа для изучения английского языка{% endblock %}
+{% block title %}Английский для начинающих бесплатно — LLT English{% endblock %}
 
 {% block og_tags %}
-<meta property="og:title" content="LLT English — Платформа для изучения английского языка">
-<meta property="og:description" content="Грамматика, курсы, карточки, книги — всё для изучения английского в одном месте.">
+<meta property="og:title" content="Английский для начинающих бесплатно — LLT English">
+<meta property="og:description" content="Начните с простых фраз и объяснений на русском. Попробуйте задание без регистрации, затем переходите к урокам A1–C1.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{{ request.base_url }}">
 {% endblock %}
 {% block og_image %}{{ url_for('static', filename='img/landing_OG.png', _external=True) }}{% endblock %}
 
-{% block meta_description %}<meta name="description" content="Изучайте английский язык онлайн: грамматика с теорией и упражнениями, курсы по уровням A1–C1, карточки для запоминания слов, книги с переводом.">{% endblock %}
+{% block meta_description %}<meta name="description" content="Бесплатный английский для начинающих: простые фразы, объяснения на русском, задания со звуком и повторение слов. Попробуйте задание без регистрации. Курсы A1–C1.">{% endblock %}
 
 {% block head_extra %}
 <meta http-equiv="content-language" content="ru">
@@ -49,7 +49,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/landing/index.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing/index.css') }}?v=20261112c">
 {% endblock %}
 
 {% block body_class %}landing-page{% endblock %}
@@ -64,13 +64,12 @@
         <div class="land-hero__circle land-hero__circle--3"></div>
 
         <h1 class="land-hero__title land-anim land-anim--d1">
-            Изучайте английский<br>системно и эффективно
+            Английский с первых фраз.<br>С объяснениями на русском.
         </h1>
         <p class="land-hero__desc land-anim land-anim--d2">
-            Полноценная программа обучения от нуля до свободного владения.
-            Структурированные уроки по международным уровням CEFR,
-            научно обоснованная система интервального повторения слов,
-            чтение адаптированных книг и отслеживание прогресса.
+            Начинаете или возвращаетесь после перерыва? На уровне A1 начните
+            с приветствий и знакомства. Практикуйте слова, слушайте записи
+            и разбирайте ответы в своём темпе. Обучение бесплатное.
         </p>
         <div class="land-hero__actions land-anim land-anim--d3">
             {% if current_user.is_authenticated %}
@@ -85,15 +84,34 @@
                 <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
-                Начать обучение
+                Начать бесплатно
             </a>
-            <a href="{{ url_for('auth.login') }}" class="land-btn land-btn--secondary">
-                <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
-                </svg>
-                Войти
+            <a href="#try-english" class="land-btn land-btn--secondary">
+                Попробовать без регистрации
             </a>
             {% endif %}
+        </div>
+    </section>
+
+    <section id="try-english" class="land-preview" aria-labelledby="preview-title">
+        <h2 id="preview-title" class="land-section__title">Начните с одной фразы</h2>
+        <p class="land-section__subtitle">Пример задания для начинающих. Выберите слово — и сразу увидите объяснение.</p>
+        <div class="land-preview__card" id="landing-preview">
+            <fieldset>
+                <legend lang="en">I ___ Anna.</legend>
+                <p>Нужно представиться: «Я Анна». Какое слово подходит?</p>
+                <div class="land-preview__options">
+                    {% for option in ['am', 'is', 'are'] %}
+                    <label><input type="radio" name="preview-answer" value="{{ option }}"> <span lang="en">{{ option }}</span></label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <div id="preview-feedback" class="land-preview__feedback" role="status" aria-live="polite" hidden></div>
+            <button id="preview-reset" class="land-preview__reset" type="button" hidden>Попробовать ещё раз</button>
+            <noscript><p>Ответ: <strong lang="en">am</strong>. С <span lang="en">I</span> используем <span lang="en">am</span>: <span lang="en">I am Anna.</span> — «Я Анна».</p></noscript>
+            <p class="land-preview__next">В курсе A1 начнёте с приветствий и знакомства. После регистрации выберите A1 и откройте первый урок.</p>
+            <a class="land-btn land-btn--accent" href="{{ url_for('auth.register') }}">Перейти к бесплатным урокам</a>
+            <p class="land-preview__note">Пример на этой странице не сохраняется в учебный прогресс.</p>
         </div>
     </section>
 
@@ -181,7 +199,7 @@
     <!-- How it works -->
     <section class="land-how land-anim land-anim--d5">
         <h2 class="land-section__title">Как это работает</h2>
-        <p class="land-section__subtitle">Четыре простых шага к свободному владению английским</p>
+        <p class="land-section__subtitle">Начните с уровня A1 или выберите программу под свои знания</p>
 
         <div class="land-how__grid">
             <div class="land-step">
@@ -211,7 +229,7 @@
     <section class="land-levels land-anim land-anim--d6">
         <h2 class="land-section__title">Уровни обучения</h2>
         <p class="land-section__subtitle">
-            Программа построена по международной шкале CEFR — от полного нуля до свободного владения.
+            Программа охватывает уровни CEFR от A1 до C1.
             Каждый уровень включает грамматику, лексику, чтение и практические упражнения.
         </p>
 
@@ -224,45 +242,25 @@
         </div>
     </section>
 
-    <!-- Testimonials -->
-    <section class="land-testimonials land-anim land-anim--d6" style="margin-bottom: 3rem;">
-        <h2 class="land-section__title">Что говорят наши ученики</h2>
-        <p class="land-section__subtitle">Реальные отзывы от людей, которые учат английский на LLT English</p>
-
-        <div class="land-testimonials__grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
-            <div class="land-testimonial" style="background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem;">
-                <div style="display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--land-gradient); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .95rem;">А</div>
-                    <div>
-                        <div style="font-weight: 600; color: var(--land-text); font-size: .95rem;">Анна К.</div>
-                        <div style="font-size: .8rem; color: var(--land-text-muted);">Учится 4 месяца</div>
-                    </div>
-                </div>
-                <p style="font-size: .9rem; color: var(--land-text-muted); line-height: 1.6; margin: 0;">Наконец-то нашла платформу, где всё собрано в одном месте. Карточки со словами помогают запоминать надолго, а уроки по уровням дают понятную структуру.</p>
-            </div>
-
-            <div class="land-testimonial" style="background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem;">
-                <div style="display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #06b6d4); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .95rem;">М</div>
-                    <div>
-                        <div style="font-weight: 600; color: var(--land-text); font-size: .95rem;">Максим Д.</div>
-                        <div style="font-size: .8rem; color: var(--land-text-muted);">Учится 7 месяцев</div>
-                    </div>
-                </div>
-                <p style="font-size: .9rem; color: var(--land-text-muted); line-height: 1.6; margin: 0;">Стрик в 60 дней! Система повторения реально работает — слова запоминаются сами. Особенно нравится чтение книг с мгновенным переводом.</p>
-            </div>
-
-            <div class="land-testimonial" style="background: var(--land-surface); border: 1px solid var(--land-border); border-radius: var(--land-radius); padding: 1.5rem;">
-                <div style="display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem;">
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ef4444); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .95rem;">Е</div>
-                    <div>
-                        <div style="font-weight: 600; color: var(--land-text); font-size: .95rem;">Елена С.</div>
-                        <div style="font-size: .8rem; color: var(--land-text-muted);">Учится 2 месяца</div>
-                    </div>
-                </div>
-                <p style="font-size: .9rem; color: var(--land-text-muted); line-height: 1.6; margin: 0;">Начала с нуля. За два месяца прошла уровень A1 и начала A2. Очень удобно, что есть Telegram-бот — напоминает о занятиях и показывает прогресс.</p>
-            </div>
+    <section class="land-start" aria-labelledby="start-title">
+        <h2 id="start-title" class="land-section__title">Как провести первую неделю</h2>
+        <p class="land-section__subtitle">Выберите удобный темп. Задача на старте — освоиться и вернуться к следующему занятию.</p>
+        <div class="land-start__grid">
+            <div class="land-step"><span class="land-step__num">1</span><h3 class="land-step__title">Первое занятие</h3><p class="land-step__desc">Зарегистрируйтесь, выберите A1 и откройте модуль «Знакомство и приветствия». Начните с первого урока.</p></div>
+            <div class="land-step"><span class="land-step__num">2</span><h3 class="land-step__title">Следующий день</h3><p class="land-step__desc">Вернитесь к словам и продолжите уроки. В заданиях для начинающих есть поддержка на русском.</p></div>
+            <div class="land-step"><span class="land-step__num">3</span><h3 class="land-step__title">Дальше — в своём темпе</h3><p class="land-step__desc">Слушайте, читайте и практикуйтесь. Смотрите объяснения ошибок и пробуйте снова. Прогресс сохранится в аккаунте.</p></div>
         </div>
+    </section>
+
+    <section class="land-share" aria-labelledby="share-title">
+        <h2 id="share-title" class="land-section__title">Учиться вместе проще начать</h2>
+        <p class="land-section__subtitle">Знаете человека, который тоже хочет вернуться к английскому? Поделитесь бесплатными уроками.</p>
+        <label for="landing-share-url">Ссылка для друга</label>
+        <div class="land-share__actions">
+            <input id="landing-share-url" type="url" readonly value="https://llt-english.com/?utm_source=friend&amp;utm_medium=share&amp;utm_campaign=first_learners" spellcheck="false">
+            <button id="landing-share-copy" class="land-btn land-btn--accent" type="button">Скопировать ссылку</button>
+        </div>
+        <p id="landing-share-status" class="land-preview__note" role="status" aria-live="polite">Можно также выделить ссылку и скопировать её вручную.</p>
     </section>
 
     <!-- FAQ -->
@@ -342,7 +340,7 @@
             <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
-            Начать обучение
+            Начать бесплатно
         </a>
         {% endif %}
     </section>
@@ -353,4 +351,8 @@
 <audio id="audioPlayer" style="display:none;"></audio>
 <script src="{{ url_for('static', filename='js/landing/index.js') }}?v=1"></script>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/landing/preview.js') }}?v=20261112c" defer></script>
 {% endblock %}
