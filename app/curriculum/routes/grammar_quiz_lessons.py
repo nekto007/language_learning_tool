@@ -15,6 +15,7 @@ from sqlalchemy.orm import joinedload
 from app.curriculum.constants import PASSING_SCORE_DEFAULT, get_lesson_passing_score
 from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
+from app.curriculum.language_support import language_support_mode, localized_option, question_translation
 from app.curriculum.routes.lessons import (
     is_lesson_retry_requested,
     lessons_bp,
@@ -553,6 +554,9 @@ def _quiz_display_context(lesson, questions: list[dict]) -> dict:
         'ordering_translation_mode': _ordering_translation_mode(lesson),
         'lesson_instruction': None,
         'item_instructions': None,
+        'question_support_mode': language_support_mode(lesson),
+        'option_label': lambda value: localized_option(value, lesson),
+        'boolean_option_labels': {value: localized_option(value, lesson) for value in ('true', 'false')},
     }
     if lesson.type == 'dialogue_completion_quiz':
         lesson_instruction, item_instructions = _dialogue_lesson_instruction(questions)
@@ -561,9 +565,15 @@ def _quiz_display_context(lesson, questions: list[dict]) -> dict:
     return context
 
 
-def _sanitize_quiz_questions(cleaned_content: dict) -> None:
+def _sanitize_quiz_questions(cleaned_content: dict, lesson=None) -> None:
     """Sanitize and normalize quiz question content in-place."""
     for question in cleaned_content['questions']:
+        if lesson is not None:
+            translated = question_translation(question)
+            for field in ('question_ru', 'statement_ru', 'prompt_ru'):
+                question.pop(field, None)
+            if translated and language_support_mode(lesson) != 'off':
+                question['question_ru'] = html.unescape(sanitize_html(translated))
         if 'question' in question:
             question['question'] = html.unescape(sanitize_html(question['question']))
         elif 'prompt' in question:
@@ -662,7 +672,7 @@ def render_quiz_lesson(lesson):
         flash('Ошибка в содержимом урока', 'error')
         return redirect('/learn/')
 
-    _sanitize_quiz_questions(cleaned_content)
+    _sanitize_quiz_questions(cleaned_content, lesson)
 
     reset_progress = is_lesson_retry_requested()
     retry_errors = request.args.get('retry_errors') == 'true'
@@ -943,7 +953,8 @@ def render_final_test_lesson(lesson):
         settings=cleaned_content,
         progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson,
-        passing_score=get_lesson_passing_score(lesson)
+        passing_score=get_lesson_passing_score(lesson),
+        option_label=lambda value: localized_option(value, lesson),
     )
 
 
@@ -1161,7 +1172,7 @@ def quiz_lesson(lesson_id):
         flash('Ошибка в содержимом урока', 'error')
         return redirect('/learn/')
 
-    _sanitize_quiz_questions(cleaned_content)
+    _sanitize_quiz_questions(cleaned_content, lesson)
 
     reset_progress = is_lesson_retry_requested()
 

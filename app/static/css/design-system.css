@@ -14003,6 +14003,24 @@ button.nav-section-title {
     color: #1e40af;
 }
 .translation-item__feedback--review i { color: #2563eb; }
+.quiz-question-translation,
+.reading-question-translation,
+.final-test-question-translation,
+.li-question-translation,
+.li-question-help {
+    margin: 0.5rem 0 1rem;
+    padding: 0.65rem 0.9rem;
+    border-left: 3px solid #6366f1;
+    border-radius: 0.35rem;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+.quiz-question-translation summary,
+.reading-question-translation summary,
+.final-test-question-translation summary,
+.li-question-help summary { cursor: pointer; color: #4338ca; }
 .translation-item__attempts {
     margin-left: auto;
     font-size: 0.8rem;

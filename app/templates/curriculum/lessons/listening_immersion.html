@@ -7,6 +7,7 @@
 {% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else 'A1' %}
 {% set is_advanced = level_code in ('B1', 'B2', 'C1') %}
 {% set listening_questions = listening_questions | default([]) %}
+{% set listening_language_mode = listening_language_mode | default('off') %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/listening_immersion.css') }}?v=1">
@@ -128,17 +129,25 @@
         {% set saved_value = saved_answers.get(question_index|string, {}).get('value') %}
         <fieldset class="li-comprehension-question mb-4" data-listening-question="{{ question_index }}">
           <legend class="fs-6 fw-semibold">{{ loop.index }}. {{ question.question }}</legend>
+          {% if question.question_ru and listening_language_mode == 'inline' %}
+            <p class="li-question-translation" lang="ru">{{ question.question_ru }}</p>
+          {% elif question.question_ru and listening_language_mode == 'toggle' %}
+            <details class="li-question-help">
+              <summary>{{ _('Показать перевод вопроса') }}</summary>
+              <p lang="ru">{{ question.question_ru }}</p>
+            </details>
+          {% endif %}
           {% if question.options %}
             {% for option in question.options %}
             <label class="li-comprehension-option d-flex align-items-start gap-2 p-2">
               <input type="radio" name="li-answer-{{ question_index }}" value="{{ loop.index0 }}"
                      {% if saved_value|string == loop.index0|string or saved_value == option %}checked{% endif %}
                      onchange="onSelfAssessChange()">
-              <span>{{ option }}</span>
+              <span>{{ question.option_labels[loop.index0] if question.option_labels else option }}</span>
             </label>
             {% endfor %}
           {% elif question.type == 'true_false' %}
-            {% for value, label in [('true', _('Верно')), ('false', _('Неверно'))] %}
+            {% for value, label in listening_boolean_options | default([('true', 'True'), ('false', 'False')]) %}
             <label class="li-comprehension-option d-flex align-items-start gap-2 p-2">
               <input type="radio" name="li-answer-{{ question_index }}" value="{{ value }}"
                      {% if saved_value == value %}checked{% endif %} onchange="onSelfAssessChange()">

@@ -139,9 +139,9 @@
              try to decode English first, then check themselves. The reveal
              can be either per-line (click the «Перевод» chip on a row) or
              whole-text via this switch. #}
-          {% set _has_any_translation = false %}
-          {% for line in text_content.text.lines %}{% if line.translation %}{% set _has_any_translation = true %}{% endif %}{% endfor %}
-          {% if _has_any_translation and not is_advanced %}
+          {% set reading_support = namespace(has_translation=false) %}
+          {% for line in text_content.text.lines %}{% if line.translation %}{% set reading_support.has_translation = true %}{% endif %}{% endfor %}
+          {% if reading_support.has_translation and not is_advanced %}
           <div class="reading-translations-toggle-row">
             <button class="reading-translations-toggle-all" id="reading-translations-toggle-all"
                     type="button" data-action="toggle-all-translations"
@@ -383,6 +383,15 @@
              Options arrive pre-shuffled from the route (A9). #}
           <div class="question-block" data-question-index="{{ question_index }}" data-question-type="{{ question.type }}">
             <p class="question-text">{{ loop.index }}. {{ (question.question or question.statement or question.instruction)|sanitize }}</p>
+            {% set question_ru = question.get('question_ru') or question.get('statement_ru') or question.get('prompt_ru') %}
+            {% if question_ru and level_code in ('A0', 'A1') %}
+              <p class="reading-question-translation" lang="ru">{{ question_ru }}</p>
+            {% elif question_ru and level_code == 'A2' %}
+              <details class="reading-question-translation">
+                <summary>{{ _('Показать перевод вопроса') }}</summary>
+                <p lang="ru">{{ question_ru }}</p>
+              </details>
+            {% endif %}
             {% if question.type == 'true_false' %}
               <div class="answer-options answer-options-flex">
                 <button type="button" class="answer-option-btn flex-fill" data-value="true" data-action="check-true-false" data-question-index="{{ question_index }}" data-bool="true">

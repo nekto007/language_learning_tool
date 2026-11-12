@@ -1,5 +1,9 @@
 """Listening comprehension uses server answers, never checkbox-made accuracy."""
+from copy import deepcopy
+from html.parser import HTMLParser
+
 import pytest
+from sqlalchemy import func
 from unittest.mock import patch
 
 from app.curriculum.models import CEFRLevel, LessonAttempt, LessonProgress, Lessons, ListeningAttempt, Module
@@ -202,3 +206,108 @@ def test_listening_choice_displays_the_statement_or_question_above_options(
     assert expected in html
     assert '<h3 class="question-text">PRIVATE_AUDIO_TRANSCRIPT</h3>' not in html
     assert html.index(expected) < html.index('data-action="play-question-audio"')
+
+
+def _set_listening_level(db_session, lesson, code):
+    level = db_session.query(CEFRLevel).filter_by(code=code).first()
+    if level is None:
+        order = {'A0': 0, 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5}[code]
+        level = CEFRLevel(code=code, name=code, order=order)
+        db_session.add(level)
+        db_session.flush()
+    module = lesson.module
+    number = (db_session.query(func.max(Module.number)).filter_by(level_id=level.id).scalar() or 0) + 1
+    module.number = number
+    module.level = level
+    db_session.flush()
+
+
+class _QuestionHelpParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.help_details = []
+        self.answers = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == 'details' and 'li-question-help' in attributes.get('class', '').split():
+            self.help_details.append(attributes)
+        if tag == 'input' and attributes.get('name') == 'li-answer-0':
+            self.answers.append(attributes)
+
+
+@pytest.mark.parametrize('code,mode', [('A0', 'inline'), ('A1', 'inline'), ('A2', 'toggle'),
+                                      ('B1', 'off'), ('B2', 'off'), ('C1', 'off')])
+def test_listening_task_russian_support_follows_actual_cefr_level(
+    db_session, learner_client, listening_lesson, code, mode,
+):
+    _set_listening_level(db_session, listening_lesson, code)
+    content = deepcopy(listening_lesson.content)
+    content['comprehension_questions'][0]['question_ru'] = '<em>Русский перевод вопроса</em>'
+    listening_lesson.content = content
+    db_session.commit()
+    with patch('app.curriculum.security.check_module_access', return_value=True):
+        response = learner_client.get(f'/curriculum/lesson/{listening_lesson.id}/listening-immersion')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'What did they decide?' in html
+    parser = _QuestionHelpParser()
+    parser.feed(html)
+    if mode == 'inline':
+        assert '<p class="li-question-translation" lang="ru">Русский перевод вопроса</p>' in html
+        assert parser.help_details == []
+    elif mode == 'toggle':
+        assert 'Показать перевод вопроса' in html
+        assert 'Русский перевод вопроса' in html
+        assert len(parser.help_details) == 1
+        assert 'open' not in parser.help_details[0]
+    else:
+        assert 'Русский перевод вопроса' not in html
+        assert 'li-question-translation' not in html
+        assert parser.help_details == []
+    assert '<em>Русский перевод вопроса</em>' not in html
+    assert 'PRIVATE_EXPLANATION_NOT_FOR_INITIAL_DOM' not in html
+    assert 'PRIVATE_EVIDENCE_NOT_FOR_INITIAL_DOM' not in html
+
+
+@pytest.mark.parametrize('code,expected', [('A1', 'Верно / True'), ('A2', 'Верно / True'), ('B1', 'True')])
+def test_listening_localized_boolean_labels_preserve_original_indexes_and_grading(
+    db_session, learner_client, listening_lesson, code, expected,
+):
+    _set_listening_level(db_session, listening_lesson, code)
+    listening_lesson.content = {**listening_lesson.content, 'comprehension_questions': [
+        {'type': 'multiple_choice', 'question': 'The meeting was postponed.',
+         'question_ru': 'Встречу перенесли.', 'options': ['True', 'False'], 'correct': 'True'},
+    ]}
+    db_session.commit()
+    with patch('app.curriculum.security.check_module_access', return_value=True):
+        response = learner_client.get(f'/curriculum/lesson/{listening_lesson.id}/listening-immersion')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert f'<span>{expected}</span>' in html
+        parser = _QuestionHelpParser()
+        parser.feed(html)
+        assert [answer['value'] for answer in parser.answers] == ['0', '1']
+        result = _submit(learner_client, listening_lesson, {'answers': {'0': '0'}})
+    assert result.status_code == 200
+    assert result.get_json()['score'] == 100
+    assert listening_lesson.content['comprehension_questions'][0]['options'] == ['True', 'False']
+
+
+def test_listening_question_translation_never_uses_answer_or_audio_translation(
+    db_session, learner_client, listening_lesson,
+):
+    _set_listening_level(db_session, listening_lesson, 'A1')
+    content = deepcopy(listening_lesson.content)
+    content['comprehension_questions'][0].update(
+        translation='PRIVATE_AUDIO_TRANSLATION_NOT_A_QUESTION',
+        transcript='PRIVATE_AUDIO_TRANSCRIPT_NOT_A_QUESTION')
+    listening_lesson.content = content
+    db_session.commit()
+    with patch('app.curriculum.security.check_module_access', return_value=True):
+        response = learner_client.get(f'/curriculum/lesson/{listening_lesson.id}/listening-immersion')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'PRIVATE_AUDIO_TRANSLATION_NOT_A_QUESTION' not in html
+    assert 'PRIVATE_AUDIO_TRANSCRIPT_NOT_A_QUESTION' not in html
+    assert 'class="li-question-translation"' not in html

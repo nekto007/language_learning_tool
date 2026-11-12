@@ -4,6 +4,7 @@
 {% set instruction_text = _('Ответьте на все вопросы, чтобы завершить модуль. Необходимо набрать минимум ') ~ passing_score ~ _('%% для успешного прохождения.') %}
 {% set block_description = _('Финальная проверка знаний по всему модулю') %}
 {% set show_score = true %}
+{% set level_code = lesson.module.level.code if lesson.module and lesson.module.level else '' %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/final_test.css') }}?v=2">
@@ -134,6 +135,16 @@
             {% endif %}
           {% endif %}
 
+          {% set question_ru = question.get('question_ru') or question.get('statement_ru') or question.get('prompt_ru') %}
+          {% if question_ru and level_code in ('A0', 'A1') %}
+            <p class="final-test-question-translation" lang="ru">{{ question_ru }}</p>
+          {% elif question_ru and level_code == 'A2' %}
+            <details class="final-test-question-translation">
+              <summary>{{ _('Показать перевод вопроса') }}</summary>
+              <p lang="ru">{{ question_ru }}</p>
+            </details>
+          {% endif %}
+
           {# Listening choice questions - show audio player and instruction #}
           {% if question.type == 'listening_choice' %}
             {% if question.audio %}
@@ -167,7 +178,7 @@
                         data-value="{{ loop.index0 }}"
                         data-text="{{ option }}">
                   <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
-                  <span class="option-text">{{ option|sanitize }}</span>
+                  <span class="option-text">{{ (option_label(option) if option_label is defined else option)|sanitize }}</span>
                 </button>
               {% endfor %}
             </div>
@@ -202,7 +213,7 @@
                           data-value="{{ loop.index0 }}"
                           data-text="{{ option }}">
                     <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
-                    <span class="option-text">{{ option }}</span>
+                    <span class="option-text">{{ option_label(option) if option_label is defined else option }}</span>
                   </button>
                 {% endfor %}
               </div>

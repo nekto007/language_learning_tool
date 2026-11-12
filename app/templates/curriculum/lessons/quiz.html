@@ -4,6 +4,7 @@
 {% set instruction_text = lesson_instruction or _('Отвечайте на вопросы по одному. После каждого ответа вы увидите результат.') %}
 {% set block_description = _('Проверьте свои знания с помощью интерактивной викторины') %}
 {% set show_score = true %}
+{% set question_support_mode = question_support_mode|default('off') %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/quiz.css') }}?v=2">
@@ -24,20 +25,37 @@
   {{ text|replace('&#39;', "'")|replace('&quot;', '"')|replace('&amp;', '&')|replace('&lt;', '<')|replace('&gt;', '>') }}
 {% endmacro %}
 
+{% macro question_support(question) %}
+  {% if question.get('question_ru') and question.get('prompt_role') != 'audio' and question.get('question_ru') != question.get('question') %}
+    {% if question_support_mode == 'inline' %}
+      <p class="quiz-question-translation" lang="ru">{{ question.question_ru }}</p>
+    {% elif question_support_mode == 'toggle' %}
+      <details class="quiz-question-translation">
+        <summary>{{ _('Показать перевод вопроса') }}</summary>
+        <p lang="ru">{{ question.question_ru }}</p>
+      </details>
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
+{% macro display_option(value) %}
+  {{ option_label(value) if option_label is defined else value }}
+{% endmacro %}
+
 {% macro format_answer(answer, question) %}
   {% if question.type == 'multiple_choice' or question.type == 'listening_choice' %}
     {# Если ответ - индекс, преобразуем в текст опции #}
     {% if answer is number or (answer|string).isdigit() %}
       {% set idx = answer|int %}
       {% if idx >= 0 and idx < question.options|length %}
-        {{ question.options[idx] }}
+        {{ display_option(question.options[idx]) }}
       {% elif idx >= 1 and idx <= question.options|length %}
-        {{ question.options[idx - 1] }}
+        {{ display_option(question.options[idx - 1]) }}
       {% else %}
         {{ answer }}
       {% endif %}
     {% else %}
-      {{ answer }}
+      {{ display_option(answer) }}
     {% endif %}
   {% elif question.type == 'true_false' %}
     {# Преобразуем true/false в русский #}
@@ -118,6 +136,19 @@
               <div class="wrong">❌ {{ format_answer(feedback.user_answer, question) }}</div>
               <div class="correct">✓ {{ format_answer(feedback.correct_answer, question) }}</div>
             </div>
+            {{ question_support(question) }}
+            {% if question.explanation %}
+              <p>{{ _('Объяснение:') }} {{ question.explanation }}</p>
+            {% endif %}
+            {% if question.type == 'listening_choice' %}
+              {% set spoken = question.get('audio_text') or question.get('transcript') %}
+              {% if spoken and spoken|lower not in ('true', 'false') %}
+                <p>{{ _('В записи:') }} {{ spoken }}</p>
+                {% if question_support_mode in ('inline', 'toggle') and (question.get('audio_translation') or question.get('translation')) %}
+                  <p>{{ _('Перевод:') }} {{ question.get('audio_translation') or question.get('translation') }}</p>
+                {% endif %}
+              {% endif %}
+            {% endif %}
           </div>
         {% endfor %}
       </div>
@@ -252,6 +283,7 @@
             {% endif %}
             {% if question.type == 'multiple_choice' %}
               <h3 class="question-text">{{ question.get('question') }}</h3>
+              {{ question_support(question) }}
               <div class="answer-options">
                 {% for option in question.options %}
                   <button type="button"
@@ -260,26 +292,27 @@
                           data-value="{{ loop.index0 }}"
                           data-text="{{ option }}">
                     <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
-                    <span class="option-text">{{ option }}</span>
+                    <span class="option-text">{{ display_option(option) }}</span>
                   </button>
                 {% endfor %}
               </div>
             {% elif question.type == 'true_false' %}
               <h3 class="question-text">{{ question.get('question') or question.get('statement') or question.get('prompt') }}</h3>
+              {{ question_support(question) }}
               <div class="answer-options">
                 <button type="button"
                         class="answer-option"
                         data-question="{{ question_index }}"
                         data-value="true">
                   <span class="option-letter">T</span>
-                  <span class="option-text">{{ _('Правда') }}</span>
+                  <span class="option-text">{{ display_option('True') }}</span>
                 </button>
                 <button type="button"
                         class="answer-option"
                         data-question="{{ question_index }}"
                         data-value="false">
                   <span class="option-letter">F</span>
-                  <span class="option-text">{{ _('Ложь') }}</span>
+                  <span class="option-text">{{ display_option('False') }}</span>
                 </button>
               </div>
 
@@ -462,8 +495,11 @@
                 </p>
               {% endif %}
               {% set listening_prompt = question.get('question') or question.get('statement') or question.get('prompt') %}
-              {% if listening_prompt and listening_prompt != question.get('instruction') %}
+              {% if question.get('prompt_role') == 'audio' %}
+                <h3 class="question-text">{{ _('Что вы услышали?') }}</h3>
+              {% elif listening_prompt and listening_prompt != question.get('instruction') %}
                 <h3 class="question-text">{{ listening_prompt }}</h3>
+                {{ question_support(question) }}
               {% endif %}
               {% if question.get('audio') %}
                 <div class="quiz-audio-player">
@@ -480,7 +516,7 @@
                           data-value="{{ loop.index0 }}"
                           data-text="{{ option }}">
                     <span class="option-letter">{{ 'ABCD'[loop.index0] }}</span>
-                    <span class="option-text">{{ option }}</span>
+                    <span class="option-text">{{ display_option(option) }}</span>
                   </button>
                 {% endfor %}
               </div>
@@ -616,6 +652,12 @@ window.quizData = {
   isCompleted: {{ is_completed|tojson|safe }},
   hasResults: {{ has_results|tojson|safe }}
 };
+
+const quizBooleanLabels = {{ boolean_option_labels|default({})|tojson }};
+function displayQuizAnswer(value) {
+  const text = String(value ?? '');
+  return quizBooleanLabels[text.trim().toLowerCase()] || text;
+}
 
 // Quiz data is loaded
 
@@ -1362,13 +1404,37 @@ window.QuizApp = {
       const hideUserAnswer = ['matching', 'reorder', 'ordering', 'transformation'].includes(question.type);
 
       if (userText && !hideUserAnswer) {
-        textEl.innerHTML += `{{ _("Ваш ответ:") }} <strong>${userText}</strong><br>`;
+        textEl.innerHTML += `{{ _("Ваш ответ:") }} <strong>${displayQuizAnswer(userText)}</strong><br>`;
       }
-      textEl.innerHTML += `{{ _("Правильный ответ:") }} <strong>${correctText}</strong>`;
+      textEl.innerHTML += `{{ _("Правильный ответ:") }} <strong>${displayQuizAnswer(correctText)}</strong>`;
 
       // Add explanation if available
       if (question.explanation) {
         textEl.innerHTML += `<br><br><strong>{{ _("Объяснение:") }}</strong> ${question.explanation}`;
+      }
+    }
+
+    // The spoken sentence is answer feedback, separate from the displayed
+    // question/statement. Its meaning must not become a pre-answer hint.
+    if (question.type === 'listening_choice') {
+      const spoken = question.audio_text || question.transcript || '';
+      if (spoken && !['true', 'false'].includes(String(spoken).trim().toLowerCase())) {
+        const line = document.createElement('p');
+        line.textContent = '{{ _("В записи:") }} ' + spoken;
+        textEl.appendChild(line);
+        {% if question_support_mode in ('inline', 'toggle') %}
+        const meaning = question.audio_translation || question.translation || '';
+        if (meaning) {
+          const translation = document.createElement('p');
+          translation.textContent = '{{ _("Перевод:") }} ' + meaning;
+          textEl.appendChild(translation);
+        }
+        {% endif %}
+      }
+      if (isCorrect && question.explanation) {
+        const explanation = document.createElement('p');
+        explanation.textContent = '{{ _("Объяснение:") }} ' + question.explanation;
+        textEl.appendChild(explanation);
       }
     }
 

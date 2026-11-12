@@ -837,17 +837,34 @@ def listening_immersion_lesson(lesson_id):
         listening_result = {key: saved.get(key) for key in ('score', 'correct_answers', 'total_questions')}
         listening_result['feedback'] = feedback
 
+    from app.curriculum.language_support import language_support_mode, localized_option, question_translation
+
+    language_mode = language_support_mode(lesson)
+    listening_questions = []
+    for question in cleaned_content.get('comprehension_questions') or []:
+        if not isinstance(question, dict):
+            continue
+        options = [str(option) for option in (question.get('options') or [])]
+        display_question = {
+            'question': str(question.get('question') or question.get('prompt') or ''),
+            'type': str(question.get('type') or 'multiple_choice'),
+            'options': options,
+            'option_labels': [localized_option(option, lesson) for option in options],
+        }
+        if language_mode != 'off':
+            # This is task wording only. Never repurpose the audio transcript,
+            # its translation, an answer, explanation, or evidence as a hint.
+            display_question['question_ru'] = bleach.clean(question_translation(question), tags=[], strip=True)
+        listening_questions.append(display_question)
+
     return render_template(
         'curriculum/lessons/listening_immersion.html',
         lesson=lesson,
         text_content=cleaned_content,
-        listening_questions=[
-            {'question': str(question.get('question') or question.get('prompt') or ''),
-             'type': str(question.get('type') or 'multiple_choice'),
-             'options': [str(option) for option in (question.get('options') or [])]}
-            for question in (cleaned_content.get('comprehension_questions') or [])
-            if isinstance(question, dict)
-        ],
+        listening_questions=listening_questions,
+        listening_language_mode=language_mode,
+        listening_boolean_options=[('true', localized_option('True', lesson)),
+                                   ('false', localized_option('False', lesson))],
         progress=display_progress,
         is_completed=is_completed,
         listening_result=listening_result,

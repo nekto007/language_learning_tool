@@ -105,6 +105,9 @@ class QuizQuestionSchema(Schema):
     acceptable_answers = fields.List(fields.Str(), required=False)
     alternative_answers = fields.List(fields.Str(), required=False)
     explanation = fields.Str(required=False)
+    question_ru = fields.Str(required=False, validate=validate.Length(max=1000))
+    prompt_role = fields.Str(required=False, validate=validate.OneOf(['question', 'audio']))
+    audio_translation = fields.Str(required=False)
     hint = fields.Str(required=False)
     words = fields.List(fields.Str(), required=False)  # For reorder/ordering type questions
     pairs = fields.List(fields.Dict(), required=False)  # For matching type questions
