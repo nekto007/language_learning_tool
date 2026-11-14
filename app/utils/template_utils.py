@@ -3,6 +3,7 @@ import datetime
 import logging
 import re
 
+import bleach
 from flask import request
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,14 @@ def format_chapter_text(text):
             clean_paragraph = clean_paragraph.replace('\n', ' ')
             # Clean up multiple spaces
             clean_paragraph = re.sub(r'\s+', ' ', clean_paragraph)
+            # Imports may contain literal HTML, including entity-decoded FB2
+            # text. Retain basic book emphasis, but never trust events, links,
+            # embedded documents, or active markup from the source file.
+            clean_paragraph = bleach.clean(
+                clean_paragraph,
+                tags=('b', 'i', 'em', 'strong', 'u', 's', 'br', 'code', 'sub', 'sup'),
+                attributes={}, protocols=(), strip=True,
+            )
             html_parts.append(f'<p class="mb-4">{clean_paragraph}</p>')
     
     return Markup('\n'.join(html_parts))

@@ -181,7 +181,7 @@ class TestApiGetLessonInfo:
         admin_user.onboarding_completed = True
         db.session.commit()
         with admin_client.session_transaction() as sess:
-            sess['_user_id'] = str(admin_user.id)
+            sess['_user_id'] = admin_user.get_id()
             sess['_fresh'] = True
         lid = curriculum_data['quiz'].id
         r = admin_client.get(f'/curriculum/api/lesson/{lid}/info')

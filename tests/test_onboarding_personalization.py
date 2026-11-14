@@ -46,7 +46,7 @@ class TestLearnLevelPreselection:
         level = CEFRLevel.query.filter_by(code='A1').first()
 
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(grammar_focus_user.id)
+            sess['_user_id'] = grammar_focus_user.get_id()
         response = client.get('/learn/')
         if level:
             assert response.status_code == 302
@@ -57,6 +57,6 @@ class TestLearnLevelPreselection:
     def test_learn_no_redirect_without_onboarding(self, client, no_focus_user):
         """User without onboarding_level should see normal index."""
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(no_focus_user.id)
+            sess['_user_id'] = no_focus_user.get_id()
         response = client.get('/learn/')
         assert response.status_code == 200

@@ -16,6 +16,7 @@ from flask_jwt_extended import (
     get_jwt,
     get_jwt_identity,
 )
+from flask_jwt_extended.exceptions import JWTDecodeError
 
 
 def create_tokens_for_user(user):
@@ -36,7 +37,8 @@ def create_tokens_for_user(user):
     additional_claims = {
         'user_id': user.id,
         'username': user.username,
-        'is_admin': user.is_admin if hasattr(user, 'is_admin') else False
+        'is_admin': user.is_admin if hasattr(user, 'is_admin') else False,
+        'auth_version': user.auth_version(),
     }
 
     # Create tokens
@@ -48,7 +50,7 @@ def create_tokens_for_user(user):
 
     refresh_token = create_refresh_token(
         identity=str(user.id),
-        additional_claims={'username': user.username}
+        additional_claims={'username': user.username, 'auth_version': user.auth_version()}
     )
 
     return {
@@ -104,6 +106,18 @@ def refresh_access_token():
     current_user_id = get_jwt_identity()
     current_claims = get_jwt()
 
+    from app.auth.models import User
+
+    try:
+        user_id = int(current_user_id)
+    except (TypeError, ValueError):
+        raise JWTDecodeError('Invalid or revoked refresh token') from None
+    if user_id < 1 or user_id > 2147483647:
+        raise JWTDecodeError('Invalid or revoked refresh token')
+    user = User.query.filter_by(id=user_id).first()
+    if user is None or not user.is_active or not user.has_auth_version(current_claims.get('auth_version')):
+        raise JWTDecodeError('Invalid or revoked refresh token')
+
     # Ensure user_id is a string for JWT identity
     if not isinstance(current_user_id, str):
         current_user_id = str(current_user_id)
@@ -113,8 +127,9 @@ def refresh_access_token():
         identity=current_user_id,
         additional_claims={
             'user_id': current_user_id,
-            'username': current_claims.get('username'),
-            'is_admin': current_claims.get('is_admin', False)
+            'username': user.username,
+            'is_admin': bool(user.is_admin),
+            'auth_version': user.auth_version(),
         },
         fresh=False
     )

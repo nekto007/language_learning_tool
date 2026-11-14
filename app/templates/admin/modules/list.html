@@ -337,13 +337,13 @@ function loadModalUsers(moduleId) {
                 renderModalUsers(data.users);
                 updateModalCounts(data.users);
             } else {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-danger">
-                            Ошибка: ${data.error}
-                        </td>
-                    </tr>
-                `;
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 6;
+                cell.className = 'text-center py-4 text-danger';
+                cell.textContent = 'Ошибка: ' + String(data.error || 'Не удалось загрузить пользователей');
+                row.appendChild(cell);
+                tbody.replaceChildren(row);
             }
         })
         .catch(error => {
@@ -372,51 +372,58 @@ function renderModalUsers(users) {
         return;
     }
 
-    tbody.innerHTML = users.map(user => `
-        <tr class="modal-user-row"
-            data-has-module="${user.has_module}"
-            data-username="${user.username.toLowerCase()}"
-            data-email="${user.email.toLowerCase()}">
-            <td>
-                <input type="checkbox" class="modal-user-checkbox" value="${user.id}">
-            </td>
-            <td>${user.id}</td>
-            <td>
-                <strong>${user.username}</strong>
-                ${user.is_admin ? '<span class="badge bg-danger ms-1">Admin</span>' : ''}
-            </td>
-            <td>${user.email}</td>
-            <td>
-                ${user.has_module ? `
-                    <span class="badge bg-success">
-                        <i class="fas fa-check me-1"></i> Есть доступ
-                    </span>
-                    ${user.granted_by_admin ? '<span class="badge bg-warning ms-1"><i class="fas fa-user-shield"></i></span>' : ''}
-                ` : `
-                    <span class="badge bg-secondary">
-                        <i class="fas fa-times me-1"></i> Нет доступа
-                    </span>
-                `}
-            </td>
-            <td>
-                ${user.has_module ? `
-                    <button type="button" class="btn btn-sm btn-warning"
-                            data-action="modal-revoke-module"
-                            data-user-id="${user.id}"
-                            data-username="${user.username}">
-                        <i class="fas fa-ban"></i> Отозвать
-                    </button>
-                ` : `
-                    <button type="button" class="btn btn-sm btn-success"
-                            data-action="modal-grant-module"
-                            data-user-id="${user.id}"
-                            data-username="${user.username}">
-                        <i class="fas fa-check"></i> Выдать
-                    </button>
-                `}
-            </td>
-        </tr>
-    `).join('');
+    const fragment = document.createDocumentFragment();
+    users.forEach(user => {
+        // Usernames are public signup input. Keep stored names and email out
+        // of HTML parsing, including the attributes used by search/actions.
+        const username = String(user.username || '');
+        const email = String(user.email || '');
+        const row = document.createElement('tr');
+        row.className = 'modal-user-row';
+        row.dataset.hasModule = String(Boolean(user.has_module));
+        row.dataset.username = username.toLowerCase();
+        row.dataset.email = email.toLowerCase();
+        function cell(text) {
+            const td = document.createElement('td');
+            if (text !== undefined) td.textContent = String(text);
+            row.appendChild(td);
+            return td;
+        }
+        function badge(parent, text, className) {
+            const span = document.createElement('span');
+            span.className = className;
+            span.textContent = text;
+            parent.appendChild(span);
+        }
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'modal-user-checkbox';
+        checkbox.value = String(user.id);
+        cell().appendChild(checkbox);
+        cell(user.id);
+        const nameCell = cell();
+        const name = document.createElement('strong');
+        name.textContent = username;
+        nameCell.appendChild(name);
+        if (user.is_admin) badge(nameCell, 'Admin', 'badge bg-danger ms-1');
+        cell(email);
+        const accessCell = cell();
+        badge(accessCell, user.has_module ? 'Есть доступ' : 'Нет доступа',
+            user.has_module ? 'badge bg-success' : 'badge bg-secondary');
+        if (user.has_module && user.granted_by_admin) {
+            badge(accessCell, 'Выдан администратором', 'badge bg-warning ms-1');
+        }
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = user.has_module ? 'btn btn-sm btn-warning' : 'btn btn-sm btn-success';
+        button.dataset.action = user.has_module ? 'modal-revoke-module' : 'modal-grant-module';
+        button.dataset.userId = String(user.id);
+        button.dataset.username = username;
+        button.textContent = user.has_module ? 'Отозвать' : 'Выдать';
+        cell().appendChild(button);
+        fragment.appendChild(row);
+    });
+    tbody.replaceChildren(fragment);
 }
 
 // Update counts
@@ -607,10 +614,13 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
     toast.style.zIndex = '9999';
-    toast.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+    toast.textContent = String(message);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'btn-close';
+    close.dataset.bsDismiss = 'alert';
+    close.setAttribute('aria-label', 'Закрыть');
+    toast.appendChild(close);
     document.body.appendChild(toast);
 
     setTimeout(() => toast.remove(), 3000);

@@ -157,7 +157,7 @@ class TestReadingRequiredOnlyWithGoal:
 class TestSettingsPage:
     def _login(self, client, user) -> None:
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(user.id)
+            sess['_user_id'] = user.get_id()
             sess['_fresh'] = True
 
     def test_saves_pace_and_reading_goal(self, app, db_session, client, test_user):

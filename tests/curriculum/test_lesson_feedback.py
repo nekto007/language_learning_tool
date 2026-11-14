@@ -99,7 +99,7 @@ class TestLessonFeedbackModel:
 class TestLessonFeedbackAPI:
     def _login(self, client, user):
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(user.id)
+            sess['_user_id'] = user.get_id()
             sess['_fresh'] = True
 
     def test_feedback_thumbs_up_returns_200(self, app, client, db_session, test_user):
@@ -197,7 +197,7 @@ class TestAdminContentQualityRatings:
         db_session.commit()
 
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(admin_user.id)
+            sess['_user_id'] = admin_user.get_id()
             sess['_fresh'] = True
 
         resp = client.get('/admin/content-quality')

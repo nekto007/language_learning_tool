@@ -141,7 +141,7 @@ class TestNotificationDropdownDOMSafety:
     def _get_authenticated_client(self, app, user):
         client = app.test_client()
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(user.id)
+            sess['_user_id'] = user.get_id()
         return client
 
     def test_notification_list_js_does_not_use_innerhtml_for_titles(

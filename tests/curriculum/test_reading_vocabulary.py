@@ -90,7 +90,7 @@ def _make_text_lesson(db_session, module, vocabulary=None) -> Lessons:
 
 def _login(client, test_user):
     with client.session_transaction() as sess:
-        sess["_user_id"] = str(test_user.id)
+        sess["_user_id"] = test_user.get_id()
         sess["_fresh"] = True
 
 

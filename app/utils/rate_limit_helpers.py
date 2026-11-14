@@ -12,14 +12,9 @@ def get_remote_address_key():
     Returns:
         str: IP адрес клиента
     """
-    # Проверяем заголовки прокси
-    if request.headers.get('X-Forwarded-For'):
-        # Берем первый IP из цепочки (реальный клиент)
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    elif request.headers.get('X-Real-IP'):
-        return request.headers.get('X-Real-IP')
-    else:
-        return request.remote_addr or '127.0.0.1'
+    # ProxyFix resolves the configured trusted proxy hop into remote_addr.
+    # Raw forwarding headers may contain an attacker-controlled prefix.
+    return request.remote_addr or '127.0.0.1'
 
 
 def get_username_key():
@@ -35,13 +30,15 @@ def get_username_key():
     # Пытаемся получить username из JSON
     if request.is_json:
         data = request.get_json(silent=True)
-        if data and 'username' in data:
-            return f"username:{data['username']}"
+        if isinstance(data, dict):
+            username = data.get('username')
+            if isinstance(username, str) and username.strip():
+                return f"username:{username.strip()[:254]}"
 
     # Пытаемся получить из form data
     username = request.form.get('username') or request.form.get('username_or_email')
     if username:
-        return f"username:{username}"
+        return f"username:{username.strip()[:254]}"
 
     # Если authenticated user - используем его username
     if current_user and current_user.is_authenticated:

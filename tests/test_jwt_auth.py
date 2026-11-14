@@ -267,7 +267,7 @@ class TestRefreshAccessToken:
         with app.app_context():
             refresh_token = create_refresh_token(
                 identity=str(test_user.id),
-                additional_claims={'username': test_user.username}
+                additional_claims={'username': test_user.username, 'auth_version': test_user.auth_version()}
             )
 
             with app.test_request_context(
@@ -290,7 +290,7 @@ class TestRefreshAccessToken:
         with app.app_context():
             refresh_token = create_refresh_token(
                 identity=str(test_user.id),
-                additional_claims={'username': test_user.username, 'is_admin': False}
+                additional_claims={'username': test_user.username, 'is_admin': False, 'auth_version': test_user.auth_version()}
             )
 
             with app.test_request_context(
@@ -310,7 +310,7 @@ class TestRefreshAccessToken:
         with app.app_context():
             refresh_token = create_refresh_token(
                 identity=str(test_user.id),
-                additional_claims={'username': test_user.username, 'is_admin': False}
+                additional_claims={'username': test_user.username, 'is_admin': False, 'auth_version': test_user.auth_version()}
             )
 
             with app.test_request_context(
@@ -333,7 +333,7 @@ class TestRefreshAccessToken:
             # Create refresh token with string identity
             refresh_token = create_refresh_token(
                 identity=str(test_user.id),  # String identity
-                additional_claims={'username': test_user.username}
+                additional_claims={'username': test_user.username, 'auth_version': test_user.auth_version()}
             )
 
             with app.test_request_context(
@@ -355,7 +355,7 @@ class TestRefreshAccessToken:
         with app.app_context():
             refresh_token = create_refresh_token(
                 identity=str(test_user.id),
-                additional_claims={'username': test_user.username}
+                additional_claims={'username': test_user.username, 'auth_version': test_user.auth_version()}
                 # No is_admin claim
             )
 

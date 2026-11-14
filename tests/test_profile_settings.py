@@ -36,7 +36,7 @@ def auth_client(app, client, profile_user):
     with app.test_request_context():
         login_user(profile_user)
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(profile_user.id)
+            sess['_user_id'] = profile_user.get_id()
             sess['_fresh'] = True
     return client
 

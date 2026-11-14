@@ -40,7 +40,7 @@ def listening_lesson(db_session):
 @pytest.fixture
 def learner_client(client, test_user):
     with client.session_transaction() as session:
-        session['_user_id'] = str(test_user.id)
+        session['_user_id'] = test_user.get_id()
         session['_fresh'] = True
     return client
 

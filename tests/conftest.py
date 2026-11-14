@@ -288,7 +288,7 @@ def admin_user(app, db_session, client):
         login_user(user)
         # Set the user ID in the session for the test client
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(user.id)
+            sess['_user_id'] = user.get_id()
             sess['_fresh'] = True
 
     yield user
@@ -390,7 +390,7 @@ def authenticated_client(app, client, test_user, grant_study_module):
         login_user(test_user)
         # Get the session data that was set by login_user
         with client.session_transaction() as session:
-            session['_user_id'] = str(test_user.id)
+            session['_user_id'] = test_user.get_id()
             session['_fresh'] = True
             session['user_id'] = test_user.id
 

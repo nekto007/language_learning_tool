@@ -19,7 +19,7 @@ def notif_user(db_session):
 @pytest.fixture
 def notif_auth_client(client, notif_user):
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(notif_user.id)
+        sess['_user_id'] = notif_user.get_id()
     return client
 
 

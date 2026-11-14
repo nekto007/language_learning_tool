@@ -28,10 +28,12 @@ FEEDBACK_UPLOAD_FOLDER = os.path.join(UPLOAD_BASE_FOLDER, 'feedback')
 MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024  # 5 MiB — matches cover limit
 ALLOWED_SCREENSHOT_FORMATS = frozenset({'PNG', 'JPEG', 'WEBP'})
 MAX_SCREENSHOT_DIMENSION = 2400  # downscale runaway hi-DPI captures
+MAX_SCREENSHOT_PIXELS = 16_000_000  # bound decoding RAM before Image.load()
 
 
 SCREENSHOT_REJECT_REASONS = {
     'too_large': 'Файл больше 5 МБ — сожмите или сделайте меньший снимок.',
+    'too_many_pixels': 'Слишком большое разрешение — уменьшите снимок до 16 мегапикселей.',
     'unsupported_format': 'Поддерживаются PNG, JPEG и WEBP.',
     'malicious_content': 'Файл отклонён как небезопасный.',
     'read_failed': 'Не удалось прочитать файл.',
@@ -82,15 +84,17 @@ def save_feedback_screenshot(file: FileStorage) -> tuple[Optional[str], Optional
             if img_format not in ALLOWED_SCREENSHOT_FORMATS:
                 logger.info('feedback_screenshot_bad_format=%s', img_format)
                 return None, 'unsupported_format'
+            if img.width * img.height > MAX_SCREENSHOT_PIXELS:
+                return None, 'too_many_pixels'
             img.load()
-            cleaned = strip_image_metadata(img)
             # Cap dimensions — protects against memory blow-ups + keeps
             # storage predictable across hi-DPI captures.
-            if max(cleaned.size) > MAX_SCREENSHOT_DIMENSION:
-                cleaned.thumbnail(
+            if max(img.size) > MAX_SCREENSHOT_DIMENSION:
+                img.thumbnail(
                     (MAX_SCREENSHOT_DIMENSION, MAX_SCREENSHOT_DIMENSION),
                     Image.LANCZOS,
                 )
+            cleaned = strip_image_metadata(img)
             ext = 'jpg' if img_format == 'JPEG' else img_format.lower()
             filename = f'{uuid.uuid4().hex}.{ext}'
             target = os.path.join(FEEDBACK_UPLOAD_FOLDER, filename)

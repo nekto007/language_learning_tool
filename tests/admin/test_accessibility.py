@@ -40,7 +40,7 @@ def _make_admin(db_session) -> User:
 
 def _login(client, user_id: int) -> None:
     with client.session_transaction() as sess:
-        sess["_user_id"] = str(user_id)
+        sess["_user_id"] = User.query.get(user_id).get_id()
         sess["_fresh"] = True
 
 

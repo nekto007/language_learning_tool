@@ -262,7 +262,7 @@ class TestFeedbackReplies:
         with app.test_request_context():
             login_user(second_user)
             with client.session_transaction() as session:
-                session['_user_id'] = str(second_user.id)
+                session['_user_id'] = second_user.get_id()
                 session['_fresh'] = True
                 session['user_id'] = second_user.id
 
@@ -444,7 +444,7 @@ class TestFeedbackScreenshotServe:
         with app.test_request_context():
             login_user(second_user)
             with client.session_transaction() as session:
-                session['_user_id'] = str(second_user.id)
+                session['_user_id'] = second_user.get_id()
                 session['_fresh'] = True
                 session['user_id'] = second_user.id
 

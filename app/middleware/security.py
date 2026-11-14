@@ -48,7 +48,11 @@ def add_security_headers(app: Flask):
         response.headers['X-XSS-Protection'] = '1; mode=block'
 
         # Force HTTPS in production
-        if app.config.get('ENV') == 'production':
+        # Flask 3 no longer populates ENV from FLASK_ENV. Secure production
+        # requests must still receive HSTS when that obsolete key is absent.
+        if app.config.get('ENV') == 'production' or (
+            request.is_secure and not app.testing and not app.debug
+        ):
             response.headers['Strict-Transport-Security'] = (
                 'max-age=31536000; includeSubDomains; preload'
             )

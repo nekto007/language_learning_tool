@@ -199,7 +199,8 @@ class TestJWTRefreshEndpoint:
         with app.app_context():
             refresh_token = create_refresh_token(
                 identity=str(test_user.id),
-                additional_claims={'username': test_user.username, 'is_admin': False},
+                additional_claims={'username': test_user.username, 'is_admin': False,
+                                   'auth_version': test_user.auth_version()},
             )
 
         r = client.post('/api/refresh', headers={

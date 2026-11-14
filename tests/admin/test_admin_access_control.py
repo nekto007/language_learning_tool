@@ -104,7 +104,7 @@ def regular_user(db_session):
 @pytest.fixture
 def regular_client(client, regular_user):
     with client.session_transaction() as sess:
-        sess["_user_id"] = str(regular_user.id)
+        sess["_user_id"] = regular_user.get_id()
         sess["_fresh"] = True
     return client
 

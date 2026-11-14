@@ -64,7 +64,7 @@ def _make_lesson(db_session, module: Module, title: str, number: int = 1) -> Les
 
 def _login(client, user) -> None:
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(user.id)
+        sess['_user_id'] = user.get_id()
         sess['_fresh'] = True
 
 

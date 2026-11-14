@@ -125,7 +125,7 @@ class TestCulturalNoteAdmin:
             db_session.commit()
 
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(admin_user.id)
+            sess['_user_id'] = admin_user.get_id()
             sess['_fresh'] = True
 
         response = client.get('/admin/cultural-notes')
@@ -148,7 +148,7 @@ class TestCulturalNoteAdmin:
         word = _make_word(db_session)
 
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(admin_user.id)
+            sess['_user_id'] = admin_user.get_id()
             sess['_fresh'] = True
 
         with client.application.test_request_context():

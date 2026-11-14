@@ -21,6 +21,7 @@ ALLOWED_MIME_TYPES = {'image/png', 'image/jpeg', 'image/gif'}
 MAX_COVER_WIDTH = 400
 MAX_COVER_HEIGHT = 600
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_COVER_PIXELS = 16_000_000  # compressed byte size does not bound decoded RAM
 
 # Extensions that are ALWAYS forbidden regardless of allowed_extensions whitelist
 FORBIDDEN_EXTENSIONS = frozenset({
@@ -179,6 +180,9 @@ def validate_image_mime_type(file_path: str) -> bool:
     try:
         # Используем Pillow для определения реального типа изображения
         with Image.open(file_path) as img:
+            if img.width * img.height > MAX_COVER_PIXELS:
+                logger.warning('Cover image exceeds decoded pixel limit')
+                return False
             # Получаем формат изображения (PNG, JPEG, GIF и т.д.)
             image_format = img.format
 
@@ -218,10 +222,13 @@ def strip_image_metadata(image: Image.Image) -> Image.Image:
         Image: Очищенное изображение без метаданных
     """
     try:
-        # Создаем новое изображение без метаданных
-        data = list(image.getdata())
-        image_without_exif = Image.new(image.mode, image.size)
-        image_without_exif.putdata(data)
+        # Copy the pixel buffer in Pillow rather than allocating one Python
+        # tuple per pixel. Palette transparency must become actual alpha before
+        # its metadata is removed.
+        if image.mode == 'P' and 'transparency' in image.info:
+            image = image.convert('RGBA')
+        image_without_exif = image.copy()
+        image_without_exif.info.clear()
 
         return image_without_exif
     except Exception as e:
@@ -313,9 +320,6 @@ def process_and_save_cover_image(
             elif img.mode != 'RGB':
                 img = img.convert('RGB')
 
-            # КРИТИЧНО: Удаляем все метаданные (EXIF, GPS и т.д.)
-            img = strip_image_metadata(img)
-
             # Изменяем размер с сохранением пропорций
             img_width, img_height = img.size
             if img_width > MAX_COVER_WIDTH or img_height > MAX_COVER_HEIGHT:
@@ -323,6 +327,9 @@ def process_and_save_cover_image(
                 new_width = int(img_width * ratio)
                 new_height = int(img_height * ratio)
                 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # Remove metadata after downsizing so the clean buffer stays small.
+            img = strip_image_metadata(img)
 
             # Сохраняем как JPEG без метаданных
             # exif=b"" гарантирует отсутствие EXIF данных

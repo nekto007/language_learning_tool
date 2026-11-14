@@ -141,7 +141,7 @@ class TestRequireLessonAccessResponse:
         locked = self._create_locked_lesson(db_session)
 
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
+            sess['_user_id'] = test_user.get_id()
             sess['_fresh'] = True
 
         resp = client.get(f'/learn/{locked.id}/')
@@ -155,7 +155,7 @@ class TestRequireLessonAccessResponse:
         locked = self._create_locked_lesson(db_session)
 
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
+            sess['_user_id'] = test_user.get_id()
             sess['_fresh'] = True
 
         resp = client.get(
@@ -285,7 +285,7 @@ class TestLessonProgressNoDuplicate:
 
         # Login the test user
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
+            sess['_user_id'] = test_user.get_id()
             sess['_fresh'] = True
 
         with patch('app.curriculum.security.current_user', _mock_user(test_user.id)):

@@ -17,7 +17,7 @@ from flask_login import current_user
 def _access_token(app, user):
     from flask_jwt_extended import create_access_token
     with app.app_context():
-        return create_access_token(identity=str(user.id))
+        return create_access_token(identity=str(user.id), additional_claims={'auth_version': user.auth_version()})
 
 
 # ── DP-096: ошибка обработчика — это 500, а не «протухший токен» ──

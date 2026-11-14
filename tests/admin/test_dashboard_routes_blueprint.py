@@ -120,7 +120,7 @@ def test_dashboard_route_renders_for_admin(client, app, db_session):
     db_session.flush()
 
     with client.session_transaction() as session:
-        session["_user_id"] = str(admin_user.id)
+        session["_user_id"] = admin_user.get_id()
         session["_fresh"] = True
 
     response = client.get("/admin/")

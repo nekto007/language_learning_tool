@@ -24,7 +24,7 @@ def celebration_user(db_session):
 @pytest.fixture
 def auth_client(client, celebration_user):
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(celebration_user.id)
+        sess['_user_id'] = celebration_user.get_id()
     return client
 
 

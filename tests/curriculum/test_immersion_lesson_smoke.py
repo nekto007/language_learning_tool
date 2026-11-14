@@ -60,7 +60,7 @@ def _add_next_lesson(db_session, module, lesson_number: int = 99) -> Lessons:
 
 def _login(client, user):
     with client.session_transaction() as sess:
-        sess["_user_id"] = str(user.id)
+        sess["_user_id"] = user.get_id()
         sess["_fresh"] = True
 
 

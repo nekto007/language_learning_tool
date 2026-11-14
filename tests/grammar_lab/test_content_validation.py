@@ -145,7 +145,7 @@ class TestApiSubmitAnswerNonexistentExercise:
 
     def test_submit_nonexistent_exercise_returns_404(self, app, client, db_session, test_user):
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
+            sess['_user_id'] = test_user.get_id()
             sess['_fresh'] = True
 
         resp = client.post(

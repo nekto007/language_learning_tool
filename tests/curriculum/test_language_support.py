@@ -27,7 +27,7 @@ def _lesson(db_session, code, kind, content):
 
 def _login(client, user):
     with client.session_transaction() as session:
-        session['_user_id'] = str(user.id)
+        session['_user_id'] = user.get_id()
         session['_fresh'] = True
 
 

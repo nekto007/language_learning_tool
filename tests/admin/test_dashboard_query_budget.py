@@ -54,7 +54,7 @@ def _login_admin(client, db_session) -> User:
     db_session.flush()
 
     with client.session_transaction() as session:
-        session["_user_id"] = str(admin.id)
+        session["_user_id"] = admin.get_id()
         session["_fresh"] = True
     return admin
 

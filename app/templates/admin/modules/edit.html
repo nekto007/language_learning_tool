@@ -563,10 +563,13 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
     toast.style.zIndex = '9999';
-    toast.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+    toast.textContent = String(message);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'btn-close';
+    close.dataset.bsDismiss = 'alert';
+    close.setAttribute('aria-label', 'Закрыть');
+    toast.appendChild(close);
     document.body.appendChild(toast);
 
     setTimeout(() => toast.remove(), 3000);

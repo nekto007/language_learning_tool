@@ -100,7 +100,7 @@ def _make_mastered_card(db_session, user_word: UserWord, interval: int = 200) ->
 
 def _login(client, user) -> None:
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(user.id)
+        sess['_user_id'] = user.get_id()
         sess['_fresh'] = True
 
 

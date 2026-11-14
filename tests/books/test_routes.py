@@ -185,7 +185,7 @@ class TestUnpublishedBookAccess:
         admin_user.onboarding_completed = True
         db_session.commit()
         with admin_client.session_transaction() as sess:
-            sess['_user_id'] = str(admin_user.id)
+            sess['_user_id'] = admin_user.get_id()
             sess['_fresh'] = True
         response = admin_client.get(f'/books/{unpublished_book.id}')
         assert response.status_code == 200
@@ -196,7 +196,7 @@ class TestUnpublishedBookAccess:
         admin_user.onboarding_completed = True
         db_session.commit()
         with admin_client.session_transaction() as sess:
-            sess['_user_id'] = str(admin_user.id)
+            sess['_user_id'] = admin_user.get_id()
             sess['_fresh'] = True
         response = admin_client.get('/books')
         assert response.status_code == 200

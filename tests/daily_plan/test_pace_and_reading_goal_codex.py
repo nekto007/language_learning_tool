@@ -23,7 +23,7 @@ def test_old_settings_form_does_not_reset_pace(app, db_session, client, difficul
     db_session.add(StudySettings(user_id=user.id, reading_minutes_per_day=10))
     db_session.commit()
     with client.session_transaction() as session:
-        session['_user_id'] = str(user.id)
+        session['_user_id'] = user.get_id()
         session['_fresh'] = True
     with app.test_request_context():
         url = url_for('study.settings')

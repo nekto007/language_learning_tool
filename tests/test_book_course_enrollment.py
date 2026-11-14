@@ -73,7 +73,7 @@ class TestEnrollmentIdempotent:
     def test_enroll_twice_via_route_returns_400(self, client, app, test_user, book_course, db_session):
         """Second POST /enroll for same course returns 400, not 500."""
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
+            sess['_user_id'] = test_user.get_id()
             sess['_fresh'] = True
 
         response1 = client.post(f'/curriculum/book-courses/{book_course.id}/enroll',
@@ -113,7 +113,7 @@ class TestEnrollmentIdempotent:
 
         with app.test_client() as c:
             with c.session_transaction() as sess:
-                sess['_user_id'] = str(test_user.id)
+                sess['_user_id'] = test_user.get_id()
                 sess['_fresh'] = True
 
             # Pre-create enrollment so route's guard sees it and returns 400

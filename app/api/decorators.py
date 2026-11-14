@@ -8,7 +8,7 @@ import functools
 import logging
 
 from flask import g, jsonify, request
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from flask_jwt_extended import get_jwt, get_jwt_identity, verify_jwt_in_request
 from flask_login import current_user
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,9 @@ def api_auth_required(f):
                 logger.warning("JWT identity is not a user id: %r", identity)
                 return _invalid_token_response()
 
+            if user_id < 1 or user_id > 2147483647:
+                return _invalid_token_response()
+
             user = db_get_user(user_id)
             if user is None:
                 return jsonify({
@@ -102,6 +105,9 @@ def api_auth_required(f):
                     'error': 'Account is inactive',
                     'status_code': 403
                 }), 403
+
+            if not user.has_auth_version(get_jwt().get('auth_version')):
+                return _invalid_token_response()
 
             # current_user is published for the duration of the handler and
             # unwound afterwards: under an outer pushed app context (tests,

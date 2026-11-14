@@ -34,7 +34,7 @@ def admin_user(db_session):
 def auth_client(app, client, admin_user):
     """Return authenticated client (admin user)."""
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(admin_user.id)
+        sess['_user_id'] = admin_user.get_id()
         sess['_fresh'] = True
     return client
 
@@ -134,7 +134,7 @@ def test_create_topic_wrong_content_type_returns_415(app, auth_client):
 def test_create_topic_non_admin_returns_403(app, client, test_user):
     """Non-admin user gets 403 when trying to create a grammar topic."""
     with client.session_transaction() as sess:
-        sess['_user_id'] = str(test_user.id)
+        sess['_user_id'] = test_user.get_id()
         sess['_fresh'] = True
     response = client.post(
         '/grammar-lab/api/topics',

@@ -84,8 +84,8 @@ def create_app(config_class=Config):
     # inside templates — including reminder-email images — get blocked by the
     # `img-src 'self' data: https:` CSP on the production site).
     if not app.config.get('TESTING'):
-        from werkzeug.middleware.proxy_fix import ProxyFix
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+        from app.middleware.proxy import apply_trusted_proxy
+        apply_trusted_proxy(app)
 
     # Fallback for URL generation outside a request context (email scheduler,
     # CLI tasks). With this set, url_for(_external=True) defaults to https://
@@ -377,7 +377,7 @@ def create_app(config_class=Config):
     def load_user(user_id):
         from app.auth.models import User
         try:
-            return User.query.get(int(user_id))
+            return User.from_session_id(user_id)
         except Exception:
             db.session.rollback()
             logger.exception("Failed to load user %s", user_id)

@@ -1,7 +1,11 @@
+import hashlib
+import hmac
+import re
 import secrets
 import uuid
 from datetime import datetime, timezone
 
+from flask import current_app
 from flask_login import UserMixin
 from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, desc
 from sqlalchemy.orm import relationship
@@ -242,7 +246,42 @@ class User(db.Model, UserMixin):
         return self.active
 
     def get_id(self):
-        return str(self.id)
+        """Bind session and remember cookies to the current password state."""
+        return f'{self.id}:{self.auth_version()}'
+
+    def auth_version(self) -> str:
+        """Opaque credential version; never expose a password hash in a token.
+
+        Every set_password() creates a fresh salted hash, so old credentials
+        stop matching after either a password change or an email reset.
+        """
+        if self.id is None or not self.password_hash or not self.salt:
+            raise ValueError('Authentication requires a persisted user with a password')
+        secret = current_app.config.get('SECRET_KEY')
+        if not secret:
+            raise RuntimeError('SECRET_KEY is required for authentication')
+        key = secret.encode('utf-8') if isinstance(secret, str) else secret
+        state = f'llt-auth-v1\0{self.id}\0{self.password_hash}\0{self.salt}'.encode('utf-8')
+        return hmac.new(key, state, hashlib.sha256).hexdigest()
+
+    def has_auth_version(self, value) -> bool:
+        if not isinstance(value, str) or re.fullmatch(r'[0-9a-f]{64}', value) is None:
+            return False
+        return hmac.compare_digest(self.auth_version(), value)
+
+    @classmethod
+    def from_session_id(cls, value):
+        """Reject legacy IDs and stale signed cookies before publishing a user."""
+        if not isinstance(value, str) or re.fullmatch(r'[1-9][0-9]{0,9}:[0-9a-f]{64}', value) is None:
+            return None
+        raw_id, version = value.split(':', 1)
+        user_id = int(raw_id)
+        if user_id > 2147483647:  # PostgreSQL users.id is an INTEGER.
+            return None
+        user = db.session.get(cls, user_id)
+        if user is None or not user.active or not user.has_auth_version(version):
+            return None
+        return user
     
     def __repr__(self):
         return f'<User {self.username}>'

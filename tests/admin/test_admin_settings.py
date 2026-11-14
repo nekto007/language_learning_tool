@@ -321,7 +321,7 @@ class TestFeatureFlagGating:
             from flask_login import login_user
             login_user(test_user)
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(test_user.id)
+            sess['_user_id'] = test_user.get_id()
             sess['_fresh'] = True
 
         with app.app_context():

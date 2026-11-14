@@ -15,23 +15,24 @@ from app.utils.rate_limit_helpers import (
 class TestGetRemoteAddressKey:
     """Тесты получения IP адреса клиента"""
 
-    def test_get_remote_address_from_x_forwarded_for(self, app):
-        """Тест получения IP из X-Forwarded-For заголовка"""
-        with app.test_request_context(headers={'X-Forwarded-For': '1.2.3.4, 5.6.7.8'}):
+    def test_raw_x_forwarded_for_chain_is_ignored(self, app):
+        """Only ProxyFix may resolve forwarding headers into REMOTE_ADDR."""
+        with app.test_request_context(headers={'X-Forwarded-For': '1.2.3.4, 5.6.7.8'},
+                                      environ_base={'REMOTE_ADDR': '192.0.2.8'}):
             result = get_remote_address_key()
-            assert result == '1.2.3.4'
+            assert result == '192.0.2.8'
 
-    def test_get_remote_address_from_x_forwarded_for_single(self, app):
-        """Тест получения IP из X-Forwarded-For с одним адресом"""
-        with app.test_request_context(headers={'X-Forwarded-For': '1.2.3.4'}):
+    def test_raw_x_forwarded_for_single_is_ignored(self, app):
+        with app.test_request_context(headers={'X-Forwarded-For': '1.2.3.4'},
+                                      environ_base={'REMOTE_ADDR': '192.0.2.8'}):
             result = get_remote_address_key()
-            assert result == '1.2.3.4'
+            assert result == '192.0.2.8'
 
-    def test_get_remote_address_from_x_real_ip(self, app):
-        """Тест получения IP из X-Real-IP заголовка"""
-        with app.test_request_context(headers={'X-Real-IP': '9.8.7.6'}):
+    def test_raw_x_real_ip_is_ignored(self, app):
+        with app.test_request_context(headers={'X-Real-IP': '9.8.7.6'},
+                                      environ_base={'REMOTE_ADDR': '192.0.2.8'}):
             result = get_remote_address_key()
-            assert result == '9.8.7.6'
+            assert result == '192.0.2.8'
 
     def test_get_remote_address_from_remote_addr(self, app):
         """Тест получения IP из request.remote_addr"""
@@ -46,14 +47,13 @@ class TestGetRemoteAddressKey:
             # When remote_addr is None, should return default
             assert result == '127.0.0.1'
 
-    def test_x_forwarded_for_priority_over_x_real_ip(self, app):
-        """Тест что X-Forwarded-For имеет приоритет над X-Real-IP"""
+    def test_remote_addr_has_priority_over_both_raw_headers(self, app):
         with app.test_request_context(headers={
             'X-Forwarded-For': '1.2.3.4',
             'X-Real-IP': '5.6.7.8'
-        }):
+        }, environ_base={'REMOTE_ADDR': '192.0.2.8'}):
             result = get_remote_address_key()
-            assert result == '1.2.3.4'
+            assert result == '192.0.2.8'
 
 
 class TestGetUsernameKey:
@@ -132,11 +132,11 @@ class TestGetAuthenticatedUserKey:
             result = get_authenticated_user_key()
             assert result == 'ip:5.6.7.8'
 
-    def test_get_key_respects_proxy_headers(self, app):
-        """Тест что учитываются прокси заголовки при fallback на IP"""
-        with app.test_request_context(headers={'X-Forwarded-For': '10.0.0.1'}):
+    def test_get_key_ignores_unresolved_proxy_headers(self, app):
+        with app.test_request_context(headers={'X-Forwarded-For': '10.0.0.1'},
+                                      environ_base={'REMOTE_ADDR': '192.0.2.8'}):
             result = get_authenticated_user_key()
-            assert result == 'ip:10.0.0.1'
+            assert result == 'ip:192.0.2.8'
 
 
 class TestGetCompositeKey:
@@ -157,10 +157,11 @@ class TestGetCompositeKey:
         with app.test_request_context(
             data={'username': 'formuser'},
             method='POST',
-            headers={'X-Forwarded-For': '5.6.7.8'}
+            headers={'X-Forwarded-For': '5.6.7.8'},
+            environ_base={'REMOTE_ADDR': '192.0.2.8'}
         ):
             result = get_composite_key()
-            assert result == '5.6.7.8:username:formuser'
+            assert result == '192.0.2.8:username:formuser'
 
     def test_composite_key_with_authenticated_user(self, app, test_user):
         """Тест комбинированного ключа с аутентифицированным пользователем"""
@@ -177,15 +178,15 @@ class TestGetCompositeKey:
             result = get_composite_key()
             assert result == '3.4.5.6'
 
-    def test_composite_key_with_proxy_headers(self, app):
-        """Тест что комбинированный ключ учитывает прокси заголовки"""
+    def test_composite_key_ignores_raw_proxy_headers(self, app):
         with app.test_request_context(
             headers={'X-Real-IP': '11.22.33.44'},
             json={'username': 'proxyuser'},
-            content_type='application/json'
+            content_type='application/json',
+            environ_base={'REMOTE_ADDR': '192.0.2.8'}
         ):
             result = get_composite_key()
-            assert result == '11.22.33.44:username:proxyuser'
+            assert result == '192.0.2.8:username:proxyuser'
 
 
 class TestIntegration:
@@ -197,6 +198,7 @@ class TestIntegration:
             json={'username': 'testuser'},
             content_type='application/json',
             headers={'X-Forwarded-For': '1.1.1.1, 2.2.2.2'},
+            environ_base={'REMOTE_ADDR': '192.0.2.8'},
             method='POST'
         ):
             from flask_login import login_user
@@ -208,7 +210,23 @@ class TestIntegration:
             user_key = get_authenticated_user_key()
             composite_key = get_composite_key()
 
-            assert ip_key == '1.1.1.1'
+            assert ip_key == '192.0.2.8'
             assert username_key == 'username:testuser'
             assert user_key == f'user:{test_user.id}'
-            assert composite_key == '1.1.1.1:username:testuser'
+            assert composite_key == '192.0.2.8:username:testuser'
+
+
+@pytest.mark.parametrize('payload', [[], ['username'], 42, 'username',
+                                     {'username': ['nested']}, {'username': 42},
+                                     {'username': None}, {'username': '   '}])
+def test_username_key_handles_non_dictionary_and_non_string_json(app, payload):
+    with app.test_request_context(json=payload, method='POST',
+                                  environ_base={'REMOTE_ADDR': '192.0.2.8'}):
+        assert get_username_key() == 'ip:192.0.2.8'
+
+
+def test_username_keys_are_trimmed_and_bounded(app):
+    with app.test_request_context(json={'username': '  ' + 'a' * 1000 + '  '}):
+        assert get_username_key() == 'username:' + 'a' * 254
+    with app.test_request_context(data={'username': '  form  '}, method='POST'):
+        assert get_username_key() == 'username:form'

@@ -63,11 +63,18 @@ def api_login():
         except Exception:
             return api_error('invalid_json', 'Invalid JSON format', 400)
 
+        if not isinstance(data, dict):
+            return api_error('invalid_json', 'JSON body must be an object', 400)
+
         username = data.get('username')
         password = data.get('password')
 
         if not username or not password:
             return api_error('missing_fields', 'Missing username or password', 400)
+
+        if (not isinstance(username, str) or not isinstance(password, str)
+                or len(username) > 64 or len(password) > 128):
+            return api_error('invalid_credentials_format', 'Invalid username or password format', 400)
 
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):

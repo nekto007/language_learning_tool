@@ -185,7 +185,7 @@ class TestPasswordHashNonLeakage:
     def test_user_csv_export_excludes_password_hash(self, db_session, admin_user, client):
         """CSV export of users must not contain password_hash field."""
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(admin_user.id)
+            sess['_user_id'] = admin_user.get_id()
             sess['_fresh'] = True
 
         resp = client.get('/admin/users/export.csv')

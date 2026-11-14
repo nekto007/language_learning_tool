@@ -74,7 +74,7 @@ class TestProfileExternalUrls:
         db_session.commit()
 
         with client.session_transaction() as sess:
-            sess['_user_id'] = str(user.id)
+            sess['_user_id'] = user.get_id()
 
         response = client.get('/profile')
         if response.status_code == 200:

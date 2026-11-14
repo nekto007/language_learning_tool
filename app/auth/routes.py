@@ -189,7 +189,8 @@ def reset_request():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
             token = get_reset_token(user.id)
-            reset_url = url_for('auth.reset_password', token=token, _external=True)
+            from app.utils.url_helpers import canonical_external_url
+            reset_url = canonical_external_url('auth.reset_password', token=token)
 
             # Отправляем электронное письмо
             email_sent = email_sender.send_email(
@@ -247,6 +248,8 @@ def reset_password(token):
         user.set_password(form.password.data)
 
         db.session.commit()
+        # Drop stale browser/remember state; password reset never signs in.
+        logout_user()
         flash('Ваш пароль был обновлен! Теперь вы можете войти с новым паролем.', 'success')
         return redirect(url_for('auth.login'))
 
@@ -636,6 +639,11 @@ def change_password():
             current_user.set_password(new_password)
             try:
                 db.session.commit()
+                # Keep this verified browser signed in with the new version;
+                # clear its old remember cookie and revoke every other cookie.
+                user = current_user._get_current_object()
+                logout_user()
+                login_user(user, remember=False, fresh=True)
                 flash('Пароль изменен успешно.', 'success')
                 return redirect(url_for('auth.profile'))
             except SQLAlchemyError:

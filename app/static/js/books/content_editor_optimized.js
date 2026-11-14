@@ -54,6 +54,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Rebuild a detached HTML preview from a small formatting allowlist. Nothing
+// parsed from a book is adopted into the live document; attributes are dropped.
+// This also protects existing stored content when an admin opens the editor.
+function renderBookPreview(html, preview) {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const allowed = new Set([
+        'P', 'BR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'STRONG', 'EM', 'B', 'I',
+        'U', 'S', 'SUB', 'SUP', 'CODE', 'PRE', 'BLOCKQUOTE', 'UL', 'OL', 'LI',
+        'HR', 'DIV', 'SPAN', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD', 'CAPTION'
+    ]);
+    const discard = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT']);
+    function copy(source, target) {
+        for (const node of source.childNodes) {
+            if (node.nodeType === 3) {
+                target.appendChild(document.createTextNode(node.textContent));
+            } else if (node.nodeType === 1) {
+                if (node.namespaceURI !== 'http://www.w3.org/1999/xhtml' || discard.has(node.tagName)) continue;
+                if (allowed.has(node.tagName)) {
+                    const element = document.createElement(node.tagName.toLowerCase());
+                    copy(node, element);
+                    target.appendChild(element);
+                } else {
+                    // Preserve text of unsupported links/widgets without their
+                    // URLs, event handlers, styles, ids, or active semantics.
+                    copy(node, target);
+                }
+            }
+        }
+    }
+    const fragment = document.createDocumentFragment();
+    copy(template.content, fragment);
+    preview.replaceChildren(fragment);
+}
+
 // Update preview
 function updatePreview() {
     const content = document.getElementById('contentEditor').value;
@@ -72,7 +107,7 @@ function updatePreview() {
         
         // Support basic markdown
         html = marked.parse(html);
-        preview.innerHTML = html;
+        renderBookPreview(html, preview);
     } else {
         preview.innerHTML = `
             <div class="text-muted text-center py-5">

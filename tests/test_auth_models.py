@@ -220,7 +220,8 @@ class TestUserModel:
         """Тест метода get_id"""
         with app.app_context():
             user_id = test_user.get_id()
-            assert user_id == str(test_user.id)
+            assert user_id == f'{test_user.id}:{test_user.auth_version()}'
+            assert User.from_session_id(user_id) is test_user
             assert isinstance(user_id, str)
 
     def test_user_repr(self, app, db_session, test_user):
