@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/wizard.css') }}?v=2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/wizard.css') }}?v=20261115a">
 {% endblock %}
 
 {% block title %}Добро пожаловать | LLT English{% endblock %}
@@ -19,8 +19,28 @@
 {% endblock %}
 
 {% block content %}
-<div class="onboarding-page">
+<div class="onboarding-page" data-initial-level="{{ initial_level }}">
   <div class="onboarding-card">
+    {% if quick_start %}
+    <div class="onboarding-step" id="quick-start">
+      <div class="onboarding-step__header">
+        <h1 class="onboarding-step__title">{% if next_url %}Продолжим обучение{% else %}Начнём первое занятие{% endif %}</h1>
+        <p class="onboarding-step__subtitle">Выбран уровень {{ initial_level }}.{% if initial_level == 'A1' %} Начнём с приветствий и знакомства, с поддержкой на русском.{% endif %}</p>
+      </div>
+      <div class="onboarding-ready">
+        <p>Двигайтесь в удобном темпе. Весь план сразу выполнять необязательно.</p>
+        <form method="POST" action="{{ url_for('onboarding.complete') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="level" value="{{ initial_level }}">
+          <input type="hidden" name="focus" value="{{ current_user.onboarding_focus or 'all' }}">
+          <input type="hidden" name="next" value="{{ next_url }}">
+          <input type="hidden" name="start_first_lesson" value="1">
+          <button type="submit" class="onboarding-start-btn">{% if next_url %}Продолжить{% else %}Начать первое занятие{% endif %}</button>
+        </form>
+        <p class="onboarding-quick-change"><a href="{{ url_for('onboarding.wizard', setup='full', next=next_url) }}">Изменить уровень и настройки</a></p>
+      </div>
+    </div>
+    {% else %}
     <!-- Progress bar -->
     <div class="onboarding-progress" role="progressbar" aria-label="Прогресс настройки" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33" id="progressContainer">
       <div class="onboarding-progress__bar" id="progressBar" style="width: 33%"></div>
@@ -151,6 +171,7 @@
           <input type="hidden" name="level" id="selectedLevel" value="">
           <input type="hidden" name="focus" id="selectedFocus" value="">
           <input type="hidden" name="next" value="{{ next_url }}">
+          <input type="hidden" name="start_first_lesson" value="1">
           <button type="submit" class="onboarding-start-btn">{% if next_url %}Продолжить{% else %}Перейти к первому занятию{% endif %}</button>
         </form>
       </div>
@@ -165,9 +186,10 @@
         Назад
       </button>
     </div>
+    {% endif %}
   </div>
 </div>
 
 
-<script src="{{ url_for('static', filename='js/onboarding/wizard.js') }}?v=2"></script>
+{% if not quick_start %}<script src="{{ url_for('static', filename='js/onboarding/wizard.js') }}?v=20261115a"></script>{% endif %}
 {% endblock %}

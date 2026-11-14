@@ -11,6 +11,7 @@ from app.admin.services.acquisition_metrics import (
     get_top_referrers,
 )
 from app.admin.utils.decorators import admin_required
+from app.admin.services.landing_metrics import get_landing_overview
 from app.utils.db import db
 
 acquisition_bp = Blueprint('acquisition_admin', __name__)
@@ -29,11 +30,13 @@ def acquisition_index():
 
     overview = get_acquisition_overview(db.session, days=days)
     referrers = get_top_referrers(db.session, days=days, limit=10)
+    landing = get_landing_overview(db.session, days=days)
 
     return render_template(
         'admin/acquisition/index.html',
         overview=overview,
         referrers=referrers,
+        landing=landing,
         days=days,
         windows=_ALLOWED_WINDOWS,
     )

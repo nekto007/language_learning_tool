@@ -140,6 +140,8 @@ def create_app(config_class=Config):
     from app.grammar_lab import models as grammar_models  # noqa: F401
     from app.modules import models as modules_models  # noqa: F401
     from app.notifications import models as notifications_models  # noqa: F401
+    from app.auth import welcome_email as welcome_email_models  # noqa: F401
+    from app.landing import analytics as landing_analytics_models  # noqa: F401
     from app.reminders import models as reminders_models  # noqa: F401
     from app.study import models as study_models  # noqa: F401
     from app.telegram import channel_models as telegram_channel_models  # noqa: F401
@@ -305,18 +307,21 @@ def create_app(config_class=Config):
         is_api = request.path.startswith('/api/')
         accepts_json = 'application/json' in request.headers.get('Accept', '')
 
-        if is_ajax or is_api or accepts_json:
+        if is_ajax or is_api or accepts_json or request.is_json:
             return jsonify({
                 'success': False, 'error': 'CSRF token expired. Please refresh the page.', 'csrf_expired': True,
             }), 400
 
         # Обычная форма: вместо голого текста — flash и возврат на страницу,
         # чтобы пользователь мог сразу повторить отправку со свежим токеном.
-        from flask import flash, redirect
+        from flask import flash, redirect, url_for
 
         from app.auth.routes import get_safe_redirect_url
         flash('Сессия устарела, страница обновлена — попробуйте ещё раз.', 'warning')
-        return redirect(get_safe_redirect_url(request.referrer, fallback='/'))
+        if request.endpoint == 'auth.register':
+            intent = {key: request.args[key] for key in ('level', 'entry', 'ref') if key in request.args}
+            return redirect(url_for('auth.register', **intent))
+        return redirect(get_safe_redirect_url(request.referrer, fallback='landing.index'))
 
     def _wants_json():
         """Check if the client prefers a JSON response."""

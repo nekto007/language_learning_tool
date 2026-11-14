@@ -258,6 +258,28 @@ def init_email_scheduler(app, *, blocking: bool = False) -> None:
             except Exception as e:
                 logger.error(f'lesson_progress reconcile job failed: {e}')
 
+    def welcome_wrapper():
+        from app.auth.welcome_email import run_welcome_email_job
+
+        with app.app_context():
+            try:
+                run_welcome_email_job()
+            except Exception:
+                db.session.rollback()
+                logger.exception('Welcome email job failed')
+            finally:
+                db.session.remove()
+
+    _scheduler.add_job(
+        welcome_wrapper,
+        'interval',
+        seconds=30,
+        id='welcome_emails',
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+
     # Run hourly: a single daily 10:00-UTC fire never overlaps the local
     # 8-20 delivery window for far-east/west timezones, so those users would
     # never be emailed (audit E-088). Per-(user, campaign, day) claim keeps the

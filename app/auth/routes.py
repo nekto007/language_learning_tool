@@ -307,13 +307,22 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for(_default_fallback()))
 
+    level_param = request.args.get('level', '').strip().upper()
+    if level_param not in {'A1', 'A2', 'B1', 'B2', 'C1'}:
+        level_param = ''
+    entry_param = 'preview' if request.args.get('entry') == 'preview' and level_param == 'A1' else ''
+    if request.method == 'GET' and entry_param:
+        from app.landing.analytics import record_registration_open
+        record_registration_open()
+
     # Capture ?ref= parameter and store in cookie so it survives form submission
     ref_code = request.args.get('ref', '').strip()
     if ref_code and len(ref_code) <= 16 and ref_code.isalnum() and request.method == 'GET':
         resp = make_response(render_template(
             'auth/register.html',
             form=RegistrationForm(),
-            level_param=request.args.get('level', ''),
+            level_param=level_param,
+            entry_param=entry_param,
             ref_param=ref_code,
         ))
         resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
@@ -322,7 +331,6 @@ def register():
 
     form = RegistrationForm()
 
-    level_param = request.args.get('level', '')
     ref_param = request.args.get('ref', '')
 
     if form.validate_on_submit():
@@ -331,6 +339,8 @@ def register():
         # signup from the same browser.
         from app.middleware.acquisition import consume_acquisition_meta
         acq_meta = consume_acquisition_meta()
+        if entry_param:
+            acq_meta = {**(acq_meta or {}), 'entry_point': 'landing_preview'}
 
         user = User(
             username=form.username.data,
@@ -356,6 +366,11 @@ def register():
 
         try:
             db.session.add(user)
+            db.session.flush()
+            from app.auth.welcome_email import enqueue_welcome_email
+            from app.landing.analytics import link_registration
+            enqueue_welcome_email(user)
+            link_registration(user)
             db.session.commit()
 
             # Guard: clear self-referral in case IDs collided (shouldn't happen, but safe)
@@ -398,21 +413,6 @@ def register():
             user.last_login = datetime.now(timezone.utc)
             db.session.commit()
 
-            # Send welcome email (may be slow if mail server is unresponsive)
-            try:
-                dashboard_url = url_for(_default_fallback(), _external=True)
-                email_sender.send_email(
-                    subject="Добро пожаловать в Language Learning Tool!",
-                    to_email=user.email,
-                    template_name="welcome",
-                    context={
-                        "username": user.username,
-                        "dashboard_url": dashboard_url,
-                    }
-                )
-            except (OSError, RuntimeError):
-                current_app.logger.warning("Welcome email failed for user=%s", user.email, exc_info=True)
-
             # Fire GA4 signup_completed on the next page render (onboarding wizard).
             # Carries the captured source so funnel analysis works per channel.
             from app.utils.gtag_events import queue_gtag_event
@@ -423,6 +423,8 @@ def register():
                     'utm_source': (acq_meta or {}).get('utm_source', ''),
                     'utm_medium': (acq_meta or {}).get('utm_medium', ''),
                     'utm_campaign': (acq_meta or {}).get('utm_campaign', ''),
+                    'entry_point': 'landing_preview' if entry_param else 'standard',
+                    'level': user.onboarding_level or '',
                 },
             )
 
@@ -440,6 +442,7 @@ def register():
                 return render_template('auth/register.html', form=form,
                                        learner_count=learner_count,
                                        level_param=level_param,
+                                       entry_param=entry_param,
                                        ref_param=ref_param), 400
             logger.error("Registration IntegrityError: %s", e, exc_info=True)
             flash('Регистрация не удалась. Попробуйте позже.', 'danger')
@@ -454,6 +457,7 @@ def register():
     return render_template('auth/register.html', form=form,
                            learner_count=learner_count,
                            level_param=level_param,
+                           entry_param=entry_param,
                            ref_param=ref_param)
 
 

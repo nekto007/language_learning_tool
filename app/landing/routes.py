@@ -2,6 +2,8 @@ from flask import redirect, render_template, url_for
 from flask_login import current_user
 
 from app.landing import landing_bp
+from app.landing.analytics import get_or_create_visit
+from app.landing.previews import PREVIEWS_BY_ID, pick_preview
 from app.utils.db import db
 
 
@@ -56,4 +58,17 @@ def index():
             .first()
         )
 
-    return render_template('landing/index.html', stats=stats, word_of_day=word_of_day)
+    preview = pick_preview()
+    visit = get_or_create_visit(preview['id']) if not current_user.is_authenticated else None
+    if visit:
+        preview = PREVIEWS_BY_ID[visit.preview_id]
+    recorded_events = ','.join(name for name, timestamp in (
+        ('preview_started', visit.started_at if visit else None),
+        ('preview_answered', visit.answered_at if visit else None),
+        ('registration_clicked', visit.registration_clicked_at if visit else None),
+    ) if timestamp is not None)
+    return render_template(
+        'landing/index.html', stats=stats, word_of_day=word_of_day,
+        preview=preview, preview_event_url=url_for('landing.preview_event') if visit else '',
+        preview_recorded_events=recorded_events,
+    )

@@ -1,4 +1,5 @@
-from flask import jsonify, redirect, render_template, request, session, url_for
+from flask import current_app, jsonify, redirect, render_template, request, session, url_for
+from sqlalchemy.exc import SQLAlchemyError
 from flask_login import current_user, login_required
 
 from app.auth.routes import get_safe_redirect_url
@@ -30,10 +31,16 @@ def wizard():
         safe_next = ''
 
     from app.onboarding.placement import placement_available
+    initial_level = current_user.onboarding_level or ''
+    if initial_level not in {'A1', 'A2', 'B1', 'B2', 'C1'}:
+        initial_level = ''
+    quick_start = bool(initial_level) and request.args.get('setup') != 'full'
     return render_template(
         'onboarding/wizard.html',
         next_url=safe_next,
-        placement_enabled=placement_available(),
+        placement_enabled=placement_available() if not quick_start else False,
+        initial_level=initial_level,
+        quick_start=quick_start,
     )
 
 
@@ -114,4 +121,11 @@ def complete():
             safe_url = dashboard_url
     else:
         safe_url = dashboard_url
+        if request.form.get('start_first_lesson') == '1':
+            from app.onboarding.study_start import get_first_study_url
+            try:
+                safe_url = get_first_study_url(current_user) or dashboard_url
+            except (SQLAlchemyError, ValueError, KeyError, TypeError):
+                db.session.rollback()
+                current_app.logger.warning('Quick onboarding lesson unavailable; opening dashboard', exc_info=True)
     return redirect(safe_url)

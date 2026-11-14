@@ -207,8 +207,8 @@ class TestRegister:
             assert '/login' not in r2.headers.get('Location', '')
 
     @patch('app.auth.routes.email_sender')
-    def test_register_sends_welcome_email(self, mock_email, client, db_session):
-        """Registration should send a welcome email."""
+    def test_register_queues_welcome_email(self, mock_email, client, db_session):
+        """Registration stores mail for the worker without invoking SMTP."""
         mock_email.send_email.return_value = True
         unique = uuid.uuid4().hex[:8]
         email = f'newuser_{unique}@example.com'
@@ -218,10 +218,12 @@ class TestRegister:
             'password': 'Xk9$mP2vL!qw',
             'password2': 'Xk9$mP2vL!qw',
         }, follow_redirects=False)
-        mock_email.send_email.assert_called_once()
-        call_kwargs = mock_email.send_email.call_args
-        assert call_kwargs[1]['to_email'] == email
-        assert call_kwargs[1]['template_name'] == 'welcome'
+        mock_email.send_email.assert_not_called()
+        from app.auth.welcome_email import WelcomeEmail
+        user = User.query.filter_by(email=email).one()
+        job = WelcomeEmail.query.filter_by(user_id=user.id).one()
+        assert job.status == 'pending'
+        assert job.attempts == 0
 
     @patch('app.auth.routes.email_sender')
     def test_register_succeeds_even_if_email_fails(self, mock_email, client, db_session):

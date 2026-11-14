@@ -96,21 +96,23 @@
     <section id="try-english" class="land-preview" aria-labelledby="preview-title">
         <h2 id="preview-title" class="land-section__title">Начните с одной фразы</h2>
         <p class="land-section__subtitle">Пример задания для начинающих. Выберите слово — и сразу увидите объяснение.</p>
-        <div class="land-preview__card" id="landing-preview">
+        <div class="land-preview__card" id="landing-preview" data-preview-id="{{ preview.id }}"
+             data-correct="{{ preview.correct }}" data-explanation="{{ preview.explanation }}"
+             data-event-url="{{ preview_event_url }}" data-recorded-events="{{ preview_recorded_events }}">
             <fieldset>
-                <legend lang="en">I ___ Anna.</legend>
-                <p>Нужно представиться: «Я Анна». Какое слово подходит?</p>
+                <legend lang="en">{{ preview.prompt }}</legend>
+                <p>{{ preview.instruction }}</p>
                 <div class="land-preview__options">
-                    {% for option in ['am', 'is', 'are'] %}
+                    {% for option in preview.options %}
                     <label><input type="radio" name="preview-answer" value="{{ option }}"> <span lang="en">{{ option }}</span></label>
                     {% endfor %}
                 </div>
             </fieldset>
             <div id="preview-feedback" class="land-preview__feedback" role="status" aria-live="polite" hidden></div>
             <button id="preview-reset" class="land-preview__reset" type="button" hidden>Попробовать ещё раз</button>
-            <noscript><p>Ответ: <strong lang="en">am</strong>. С <span lang="en">I</span> используем <span lang="en">am</span>: <span lang="en">I am Anna.</span> — «Я Анна».</p></noscript>
-            <p class="land-preview__next">В курсе A1 начнёте с приветствий и знакомства. После регистрации выберите A1 и откройте первый урок.</p>
-            <a class="land-btn land-btn--accent" href="{{ url_for('auth.register') }}">Перейти к бесплатным урокам</a>
+            <noscript><p>Ответ: <strong lang="en">{{ preview.correct }}</strong>. {{ preview.explanation }}</p></noscript>
+            <p class="land-preview__next">В курсе A1 начнёте с приветствий и знакомства. После регистрации предложим сразу перейти к первому занятию. Уровень можно изменить.</p>
+            <a class="land-btn land-btn--accent" id="preview-register" href="{{ url_for('auth.register', level='A1', entry='preview') }}">Перейти к бесплатным урокам</a>
             <p class="land-preview__note">Пример на этой странице не сохраняется в учебный прогресс.</p>
         </div>
     </section>
@@ -354,5 +356,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/landing/preview.js') }}?v=20261112c" defer></script>
+<script src="{{ url_for('static', filename='js/landing/preview.js') }}?v=20261115a" defer></script>
 {% endblock %}

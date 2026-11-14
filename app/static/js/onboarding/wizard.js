@@ -1,6 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
   var currentStep = 1;
-  var selectedLevel = '';
+  var root = document.querySelector('.onboarding-page');
+  var selectedLevel = root ? root.dataset.initialLevel || '' : '';
+  if (!['A1', 'A2', 'B1', 'B2', 'C1'].includes(selectedLevel)) selectedLevel = '';
+  document.getElementById('selectedLevel').value = selectedLevel;
+  if (selectedLevel) {
+    var selectedButton = document.querySelector('.onboarding-level-btn[data-level="' + selectedLevel + '"]');
+    if (selectedButton) selectedButton.classList.add('selected');
+  }
   var selectedFocuses = [];
 
   var steps = {

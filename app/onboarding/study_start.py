@@ -4,6 +4,17 @@ from __future__ import annotations
 from app.curriculum.models import LessonProgress, Lessons
 from app.daily_plan.action_selection import next_unified_item
 
+
+def get_first_study_url(user):
+    """Use the current plan, including its resume context, for the quick entry."""
+    from app.daily_plan.service import get_daily_plan_unified
+    from app.utils.db import db
+
+    plan = get_daily_plan_unified(user.id, tz=user.timezone or 'UTC') or {}
+    card = build_study_start_card(user.id, db, plan, {})
+    db.session.commit()  # Persist the plan snapshot before following its URL.
+    return card['url'] if card else None
+
 _OUTCOMES = {
     'vocabulary': 'Познакомьтесь со словами и фразами и послушайте, как они звучат.',  # noqa: RUF001
     'flashcards': 'Вспомните значения знакомых слов и закрепите их на карточках.',

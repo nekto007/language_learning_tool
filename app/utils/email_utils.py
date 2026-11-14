@@ -4,7 +4,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from flask import render_template
+from flask import current_app, render_template
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ class EmailSender:
         self.default_from_email = os.environ.get('DEFAULT_FROM_EMAIL')
         self.smtp_debug_level = int(os.environ.get('SMTP_DEBUG_LEVEL', 0))
 
-    def send_email(self, subject, to_email, template_name, context=None):
+    def send_email(self, subject, to_email, template_name, context=None, *, timeout=None,
+                   standalone=False):
         """
         Отправляет электронное письмо с использованием шаблона.
 
@@ -28,6 +29,9 @@ class EmailSender:
             to_email (str): Адрес получателя
             template_name (str): Имя шаблона (без расширения)
             context (dict, optional): Словарь с контекстом для шаблона. По умолчанию None.
+            timeout (float, optional): Таймаут SMTP-сокета в секундах.
+            standalone (bool): Render only explicit context, without web context
+                processors. For self-contained email templates in background jobs.
 
         Returns:
             bool: True, если отправка успешна, False в противном случае
@@ -42,8 +46,12 @@ class EmailSender:
         msg['To'] = to_email
 
         # Рендеринг HTML и текстового шаблона
-        html_body = render_template(f'emails/{template_name}.html', **context)
-        text_body = render_template(f'emails/{template_name}.txt', **context)
+        if standalone:
+            html_body = current_app.jinja_env.get_template(f'emails/{template_name}.html').render(**context)
+            text_body = current_app.jinja_env.get_template(f'emails/{template_name}.txt').render(**context)
+        else:
+            html_body = render_template(f'emails/{template_name}.html', **context)
+            text_body = render_template(f'emails/{template_name}.txt', **context)
 
         # Добавление частей письма
         part1 = MIMEText(text_body, 'plain')
@@ -58,7 +66,8 @@ class EmailSender:
                 return False
 
             # Подключение к SMTP-серверу
-            with smtplib.SMTP(self.email_host, self.email_port) as server:
+            smtp_options = {'timeout': timeout} if timeout is not None else {}
+            with smtplib.SMTP(self.email_host, self.email_port, **smtp_options) as server:
                 server.set_debuglevel(self.smtp_debug_level)
                 if self.use_tls:
                     server.starttls()

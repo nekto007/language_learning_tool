@@ -34,7 +34,7 @@
           </svg>
         </div>
         <h1 class="auth-card__title">Регистрация</h1>
-        <p class="auth-card__subtitle">Создайте аккаунт для начала обучения</p>
+        <p class="auth-card__subtitle">{% if entry_param == 'preview' %}Сохраните прогресс и начните курс A1. Уровень можно изменить после регистрации.{% else %}Создайте аккаунт для начала обучения{% endif %}</p>
         <p class="auth-card__social-proof" style="margin-top:0.5rem; font-size:0.85rem; opacity:0.85;">
           {% if learner_count and learner_count > 0 %}
           Присоединяйтесь к {{ learner_count }} ученикам
@@ -47,7 +47,7 @@
 
     <!-- Form -->
     <div class="auth-card__body">
-      <form method="POST" action="{{ url_for('auth.register', level=level_param or '', ref=ref_param or '') }}">
+      <form method="POST" action="{{ url_for('auth.register', level=level_param or '', ref=ref_param or '', entry=entry_param or '') }}">
         {{ form.hidden_tag() }}
         {% if ref_param %}<input type="hidden" name="ref" value="{{ ref_param }}">{% endif %}
 
