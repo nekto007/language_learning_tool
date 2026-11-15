@@ -31,6 +31,8 @@ ENV/
 
 # Documentation
 *.md
+reports/
+docs/private/
 REFACTORING_REPORT.md
 SEQUENTIAL_READING_LOGIC.md
 TELEGRAM_API.md
@@ -47,6 +49,8 @@ logs/
 *.sqlite3
 
 # Environment
+.env
+.env.*
 .env.local
 .env.*.local
 
