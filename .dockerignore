@@ -91,6 +91,12 @@ node_modules/
 Thumbs.db
 
 # Backup files
+backups/
+ops/
+*.dump
+*.dump.partial
+*.dump.sha256
+*.dump.json
 *.bak
 *.backup
 *~

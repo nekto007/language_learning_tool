@@ -357,6 +357,11 @@ coverage*.json
 .claude/
 
 # Local backups and exports
+backups/
+*.dump
+*.dump.partial
+*.dump.sha256
+*.dump.json
 module_backups/
 local_exports/
 local_archive/
@@ -394,8 +399,12 @@ grammar_extra_audit_report.md
 !/scripts/
 /scripts/*
 !/scripts/complete_lesson_explanations.py
+!/scripts/backup_database.py
 work/
 /reports/
+# Operational instructions remain local, including files previously tracked.
+/ops/**/*.md
+/marketing/first-lesson-release.md
 module_completed/
 Screenshot*.png
 app/temp/
