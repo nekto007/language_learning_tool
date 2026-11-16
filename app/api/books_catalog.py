@@ -6,8 +6,9 @@ Endpoints:
 - ``POST /api/books/select`` — persist the user's chosen book in
   ``UserReadingPreference`` and return the refreshed reading slot.
 
-Both endpoints are session-authenticated (browser AJAX). They are not
-exposed to JWT/mobile clients and keep CSRF protection on.
+GET accepts session/JWT authentication. With ``include_library=1`` it also
+returns the account reading history, independently of the recommendation
+level window. Browser selection keeps CSRF protection on.
 """
 from __future__ import annotations
 
@@ -16,12 +17,13 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user
+from sqlalchemy import exists, func, or_, select
 
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.books.access import accessible_books_filter, can_user_access_book
-from app.books.models import Book
-from app.books.progress import get_completed_book_ids, get_book_completion_state
+from app.books.models import Book, Chapter, UserChapterProgress
+from app.books.progress import _progress_from_records, get_completed_book_ids, get_book_completion_state
 from app.curriculum.models import CEFRLevel
 from app.daily_plan.level_utils import _cefr_code_to_order, get_user_current_cefr_level
 from app.daily_plan.linear.models import UserReadingPreference
@@ -71,20 +73,84 @@ def get_books_catalog():
     completed_book_ids = get_completed_book_ids(current_user.id, [book.id for book in books], db)
     books = [book for book in books if book.id not in completed_book_ids]
 
-    payload = [
-        {
-            'id': book.id,
-            'title': book.title,
-            'author': book.author,
-            'level': book.level,
-            'summary': book.summary,
-            'cover_image': book.cover_image,
-            'chapters_cnt': book.chapters_cnt,
-            'words_total': book.words_total,
-        }
-        for book in books
-    ]
-    return jsonify({'user_level': user_level, 'books': payload})
+    result = {'user_level': user_level, 'books': [_book_payload(book) for book in books]}
+    if request.args.get('include_library') == '1':
+        result['library_books'] = _account_library(current_user)
+    response = jsonify(result)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _book_payload(book):
+    return {
+        'id': book.id,
+        'title': book.title,
+        'author': book.author,
+        'level': book.level,
+        'summary': book.summary,
+        'cover_image': book.cover_image,
+        'chapters_cnt': book.chapters_cnt,
+        'words_total': book.words_total,
+    }
+
+
+def _utc(value):
+    return value.replace(tzinfo=timezone.utc) if value and value.tzinfo is None else value
+
+
+def _account_library(user):
+    """Batch account history; no chapter text, per-book queries or shared cache."""
+    from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
+
+    pref = db.session.query(UserReadingPreference).filter_by(user_id=user.id).first()
+    has_progress = exists(select(UserChapterProgress.chapter_id).join(
+        Chapter, Chapter.id == UserChapterProgress.chapter_id,
+    ).where(UserChapterProgress.user_id == user.id, Chapter.book_id == Book.id))
+    query = db.session.query(Book).filter(accessible_books_filter(user)).filter(
+        or_(has_progress, Book.id == pref.book_id) if pref else has_progress,
+    )
+    if not getattr(user, 'is_admin', False):
+        query = query.filter(Book.is_published.is_(True))
+    books = query.all()
+    if not books:
+        return []
+    ids = [book.id for book in books]
+    counts = {bid: (count, first) for bid, count, first in db.session.query(
+        Chapter.book_id, func.count(Chapter.id), func.min(Chapter.chap_num),
+    ).filter(Chapter.book_id.in_(ids)).group_by(Chapter.book_id).all()}
+    grouped = {}
+    for record, book_id, chapter_num in db.session.query(UserChapterProgress, Chapter.book_id, Chapter.chap_num).join(
+        Chapter, Chapter.id == UserChapterProgress.chapter_id,
+    ).filter(UserChapterProgress.user_id == user.id, Chapter.book_id.in_(ids)).all():
+        grouped.setdefault(book_id, []).append((record, chapter_num))
+    result = []
+    for book in books:
+        total, first = counts.get(book.id, (0, 1))
+        if total == 0:
+            continue
+        rows = grouped.get(book.id, [])
+        rows.sort(key=lambda pair: (_utc(pair[0].updated_at) or datetime.min.replace(tzinfo=timezone.utc), pair[1]), reverse=True)
+        records = [pair[0] for pair in rows]
+        completed = sum((row.offset_pct or 0) >= CHAPTER_COMPLETION_THRESHOLD for row in records)
+        latest = rows[0] if rows else None
+        selected = pref is not None and pref.book_id == book.id
+        last_read = _utc(latest[0].updated_at) if latest else None
+        result.append({
+            'book': _book_payload(book),
+            'progress': {
+                'progress_pct': int(_progress_from_records(records, total)),
+                'current_chapter': latest[1] if latest else first,
+                'offset_pct': latest[0].offset_pct if latest else 0,
+                'completed_chapters': completed,
+                'total_chapters': total,
+                'is_completed': completed >= total,
+                'is_selected': selected,
+                'last_read': last_read.isoformat() if last_read else None,
+            },
+        })
+    result.sort(key=lambda item: (item['progress']['last_read'] or '', item['book']['id']), reverse=True)
+    return result
+
 
 
 @api_books_catalog.route('/books/select', methods=['POST'])
