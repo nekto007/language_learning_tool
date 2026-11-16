@@ -29,7 +29,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'grammar_lab.', 'landing.', 'telegram.',
     'api_auth.', 'api_words.', 'api_books.', 'api_books_catalog.',
     'api_anki.',
-    'api_topics_collections.', 'api_daily_plan.',
+    'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.',
     'uploads.',
     'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
     'collection_admin.', 'topic_admin.', 'word_admin.',
@@ -217,6 +217,9 @@ def create_app(config_class=Config):
 
     from app.api.daily_plan import api_daily_plan
     app.register_blueprint(api_daily_plan, url_prefix='/api')
+
+    from app.api.native_lessons import api_native_lessons
+    app.register_blueprint(api_native_lessons, url_prefix='/api/native')
 
     from app.curriculum import curriculum_bp, init_curriculum_module
     app.register_blueprint(curriculum_bp, url_prefix='/curriculum')

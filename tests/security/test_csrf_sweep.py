@@ -33,6 +33,7 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.api.native_lessons.submit_native_lesson': 'JWT-only: explicit verified Bearer header required, cookie auth rejected',
     'app.health.health': 'unauthenticated liveness probe, GET only',
     'app.telegram.routes.webhook': 'external caller (Telegram), gated by the webhook secret header',
     'app.api.auth.api_login': 'issues the JWT; no session exists yet to protect',
@@ -46,6 +47,7 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.api.native_lessons.submit_native_lesson',
     'app.telegram.routes.webhook',
     'app.api.auth.api_login',
     'app.api.auth.refresh',

@@ -143,3 +143,19 @@ def db_get_user(user_id: int):
 
 api_jwt_required = api_auth_required
 api_login_required = api_auth_required
+
+
+def api_bearer_required(f):
+    """Require an explicit Bearer header; cookie-only auth is never accepted.
+
+    May be used by dedicated JWT-only endpoints exempt from browser CSRF.
+    api_auth_required still checks signature, active account and auth_version.
+    """
+    authenticated = api_auth_required(f)
+
+    @functools.wraps(f)
+    def bearer_only(*args, **kwargs):
+        if not request.headers.get('Authorization', '').startswith('Bearer '):
+            return _invalid_token_response()
+        return authenticated(*args, **kwargs)
+    return bearer_only
