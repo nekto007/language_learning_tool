@@ -33,6 +33,20 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.api.native_controls.enroll_word': 'JWT-only; cookie authentication rejected',
+    'app.api.native_controls.pause_native': 'JWT-only; cookie authentication rejected',
+    'app.api.native_controls.resume_native': 'JWT-only; cookie authentication rejected',
+
+    'app.api.native_reading.select_book_native': 'JWT-only; cookie authentication rejected',
+    'app.api.native_reading.save_reading_progress_native': 'JWT-only; cookie authentication rejected',
+    'app.api.native_reading.start_reading_native': 'JWT-only; cookie authentication rejected',
+    'app.api.native_reading.end_reading_native': 'JWT-only; cookie authentication rejected',
+    'app.api.native_lessons.review_native_translation': 'JWT-only; cookie authentication rejected',
+    'app.api.native_cards.start_cards': 'JWT-only; cookie authentication rejected',
+    'app.api.native_cards.grade_cards': 'JWT-only; cookie authentication rejected',
+    'app.api.native_activities.start_activity': 'JWT-only; cookie authentication rejected',
+    'app.api.native_activities.submit_activity': 'JWT-only; cookie authentication rejected',
+
     'app.api.native_srs.start_srs': 'JWT-only; cookie authentication rejected',
     'app.api.native_srs.grade_srs': 'JWT-only; cookie authentication rejected',
     'app.api.native_lessons.submit_native_lesson': 'JWT-only: explicit verified Bearer header required, cookie auth rejected',
@@ -49,6 +63,20 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.api.native_controls.enroll_word',
+    'app.api.native_controls.pause_native',
+    'app.api.native_controls.resume_native',
+
+    'app.api.native_reading.select_book_native',
+    'app.api.native_reading.save_reading_progress_native',
+    'app.api.native_reading.start_reading_native',
+    'app.api.native_reading.end_reading_native',
+    'app.api.native_lessons.review_native_translation',
+    'app.api.native_cards.start_cards',
+    'app.api.native_cards.grade_cards',
+    'app.api.native_activities.start_activity',
+    'app.api.native_activities.submit_activity',
+
     'app.api.native_srs.start_srs',
     'app.api.native_srs.grade_srs',
     'app.api.native_lessons.submit_native_lesson',

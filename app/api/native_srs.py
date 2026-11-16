@@ -40,7 +40,7 @@ def _guard():
     if next_item is None and (not required or all(done(it) or it.get('skipped') for it in required) or plan.get('day_secured')):
         next_item = next((it for it in optional if not done(it)), None)
     skipped_srs = any(it.get('kind') == 'srs' and it.get('skipped') and not it.get('blocked') and not done(it) for it in required)
-    if not skipped_srs and (not next_item or next_item.get('kind') != 'srs' or next_item.get('blocked')):
+    if (next_item and next_item.get('id') == 'srs:deck_quiz') or (not skipped_srs and (not next_item or next_item.get('kind') != 'srs' or next_item.get('blocked'))):
         raise NativeLessonError('lesson_locked', 403)
 
 
@@ -88,7 +88,8 @@ def _pack_pool(items):
         if card is not None: card.session_attempts = 0
         queue.append({'word_id': item['word_id'], 'direction': item['direction'],
             'front': plain(item['word']), 'back': plain(item['translation']),
-            'examples': plain(item.get('examples')), 'state': item.get('state', 'new'), 'revision': _revision(card)})
+            'examples': plain(item.get('examples')), 'audio_url': item.get('audio_url'),
+            'state': item.get('state', 'new'), 'revision': _revision(card)})
     return queue
 
 
@@ -150,7 +151,7 @@ def start_srs():
         items = _pool() if guard_error is None else []
         _lock_user()
         run = _run()
-        if run and run.study_day == day:
+        if run and run.study_day == day and run.state.get('lesson_id') is None:
             if (run.state['start_id'] == data['request_id'] and run.state['complete']) or (not run.state['complete'] and guard_error is None):
                 return jsonify(_response(run))
         if guard_error: raise guard_error
@@ -235,7 +236,7 @@ def grade_srs():
         day = _day()
         _lock_user()
         run = _run()
-        if run is None or run.session_id != data['session_id'] or run.study_day != day:
+        if run is None or run.session_id != data['session_id'] or run.study_day != day or run.state.get('lesson_id') is not None:
             raise NativeLessonError('srs_changed', 409)
         state = deepcopy(run.state)
         if state.get('last_step') == data['step']: return jsonify(state['last_response'])

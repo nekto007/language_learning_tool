@@ -1289,3 +1289,16 @@ class NativeSRSState(db.Model):
     study_day = db.Column(db.String(10), nullable=False)
     state = db.Column(db.JSON, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))
+
+
+class NativeLearningRun(db.Model):
+    """Server-selected native practice with an atomic repeat receipt."""
+    __tablename__ = 'native_learning_runs'
+    session_id = db.Column(db.Integer, db.ForeignKey('study_sessions.id', ondelete='CASCADE'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    request_id = db.Column(db.String(36), nullable=False)
+    kind = db.Column(db.String(40), nullable=False)
+    payload = db.Column(db.JSON, nullable=False)
+    response = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    __table_args__ = (db.UniqueConstraint('user_id', 'request_id', name='uq_native_learning_request'),)

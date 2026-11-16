@@ -87,6 +87,9 @@ def get_words():
     count_query = db.select(func.count()).select_from(query.subquery())
     total = db.session.execute(count_query).scalar()
 
+    # Stable pages across repeated dictionary searches and devices.
+    query = query.order_by(func.lower(CollectionWords.english_word), CollectionWords.id)
+
     # Apply pagination
     query = query.limit(per_page).offset((page - 1) * per_page)
 

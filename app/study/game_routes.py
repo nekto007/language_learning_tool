@@ -857,7 +857,7 @@ def _quiz_answer_is_answerable(word_id, direction_str) -> bool:
     return isinstance(word_id, int) and not isinstance(word_id, bool)
 
 
-def _grade_quiz_answer(word_id, direction_str, is_correct: bool) -> bool:
+def _grade_quiz_answer(word_id, direction_str, is_correct: bool, *, commit: bool = True) -> bool:
     """Grade one quiz answer through the shared SM-2 engine.
 
     Best-effort: a quiz answer must never fail because of SRS bookkeeping.
@@ -915,9 +915,14 @@ def _grade_quiz_answer(word_id, direction_str, is_correct: bool) -> bool:
                 return False
 
         direction.update_after_review(RATING_KNOW if is_correct else RATING_DONT_KNOW, context='game')
-        db.session.commit()
+        if commit:
+            db.session.commit()
+        else:
+            db.session.flush()
         return True
     except Exception:
+        if not commit:
+            raise
         db.session.rollback()
         logger.exception('Quiz SRS grading failed for word %s', word_id)
         return False

@@ -1206,6 +1206,13 @@ def reading_session_end():
     if not isinstance(data, dict):
         data = {}
     _require_csrf_token(data)
+    return close_reading_session_response(data)
+
+
+def close_reading_session_response(data, *, max_duration_seconds=None):
+    """Shared close operation; callers establish cookie+CSRF or Bearer auth."""
+    from app.api.errors import api_error
+    from app.books.reading_session import end_session
     session_id = data.get('session_id')
     if not session_id:
         return api_error('missing_session_id', 'session_id is required', 400)
@@ -1262,7 +1269,7 @@ def reading_session_end():
     )
     pre_offset = pre_progress.offset_pct if pre_progress else 0.0
 
-    session = end_session(session_id, db, current_offset_pct=current_offset_hint)
+    session = end_session(session_id, db, current_offset_pct=current_offset_hint, max_duration_seconds=max_duration_seconds)
     db.session.commit()
 
     chapter = Chapter.query.get(session.chapter_id)

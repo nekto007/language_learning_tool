@@ -88,6 +88,11 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _aware_utc(value: datetime) -> datetime:
+    # SQLite drops timezone metadata; persisted naive timestamps represent UTC.
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
 def _session_credit_seconds(
     session: 'UserReadingSession', now: Optional[datetime] = None
 ) -> int:
@@ -104,7 +109,7 @@ def _session_credit_seconds(
     if session.started_at is None:
         return 0
     now = now or _utcnow()
-    elapsed = int((now - session.started_at).total_seconds())
+    elapsed = int((_aware_utc(now) - _aware_utc(session.started_at)).total_seconds())
     if elapsed <= 0:
         return 0
     return min(elapsed, OPEN_SESSION_GRACE_SECONDS)
@@ -121,15 +126,16 @@ def _sum_session_credit(
       window total, not per session — several abandoned tabs on different
       chapters can't stack N×90s of phantom credit (audit E-055).
     """
+    now, start_utc, end_utc = map(_aware_utc, (now, start_utc, end_utc))
     closed_total = 0
     open_elapsed = 0
     for r in rows:
         if r.ended_at is not None and r.started_at is not None:
-            lo = max(r.started_at, start_utc)
-            hi = min(r.ended_at, end_utc)
+            lo = max(_aware_utc(r.started_at), start_utc)
+            hi = min(_aware_utc(r.ended_at), end_utc)
             closed_total += max(0, int((hi - lo).total_seconds()))
         elif r.started_at is not None:
-            lo = max(r.started_at, start_utc)
+            lo = max(_aware_utc(r.started_at), start_utc)
             hi = min(now, end_utc)
             open_elapsed += max(0, int((hi - lo).total_seconds()))
     return closed_total + min(open_elapsed, OPEN_SESSION_GRACE_SECONDS)
@@ -195,7 +201,7 @@ class UserReadingSession(db.Model):
     def duration_seconds(self) -> int:
         if self.ended_at is None or self.started_at is None:
             return 0
-        return max(0, int((self.ended_at - self.started_at).total_seconds()))
+        return max(0, int((_aware_utc(self.ended_at) - _aware_utc(self.started_at)).total_seconds()))
 
     def __repr__(self) -> str:
         return (
@@ -258,7 +264,7 @@ def start_session(user_id: int, chapter_id: int, db_session: Any = db) -> UserRe
                 # in ``_session_credit_seconds`` so closed and still-open
                 # stale sessions are treated symmetrically.
                 if prior.started_at is not None:
-                    elapsed = int((now - prior.started_at).total_seconds())
+                    elapsed = int((_aware_utc(now) - _aware_utc(prior.started_at)).total_seconds())
                     capped = max(0, min(elapsed, OPEN_SESSION_GRACE_SECONDS))
                     prior.ended_at = prior.started_at + timedelta(seconds=capped)
                 else:
@@ -293,6 +299,7 @@ def end_session(
     session_id: int,
     db_session: Any = db,
     current_offset_pct: Optional[float] = None,
+    max_duration_seconds: Optional[int] = None,
 ) -> Optional[UserReadingSession]:
     """Close an open session. Returns the row, or ``None`` if not found.
 
@@ -326,6 +333,10 @@ def end_session(
     if session.ended_at is not None:
         return session
     session.ended_at = _utcnow()
+    if max_duration_seconds is not None and session.started_at is not None:
+        started = session.started_at
+        if started.tzinfo is None: started = started.replace(tzinfo=timezone.utc)
+        session.ended_at = min(session.ended_at, started + timedelta(seconds=max(0, max_duration_seconds)))
     current = _current_chapter_offset(session.user_id, session.chapter_id, db_session)
     if current_offset_pct is not None:
         try:

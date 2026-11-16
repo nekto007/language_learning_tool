@@ -29,7 +29,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'grammar_lab.', 'landing.', 'telegram.',
     'api_auth.', 'api_words.', 'api_books.', 'api_books_catalog.',
     'api_anki.',
-    'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.',
+    'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.', 'api_native_reading.', 'api_native_cards.', 'api_native_activities.', 'api_native_catalog.', 'api_native_controls.',
     'uploads.',
     'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
     'collection_admin.', 'topic_admin.', 'word_admin.',
@@ -223,6 +223,21 @@ def create_app(config_class=Config):
 
     from app.api.native_srs import api_native_srs
     app.register_blueprint(api_native_srs, url_prefix='/api/native')
+
+    from app.api.native_reading import api_native_reading
+    app.register_blueprint(api_native_reading, url_prefix='/api/native')
+
+    from app.api.native_cards import api_native_cards
+    app.register_blueprint(api_native_cards, url_prefix='/api/native')
+
+    from app.api.native_controls import api_native_controls
+    app.register_blueprint(api_native_controls, url_prefix='/api/native')
+
+    from app.api.native_catalog import api_native_catalog
+    app.register_blueprint(api_native_catalog, url_prefix='/api/native')
+
+    from app.api.native_activities import api_native_activities
+    app.register_blueprint(api_native_activities, url_prefix='/api/native')
 
     from app.curriculum import curriculum_bp, init_curriculum_module
     app.register_blueprint(curriculum_bp, url_prefix='/curriculum')

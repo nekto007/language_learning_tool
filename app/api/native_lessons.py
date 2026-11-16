@@ -87,6 +87,8 @@ def _signer():
 
 
 def project_questions(lesson):
+    from app.api.native_content import is_extended, project
+    if is_extended(lesson): return project(lesson)
     content = _content(lesson)
     if lesson.type not in ('grammar', 'quiz'):
         raise NativeLessonError('unsupported_lesson', 422)
@@ -140,12 +142,18 @@ def _theory(content):
     for section in source.get('sections', []) if isinstance(source.get('sections'), list) else []:
         if not isinstance(section, dict):
             continue
-        body = [plain(section.get(k)) for k in ('content', 'body', 'text', 'description')]
+        body = [plain(section.get(k)) for k in ('rule', 'content', 'body', 'text', 'description')]
         for example in section.get('examples', []) if isinstance(section.get('examples'), list) else []:
             if isinstance(example, dict):
                 body.extend(plain(example.get(k)) for k in ('sentence', 'translation', 'english', 'russian', 'explanation'))
             else:
                 body.append(plain(example))
+        for rule in section.get('rules', []) if isinstance(section.get('rules'),list) else []:
+            if isinstance(rule,dict):
+                body.extend(plain(rule.get(k)) for k in ('rule','description','text','explanation'))
+                examples=rule.get('examples') or []
+                if isinstance(examples,list):body.extend(plain(v) if not isinstance(v,dict) else ' · '.join(filter(None,(plain(x) for x in v.values()))) for v in examples)
+            else:body.append(plain(rule))
         table = section.get('table')
         if isinstance(table, dict):
             table = table.get('rows', [])
@@ -164,6 +172,11 @@ def _theory(content):
         text = '\n'.join(filter(None, (plain(n) for n in notes)))
         if text:
             blocks.append({'title': 'Обрати внимание', 'body': text})
+    for key,title in [('summary','Коротко'),('common_mistakes','Частые ошибки'),('tips','Советы')]:
+        value=source.get(key)
+        if isinstance(value,list):
+            value='\n'.join(plain(v) if not isinstance(v,dict) else ' · '.join(filter(None,(plain(x) for x in v.values()))) for v in value)
+        if plain(value):blocks.append({'title':title,'body':plain(value)})
     if len(blocks) > 100:
         raise NativeLessonError('unsupported_lesson', 422)
     return blocks
@@ -200,11 +213,10 @@ def _guard_plan(lesson_id):
     next_optional = next((it for it in optional if not done(it)), None) if unlocked else None
     for item in required + optional:
         candidate_id = (item.get('data') or {}).get('lesson_id')
-        if item.get('kind') == 'curriculum' and (candidate_id == lesson_id or item.get('id') == f'curriculum:{lesson_id}'):
+        if item.get('kind') in ('curriculum', 'listening', 'speaking', 'writing', 'challenge') and (candidate_id == lesson_id or item.get('id') == f'curriculum:{lesson_id}'):
             allowed = item in (next_required, next_optional) or (item in required and item.get('skipped'))
-            if item.get('blocked') or not allowed:
-                raise NativeLessonError('lesson_locked', 403)
-            return
+            if not item.get('blocked') and allowed:
+                return item.get('kind')
     raise NativeLessonError('lesson_locked', 403)
 
 
@@ -226,14 +238,17 @@ def get_native_lesson(lesson_id):
     from app.curriculum.constants import get_lesson_passing_score
     from app.curriculum.language_support import language_support_mode
     lesson, progress = _lesson_and_progress(lesson_id)
-    _guard_plan(lesson_id)
+    lesson._native_challenge = _guard_plan(lesson_id) == "challenge"
     questions = project_questions(lesson)
     content = _content(lesson)
     token = _signer().dumps({'user': current_user.id, 'lesson': lesson_id, 'revision': _digest(content),
                              'version': _version(progress), 'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()})
-    return jsonify(success=True, lesson={'id': lesson.id, 'title': plain(lesson.title), 'type': lesson.type,
-                   'passing_score': get_lesson_passing_score(lesson), 'theory': _theory(content),
-                   'questions': questions, 'support_mode': language_support_mode(lesson), 'session_token': token})
+    from app.api.native_content import is_extended, extras
+    payload = {'id': lesson.id, 'title': plain(lesson.title), 'type': lesson.type,
+               'passing_score': get_lesson_passing_score(lesson), 'theory': _theory(content),
+               'questions': questions, 'support_mode': language_support_mode(lesson), 'session_token': token}
+    if is_extended(lesson): payload.update(extras(lesson))
+    return jsonify(success=True, lesson=payload)
 
 
 def _display_answer(question, value):
@@ -273,8 +288,9 @@ def submit_native_lesson(lesson_id):
     if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
         raise NativeLessonError('access_denied', 403)
     plan_error = None
+    plan_kind = None
     try:
-        _guard_plan(lesson_id)
+        plan_kind = _guard_plan(lesson_id)
     except NativeLessonError as error:
         plan_error = error
     # Serialize native submissions for this account. ProgressService commits the
@@ -283,6 +299,7 @@ def submit_native_lesson(lesson_id):
     try:
         db.session.query(User.id).filter(User.id == current_user.id).with_for_update().one()
         lesson, progress = _lesson_and_progress(lesson_id)
+        lesson._native_challenge = plan_kind == "challenge"
         saved = (progress.data or {}).get('_native_submission') if progress and isinstance(progress.data, dict) else None
         if isinstance(saved, dict) and saved.get('nonce') == sealed.get('nonce'):
             return jsonify(saved['response'])
@@ -296,10 +313,15 @@ def submit_native_lesson(lesson_id):
             raise NativeLessonError('invalid_input')
         for q in questions:
             answer = answers[q['id']]
-            if not isinstance(answer, str) or not answer.strip() or len(answer) > 2000:
+            if not isinstance(answer, str) or not answer.strip() or len(answer) > (50000 if q.get('input') in ('essay','long_text') else 20000 if q.get('input') in ('match','order','translation_review') else 2000):
                 raise NativeLessonError('invalid_input')
-            if q['options'] and answer not in {o['value'] for o in q['options']}:
+            if q['options'] and q.get('input') in (None,'choice') and answer not in {o['value'] for o in q['options']}:
                 raise NativeLessonError('invalid_input')
+        from app.api.native_content import is_extended, grade as grade_extended, persist as persist_extended
+        if is_extended(lesson):
+            passing = get_lesson_passing_score(lesson)
+            grade, feedback, assessment, completed = grade_extended(lesson, questions, answers, passing)
+            return jsonify(persist_extended(lesson, progress, grade, feedback, assessment, completed, sealed, passing))
         content = _content(lesson)
         rows = content.get('exercises' if lesson.type == 'grammar' else 'questions', [])
         if not questions:
@@ -322,7 +344,7 @@ def submit_native_lesson(lesson_id):
                 checked = grade['feedback'][q['id']]
                 feedback.append({'id': q['id'], 'prompt': q['prompt'], 'correct': checked['status'] == 'correct',
                                  'answer': _display_answer(q, answers[q['id']]),
-                                 'expected': _display_answer(q, checked.get('correct_answer', '')),
+                                 'expected': plain(checked.get('correct_answer', '')) if lesson.type=='quiz' and q['options'] and q['options'][0]['value'] not in ('true','false') else _display_answer(q, checked.get('correct_answer', '')),
                                  'explanation': plain(checked.get('explanation') or row.get('explanation'))})
             response = {'success': True, 'lesson_id': lesson_id, 'score': grade['score'],
                         'passed': grade['score'] >= passing, 'correct_count': grade['correct_answers'],
@@ -337,3 +359,22 @@ def submit_native_lesson(lesson_id):
         db.session.rollback()
         logger.exception('Native lesson grading failed user=%s lesson=%s', current_user.id, lesson_id)
         return jsonify(success=False, error='grading_failed'), 500
+
+
+@api_native_lessons.route('/lessons/<int:lesson_id>/review', methods=['POST'])
+@csrf.exempt
+@api_bearer_required
+@limiter.limit('60 per minute', key_func=get_authenticated_user_key)
+def review_native_translation(lesson_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data,dict) or not {'session_token','index','answer'} <= set(data) or set(data)-{'session_token','index','answer','review_token','confirm'}:
+        raise NativeLessonError('invalid_input')
+    try: sealed = _signer().loads(data['session_token'],max_age=21600)
+    except (BadSignature,SignatureExpired,TypeError): raise NativeLessonError('lesson_changed',409)
+    if sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:raise NativeLessonError('access_denied',403)
+    lesson, _ = _lesson_and_progress(lesson_id)
+    _guard_plan(lesson_id)
+    if sealed.get('revision') != _digest(_content(lesson)):raise NativeLessonError('lesson_changed',409)
+    from app.curriculum.translation_review import review_item
+    result = review_item(lesson,current_user.id,data['index'],data['answer'],data.get('review_token'),data.get('confirm') is True)
+    return jsonify(result), 200 if result.get('success') else 400
