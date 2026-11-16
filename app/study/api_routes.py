@@ -79,18 +79,23 @@ def _is_linear_plan_srs_completion(data: dict) -> bool:
 @study.route('/api/get-study-items', methods=['GET'])
 @login_required
 def get_study_items():
+    return build_study_items_response()
+
+
+def build_study_items_response(*, native_plan=False):
+    """Shared website/native selection; native callers cannot override caps/source."""
     from app.srs.constants import CardState
 
-    word_source = request.args.get('source', 'auto')
-    deck_id = request.args.get('deck_id', type=int)
-    extra_study = request.args.get('extra_study', 'false').lower() == 'true'
-    is_linear_plan_srs = (
+    word_source = 'linear_plan' if native_plan else request.args.get('source', 'auto')
+    deck_id = None if native_plan else request.args.get('deck_id', type=int)
+    extra_study = False if native_plan else request.args.get('extra_study', 'false').lower() == 'true'
+    is_linear_plan_srs = native_plan or (
         word_source == 'linear_plan'
         and request.args.get('from') == 'linear_plan'
         and request.args.get('slot') == 'srs'
     )
 
-    exclude_ids_str = request.args.get('exclude_card_ids', '')
+    exclude_ids_str = '' if native_plan else request.args.get('exclude_card_ids', '')
     exclude_card_ids = []
     if exclude_ids_str:
         try:

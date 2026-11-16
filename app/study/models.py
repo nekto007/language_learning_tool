@@ -1279,3 +1279,13 @@ class CustomWordListEntry(db.Model):
 
     def __repr__(self):
         return f'<CustomWordListEntry {self.id}: list={self.list_id} word={self.word!r}>'
+
+
+class NativeSRSState(db.Model):
+    """One resumable server-owned native review run per account."""
+    __tablename__ = 'native_srs_state'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('study_sessions.id', ondelete='CASCADE'), nullable=False)
+    study_day = db.Column(db.String(10), nullable=False)
+    state = db.Column(db.JSON, nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))
