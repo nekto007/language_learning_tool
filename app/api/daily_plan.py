@@ -1604,3 +1604,52 @@ def skip_lesson():
         return api_error('db_error', 'Failed to record lesson skip', 500)
 
     return jsonify({'success': True, 'next_lesson_id': next_lesson_id})
+
+
+@api_daily_plan.route('/xp-leaderboard', methods=['GET'])
+@api_auth_required
+def xp_leaderboard():
+    """Read-only all-time XP ranking, from the same source as the dashboard.
+
+    This endpoint never enrolls users in a daily race or generates opponents.
+    Only the leaderboard's public fields are returned; no email or profile data.
+    Equal XP earns equal rank, including when a tie crosses the top-100 cutoff.
+    """
+    from app.achievements.models import UserStatistics
+    from app.achievements.xp_service import get_level_info
+    from app.study.services.stats_service import StatsService
+
+    leaders = StatsService.get_xp_leaderboard(limit=100)
+    entries = []
+    previous_xp = None
+    rank = 0
+    for position, leader in enumerate(leaders, 1):
+        xp = leader['total_xp'] or 0
+        if xp != previous_xp:
+            rank = position
+        previous_xp = xp
+        entries.append({
+            'id': leader['id'],
+            'username': leader['username'],
+            'total_xp': xp,
+            'level': leader['level'],
+            'rank': rank,
+            'is_me': leader['id'] == current_user.id,
+        })
+
+    me = next((entry for entry in entries if entry['is_me']), None)
+    if me is None:
+        stats = UserStatistics.query.filter_by(user_id=current_user.id).first()
+        xp = (stats.total_xp or 0) if stats else 0
+        me = {
+            'id': current_user.id,
+            'username': current_user.username,
+            'total_xp': xp,
+            'level': get_level_info(xp).current_level,
+            'rank': StatsService.get_user_xp_rank(current_user.id),
+            'is_me': True,
+        }
+
+    response = jsonify(success=True, entries=entries, me=me)
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
