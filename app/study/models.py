@@ -1302,3 +1302,12 @@ class NativeLearningRun(db.Model):
     response = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))
     __table_args__ = (db.UniqueConstraint('user_id', 'request_id', name='uq_native_learning_request'),)
+
+
+class NativeReaderVocabulary(db.Model):
+    """Private versioned reader collection and replay receipts per account."""
+    __tablename__ = 'native_reader_vocabulary'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    payload = db.Column(db.JSON, nullable=False)
+    version = db.Column(db.Integer, nullable=False, default=0)
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC))

@@ -130,6 +130,7 @@
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
                             {% if has_module('study') %}
+                            <li><a class="dropdown-item" href="{{ url_for('reader_words.collection') }}"><i class="fas fa-book-open me-2"></i>Слова из книг</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('study.collections') }}"><i class="fas fa-layer-group me-2"></i>Коллекции</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('study.word_sets') }}"><i class="fas fa-tags me-2"></i>Наборы слов</a></li>
                             {% endif %}
@@ -482,6 +483,7 @@
                 </a>
                 {% endif %}
                 {% if has_module('study') %}
+                <a href="{{ url_for('reader_words.collection') }}" class="bottom-nav__dropdown-item"><i class="fas fa-book-open"></i> Слова из книг</a>
                 <a href="{{ url_for('study.stats') }}" class="bottom-nav__dropdown-item">
                     <i class="fas fa-chart-bar"></i> Статистика
                 </a>

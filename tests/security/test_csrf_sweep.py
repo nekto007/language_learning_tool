@@ -33,6 +33,7 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.api.native_reader.sync_reader_words': 'JWT-only; cookie authentication rejected',
     'app.api.native_controls.enroll_word': 'JWT-only; cookie authentication rejected',
     'app.api.native_controls.pause_native': 'JWT-only; cookie authentication rejected',
     'app.api.native_controls.resume_native': 'JWT-only; cookie authentication rejected',
@@ -63,6 +64,7 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.api.native_reader.sync_reader_words',
     'app.api.native_controls.enroll_word',
     'app.api.native_controls.pause_native',
     'app.api.native_controls.resume_native',
