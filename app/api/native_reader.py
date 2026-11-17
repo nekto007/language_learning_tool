@@ -316,7 +316,9 @@ def reader_dictionary():
         CollectionWords.russian_word.isnot(None), func.length(func.trim(CollectionWords.russian_word)) > 0).order_by(CollectionWords.id).limit(501).all()
     more = len(rows) > 500; rows = rows[:500]
     cursor = rows[-1].id if more else until
-    return jsonify(entries=[{'id':w.id, 'english':w.english_word, 'translation':w.russian_word, 'audio':None} for w in rows], cursor=cursor, until=until, more=more)
+    return jsonify(entries=[{'id':w.id, 'english':w.english_word, 'translation':w.russian_word, 'audio':None,
+        'kind':w.item_type or 'word','example':(w.usage_context or w.sentences or '')[:1000],
+        'frequencyBand':w.frequency_band,'level':w.level} for w in rows], cursor=cursor, until=until, more=more)
 
 
 @reader_words.get('/reading-vocabulary')

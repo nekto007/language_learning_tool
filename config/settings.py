@@ -233,6 +233,10 @@ class Config:
     WTF_CSRF_TIME_LIMIT = None
 
     TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+    APNS_TEAM_ID = os.environ.get('APNS_TEAM_ID', '')
+    APNS_KEY_ID = os.environ.get('APNS_KEY_ID', '')
+    APNS_PRIVATE_KEY = os.environ.get('APNS_PRIVATE_KEY', '')
+    APNS_TOPIC = os.environ.get('APNS_TOPIC', 'com.llt.english.ios')
     TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET")
     TELEGRAM_BOT_USERNAME = os.environ.get("TELEGRAM_BOT_USERNAME", "llt_englishbot")
     SITE_URL = os.environ.get("SITE_URL", "")

@@ -23,7 +23,7 @@ class CollectionWords(db.Model):
     frequency_rank = Column(Integer, default=0)
 
     # New fields for phrasal verbs integration
-    item_type = Column(String(20), default='word')  # 'word' | 'phrasal_verb'
+    item_type = Column(String(20), default='word')  # 'word' | 'phrasal_verb' | 'idiom'
     base_word_id = Column(Integer, ForeignKey('collection_words.id', ondelete='SET NULL'), nullable=True)
     usage_context = Column(Text, nullable=True)  # "using" field from PhrasalVerb
 

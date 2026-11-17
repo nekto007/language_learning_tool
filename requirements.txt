@@ -31,6 +31,7 @@ setuptools==81.0.0      # pymorphy2 still imports legacy pkg_resources
 psutil==7.0.0
 Flask-JWT-Extended==4.7.1
 PyJWT[crypto]==2.15.1  # RS256 provider proofs and ES256 Apple client assertions
+httpx[http2]>=0.28.1,<1  # Apple Push Notification service requires HTTP/2
 bleach==6.4.0           # Для санитизации HTML контента
 marshmallow==3.26.2     # Для валидации данных
 Flask-Limiter==3.12     # Для rate limiting

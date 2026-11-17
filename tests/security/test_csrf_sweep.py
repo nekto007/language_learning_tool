@@ -33,6 +33,11 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.api.native_translation.reader_lexicon': 'JWT-only; cookie authentication rejected',
+    'app.api.native_push.update_push_settings': 'JWT-only; cookie authentication rejected',
+    'app.api.native_push.register_push_device': 'JWT-only; cookie authentication rejected',
+    'app.api.native_push.test_push': 'JWT-only; cookie authentication rejected',
+    'app.api.native_push.revoke_push_device': 'Independent random installation secret required; no cookie-authorized mutation',
     'app.api.mobile_auth.register_start': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
     'app.api.mobile_auth.register_verify': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
     'app.api.mobile_auth.password_start': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
@@ -75,6 +80,11 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.api.native_translation.reader_lexicon',
+    'app.api.native_push.update_push_settings',
+    'app.api.native_push.register_push_device',
+    'app.api.native_push.test_push',
+    'app.api.native_push.revoke_push_device',
     'app.api.mobile_auth.register_start',
     'app.api.mobile_auth.register_verify',
     'app.api.mobile_auth.password_start',

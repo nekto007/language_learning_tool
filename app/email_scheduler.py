@@ -286,6 +286,23 @@ def init_email_scheduler(app, *, blocking: bool = False) -> None:
         id='native_auth_mail', replace_existing=True, max_instances=1,
     )
 
+    def mobile_push_wrapper():
+        from app.notifications.push_scheduler import send_due_reminders
+        with app.app_context():
+            try:
+                send_due_reminders()
+            except Exception:
+                db.session.rollback()
+                logger.warning('Mobile reminder tick failed')
+            finally:
+                db.session.remove()
+
+    _scheduler.add_job(
+        mobile_push_wrapper, 'interval', minutes=5,
+        id='mobile_study_reminders', replace_existing=True,
+        max_instances=1, coalesce=True,
+    )
+
     _scheduler.add_job(
         welcome_wrapper,
         'interval',
