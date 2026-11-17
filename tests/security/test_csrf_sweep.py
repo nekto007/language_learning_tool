@@ -33,6 +33,17 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.api.mobile_auth.register_start': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_auth.register_verify': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_auth.password_start': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_auth.password_verify': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_auth.resend_code': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_social.social_start': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_social.apple_complete': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_social.social_exchange': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_social.social_profile': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+    'app.api.mobile_social.social_link': 'Native auth proof endpoint; no browser session login or cookie-authorized mutation',
+
     'app.api.native_reader.sync_reader_words': 'JWT-only; cookie authentication rejected',
     'app.api.native_controls.enroll_word': 'JWT-only; cookie authentication rejected',
     'app.api.native_controls.pause_native': 'JWT-only; cookie authentication rejected',
@@ -64,6 +75,17 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.api.mobile_auth.register_start',
+    'app.api.mobile_auth.register_verify',
+    'app.api.mobile_auth.password_start',
+    'app.api.mobile_auth.password_verify',
+    'app.api.mobile_auth.resend_code',
+    'app.api.mobile_social.social_start',
+    'app.api.mobile_social.apple_complete',
+    'app.api.mobile_social.social_exchange',
+    'app.api.mobile_social.social_profile',
+    'app.api.mobile_social.social_link',
+
     'app.api.native_reader.sync_reader_words',
     'app.api.native_controls.enroll_word',
     'app.api.native_controls.pause_native',

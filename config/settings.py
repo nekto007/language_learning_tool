@@ -239,6 +239,15 @@ class Config:
 
     GOOGLE_SITE_VERIFICATION = os.environ.get("GOOGLE_SITE_VERIFICATION", "")
     GOOGLE_ANALYTICS_ID = os.environ.get("GOOGLE_ANALYTICS_ID", "")
+    # Dedicated mobile sign-in clients; Search Console credentials remain separate.
+    MOBILE_GOOGLE_CLIENT_ID = os.environ.get("MOBILE_GOOGLE_CLIENT_ID", "")
+    MOBILE_GOOGLE_CLIENT_SECRET = os.environ.get("MOBILE_GOOGLE_CLIENT_SECRET", "")
+    MOBILE_GOOGLE_REDIRECT_URI = os.environ.get("MOBILE_GOOGLE_REDIRECT_URI", "https://llt-english.com/api/mobile/auth/google/callback")
+    MOBILE_APPLE_ENABLED = os.environ.get("MOBILE_APPLE_ENABLED", "false").lower() == "true"
+    MOBILE_APPLE_CLIENT_ID = os.environ.get("MOBILE_APPLE_CLIENT_ID", "com.llt.english.ios")
+    MOBILE_APPLE_TEAM_ID = os.environ.get("MOBILE_APPLE_TEAM_ID", "")
+    MOBILE_APPLE_KEY_ID = os.environ.get("MOBILE_APPLE_KEY_ID", "")
+    MOBILE_APPLE_PRIVATE_KEY = os.environ.get("MOBILE_APPLE_PRIVATE_KEY", "")
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 

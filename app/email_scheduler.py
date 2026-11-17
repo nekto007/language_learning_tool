@@ -270,6 +270,22 @@ def init_email_scheduler(app, *, blocking: bool = False) -> None:
             finally:
                 db.session.remove()
 
+    def native_auth_mail_wrapper():
+        from app.auth.mobile_mail import process_auth_mail
+        with app.app_context():
+            try:
+                process_auth_mail()
+            except Exception:
+                db.session.rollback()
+                logger.warning('Native authentication mail deferred')
+            finally:
+                db.session.remove()
+
+    _scheduler.add_job(
+        native_auth_mail_wrapper, 'interval', seconds=30,
+        id='native_auth_mail', replace_existing=True, max_instances=1,
+    )
+
     _scheduler.add_job(
         welcome_wrapper,
         'interval',

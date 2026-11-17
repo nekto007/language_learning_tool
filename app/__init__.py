@@ -29,7 +29,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'grammar_lab.', 'landing.', 'telegram.',
     'api_auth.', 'api_words.', 'api_books.', 'api_books_catalog.',
     'api_anki.',
-    'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.', 'api_native_reading.', 'api_native_cards.', 'api_native_activities.', 'api_native_catalog.', 'api_native_controls.', 'api_native_reader.',
+    'mobile_auth.', 'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.', 'api_native_reading.', 'api_native_cards.', 'api_native_activities.', 'api_native_catalog.', 'api_native_controls.', 'api_native_reader.',
     'uploads.',
     'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
     'collection_admin.', 'topic_admin.', 'word_admin.',
@@ -199,6 +199,11 @@ def create_app(config_class=Config):
 
     from app.api.auth import api_auth as api_auth_blueprint
     app.register_blueprint(api_auth_blueprint, url_prefix='/api')
+
+    from app.api.mobile_auth import mobile_auth
+    from app.api.mobile_social import register_social_routes
+    register_social_routes(mobile_auth)
+    app.register_blueprint(mobile_auth, url_prefix='/api/mobile/auth')
 
     from app.api.words import api_words as api_words_blueprint
     app.register_blueprint(api_words_blueprint, url_prefix='/api')

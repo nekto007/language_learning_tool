@@ -73,10 +73,14 @@ def api_login():
             return api_error('missing_fields', 'Missing username or password', 400)
 
         if (not isinstance(username, str) or not isinstance(password, str)
-                or len(username) > 64 or len(password) > 128):
+                or len(username) > 254 or len(password) > 128):
             return api_error('invalid_credentials_format', 'Invalid username or password format', 400)
 
+        username = username.strip()
         user = User.query.filter_by(username=username).first()
+        if user is None and '@' in username:
+            from sqlalchemy import func
+            user = User.query.filter(func.lower(User.email) == username.lower()).first()
         if user and user.check_password(password):
             if not user.is_active:
                 return api_error('account_inactive', 'Account is inactive', 403)
