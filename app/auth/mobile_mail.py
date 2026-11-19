@@ -112,7 +112,7 @@ def process_auth_mail(batch_size=10):
                     "code": code,
                     "purpose": (
                         "смены пароля" if purpose == "reset" else
-                        "отправки заявки на удаление аккаунта" if purpose == "account_deletion" else "подтверждения почты"
+                        "подтверждения заявки на удаление аккаунта" if purpose == "account_deletion" else "подтверждения почты"
                     ),
                 },
                 timeout=8,

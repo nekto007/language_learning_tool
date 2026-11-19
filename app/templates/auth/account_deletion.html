@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Удаление аккаунта — LLT English{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:720px">
+  <h1 class="h3">Удаление аккаунта</h1>
+  <p>Заявка относится к одному аккаунту на сайте и в приложении. Администратор удалит его с 7-го по 14-й день после подтверждённой заявки. До фактического удаления её можно отменить.</p>
+  {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+  {% if deletion and deletion.status == 'pending' %}
+    <p>Не раньше: {{ deletion.earliest_deletion_at.strftime('%d.%m.%Y %H:%M') }} UTC.<br>Крайний срок: {{ deletion.latest_deletion_at.strftime('%d.%m.%Y %H:%M') }} UTC.</p>
+    {% if deletion.requires_reconfirmation %}
+      <div class="alert alert-warning">
+        <h2 class="h5">Нужно повторное подтверждение</h2>
+        <p><strong>Причина:</strong> {{ deletion.reconfirmation_reason }}</p>
+        <p class="mb-0">До твоего ответа удаление заблокировано. Подтверди намерение новым кодом или отмени заявку. Исходные сроки не изменятся.</p>
+      </div>
+    {% else %}<p class="alert alert-info">Заявка на рассмотрении администратора.</p>{% endif %}
+    <form method="post" class="mb-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="cancel">
+      <input type="hidden" name="request_id" value="{{ deletion.id }}">
+      <button class="btn btn-outline-secondary" type="submit">Отменить заявку и сохранить аккаунт</button>
+    </form>
+  {% elif deletion and deletion.status == 'cancelled' %}<p>Заявка отменена. Аккаунт сохранён.</p>{% endif %}
+  {% if not deletion or deletion.status != 'pending' or deletion.requires_reconfirmation %}
+    {% if challenge %}
+      <form method="post" class="card card-body mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="confirm">
+        <input type="hidden" name="challenge_id" value="{{ challenge.challenge_id }}">
+        {% if challenge.verification == 'email_code' %}
+          <label for="deletion-code" class="form-label">Код отправлен на {{ challenge.email_hint }}. Введи шесть цифр из письма.</label>
+          <input id="deletion-code" name="code" class="form-control mb-3" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+        {% else %}
+          <label for="deletion-password" class="form-label">У аккаунта нет почты. Подтверди его пароль.</label>
+          <input id="deletion-password" name="password" type="password" class="form-control mb-3" maxlength="128" autocomplete="current-password" required>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">{{ 'Повторно подтвердить удаление' if deletion and deletion.requires_reconfirmation else 'Отправить заявку администратору' }}</button>
+      </form>
+    {% endif %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="start">
+      <button type="submit" class="btn btn-outline-primary">{{ 'Запросить новый код' if challenge else 'Подтвердить намерение' }}</button>
+      {% if challenge %}<p class="text-muted mt-2">Новый код можно запросить через минуту. Предыдущий код перестанет действовать.</p>{% endif %}
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

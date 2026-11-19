@@ -19,7 +19,11 @@ from app.utils.db import db
 def _notice(row, now):
     deadline = row.latest_deletion_at.strftime("%d.%m.%Y %H:%M UTC")
     earliest = row.earliest_deletion_at.strftime("%d.%m.%Y %H:%M UTC")
-    if now >= row.latest_deletion_at:
+    if row.requires_reconfirmation:
+        title = "Ожидается повторное подтверждение удаления"
+        body = f"Удаление заблокировано до ответа владельца. Исходный крайний срок — {deadline}. Проверь статус заявки."
+        next_notice = now + timedelta(days=1)
+    elif now >= row.latest_deletion_at:
         title = "Просрочена заявка на удаление аккаунта"
         body = f"Крайний срок {deadline} прошёл. Проверь заявку и обработай её вручную."
         next_notice = now + timedelta(days=1)

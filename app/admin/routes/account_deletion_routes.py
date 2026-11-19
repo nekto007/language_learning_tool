@@ -3,7 +3,7 @@ from flask import Blueprint, flash, g, redirect, render_template, request, url_f
 from flask_login import AnonymousUserMixin, current_user, logout_user
 from app.admin.utils.decorators import admin_required, admin_audit_required
 from app.api.mobile_auth import AuthProblem
-from app.auth.account_deletion import AccountDeletionRequest, complete_account_deletion
+from app.auth.account_deletion import AccountDeletionRequest, complete_account_deletion, request_deletion_reconfirmation
 from app.auth.mobile_models import utcnow
 from app.auth.mobile_mail import nudge_auth_mail
 from app.utils.db import db
@@ -13,9 +13,11 @@ account_deletion_bp = Blueprint("account_deletion_admin", __name__)
 
 def page(error=None, status_code=200):
     state = request.args.get("status", "pending")
-    if state not in ("pending", "cancelled", "completed"):
+    if state not in ("pending", "verification", "cancelled", "completed"):
         state = "pending"
-    query = AccountDeletionRequest.query.filter_by(status=state)
+    query = AccountDeletionRequest.query.filter_by(status="pending" if state == "verification" else state)
+    if state == "verification":
+        query = query.filter_by(requires_reconfirmation=True)
     identifier = request.args.get("request_id", "")
     if identifier:
         query = query.filter_by(id=identifier)
@@ -30,6 +32,19 @@ def page(error=None, status_code=200):
 @admin_required
 def index():
     return page()
+
+
+@account_deletion_bp.post("/account-deletions/<identifier>/reconfirm")
+@admin_audit_required("account.deletion.reconfirm", target_type="account_deletion")
+def reconfirm(identifier):
+    try:
+        request_deletion_reconfirmation(identifier, current_user, request.form.get("reason"))
+    except AuthProblem as error:
+        db.session.rollback()
+        return page(error.message, error.status)
+    nudge_auth_mail()
+    flash("Пользователю отправлено уведомление. Удаление заблокировано до его повторного подтверждения; сроки заявки сохранены.", "success")
+    return redirect(url_for("account_deletion_admin.index", status="verification", request_id=identifier))
 
 
 @account_deletion_bp.post("/account-deletions/<identifier>/complete")

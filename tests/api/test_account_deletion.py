@@ -296,7 +296,7 @@ def test_tracking_receipt_confirms_completion_without_exposing_personal_data(nat
     sent=[]
     monkeypatch.setattr(email_sender,'send_email',lambda **kwargs: sent.append(kwargs) or True)
     assert process_account_deletion_mail()==1
-    assert len(sent)==1 and sent[0]['to']==address and sent[0]['template']=='account_deleted'
+    assert len(sent)==1 and sent[0]['to_email']==address and sent[0]['template_name']=='account_deleted'
     assert db.session.get(AccountDeletionMail,identifier).encrypted_email is None
     assert db.session.get(User,uid) is None
 

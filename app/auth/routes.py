@@ -892,3 +892,7 @@ def unsubscribe():
         email=user_email,
         already_done=False,
     )
+
+
+from app.auth.account_deletion_web import register_account_deletion_web
+register_account_deletion_web(auth)

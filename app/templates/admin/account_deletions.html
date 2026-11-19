@@ -4,11 +4,12 @@
 {% block content %}
 {{ page_header('Заявки на удаление аккаунта', 'Ручная обработка: удаление с 7-го по 14-й день после подтверждённой заявки') }}
 <p>Автоматического удаления нет. Пользователь может отменить заявку до её фактической обработки. Проверяй очередь ежедневно; просроченные заявки выделены красным.</p>
+<p>Если есть основания сомневаться, что удаление запросил владелец, один раз запроси повторное подтверждение с понятной причиной. До ответа владельца удаление блокируется; исходные сроки сохраняются.</p>
 <p>Оповещения приходят администраторам в уведомления сайта, а при активной привязке бота — также в Telegram: новая заявка, начало обработки на 7-й день, за двое суток до крайнего срока и раз в сутки при просрочке. Для доставки должен работать scheduler.</p>
 {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
 {% if request_id %}<p><a href="{{ url_for('account_deletion_admin.index') }}">Показать все заявки</a></p>{% endif %}
 <div class="d-flex gap-2 mb-3 flex-wrap">
-{% for status, title in [('pending','На рассмотрении'),('cancelled','Отменены пользователем'),('completed','Удаление завершено')] %}
+{% for status, title in [('pending','На рассмотрении'),('verification','Ждут подтверждения'),('cancelled','Отменены пользователем'),('completed','Удаление завершено')] %}
 <a class="btn btn-sm {{ 'btn-primary' if selected_status == status else 'btn-outline-primary' }}" href="{{ url_for('account_deletion_admin.index', status=status) }}">{{ title }}</a>
 {% endfor %}
 </div>
@@ -21,7 +22,15 @@
     {% if row.status == 'pending' and row.user %}
       <p>Почта аккаунта: {{ row.user.email or 'не указана; заявка подтверждена паролем' }}</p>
       {% if now > row.latest_deletion_at %}<p class="text-danger fw-bold">Срок обработки прошёл — заявку нужно обработать.</p>{% endif %}
-      {% if now < row.earliest_deletion_at %}
+      {% if row.reconfirmation_requested_at %}
+        <div class="alert {{ 'alert-warning' if row.requires_reconfirmation else 'alert-success' }}">
+          <strong>{{ 'Ожидается повторное подтверждение владельца' if row.requires_reconfirmation else 'Владелец повторно подтвердил удаление' }}</strong>
+          <p class="mb-0">Причина проверки: {{ row.reconfirmation_reason }}</p>
+        </div>
+      {% endif %}
+      {% if row.requires_reconfirmation %}
+        <p>Удаление заблокировано до повторного подтверждения владельцем. Повторно запрашивать проверку для этой заявки нельзя.</p>
+      {% elif now < row.earliest_deletion_at %}
         <p class="text-secondary">Идёт обязательный срок на отмену. Удаление пока недоступно.</p>
       {% else %}
         <form method="post" action="{{ url_for('account_deletion_admin.complete', identifier=row.id) }}">
@@ -31,10 +40,29 @@
           <button class="btn btn-danger" type="submit">Подтвердить и удалить навсегда</button>
         </form>
       {% endif %}
+      {% if not row.reconfirmation_requested_at %}
+        <form method="post" action="{{ url_for('account_deletion_admin.reconfirm', identifier=row.id) }}" class="mt-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="reason-{{ row.id }}" class="form-label">Причина повторного подтверждения — её увидит пользователь</label>
+          <textarea id="reason-{{ row.id }}" class="form-control mb-2" name="reason" minlength="10" maxlength="1000" rows="3" required></textarea>
+          <button class="btn btn-outline-warning" type="submit">Запросить повторное подтверждение</button>
+        </form>
+      {% endif %}
     {% elif row.status == 'cancelled' %}
       <p>Пользователь отменил заявку. Аккаунт сохранён.</p>
     {% else %}
       <p>Удаление подтверждено администратором: {{ row.completed_at.strftime('%d.%m.%Y %H:%M') if row.completed_at else '' }} UTC. Личные данные пользователя в заявке не сохраняются.</p>
+    {% endif %}
+    {% if row.history %}
+      <details class="mt-3">
+        <summary>История заявки</summary>
+        <ol class="mt-2">
+        {% set actions = {'requested':'Пользователь подтвердил заявку', 'reconfirmation_requested':'Запрошено повторное подтверждение', 'reconfirmed':'Владелец повторно подтвердил удаление', 'cancelled':'Пользователь отменил заявку', 'completed':'Аккаунт удалён'} %}
+        {% for event in row.history %}
+          <li>{{ event.at }} · {{ actions.get(event.action, event.action) }}{% if event.admin_id %} · администратор #{{ event.admin_id }}{% endif %}{% if event.reason %}<div>{{ event.reason }}</div>{% endif %}</li>
+        {% endfor %}
+        </ol>
+      </details>
     {% endif %}
   </div>
 </section>
