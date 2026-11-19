@@ -88,9 +88,31 @@ def _pack_pool(items):
         if card is not None: card.session_attempts = 0
         queue.append({'word_id': item['word_id'], 'direction': item['direction'],
             'front': plain(item['word']), 'back': plain(item['translation']),
-            'examples': plain(item.get('examples')), 'audio_url': item.get('audio_url'),
+            'examples': _examples(item.get('examples')), 'audio_url': item.get('audio_url'),
             'state': item.get('state', 'new'), 'revision': _revision(card)})
     return queue
+
+
+def _examples(value):
+    """Return plain bilingual lines without leaking HTML/JSON storage syntax."""
+    parsed = value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (ValueError, TypeError):
+            parsed = value
+    if isinstance(parsed, dict):
+        parsed = [parsed]
+    if isinstance(parsed, list):
+        lines = []
+        for row in parsed:
+            if isinstance(row, dict):
+                lines.extend([plain(row.get('en') or row.get('english') or row.get('sentence')),
+                              plain(row.get('ru') or row.get('russian') or row.get('translation'))])
+            elif isinstance(row, str):
+                lines.append(plain(row))
+        return '\n'.join(line for line in lines if line).replace('|', '\n')
+    return plain(value).replace('|', '\n')
 
 
 def _response(run):
@@ -99,7 +121,35 @@ def _response(run):
     card = {k: v for k, v in head.items() if k != 'revision'} if head else None
     return {'success': True, 'session_id': run.session_id, 'step': state['step'], 'card': card,
             'remaining': len(state['queue']), 'reviewed': state['reviewed'], 'remembered': state['remembered'],
-            'complete': state['complete'], 'xp_earned': state.get('xp_earned', 0), 'notice': state.get('notice')}
+            'complete': state['complete'], 'xp_earned': state.get('xp_earned', 0), 'notice': state.get('notice'),
+            'statistics': _statistics(state)}
+
+
+def _round_metadata(queue):
+    return {'round_keys': [str(c.get('key') or f"{c['word_id']}:{c['direction']}") for c in queue],
+            'round_words': len({c['word_id'] for c in queue}),
+            'rating_counts': {'1': 0, '2': 0, '3': 0}, 'reviewed_keys': [], 'reviewed_words': []}
+
+
+def _record_rating(state, head, rating):
+    # Older active sessions keep their legacy summary until the next new run.
+    if 'rating_counts' not in state:
+        return
+    state['rating_counts'][str(rating)] += 1
+    key = str(head.get('key') or f"{head['word_id']}:{head['direction']}")
+    if key not in state['reviewed_keys']:
+        state['reviewed_keys'].append(key)
+    if head['word_id'] not in state['reviewed_words']:
+        state['reviewed_words'].append(head['word_id'])
+
+
+def _statistics(state):
+    counts = state.get('rating_counts')
+    if not counts or sum(counts.values()) != state['reviewed']:
+        return None
+    return {'unknown': counts['1'], 'hesitant': counts['2'], 'known': counts['3'],
+            'unique_cards': len(state['reviewed_keys']), 'unique_words': len(state['reviewed_words']),
+            'total_cards': len(state['round_keys']), 'total_words': state['round_words']}
 
 
 def _remaining():
@@ -164,7 +214,8 @@ def start_srs():
             db.session.add(run)
         run.session_id, run.study_day = session.id, day
         state = {'start_id': data['request_id'], 'queue': queue, 'step': 0, 'reviewed': 0,
-                 'remembered': 0, 'complete': False, 'xp_earned': 0, 'notice': None}
+                 'remembered': 0, 'complete': False, 'xp_earned': 0, 'notice': None,
+                 **_round_metadata(queue)}
         run.state = state
         if not queue: _finish(run, state)
         run.state, run.updated_at = state, datetime.now(UTC)
@@ -250,6 +301,7 @@ def grade_srs():
             card, position = result
             state['reviewed'] += 1
             state['remembered'] += int(data['rating'] >= 2)
+            _record_rating(state, head, data['rating'])
             if position is not None:
                 state['queue'].insert(max(0, min(position - 1, len(state['queue']))), card)
         state['step'] += 1
