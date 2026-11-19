@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
-from test_native_full_integration import native_app, learner
+from tests.api.test_native_full_integration import native_app, learner
 
 PREFIX = "/api/mobile/auth"
 PASSWORD = "River!Mango64"
@@ -725,9 +725,10 @@ def test_auth_migration_round_trip_and_single_head():
         )
         module.downgrade()
         assert sa.inspect(connection).get_table_names() == ["users"]
-    assert ScriptDirectory(str(root / "migrations")).get_heads() == [
-        "20261117_mobile_auth"
-    ]
+    scripts = ScriptDirectory(str(root / "migrations"))
+    heads = scripts.get_heads()
+    assert len(heads) == 1
+    assert "20261117_mobile_auth" in {r.revision for r in scripts.iterate_revisions(heads[0], "base")}
 
 
 def test_auth_mail_retries_are_bounded_and_clear_expired_code(native_app, monkeypatch):

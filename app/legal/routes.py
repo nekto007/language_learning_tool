@@ -13,3 +13,9 @@ def privacy() -> str:
 def privacy_trailing_slash():
     """Redirect the trailing-slash variant to the canonical no-slash URL (SEO)."""
     return redirect(url_for('legal.privacy'), code=301)
+
+
+@legal_bp.route('/support/mobile')
+def mobile_support() -> str:
+    """Public help, including deletion instructions, without signing in."""
+    return render_template('legal/mobile_support.html')

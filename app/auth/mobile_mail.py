@@ -23,6 +23,9 @@ def cipher():
 
 
 def process_auth_mail(batch_size=10):
+    from app.auth.account_deletion import process_account_deletion_files, process_account_deletion_mail
+    process_account_deletion_files()
+    process_account_deletion_mail()
     now = utcnow()
     stale = [
         r.id
@@ -108,7 +111,8 @@ def process_auth_mail(batch_size=10):
                 context={
                     "code": code,
                     "purpose": (
-                        "смены пароля" if purpose == "reset" else "подтверждения почты"
+                        "смены пароля" if purpose == "reset" else
+                        "отправки заявки на удаление аккаунта" if purpose == "account_deletion" else "подтверждения почты"
                     ),
                 },
                 timeout=8,

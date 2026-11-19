@@ -234,6 +234,10 @@
                         <i class="fas fa-comments" aria-hidden="true"></i>
                         <span>Обратная связь</span>
                     </a>
+                    <a href="{{ url_for('account_deletion_admin.index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('account_deletion_admin.') }}">
+                        <i class="fas fa-user-minus" aria-hidden="true"></i>
+                        <span>Заявки на удаление</span>
+                    </a>
                 </div>
             </div>
 

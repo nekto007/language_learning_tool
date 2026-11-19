@@ -1,0 +1,46 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header %}
+{% block title %}Заявки на удаление аккаунта{% endblock %}
+{% block content %}
+{{ page_header('Заявки на удаление аккаунта', 'Ручная обработка: удаление с 7-го по 14-й день после подтверждённой заявки') }}
+<p>Автоматического удаления нет. Пользователь может отменить заявку до её фактической обработки. Проверяй очередь ежедневно; просроченные заявки выделены красным.</p>
+<p>Оповещения приходят администраторам в уведомления сайта, а при активной привязке бота — также в Telegram: новая заявка, начало обработки на 7-й день, за двое суток до крайнего срока и раз в сутки при просрочке. Для доставки должен работать scheduler.</p>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+{% if request_id %}<p><a href="{{ url_for('account_deletion_admin.index') }}">Показать все заявки</a></p>{% endif %}
+<div class="d-flex gap-2 mb-3 flex-wrap">
+{% for status, title in [('pending','На рассмотрении'),('cancelled','Отменены пользователем'),('completed','Удаление завершено')] %}
+<a class="btn btn-sm {{ 'btn-primary' if selected_status == status else 'btn-outline-primary' }}" href="{{ url_for('account_deletion_admin.index', status=status) }}">{{ title }}</a>
+{% endfor %}
+</div>
+{% for row in pagination.items %}
+<section class="card mb-3 {{ 'border-danger' if row.status == 'pending' and now > row.latest_deletion_at }}">
+  <div class="card-body">
+    <h2 class="h5">{{ row.user.username if row.user else 'Аккаунт удалён' }}</h2>
+    <p class="mb-1">Заявка: {{ row.requested_at.strftime('%d.%m.%Y %H:%M') }} UTC</p>
+    <p class="mb-1">Не раньше: {{ row.earliest_deletion_at.strftime('%d.%m.%Y %H:%M') }} UTC · Крайний срок: {{ row.latest_deletion_at.strftime('%d.%m.%Y %H:%M') }} UTC</p>
+    {% if row.status == 'pending' and row.user %}
+      <p>Почта аккаунта: {{ row.user.email or 'не указана; заявка подтверждена паролем' }}</p>
+      {% if now > row.latest_deletion_at %}<p class="text-danger fw-bold">Срок обработки прошёл — заявку нужно обработать.</p>{% endif %}
+      {% if now < row.earliest_deletion_at %}
+        <p class="text-secondary">Идёт обязательный срок на отмену. Удаление пока недоступно.</p>
+      {% else %}
+        <form method="post" action="{{ url_for('account_deletion_admin.complete', identifier=row.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="confirmation-{{ row.id }}" class="form-label">Введи имя <strong>{{ row.user.username }}</strong>, чтобы подтвердить окончательное удаление аккаунта и его учебных данных.</label>
+          <input id="confirmation-{{ row.id }}" class="form-control mb-2" name="confirmation" required autocomplete="off" maxlength="64">
+          <button class="btn btn-danger" type="submit">Подтвердить и удалить навсегда</button>
+        </form>
+      {% endif %}
+    {% elif row.status == 'cancelled' %}
+      <p>Пользователь отменил заявку. Аккаунт сохранён.</p>
+    {% else %}
+      <p>Удаление подтверждено администратором: {{ row.completed_at.strftime('%d.%m.%Y %H:%M') if row.completed_at else '' }} UTC. Личные данные пользователя в заявке не сохраняются.</p>
+    {% endif %}
+  </div>
+</section>
+{% else %}<p>Заявок в этом разделе нет.</p>{% endfor %}
+<nav aria-label="Страницы заявок" class="d-flex gap-3">
+{% if pagination.has_prev %}<a href="{{ url_for('account_deletion_admin.index', status=selected_status, page=pagination.prev_num) }}">Предыдущая</a>{% endif %}
+{% if pagination.has_next %}<a href="{{ url_for('account_deletion_admin.index', status=selected_status, page=pagination.next_num) }}">Следующая</a>{% endif %}
+</nav>
+{% endblock %}

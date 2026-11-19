@@ -286,6 +286,23 @@ def init_email_scheduler(app, *, blocking: bool = False) -> None:
         id='native_auth_mail', replace_existing=True, max_instances=1,
     )
 
+    def account_deletion_notices_wrapper():
+        from app.auth.account_deletion_notifications import process_admin_deletion_notices
+        with app.app_context():
+            try:
+                process_admin_deletion_notices()
+            except Exception:
+                db.session.rollback()
+                logger.warning('Account deletion admin notices deferred')
+            finally:
+                db.session.remove()
+
+    _scheduler.add_job(
+        account_deletion_notices_wrapper, 'interval', minutes=1,
+        id='account_deletion_admin_notices', replace_existing=True,
+        max_instances=1, coalesce=True,
+    )
+
     def mobile_push_wrapper():
         from app.notifications.push_scheduler import send_due_reminders
         with app.app_context():

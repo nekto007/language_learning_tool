@@ -21,6 +21,7 @@ def native_app(tmp_path_factory):
     class NativeConfig(Config):
         TESTING = True
         SQLALCHEMY_DATABASE_URI = "sqlite:///" + str(folder / "native_test.db")
+        SQLALCHEMY_ENGINE_OPTIONS = {}
         WTF_CSRF_ENABLED = True
         RATELIMIT_ENABLED = False
         SERVER_NAME = "localhost"

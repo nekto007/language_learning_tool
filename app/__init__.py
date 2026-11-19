@@ -204,7 +204,10 @@ def create_app(config_class=Config):
 
     from app.api.mobile_auth import mobile_auth
     from app.api.mobile_social import register_social_routes
+    from app.api.mobile_account import register_account_routes
+    from app.auth.account_deletion import AccountDeletionFile
     register_social_routes(mobile_auth)
+    register_account_routes(mobile_auth)
     app.register_blueprint(mobile_auth, url_prefix='/api/mobile/auth')
 
     from app.api.words import api_words as api_words_blueprint

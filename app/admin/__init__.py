@@ -57,6 +57,9 @@ def register_admin_routes(flask_app):
     from app.admin.routes.user_routes import user_bp
     flask_app.register_blueprint(user_bp, url_prefix='/admin')
 
+    from app.admin.routes.account_deletion_routes import account_deletion_bp
+    flask_app.register_blueprint(account_deletion_bp, url_prefix='/admin')
+
     # Import and register system routes blueprint
     from app.admin.routes.system_routes import system_bp
     flask_app.register_blueprint(system_bp, url_prefix='/admin')

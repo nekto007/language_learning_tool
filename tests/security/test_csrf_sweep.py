@@ -33,6 +33,11 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.api.mobile_account.deletion_start': 'Bearer-only identity verification; browser cookies rejected',
+    'app.api.mobile_account.deletion_confirm': 'Bearer-only plus email/password proof; creates request, never deletes',
+    'app.api.mobile_account.deletion_cancel': 'Bearer-only; only own pending request can be cancelled',
+    'app.api.mobile_account.deletion_status': 'Opaque HMAC receipt required; read-only status, no cookie authentication',
+
     'app.api.native_translation.reader_lexicon': 'JWT-only; cookie authentication rejected',
     'app.api.native_push.update_push_settings': 'JWT-only; cookie authentication rejected',
     'app.api.native_push.register_push_device': 'JWT-only; cookie authentication rejected',
@@ -80,6 +85,11 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.api.mobile_account.deletion_start',
+    'app.api.mobile_account.deletion_confirm',
+    'app.api.mobile_account.deletion_cancel',
+    'app.api.mobile_account.deletion_status',
+
     'app.api.native_translation.reader_lexicon',
     'app.api.native_push.update_push_settings',
     'app.api.native_push.register_push_device',
