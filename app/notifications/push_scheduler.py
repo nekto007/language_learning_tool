@@ -28,6 +28,9 @@ def due_slot(hours, local_now):
 
 
 def _eligible(user, now):
+    from app.auth.deletion_access import learning_suspended
+    if learning_suspended(user.id):
+        return None
     try:
         tz = ZoneInfo(user.timezone or DEFAULT_TIMEZONE)
     except (ZoneInfoNotFoundError, ValueError):

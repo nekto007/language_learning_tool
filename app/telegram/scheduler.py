@@ -230,6 +230,9 @@ def _process_user(tg_user: TelegramUser, local_hour: int, local_date,
 
     user_id = tg_user.user_id
     chat_id = tg_user.telegram_id
+    from app.auth.deletion_access import learning_suspended
+    if learning_suspended(user_id):
+        return
 
     def _guarded_send(kind: str, *args, **kwargs) -> None:
         """Send only if this (user, kind, local_date) hasn't been claimed yet.
@@ -389,7 +392,8 @@ def _generate_daily_plans_hourly(app) -> None:
         from app.utils.time_utils import LEARNING_DAY_START_HOUR, study_day_date_for_tz
 
         now_utc = datetime.now(timezone.utc)
-        users = User.query.filter(User.active.is_(True)).all()
+        from app.auth.deletion_access import learning_enabled_user_filter
+        users = User.query.filter(User.active.is_(True), learning_enabled_user_filter()).all()
         generated = 0
         skipped = 0
         errors = 0

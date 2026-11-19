@@ -6,6 +6,7 @@
   <p>Заявка относится к одному аккаунту на сайте и в приложении. Администратор удалит его с 7-го по 14-й день после подтверждённой заявки. До фактического удаления её можно отменить.</p>
   {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
   {% if deletion and deletion.status == 'pending' %}
+    <div class="alert alert-warning"><strong>Обучение приостановлено.</strong> Пока заявка активна, доступны управление аккаунтом, подтверждение и отмена удаления, а также поддержка. Чтобы вернуться к занятиям, отмени заявку — доступ восстановится сразу.</div>
     <p>Не раньше: {{ deletion.earliest_deletion_at.strftime('%d.%m.%Y %H:%M') }} UTC.<br>Крайний срок: {{ deletion.latest_deletion_at.strftime('%d.%m.%Y %H:%M') }} UTC.</p>
     {% if deletion.requires_reconfirmation %}
       <div class="alert alert-warning">

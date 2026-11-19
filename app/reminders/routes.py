@@ -249,7 +249,9 @@ REMINDER_SEGMENTS = {
 
 
 def _eligible_users_query():
+    from app.auth.deletion_access import learning_enabled_user_filter
     return User.query.filter(
+        learning_enabled_user_filter(),
         User.active.is_(True),
         User.email.isnot(None),
         User.email != '',
@@ -683,13 +685,8 @@ def send_reminders():
     )
     db.session.commit()
 
-    users = User.query.filter(
+    users = _eligible_users_query().filter(
         User.id.in_(user_ids),
-        User.active.is_(True),
-        User.email.isnot(None),
-        User.email != '',
-        User.email_opted_out.is_(False),
-        User.notify_email_reminders.is_(True),
     ).all()
     success_count = 0
     skipped_recent = 0

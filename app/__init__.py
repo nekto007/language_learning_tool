@@ -435,6 +435,9 @@ def create_app(config_class=Config):
             code = 301 if request.method in ('GET', 'HEAD') else 308
             return redirect(new_url, code=code)
 
+    from app.auth.deletion_access import deletion_access_guard
+    app.before_request(deletion_access_guard)
+
     @app.before_request
     def update_last_active():
         """Update user's last_login every 12 hours on activity"""
