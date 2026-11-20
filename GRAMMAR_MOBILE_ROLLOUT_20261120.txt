@@ -1,0 +1,84 @@
+Грамматика и iOS — безопасное применение изменений от 20 ноября 2026
+
+Этот файл описывает подготовленное обновление. Production БД этой сессией
+не изменялась. Обновление исходников/контейнера само по себе НЕ переписывает
+содержание уже импортированных уроков: для этого нужны команды ниже.
+
+1. Обычная резервная копия, staging и обновление backend
+
+Развернуть подготовленный коммит привычным способом. Новых миграций именно для
+этого пакета грамматики нет; более ранняя семейная функция требует существующую
+миграцию 20261120_family_accounts. Проверить flask db current / flask db heads.
+Dockerfile включает только шесть reviewed JSON-пакетов; исходные каталоги уроков,
+резервные копии и iOS-модель в серверный build context не передаются.
+
+2. Сначала только проверка (не пишет в БД)
+
+Из корня нового серверного контейнера /app:
+
+  flask grammar-recaps MOBILE_GRAMMAR_RECAPS_20261120.json MOBILE_GRAMMAR_RECAP_EXAMPLES_20261120.json MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json --report /tmp/grammar-recaps-check.json
+  flask grammar-prompts MOBILE_GRAMMAR_EXERCISE_PROMPTS_20261120.json --report /tmp/grammar-prompts-check.json
+  flask grammar-supplements MOBILE_GRAMMAR_SUPPLEMENTS_20261120.json
+  flask grammar-supplements MOBILE_GRAMMAR_FUTURE_PERFECT_20261120.json
+
+Для Docker Compose команда запускается через docker compose exec -T web, например:
+
+  docker compose exec -T web flask grammar-supplements MOBILE_GRAMMAR_SUPPLEMENTS_20261120.json
+
+Посмотреть полный вывод и JSON-отчёты. Отсутствующий необязательный GrammarTopic
+mirror допускается для recap-пакета. Отсутствующий обязательный lesson, несколько
+совпадений, вручную изменённый контент или конфликт блокируют весь соответствующий
+apply. Это повод разобрать точные ID и расхождения на staging; принудительного
+режима, угадывания по названию и перезаписи админских правок нет.
+
+3. Применение после успешного preflight и просмотра результата на staging
+
+  flask grammar-recaps MOBILE_GRAMMAR_RECAPS_20261120.json MOBILE_GRAMMAR_RECAP_EXAMPLES_20261120.json MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json --apply --report /tmp/grammar-recaps-applied.json
+  flask grammar-prompts MOBILE_GRAMMAR_EXERCISE_PROMPTS_20261120.json --apply --report /tmp/grammar-prompts-applied.json
+  flask grammar-supplements MOBILE_GRAMMAR_SUPPLEMENTS_20261120.json --apply
+  flask grammar-supplements MOBILE_GRAMMAR_FUTURE_PERFECT_20261120.json --apply
+
+Каждая команда проверяет свой пакет целиком и фиксирует его одной транзакцией.
+Повторный запуск идемпотентен. Команды независимы: четыре apply не образуют одну
+общую транзакцию. При неожиданном drift повторный импорт всех курсов не нужен.
+
+Recaps меняет только согласованные поля теории существующих уроков и точных
+зеркал Grammar Lab. Prompts меняет 79 инструкций и расширяет допустимые варианты
+if/whether у одного задания. ID, порядок, основной ключ ответа, попытки и SRS
+сохраняются. Supplements добавляет две отдельные темы и 40 заданий, не меняя
+нумерацию модулей и обязательный план. Отдельный второй supplement-пакет добавляет
+Future Perfect с 20 заданиями: эта форма уже встречается в практике курса, а
+системного объяснения раньше не было. Существующий unmanaged slug блокирует импорт.
+
+4. Проверка после применения
+
+Открыть на сайте и iPhone TO BE, Passive Present Simple, embedded/reported
+questions и новую тему объектных местоимений. Прочитать правило, открыть практику,
+ввести ответ, открыть и закрыть справку: ответ должен сохраниться. Завершить один
+урок, проверить его учёт в плане. На тестовом семейном устройстве переключиться
+между учениками во время незавершённого упражнения и убедиться в разделении данных.
+Повторить четыре dry-run: ожидаются unchanged вместо повторных обновлений.
+
+Открытую до обновления старую попытку приложение может попросить обновить: версия
+мобильного представления изменилась. Уже завершённые идемпотентные отправки получают
+прежнюю квитанцию. Не удалять локальный outbox/черновики для обхода конфликта.
+
+5. Локальные исходные JSON (для последующего редактирования контента)
+
+Исходные module_completed/fixed и grammar_exercises_extra в этом checkout уже
+исправлены. Reviewed manifests сохраняют точные before/after и хеши. Для другого
+checkout соответствующей исходной версии:
+
+  python3 -S scripts/patch_mobile_grammar_recaps.py --help
+  python3 -S scripts/patch_mobile_grammar_prompts.py --help
+
+Сначала dry-run. Эти source patcher не подключаются к БД; они не заменяют серверные
+команды выше. Не применять старый массовый importer для доставки этого обновления.
+
+6. Границы проверки
+
+Проверка эталонных ответов доказывает достижимость ключей через grader и мобильные
+элементы ввода. Она не измеряет процент лингвистической точности всего курса.
+Смысловые изменения отдельно просмотрены участниками команды. Оплата Apple,
+подписание, APNs, физический Face ID и TestFlight остаются отдельной проверкой
+владельца; симулятор их не доказывает.

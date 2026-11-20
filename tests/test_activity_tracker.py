@@ -406,6 +406,7 @@ class TestStreakShieldOrder:
         user = User(
             username=f'shield_{suffix}',
             email=f'shield_{suffix}@test.com',
+            created_at=datetime(2020, 1, 1),  # Established before yesterday's repair.
             active=True,
             streak_shield_active=True,
         )
@@ -544,6 +545,7 @@ class TestStreakShieldOrder:
         user = User(
             username=f'ord_{suffix}',
             email=f'ord_{suffix}@test.com',
+            created_at=datetime(2020, 1, 1),  # Established before yesterday's repair.
             active=True,
             streak_shield_active=True,
         )

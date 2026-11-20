@@ -229,7 +229,7 @@ def test_theory_only_grammar_is_saved_without_a_fabricated_grade(native_context)
     c.lesson.content = {'sections': [{'subtitle': 'To be', 'description': 'Three forms', 'table': [{'pronoun': 'I', 'form': 'am', 'audio': 'private-file.mp3'}]}], 'exercises': []}
     lesson = fetch(c)
     assert lesson['questions'] == []
-    assert 'I · am' in lesson['theory'][0]['body']
+    assert 'I · am' in '\n'.join(block['body'] for block in lesson['theory'])
     assert 'private-file.mp3' not in str(lesson)
     response = submit(c, lesson['session_token'], {})
     assert response.status_code == 200

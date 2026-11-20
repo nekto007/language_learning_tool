@@ -1,0 +1,558 @@
+{
+  "schema_version": 1,
+  "created": "2026-11-20",
+  "scope": "Review ledger only; exercise keys unchanged by content audit agent. Not an exhaustive semantic accuracy audit.",
+  "issues": [
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 5,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "current_content": {
+        "sentence": "He wanted to know if I have ever travelled to South America before.",
+        "correct_answer": "He wanted to know if I had ever travelled to South America before.",
+        "error_word": "have",
+        "correct_word": "had",
+        "explanation": "Ошибка: отсутствие согласования времён. Have (Present Perfect) → had (Past Perfect) при сдвиге времён в косвенной речи. Перевод: Он хотел знать, путешествовал ли я когда-нибудь по Южной Америке.",
+        "alternatives": [
+          "had"
+        ]
+      },
+      "reason": "Present tense is grammatical if still relevant; current prompt labels lack of backshift an error.",
+      "suggested_constraint": "Explicitly request backshift in a separate instruction; do not silently mark the original universally ungrammatical."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 7,
+      "exercise_order": 7,
+      "exercise_type": "error_correction",
+      "current_content": {
+        "sentence": "They asked us why we haven't submitted the required documents on time.",
+        "correct_answer": "They asked us why we hadn't submitted the required documents on time.",
+        "error_word": "haven't",
+        "correct_word": "hadn't",
+        "explanation": "Ошибка: haven't (Present Perfect) вместо hadn't (Past Perfect). При сдвиге времён в косвенной речи have → had. Перевод: Они спросили, почему мы не подали необходимые документы вовремя.",
+        "alternatives": [
+          "hadn't"
+        ]
+      },
+      "reason": "Present tense is grammatical if still relevant; current prompt labels lack of backshift an error.",
+      "suggested_constraint": "Explicitly request backshift in a separate instruction; do not silently mark the original universally ungrammatical."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 8,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "current_content": {
+        "sentence": "The professor wondered why the student doesn't attend the lectures more regularly.",
+        "correct_answer": "The professor wondered why the student didn't attend the lectures more regularly.",
+        "error_word": "doesn't",
+        "correct_word": "didn't",
+        "explanation": "Ошибка: doesn't (Present Simple) вместо didn't (Past Simple) при согласовании времён. Wondered (past) требует сдвига: doesn't → didn't. Перевод: Профессор задавался вопросом, почему студент не посещает лекции регулярнее.",
+        "alternatives": [
+          "didn't"
+        ]
+      },
+      "reason": "Present tense is grammatical if still relevant; current prompt labels lack of backshift an error.",
+      "suggested_constraint": "Explicitly request backshift in a separate instruction; do not silently mark the original universally ungrammatical."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 1,
+      "exercise_order": 8,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Он спросил, когда начнётся следующий семестр.",
+        "correct_answer": "He asked when the next semester would start.",
+        "alternatives": [
+          "He asked when the next semester would begin."
+        ],
+        "explanation": "When сохраняется в косвенном вопросе. Will → would (согласование времён). Прямой порядок слов: when + подлежащее + сказуемое."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 2,
+      "exercise_order": 8,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Она спросила, как часто я тренируюсь в спортзале.",
+        "correct_answer": "She asked how often I worked out at the gym.",
+        "alternatives": [
+          "She asked how often I exercised at the gym."
+        ],
+        "explanation": "How often передаёт вопрос о частоте. Тренируюсь (настоящее) → worked out (Past Simple при согласовании времён)."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 3,
+      "exercise_order": 8,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Они спросили, кто отвечает за организацию мероприятия.",
+        "correct_answer": "They asked who was responsible for organising the event.",
+        "alternatives": [
+          "They asked who was responsible for organizing the event.",
+          "They asked who was in charge of organising the event.",
+          "They asked who was in charge of organizing the event."
+        ],
+        "explanation": "Who в роли подлежащего сохраняется в косвенном вопросе. Organising (BrE) = organizing (AmE) — оба варианта корректны."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 4,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Менеджер спросил, почему продажи упали в прошлом квартале.",
+        "correct_answer": "The manager asked why sales had dropped in the previous quarter.",
+        "alternatives": [
+          "The manager asked why sales had fallen in the previous quarter.",
+          "The manager asked why sales had decreased in the previous quarter."
+        ],
+        "explanation": "Why сохраняется. Согласование: dropped → had dropped (Past Simple → Past Perfect). Last quarter → the previous quarter."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 4,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Она хотела узнать, где он работал до того, как переехал в Берлин.",
+        "correct_answer": "She wanted to know where he had worked before he moved to Berlin.",
+        "alternatives": [
+          "She wanted to know where he had worked before he had moved to Berlin.",
+          "She wanted to know where he'd worked before he moved to Berlin."
+        ],
+        "explanation": "Where сохраняется в косвенном вопросе. Согласование: worked → had worked (Past Perfect для более раннего действия)."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 5,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Клиент спросил, можно ли забронировать столик на следующий вечер.",
+        "correct_answer": "The client asked if it was possible to book a table for the following evening.",
+        "alternatives": [
+          "The client asked whether it was possible to reserve a table for the following evening.",
+          "The client asked if it was possible to reserve a table for the following evening."
+        ],
+        "explanation": "If/whether вводят yes/no вопрос. Next evening → the following evening (замена указательного слова). Book = reserve — синонимы."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 5,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Инспектор спросил, кто последним покинул здание прошлой ночью.",
+        "correct_answer": "The inspector asked who had been the last to leave the building the previous night.",
+        "alternatives": [
+          "The inspector asked who had been the last to leave the building the night before.",
+          "The inspector asked who had left the building last the previous night."
+        ],
+        "explanation": "Who как подлежащее косвенного вопроса. Left → had left / had been the last to leave (Past Perfect). Last night → the previous night / the night before."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 6,
+      "exercise_order": 4,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Преподаватель спросил студентов, что они узнали из этого эксперимента.",
+        "correct_answer": "The professor asked the students what they had learnt from that experiment.",
+        "alternatives": [
+          "The professor asked the students what they had learned from that experiment.",
+          "The teacher asked the students what they had learnt from that experiment.",
+          "The teacher asked the students what they had learned from that experiment."
+        ],
+        "explanation": "What сохраняется. Learnt (BrE) = learned (AmE). This → that (замена указательного слова). Learnt → had learnt (Past Perfect)."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 6,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Мой друг поинтересовался, собираюсь ли я подавать заявку на стипендию.",
+        "correct_answer": "My friend asked if I was going to apply for the scholarship.",
+        "alternatives": [
+          "My friend asked whether I was going to apply for the scholarship.",
+          "My friend enquired if I was going to apply for the scholarship.",
+          "My friend enquired whether I was going to apply for the scholarship."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Am going to → was going to (согласование). Поинтересовался = asked / enquired."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 6,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Они спросили руководителя, сколько времени потребуется для завершения строительства.",
+        "correct_answer": "They asked the manager how long it would take to complete the construction.",
+        "alternatives": [
+          "They asked the manager how much time it would take to complete the construction.",
+          "They asked the manager how long it would take to finish the construction."
+        ],
+        "explanation": "How long / how much time передают вопрос о продолжительности. Will take → would take (согласование). Complete = finish — синонимы."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 7,
+      "exercise_order": 4,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Журналист спросил министра, какие меры правительство примет для борьбы с безработицей.",
+        "correct_answer": "The journalist asked the minister what measures the government would take to combat unemployment.",
+        "alternatives": [
+          "The journalist asked the minister what measures the government would take to fight unemployment.",
+          "The journalist asked the minister what steps the government would take to combat unemployment."
+        ],
+        "explanation": "What measures/steps передаёт вопрос о конкретных действиях. Will take → would take. Combat = fight — синонимы. Measures = steps — синонимы."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 7,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Она поинтересовалась, знал ли кто-нибудь из присутствующих о произошедшем инциденте.",
+        "correct_answer": "She asked if anyone present had known about the incident that had occurred.",
+        "alternatives": [
+          "She asked whether anyone present had known about the incident that had occurred.",
+          "She enquired if anyone present had known about the incident that had happened."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Двойной Past Perfect: had known, had occurred — оба действия предшествовали моменту речи."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 7,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Пациент спросил врача, когда ему можно будет вернуться к обычным физическим нагрузкам.",
+        "correct_answer": "The patient asked the doctor when he could return to his regular physical activity.",
+        "alternatives": [
+          "The patient asked the doctor when he would be able to return to his normal physical activity.",
+          "The patient asked the doctor when he could go back to his regular physical activity."
+        ],
+        "explanation": "When сохраняется. Can → could (согласование). Return to = go back to. Regular = normal — синонимы."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 8,
+      "exercise_order": 4,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Аудитор спросил, проводились ли какие-либо несанкционированные транзакции за последний квартал.",
+        "correct_answer": "The auditor asked if any unauthorised transactions had been conducted during the previous quarter.",
+        "alternatives": [
+          "The auditor asked whether any unauthorized transactions had been conducted during the previous quarter.",
+          "The auditor asked if any unauthorised transactions had been carried out during the previous quarter."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Conducted = carried out — синонимы. Unauthorised (BrE) = unauthorized (AmE). Last → previous."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 8,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Учёный хотел узнать, как результаты этого исследования соотносятся с предыдущими данными.",
+        "correct_answer": "The scientist wanted to know how the results of that study compared with the previous data.",
+        "alternatives": [
+          "The scientist wanted to know how the results of that research compared with the previous data.",
+          "The scientist wanted to know how the findings of that study compared with the previous data."
+        ],
+        "explanation": "How сохраняется. This → that (смена указательного слова). Results = findings, study = research — синонимы."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 8,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "current_content": {
+        "question": "Родители спросили учителя, что они могут сделать, чтобы помочь ребёнку с математикой.",
+        "correct_answer": "The parents asked the teacher what they could do to help the child with maths.",
+        "alternatives": [
+          "The parents asked the teacher what they could do to help the child with math.",
+          "The parents asked the teacher what they could do to help their child with maths."
+        ],
+        "explanation": "What сохраняется. Can → could (согласование). Maths (BrE) = math (AmE)."
+      },
+      "reason": "Translation prompt gives no reporting-time context or explicit backshift requirement, yet exact expected form uses backshift.",
+      "suggested_constraint": "Request translation using sequence-of-tenses/backshift as practised; preserve current expected keys after independent meaning review."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 1,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "current_content": {
+        "question": "He asked ___ the meeting had been postponed until the following week.",
+        "correct_answer": "why",
+        "options": [
+          "why",
+          "what",
+          "if",
+          "where"
+        ],
+        "explanation": "Вопрос о причине передаётся с помощью why. Прямой вопрос: «Why has the meeting been postponed?» Перевод: Он спросил, почему собрание перенесли на следующую неделю."
+      },
+      "reason": "Both why and offered if form grammatical indirect questions; desired reason appears only in hidden explanation.",
+      "suggested_constraint": "Add explicit intended meaning «почему» to question."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "session_number": 4,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "current_content": {
+        "question": "The tourist asked the guide ___ the ancient temple had been built centuries ago.",
+        "correct_answer": "when",
+        "options": [
+          "when",
+          "if",
+          "who",
+          "what"
+        ],
+        "explanation": "When передаёт вопрос о времени. Прямой: «When was the ancient temple built?» Перевод: Турист спросил гида, когда был построен древний храм."
+      },
+      "reason": "Question-word choice needs intended meaning; inspect all offered alternatives against displayed context.",
+      "suggested_constraint": "Add explicit intended meaning «когда» to question."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "session_number": 4,
+      "exercise_order": 7,
+      "exercise_type": "error_correction",
+      "current_content": {
+        "sentence": "If the sun shines, plants will grow.",
+        "correct_answer": "If the sun shines, plants grow.",
+        "error_word": "will grow",
+        "correct_word": "grow",
+        "alternatives": [
+          "grow"
+        ],
+        "explanation": "Это общая истина → Zero Conditional. Обе части в Present Simple: 'grow', а не 'will grow'."
+      },
+      "reason": "Given first conditional is grammatical; exercise silently demands general-truth zero conditional.",
+      "suggested_constraint": "Explicitly request rewriting as Zero Conditional general truth, rather than unqualified error correction."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "session_number": 2,
+      "exercise_order": 9,
+      "exercise_type": "error_correction",
+      "current_content": {
+        "sentence": "If I was you, I would apologise.",
+        "correct_answer": "If I were you, I would apologise.",
+        "error_word": "was",
+        "correct_word": "were",
+        "alternatives": [
+          "were"
+        ],
+        "explanation": "В Second Conditional 'be' принимает форму 'were' для всех лиц: 'If I were you…'."
+      },
+      "reason": "Conversational was is accepted elsewhere in same pack; unqualified error label contradicts lesson.",
+      "suggested_constraint": "Explicitly request formal hypothetical were, rather than label conversational was universally incorrect."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "session_number": 6,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "current_content": {
+        "sentence": "If I was a manager, I would change the whole schedule.",
+        "correct_answer": "If I were a manager, I would change the whole schedule.",
+        "error_word": "was",
+        "correct_word": "were",
+        "alternatives": [
+          "were"
+        ],
+        "explanation": "В Second Conditional 'be' принимает форму 'were' для всех лиц: 'If I were a manager…'."
+      },
+      "reason": "Conversational was is accepted elsewhere in same pack; unqualified error label contradicts lesson.",
+      "suggested_constraint": "Explicitly request formal hypothetical were, rather than label conversational was universally incorrect."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "session_number": 1,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "current_content": {
+        "question": "If you mix red and blue, you ___ purple.",
+        "correct_answer": "get",
+        "options": [
+          "get",
+          "will get",
+          "would get",
+          "got"
+        ],
+        "explanation": "Zero Conditional описывает общую истину: If + Present, Present. Поэтому 'get', а не 'will get'."
+      },
+      "reason": "Offered zero and first conditional may both be grammatical absent intended general-truth/future meaning.",
+      "suggested_constraint": "State target Zero Conditional or First Conditional in visible question."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "session_number": 2,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "current_content": {
+        "question": "If you press this button, the machine ___.",
+        "correct_answer": "starts",
+        "options": [
+          "starts",
+          "will start",
+          "would start",
+          "started"
+        ],
+        "explanation": "Zero Conditional описывает автоматический результат: If + Present, Present → 'starts'."
+      },
+      "reason": "Offered zero and first conditional may both be grammatical absent intended general-truth/future meaning.",
+      "suggested_constraint": "State target Zero Conditional or First Conditional in visible question."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "session_number": 1,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "current_content": {
+        "question": "If she studies hard, she ___ the exam.",
+        "correct_answer": "will pass",
+        "options": [
+          "will pass",
+          "passes",
+          "would pass",
+          "passed"
+        ],
+        "explanation": "First Conditional (реальная возможность в будущем): If + Present Simple, will + инфинитив → 'will pass'."
+      },
+      "reason": "Offered zero and first conditional may both be grammatical absent intended general-truth/future meaning.",
+      "suggested_constraint": "State target Zero Conditional or First Conditional in visible question."
+    },
+    {
+      "file": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "session_number": 2,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "current_content": {
+        "question": "If they invite me, I ___ to the party.",
+        "correct_answer": "will go",
+        "options": [
+          "will go",
+          "go",
+          "would go",
+          "went"
+        ],
+        "explanation": "First Conditional (реальная возможность): If + Present Simple, will + инфинитив → 'will go'."
+      },
+      "reason": "Offered zero and first conditional may both be grammatical absent intended general-truth/future meaning.",
+      "suggested_constraint": "State target Zero Conditional or First Conditional in visible question."
+    }
+  ]
+}

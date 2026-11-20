@@ -230,3 +230,13 @@ def test_username_keys_are_trimmed_and_bounded(app):
         assert get_username_key() == 'username:' + 'a' * 254
     with app.test_request_context(data={'username': '  form  '}, method='POST'):
         assert get_username_key() == 'username:form'
+
+
+@pytest.mark.parametrize('field', ['json', 'username', 'username_or_email'])
+def test_email_case_variants_share_login_throttle_bucket(app, field):
+    def key(value):
+        arguments = {'json': {'username': value}} if field == 'json' else {'data': {field: value}}
+        with app.test_request_context(method='POST', **arguments):
+            return get_username_key()
+    assert key('  Learner@EXAMPLE.COM  ') == key('learner@example.com')
+    assert key('OrdinaryUser') != key('ordinaryuser')

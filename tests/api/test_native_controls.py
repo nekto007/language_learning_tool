@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, UTC
 from uuid import uuid4
 import pytest
-from test_native_full_integration import native_app, learner
+from tests.api.test_native_full_integration import native_app, learner
 
 
 def make_word():

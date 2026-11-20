@@ -17,6 +17,20 @@ def get_remote_address_key():
     return request.remote_addr or '127.0.0.1'
 
 
+def _identity_key(value):
+    value = value.strip()[:254]
+    # JSON can contain an unpaired UTF-16 surrogate. Redis encodes keys before
+    # the login handler validates credentials, so malformed input must use an
+    # ordinary IP bucket rather than raise (or disable throttling on errors).
+    try:
+        value.encode('utf-8')
+    except UnicodeEncodeError:
+        return f"ip:{get_remote_address_key()}"
+    # Native login compares email addresses case-insensitively.
+    # Keep one throttle bucket for case variants of that identity.
+    return f"username:{value.lower() if '@' in value else value}"
+
+
 def get_username_key():
     """
     Получает ключ для rate limiting по username
@@ -33,12 +47,12 @@ def get_username_key():
         if isinstance(data, dict):
             username = data.get('username')
             if isinstance(username, str) and username.strip():
-                return f"username:{username.strip()[:254]}"
+                return _identity_key(username)
 
     # Пытаемся получить из form data
     username = request.form.get('username') or request.form.get('username_or_email')
     if username:
-        return f"username:{username.strip()[:254]}"
+        return _identity_key(username)
 
     # Если authenticated user - используем его username
     if current_user and current_user.is_authenticated:

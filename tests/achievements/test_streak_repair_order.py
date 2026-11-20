@@ -30,6 +30,7 @@ MOSCOW = 'Europe/Moscow'  # UTC+3, без DST
 def shielded_user(db_session, test_user):
     """Юзер в фиксированной зоне с активным щитом."""
     test_user.timezone = MOSCOW
+    test_user.created_at = datetime(2026, 8, 1)  # Before the historical August study days.
     test_user.streak_shield_active = True
     db_session.flush()
     return test_user

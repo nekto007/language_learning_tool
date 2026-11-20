@@ -495,12 +495,13 @@ def main(argv=None):
                 conn, cutoff=as_of - timedelta(days=args.days), as_of=as_of)
         report = build_report(users, progress, events, as_of=as_of, days=args.days,
                               timezone_name=args.timezone, missing_sources=missing)
-        print(json.dumps(report, ensure_ascii=False, indent=2))
+        # This standalone CLI emits structured JSON; request handlers use logging.
+        sys.stdout.write(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
         engine.dispose()
     except Exception as error:
         # SQLAlchemy connection errors can contain credentials/connection details.
-        print(f'Report failed ({type(error).__name__}); no report generated. '
-              'Check database access, schema and arguments. Credentials are not logged.', file=sys.stderr)
+        sys.stderr.write(f'Report failed ({type(error).__name__}); no report generated. '
+                         'Check database access, schema and arguments. Credentials are not logged.\n')
         return 1
     return 0
 

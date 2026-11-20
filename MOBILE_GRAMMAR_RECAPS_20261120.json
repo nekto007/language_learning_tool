@@ -1,0 +1,1300 @@
+{
+  "schema_version": 1,
+  "created": "2026-11-20",
+  "description": "Reviewed mobile grammar recaps; no lesson/exercise IDs, ordering, answers, audio refs or progress are changed. Source-only patch, no database access.",
+  "sources": {
+    "comparison": "https://dictionary.cambridge.org/grammar/british-grammar/comparison-adjectives-bigger",
+    "future": "https://learnenglishteens.britishcouncil.org/grammar/a1-a2-grammar/present-continuous",
+    "articles": "https://dictionary.cambridge.org/grammar/british-grammar/a-an-and-the",
+    "possessives": "https://learnenglishteens.britishcouncil.org/grammar/a1-a2-grammar/personal-pronouns-possessives"
+  },
+  "entries": [
+    {
+      "file": "module_A1_2_objects_and_articles.json",
+      "level": "A1",
+      "module_order": 2,
+      "module_title": "Предметы вокруг нас",
+      "lesson_external_key": "curriculum:grammar:A1:02:artikli_a_i_an",
+      "before_file_sha256": "ff19b2bcfda3528c65f3055736688c8e45034d6afd12956998825669420c6c2f",
+      "after_file_sha256": "dfe234991c7d394562be1e91525ffb07aa9cbb8d1dd3fe4fdb5f65ca7b94deed",
+      "unchanged_sha256": "32f9d9c099511d14ca6efe23ae1c8f3bca6e8af84ae3d8cec370955d6dbb65ae",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Когда использовать A</strong>: <em>I have a box.</em>",
+            "<strong>Когда использовать AN</strong>: <em>I have an umbrella.</em>",
+            "<strong>Артикль с прилагательным</strong>: <em>a new phone</em>",
+            "<strong>Без артикля: множественное число и неисчисляемые</strong>: <em>I have headphones.</em>"
+          ],
+          "after": [
+            "<strong>A/an</strong> — один неконкретный или впервые упоминаемый предмет: <em>I have a book.</em> Используем с исчисляемым словом в единственном числе.",
+            "Выбор зависит от <strong>первого звука</strong>, а не буквы: <em>a university, an hour</em>.",
+            "Если перед существительным есть прилагательное, смотрим на его первый звук: <em>a red apple, an old bag</em>.",
+            "Перед множественным числом и неисчисляемыми словами <strong>a/an не ставим</strong>: <em>books, water</em>."
+          ]
+        },
+        {
+          "path": [
+            "sections",
+            1,
+            "notes",
+            0
+          ],
+          "before": "В словаре этого модуля только umbrella начинается с гласного звука. Запомните правило: AN + гласный звук (a, e, i, o, u).",
+          "after": "В словаре этого модуля umbrella начинается с гласного звука: an umbrella. Выбираем a/an по звуку, а не по букве: a university, но an hour."
+        }
+      ]
+    },
+    {
+      "file": "module_A1_4_objects_around_us.json",
+      "level": "A1",
+      "module_order": 4,
+      "module_title": "Числа и цвета",
+      "lesson_external_key": "curriculum:grammar:A1:04:mnozhestvennoe_chislo_i_this_that_these_those",
+      "before_file_sha256": "0ffa842f3f5ab96bca1174fa083e7e14264a897c2ecae8066631b806a5cf7f53",
+      "after_file_sha256": "8fc900f23f56f1adca896cf88bde54ec5da0750d12643c50badd8b3ff07fdf75",
+      "unchanged_sha256": "1e80b6386d7feb1e69cc840f9a8275d7bb35b8405e6bc5bdd04046aa3d5a14c4",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Единственное и множественное число</strong>: <em></em>",
+            "<strong>Образование множественного числа</strong>: <em>one cat → two cats, one book → three books</em>",
+            "<strong>Таблица THIS / THAT / THESE / THOSE</strong>: <em>This is a red one. / These are red ones.</em>"
+          ],
+          "after": [
+            "<strong>Множественное число</strong> обычно образуется с -s: <em>one book → two books</em>.",
+            "После -s, -sh, -ch, -x обычно добавляем <strong>-es</strong>: <em>box → boxes, watch → watches</em>.",
+            "После согласной меняем <strong>-y на -ies</strong>; после гласной добавляем -s: <em>baby → babies, toy → toys</em>.",
+            "У некоторых слов особая форма: <em>child → children, man → men</em>. Её нужно запомнить.",
+            "<strong>This/these</strong> — рядом, <strong>that/those</strong> — дальше; this/that — один предмет, these/those — несколько: <em>This is red. Those are blue.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_6_family.json",
+      "level": "A1",
+      "module_order": 6,
+      "module_title": "Семья",
+      "lesson_external_key": "curriculum:grammar:A1:06:family",
+      "before_file_sha256": "4fde2b9d3ef65a1096eed0c006f86052fc51d0fa7f7883f5ffb901397c7524d9",
+      "after_file_sha256": "5705d4d7d290200a1f0819e0907515a535ace2c88ce2a4bd83e5e4eb96921938",
+      "unchanged_sha256": "016eda8e5aac094307858b6a917f8e4eaaf3aa327e57e64aeee1177d7c2f88d2",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Притяжательные местоимения</strong>: <em>This is my mother.</em>",
+            "<strong>Притяжательный падеж 's</strong>: <em>Tom's mother is a teacher.</em>",
+            "<strong>His vs Her</strong>: <em>Tom is a boy. His sister is Ann.</em>",
+            "<strong>Абсолютные формы: mine, yours, his, hers, ours, theirs</strong>: <em>This pen is mine.</em>"
+          ],
+          "after": [
+            "<strong>My, your, his, her, its, our, their</strong> ставим перед существительным: <em>This is her bag.</em>",
+            "Форма зависит от владельца: <em>Tom has a sister. His sister is Anna.</em>",
+            "Без существительного используем <strong>mine, yours, his, hers, ours, theirs</strong>: <em>This bag is mine.</em>",
+            "Чтобы назвать владельца, добавляем <strong>’s</strong>; после множественного -s — апостроф: <em>Tom’s bag, my parents’ house</em>.",
+            "<strong>Its</strong> — притяжательная форма it; <strong>it’s = it is / it has</strong>: <em>The cat is in its bed.</em> Для названного кота или кошки возможны his/her."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_2_shopping.json",
+      "level": "A2",
+      "module_order": 2,
+      "module_title": "Магазины и покупки",
+      "lesson_external_key": "curriculum:grammar:A2:02:shopping",
+      "before_file_sha256": "c595223b3033ec48e9b0cae1f8187077b3190acb534f11310f98537aa2c432e0",
+      "after_file_sha256": "896c7e1763cd64306ec2682725adfd31fd02879254c4ea43630f1504f8c41023",
+      "unchanged_sha256": "d54550e81db153059cc9b09b2446e45de7da785716a43aad3d2f8f8552c527a7",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>How many? — для исчисляемых существительных</strong>: <em></em>",
+            "<strong>How much? — для неисчисляемых существительных</strong>: <em></em>",
+            "<strong>How much? — для вопросов о цене</strong>: <em></em>",
+            "<strong>Исчисляемые vs Неисчисляемые существительные</strong>: <em></em>"
+          ],
+          "after": [
+            "<strong>How many</strong> — «сколько» с исчисляемым словом во множественном числе: <em>How many apples do you need?</em>",
+            "<strong>How much</strong> — «сколько» с неисчисляемым словом: <em>How much water do you drink?</em>",
+            "О цене спрашиваем <strong>How much is/are …?</strong>: <em>How much are these shoes?</em>",
+            "<strong>Money</strong> в этом значении неисчисляемое: <em>How much money do you have?</em> Не <em>how many money</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_10_animals.json",
+      "level": "A2",
+      "module_order": 10,
+      "module_title": "Животные",
+      "lesson_external_key": "curriculum:grammar:A2:10:animals",
+      "before_file_sha256": "2e239b6ff921823bb168c004b952733aae02f051f05dcac0dcfa6c876ad0dd27",
+      "after_file_sha256": "c86938d5cb36eaab148aced11aaefc3221037fe9f776d7128e6612a91830c095",
+      "unchanged_sha256": "3285ae3923146ed9d42dfd7d73def89e658fcf33d2f402715122785b1f88de12",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Короткие прилагательные (1-2 слога) + -er</strong>: <em>An elephant is bigger than a wolf.</em>",
+            "<strong>Длинные прилагательные (3+ слога) + more</strong>: <em>Monkeys are more intelligent than ducks.</em>",
+            "<strong>Исключения и особые случаи</strong>: <em>Wolves are better runners than lions.</em>",
+            "<strong>Правописание: удвоение согласной</strong>: <em>A bear is bigger than a fox.</em>",
+            "<strong>Прилагательные на -y</strong>: <em>The wolf is happier than the fox.</em>"
+          ],
+          "after": [
+            "<strong>Сравнительная степень</strong> сопоставляет признаки; than вводит названный второй предмет: <em>A horse is bigger than a rabbit.</em>",
+            "У односложных прилагательных обычно <strong>-er</strong>; у некоторых двусложных тоже: <em>small → smaller, clever → cleverer</em>.",
+            "После согласной + y получаем <strong>-ier</strong>; в словах типа big удваиваем последнюю согласную: <em>happy → happier, big → bigger</em>.",
+            "У длинных и многих двусложных слов — <strong>more</strong>: <em>more beautiful, more careful</em>. Не <em>more bigger</em>.",
+            "Особые формы: <em>good → better, bad → worse, far → farther/further</em>."
+          ]
+        },
+        {
+          "path": [
+            "sections",
+            0,
+            "subtitle"
+          ],
+          "before": "Короткие прилагательные (1-2 слога) + -er",
+          "after": "Односложные и некоторые двусложные прилагательные: -er"
+        },
+        {
+          "path": [
+            "sections",
+            0,
+            "description"
+          ],
+          "before": "Для коротких прилагательных добавляем окончание -er и слово 'than' (чем).",
+          "after": "У односложных прилагательных обычно добавляем -er. Так же изменяются некоторые двусложные слова, например clever → cleverer. Если называем второй предмет сравнения, используем than."
+        },
+        {
+          "path": [
+            "sections",
+            1,
+            "subtitle"
+          ],
+          "before": "Длинные прилагательные (3+ слога) + more",
+          "after": "Длинные и многие двусложные прилагательные: more"
+        },
+        {
+          "path": [
+            "sections",
+            1,
+            "description"
+          ],
+          "before": "Для длинных прилагательных используем слово 'more' перед прилагательным.",
+          "after": "У прилагательных из трёх и более слогов, а также у многих двусложных слов сравнительную степень образуем с more: beautiful → more beautiful, careful → more careful. Некоторые двусложные слова допускают обе формы; при сомнении проверьте словарь."
+        },
+        {
+          "path": [
+            "sections",
+            3,
+            "description"
+          ],
+          "before": "Если прилагательное заканчивается на одну гласную + одну согласную, согласная удваивается.",
+          "after": "В коротких словах типа big и fat после одной гласной перед одной конечной согласной согласная удваивается: bigger, fatter. Это правило не относится к конечным w, x, y: new → newer."
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "description"
+          ],
+          "before": "Если прилагательное заканчивается на -y, меняем -y на -ier.",
+          "after": "Если перед конечной -y стоит согласная, меняем -y на -ier: happy → happier. После гласной сохраняем y: grey → greyer."
+        },
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "⚠️ Всегда используйте 'than' после сравнительной степени: bigger than, more intelligent than",
+          "after": "Than используем, когда прямо называем второй объект сравнения: bigger than a cat. Без названного второго объекта comparative может быть без than: This room is bigger."
+        }
+      ]
+    },
+    {
+      "file": "module_A2_11_superlatives.json",
+      "level": "A2",
+      "module_order": 11,
+      "module_title": "Превосходная степень",
+      "lesson_external_key": "curriculum:grammar:A2:11:superlative_adjectives",
+      "before_file_sha256": "f9f1a94cffee9fe7ef0e42a941f7d77ec16e8d58ec9e449b806219575baef31c",
+      "after_file_sha256": "6566a831ac53d30b54b3b5c4ea467fdeb034a66131c5b5ec360122399d6b2cbb",
+      "unchanged_sha256": "12459f5729a60e0976f8a9005eb25cb4922e7b532346897cfc50c3b5df20e874",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Исключения (неправильные формы)</strong>: <em></em>",
+            "<strong>Превосходная степень + in / of / ever</strong>: <em>the biggest city in the world</em>"
+          ],
+          "after": [
+            "<strong>Превосходная степень</strong> выделяет предмет в группе: <em>This is the tallest tree in the park.</em>",
+            "У коротких прилагательных обычно <strong>the + -est</strong>: <em>small → the smallest, happy → the happiest, big → the biggest</em>.",
+            "У длинных и многих двусложных слов — <strong>the most</strong>: <em>the most interesting, the most careful</em>.",
+            "Особые формы: <em>good → the best, bad → the worst, far → the farthest/furthest</em>.",
+            "После <strong>one of the + превосходная степень</strong> ставим существительное во множественном числе: <em>one of the oldest buildings</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_15_household_chores.json",
+      "level": "A2",
+      "module_order": 15,
+      "module_title": "Домашние обязанности",
+      "lesson_external_key": "curriculum:grammar:A2:15:household_chores",
+      "before_file_sha256": "f5cb3062cc4e178695c634e34ff40f95d40e3e5cadc0e8ea134601a10ef0f69d",
+      "after_file_sha256": "e31696a21388a64d3444d9fb448afc97c1a1fb6f3fc11771ad0a43a13eb550ce",
+      "unchanged_sha256": "a65021bf3ca2f924b0aef8929e41d2a0d56bfdf301d18261ba4296ba6dcada19",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Образование Present Continuous</strong>: <em>I am cleaning the sink.</em>",
+            "<strong>Отрицательная форма</strong>: <em>I am not cleaning my room now.</em>",
+            "<strong>Вопросительная форма</strong>: <em>Am I doing it right?</em>",
+            "<strong>Правила добавления -ing</strong>: <em>clean → cleaning, sweep → sweeping</em>",
+            "<strong>Present Simple или Present Continuous?</strong>: <em>I clean my room every Saturday.</em>"
+          ],
+          "after": [
+            "<strong>Am/is/are + -ing</strong> — действие сейчас или временная ситуация: <em>I am cleaning the kitchen now.</em>",
+            "В отрицании <strong>not</strong> идёт после be: <em>She is not working today.</em> Не убираем am/is/are.",
+            "В <strong>общем вопросе be ставим перед подлежащим</strong>: <em>Are they washing the dishes?</em>",
+            "Правописание: <em>make → making, run → running, lie → lying</em>; обычно просто добавляем -ing: <em>clean → cleaning</em>.",
+            "Привычка — <strong>Present Simple</strong>; процесс — <strong>Present Continuous</strong>: <em>I clean on Sundays. I am cleaning now.</em>"
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            4
+          ],
+          "before": "⚠️ Глаголы состояния (like, love, want, know, understand, need) в Continuous не используются: I want (не I am wanting)",
+          "after": "В значении состояния like, love, want, know, understand, need обычно не используются в Continuous: I want, I know. У некоторых глаголов возможны другие значения или особое временное употребление; это не универсальный запрет любой Continuous-формы."
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "table",
+            3,
+            "form"
+          ],
+          "before": "только Present Simple",
+          "after": "обычно Present Simple, когда глагол выражает состояние"
+        }
+      ]
+    },
+    {
+      "file": "module_A2_16_future_plans.json",
+      "level": "A2",
+      "module_order": 16,
+      "module_title": "Планы и договорённости",
+      "lesson_external_key": "curriculum:grammar:A2:16:present_continuous_for_future_plans",
+      "before_file_sha256": "a1702ea9cceff377d7815830cbf4a3393339f6e712eb31a64ded9d7ab3338c09",
+      "after_file_sha256": "9c8dbec63c9b7f5857e1f52b84aa3004569a694bdb2a4b009e7b2ea3a87e5bff",
+      "unchanged_sha256": "d0e3ca3a0586049b89407e8f04e7aa8a34e2bf0f00ce3828cc0091c877da9ccf",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Типичные указатели времени</strong>: <em></em>",
+            "<strong>Сейчас, договорённость или намерение?</strong>: <em>I am working now.</em>"
+          ],
+          "after": [
+            "<strong>Am/is/are + -ing</strong> может обозначать уже организованный будущий план: <em>I am meeting Anna tomorrow.</em>",
+            "Обычно известны детали договорённости — с кем, где или когда: <em>We are having dinner at six.</em>",
+            "Будущее время понятно из <strong>контекста</strong>, часто со словами tomorrow, tonight, on Saturday: <em>What are you doing tonight?</em>",
+            "Формы не меняются: <em>I am not working on Friday. Are you leaving tomorrow?</em>",
+            "<strong>Be going to</strong> подчёркивает заранее принятое намерение; Present Continuous — договорённость: <em>I am going to look for a new job.</em>"
+          ]
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "description"
+          ],
+          "before": "Без маркера времени Present Continuous — действие сейчас; с маркером будущего — договорённость; be going to — намерение; глаголы состояния (have, know, want) остаются в Present Simple.",
+          "after": "Present Continuous может описывать действие сейчас, временную ситуацию или уже организованный будущий план. Будущее значение понятно из контекста, часто с указанием времени. Be going to подчёркивает намерение. Глаголы состояния вроде know и want обычно не употребляются в Continuous; have в значении обладания употребляется в Present Simple."
+        }
+      ]
+    },
+    {
+      "file": "module_A1_1_greetings.json",
+      "level": "A1",
+      "module_order": 1,
+      "module_title": "Знакомство и приветствия",
+      "lesson_external_key": "curriculum:grammar:A1:01:to_be",
+      "before_file_sha256": "2418269798c5e5ef659a79e9d87661125827222107165e03eb3c5e17597184f4",
+      "after_file_sha256": "ca516d49578c9ea636b8dac5747306ae2c099204abc8bf79799b430ec72b4bfa",
+      "unchanged_sha256": "f11444191362c71f47096808968ca4df60240b2bab75d791df8e577643848310",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>I</strong> → am: <em>I am a student.</em>",
+            "<strong>He / She / It</strong> → is: <em>She is a teacher.</em>",
+            "<strong>You / We / They</strong> → are: <em>You are my friend.</em>",
+            "В вопросе BE ставим перед подлежащим: <em>Are you ready?</em>",
+            "В отрицании добавляем not: <em>I am not tired.</em>"
+          ],
+          "after": [
+            "<strong>I → am, he/she/it → is, you/we/they → are</strong>: <em>I am a student. They are ready.</em>",
+            "Для имени, состояния или места в таком предложении нужен <strong>be</strong>: <em>She is at home.</em> Не <em>She at home</em>.",
+            "В отрицании добавляем <strong>not</strong> после be: <em>I am not tired. He is not late.</em>",
+            "В общем вопросе ставим <strong>be перед подлежащим</strong>: <em>Are you ready? Is she a teacher?</em>",
+            "В кратком утвердительном ответе оставляем полную форму: <em>Yes, I am.</em> Не <em>Yes, I’m</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_3_clothing.json",
+      "level": "A1",
+      "module_order": 3,
+      "module_title": "Одежда",
+      "lesson_external_key": "curriculum:grammar:A1:03:clothing",
+      "before_file_sha256": "777aac4b9ca80974b02288de0401a2b25be986d37dbb9f28aea6951e8ea5856d",
+      "after_file_sha256": "7bb07a546dbbff5e1cb8255cbbd03b398500d674527eee5f8447f9652867dcbe",
+      "unchanged_sha256": "f63c488dd0283b1b020820c66c8eb0163182d8958d47e198deae91f741bdb5e7",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Единственное число - близко</strong>: <em>This t-shirt is blue.</em>",
+            "<strong>Единственное число - далеко</strong>: <em>That dress is beautiful.</em>",
+            "<strong>Множественное число - близко</strong>: <em>These trousers are black.</em>",
+            "<strong>Множественное число - далеко</strong>: <em>Those shoes are nice.</em>"
+          ],
+          "after": [
+            "<strong>This / these</strong> указывают на то, что рядом: <em>This shirt is blue. These shoes are black.</em>",
+            "<strong>That / those</strong> указывают на то, что дальше: <em>That coat is red. Those boots are brown.</em>",
+            "<strong>This / that</strong> — один предмет; <strong>these / those</strong> — несколько.",
+            "С единственным числом используем <strong>is</strong>, с множественным — <strong>are</strong>: <em>This is my hat. Those are my gloves.</em>"
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            4
+          ],
+          "before": "⚠️ Некоторые слова всегда во множественном числе: clothes, trousers, jeans, shoes, boots, socks, gloves, glasses",
+          "after": "Clothes, trousers, jeans и glasses (очки) употребляются во множественном числе. У shoes, boots, socks, gloves есть обычные формы единственного числа: a shoe, a boot, a sock, a glove."
+        }
+      ]
+    },
+    {
+      "file": "module_A1_5_classroom_objects.json",
+      "level": "A1",
+      "module_order": 5,
+      "module_title": "Предметы в классе и комнате",
+      "lesson_external_key": "curriculum:grammar:A1:05:classroom_objects",
+      "before_file_sha256": "7997a150e6a4465538e259fae439c3c8ae6b51a7a9012d8f5415d0d8e838844f",
+      "after_file_sha256": "46a8924da69b442b0b504865a8b918fd607d28211e28094170d0026ee9d39a0d",
+      "unchanged_sha256": "533d305ef8f04089d03a39cd3ccb857387e9df6bb4dd562ea937c851c01451b7",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>There is (ед. число)</strong>: <em>There is a book on the desk.</em>",
+            "<strong>There are (мн. число)</strong>: <em>There are two curtains in the room.</em>",
+            "<strong>Отрицательная форма</strong>: <em>There is no computer in my room.</em>",
+            "<strong>Вопросительная форма</strong>: <em>Is there a pen on the desk?</em>"
+          ],
+          "after": [
+            "<strong>There is</strong> — есть один предмет или неисчисляемое вещество: <em>There is a desk. There is some water.</em>",
+            "<strong>There are</strong> — есть несколько предметов: <em>There are three books on the desk.</em>",
+            "В отрицании добавляем <strong>not</strong>: <em>There isn’t a chair. There aren’t any windows.</em>",
+            "В общем вопросе меняем порядок: <em>Is there a lamp? Are there any pencils?</em>",
+            "В кратком ответе повторяем there: <em>Yes, there is. No, there aren’t.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_7_home_and_furniture.json",
+      "level": "A1",
+      "module_order": 7,
+      "module_title": "Дом и мебель",
+      "lesson_external_key": "curriculum:grammar:A1:07:home_and_furniture",
+      "before_file_sha256": "6f73f12696d304f9f4e49f5fdea138e0be01ed835773ce3a0cd0015a074390c6",
+      "after_file_sha256": "614adad5c01be91c92ded241e62dfc0bc7430fb220c9b391b12dfedd699e6ed0",
+      "unchanged_sha256": "525e20cc71eb8a502e87635d40c36058d3317d14830c4ec567532e6d9cb11c2b",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Основные предлоги места</strong>: <em>The book is in the wardrobe.</em>",
+            "<strong>Предлоги для описания близости</strong>: <em>The armchair is next to the coffee table.</em>",
+            "<strong>Предлоги для описания положения спереди/сзади</strong>: <em>The TV is in front of the sofa.</em>",
+            "<strong>Использование с конструкцией there is/are</strong>: <em>There is a sofa in the living room.</em>"
+          ],
+          "after": [
+            "<strong>In</strong> — внутри, <strong>on</strong> — на поверхности: <em>The keys are in the bag. The book is on the table.</em>",
+            "<strong>Under</strong> — под предметом, <strong>above</strong> — выше него: <em>The box is under the bed.</em>",
+            "<strong>Next to</strong> — рядом, <strong>between</strong> — между: <em>The chair is between the desk and the bed.</em>",
+            "<strong>In front of</strong> — перед, <strong>behind</strong> — позади: <em>The sofa is in front of the window.</em>",
+            "Предлог описывает место после be или there is/are: <em>There is a lamp next to the sofa.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_8_days_and_time.json",
+      "level": "A1",
+      "module_order": 8,
+      "module_title": "Дни недели и время",
+      "lesson_external_key": "curriculum:grammar:A1:08:predlogi_vremeni_at_on_in",
+      "before_file_sha256": "d753d584a3b61c37f78bba1020b7b4bfc481e603710cd33821ed13476465df0a",
+      "after_file_sha256": "9eced3e10cf1d4d9c9cdad2b039c00251528521cd65be73ace91bca9a861d5bb",
+      "unchanged_sha256": "1daec36eda2f0829f00402a0fc6a67a0c41a32e6f35e81a216cb36c452ab5ec6",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>AT - для точного времени</strong>: <em>I wake up at 7 o'clock.</em>",
+            "<strong>ON - для дней и дат</strong>: <em>I work on Monday.</em>",
+            "<strong>IN - для более длительных периодов</strong>: <em>I exercise in the morning.</em>",
+            "<strong>Без предлога: today, tomorrow, yesterday, every day, this / next / last …</strong>: <em>I am busy today.</em>"
+          ],
+          "after": [
+            "<strong>At</strong> — точное время и некоторые устойчивые сочетания: <em>at seven, at noon, at night</em>.",
+            "<strong>On</strong> — день или дата: <em>on Monday, on 5 May, on Monday morning</em>.",
+            "<strong>In</strong> — месяц, год, сезон или часть дня: <em>in June, in 2026, in winter, in the morning</em>.",
+            "Перед <strong>today, tomorrow, yesterday</strong>, а также <strong>every / this / next / last</strong> предлог обычно не нужен: <em>next week, every day</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_9_weather_and_seasons.json",
+      "level": "A1",
+      "module_order": 9,
+      "module_title": "Погода и времена года",
+      "lesson_external_key": "curriculum:grammar:A1:09:weather_and_seasons",
+      "before_file_sha256": "37a1ae3d4a758abb13e80ec0090376860c35557514e5660f5fb2f6106cedaa3f",
+      "after_file_sha256": "69d61548fe033267125808a8f22cb6cd2bde5183c0ab277b21a0f0311f8ca95f",
+      "unchanged_sha256": "67e2642b0612919ba969ef64ff46796dd089e185503d2dd09700dd568869d8eb",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>1. It + прилагательное (для описания погоды)</strong>: <em>It's sunny.</em>",
+            "<strong>2. It's + verb-ing (для описания текущей погоды)</strong>: <em>It's raining.</em>",
+            "<strong>3. It's + существительное (для времен года и времени)</strong>: <em>It's winter.</em>",
+            "<strong>4. Вопросы о погоде</strong>",
+            "<strong>5. Отрицательные предложения</strong>"
+          ],
+          "after": [
+            "Для погоды и времени используем подлежащее <strong>it</strong>: <em>It is cold. It is six o’clock.</em>",
+            "С прилагательным нужен <strong>be</strong>: <em>It is sunny.</em> Не <em>It sunny</em>.",
+            "Для дождя или снега сейчас — <strong>is + -ing</strong>: <em>It is raining. It is snowing.</em>",
+            "О погоде спрашиваем <em>What is the weather like?</em>; о времени — <em>What time is it?</em>",
+            "Отрицание и общий вопрос строим с be: <em>It isn’t windy. Is it cold?</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_10_daily_routine.json",
+      "level": "A1",
+      "module_order": 10,
+      "module_title": "Повседневная жизнь",
+      "lesson_external_key": "curriculum:grammar:A1:10:daily_routine",
+      "before_file_sha256": "16666f08ebc66309a1607e9d9bad2e977abd27bac354d22db101ff6edcb84f27",
+      "after_file_sha256": "56d4e6bb9768a815e623aa8c590d6da54456ca032495fae719d8ecf1a44a6eb8",
+      "unchanged_sha256": "ecd771c7cc1329295c99d649084e4d02cce70d985223a77baa587fbb46ce3e01",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Формы глагола в Present Simple</strong>: <em>I work every day.</em>",
+            "<strong>Правила добавления -s/-es</strong>: <em>work → works, sleep → sleeps, play → plays</em>",
+            "<strong>Примеры повседневной рутины</strong>: <em>I wake up at 7 o'clock.</em>",
+            "<strong>Неправильный глагол have</strong>: <em>I have breakfast at 8.</em>"
+          ],
+          "after": [
+            "<strong>Present Simple</strong> описывает привычки и регулярные действия: <em>I walk to school every day.</em>",
+            "После <strong>I/you/we/they</strong> используем базовую форму: <em>They work in a shop.</em>",
+            "После <strong>he/she/it</strong> обычно добавляем -s: <em>She works. He plays football.</em>",
+            "После -s, -sh, -ch, -x обычно <strong>-es</strong>; после согласной + y — <strong>-ies</strong>: <em>wash → washes, study → studies</em>.",
+            "Запомни особые формы: <em>have → has, do → does, go → goes</em>: <em>She has breakfast at eight.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_11_professions.json",
+      "level": "A1",
+      "module_order": 11,
+      "module_title": "Профессии",
+      "lesson_external_key": "curriculum:grammar:A1:11:grammar_do_does_v_voprosah_i_otritsaniyah",
+      "before_file_sha256": "a261e170dfe3d9f40d12e3fd430a9cccdc103d4a13e8120fa1d8325681684194",
+      "after_file_sha256": "85a4b127f0c81bbce8bf09b8ca75a38f684d50a4df6ba2e2fe86643b8573ef6a",
+      "unchanged_sha256": "b8b375c3d451223fa5f4040a1f3f52319c4ca091e5b87b65f9c18819d795bac6",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Вопросы с Do/Does</strong>: <em>Do you work as a doctor?</em>",
+            "<strong>Отрицания с Don't/Doesn't</strong>: <em>I don't work on Sundays.</em>",
+            "<strong>Порядок слов в вопросах</strong>: <em>Does your brother work as a pilot?</em>",
+            "<strong>Вопросы с What / Where + do/does</strong>: <em>What do you do? — I am a nurse.</em>",
+            "<strong>Краткие ответы</strong>: <em>Do you work as a driver? — Yes, I do.</em>"
+          ],
+          "after": [
+            "Общий вопрос: <strong>Do/Does + подлежащее + базовая форма</strong>: <em>Do you work here? Does he work here?</em>",
+            "<strong>Does</strong> используем с he/she/it; после него -s у основного глагола не ставим: <em>Does Anna drive?</em>",
+            "Отрицание: <strong>don’t / doesn’t + базовая форма</strong>: <em>They don’t work here. She doesn’t drive.</em>",
+            "В кратком ответе повторяем do/does: <em>Yes, I do. No, he doesn’t.</em>",
+            "В вопросах со вспомогательными <strong>do/does</strong> вопросительное слово идёт перед ними: <em>Where does he work?</em> С be вспомогательный do не нужен: <em>Is he a doctor?</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_12_daily_habits.json",
+      "level": "A1",
+      "module_order": 12,
+      "module_title": "Повседневные привычки и частотность действий",
+      "lesson_external_key": "curriculum:grammar:A1:12:pozitsiya_narechiy_chastotnosti",
+      "before_file_sha256": "8cf23e0e83170e055d448998fc59ae47e9ab92c053f00a27744592b69c26f346",
+      "after_file_sha256": "4775bfeffe1c8f0494c04b3fb559ee35f8752a2700b059d9d74412e112229cc8",
+      "unchanged_sha256": "45afefc627c5308ccbb04870bd6c5ff19df233ca431f3064689a9a881e4bcece",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Шкала частотности (от 100% до 0%)</strong>: <em>I always wake up early.</em>",
+            "<strong>Позиция наречий в предложении</strong>: <em>I always brush my teeth.</em>",
+            "<strong>Выражения частотности</strong>: <em>I study every day.</em>",
+            "<strong>Вопрос How often? и ответы</strong>: <em>How often do you exercise? — Every day.</em>"
+          ],
+          "after": [
+            "<strong>Always, usually, often, sometimes, rarely, never</strong> показывают частотность — от «всегда» до «никогда».",
+            "Обычно ставим наречие <strong>перед обычным глаголом</strong>: <em>I usually eat breakfast.</em>",
+            "С глаголом <strong>be</strong> наречие обычно идёт после него: <em>She is often busy.</em>",
+            "<strong>Never</strong> уже означает отрицание: <em>He never eats fish.</em> Не <em>He doesn’t never eat fish</em>.",
+            "Спрашиваем <strong>How often …?</strong>: <em>How often do you swim? — Twice a week.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_13_body_parts.json",
+      "level": "A1",
+      "module_order": 13,
+      "module_title": "Части тела",
+      "lesson_external_key": "curriculum:grammar:A1:13:body_parts",
+      "before_file_sha256": "c0a90b744490e080c3512b0f375eb3fe4059615d5bacf769009d9eee08116ff2",
+      "after_file_sha256": "04318c5f27fd461d061ffcb8d0b3b808f9cfccc917bb8088050cbe6c8a5a3b0e",
+      "unchanged_sha256": "6abbe84c0667172d1fde46a83b1d11baeac8b5ca159ebf42f4fc8914d327678c",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>1. Утвердительная форма (Affirmative Imperatives)</strong>: <em>Touch your head!</em>",
+            "<strong>2. Отрицательная форма (Negative Imperatives)</strong>: <em>Don't move!</em>",
+            "<strong>3. Вежливые формы с 'Please'</strong>: <em>Please sit down.</em>",
+            "<strong>4. Использование с частями тела</strong>: <em>Touch your nose!</em>",
+            "<strong>5. Let's — предложение сделать вместе</strong>: <em>Let's stretch our legs!</em>"
+          ],
+          "after": [
+            "Для команды или инструкции используем <strong>базовую форму без подлежащего you</strong>: <em>Open the door. Touch your nose.</em>",
+            "Для запрета ставим <strong>don’t + базовую форму</strong>: <em>Don’t run. Don’t touch it.</em>",
+            "С be форма тоже базовая: <em>Be quiet. Don’t be late.</em>",
+            "<strong>Please</strong> делает просьбу вежливее: <em>Please sit down. Open your book, please.</em>",
+            "<strong>Let’s + базовая форма</strong> — предложение сделать вместе: <em>Let’s stretch our legs.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_14_can_abilities.json",
+      "level": "A1",
+      "module_order": 14,
+      "module_title": "Умения и способности",
+      "lesson_external_key": "curriculum:grammar:A1:14:can_can_t",
+      "before_file_sha256": "4ae23ca9eeb03114a061e614ba7a085511afa69fae9f04701cc89416c899b2cb",
+      "after_file_sha256": "088256c5c6b9af61befb1cb77039cfae2c7c964b4f7fcf3e11347840c5fe05f9",
+      "unchanged_sha256": "c34208269e86fbf220a14eb09b062ca49adff3564746788259175c318dc58d7e",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Использование CAN</strong>: <em>I can fix the guitar.</em>",
+            "<strong>Краткие ответы и вопросы с Wh</strong>: <em>Can you swim? — Yes, I can.</em>"
+          ],
+          "after": [
+            "<strong>Can + базовая форма без to</strong> — умение или возможность: <em>I can swim. She can drive.</em>",
+            "Форма can одинакова для всех лиц; -s не добавляем: <em>He can cook.</em> Не <em>He cans cook</em>.",
+            "Отрицание — <strong>cannot / can’t</strong>: <em>I can’t open the window.</em>",
+            "В общем вопросе can идёт перед подлежащим: <em>Can you swim? — Yes, I can. No, I can’t.</em>",
+            "Can подходит и для просьбы или разрешения: <em>Can you help me? Can I sit here?</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_15_food_and_drinks.json",
+      "level": "A1",
+      "module_order": 15,
+      "module_title": "Еда и напитки",
+      "lesson_external_key": "curriculum:grammar:A1:15:food_and_drinks",
+      "before_file_sha256": "540f4c07cc460676967d7ea5f975f4062c0708108bc0a632ac39d1397f21f1f7",
+      "after_file_sha256": "524ef3dd7d59253acd857a5c16bab3af3cadc4e177c5f02146686817c80bdfc3",
+      "unchanged_sha256": "3a3dac883a28575219fcb96b97764fcfe614d345dec1b8a127ad91369f2074c5",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Some и Any</strong>: <em>There is some milk in the fridge.</em>",
+            "<strong>Much и Many</strong>: <em>How much water do you drink?</em>",
+            "<strong>A lot of</strong>: <em>There is a lot of cheese on the pizza.</em>",
+            "<strong>Исчисляемые и неисчисляемые существительные</strong>: <em>apple, banana, egg, vegetable</em>"
+          ],
+          "after": [
+            "<strong>Some</strong> обычно используем в утверждениях; <strong>any</strong> — в обычных вопросах и отрицаниях: <em>We have some milk. Do we have any eggs?</em>",
+            "<strong>Many</strong> относится к исчисляемым словам во множественном числе: <em>many apples</em>.",
+            "<strong>Much</strong> относится к неисчисляемым словам: <em>much water</em>. Часто встречается в вопросах и отрицаниях.",
+            "<strong>A lot of</strong> подходит к обоим типам: <em>a lot of bread, a lot of bananas</em>.",
+            "Спрашиваем <em>How many apples?</em>, но <em>How much milk?</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A1_16_personal_belongings.json",
+      "level": "A1",
+      "module_order": 16,
+      "module_title": "Личные вещи",
+      "lesson_external_key": "curriculum:grammar:A1:16:personal_belongings",
+      "before_file_sha256": "85f54636be6057089380f6ae96db7585af5f88e157282788f2d2b85c42f35069",
+      "after_file_sha256": "b976ec7c8bbb327c41dd8a4265ee021462fbbe66f7e4aea523c6cd255429e53e",
+      "unchanged_sha256": "2b09fe9eceddb3f785095022d1ddc4e3e09da5d2b0e2a591ef7b0493500130be",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Утверждение (Affirmative)</strong>: <em>I have a phone.</em>",
+            "<strong>Have got / Has got</strong>: <em>I've got a passport.</em>",
+            "<strong>Отрицание (Negative)</strong>: <em>I don't have a ticket.</em>",
+            "<strong>Вопрос (Question)</strong>: <em>Do you have a pen?</em>"
+          ],
+          "after": [
+            "Для обладания используем <strong>have</strong>; с he/she/it — <strong>has</strong>: <em>I have a bag. She has a phone.</em>",
+            "Вопрос и отрицание с have: <em>Do you have a pen? He doesn’t have a ticket.</em>",
+            "<strong>Have got / has got</strong> тоже обозначают обладание: <em>I’ve got a passport. She’s got a key.</em>",
+            "С have got вспомогательный do не нужен: <em>Have you got a pen? He hasn’t got a ticket.</em>",
+            "Не смешивай две конструкции: <em>Does she have …?</em> или <em>Has she got …?</em>, не <em>Does she have got …?</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_1_food_articles.json",
+      "level": "A2",
+      "module_order": 1,
+      "module_title": "Артикли и some/any (еда)",
+      "lesson_external_key": "curriculum:grammar:A2:01:food_articles",
+      "before_file_sha256": "87ac5df1504cb6f5d7d2f42d9f7bdc951a81507435919a1af3822c520a518fb2",
+      "after_file_sha256": "a2fcec9c24d9e88e6ea638bac9ec068ddbd3aca63413d4ccd7b9556fbbb06260",
+      "unchanged_sha256": "9c799d076682dafe0f6e135eecd308b2e6771dc2aeb7507d30f294a971fbdf4c",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Исчисляемые существительные</strong>: <em>I have a banana.</em>",
+            "<strong>Неисчисляемые существительные</strong>: <em>There is some milk.</em>",
+            "<strong>Some vs any</strong>: <em>I have some bread.</em>",
+            "<strong>Some в предложениях и просьбах</strong>: <em>Would you like some juice?</em>"
+          ],
+          "after": [
+            "Исчисляемое слово можно посчитать; в единственном числе обычно нужен определитель: <em>an apple, my cup</em>.",
+            "Неисчисляемые слова вроде <strong>milk, rice, bread</strong> в этом значении не имеют формы множественного числа: <em>some rice</em>.",
+            "<strong>Some</strong> обычно используем в утверждениях; <strong>any</strong> — в обычных вопросах и отрицаниях: <em>Is there any milk?</em>",
+            "Когда что-то <strong>предлагаем или просим</strong>, часто используем some: <em>Would you like some tea? Can I have some water?</em>",
+            "Порцию можно посчитать через отдельное слово: <em>a glass of water, two slices of bread</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_3_cafe_and_restaurant.json",
+      "level": "A2",
+      "module_order": 3,
+      "module_title": "Кафе и ресторан",
+      "lesson_external_key": "curriculum:grammar:A2:03:cafe_and_restaurant",
+      "before_file_sha256": "da607fd3696592be417ba7c7cf18a68ec8c344c56f178645abbb29f9453a7d34",
+      "after_file_sha256": "98d994f535a24b7f844bcabf5918a941cad004d5eeca43c9b18c3f88ecf9ea53",
+      "unchanged_sha256": "97a7dbad3ac915882cb3674c52019df3001e3eecce15e86518bbe8f85c200172",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Утвердительная форма</strong>: <em>I would like coffee.</em>",
+            "<strong>Вопросительная форма</strong>: <em>Would you like dessert?</em>",
+            "<strong>Отрицательная форма</strong>: <em>I wouldn't like soup</em>",
+            "<strong>Would like + инфинитив</strong>: <em>I would like to order</em>"
+          ],
+          "after": [
+            "<strong>Would like + существительное</strong> — вежливое «хотелось бы»: <em>I would like some tea.</em>",
+            "Перед действием используем <strong>would like to + базовую форму</strong>: <em>I’d like to order.</em>",
+            "Для предложения или вопроса о желании: <em>Would you like a salad? Would you like to sit here?</em>",
+            "Отрицание — <strong>would not / wouldn’t like</strong>: <em>I wouldn’t like to leave yet.</em>",
+            "В вежливом отказе подойдёт <em>No, thank you.</em>; в согласии — <em>Yes, please.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_4_food_cooking.json",
+      "level": "A2",
+      "module_order": 4,
+      "module_title": "Еда и приготовление блюд",
+      "lesson_external_key": "curriculum:grammar:A2:04:food_cooking",
+      "before_file_sha256": "b6630ed9b3b7c3a50e73b52ee1c514c30bcdb7591929022a851d3ba1867d32a6",
+      "after_file_sha256": "8fa4dd3d9ad05f33646e7741e153636e4cbae3e3546ff0ee8a42fe55ba85ef4a",
+      "unchanged_sha256": "294073af453ff17935e701e506f00b5d97b92d689764b598fef65d4fe39091d3",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Порции еды и напитков</strong>: <em>a slice of bread/pizza/cake</em>",
+            "<strong>Контейнеры и упаковки</strong>: <em>a bottle of water/juice</em>",
+            "<strong>Порции при сервировке</strong>: <em>a bowl of soup/rice/salad</em>",
+            "<strong>Множественное число</strong>: <em>a slice of bread</em>"
+          ],
+          "after": [
+            "Чтобы назвать порцию, используем <strong>исчисляемое слово + of + продукт</strong>: <em>a slice of bread</em>.",
+            "Для упаковки или ёмкости: <em>a bottle of water, a carton of milk, a bag of rice</em>.",
+            "Для порции еды: <em>a bowl of soup, a plate of pasta, a piece of cake</em>.",
+            "Число меняется у слова порции, а не у неисчисляемого продукта: <em>two bottles of water, three pieces of bread</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_5_hobbies.json",
+      "level": "A2",
+      "module_order": 5,
+      "module_title": "Хобби и интересы",
+      "lesson_external_key": "curriculum:grammar:A2:05:hobbies",
+      "before_file_sha256": "a86115b99fda07bfca619a0e20639881757614a49064c207d3fe147a8a6e8266",
+      "after_file_sha256": "a3e2e2d54f06ae30ae5571b19d05bf6dcc8cea28b35d0336604fa26382ba690e",
+      "unchanged_sha256": "6f69683c0de5cee029ae0736e92024da5215b120e7b5f82034dae2319f1694b9",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Что такое герундий?</strong>: <em>I like reading.</em>",
+            "<strong>LIKE + герундий (нравится)</strong>: <em>I like reading books.</em>",
+            "<strong>LOVE + герундий (любить)</strong>: <em>I love dancing.</em>",
+            "<strong>HATE + герундий (ненавидеть)</strong>: <em>I hate getting up early.</em>",
+            "<strong>ENJOY + герундий (наслаждаться)</strong>: <em>I enjoy reading books.</em>",
+            "<strong>Правила образования герундия</strong>: <em>Verb + -ing</em>"
+          ],
+          "after": [
+            "После <strong>like, love, hate</strong> можно использовать -ing: <em>I like reading. She loves dancing.</em>",
+            "После <strong>enjoy</strong> нужна форма -ing, а не to: <em>We enjoy cooking.</em> Не <em>enjoy to cook</em>.",
+            "Отрицание и вопрос относятся к первому глаголу: <em>Do you like swimming? He doesn’t like running.</em>",
+            "Правописание: <em>make → making, swim → swimming, lie → lying</em>.",
+            "После like/love/hate также возможен <strong>to-инфинитив</strong>; enjoy так не используется: <em>I like to read before bed.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_6_school_life.json",
+      "level": "A2",
+      "module_order": 6,
+      "module_title": "Школьная жизнь",
+      "lesson_external_key": "curriculum:grammar:A2:06:grammar_have_to_don_t_have_to",
+      "before_file_sha256": "bf4da293fd0a941529375586f4baa1919394ed30ae2e1e522d39ecc7131a52da",
+      "after_file_sha256": "73a1d5ae32cc48028ec7de1eb45cfb13266ba2e35398e82553a38aed41687096",
+      "unchanged_sha256": "cc455ac022cc36c916566c36d0b4ab32b50c45671fb8858bc07c9f5c38999d55",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Утвердительная форма</strong>: <em>I have to do my homework.</em>",
+            "<strong>Отрицательная форма</strong>: <em>I don't have to wear a uniform.</em>",
+            "<strong>Вопросительная форма</strong>: <em>Do you have to study today?</em>",
+            "<strong>Have to, must и mustn't</strong>: <em>Students have to wear a uniform.</em>"
+          ],
+          "after": [
+            "<strong>Have to + базовая форма</strong> — необходимость или обязанность: <em>I have to study.</em>",
+            "С he/she/it используем <strong>has to</strong>: <em>She has to wear a uniform.</em>",
+            "Вопрос и отрицание строим с do/does: <em>Do you have to go? He doesn’t have to work.</em>",
+            "<strong>Don’t have to</strong> — «не обязательно», а не запрет: <em>You don’t have to come early.</em>",
+            "<strong>Mustn’t</strong> — запрет: <em>You mustn’t run here.</em> Must и have to выражают обязанность, но don’t have to и mustn’t не равнозначны."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_7_healthy_lifestyle.json",
+      "level": "A2",
+      "module_order": 7,
+      "module_title": "Здоровый образ жизни",
+      "lesson_external_key": "curriculum:grammar:A2:07:healthy_lifestyle",
+      "before_file_sha256": "0bc4b4394cdf8c070f6ef4982b4a51bc61b2536ad3568db966aaa22ff8d7119e",
+      "after_file_sha256": "776c2382f28ddb681c7432ceef9c640a86ee9559a9a956e8fafbd21868b2455c",
+      "unchanged_sha256": "1a867ddef987d7c91705210ba264254105fb19a379f1b0ebbef3eb1b275c57d2",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Утвердительная форма (Affirmative)</strong>: <em>You should work out every day.</em>",
+            "<strong>Отрицательная форма (Negative)</strong>: <em>You shouldn't eat fast food.</em>",
+            "<strong>Вопросительная форма (Questions)</strong>: <em>Should I join a gym?</em>",
+            "<strong>Употребление should/shouldn't</strong>: <em>You should eat vegetables.</em>"
+          ],
+          "after": [
+            "<strong>Should + базовая форма без to</strong> — совет: <em>You should drink more water.</em>",
+            "Форма одинакова для всех лиц, без -s: <em>He should sleep more.</em>",
+            "<strong>Shouldn’t</strong> — совет не делать: <em>You shouldn’t eat so much sugar.</em>",
+            "В общем вопросе should ставим перед подлежащим: <em>Should I see a doctor? — Yes, you should.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_8_city_transport.json",
+      "level": "A2",
+      "module_order": 8,
+      "module_title": "Путешествия по городу",
+      "lesson_external_key": "curriculum:grammar:A2:08:city_transport",
+      "before_file_sha256": "e17d7010b429c955092f27071bd670bd27b392dc5046d8dce9598168696ea274",
+      "after_file_sha256": "edbdefadc1dc2e4d2863030b1af17d5fcd01b76ab6239de9bc9061a488c8dc15",
+      "unchanged_sha256": "ecb9f93dc64d6a42c5dfad4b0754f205a8b34bb56ef09556d75d094af8aade96",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>TO - к, в (направление к месту назначения)</strong>: <em>I go to school every day.</em>",
+            "<strong>INTO - в, внутрь (движение внутрь чего-то)</strong>: <em>I go into the house.</em>",
+            "<strong>ALONG - вдоль, по (движение вдоль чего-то)</strong>: <em>Go along the street.</em>",
+            "<strong>PAST - мимо (движение мимо чего-то)</strong>: <em>Go past the bank.</em>",
+            "<strong>ACROSS - через, на другую сторону</strong>: <em>Go across the street.</em>",
+            "<strong>THROUGH - через, сквозь (движение сквозь что-то)</strong>: <em>Go through the park.</em>",
+            "<strong>Ещё предлоги движения: up / down, over / under, out of, towards, around</strong>: <em>We walked up the hill and ran down the stairs.</em>"
+          ],
+          "after": [
+            "<strong>To</strong> — к месту назначения; <strong>into / out of</strong> — внутрь / наружу: <em>Walk to the house. Go into the room.</em>",
+            "<strong>Across</strong> — с одной стороны на другую; <strong>through</strong> — через пространство внутри: <em>across the road, through the tunnel</em>.",
+            "<strong>Along</strong> — вдоль, <strong>past</strong> — мимо: <em>Walk along the street and go past the bank.</em>",
+            "<strong>Up / down</strong> — вверх / вниз; <strong>over / under</strong> — над / под препятствием: <em>up the stairs, under the bridge</em>.",
+            "Не добавляем to перед home: <em>I go home.</em> Но: <em>I go to school.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_9_friends.json",
+      "level": "A2",
+      "module_order": 9,
+      "module_title": "Мои приятели",
+      "lesson_external_key": "curriculum:grammar:A2:09:friends",
+      "before_file_sha256": "bb9f2721d9bc2b05e3dbf15486839c16be975265294baf155d31188812fe55ff",
+      "after_file_sha256": "ef0f06c1ea271a5ad67de91fc169594d3075f4a30fdab1a46496889706ca4924",
+      "unchanged_sha256": "46e3911353fec30eaf35b979d3481bbe278832d5144d32acf5911c6d91860f03",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Союз AND (и) — соединяет похожие идеи</strong>: <em>Tom and Anna are buddies.</em>",
+            "<strong>Союз BUT (но) — показывает контраст</strong>: <em>Tom is tall but Anna is short.</em>",
+            "<strong>Союз BECAUSE (потому что) — объясняет причину</strong>: <em>I like Tom because he is kind.</em>",
+            "<strong>Союзы OR (или) и SO (поэтому)</strong>: <em>Do you want tea or coffee?</em>",
+            "<strong>Комбинирование союзов</strong>: <em>Tom and Mike are buddies, but they are very different.</em>",
+            "<strong>Позиция BECAUSE в предложении</strong>: <em>I like Tom because he is funny.</em>"
+          ],
+          "after": [
+            "<strong>And</strong> соединяет идеи; <strong>but</strong> показывает контраст: <em>She is friendly but shy.</em>",
+            "<strong>Or</strong> предлагает выбор: <em>Would you like tea or coffee?</em>",
+            "<strong>Because</strong> вводит причину: <em>I like Anna because she is kind.</em>",
+            "<strong>So</strong> вводит результат: <em>It was cold, so we went home.</em>",
+            "Для одной причинно-следственной связи выбираем because или so: <em>We stayed home because it rained.</em> Не <em>Because it rained, so …</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_12_city_village.json",
+      "level": "A2",
+      "module_order": 12,
+      "module_title": "Город и деревня",
+      "lesson_external_key": "curriculum:grammar:A2:12:grammar_too_and_enough",
+      "before_file_sha256": "b670b92d145aebda1d36c805b4d25be9623d424f7a99dd89a1f2853147102ca7",
+      "after_file_sha256": "19d65fd5c5cab4b76df5ffa665b826940a1ec7af0efda710da03c0e892f08a8a",
+      "unchanged_sha256": "5718b23a4750a2ef245663ffc99efb04fc98157891e8f0480f2fe0d0f59f9dcc",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Too + прилагательное (negative)</strong>: <em>The city is too noisy</em>",
+            "<strong>Прилагательное + enough (positive)</strong>: <em>The village is quiet enough</em>",
+            "<strong>Enough + существительное</strong>: <em>There is enough space</em>",
+            "<strong>Too much / Too many</strong>: <em>There is too much noise</em>"
+          ],
+          "after": [
+            "<strong>Too + прилагательное</strong> — «слишком», больше подходящей меры: <em>This bag is too heavy.</em>",
+            "<strong>Enough</strong> идёт после прилагательного: <em>The room is big enough.</em> Не <em>enough big</em>.",
+            "Перед существительным ставим <strong>enough</strong>: <em>We have enough time.</em>",
+            "<strong>Too many</strong> — с исчисляемыми словами во множественном числе; <strong>too much</strong> — с неисчисляемыми: <em>too many cars, too much traffic</em>.",
+            "Действие можно добавить через <strong>to + глагол</strong>: <em>The bag is too heavy to carry.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_13_countries.json",
+      "level": "A2",
+      "module_order": 13,
+      "module_title": "Страны и национальности",
+      "lesson_external_key": "curriculum:grammar:A2:13:countries",
+      "before_file_sha256": "45721aefc06e3db64aebe2021ebe5272a83f36fa073be6f05c924809436a6efa",
+      "after_file_sha256": "25f36ca7ba8e43d9801e8b89561e12174f89a39c7c5acae364333f5d7b8cc256",
+      "unchanged_sha256": "34a0a40fa371f0c042861a8cf34db2df5429790c6140a19714b6c2b7d33b4312",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Без артикля (нулевой артикль)</strong>: <em>Russia, France, Germany</em>",
+            "<strong>С артиклем THE</strong>: <em>the USA, the UK</em>",
+            "<strong>Национальности и языки</strong>: <em>I speak Russian</em>",
+            "<strong>Озёра, горы, моря и проливы</strong>: <em>Lake Baikal, Lake Geneva</em>"
+          ],
+          "after": [
+            "Большинство названий стран употребляется <strong>без артикля</strong>: <em>France, Japan, Brazil</em>.",
+            "У некоторых названий есть <strong>the</strong>, в том числе с States/Kingdom/Republic и во множественном числе: <em>the USA, the UK, the Netherlands</em>.",
+            "Языки обычно без артикля: <em>I speak English.</em> Национальность как прилагательное тоже: <em>She is Italian.</em>",
+            "С реками, морями, океанами и горными цепями обычно <strong>the</strong>: <em>the Nile, the Atlantic, the Alps</em>.",
+            "У отдельной вершины с Mount и озера с Lake обычно нет артикля: <em>Mount Everest, Lake Baikal</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_14_food_and_health.json",
+      "level": "A2",
+      "module_order": 14,
+      "module_title": "Еда и здоровье",
+      "lesson_external_key": "curriculum:grammar:A2:14:food_and_health",
+      "before_file_sha256": "2cce3fdada2f2875d198cb8fec4743a74b7ed740bdbe68728dff5867ba4bdbd6",
+      "after_file_sha256": "591f6e1b608dba21e32432d1532bf6f7b072706760290363f6260c64f8d2cdee",
+      "unchanged_sha256": "12aae9db763ebc7d17790b66812faa5e09c0f1bffee046322b09364c3faf25e5",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Приёмы пищи — без артикля</strong>: <em>I have breakfast at 8.</em>",
+            "<strong>Когда артикль появляется</strong>: <em>I had a delicious brunch.</em>",
+            "<strong>For / at / before / after + приём пищи</strong>: <em>What do you have for breakfast?</em>",
+            "<strong>Блюда и перекусы — с артиклем</strong>: <em>I had a small snack.</em>"
+          ],
+          "after": [
+            "Когда говорим о приёме пищи в общем, артикль обычно не нужен: <em>I have breakfast at eight.</em>",
+            "В сочетании с описанием отдельного приёма пищи возможен <strong>a/an</strong>: <em>We had a big dinner.</em>",
+            "Для конкретного приёма пищи используем <strong>the</strong>: <em>The dinner we had was delicious.</em>",
+            "После for/at/before/after в обычных сочетаниях артикля нет: <em>for lunch, at breakfast, after dinner</em>.",
+            "Перекус или порция могут быть исчисляемыми: <em>a snack, a sandwich, a meal</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_17_holiday_plans.json",
+      "level": "A2",
+      "module_order": 17,
+      "module_title": "Планы на отпуск",
+      "lesson_external_key": "curriculum:grammar:A2:17:holiday_plans",
+      "before_file_sha256": "d16f01e581b21101bfabd77657214d66f4f39a2a9e764d14354a5cef28a5464f",
+      "after_file_sha256": "4c88768b1f32bceb6482087eceba138c2fe51b6e179990a7a847f91f138de9cb",
+      "unchanged_sha256": "8f0209077b9f65864b9349d1cfc774d55186f76190b2eaab1b2f10e3cc33969f",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Утвердительная форма</strong>: <em>I am going to travel to Italy</em>",
+            "<strong>Отрицательная форма</strong>: <em>I'm not going to fly</em>",
+            "<strong>Вопросительная форма</strong>: <em>Am I going to need a visa?</em>",
+            "<strong>Когда используется be going to</strong>: <em>I'm going to visit Greece</em>"
+          ],
+          "after": [
+            "<strong>Am/is/are going to + базовая форма</strong> — заранее принятое намерение: <em>I am going to visit my aunt.</em>",
+            "С he/she/it используем is; с you/we/they — are: <em>They are going to travel by train.</em>",
+            "Для отрицания добавляем not после be: <em>She isn’t going to fly.</em>",
+            "В общем вопросе be идёт перед подлежащим: <em>Are you going to book a hotel?</em>",
+            "Не пропускаем <strong>be</strong> и не ставим лишнее to прямо перед основным глаголом: <em>We are going to swim.</em> Не <em>We are going to to swim</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_18_weather_and_climate.json",
+      "level": "A2",
+      "module_order": 18,
+      "module_title": "Погода и климат (расширение)",
+      "lesson_external_key": "curriculum:grammar:A2:18:weather_and_climate",
+      "before_file_sha256": "fdf4e82c6aaf45a73c8fbf9b1eced25be64765504979e05192e84ecdbf48c3c3",
+      "after_file_sha256": "91386db95b1f16e9965b7ed634f4d4f3343b5ed67a28e818bbaea82598cee6a3",
+      "unchanged_sha256": "2fb9cbeac168984fd79ee371f8fa7bba666f364b9ce57cced65c489d319280d5",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Утвердительная форма</strong>: <em>It will rain tomorrow.</em>",
+            "<strong>Отрицательная форма</strong>: <em>It will not snow today.</em>",
+            "<strong>Вопросительная форма</strong>: <em>Will it rain tomorrow?</em>",
+            "<strong>Использование для предсказаний</strong>: <em>I think it will be hot.</em>",
+            "<strong>Спонтанные решения</strong>: <em>It's cold. I'll close the window.</em>"
+          ],
+          "after": [
+            "<strong>Will + базовая форма без to</strong> одинакова для всех лиц: <em>It will rain. They will come.</em>",
+            "Отрицание — <strong>will not / won’t</strong>: <em>It won’t snow tomorrow.</em>",
+            "В общем вопросе will идёт перед подлежащим: <em>Will it be cold? — Yes, it will.</em>",
+            "Will используем для предположений о будущем: <em>I think it will be sunny.</em>",
+            "Will подходит для решения в момент речи, обещания или предложения помощи: <em>I’ll close the window. I’ll help you.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_19_music_art.json",
+      "level": "A2",
+      "module_order": 19,
+      "module_title": "Музыка и искусство",
+      "lesson_external_key": "curriculum:grammar:A2:19:music_art",
+      "before_file_sha256": "623397b9376b75515603d83078acf22083e6d873adfc1b16977977bd200df0fc",
+      "after_file_sha256": "b4f4e29ec0b9cb405c75f69b3f29608dfa6ead1dc9e1e26d1862777da357a936",
+      "unchanged_sha256": "0ebbbe09d20c51566a41f833ab65d2f04a2defba9a3dbff6ebeaf934343f331b",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>So + прилагательное/наречие</strong>: <em>The rhythm is so beautiful.</em>",
+            "<strong>Such + (a/an) + существительное</strong>: <em>She has such a beautiful voice.</em>",
+            "<strong>So…that и Such…that (результат)</strong>: <em>The rhythm is so loud that I can't hear you.</em>",
+            "<strong>Разница между So и Such</strong>: <em>so beautiful, so creative, so amazing</em>"
+          ],
+          "after": [
+            "<strong>So + прилагательное или наречие</strong>: <em>The music is so loud. She sings so beautifully.</em>",
+            "<strong>Such + a/an + (прилагательное) + исчисляемое слово в ед. числе</strong>: <em>It is such a beautiful song.</em> Прилагательное может отсутствовать.",
+            "С множественным числом или неисчисляемым словом после such нет a/an: <em>such beautiful songs, such beautiful music</em>.",
+            "<strong>So/such … that</strong> связывает высокую степень с результатом: <em>It was so loud that I couldn’t sleep.</em>",
+            "С количеством используем <strong>so many / so much</strong>: <em>so many songs, so much music</em>."
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_20_nature_animals.json",
+      "level": "A2",
+      "module_order": 20,
+      "module_title": "Природа и животные",
+      "lesson_external_key": "curriculum:grammar:A2:20:nature_animals",
+      "before_file_sha256": "ee57cce538b7a1f885c1d2eecb215d8d2b93cab31b3372cf308fcc01f43f8729",
+      "after_file_sha256": "eba8d2edc62bdd01ac96db3ff45f55c82726ed7c4d470312a28acee86d20605d",
+      "unchanged_sha256": "d11c5b658703a08d7a7902d2d826abbbd3160ba04ca869c71a0a11dc0c6f3028",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Структура Zero Conditional</strong>: <em>If it showers, the grass gets wet</em>",
+            "<strong>Общие истины и факты</strong>: <em>If water freezes, it becomes ice</em>",
+            "<strong>Привычки и повторяющиеся действия</strong>: <em>If I go to the forest, I feel happy</em>",
+            "<strong>Замена IF на WHEN</strong>: <em>When it showers, I take an umbrella</em>"
+          ],
+          "after": [
+            "<strong>Zero Conditional</strong> описывает общие закономерности или повторяющиеся ситуации: <em>If it rains, the ground gets wet.</em>",
+            "В типичной конструкции обе части в <strong>Present Simple</strong>: <em>If you heat ice, it melts.</em>",
+            "Порядок частей можно менять; если if стоит в начале, после условия нужна запятая: <em>Ice melts if you heat it.</em>",
+            "Для регулярной, ожидаемой ситуации часто подходит <strong>when</strong>: <em>When I feel tired, I go to bed.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_21_environment_and_ecology.json",
+      "level": "A2",
+      "module_order": 21,
+      "module_title": "Окружающая среда, экология",
+      "lesson_external_key": "curriculum:grammar:A2:21:environment_and_ecology",
+      "before_file_sha256": "f5cb21243c3b27c661aed701016f9096a8c513cf9931deeccb3661a918180a4b",
+      "after_file_sha256": "271127e0e76034e4e38f75c7677a85cb624b89cd69c1ab2271a332ccfee5dbf5",
+      "unchanged_sha256": "5ef808b24a6bfb15bcede470cb41891a4ac8abcc23e4bb4ec64887bfe78f8290",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Структура First Conditional.</strong>: <em>If we recycle, we will help the planet.</em>",
+            "<strong>Условие (If clause).</strong>: <em>If we use less plastic...</em>",
+            "<strong>Результат (Main clause).</strong>: <em>...we will save the biosphere</em>",
+            "<strong>Unless = if not.</strong>: <em>Unless we recycle, the planet will suffer.</em>",
+            "<strong>Примеры в экологическом контексте.</strong>: <em>If we protect habitats, species won't become extinct.</em>"
+          ],
+          "after": [
+            "<strong>First Conditional</strong> — реальное возможное условие и результат в будущем: <em>If we recycle, we will create less waste.</em>",
+            "Типичная формула: <strong>if + Present Simple, will + базовая форма</strong>. После if в таком условии не ставим will.",
+            "Части можно менять местами: <em>We will stay home if it rains.</em> Перед if в таком порядке обычно нет запятой.",
+            "Отрицание зависит от части: <em>If we don’t hurry, we won’t catch the bus.</em>",
+            "<strong>Unless</strong> в таком значении равно «если не»: <em>Unless we hurry, we will be late.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_22_holidays_traditions.json",
+      "level": "A2",
+      "module_order": 22,
+      "module_title": "Праздники и традиции",
+      "lesson_external_key": "curriculum:grammar:A2:22:holidays_traditions",
+      "before_file_sha256": "e2020d10461c9fee6a74645384a7b48978fae749d940cba6a416aa0d24b1722c",
+      "after_file_sha256": "906d78394e851c7cf584fc4fa69076b01a126c4f24b184175f6b87a95a567061",
+      "unchanged_sha256": "6a7bf99b56bcb90e85dee03ad1468990e08dadd34e5ada0fd7e2338d2cf417d9",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Образование Past Simple (правильные глаголы)</strong>: <em>I worked yesterday</em>",
+            "<strong>Правила добавления -ed</strong>: <em>work → worked, play → played</em>",
+            "<strong>Отрицательная форма</strong>: <em>I didn't work yesterday</em>",
+            "<strong>Вопросительная форма</strong>: <em>Did you work yesterday?</em>",
+            "<strong>Маркеры времени</strong>: <em>two days ago, a week ago</em>"
+          ],
+          "after": [
+            "<strong>Past Simple</strong> описывает завершённое прошлое действие: <em>We visited our friends yesterday.</em>",
+            "Правильные глаголы получают <strong>-ed</strong> для всех лиц: <em>I worked. She worked. They worked.</em>",
+            "Правописание: <em>live → lived, study → studied, stop → stopped</em>.",
+            "В вопросе и отрицании используем <strong>did/didn’t + базовую форму</strong>: <em>Did you visit them? We didn’t visit them.</em>",
+            "Время задают контекст и слова вроде <strong>yesterday, last week, two days ago</strong>: <em>She arrived two days ago.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_A2_23_past_irregular.json",
+      "level": "A2",
+      "module_order": 23,
+      "module_title": "Прошлые истории: неправильные глаголы",
+      "lesson_external_key": "curriculum:grammar:A2:23:past_irregular",
+      "before_file_sha256": "217bd25312a063398a51b4cac1186f8a0216ab95e128711b4aa29ff7e26cf10e",
+      "after_file_sha256": "19e7b84c197deacf34215e7e935bbb857b24bcfb20c3e46f5e97c6517a8a794e",
+      "unchanged_sha256": "507ca2641d1ae42f5508e438a4f2c5af75de8f9eb9ad0a53aa59708e514dbd73",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Неправильные глаголы</strong> образуют Past Simple без -ed: <em>go → went, see → saw</em>",
+            "В <strong>отрицании</strong> и <strong>вопросе</strong> используем <em>did/didn't</em> + базовую форму: <em>I didn't go, Did you go?</em>",
+            "Маркеры Past Simple: <em>yesterday, ago, last week, in 2020, when I was…</em>"
+          ],
+          "after": [
+            "У неправильных глаголов <strong>Past Simple — особая вторая форма</strong>: <em>go → went, see → saw, buy → bought</em>.",
+            "Эта форма одинакова для всех лиц, кроме be: <em>I went. She went. They went.</em>",
+            "После <strong>did/didn’t</strong> возвращаем базовую форму: <em>Did she go? She didn’t go.</em> Не <em>did she went</em>.",
+            "У be свои формы <strong>was/were</strong>; did не нужен: <em>She was tired. Were they at home?</em>",
+            "Не путай вторую и третью формы: в обычном утверждении Past Simple <em>I saw</em>, не <em>I seen</em>."
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "В отрицании и вопросе ВСЕГДА используется базовая форма глагола: «I didn't went» — неверно, правильно «I didn't go».",
+          "after": "После вспомогательных did/didn't используем базовую форму: Did you go? I didn't go. В вопросе к подлежащему who/what вспомогательный did обычно не нужен: Who broke this window? У be — отдельные формы was/were."
+        }
+      ]
+    }
+  ]
+}

@@ -37,6 +37,7 @@ MOSCOW = 'Europe/Moscow'  # UTC+3, без DST — локальное = UTC+3 к�
 @pytest.fixture()
 def moscow_user(db_session, test_user):
     test_user.timezone = MOSCOW
+    test_user.created_at = datetime(2026, 8, 1)  # Established before the frozen activity windows.
     db_session.flush()
     return test_user
 

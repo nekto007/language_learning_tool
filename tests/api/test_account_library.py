@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import pytest
-from test_native_full_integration import native_app, learner
+from tests.api.test_native_full_integration import native_app, learner
 
 
 def book(chapters=2, level='B2', **kw):

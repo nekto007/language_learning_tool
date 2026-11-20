@@ -1,0 +1,849 @@
+{
+  "schema_version": 1,
+  "patch_kind": "reviewed_advanced",
+  "created": "2026-11-20",
+  "description": "Fill 19 existing empty recap examples using same-topic source examples and qualify 15 reviewed theory fields in conditionals, past perfect and reported questions. No exercise keys, IDs, audio or progression changes.",
+  "entries": [
+    {
+      "file": "module_B1_16_conditionals.json",
+      "level": "B1",
+      "module_order": 16,
+      "module_title": "Условные предложения: повторение и расширение",
+      "lesson_external_key": "curriculum:grammar:B1:15:conditionals",
+      "before_file_sha256": "b8207d06532e37df15c7f48f2bcaf36d4673d8aabd091fa60d6c0871e76d4727",
+      "after_file_sha256": "a7568e06ea42f99a0dfb2e596f9d278d732a0cd6234e39e04a43b2bf652eec18",
+      "unchanged_sha256": "a19829369feefa7df3e4a9d2d0cd663cf8221f6992f5182c73164bbbe6b17723",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Zero Conditional — общие факты</strong>: <em></em>",
+            "<strong>First Conditional — реальная будущая возможность</strong>: <em></em>",
+            "<strong>Second Conditional — гипотетика в настоящем</strong>: <em></em>",
+            "<strong>Сравнение типов</strong>: <em>If I drink coffee, I feel awake.</em>",
+            "<strong>Связки кроме if</strong>: <em>Unless you hurry, you'll be late.</em>"
+          ],
+          "after": [
+            "<strong>Zero Conditional — общие факты</strong>: <em>If I drink coffee late, I can't sleep.</em>",
+            "<strong>First Conditional — реальная будущая возможность</strong>: <em>If it rains tomorrow, we will stay at home.</em>",
+            "<strong>Second Conditional — гипотетика в настоящем</strong>: <em>If I had more time, I would travel more.</em>",
+            "<strong>Сравнение типов</strong>: <em>If I drink coffee, I feel awake.</em>",
+            "<strong>Связки кроме if</strong>: <em>Unless you hurry, you'll be late.</em>"
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            1
+          ],
+          "before": "После <strong>if</strong> мы НЕ используем <em>will</em> в условии: «If you will come» — неверно, правильно «If you come, I will…»",
+          "after": "В типичном условии о будущем после <strong>if</strong> используем настоящее время, а не will: <em>If you come, I will help you.</em> Это правило не запрещает will в других значениях, например готовности что-то сделать."
+        },
+        {
+          "path": [
+            "sections",
+            2,
+            "description"
+          ],
+          "before": "Используем для нереальных или маловероятных ситуаций в настоящем/будущем. If + Past Simple, would + base.",
+          "after": "Используем для нереальных или маловероятных ситуаций в настоящем/будущем. Основная формула: if + Past Simple, would + базовая форма. Для воображаемого процесса возможен Past Continuous: If I were working from home, I would save time."
+        },
+        {
+          "path": [
+            "sections",
+            5,
+            "rules",
+            0,
+            "rule"
+          ],
+          "before": "❌ После if НЕ используем will в условии (только в результате).",
+          "after": "В типичном First Conditional о будущем: if + настоящее время, результат — will + базовая форма. Не переносите will в обычную if-часть автоматически."
+        },
+        {
+          "path": [
+            "sections",
+            5,
+            "rules",
+            1,
+            "rule"
+          ],
+          "before": "❌ В Second Conditional после if используется PAST SIMPLE, не Past Continuous.",
+          "after": "В Second Conditional обычно используем Past Simple, но для воображаемого процесса возможен Past Continuous. Ошибка в примере ниже — would вместо подходящей прошлой формы в обычной if-части."
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 0,
+          "source_paths": [
+            [
+              "sections",
+              0,
+              "table",
+              1,
+              "if_clause"
+            ],
+            [
+              "sections",
+              0,
+              "table",
+              1,
+              "main_clause"
+            ]
+          ],
+          "source_values": [
+            "If I drink coffee late,",
+            "I can't sleep."
+          ],
+          "format": "clauses",
+          "selected_example": "If I drink coffee late, I can't sleep."
+        },
+        {
+          "bullet_index": 1,
+          "source_paths": [
+            [
+              "sections",
+              1,
+              "table",
+              0,
+              "if_clause"
+            ],
+            [
+              "sections",
+              1,
+              "table",
+              0,
+              "main_clause"
+            ]
+          ],
+          "source_values": [
+            "If it rains tomorrow,",
+            "we will stay at home."
+          ],
+          "format": "clauses",
+          "selected_example": "If it rains tomorrow, we will stay at home."
+        },
+        {
+          "bullet_index": 2,
+          "source_paths": [
+            [
+              "sections",
+              2,
+              "table",
+              0,
+              "if_clause"
+            ],
+            [
+              "sections",
+              2,
+              "table",
+              0,
+              "main_clause"
+            ]
+          ],
+          "source_values": [
+            "If I had more time,",
+            "I would travel more."
+          ],
+          "format": "clauses",
+          "selected_example": "If I had more time, I would travel more."
+        }
+      ]
+    },
+    {
+      "file": "module_B1_17_past_perfect.json",
+      "level": "B1",
+      "module_order": 17,
+      "module_title": "Past Perfect: события до момента в прошлом",
+      "lesson_external_key": "curriculum:grammar:B1:16:past_perfect",
+      "before_file_sha256": "54fc7ca7bc3104ba71a440a871fd55fa249f8e2afeafd0b2cd935b87e678eb3f",
+      "after_file_sha256": "036d7238db65c7d42c1b5a3948a0cceb21c6b788a0c33659dae8af65ee6b7389",
+      "unchanged_sha256": "0d5c3e9df5cfc1fb9a0e97c0a7cc62d5d297bb2a144d24bbf3eaa19a5af9e496",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Образование Past Perfect</strong>: <em>I had finished the book by 10 PM.</em>",
+            "<strong>Маркеры Past Perfect</strong>: <em>He had already eaten when I arrived.</em>",
+            "<strong>Past Perfect vs Past Simple</strong>: <em></em>",
+            "<strong>Третьи формы (V3) — нужно запомнить</strong>: <em></em>",
+            "<strong>Отрицание, вопрос и сокращения</strong>: <em>We hadn't booked a table, so we waited.</em>"
+          ],
+          "after": [
+            "<strong>Образование Past Perfect</strong>: <em>I had finished the book by 10 PM.</em>",
+            "<strong>Маркеры Past Perfect</strong>: <em>He had already eaten when I arrived.</em>",
+            "<strong>Past Perfect vs Past Simple</strong>: <em>I had eaten before I went to bed.</em>",
+            "<strong>Третьи формы (V3) — нужно запомнить</strong>: <em>go → gone</em>",
+            "<strong>Отрицание, вопрос и сокращения</strong>: <em>We hadn't booked a table, so we waited.</em>"
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "Past Perfect — это «прошлое в прошлом». Без второго действия/момента он обычно не нужен — достаточно Past Simple.",
+          "after": "Past Perfect — это «прошлое до прошлого». Более поздняя точка отсчёта может быть названа в предложении или понятна из предыдущего контекста; отдельный второй временной маркер не обязателен."
+        },
+        {
+          "path": [
+            "sections",
+            3,
+            "description"
+          ],
+          "before": "Два прошлых действия — какое раньше? То, что раньше, — в Past Perfect.",
+          "after": "Past Perfect подчёркивает, что действие произошло до другой прошлой точки отсчёта. Эта точка может быть названа или понятна из контекста. Если порядок уже ясен, например с before/after, в зависимости от смысла возможен и Past Simple."
+        },
+        {
+          "path": [
+            "sections",
+            6,
+            "rules",
+            1,
+            "rule"
+          ],
+          "before": "❌ Past Perfect используется ТОЛЬКО при наличии второго прошлого момента.",
+          "after": "Past Perfect связан с более поздней прошлой точкой отсчёта; она может быть понятна из контекста, а не обязательно названа в том же предложении."
+        },
+        {
+          "path": [
+            "sections",
+            6,
+            "rules",
+            1,
+            "examples",
+            0
+          ],
+          "before": "«Yesterday I had gone to school» → правильно «I went to school».",
+          "after": "Для отдельного прошлого события без прошлой точки отсчёта используем Past Simple: Yesterday I went to school."
+        },
+        {
+          "path": [
+            "summary",
+            "note"
+          ],
+          "before": "Используется только когда есть «прошлое до прошлого» — второй временной маркер.",
+          "after": "Past Perfect выражает связь с более поздней прошлой точкой отсчёта. Она может быть указана прямо или понятна из контекста; отдельный второй временной маркер не обязателен."
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 2,
+          "source_paths": [
+            [
+              "sections",
+              3,
+              "table",
+              0,
+              "earlier"
+            ],
+            [
+              "sections",
+              3,
+              "table",
+              0,
+              "later"
+            ]
+          ],
+          "source_values": [
+            "I had eaten (Past Perfect)",
+            "before I went to bed (Past Simple)"
+          ],
+          "format": "remove_labels",
+          "selected_example": "I had eaten before I went to bed."
+        },
+        {
+          "bullet_index": 3,
+          "source_paths": [
+            [
+              "sections",
+              4,
+              "table",
+              0,
+              "v1"
+            ],
+            [
+              "sections",
+              4,
+              "table",
+              0,
+              "v3"
+            ]
+          ],
+          "source_values": [
+            "go",
+            "gone"
+          ],
+          "format": "arrow",
+          "selected_example": "go → gone"
+        }
+      ]
+    },
+    {
+      "file": "module_B1_18_health_medicine.json",
+      "level": "B1",
+      "module_order": 18,
+      "module_title": "Здоровье и медицина",
+      "lesson_external_key": "curriculum:grammar:B1:17:health_medicine",
+      "before_file_sha256": "fed14bfbba22681a45994b27a7f61981fdfaa3aa9af319f6a14317c484abdb8f",
+      "after_file_sha256": "57c186dd203564f1688abe2127e0ddd4cec9a131fe11dace6dbc430bdc6d430a",
+      "unchanged_sha256": "2f67831ff1bd5db308ab1b890e0f0df2e2ca44a2436f7c0adeb0bed46ff69bb2",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>should / shouldn't — совет</strong>: <em>You should drink more water.</em>",
+            "<strong>have to — внешняя необходимость</strong>: <em>She has to take this pill twice a day.</em>",
+            "<strong>mustn't vs don't have to — важная разница</strong>: <em></em>"
+          ],
+          "after": [
+            "<strong>should / shouldn't — совет</strong>: <em>You should drink more water.</em>",
+            "<strong>have to — внешняя необходимость</strong>: <em>She has to take this pill twice a day.</em>",
+            "<strong>mustn't vs don't have to — важная разница</strong>: <em>You mustn't take this.</em>"
+          ]
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 2,
+          "source_paths": [
+            [
+              "sections",
+              4,
+              "table",
+              0,
+              "phrase"
+            ]
+          ],
+          "source_values": [
+            "You mustn't take this."
+          ],
+          "format": "copy",
+          "selected_example": "You mustn't take this."
+        }
+      ]
+    },
+    {
+      "file": "module_B1_19_common_idioms.json",
+      "level": "B1",
+      "module_order": 19,
+      "module_title": "Распространённые идиомы английского",
+      "lesson_external_key": "curriculum:grammar:B1:19:common_idioms",
+      "before_file_sha256": "7d335f9ac319eea0cacc2111fa8396dea423a195dbfff3a98f5d9be918e36f3c",
+      "after_file_sha256": "6c322adb028c57ed5afa398a6552fe2aafc4662cddf92c812dbe86546d0e0b21",
+      "unchanged_sha256": "dbc1a2c3d7be05e68fe28c37b082343a5200aa080fc6011400a092160cf9eb55",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Что такое идиома и почему её нельзя переводить дословно</strong>: <em>The exam was a piece of cake.</em>",
+            "<strong>Как понять идиому из контекста</strong>: <em>It's raining cats and dogs.</em>",
+            "<strong>Регистр: где уместна каждая идиома</strong>: <em></em>"
+          ],
+          "after": [
+            "<strong>Что такое идиома и почему её нельзя переводить дословно</strong>: <em>The exam was a piece of cake.</em>",
+            "<strong>Как понять идиому из контекста</strong>: <em>It's raining cats and dogs.</em>",
+            "<strong>Регистр: где уместна каждая идиома</strong>: <em>break a leg (informal)</em>"
+          ]
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 2,
+          "source_paths": [
+            [
+              "sections",
+              3,
+              "table",
+              0,
+              "idiom"
+            ],
+            [
+              "sections",
+              3,
+              "table",
+              0,
+              "register"
+            ]
+          ],
+          "source_values": [
+            "break a leg",
+            "informal"
+          ],
+          "format": "register",
+          "selected_example": "break a leg (informal)"
+        }
+      ]
+    },
+    {
+      "file": "module_B2_4_society_and_culture.json",
+      "level": "B2",
+      "module_order": 4,
+      "module_title": "Общество и культура",
+      "lesson_external_key": "curriculum:grammar:B2:04:society_and_culture",
+      "before_file_sha256": "bdaf64d1b43e56b4ef7d9277f1f3d87516df8aa4d0e1c8b6719252585b126b1b",
+      "after_file_sha256": "bf824077438d92f80448a70fd875556986e1c84de3372332243026ec0fd7110d",
+      "unchanged_sha256": "2ec4d7f98622dc3d373352afc3b1c2e2e7e558958886dc10fdd5fd195c83d234",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Основные правила.</strong>: <em>My sister, who lives in Paris, is a teacher.</em>",
+            "<strong>Отличия от Defining Relative Clauses.</strong>: <em>The book that I bought is interesting.</em>",
+            "<strong>Which обо всей ситуации и запятые</strong>: <em>He refused to apologise, which made things worse.</em>",
+            "<strong>Пять ошибок, которые проверяют задания</strong>: <em></em>"
+          ],
+          "after": [
+            "<strong>Основные правила.</strong>: <em>My sister, who lives in Paris, is a teacher.</em>",
+            "<strong>Отличия от Defining Relative Clauses.</strong>: <em>The book that I bought is interesting.</em>",
+            "<strong>Which обо всей ситуации и запятые</strong>: <em>He refused to apologise, which made things worse.</em>",
+            "<strong>Пять ошибок, которые проверяют задания</strong>: <em>My aunt, who lives in Rome, …</em>"
+          ]
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 3,
+          "source_paths": [
+            [
+              "sections",
+              4,
+              "table",
+              0,
+              "correct"
+            ]
+          ],
+          "source_values": [
+            "✅ My aunt, who lives in Rome, …"
+          ],
+          "format": "clean",
+          "selected_example": "My aunt, who lives in Rome, …"
+        }
+      ]
+    },
+    {
+      "file": "module_B2_5_second_conditional.json",
+      "level": "B2",
+      "module_order": 5,
+      "module_title": "Second Conditional: гипотетические ситуации",
+      "lesson_external_key": "curriculum:grammar:B2:13:second_conditional",
+      "before_file_sha256": "b00d37f4e937e46b6189c60b4b52898e0b5b062ac45bdf117b1bea524953cedb",
+      "after_file_sha256": "e8a2ef9410d52485964839786a11d109df792b2c2b042ca41d1464f903b0d483",
+      "unchanged_sha256": "d8e9da92722199e9870ad16d8306ea0e04294912d9d0f3c8853c24d8cd9cc4c9",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Структура Second Conditional</strong>: <em></em>",
+            "<strong>Was vs Were</strong>: <em></em>",
+            "<strong>Оттенки значения: would / could / might</strong>: <em>If I had money, I would buy a house.</em>",
+            "<strong>First vs Second Conditional</strong>: <em>If it rains, I will stay home.</em>",
+            "<strong>Гипотетические советы</strong>: <em>If I were you, I would call her tonight.</em>"
+          ],
+          "after": [
+            "<strong>Структура Second Conditional</strong>: <em>If I had more time, I would travel more.</em>",
+            "<strong>Was vs Were</strong>: <em>If I were you, I would call.</em>",
+            "<strong>Оттенки значения: would / could / might</strong>: <em>If I had money, I would buy a house.</em>",
+            "<strong>First vs Second Conditional</strong>: <em>If it rains, I will stay home.</em>",
+            "<strong>Гипотетические советы</strong>: <em>If I were you, I would call her tonight.</em>"
+          ]
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 0,
+          "source_paths": [
+            [
+              "sections",
+              0,
+              "table",
+              0,
+              "if_clause"
+            ],
+            [
+              "sections",
+              0,
+              "table",
+              0,
+              "main_clause"
+            ]
+          ],
+          "source_values": [
+            "If I had more time",
+            "I would travel more."
+          ],
+          "format": "clauses",
+          "selected_example": "If I had more time, I would travel more."
+        },
+        {
+          "bullet_index": 1,
+          "source_paths": [
+            [
+              "sections",
+              1,
+              "table",
+              0,
+              "formal"
+            ]
+          ],
+          "source_values": [
+            "If I were you, I would call."
+          ],
+          "format": "copy",
+          "selected_example": "If I were you, I would call."
+        }
+      ]
+    },
+    {
+      "file": "module_B2_8_reported_questions.json",
+      "level": "B2",
+      "module_order": 8,
+      "module_title": "СМИ и коммуникации",
+      "lesson_external_key": "curriculum:grammar:B2:07:reported_questions",
+      "before_file_sha256": "7d02ef0646bb3cc26d665e301dfe90d4898ff99c0d499ede3937dd7b11fa0116",
+      "after_file_sha256": "c117c2ca6a7519f7ca9b34ff3e50a7d3776b920b00a6dd3285f076900fcd4b01",
+      "unchanged_sha256": "87a563652f79207bbbd36045085afb9fc0e9f377897784fd0103bc20cf3cf8d6",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Сдвиг времени в косвенном вопросе</strong>: <em></em>",
+            "<strong>Два случая, где порядок слов не меняется вовсе</strong>: <em></em>",
+            "<strong>Reported Commands/Requests</strong>: <em></em>",
+            "<strong>Четыре ошибки, которые проверяют задания</strong>: <em></em>"
+          ],
+          "after": [
+            "<strong>Сдвиг времени в косвенном вопросе</strong>: <em>He asked where I lived.</em>",
+            "<strong>Два случая, где порядок слов не меняется вовсе</strong>: <em>She asked who had called.</em>",
+            "<strong>Reported Commands/Requests</strong>: <em>He told me to wait.</em>",
+            "<strong>Четыре ошибки, которые проверяют задания</strong>: <em>She asked where I bought it.</em>"
+          ]
+        },
+        {
+          "path": [
+            "rule"
+          ],
+          "before": "Когда мы пересказываем чужие вопросы, мы используем косвенную речь с изменением порядка слов.",
+          "after": "В косвенном вопросе обычно используем прямой порядок: подлежащее + сказуемое. Если who/what уже было подлежащим прямого вопроса, исходной инверсии не было."
+        },
+        {
+          "path": [
+            "description"
+          ],
+          "before": "Когда мы пересказываем чужие вопросы, мы используем косвенную речь с изменением порядка слов.",
+          "after": "В косвенном вопросе обычно используем прямой порядок: подлежащее + сказуемое. Если who/what уже было подлежащим прямого вопроса, исходной инверсии не было."
+        },
+        {
+          "path": [
+            "sections",
+            2,
+            "description"
+          ],
+          "before": "После asked / wanted to know / wondered время уходит на шаг назад — как и в косвенной речи. Порядок слов при этом остаётся прямым, а do / does / did исчезают совсем.",
+          "after": "После asked / wanted to know / wondered время часто сдвигается назад. Если информация всё ещё верна или актуальна, исходное время можно сохранить. В косвенной части используется прямой порядок слов; do/does/did, служившие только для образования обычного прямого вопроса, убираем."
+        },
+        {
+          "path": [
+            "sections",
+            6,
+            "description"
+          ],
+          "before": "Все они одинаково частые: инверсия, лишний вспомогательный, отсутствие сдвига и that вместо if.",
+          "after": "Проверяйте порядок слов, лишний вспомогательный глагол и выбор if/whether. Сдвиг времени выбирают по контексту: он не обязателен, если информация остаётся верной или актуальной."
+        },
+        {
+          "path": [
+            "sections",
+            6,
+            "table",
+            2,
+            "wrong"
+          ],
+          "before": "❌ He wanted to know if I have travelled there.",
+          "after": "❌ В задании «перескажите со сдвигом времени»: He wanted to know if I have travelled there."
+        },
+        {
+          "path": [
+            "sections",
+            6,
+            "table",
+            2,
+            "explanation"
+          ],
+          "before": "нет сдвига времени",
+          "after": "В задании со сдвигом времени have travelled меняется на had travelled. В обычном пересказе актуальной информации исходное время может сохраняться; отсутствие сдвига не всегда ошибка."
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 0,
+          "source_paths": [
+            [
+              "sections",
+              2,
+              "table",
+              0,
+              "reported"
+            ]
+          ],
+          "source_values": [
+            "He asked where I lived."
+          ],
+          "format": "copy",
+          "selected_example": "He asked where I lived."
+        },
+        {
+          "bullet_index": 1,
+          "source_paths": [
+            [
+              "sections",
+              3,
+              "table",
+              0,
+              "reported"
+            ]
+          ],
+          "source_values": [
+            "She asked who had called."
+          ],
+          "format": "copy",
+          "selected_example": "She asked who had called."
+        },
+        {
+          "bullet_index": 2,
+          "source_paths": [
+            [
+              "sections",
+              4,
+              "table",
+              0,
+              "reported"
+            ]
+          ],
+          "source_values": [
+            "He told me to wait."
+          ],
+          "format": "copy",
+          "selected_example": "He told me to wait."
+        },
+        {
+          "bullet_index": 3,
+          "source_paths": [
+            [
+              "sections",
+              6,
+              "table",
+              0,
+              "correct"
+            ]
+          ],
+          "source_values": [
+            "✅ She asked where I bought it."
+          ],
+          "format": "clean",
+          "selected_example": "She asked where I bought it."
+        }
+      ]
+    },
+    {
+      "file": "module_B2_9_passive_past.json",
+      "level": "B2",
+      "module_order": 9,
+      "module_title": "Технологии и инновации",
+      "lesson_external_key": "curriculum:grammar:B2:08:passive_past_simple",
+      "before_file_sha256": "63b7ab2014204f49ade38c31fcec4472582da062d7d4785adaecabafa8b8e839",
+      "after_file_sha256": "f0b23df7f3d70735bec05855e758fcaa7f2e1fa7eeb73816357c9504d25a4915",
+      "unchanged_sha256": "66db41f634e184aac53d90a0c2b85aa31beae0ce64d5026a4666c7cdab35edb8",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Когда использовать Passive</strong>: <em>My car was stolen.</em>",
+            "<strong>Отрицание и вопрос</strong>: <em>The residents were not informed about the changes.</em>",
+            "<strong>Четыре ошибки, которые проверяют задания</strong>: <em></em>"
+          ],
+          "after": [
+            "<strong>Когда использовать Passive</strong>: <em>My car was stolen.</em>",
+            "<strong>Отрицание и вопрос</strong>: <em>The residents were not informed about the changes.</em>",
+            "<strong>Четыре ошибки, которые проверяют задания</strong>: <em>The windows were broken.</em>"
+          ]
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 2,
+          "source_paths": [
+            [
+              "sections",
+              5,
+              "table",
+              0,
+              "correct"
+            ]
+          ],
+          "source_values": [
+            "✅ The windows were broken."
+          ],
+          "format": "clean",
+          "selected_example": "The windows were broken."
+        }
+      ]
+    },
+    {
+      "file": "module_B2_12_art_and_culture.json",
+      "level": "B2",
+      "module_order": 12,
+      "module_title": "Искусство и культура",
+      "lesson_external_key": "curriculum:grammar:B2:11:art_and_culture",
+      "before_file_sha256": "517362626aeb5aad521de48f121bcc882a8f18d5519ceaba2cdc6071ca0c06a5",
+      "after_file_sha256": "3bf8132ff45fe94baa3c358a07e7e923c9ab21e21e08bd69903647f657dbd49c",
+      "unchanged_sha256": "932284bbc790250b30442ad473b2a773fcbad48f6a1515956aed497534ce2e3c",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Present Participle (-ing clauses).</strong>: <em></em>",
+            "<strong>Past Participle (-ed clauses).</strong>: <em></em>",
+            "<strong>Perfect Participle (Having + Past Participle).</strong>: <em>Having visited the exhibition, we discussed contemporary art.</em>",
+            "<strong>Использование в контексте искусства.</strong>: <em>Painted in the 16th century, this portrait shows incredible detail.</em>",
+            "<strong>Причастие вместо придаточного и висящее причастие</strong>: <em></em>"
+          ],
+          "after": [
+            "<strong>Present Participle (-ing clauses).</strong>: <em>Standing in front of the canvas, the artist painted carefully.</em>",
+            "<strong>Past Participle (-ed clauses).</strong>: <em>Damaged by fire, the painting needs restoration.</em>",
+            "<strong>Perfect Participle (Having + Past Participle).</strong>: <em>Having visited the exhibition, we discussed contemporary art.</em>",
+            "<strong>Использование в контексте искусства.</strong>: <em>Painted in the 16th century, this portrait shows incredible detail.</em>",
+            "<strong>Причастие вместо придаточного и висящее причастие</strong>: <em>Walking home, I thought the bridge looked beautiful.</em>"
+          ]
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 0,
+          "source_paths": [
+            [
+              "sections",
+              0,
+              "table",
+              0,
+              "participle_clause"
+            ]
+          ],
+          "source_values": [
+            "Standing in front of the canvas, the artist painted carefully."
+          ],
+          "format": "copy",
+          "selected_example": "Standing in front of the canvas, the artist painted carefully."
+        },
+        {
+          "bullet_index": 1,
+          "source_paths": [
+            [
+              "sections",
+              1,
+              "table",
+              0,
+              "participle_clause"
+            ]
+          ],
+          "source_values": [
+            "Damaged by fire, the painting needs restoration."
+          ],
+          "format": "copy",
+          "selected_example": "Damaged by fire, the painting needs restoration."
+        },
+        {
+          "bullet_index": 4,
+          "source_paths": [
+            [
+              "sections",
+              5,
+              "table",
+              4,
+              "participle_clause"
+            ]
+          ],
+          "source_values": [
+            "✅ Walking home, I thought the bridge looked beautiful."
+          ],
+          "format": "clean",
+          "selected_example": "Walking home, I thought the bridge looked beautiful."
+        }
+      ]
+    },
+    {
+      "file": "module_B2_13_ecology_and_nature.json",
+      "level": "B2",
+      "module_order": 13,
+      "module_title": "Экология и природа (глобальные проблемы)",
+      "lesson_external_key": "curriculum:grammar:B2:12:ecology_and_nature",
+      "before_file_sha256": "8156488bde4acf79f424ce692c9eb2649a2572b990d1f22b941a36019e2476f4",
+      "after_file_sha256": "82831807316d7b0cea888f30bbaca9361fc8fab55bab026a3b4295aa6040b559",
+      "unchanged_sha256": "389c8e6e18aae265863dcd1f40ed82d0bcbdf4a456bdc6012c4ac68790037480",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>1. Although / Though / Even Though (хотя)</strong>: <em>Although emissions are decreasing, climate change continues.</em>",
+            "<strong>2. Despite / In Spite Of (несмотря на)</strong>: <em>Despite the warnings, pollution levels are rising.</em>",
+            "<strong>3. Despite / In Spite Of + the fact that</strong>: <em>Despite the fact that renewable energy is available, fossil fuels dominate.</em>",
+            "<strong>4. Позиция в предложении</strong>: <em>Although we recycle, waste continues to increase.</em>",
+            "<strong>5. Common mistakes (типичные ошибки)</strong>: <em></em>",
+            "<strong>6. Advanced patterns (продвинутые конструкции)</strong>: <em>Difficult though it is, we must protect endangered species.</em>"
+          ],
+          "after": [
+            "<strong>1. Although / Though / Even Though (хотя)</strong>: <em>Although emissions are decreasing, climate change continues.</em>",
+            "<strong>2. Despite / In Spite Of (несмотря на)</strong>: <em>Despite the warnings, pollution levels are rising.</em>",
+            "<strong>3. Despite / In Spite Of + the fact that</strong>: <em>Despite the fact that renewable energy is available, fossil fuels dominate.</em>",
+            "<strong>4. Позиция в предложении</strong>: <em>Although we recycle, waste continues to increase.</em>",
+            "<strong>5. Common mistakes (типичные ошибки)</strong>: <em>Although we tried, the habitat was destroyed.</em>",
+            "<strong>6. Advanced patterns (продвинутые конструкции)</strong>: <em>Difficult though it is, we must protect endangered species.</em>"
+          ]
+        }
+      ],
+      "example_evidence": [
+        {
+          "bullet_index": 4,
+          "source_paths": [
+            [
+              "sections",
+              4,
+              "table",
+              0,
+              "correction"
+            ]
+          ],
+          "source_values": [
+            "Although we tried, the habitat was destroyed. ✓"
+          ],
+          "format": "clean",
+          "selected_example": "Although we tried, the habitat was destroyed."
+        }
+      ]
+    }
+  ],
+  "references": [
+    "https://learnenglish.britishcouncil.org/free-resources/grammar/b1-b2/conditionals-zero-first-second?page=14",
+    "https://learnenglish.britishcouncil.org/comment/215299",
+    "https://dictionary.cambridge.org/grammar/british-grammar/reported-speech-indirect-speech?q=backshift"
+  ]
+}

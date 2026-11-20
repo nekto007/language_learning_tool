@@ -17,7 +17,9 @@ from app.api.native_lessons import (
     _theory,
     _digest,
 )
-from app.api.native_content import _question, _converted, _plain
+from app.api.native_content import (
+    NATIVE_PROJECTION_VERSION, _question, _converted, _plain, display_answer, matching_answer,
+)
 from app.utils.db import db
 from app.utils.rate_limit_helpers import get_authenticated_user_key
 
@@ -289,7 +291,8 @@ def _document(run):
     )
     questions = [_question(proxy, row, i) for i, row in enumerate(p["rows"])]
     token = _signer().dumps(
-        {"user": current_user.id, "session": run.session_id, "kind": run.kind, "day": p["day"]}
+        {"user": current_user.id, "session": run.session_id, "kind": run.kind, "day": p["day"],
+         "projection_version": NATIVE_PROJECTION_VERSION}
     )
     return {
         "id": run.session_id,
@@ -311,15 +314,43 @@ def _document(run):
 @api_native_activities.route("/grammar/topics", methods=["GET"])
 @api_bearer_required
 def grammar_topics():
-    from app.grammar_lab.models import GrammarTopic
+    from app.grammar_lab.models import GrammarTopic, GrammarExercise
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from sqlalchemy import func
 
     topics = (
         GrammarTopic.query.filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
         .order_by(GrammarTopic.level, GrammarTopic.order)
         .all()
     )
-    return jsonify(success=True, topics=[t.to_dict() for t in topics])
+    counts = dict(db.session.query(GrammarExercise.topic_id, func.count(GrammarExercise.id))
+                  .filter(GrammarExercise.topic_id.in_([topic.id for topic in topics]))
+                  .group_by(GrammarExercise.topic_id).all()) if topics else {}
+    fields = ('id', 'slug', 'title', 'title_ru', 'level', 'order', 'estimated_time', 'difficulty')
+    return jsonify(success=True, topics=[{
+        **{field: getattr(topic, field) for field in fields},
+        'exercise_count': counts.get(topic.id, 0),
+    } for topic in topics])
+
+
+@api_native_activities.get('/grammar/topics/<int:topic_id>')
+@api_bearer_required
+@limiter.limit('60 per minute', key_func=get_authenticated_user_key)
+def grammar_topic_material(topic_id):
+    """Read rules without opening practice or mutating the learner's SRS."""
+    from app.grammar_lab.models import GrammarTopic, GrammarExercise
+
+    topic = db.session.get(GrammarTopic, topic_id)
+    if not _public_topic(topic):
+        raise NativeLessonError('not_found', 404)
+    return jsonify(success=True, topic={
+        'id': topic.id,
+        'title': _plain(topic.title) or _plain(topic.title_ru) or 'Грамматика',
+        'title_ru': _plain(topic.title_ru) or None,
+        'level': topic.level,
+        'exercise_count': GrammarExercise.query.filter_by(topic_id=topic.id).count(),
+        'theory': _theory(topic.content or {}),
+    })
 
 
 @api_native_activities.route("/activities/<kind>/start", methods=["POST"])
@@ -393,8 +424,9 @@ def start_activity(kind):
             created_at=datetime.now(UTC),
         )
         db.session.add(run)
+        document = _document(run)
         db.session.commit()
-        return jsonify(success=True, lesson=_document(run))
+        return jsonify(success=True, lesson=document)
     except NativeLessonError:
         db.session.rollback()
         raise
@@ -554,6 +586,8 @@ def _grade_activity(run, answers):
             expected = "\n".join(f"{a} → {b}" for a, b in expected.items())
         elif isinstance(expected, list):
             expected = " / ".join(map(str, expected))
+        if q.get("input") == "match":
+            expected = matching_answer(row)
         if q.get("input") == "choice":
             given = next((o["label"] for o in q["options"] if o["value"] == value), value)
             if (
@@ -565,11 +599,7 @@ def _grade_activity(run, answers):
             ):
                 expected = row["options"][int(expected)]
         else:
-            given = (
-                "\n".join(f"{a} → {b}" for a, b in converted.items())
-                if isinstance(converted, dict)
-                else str(converted)
-            )
+            given = display_answer(q, value)
         feedback.append(
             {
                 "id": str(i),
@@ -707,6 +737,8 @@ def submit_activity(kind):
         )
         if run.response is not None:
             return jsonify(run.response)
+        if sealed.get('projection_version') != NATIVE_PROJECTION_VERSION:
+            raise NativeLessonError('lesson_changed', 409)
         if sealed.get("day") != _day():
             raise NativeLessonError("lesson_changed", 409)
         if guard_error:

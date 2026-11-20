@@ -1,0 +1,881 @@
+{
+  "schema_version": 1,
+  "created": "2026-11-20",
+  "description": "Original optional Grammar Lab topics; no canonical module renumbering or course progression replacement.",
+  "references": [
+    {
+      "title": "British Council: Personal pronouns",
+      "url": "https://learnenglish.britishcouncil.org/free-resources/grammar/english-grammar-reference/personal-pronouns"
+    },
+    {
+      "title": "British Council Teens: Personal pronouns and possessives",
+      "url": "https://learnenglishteens.britishcouncil.org/grammar/a1-a2-grammar/personal-pronouns-possessives"
+    },
+    {
+      "title": "British Council Teens: Some, any, every and no",
+      "url": "https://learnenglishteens.britishcouncil.org/grammar/a1-a2-grammar/some-any-every-no"
+    }
+  ],
+  "topics": [
+    {
+      "slug": "a1-subject-object-pronouns",
+      "title": "Subject and object pronouns",
+      "title_ru": "Личные местоимения: I/me, he/him, we/us",
+      "level": "A1",
+      "order": 1000,
+      "estimated_time": 7,
+      "difficulty": 1,
+      "content": {
+        "title": "Кто делает — и кого или кому?",
+        "introduction": "У некоторых личных местоимений две формы: одна называет того, кто действует, другая — того, на кого направлено действие. Сравните: I know her. She knows me.",
+        "rule": "В роли подлежащего: I, you, he, she, it, we, they. В роли дополнения после глагола или предлога: me, you, him, her, it, us, them.",
+        "tldr": [
+          "<strong>Кто действует?</strong> — I/you/he/she/it/we/they: <em>We know Anna.</em>",
+          "<strong>Кого, кому?</strong> — me/you/him/her/it/us/them: <em>Anna knows us.</em>",
+          "После предлога нужна объектная форма: <em>for me, with him, to them</em>.",
+          "У <strong>you и it</strong> обе формы совпадают: <em>I see you. You see it.</em>"
+        ],
+        "sections": [
+          {
+            "subtitle": "Две формы одного местоимения",
+            "description": "Сравните форму подлежащего и форму дополнения. Выбираем форму по роли в предложении.",
+            "table": [
+              {
+                "subject": "I",
+                "object": "me",
+                "example": "I know Alex. Alex knows me.",
+                "translation": "Я знаю Алекса. Алекс знает меня."
+              },
+              {
+                "subject": "you",
+                "object": "you",
+                "example": "You help me. I help you.",
+                "translation": "Ты помогаешь мне. Я помогаю тебе."
+              },
+              {
+                "subject": "he",
+                "object": "him",
+                "example": "He sees us. We see him.",
+                "translation": "Он видит нас. Мы видим его."
+              },
+              {
+                "subject": "she",
+                "object": "her",
+                "example": "She knows me. I know her.",
+                "translation": "Она знает меня. Я знаю её."
+              },
+              {
+                "subject": "it",
+                "object": "it",
+                "example": "It is open. Please close it.",
+                "translation": "Оно открыто. Пожалуйста, закрой его."
+              },
+              {
+                "subject": "we",
+                "object": "us",
+                "example": "We like this book. Tell us more.",
+                "translation": "Нам нравится эта книга. Расскажи нам ещё."
+              },
+              {
+                "subject": "they",
+                "object": "them",
+                "example": "They are waiting. Please help them.",
+                "translation": "Они ждут. Пожалуйста, помоги им."
+              }
+            ]
+          },
+          {
+            "subtitle": "После глагола или предлога",
+            "description": "Когда местоимение — дополнение, выбираем объектную форму: help me, call her, listen to us. Не переводите русскую форму слова буквально.",
+            "examples": [
+              {
+                "example": "Please call me after lunch.",
+                "translation": "Пожалуйста, позвони мне после обеда."
+              },
+              {
+                "example": "This card is for her.",
+                "translation": "Эта открытка для неё."
+              },
+              {
+                "example": "Come with us.",
+                "translation": "Пойдём с нами."
+              }
+            ]
+          },
+          {
+            "subtitle": "Не путайте с принадлежностью",
+            "description": "My, your, his, her, its, our, their перед существительным показывают, чей предмет. Они не заменяют объектную форму в предложении «помоги мне».",
+            "examples": [
+              {
+                "example": "This is my bag. Please give it to me.",
+                "translation": "Это моя сумка. Пожалуйста, дай её мне."
+              },
+              {
+                "example": "I know her. This is her book.",
+                "translation": "Я знаю её. Это её книга."
+              }
+            ]
+          }
+        ],
+        "important_notes": [
+          "He/him и she/her выбирают по местоимению, которым обозначают человека, а не по форме имени. Если пол неизвестен или неважен, часто используют they/them и для одного человека.",
+          "В заданиях исходное местоимение указано в скобках: замените его нужной формой. После предлога: for me, не for I.",
+          "У her одна форма может выполнять разные роли: I see her — вижу её; her bag — её сумка."
+        ],
+        "common_mistakes": [
+          {
+            "wrong": "Can you help I?",
+            "correct": "Can you help me?",
+            "explanation": "После help местоимение — дополнение: I → me."
+          },
+          {
+            "wrong": "Them are ready.",
+            "correct": "They are ready.",
+            "explanation": "Здесь нужно подлежащее: they."
+          }
+        ],
+        "learning_goals": [
+          "Выбирать I/me, he/him, she/her, we/us, they/them по роли в предложении.",
+          "Использовать объектную форму после глагола и предлога."
+        ]
+      },
+      "exercises": [
+        {
+          "key": "subject-i",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ have a blue bag. (I)",
+            "correct_answer": "I",
+            "explanation": "Подлежащее — I: I have a blue bag. Перевод: У меня синяя сумка.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 1
+        },
+        {
+          "key": "subject-we",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ are in the same class. (we)",
+            "correct_answer": "We",
+            "explanation": "Перед are нужно подлежащее we, а не us. Перевод: Мы в одном классе.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 2
+        },
+        {
+          "key": "subject-he",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ is ready. (he)",
+            "correct_answer": "He",
+            "explanation": "Для подлежащего используем he; him — объектная форма. Перевод: Он готов.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 3
+        },
+        {
+          "key": "subject-they",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ are waiting outside. (they)",
+            "correct_answer": "They",
+            "explanation": "Кто ждёт? They — подлежащее. Перевод: Они ждут снаружи.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 4
+        },
+        {
+          "key": "object-me",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "Please call ___ after lunch. (I)",
+            "correct_answer": "me",
+            "explanation": "После call нужно дополнение: I → me. Перевод: Пожалуйста, позвони мне после обеда.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 5
+        },
+        {
+          "key": "object-her",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "I know ___. (she)",
+            "correct_answer": "her",
+            "explanation": "Кого я знаю? Объектная форма she — her. Перевод: Я знаю её.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 6
+        },
+        {
+          "key": "object-him",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "We can see ___. (he)",
+            "correct_answer": "him",
+            "explanation": "После see нужно дополнение: he → him. Перевод: Мы видим его.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 7
+        },
+        {
+          "key": "object-us",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "Can you help ___? (we)",
+            "correct_answer": "us",
+            "explanation": "Кому помочь? Объектная форма we — us. Перевод: Ты можешь помочь нам?",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 8
+        },
+        {
+          "key": "preposition-them",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "I am going with ___. (they)",
+            "correct_answer": "them",
+            "explanation": "После with используем объектную форму them. Перевод: Я иду с ними.",
+            "alternatives": []
+          },
+          "difficulty": 2,
+          "order": 9
+        },
+        {
+          "key": "unchanged-you",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "This present is for ___. (you)",
+            "correct_answer": "you",
+            "explanation": "У you форма подлежащего и дополнения совпадает. Перевод: Этот подарок для тебя.",
+            "alternatives": []
+          },
+          "difficulty": 2,
+          "order": 10
+        },
+        {
+          "key": "unchanged-it",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "The window is closed. Please open ___. (it)",
+            "correct_answer": "it",
+            "explanation": "Объектная форма it тоже it. Перевод: Окно закрыто. Пожалуйста, открой его.",
+            "alternatives": []
+          },
+          "difficulty": 2,
+          "order": 11
+        },
+        {
+          "key": "preposition-us",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "This card is for ___. (we)",
+            "correct_answer": "us",
+            "explanation": "После предлога for нужна объектная форма: we → us. Перевод: Эта открытка для нас.",
+            "alternatives": []
+          },
+          "difficulty": 2,
+          "order": 12
+        },
+        {
+          "key": "choose-subject-he",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "Выбери форму подлежащего для he: ___ likes this book.",
+            "correct_answer": "He",
+            "explanation": "He — форма подлежащего; him — дополнение, his — принадлежность. Перевод: Ему нравится эта книга.",
+            "options": [
+              "Him",
+              "He",
+              "His",
+              "Hers"
+            ]
+          },
+          "difficulty": 2,
+          "order": 13
+        },
+        {
+          "key": "choose-object-she",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "Выбери форму дополнения для she: I can help ___.",
+            "correct_answer": "her",
+            "explanation": "Объектная форма she — her. Перевод: Я могу помочь ей.",
+            "options": [
+              "she",
+              "hers",
+              "her",
+              "herself"
+            ]
+          },
+          "difficulty": 2,
+          "order": 14
+        },
+        {
+          "key": "choose-after-to",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "The teacher is talking to ___. (they)",
+            "correct_answer": "them",
+            "explanation": "После to используем them. Перевод: Учитель разговаривает с ними.",
+            "options": [
+              "they",
+              "their",
+              "theirs",
+              "them"
+            ]
+          },
+          "difficulty": 2,
+          "order": 15
+        },
+        {
+          "key": "choose-subject-i",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "___ am ready. (I)",
+            "correct_answer": "I",
+            "explanation": "С am нужно подлежащее I. Перевод: Я готов.",
+            "options": [
+              "Me",
+              "My",
+              "I",
+              "Mine"
+            ]
+          },
+          "difficulty": 2,
+          "order": 16
+        },
+        {
+          "key": "correct-object-i",
+          "exercise_type": "error_correction",
+          "content": {
+            "question": "Исправь форму местоимения: Can you help I?",
+            "correct_answer": "Can you help me?",
+            "explanation": "I → me, потому что местоимение — дополнение после help. Можно ввести me или всё предложение.",
+            "sentence": "Can you help I?",
+            "error_word": "I",
+            "correct_word": "me",
+            "alternatives": [
+              "me"
+            ]
+          },
+          "difficulty": 3,
+          "order": 17
+        },
+        {
+          "key": "correct-subject-them",
+          "exercise_type": "error_correction",
+          "content": {
+            "question": "Исправь форму местоимения: Them are waiting outside.",
+            "correct_answer": "They are waiting outside.",
+            "explanation": "Для подлежащего нужна форма they, а не them. Можно ввести they или всё предложение.",
+            "sentence": "Them are waiting outside.",
+            "error_word": "Them",
+            "correct_word": "They",
+            "alternatives": [
+              "They"
+            ]
+          },
+          "difficulty": 3,
+          "order": 18
+        },
+        {
+          "key": "reorder-help-us",
+          "exercise_type": "reorder",
+          "content": {
+            "question": "Составь утверждение из всех слов.",
+            "correct_answer": "You can help us.",
+            "explanation": "You — подлежащее; us — дополнение. Перевод: Ты можешь помочь нам.",
+            "words": [
+              "can",
+              "us",
+              "help",
+              "You",
+              "."
+            ]
+          },
+          "difficulty": 3,
+          "order": 19
+        },
+        {
+          "key": "match-subject-object",
+          "exercise_type": "matching",
+          "content": {
+            "question": "Соедини форму подлежащего с её объектной формой.",
+            "pairs": [
+              {
+                "left": "I",
+                "right": "me"
+              },
+              {
+                "left": "he",
+                "right": "him"
+              },
+              {
+                "left": "she",
+                "right": "her"
+              },
+              {
+                "left": "we",
+                "right": "us"
+              }
+            ],
+            "explanation": "I → me, he → him, she → her, we → us. После глагола или предлога в роли дополнения используется объектная форма."
+          },
+          "difficulty": 3,
+          "order": 20
+        }
+      ]
+    },
+    {
+      "slug": "a2-indefinite-pronouns",
+      "title": "Some-, any-, no- and every- words",
+      "title_ru": "Неопределённые слова: люди, вещи и места",
+      "level": "A2",
+      "order": 1000,
+      "estimated_time": 8,
+      "difficulty": 2,
+      "content": {
+        "title": "Кто-то, что-нибудь, никто, везде",
+        "introduction": "Слова с some-, any-, no- и every- помогают говорить о людях, вещах и местах, не называя их точно. В заданиях ориентируйтесь на смысл в скобках, а не только на утвердительную или вопросительную форму.",
+        "rule": "-one/-body — люди; -thing — вещи; -where — места. Some- обычно указывает на кого-то/что-то, any- — на неопределённый выбор или используется в вопросе/отрицании, no- уже содержит отрицание, every- охватывает всех/всё/везде.",
+        "tldr": [
+          "<strong>-one/-body</strong> — человек, <strong>-thing</strong> — вещь, <strong>-where</strong> — место: <em>someone, something, somewhere</em>.",
+          "<strong>Some-</strong> — кто-то/что-то/где-то; <strong>any-</strong> — обычный вопрос, отрицание или «любой»: <em>Is anyone here?</em>",
+          "<strong>No-</strong> уже содержит отрицание: <em>Nobody is here.</em> Но с not используем any-: <em>I don’t know anyone.</em>",
+          "<strong>Every-</strong> — все/всё/везде; для everyone/everything нужен глагол в единственном числе: <em>Everyone is ready.</em>",
+          "<strong>Someone/somebody, anyone/anybody, everyone/everybody, nobody/no one</strong> — пары с одинаковым основным значением."
+        ],
+        "sections": [
+          {
+            "subtitle": "Люди, вещи и места",
+            "description": "Выбирайте окончание по тому, о ком или о чём говорите. Формы на -one и -body в этих парах взаимозаменяемы.",
+            "table": [
+              {
+                "meaning": "кто-то / что-то / где-то",
+                "people": "someone / somebody",
+                "things": "something",
+                "places": "somewhere"
+              },
+              {
+                "meaning": "кто-нибудь / что-нибудь / где-нибудь; любой",
+                "people": "anyone / anybody",
+                "things": "anything",
+                "places": "anywhere"
+              },
+              {
+                "meaning": "никто / ничего / нигде",
+                "people": "nobody / no one",
+                "things": "nothing",
+                "places": "nowhere"
+              },
+              {
+                "meaning": "все / всё / везде",
+                "people": "everyone / everybody",
+                "things": "everything",
+                "places": "everywhere"
+              }
+            ]
+          },
+          {
+            "subtitle": "Some- и any-: решает смысл",
+            "description": "Some- часто стоит в утверждении, any- — в обычном вопросе и отрицании. Но some- бывает в предложении и просьбе, а any- в утверждении может означать свободный выбор: «любой».",
+            "examples": [
+              {
+                "example": "Someone left a bag here.",
+                "translation": "Кто-то оставил здесь сумку."
+              },
+              {
+                "example": "Is anybody at home?",
+                "translation": "Кто-нибудь дома?"
+              },
+              {
+                "example": "I did not buy anything.",
+                "translation": "Я ничего не купил."
+              },
+              {
+                "example": "Would you like something to drink?",
+                "translation": "Хочешь что-нибудь выпить?"
+              },
+              {
+                "example": "You can choose anything.",
+                "translation": "Можешь выбрать что угодно."
+              }
+            ]
+          },
+          {
+            "subtitle": "Одно отрицание",
+            "description": "Nobody, nothing и nowhere сами выражают отрицание. В стандартном английском не добавляем к ним not для того же отрицания. Используйте либо no-, либо not + any-.",
+            "examples": [
+              {
+                "example": "Nobody called.",
+                "translation": "Никто не звонил."
+              },
+              {
+                "example": "I know nobody here. / I do not know anybody here.",
+                "translation": "Я здесь никого не знаю."
+              },
+              {
+                "example": "We went nowhere. / We did not go anywhere.",
+                "translation": "Мы никуда не ходили."
+              }
+            ]
+          },
+          {
+            "subtitle": "Согласование и отсылка к человеку",
+            "description": "Someone, everyone, nobody и everything согласуются с глаголом в единственном числе. Когда дальше говорим о человеке без указания пола, часто используем they/them.",
+            "examples": [
+              {
+                "example": "Everyone is ready.",
+                "translation": "Все готовы."
+              },
+              {
+                "example": "Nothing is missing.",
+                "translation": "Ничего не пропало."
+              },
+              {
+                "example": "Someone is at the door. Ask them to wait.",
+                "translation": "Кто-то у двери. Попроси подождать."
+              }
+            ]
+          }
+        ],
+        "important_notes": [
+          "Someone и somebody взаимозаменяемы; то же относится к anyone/anybody и everyone/everybody.",
+          "Nobody и no one — синонимы. No one обычно пишется раздельно; no-one также встречается. Не пишите noone.",
+          "Слова с some-/any- нельзя выбрать только по наличию вопросительного знака: Would you like something to drink? — обычное предложение напитка.",
+          "Формы на -one/-body и -thing — местоимения; слова на -where — наречия места."
+        ],
+        "common_mistakes": [
+          {
+            "wrong": "Everyone are here.",
+            "correct": "Everyone is here.",
+            "explanation": "Everyone согласуется с глаголом в единственном числе."
+          },
+          {
+            "wrong": "I do not know nobody.",
+            "correct": "I do not know anybody.",
+            "explanation": "Для одного отрицания выбираем not + any- или no- без not."
+          }
+        ],
+        "learning_goals": [
+          "Различать людей, вещи и места в словах на -one/-body, -thing и -where.",
+          "Выбирать some-/any-/no-/every- по смыслу и избегать двойного отрицания."
+        ]
+      },
+      "exercises": [
+        {
+          "key": "some-thing",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "I have ___ to tell you. (что-то)",
+            "correct_answer": "something",
+            "explanation": "Что-то, то есть вещь или информация, — something. Перевод: Мне нужно тебе кое-что сказать.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 1
+        },
+        {
+          "key": "some-person",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ is waiting outside. (кто-то)",
+            "correct_answer": "Someone",
+            "explanation": "Кто-то — someone или somebody. Обе формы подходят. Перевод: Кто-то ждёт снаружи.",
+            "alternatives": [
+              "Somebody"
+            ]
+          },
+          "difficulty": 1,
+          "order": 2
+        },
+        {
+          "key": "some-place",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "I left my notebook ___. (где-то)",
+            "correct_answer": "somewhere",
+            "explanation": "Где-то — somewhere, потому что речь о месте. Перевод: Я где-то оставил тетрадь.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 3
+        },
+        {
+          "key": "no-person",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ called me. (никто)",
+            "correct_answer": "Nobody",
+            "explanation": "Никто — nobody или no one; отдельный not не нужен. Перевод: Никто мне не позвонил.",
+            "alternatives": [
+              "No one",
+              "No-one"
+            ]
+          },
+          "difficulty": 1,
+          "order": 4
+        },
+        {
+          "key": "no-thing",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "There is ___ in the box. (ничего)",
+            "correct_answer": "nothing",
+            "explanation": "Ничего — nothing. Перевод: В коробке ничего нет.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 5
+        },
+        {
+          "key": "no-place",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "We went ___. (никуда)",
+            "correct_answer": "nowhere",
+            "explanation": "Никуда/нигде — nowhere; went уже утвердительная форма без did not. Перевод: Мы никуда не ходили.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 6
+        },
+        {
+          "key": "every-person",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ is ready. (все люди)",
+            "correct_answer": "Everyone",
+            "explanation": "Все люди — everyone или everybody. С ними используем is, а не are. Перевод: Все готовы.",
+            "alternatives": [
+              "Everybody"
+            ]
+          },
+          "difficulty": 1,
+          "order": 7
+        },
+        {
+          "key": "every-thing",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "___ is ready. (всё, все вещи)",
+            "correct_answer": "Everything",
+            "explanation": "Всё — everything; everyone относится к людям. Перевод: Всё готово.",
+            "alternatives": []
+          },
+          "difficulty": 1,
+          "order": 8
+        },
+        {
+          "key": "every-place",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "We looked ___. (везде)",
+            "correct_answer": "everywhere",
+            "explanation": "Везде — everywhere. Перевод: Мы везде искали.",
+            "alternatives": []
+          },
+          "difficulty": 2,
+          "order": 9
+        },
+        {
+          "key": "negative-any-person",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "I do not know ___. (никого; используй any-)",
+            "correct_answer": "anyone",
+            "explanation": "Отрицание уже выражено do not, поэтому anyone или anybody. Перевод: Я никого не знаю.",
+            "alternatives": [
+              "anybody"
+            ]
+          },
+          "difficulty": 2,
+          "order": 10
+        },
+        {
+          "key": "negative-any-thing",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "She did not buy ___. (ничего; используй any-)",
+            "correct_answer": "anything",
+            "explanation": "С did not используем anything: отрицание относится к покупке чего-либо. Перевод: Она ничего не купила.",
+            "alternatives": []
+          },
+          "difficulty": 2,
+          "order": 11
+        },
+        {
+          "key": "negative-any-place",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "We did not go ___. (никуда; используй any-)",
+            "correct_answer": "anywhere",
+            "explanation": "С did not используем anywhere, а не nowhere. Перевод: Мы никуда не ходили.",
+            "alternatives": []
+          },
+          "difficulty": 2,
+          "order": 12
+        },
+        {
+          "key": "free-choice-any-thing",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "You may choose ___. (что угодно, любой предмет)",
+            "correct_answer": "anything",
+            "explanation": "В значении «что угодно, любой предмет» нужно anything. Everything означало бы «всё».",
+            "options": [
+              "something",
+              "nothing",
+              "anything",
+              "everything"
+            ]
+          },
+          "difficulty": 2,
+          "order": 13
+        },
+        {
+          "key": "free-choice-any-person",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "___ is welcome. (любой человек; используй any-)",
+            "correct_answer": "Anyone",
+            "explanation": "Люди — anyone/anybody. Из предложенных вариантов только Anyone обозначает человека.",
+            "options": [
+              "Anything",
+              "Anywhere",
+              "Any",
+              "Anyone"
+            ]
+          },
+          "difficulty": 2,
+          "order": 14
+        },
+        {
+          "key": "singular-everyone",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "Everyone ___ here.",
+            "correct_answer": "is",
+            "explanation": "Everyone — все люди, но грамматически единственное число: everyone is.",
+            "options": [
+              "are",
+              "is",
+              "do",
+              "be"
+            ]
+          },
+          "difficulty": 2,
+          "order": 15
+        },
+        {
+          "key": "singular-nothing",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "Nothing ___ missing.",
+            "correct_answer": "is",
+            "explanation": "Nothing согласуется с глаголом в единственном числе: nothing is missing — ничего не пропало.",
+            "options": [
+              "are",
+              "have",
+              "is",
+              "do"
+            ]
+          },
+          "difficulty": 2,
+          "order": 16
+        },
+        {
+          "key": "correct-double-negative",
+          "exercise_type": "error_correction",
+          "content": {
+            "question": "Исправь отрицание, сохрани don’t: I don’t know nobody.",
+            "correct_answer": "I don’t know anybody.",
+            "explanation": "Don’t уже содержит отрицание. Заменяем nobody на anybody или anyone. Можно ввести исправленное слово или всё предложение.",
+            "sentence": "I don’t know nobody.",
+            "error_word": "nobody",
+            "correct_word": "anybody",
+            "alternatives": [
+              "I don’t know anyone.",
+              "anybody",
+              "anyone"
+            ]
+          },
+          "difficulty": 3,
+          "order": 17
+        },
+        {
+          "key": "correct-somebody-agreement",
+          "exercise_type": "error_correction",
+          "content": {
+            "question": "Исправь форму be: Somebody are waiting outside.",
+            "correct_answer": "Somebody is waiting outside.",
+            "explanation": "Somebody согласуется с is, а не are. Someone is waiting outside тоже верно. Можно ввести is или всё предложение.",
+            "sentence": "Somebody are waiting outside.",
+            "error_word": "are",
+            "correct_word": "is",
+            "alternatives": [
+              "is",
+              "Someone is waiting outside."
+            ]
+          },
+          "difficulty": 3,
+          "order": 18
+        },
+        {
+          "key": "reorder-everyone-knows",
+          "exercise_type": "reorder",
+          "content": {
+            "question": "Составь утверждение из всех слов.",
+            "correct_answer": "Everyone knows the answer.",
+            "explanation": "После everyone в Present Simple используем knows. Перевод: Все знают ответ.",
+            "words": [
+              "knows",
+              "Everyone",
+              "answer",
+              "the",
+              "."
+            ]
+          },
+          "difficulty": 3,
+          "order": 19
+        },
+        {
+          "key": "match-thing-meanings",
+          "exercise_type": "matching",
+          "content": {
+            "question": "Соедини слово с указанным значением. Здесь anything означает свободный выбор.",
+            "pairs": [
+              {
+                "left": "something",
+                "right": "что-то"
+              },
+              {
+                "left": "anything",
+                "right": "что угодно"
+              },
+              {
+                "left": "nothing",
+                "right": "ничего"
+              },
+              {
+                "left": "everything",
+                "right": "всё"
+              }
+            ],
+            "explanation": "Something — что-то, anything в значении свободного выбора — что угодно, nothing — ничего, everything — всё."
+          },
+          "difficulty": 3,
+          "order": 20
+        }
+      ]
+    }
+  ]
+}

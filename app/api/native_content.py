@@ -41,6 +41,8 @@ TEXT = {
     "transformation",
     "error_correction",
 }
+FILL_BLANKS = {"fill_blank", "fill-blank", "fill_in_blank", "fill-in-blank"}
+NATIVE_PROJECTION_VERSION = 2
 
 
 def _error(code="unsupported_lesson", status=422):
@@ -74,6 +76,8 @@ def is_extended(lesson):
         return True
     c = content_for(lesson)
     rows = c.get("exercises" if lesson.type == "grammar" else "questions")
+    if rows is not None and not isinstance(rows, list):
+        return True
     if rows is None and lesson.type == "quiz":
         return True
     if any(c.get(k) for k in ("audio", "audio_url", "video", "video_url")):
@@ -82,6 +86,9 @@ def is_extended(lesson):
     return len(rows or []) > 100 or any(
         not isinstance(q, dict)
         or q.get("type", "") not in simple
+        or (q.get("type") in FILL_BLANKS and q.get("options")
+            and (lesson.type == "grammar" or q.get("type") != "fill_blank"))
+        or (q.get("type") == "reorder" and (q.get("words") or q.get("tokens")))
         or any(
             q.get(k)
             for k in (
@@ -133,9 +140,12 @@ def _pair(pair):
 def rows_for(lesson, content=None):
     c = content if content is not None else content_for(lesson)
     if lesson.type == "grammar":
+        rows = c.get("exercises") or []
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+            _error()
         return [
             {**r, "type": "match" if r.get("type") == "matching" else r.get("type", "")}
-            for r in c.get("exercises") or []
+            for r in rows
         ]
     if lesson.type == "final_test":
         sections = c.get("test_sections") or c.get("sections")
@@ -199,27 +209,92 @@ def rows_for(lesson, content=None):
     return c.get("items") or []
 
 
+def _dialogue_text(value):
+    """Only authored speaker/text fields are visible, never arbitrary metadata."""
+    if not isinstance(value, list):
+        return _plain(value)
+    if len(value) > 100:
+        _error()
+    lines = []
+    for line in value:
+        if isinstance(line, str):
+            text = _plain(line)
+        elif isinstance(line, dict):
+            text = _plain(line.get("text"))
+            # Some authored blanks include surrounding words. Keep that useful
+            # partial sentence, but never print a filled answer flagged blank.
+            if line.get("blank") is True and not re.search(r"_{2,}", text):
+                text = "___"
+            speaker = _plain(line.get("speaker"))
+            if speaker and text:
+                text = f"{speaker}: {text}"
+        else:
+            _error()
+        if text:
+            lines.append(text)
+    return _plain("\n".join(lines))
+
+
 def _prompt(row):
-    keys = (
-        "question",
-        "prompt",
-        "text",
-        "sentence",
-        "incorrect_sentence",
-        "dialogue",
-        "russian",
-        "statement",
+    # In listening_choice, text/sentence/dialogue are listening material. The
+    # authored question remains visible; transcripts/audio_text never become a
+    # fallback question simply because another display field is empty. Reading
+    # questions retain their explicitly authored text.
+    keys = ("question", "prompt") if row.get("type") == "listening_choice" else (
+        "question", "prompt", "text", "sentence", "incorrect_sentence",
+        "dialogue", "russian", "statement",
     )
-    return "\n".join(dict.fromkeys(filter(None, (_plain(row.get(k)) for k in keys))))
+    values = (_dialogue_text(row.get(key)) if key == "dialogue" else _plain(row.get(key)) for key in keys)
+    return "\n".join(dict.fromkeys(filter(None, values)))
+
+
+def _sentence_prompt(row):
+    prefix = _prompt(row) or _plain(row.get("text_with_gap"))
+    suffix = _plain(row.get("prompt_after"))
+    if not prefix and not suffix and not _visible_context(row):
+        _error()
+    if not re.search(r"_{2,}", prefix):
+        prefix = (prefix + " ___").strip()
+    sentence = " ".join(filter(None, (prefix, suffix)))
+    # Empty-prefix transformations often continue with a comma; keep normal
+    # sentence punctuation instead of an artificial space before it.
+    return _plain(re.sub(r"\s+([,.;:!?])", r"\1", sentence))
+
+
+def _visible_context(row):
+    value = _plain(row.get("context"))
+    return "" if value.casefold() == "vocab use" else value
+
+
+def _question_hints(lesson, row, index, instruction):
+    values = [instruction]
+    hint = _plain(row.get("hint"))
+    if hint:
+        values.append("Подсказка: " + hint)
+    if lesson.type == "translation" and content_for(lesson).get("mode") not in ("open", "rubric"):
+        bank = row.get("hint_words") or []
+        if not isinstance(bank, list) or len(bank) > 100 or any(not isinstance(word, str) for word in bank):
+            _error()
+        words = [_plain(word) for word in bank]
+        if any(not word for word in words):
+            _error()
+        if words:
+            # Keep multiword chunks and duplicate tokens intact. Do not derive
+            # a bank from the private English reference or accepted answers.
+            random.Random(f"native:hints:{lesson.id}:{index}").shuffle(words)
+            values.append("Слова для перевода: " + " · ".join(words))
+    return _plain("\n".join(filter(None, values)))
 
 
 def _question(lesson, row, index):
     from app.curriculum.language_support import language_support_mode, question_translation
 
+    if not isinstance(row, dict):
+        _error()
     kind = row.get("type", "multiple_choice" if lesson.type in QUIZZES else "")
     question = {
         "id": str(index),
-        "prompt": _prompt(row),
+        "prompt": _sentence_prompt(row) if lesson.type == "sentence_completion" else _prompt(row),
         "instruction": _plain(row.get("instruction")),
         "options": [],
         "input": "text",
@@ -235,7 +310,7 @@ def _question(lesson, row, index):
         "video_url": media_url(row.get("video_url") or row.get("video"), "video"),
         "section": row.get("_section_label"),
     }
-    if kind in CHOICE or (kind in ("fill_blank", "fill_in_blank") and row.get("options")):
+    if kind in CHOICE or (kind in FILL_BLANKS and row.get("options")):
         choices = row.get("options")
         if (
             not isinstance(choices, list)
@@ -271,7 +346,7 @@ def _question(lesson, row, index):
         if (
             not isinstance(words, list)
             or not 1 <= len(words) <= 80
-            or not all(isinstance(w, str) for w in words)
+            or not all(isinstance(w, str) and _plain(w) for w in words)
         ):
             _error()
         question["input"] = "order"
@@ -288,7 +363,10 @@ def _question(lesson, row, index):
         "sentence_completion",
         "audio_fill_blank",
     ):
-        question["prompt"] = _prompt(row) or _plain(row.get("text_with_gap"))
+        question["prompt"] = (
+            _sentence_prompt(row) if lesson.type == "sentence_completion"
+            else _prompt(row) or _plain(row.get("text_with_gap"))
+        )
         if lesson.type == "translation" and content_for(lesson).get("mode") in ("open", "rubric"):
             question["input"] = "translation_review"
         if lesson.type == "audio_fill_blank" and row.get("options"):
@@ -303,6 +381,9 @@ def _question(lesson, row, index):
         question["prompt"] = f"Пропуск {index+1}" + (
             f' · подсказка: {question["prompt"]}' if question["prompt"] else ""
         )
+    context = _visible_context(row)
+    if context and "context" not in question:
+        question["context"] = context
     if not question["prompt"]:
         _error()
     if not question["instruction"]:
@@ -311,6 +392,7 @@ def _question(lesson, row, index):
             "order": "Расположи слова по порядку",
             "choice": "Выбери ответ",
         }.get(question["input"], "Введи ответ")
+    question["instruction"] = _question_hints(lesson, row, index, question["instruction"])
     random.Random(f"native:{lesson.id}:{index}").shuffle(question["options"])
     return question
 
@@ -323,9 +405,7 @@ def theory_for(lesson):
         return []
     if lesson.type == "dictation" and not c.get("gap_text"):
         return []
-    if lesson.type == "listening_immersion" and (
-        c.get("comprehension_questions") or c.get("questions")
-    ):
+    if lesson.type == "listening_immersion" and rows_for(lesson, c):
         return []
     blocks = _theory(c)
     text = c.get("text") or c.get("content")
@@ -347,6 +427,14 @@ def theory_for(lesson):
                 ):
                     block["translation"] = _plain(line["translation"])
                 blocks.append(block)
+    if lesson.type == "listening_immersion" and not rows_for(lesson, c) and isinstance(text, str):
+        reference = _plain(text)
+        if reference:
+            if any(block.get("body") == reference for block in blocks):
+                blocks = [{**block, "title": "Текст записи"} if block.get("body") == reference else block
+                          for block in blocks]
+            else:
+                blocks.append({"title": "Текст записи", "body": reference})
     if lesson.type == "writing_prompt":
         for key, title in [
             ("template", "Шаблон"),
@@ -503,6 +591,8 @@ def _converted(row, q, value, grammar=False):
             _error("invalid_input", 400)
         if row.get("type") in ("true_false", "tf"):
             return value
+        if row.get("type") in FILL_BLANKS and (grammar or row.get("type") != "fill_blank"):
+            return row["options"][int(value)]
         # Existing quiz graders accept source option indexes; audio-fill uses text.
         return value
     if form == "order":
@@ -511,6 +601,7 @@ def _converted(row, q, value, grammar=False):
         if (
             not isinstance(indexes, list)
             or len(indexes) != len(words)
+            or not all(type(index) is str for index in indexes)
             or set(indexes) != set(map(str, range(len(words))))
         ):
             _error("invalid_input", 400)
@@ -539,6 +630,24 @@ def _converted(row, q, value, grammar=False):
             return indexes
         return {_pair(pairs[int(i)])[0]: _pair(pairs[int(j)])[1] for i, j in indexes.items()}
     return value
+
+
+def display_answer(question, value):
+    """Use learner-visible labels in feedback, never transport indexes/JSON."""
+    options = {option["value"]: option["label"] for option in question.get("options", [])}
+    if question.get("input") == "choice":
+        return options.get(value, _plain(value))
+    if question.get("input") == "match":
+        left = {option["value"]: option["label"] for option in question.get("left_options", [])}
+        indexes = _json_answer(value)
+        return "\n".join(f"{left[i]} → {options[j]}" for i, j in indexes.items())
+    if question.get("input") == "order":
+        return " ".join(options[index] for index in _json_answer(value))
+    return _plain(value)
+
+
+def matching_answer(row):
+    return "\n".join(f"{_plain(a)} → {_plain(b)}" for a, b in map(_pair, row.get("pairs") or []))
 
 
 def grade(lesson, questions, answers, passing):
@@ -584,12 +693,15 @@ def grade(lesson, questions, answers, passing):
             if isinstance(expected, dict):
                 expected = "\n".join(f"{a} → {b}" for a, b in expected.items())
             elif isinstance(expected, list):
-                expected = " / ".join(map(str, expected))
-            given = converted[q["id"]]
+                if q.get("input") == "order":
+                    labels = {option["value"]: option["label"] for option in q["options"]}
+                    expected = " ".join(labels.get(str(value), str(value)) for value in expected)
+                else:
+                    expected = " / ".join(map(str, expected))
+            if q.get("input") == "match":
+                expected = matching_answer(row)
+            given = display_answer(q, answers[q["id"]])
             if q.get("input") == "choice" and row.get("options"):
-                given = next(
-                    (o["label"] for o in q["options"] if o["value"] == answers[q["id"]]), given
-                )
                 if (
                     t == "grammar"
                     and str(expected).isdigit()
@@ -600,11 +712,7 @@ def grade(lesson, questions, answers, passing):
                 fb(
                     q,
                     checked.get("status") == "correct" or checked.get("is_correct") is True,
-                    (
-                        "\n".join(f"{a} → {b}" for a, b in given.items())
-                        if isinstance(given, dict)
-                        else " ".join(map(str, given)) if isinstance(given, list) else given
-                    ),
+                    given,
                     expected,
                     checked.get("explanation") or row.get("explanation"),
                 )

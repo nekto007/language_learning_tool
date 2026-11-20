@@ -91,10 +91,21 @@ class GrammarExerciseGrader:
         '—', '–', '-', '−', 'x', 'ø', '∅', '0', 'zero', 'zero article', 'no article',
         'none', 'nothing', 'нет', 'ничего', 'нет артикля', 'без артикля', 'пусто',
     })
+    # Expected answers must state an article placeholder explicitly. Ordinary
+    # lexical targets such as "nothing", "none" and "zero" are words to learn,
+    # not instructions to omit the blank. Keep permissive aliases on INPUT only.
+    _EXPECTED_ZERO_ARTICLE_MARKERS = frozenset({
+        '—', '–', '-', '−', 'x', 'ø', '∅', 'zero article', 'no article',
+        'нет артикля', 'без артикля',
+    })
 
     @classmethod
     def _is_zero_marker(cls, text) -> bool:
         return str(text or '').strip().lower() in cls._ZERO_ARTICLE_MARKERS
+
+    @classmethod
+    def _expects_zero_article(cls, text) -> bool:
+        return str(text or '').strip().lower() in cls._EXPECTED_ZERO_ARTICLE_MARKERS
 
     @classmethod
     def _strip_hints(cls, text: str) -> str:
@@ -122,7 +133,7 @@ class GrammarExerciseGrader:
         for candidate in candidates:
             if candidate is None or not str(candidate).strip():
                 continue
-            if self._is_zero_marker(candidate):
+            if self._expects_zero_article(candidate):
                 if self._is_zero_marker(user):
                     return True
                 continue
@@ -149,7 +160,7 @@ class GrammarExerciseGrader:
             for candidate in candidates:
                 if not str(candidate or '').strip():
                     continue
-                filler = '' if self._is_zero_marker(candidate) else str(candidate)
+                filler = '' if self._expects_zero_article(candidate) else str(candidate)
                 for template in (stripped, question):
                     if self._text_matches(answer, [template.replace('___', filler)]):
                         is_correct = True
@@ -366,39 +377,37 @@ class GrammarExerciseGrader:
             'user_answer': answer
         }
 
+    @staticmethod
+    def _boolean_answer(value):
+        """Parse the explicit values used by boolean controls; reject guesses."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            text = value.strip().lower()
+            if text in ('true', '1', 'yes'):
+                return True
+            if text in ('false', '0', 'no'):
+                return False
+        elif isinstance(value, (int, float)) and value in (0, 1):
+            return bool(value)
+        return None
+
     def _grade_true_false(self, exercise: GrammarExercise, answer: Any) -> Dict:
-        """Grade true/false exercise"""
+        """Grade explicit true/false values without coercing unknowns to False."""
         content = exercise.content
-        correct = content.get('correct_answer')  # True or False or 0/1
-
-        # Normalize the correct answer to boolean (True/False or 0/1 or str).
-        if isinstance(correct, str):
-            correct_bool = correct.lower() in ('true', '1', 'yes')
-        else:
-            correct_bool = bool(correct)
-
-        # An unset/blank answer is never correct. Without this guard a missing
-        # answer coerces to bool(None)/bool('') == False and would be scored
-        # CORRECT for every false-statement item (correct_answer=False), e.g.
-        # via a direct API submit with no selection.
-        if answer is None or (isinstance(answer, str) and answer.strip() == ''):
+        correct_bool = self._boolean_answer(content.get('correct_answer'))
+        user_bool = self._boolean_answer(answer)
+        if correct_bool is None:
             return {
                 'is_correct': False,
-                'correct_answer': 'True' if correct_bool else 'False',
+                'error': 'Invalid authored true/false answer',
+                'correct_answer': '',
                 'explanation': content.get('explanation', ''),
-                'user_answer': '',
+                'user_answer': str(answer) if answer is not None else '',
             }
-
-        if isinstance(answer, str):
-            user_bool = answer.lower() in ('true', '1', 'yes')
-        else:
-            user_bool = bool(answer)
-
-        is_correct = user_bool == correct_bool
-
         return {
-            'is_correct': is_correct,
+            'is_correct': user_bool is not None and user_bool == correct_bool,
             'correct_answer': 'True' if correct_bool else 'False',
             'explanation': content.get('explanation', ''),
-            'user_answer': 'True' if user_bool else 'False'
+            'user_answer': ('True' if user_bool else 'False') if user_bool is not None else (str(answer) if answer is not None else ''),
         }

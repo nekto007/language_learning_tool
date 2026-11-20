@@ -57,6 +57,7 @@ logs/
 # Temporary files
 tmp/
 temp/
+app/temp/
 *.tmp
 
 # Tests
@@ -92,6 +93,8 @@ Thumbs.db
 
 # Backup files
 backups/
+backup/
+llt-db-backups/
 ops/
 *.dump
 *.dump.partial
@@ -100,3 +103,11 @@ ops/
 *.bak
 *.backup
 *~
+
+# Native builds, local authoring sources and agent configuration are not server inputs.
+ios/
+module_completed/
+grammar_exercises_extra/
+.agents/
+.codex/
+.aws/

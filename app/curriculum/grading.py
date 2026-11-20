@@ -379,6 +379,21 @@ def _coerce_to_index(value, options):
     return -1
 
 
+def _strict_bool(value) -> bool | None:
+    """Parse only explicit boolean-control values; unknown is never False."""
+    if type(value) is bool:
+        return value
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in ('true', '1', 'yes'):
+            return True
+        if text in ('false', '0', 'no'):
+            return False
+    elif type(value) in (int, float) and value in (0, 1):
+        return bool(value)
+    return None
+
+
 def _coerce_bool(value) -> bool:
     """Normalize a true/false answer that may arrive as bool, string or number.
 
@@ -998,7 +1013,8 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
                 }
             continue
 
-        user_answer = str(answers.get(i, answers.get(str_i, '')))
+        raw_user_answer = answers.get(i, answers.get(str_i, ''))
+        user_answer = str(raw_user_answer)
         if isinstance(user_answer, str):
             user_answer = user_answer.strip()
 
@@ -1017,7 +1033,9 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
         exercise_type = exercise.get('type', '')
 
         if exercise_type == 'true_false':
-            if correct_answer is None:
+            correct_bool = _strict_bool(correct_answer)
+            user_bool = _strict_bool(raw_user_answer)
+            if correct_bool is None:
                 feedback[str_i] = {
                     'status': 'incorrect',
                     'message': 'Ошибка в упражнении - не найден правильный ответ',
@@ -1026,11 +1044,7 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
                 }
                 continue
 
-            user_bool = user_answer.lower() == 'true' if isinstance(user_answer, str) else bool(user_answer)
-            correct_bool = correct_answer if isinstance(correct_answer, bool) else (
-                    str(correct_answer).lower() == 'true')
-
-            is_correct = user_bool == correct_bool
+            is_correct = user_bool is not None and user_bool == correct_bool
 
             if is_correct:
                 correct_count += 1
@@ -1171,6 +1185,41 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
     }
 
 
+def _quiz_option_index(options, answer, *, prefer_literal=False):
+    """Resolve authored labels before legacy indexes; UI answers remain indexes.
+
+    Numeric option text (years, amounts, counts) is a label when it is an
+    authored answer. Submitted numeric values still refer to option indexes,
+    with a literal fallback only when that index is outside the offered list.
+    """
+    if not isinstance(options, list):
+        return -1
+    labels = [option.strip() if isinstance(option, str) else option for option in options]
+
+    def literal_index():
+        if not isinstance(answer, str):
+            return -1
+        value = answer.strip()
+        if value in labels:
+            return labels.index(value)
+        lowered = value.lower()
+        return next((index for index, label in enumerate(labels)
+                     if str(label).lower() == lowered), -1)
+
+    if prefer_literal:
+        literal = literal_index()
+        if literal >= 0:
+            return literal
+    if type(answer) is int or (isinstance(answer, str) and answer.isdigit()):
+        try:
+            index = int(answer)
+        except (TypeError, ValueError, OverflowError):
+            return literal_index()
+        if 0 <= index < len(labels):
+            return index
+    return literal_index()
+
+
 def process_quiz_submission(questions: list, answers: dict) -> dict:
     correct_count = 0
     total_count = len(questions)
@@ -1197,79 +1246,24 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
             question_type = 'multiple_choice'
 
         if question_type in ['multiple_choice', 'dialogue_completion', 'listening_choice', 'reading_comprehension']:
-            # Для множественного выбора сравниваем индексы или текст
-            try:
-                if isinstance(user_answer, str) and user_answer.isdigit():
-                    user_idx = int(user_answer)
-                elif isinstance(user_answer, int):
-                    user_idx = user_answer
-                else:
-                    # user_answer is text, find its index in options
-                    user_idx = -1
-                    if 'options' in question and isinstance(user_answer, str):
-                        options_stripped = [opt.strip() if isinstance(opt, str) else opt for opt in question['options']]
-                        user_answer_stripped = user_answer.strip()
+            options = question.get('options', [])
+            # Explicit correct_index stays an index even when a numeric label
+            # with that spelling is offered. Other authored strings prefer the
+            # literal option, e.g. correct='2018' maps to label 2018, not index2018.
+            explicit_index = ('correct_index' in question and not any(
+                field in question for field in ('answer', 'correct_answer', 'correct')
+            ))
+            user_idx = _quiz_option_index(options, user_answer)
+            correct_idx = _quiz_option_index(options, correct_answer, prefer_literal=not explicit_index)
+            # Two failed lookups (-1/-1) must never become a correct response.
+            is_correct = user_idx >= 0 and correct_idx >= 0 and user_idx == correct_idx
 
-                        # Try exact match first
-                        if user_answer_stripped in options_stripped:
-                            user_idx = options_stripped.index(user_answer_stripped)
-                        else:
-                            # Try case-insensitive match
-                            user_answer_lower = user_answer_stripped.lower()
-                            for idx, option in enumerate(options_stripped):
-                                option_lower = option.lower() if isinstance(option, str) else str(option).lower()
-                                if option_lower == user_answer_lower:
-                                    user_idx = idx
-                                    break
-
-                # Check if correct_answer is an index or the actual text
-                if isinstance(correct_answer, str) and str(correct_answer).isdigit():
-                    correct_idx = int(correct_answer)
-                elif isinstance(correct_answer, int):
-                    correct_idx = correct_answer
-                else:
-                    # correct_answer is the actual text, find its index in options
-                    if 'options' in question:
-                        options_stripped = [opt.strip() if isinstance(opt, str) else opt for opt in question['options']]
-                        correct_answer_stripped = (
-                            correct_answer.strip() if isinstance(correct_answer, str) else correct_answer
-                        )
-
-                        if correct_answer_stripped in options_stripped:
-                            correct_idx = options_stripped.index(correct_answer_stripped)
-                        else:
-                            correct_answer_lower = (
-                                correct_answer_stripped.lower()
-                                if isinstance(correct_answer_stripped, str)
-                                else str(correct_answer_stripped).lower()
-                            )
-                            for idx, option in enumerate(options_stripped):
-                                option_lower = option.lower() if isinstance(option, str) else str(option).lower()
-                                if option_lower == correct_answer_lower:
-                                    correct_idx = idx
-                                    break
-                            else:
-                                correct_idx = -1
-                    else:
-                        correct_idx = -1
-
-                is_correct = user_idx == correct_idx
-
-            except (ValueError, TypeError):
-                is_correct = False
 
         elif question_type == 'true_false':
-            try:
-                if isinstance(user_answer, str):
-                    user_bool = user_answer.lower() == 'true'
-                else:
-                    user_bool = bool(user_answer)
-
-                # Normalize string/numeric correct_answer ("true") to bool (E-032).
-                is_correct = user_bool == _coerce_bool(correct_answer)
-
-            except (ValueError, TypeError):
-                is_correct = False
+            user_bool = _strict_bool(user_answer)
+            correct_bool = _strict_bool(correct_answer)
+            is_correct = (user_bool is not None and correct_bool is not None
+                          and user_bool == correct_bool)
 
         elif question_type in ['fill_in_blank', 'fill-in-blank', 'fill_blank', 'translation', 'transformation']:
             # Strict grading: exact match after normalization, with single-word
@@ -1301,13 +1295,17 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
                     normalized = re.sub(r'\s+([.,!?;:])', r'\1', normalized)
                     normalized = re.sub(r'(\()\s+', r'\1', normalized)
                     normalized = re.sub(r'\s+(\))', r'\1', normalized)
-                    return normalized
+                    # Authored ordering tokens sometimes omit terminal marks
+                    # or include them as mandatory separate tokens. Ignore only
+                    # final sentence punctuation; internal punctuation, words,
+                    # apostrophes and their order remain significant.
+                    return normalized.rstrip('.!?').rstrip()
 
                 user_normalized = normalize_sentence(user_answer)
                 correct_normalized = normalize_sentence(str(correct_answer))
-                is_correct = user_normalized == correct_normalized
+                is_correct = bool(user_normalized) and user_normalized == correct_normalized
                 if not is_correct:
-                    is_correct = user_normalized.lower() == correct_normalized.lower()
+                    is_correct = bool(user_normalized) and user_normalized.lower() == correct_normalized.lower()
 
         elif question_type == 'matching':
             # Server-side validation: client must submit explicit pairs.
@@ -1351,22 +1349,15 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
 
         display_user = user_answer
         display_correct = correct_answer
-        if question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice') and 'options' in question:
-            opts = question['options']
-            if isinstance(correct_answer, int) and 0 <= correct_answer < len(opts):
-                display_correct = opts[correct_answer]
-            elif isinstance(correct_answer, str) and correct_answer.isdigit():
-                idx = int(correct_answer)
-                if 0 <= idx < len(opts):
-                    display_correct = opts[idx]
-                elif 1 <= idx <= len(opts):
-                    display_correct = opts[idx - 1]
-            if isinstance(user_answer, str) and user_answer.isdigit():
-                uidx = int(user_answer)
-                if 0 <= uidx < len(opts):
-                    display_user = opts[uidx]
-                elif 1 <= uidx <= len(opts):
-                    display_user = opts[uidx - 1]
+        if question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice', 'reading_comprehension'):
+            opts = question.get('options', [])
+            # Feedback must use the same resolved labels as grading, including
+            # numeric literal keys. Reinterpreting '1' as an index here would
+            # show a different answer from the one just marked correct.
+            if correct_idx >= 0:
+                display_correct = opts[correct_idx]
+            if user_idx >= 0:
+                display_user = opts[user_idx]
 
         # Формируем обратную связь
         if is_correct:
@@ -1380,16 +1371,19 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
         else:
             # Определяем текст правильного ответа для отображения
             if (
-                question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice')
+                question_type in ('multiple_choice', 'dialogue_completion', 'listening_choice', 'reading_comprehension')
                 and 'options' in question
             ):
                 correct_text = str(display_correct)
                 user_text = str(display_user)
 
             elif question_type == 'true_false':
-                correct_text = 'Правда' if correct_answer else 'Ложь'
-                user_bool = str(user_answer).lower() == 'true' if isinstance(user_answer, str) else bool(user_answer)
-                user_text = 'Правда' if user_bool else 'Ложь'
+                correct_bool = _strict_bool(correct_answer)
+                user_bool = _strict_bool(user_answer)
+                correct_text = ('Не указан' if correct_bool is None else
+                                ('Правда' if correct_bool else 'Ложь'))
+                user_text = (str(user_answer) if user_bool is None else
+                             ('Правда' if user_bool else 'Ложь'))
 
             elif question_type in ['fill_in_blank', 'fill-in-blank', 'translation']:
                 user_text = str(user_answer)
@@ -1555,9 +1549,10 @@ def process_final_test_submission(
                 is_correct = correct_idx != -1 and user_idx == correct_idx
 
         elif qtype == 'true_false':
-            if user_answer in ['true', 'false']:
-                user_bool = user_answer == 'true'
-                is_correct = user_bool == _coerce_bool(correct_answer)
+            user_bool = _strict_bool(user_answer)
+            correct_bool = _strict_bool(correct_answer)
+            is_correct = (user_bool is not None and correct_bool is not None
+                          and user_bool == correct_bool)
 
         elif qtype in ['fill_in_blank', 'translation']:
             if user_answer and correct_answer is not None:

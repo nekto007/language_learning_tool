@@ -99,7 +99,7 @@ def project_questions(lesson):
         return []
     if not isinstance(raw, list) or not 1 <= len(raw) <= MAX_QUESTIONS:
         raise NativeLessonError('unsupported_lesson', 422)
-    supported = ({'', 'multiple_choice', 'true_false', 'fill_blank', 'fill-blank', 'fill_in_blank', 'error_correction', 'reorder', 'translation'} if lesson.type == 'grammar' else {'multiple_choice', 'true_false', 'fill_blank', 'fill_in_blank', 'fill-in-blank', 'translation', 'transformation', 'reorder', 'ordering'})
+    supported = ({'', 'multiple_choice', 'true_false', 'fill_blank', 'fill-blank', 'fill_in_blank', 'fill-in-blank', 'error_correction', 'reorder', 'translation', 'transformation'} if lesson.type == 'grammar' else {'multiple_choice', 'true_false', 'fill_blank', 'fill_in_blank', 'fill-in-blank', 'translation', 'transformation', 'reorder', 'ordering'})
     from app.curriculum.language_support import language_support_mode, question_translation
     support = language_support_mode(lesson)
     result = []
@@ -133,53 +133,9 @@ def project_questions(lesson):
 
 
 def _theory(content):
-    wrapper = content.get('grammar_explanation')
-    source = wrapper if isinstance(wrapper, dict) else content
-    blocks = []
-    intro = plain(source.get('introduction') or source.get('description') or source.get('content') or source.get('text'))
-    if intro:
-        blocks.append({'title': plain(source.get('title') or source.get('rule')) or 'Перед практикой', 'body': intro})
-    for section in source.get('sections', []) if isinstance(source.get('sections'), list) else []:
-        if not isinstance(section, dict):
-            continue
-        body = [plain(section.get(k)) for k in ('rule', 'content', 'body', 'text', 'description')]
-        for example in section.get('examples', []) if isinstance(section.get('examples'), list) else []:
-            if isinstance(example, dict):
-                body.extend(plain(example.get(k)) for k in ('sentence', 'translation', 'english', 'russian', 'explanation'))
-            else:
-                body.append(plain(example))
-        for rule in section.get('rules', []) if isinstance(section.get('rules'),list) else []:
-            if isinstance(rule,dict):
-                body.extend(plain(rule.get(k)) for k in ('rule','description','text','explanation'))
-                examples=rule.get('examples') or []
-                if isinstance(examples,list):body.extend(plain(v) if not isinstance(v,dict) else ' · '.join(filter(None,(plain(x) for x in v.values()))) for v in examples)
-            else:body.append(plain(rule))
-        table = section.get('table')
-        if isinstance(table, dict):
-            table = table.get('rows', [])
-        for row in table if isinstance(table, list) else []:
-            values = [v for k, v in row.items() if k not in ('audio', 'audio_url', 'sound')] if isinstance(row, dict) else (row if isinstance(row, list) else [row])
-            body.append(' · '.join(filter(None, (plain(v) for v in values))))
-        text = '\n'.join(filter(None, body))
-        if text:
-            blocks.append({'title': plain(section.get('title') or section.get('subtitle')) or 'Правило', 'body': text})
-    for example in content.get('examples', []) if isinstance(content.get('examples'), list) else []:
-        text = '\n'.join(filter(None, [plain(example.get('sentence')), plain(example.get('translation'))])) if isinstance(example, dict) else plain(example)
-        if text:
-            blocks.append({'title': 'Пример', 'body': text})
-    notes = source.get('important_notes')
-    if isinstance(notes, list):
-        text = '\n'.join(filter(None, (plain(n) for n in notes)))
-        if text:
-            blocks.append({'title': 'Обрати внимание', 'body': text})
-    for key,title in [('summary','Коротко'),('common_mistakes','Частые ошибки'),('tips','Советы')]:
-        value=source.get(key)
-        if isinstance(value,list):
-            value='\n'.join(plain(v) if not isinstance(v,dict) else ' · '.join(filter(None,(plain(x) for x in v.values()))) for v in value)
-        if plain(value):blocks.append({'title':title,'body':plain(value)})
-    if len(blocks) > 100:
-        raise NativeLessonError('unsupported_lesson', 422)
-    return blocks
+    from app.api.native_theory import project_theory
+
+    return project_theory(content, plain)
 
 
 def _lesson_and_progress(lesson_id):
@@ -235,6 +191,7 @@ def native_error(error):
 @api_bearer_required
 @limiter.limit('60 per minute', key_func=get_authenticated_user_key)
 def get_native_lesson(lesson_id):
+    from app.api.native_content import NATIVE_PROJECTION_VERSION
     from app.curriculum.constants import get_lesson_passing_score
     from app.curriculum.language_support import language_support_mode
     lesson, progress = _lesson_and_progress(lesson_id)
@@ -242,7 +199,8 @@ def get_native_lesson(lesson_id):
     questions = project_questions(lesson)
     content = _content(lesson)
     token = _signer().dumps({'user': current_user.id, 'lesson': lesson_id, 'revision': _digest(content),
-                             'version': _version(progress), 'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()})
+                             'version': _version(progress), 'projection_version': NATIVE_PROJECTION_VERSION,
+                             'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()})
     from app.api.native_content import is_extended, extras
     payload = {'id': lesson.id, 'title': plain(lesson.title), 'type': lesson.type,
                'passing_score': get_lesson_passing_score(lesson), 'theory': _theory(content),
@@ -275,6 +233,7 @@ def _award_theory_xp(lesson):
 @api_bearer_required
 @limiter.limit('30 per minute', key_func=get_authenticated_user_key)
 def submit_native_lesson(lesson_id):
+    from app.api.native_content import NATIVE_PROJECTION_VERSION
     from app.auth.models import User
     from app.curriculum.constants import get_lesson_passing_score
     from app.curriculum.grading import process_grammar_submission, process_quiz_submission
@@ -305,6 +264,8 @@ def submit_native_lesson(lesson_id):
         saved = (progress.data or {}).get('_native_submission') if progress and isinstance(progress.data, dict) else None
         if isinstance(saved, dict) and saved.get('nonce') == sealed.get('nonce'):
             return jsonify(saved['response'])
+        if sealed.get('projection_version') != NATIVE_PROJECTION_VERSION:
+            raise NativeLessonError('lesson_changed', 409)
         if sealed.get('revision') != _digest(_content(lesson)) or sealed.get('version') != _version(progress):
             raise NativeLessonError('lesson_changed', 409)
         if plan_error is not None:

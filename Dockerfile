@@ -24,6 +24,8 @@ COPY convert_fb2_to_txt.py .
 COPY app app/
 COPY config config/
 COPY migrations migrations/
+# Reviewed grammar packs are loaded explicitly by dry-run-first CLI commands.
+COPY MOBILE_GRAMMAR_RECAPS_20261120.json MOBILE_GRAMMAR_RECAP_EXAMPLES_20261120.json MOBILE_GRAMMAR_SUPPLEMENTS_20261120.json MOBILE_GRAMMAR_EXERCISE_PROMPTS_20261120.json MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json MOBILE_GRAMMAR_FUTURE_PERFECT_20261120.json ./
 # Добавляем другие нужные файлы/папки, если необходимо
 
 # Создаем директорию для аудио файлов, но НЕ копируем сами файлы

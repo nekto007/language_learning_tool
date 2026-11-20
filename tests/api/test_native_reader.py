@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
-from test_native_full_integration import native_app, learner
+from tests.api.test_native_full_integration import native_app, learner
 
 
 def word(**values):

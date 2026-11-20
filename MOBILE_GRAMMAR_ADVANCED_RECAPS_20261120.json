@@ -1,0 +1,595 @@
+{
+  "schema_version": 1,
+  "patch_kind": "advanced_recaps",
+  "created": "2026-11-20",
+  "description": "Eleven independently reviewed B1–C1 recaps replacing25 heading-only bullets, plus21 exact theory-string corrections across15 targets (four explicitly notes-only). No exercise answers, IDs, audio or progression changes.",
+  "entries": [
+    {
+      "file": "module_B1_8_money_and_finances.json",
+      "level": "B1",
+      "module_order": 8,
+      "module_title": "Деньги и финансы (начало)",
+      "lesson_external_key": "curriculum:grammar:B1:07:grammar_few_little_less_fewer",
+      "before_file_sha256": "6c14a2d9fd55bc744b0580fe690b539c6b490a3cc83cae23db1819092a942ad4",
+      "after_file_sha256": "1b84ec95a805947b4956fff377a88f7803e7752f0c5259379ffd0d67c60c335c",
+      "unchanged_sha256": "3da3ec66d4d969f054b0a0e7457724d992a26c9420ee5daa920fd20ecb48c84b",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Few vs Little (мало).</strong>: <em>I have few coins.</em>",
+            "<strong>A few vs A little (немного).</strong>: <em>I have few coins. (недостаточно).</em>",
+            "<strong>Fewer vs Less (меньше).</strong>: <em>I have fewer coins than you.</em>",
+            "<strong>Примеры с финансовой лексикой.</strong>"
+          ],
+          "after": [
+            "<strong>Few / little</strong>: few — с исчисляемыми во множественном числе, little — с неисчисляемыми: <em>few coins; little money.</em>",
+            "<strong>С a и без a</strong>: a few / a little — немного есть; few / little подчёркивают, что мало: <em>I have a little money.</em>",
+            "<strong>Сравнение</strong>: обычно fewer — с исчисляемыми во множественном, less — с неисчисляемыми: <em>fewer coins; less money.</em>",
+            "<strong>Сначала выбери тип существительного</strong>: money и cash неисчисляемые, coins и bills — исчисляемые: <em>little cash; few bills.</em>"
+          ]
+        },
+        {
+          "path": [
+            "summary",
+            "table",
+            1,
+            "example"
+          ],
+          "before": "I have few coins. (недостаточно).",
+          "after": "I have a few coins."
+        },
+        {
+          "path": [
+            "summary",
+            "table",
+            1,
+            "translation"
+          ],
+          "before": "У меня мало монет. (мало, недостаточно).",
+          "after": "У меня есть несколько монет."
+        }
+      ]
+    },
+    {
+      "file": "module_B1_9_work_and_career.json",
+      "level": "B1",
+      "module_order": 9,
+      "module_title": "Работа и карьера (начало)",
+      "lesson_external_key": "curriculum:grammar:B1:08:grammar_question_tags",
+      "before_file_sha256": "7b4f1e9b48c0c956daa11440485e5fac3504f1bddd19d10a5d07d8a941d5ee35",
+      "after_file_sha256": "18397e6a980a19dd0f23c0f3055f09f1a330408e40c0dbe057cad9d09a95e200",
+      "unchanged_sha256": "498334e0b64f17a4d8dbdcc156806c1b7352c36327e90febb63b567154c33a5f",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Основное правило.</strong>: <em>You work here, don't you?</em>",
+            "<strong>Question Tags с разными временами.</strong>",
+            "<strong>Question Tags с модальными глаголами.</strong>: <em>You can help, can't you?</em>",
+            "<strong>Особые случаи</strong>: <em>I am right, aren't I?</em>"
+          ],
+          "after": [
+            "<strong>Подтверждение информации</strong>: обычно после утверждения tag отрицательный, после отрицания — положительный: <em>She doesn't work, does she?</em>",
+            "<strong>Время и подлежащее</strong>: подбираем вспомогательный глагол и местоимение; без вспомогательного берём do/does/did: <em>They worked yesterday, didn't they?</em>",
+            "<strong>Be и модальные глаголы</strong>: повторяем нужную форму в tag: <em>They are employees, aren't they? You can help, can't you?</em>",
+            "<strong>Особые формы</strong>: <em>I am right, aren't I? Let's go, shall we? There is a meeting, isn't there?</em>",
+            "<strong>Отрицательные слова</strong>: nobody, nothing, never делают основную часть отрицательной; tag положительный: <em>Nobody called the office, did they?</em>"
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "⚠️ Question tag всегда противоположен основному предложению: утверждение + отрицательный tag, отрицание + утвердительный tag",
+          "after": "При запросе подтверждения обычно используем противоположный знак: утверждение + отрицательный tag, отрицание + положительный tag. Это основная модель этой темы, а не запрет других разговорных типов question tags."
+        }
+      ]
+    },
+    {
+      "file": "module_B1_10_city_and_country.json",
+      "level": "B1",
+      "module_order": 10,
+      "module_title": "Город и деревня (расширение), типы жилья",
+      "lesson_external_key": "curriculum:grammar:B1:09:city_and_country",
+      "before_file_sha256": "970e18a9aaedab0b5a20e7caff752b5b5c917fc22533657a57adc9b61d3f4496",
+      "after_file_sha256": "275bfe0d6d33ab53b4b0f7f5e4258e3ad39bf9f9505921d5f30f1020c183b1d1",
+      "unchanged_sha256": "9e7f215e8d298cb3da802b5752503bed0b9bc95ec029e66b63b61991a356c03e",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>1. Относительные местоимения</strong>: <em>The woman who lives next door is a teacher.</em>",
+            "<strong>2. Структура предложений</strong>: <em>A landlord is a person who owns property.</em>",
+            "<strong>3. Примеры использования</strong>: <em>People who live in cities often use public transport.</em>",
+            "<strong>4. Опущение относительных местоимений</strong>"
+          ],
+          "after": [
+            "<strong>Какая именно вещь или человек?</strong> Defining clause уточняет существительное и не отделяется запятыми: <em>The flat that I want is expensive.</em>",
+            "<strong>Who / which / that</strong>: who — о людях, which — о вещах, that — о людях или вещах: <em>The apartment that we rent is small.</em>",
+            "<strong>Дополнение можно опустить</strong>: если у придаточного уже есть своё подлежащее, who/which/that можно убрать: <em>The apartment we rent is comfortable.</em>",
+            "<strong>Подлежащее не убираем</strong>: если who/which/that выполняет действие, местоимение остаётся: <em>The woman who lives next door is a teacher.</em>",
+            "<strong>Другие связи</strong>: whose — чей, where — где, when — когда, why — после reason: <em>The tenant whose flat is upstairs is a doctor.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_B1_11_food_and_restaurants.json",
+      "level": "B1",
+      "module_order": 11,
+      "module_title": "Еда и рестораны (расширение)",
+      "lesson_external_key": "curriculum:grammar:B1:10:food_and_restaurants",
+      "before_file_sha256": "8bbb0e9caac6a180eb45b08089a2315cc6cfd67ac19d9e73b0471c22c4dfac61",
+      "after_file_sha256": "acb8866ae0a2c60320b585bd7d1303957473391ee061141f0bb591221bb1f4c8",
+      "unchanged_sha256": "009785fddec5bba2e709aa30acd0ab766e3bc06224d504bec016075798171418",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Прилагательные с окончанием -ed</strong>: <em>I was bored during the lecture.</em>",
+            "<strong>Прилагательные с окончанием -ing</strong>: <em>The lecture was boring.</em>",
+            "<strong>Сравнение -ed и -ing прилагательных</strong>",
+            "<strong>Типичные ошибки</strong>"
+          ],
+          "after": [
+            "<strong>-ed: испытываемое чувство</strong>: в парах bored/boring, interested/interesting форма -ed описывает состояние: <em>I was bored during the lecture.</em>",
+            "<strong>-ing: причина чувства</strong>: так описывают то или того, кто вызывает эмоцию: <em>The lecture was boring.</em>",
+            "<strong>Сравни роли</strong>: человек разочарован, обслуживание разочаровывает: <em>We were disappointed with the service. The service was disappointing.</em>",
+            "<strong>Выбирай по смыслу</strong>: I am bored — мне скучно; I am boring — я вызываю скуку. После be/look/feel окончание тоже зависит от смысла."
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "⚠️ Прилагательные с -ed всегда описывают чувства ЛЮДЕЙ",
+          "after": "В парах прилагательных эмоций bored/boring, interested/interesting форма -ed описывает испытываемое чувство. Чувства могут испытывать и люди, и животные; правило не распространяется на все слова с окончанием -ed."
+        },
+        {
+          "path": [
+            "important_notes",
+            1
+          ],
+          "before": "⚠️ Прилагательные с -ing всегда описывают характеристики ВЕЩЕЙ, СИТУАЦИЙ или ЛЮДЕЙ как объектов",
+          "after": "В таких парах форма -ing описывает то или того, кто вызывает чувство: предмет, ситуацию или человека. Человек может быть и bored (ему скучно), и boring (он вызывает скуку)."
+        },
+        {
+          "path": [
+            "important_notes",
+            4
+          ],
+          "before": "⚠️ После глаголов чувств (feel, seem, look) используйте -ed для людей: 'I feel excited', 'She looks tired'",
+          "after": "После be, feel, seem, look выбираем прилагательное по смыслу, а не только по тому, что речь о человеке: I feel excited — я взволнован; He seems interesting — он кажется интересным."
+        }
+      ]
+    },
+    {
+      "file": "module_B1_12_internet_and_social_media.json",
+      "level": "B1",
+      "module_order": 12,
+      "module_title": "Интернет и соцсети",
+      "lesson_external_key": "curriculum:grammar:B1:11:internet_and_social_media",
+      "before_file_sha256": "bda988e16b648e9585fa8ac04de189b836fc8fb7bb36dd3412b28838f35e6047",
+      "after_file_sha256": "7915a42c818952fdd8e57d89007ac0f75c2f979737b702e5ba51bc9c7001b604",
+      "unchanged_sha256": "b2845633884590469d6edf6b3336504346bf482b84f2f8066e049cd894eb537a",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Форма образования</strong>: <em>The message is sent.</em>",
+            "<strong>Когда использовать Passive Voice</strong>",
+            "<strong>Active vs Passive - Сравнение</strong>",
+            "<strong>Популярные глаголы в Passive Voice</strong>: <em>Messages are sent.</em>",
+            "<strong>Отрицательная форма</strong>",
+            "<strong>Вопросительная форма</strong>"
+          ],
+          "after": [
+            "<strong>Present Simple Passive</strong>: am/is/are + V3; I am, he/she/it is, you/we/they are: <em>Messages are sent.</em>",
+            "<strong>Фокус на получателе действия</strong>: объект активного предложения становится подлежащим пассивного: <em>I post photos. Photos are posted.</em>",
+            "<strong>Отрицание</strong>: ставим not после am/is/are: <em>Messages aren't sent.</em>",
+            "<strong>Общий вопрос</strong>: am/is/are перед подлежащим, затем V3: <em>Are comments deleted?</em>",
+            "<strong>Третья форма</strong>: у правильных глаголов часто -ed, у неправильных учим V3: <em>post → posted; send → sent; write → written.</em>"
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            1
+          ],
+          "before": "⚠️ Используйте is с единственным числом (it, he, she), are с множественным (they, we, you)",
+          "after": "В Present Simple Passive: I am + V3; he/she/it и существительное в единственном числе — is + V3; you/we/they и множественное число — are + V3."
+        },
+        {
+          "path": [
+            "sections",
+            0,
+            "description"
+          ],
+          "before": "В Present Simple Passive используется структура: is/are + V3 (Past Participle). Выбор is или are зависит от числа подлежащего.",
+          "after": "В Present Simple Passive используется am/is/are + V3 (Past Participle). С I ставим am, с he/she/it — is, с you/we/they — are; для существительных выбираем is или are по числу."
+        },
+        {
+          "path": [
+            "sections",
+            0,
+            "table",
+            0,
+            "subject"
+          ],
+          "before": "I/He/She/It",
+          "after": "He/She/It"
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "description"
+          ],
+          "before": "Отрицание в Passive Voice образуется добавлением not после is/are:",
+          "after": "Отрицание образуется добавлением not после am/is/are: I am not invited; The file is not uploaded; Photos are not posted."
+        },
+        {
+          "path": [
+            "sections",
+            5,
+            "description"
+          ],
+          "before": "Вопросы в Passive Voice образуются вынесением is/are в начало предложения:",
+          "after": "В общем вопросе am/is/are ставится перед подлежащим, затем идёт V3: Am I invited? Is the video uploaded? Are comments deleted?"
+        }
+      ]
+    },
+    {
+      "file": "module_B2_6_psychology_and_relationships.json",
+      "level": "B2",
+      "module_order": 6,
+      "module_title": "Психология и отношения (углубление)",
+      "lesson_external_key": "curriculum:grammar:B2:05:psychology_and_relationships",
+      "before_file_sha256": "77a1312032c7689878e425e50e6e11a65b48fc0ac2db33f46ab60a7e43f67718",
+      "after_file_sha256": "704a6ae0a35835e8a2a53cc197ef63cff91e3ac218bc80ba98e79edfa9de45d0",
+      "unchanged_sha256": "160eadefbcdb5ad240a987ab1b368589e4042332d847e63aef48212d1b1bf9d7",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Базовая структура embedded questions.</strong>",
+            "<strong>Вводные фразы для embedded questions.</strong>: <em>Do you know why attachment is important?</em>",
+            "<strong>Yes/No questions в embedded form.</strong>",
+            "<strong>Embedded questions как подлежащее или дополнение.</strong>: <em>What matters most is how we cope with stress.</em>",
+            "<strong>Типичные ошибки с embedded questions.</strong>"
+          ],
+          "after": [
+            "<strong>Встроенный вопрос</strong>: внутри вопросительной части подлежащее стоит перед сказуемым: <em>Can you tell me where the problem is?</em>",
+            "<strong>Без вопросительного do/does/did</strong>: убираем вспомогательный вопроса, сохраняя нужную форму смыслового глагола: <em>Can you explain what resilience means?</em>",
+            "<strong>Общий вопрос</strong>: вводим его через if или whether: <em>I wonder if empathy can be learned.</em>",
+            "<strong>Знак в конце</strong>: вопросительный знак зависит от всего предложения; после I wonder обычно точка: <em>I wonder why people develop trauma.</em>",
+            "<strong>Пересказ в прошлом</strong>: сдвиг времени часто нужен, но актуальную информацию можно передать без него: <em>He asked why she felt resentful.</em>"
+          ]
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "description"
+          ],
+          "before": "После asked, wanted to know, wondered время сдвигается назад — как в косвенной речи, — но порядок слов остаётся прямым, а do / does / did по-прежнему не ставятся.",
+          "after": "После asked, wanted to know, wondered время часто сдвигается назад. Если информация остаётся верной или актуальной, исходное время можно сохранить. В косвенной части порядок слов прямой; вопросительные do/does/did убираем, но смысловой глагол do может оставаться."
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "table",
+            2,
+            "embedded"
+          ],
+          "before": "She wanted to know whether he was ready.",
+          "after": "She wanted to know whether she was ready."
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "table",
+            2,
+            "translation"
+          ],
+          "before": "Она хотела знать, готов ли он.",
+          "after": "Она хотела знать, готова ли она."
+        }
+      ]
+    },
+    {
+      "file": "module_C1_3_fashion_and_lifestyle.json",
+      "level": "C1",
+      "module_order": 3,
+      "module_title": "Мода и образ жизни",
+      "lesson_external_key": "curriculum:grammar:C1:04:fashion_and_lifestyle",
+      "before_file_sha256": "841e94475c62e3018c61c88b3e5b65af62306c2f17964c9631e19a843c00222e",
+      "after_file_sha256": "74b6ada1d5ea404ccada9e372bf80b41488babff324c651bba77f5d9037e0b8d",
+      "unchanged_sha256": "6a7adb6e03b55bb62c01f9723fc5c0684cd4848e00eab61f46897b224bc24d27",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Образование Present Perfect Passive.</strong>: <em>The new collection has been launched.</em>",
+            "<strong>Основные случаи использования.</strong>: <em>The outfit has been designed by a famous stylist.</em>",
+            "<strong>Временные маркеры с Perfect Passive.</strong>: <em>The collection has already been presented at Fashion Week.</em>",
+            "<strong>Perfect Passive в контексте моды.</strong>: <em>The new designer collection has been released today.</em>",
+            "<strong>Разница между Active и Passive Perfect.</strong>"
+          ],
+          "after": [
+            "<strong>Present Perfect Passive</strong>: has/have been + V3; has — для he/she/it, have — для I/you/we/they: <em>The new collection has been launched.</em>",
+            "<strong>Результат связан с настоящим</strong>: исполнитель может быть неизвестен или неважен: <em>This brand has been recognized internationally.</em>",
+            "<strong>Отрицание и общий вопрос</strong>: not после has/have; в вопросе has/have перед подлежащим: <em>The dress hasn't been sold yet. Has the fashion show been organized?</em>",
+            "<strong>Маркеры</strong>: часто встречаются just, already, recently, yet, never: <em>The new line has just been announced.</em>",
+            "<strong>Active → Passive</strong>: фокус переносится с исполнителя на результат: <em>They have organized the fashion show. The fashion show has been organized.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_C1_10_social_problems.json",
+      "level": "C1",
+      "module_order": 10,
+      "module_title": "Социальные проблемы",
+      "lesson_external_key": "curriculum:grammar:C1:10:social_problems",
+      "before_file_sha256": "154a9fdd92139f8e5d447cc370cecc012ad4a3103a8fc65489374a0ee266ddac",
+      "after_file_sha256": "6d0a870425b1d3b7d811feefc5da82f4139a0da8895666a6f7c7f6b9b00042da",
+      "unchanged_sha256": "1898b7240c788fa153f0bb3cff18c0f095ad2038cf1f1c4a59395d3ce3884151",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Never, Rarely, Seldom.</strong>",
+            "<strong>Hardly, Barely, Scarcely.</strong>",
+            "<strong>Not only... but also.</strong>",
+            "<strong>Only when/Only after/Only by.</strong>",
+            "<strong>No sooner... than.</strong>"
+          ],
+          "after": [
+            "<strong>Never / rarely / seldom в начале</strong>: для усиления ставим вспомогательный глагол перед подлежащим; без него добавляем do/does/did: <em>Rarely do people understand the depth of poverty.</em>",
+            "<strong>Hardly / barely / scarcely … when</strong>: подчёркивают быструю последовательность; в первой части инверсия: <em>Hardly had we begun when another crisis emerged.</em>",
+            "<strong>Not only … but also</strong>: если not only вводит первую часть, инверсия в ней: <em>Not only does poverty create economic problems, but it also creates social ones.</em>",
+            "<strong>Only when / after / by</strong>: инверсия в главной части, после when обычный порядок: <em>Only after the crisis did society realize the problem.</em>",
+            "<strong>No sooner … than</strong>: инверсия в первой части, связь через than: <em>No sooner was the law passed than it was challenged.</em>"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "module_C1_11_sport_and_achievements.json",
+      "level": "C1",
+      "module_order": 11,
+      "module_title": "Спорт и достижения (профессиональный спорт)",
+      "lesson_external_key": "curriculum:grammar:C1:11:sport_and_achievements",
+      "before_file_sha256": "9b80a78ba0cbf240cc45a622294fddc2a7ef1e0669f4f8bae1d77fcc41d947c6",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Третий тип условных (Past Perfect).</strong>",
+            "<strong>Второй тип условных (Were).</strong>",
+            "<strong>С модальными глаголами 'should'.</strong>",
+            "<strong>Отрицательные формы.</strong>"
+          ],
+          "after": [
+            "<strong>Формальный вариант без if</strong>: условная часть начинается с had, were или should перед подлежащим. If повторно не добавляем.",
+            "<strong>Нереальное прошлое</strong>: had + подлежащее + V3; результат — would have + V3: <em>Had she trained harder, she would have won.</em>",
+            "<strong>Гипотетика с were</strong>: were + подлежащее + to + глагол; с be сохраняем именную часть: <em>Were she the champion, she would be famous.</em>",
+            "<strong>Возможное будущее с should</strong>: should + подлежащее + базовая форма; в результате возможна и просьба: <em>Should you need any help, let me know.</em>",
+            "<strong>Отрицание</strong>: not ставим после подлежащего, а не перед ним: <em>Had I not trained properly, I would have failed.</em>"
+          ]
+        },
+        {
+          "path": [
+            "important_notes",
+            2
+          ],
+          "before": "⚠️ Инверсия невозможна в первом типе условных предложений (с Present Simple)",
+          "after": "Обычный Present Simple нельзя просто переставить перед подлежащим. Для формального условия о возможном будущем используем should + подлежащее + базовую форму: Should you need help, let me know."
+        },
+        {
+          "path": [
+            "sections",
+            1,
+            "description"
+          ],
+          "before": "Для выражения нереальных условий в настоящем: Were + subject + to infinitive / adjective..., subject + would + infinitive.",
+          "after": "Для нереальных или гипотетических условий в настоящем/будущем: Were + подлежащее + to + базовая форма глагола. Если условие построено с be, сохраняем именную часть: Were she the champion, she would be famous."
+        }
+      ],
+      "after_file_sha256": "d3162798fa597a55df03536e86ed89e3bee6952de9c1fe996a95d94d89b58c74",
+      "unchanged_sha256": "4b708fa3639528225520f25abe519ce46125fd05ef0db77cce66f72751e36c32"
+    },
+    {
+      "file": "module_C1_12_education_and_career.json",
+      "level": "C1",
+      "module_order": 12,
+      "module_title": "Образование и карьера (академическая среда)",
+      "lesson_external_key": "curriculum:grammar:C1:12:education_and_career",
+      "before_file_sha256": "12c83f70cf3cd8fc4b4f5e30fc8d87ad4e0563253d3c57a88d53cf2557fec180",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>Основные суффиксы для образования существительных от глаголов.</strong>: <em>They focus on the development of skills.</em>",
+            "<strong>Суффикс -ance/-ence для номинализации.</strong>: <em>Student performance improved this year.</em>",
+            "<strong>Преобразование прилагательных в существительные.</strong>: <em>The effectiveness of the method is proven.</em>",
+            "<strong>Использование номинализации в академическом стиле.</strong>"
+          ],
+          "after": [
+            "<strong>Номинализация</strong>: действие или признак выражаем существительным: <em>develop → development; effective → effectiveness.</em>",
+            "<strong>Глагол → существительное</strong>: часто встречаются -ment, -tion, -ance/-ence; форму и написание учим для слова: <em>perform → performance; refer → reference.</em>",
+            "<strong>Прилагательное → существительное</strong>: частые суффиксы — -ness и -ity: <em>effective → effectiveness; responsible → responsibility.</em>",
+            "<strong>Меняется структура фразы</strong>: зависимые слова могут вводиться через of или другой нужный предлог: <em>analyze the data → the analysis of the data.</em>",
+            "<strong>Формальность без перегруза</strong>: номинализация удобна в академическом тексте, но избыток существительных мешает ясности: <em>They focus on the development of skills.</em>"
+          ]
+        },
+        {
+          "path": [
+            "sections",
+            1,
+            "description"
+          ],
+          "before": "Глаголы, оканчивающиеся на -ant/-ent, часто образуют существительные с -ance/-ence:",
+          "after": "Некоторые существительные образуются от глаголов с суффиксами -ance/-ence: perform → performance, refer → reference, occur → occurrence. Выбор суффикса и изменения написания нужно проверять для конкретного слова; исходный глагол не обязан оканчиваться на -ant/-ent."
+        }
+      ],
+      "after_file_sha256": "c2d694f077e9dba129419498d0d55625e867be3d06ba47e697b6111877b08e12",
+      "unchanged_sha256": "86e6ec5455f9f8f4a3e076e124012890d495fa8d487e99e56b84e23a30b12e79"
+    },
+    {
+      "file": "module_C1_13_law_and_order.json",
+      "level": "C1",
+      "module_order": 13,
+      "module_title": "Право и порядок",
+      "lesson_external_key": "curriculum:grammar:C1:13:law_and_order",
+      "before_file_sha256": "2c77b55ccbd09165e06960079ad6e2c3b9699c9edce9bee5b59f43b83ecd65b0",
+      "changes": [
+        {
+          "path": [
+            "tldr"
+          ],
+          "before": [
+            "<strong>1. Базовая структура</strong>: <em>I suggest that he be present at the hearing.</em>",
+            "<strong>2. Глаголы, требующие subjunctive</strong>: <em>I suggest that the jury consider all evidence.</em>",
+            "<strong>3. Прилагательные с subjunctive</strong>: <em>It is essential that the defendant be present.</em>",
+            "<strong>4. Отрицательная форма</strong>",
+            "<strong>5. Пассивная форма с 'be'</strong>: <em>The judge orders that the defendant be released.</em>",
+            "<strong>6. British vs American English</strong>"
+          ],
+          "after": [
+            "<strong>Требование или рекомендация</strong>: that + подлежащее + базовая форма без to и -s; be остаётся be: <em>I suggest that he be present at the hearing.</em>",
+            "<strong>После оценки необходимости</strong>: it is essential/important/necessary that + подлежащее + базовая форма: <em>It is essential that the defendant be present.</em>",
+            "<strong>Отрицание</strong>: not перед базовой формой, без do/does/did: <em>I suggest that he not testify.</em>",
+            "<strong>Пассив</strong>: be + V3 независимо от лица: <em>It is essential that the law be enforced.</em>",
+            "<strong>Вариант с should</strong>: особенно характерен для британского английского; после should — базовая форма: <em>I suggest that he should be present.</em>"
+          ]
+        }
+      ],
+      "after_file_sha256": "5956dc4329c7d7f4193b157be5902b4233289d52e73b6d160374105e38c36666",
+      "unchanged_sha256": "aed42554b36d3862cc378cc160c7d04bf4b6691af794106c4ad254a126f2027a"
+    },
+    {
+      "file": "module_B1_14_travel_and_tourism.json",
+      "level": "B1",
+      "module_order": 14,
+      "module_title": "Путешествия и туризм / Путешествия за границу",
+      "lesson_external_key": "curriculum:grammar:B1:13:travel_and_tourism",
+      "theory_only": true,
+      "before_file_sha256": "844affb4bf8200a190baa7de95df0bd285242af67d4e544bcc9a0821fd32efcb",
+      "changes": [
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "⚠️ Ever используется ТОЛЬКО в вопросах, не в утверждениях",
+          "after": "Ever часто используется в вопросах об опыте: Have you ever been there? Но оно бывает и вне вопроса, например после превосходной степени: the best film I have ever seen."
+        }
+      ],
+      "unchanged_sha256": "72504d248814453f9281880b1e2e25011f8c1e104febd5b0e7ee39e6f98ad219",
+      "after_file_sha256": "6e5a5b1ef2430be3ec7961a74c7b72a235ba1d9cf776e0a2193a246c881339dc"
+    },
+    {
+      "file": "module_B2_10_crime_and_law.json",
+      "level": "B2",
+      "module_order": 10,
+      "module_title": "Преступность и право",
+      "lesson_external_key": "curriculum:grammar:B2:09:crime_and_law",
+      "theory_only": true,
+      "before_file_sha256": "c2f4c3d83b0b28ba7632b9d6c66b0f9993451121fa5479871c6c4602452d290f",
+      "changes": [
+        {
+          "path": [
+            "important_notes",
+            2
+          ],
+          "before": "⚠️ Всегда используется Past Participle (V3) после объекта",
+          "after": "В have/get + объект + V3 используем причастие: have the car repaired. В have + человек + V1 нужна базовая форма без to: have my lawyer review it. В get + человек + to V1 используется to: get my lawyer to review it."
+        }
+      ],
+      "unchanged_sha256": "110869e8f68686191bf76c21f6c801320f92d58122109ba5463d0671ec3b9310",
+      "after_file_sha256": "feb8dbe42a67b91244c38b51cb996578600b093f2ac013b7e7a2dad547128fca"
+    },
+    {
+      "file": "module_C1_2_ecology_and_nature.json",
+      "level": "C1",
+      "module_order": 2,
+      "module_title": "Экология и природа (углубление)",
+      "lesson_external_key": "curriculum:grammar:C1:02:ecology_and_nature",
+      "theory_only": true,
+      "before_file_sha256": "1d35c31037923468b2e32026c3f0da700163ffb5ae7fe83750d20f34fa28a44f",
+      "changes": [
+        {
+          "path": [
+            "sections",
+            2,
+            "table",
+            2,
+            "note"
+          ],
+          "before": "возможность: «они могли это сделать (и, видимо, сделали)»",
+          "after": "Форма could have допускает разные прочтения: предположение о прошлом или возможность что-то сделать. Сама форма не означает, что действие действительно произошло; это уточняется контекстом."
+        }
+      ],
+      "unchanged_sha256": "dba844d45edbe2f3fa0267f178b90d215e44454ca3630d92e40a6f3067c2d747",
+      "after_file_sha256": "34cc26052559626ffea023009ee72b38e40905d7ce8ed232045c8eb660518603"
+    },
+    {
+      "file": "module_C1_5_culture_and_society.json",
+      "level": "C1",
+      "module_order": 5,
+      "module_title": "Культура и общество",
+      "lesson_external_key": "curriculum:grammar:C1:06:culture_and_society",
+      "theory_only": true,
+      "before_file_sha256": "968da2fa7f5cd17fd856ae6b1f1fd954279b78c5c9d1994b3ccaa8057c23836d",
+      "changes": [
+        {
+          "path": [
+            "important_notes",
+            4
+          ],
+          "before": "В разговорной речи часто опускается второе предложение: The more, the merrier (Чем больше, тем веселее).",
+          "after": "В кратких вариантах обе сравнительные части могут быть без подлежащего и глагола: The more, the merrier. Это сокращение структуры, а не исчезновение второй сравнительной части."
+        }
+      ],
+      "unchanged_sha256": "496a8650ee43e9053665cc2abd66eb8e339d38ce970d86196a162b7c2937ec16",
+      "after_file_sha256": "f3b341df7d188202359adabb5379ea1ba8372039397f55c6a5ec8b0b8c7de069"
+    }
+  ],
+  "references": [
+    "https://learnenglish.britishcouncil.org/free-resources/grammar/english-grammar-reference/adjectives-ing-ed",
+    "https://learnenglishkids.britishcouncil.org/grammar-vocabulary/grammar-practice/present-simple-verb-be",
+    "https://learnenglish.britishcouncil.org/free-resources/grammar/b1-b2/passives",
+    "https://dictionary.cambridge.org/grammar/british-grammar/reported-speech-indirect-speech",
+    "https://dictionary.cambridge.org/grammar/british-grammar/inversion",
+    "https://learnenglish.britishcouncil.org/free-resources/grammar/c1/inversion-after-negative-adverbials",
+    "https://learnenglish.britishcouncil.org/free-resources/grammar/c1/inversion-conditionals",
+    "https://dictionary.cambridge.org/grammar/british-grammar/suffixes"
+  ]
+}

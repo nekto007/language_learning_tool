@@ -1,21 +1,24 @@
 import logging
-from datetime import datetime, timezone
+import unicodedata
+from datetime import UTC, datetime
 
 from flask import Blueprint, jsonify, request
 
-from app import csrf
+from app import csrf, limiter
 from app.api.errors import api_error
 from app.auth.models import User
 from app.utils.db import db
+from app.utils.rate_limit_helpers import get_username_key
 
 logger = logging.getLogger(__name__)
 
 api_auth = Blueprint('api_auth', __name__)
 
 
-
 @api_auth.route('/login', methods=['POST'])
 @csrf.exempt  # JWT tokens don't require CSRF protection
+@limiter.limit("15 per minute", key_func=get_username_key)
+@limiter.limit("60 per hour")
 def api_login():
     """
     API login endpoint with JWT token authentication
@@ -47,64 +50,64 @@ def api_login():
             }
         }
     """
-    from app import limiter
     from app.utils.jwt_auth import create_tokens_for_user
-    from app.utils.rate_limit_helpers import get_username_key
 
-    # Apply rate limiting decorators
-    @limiter.limit("15 per minute", key_func=lambda: get_username_key())
-    @limiter.limit("60 per hour")
-    def _api_login_impl():
-        if not request.is_json:
-            return api_error('invalid_json', 'Invalid JSON format', 400)
+    if not request.is_json:
+        return api_error('invalid_json', 'Invalid JSON format', 400)
 
-        try:
-            data = request.get_json()
-        except Exception:
-            return api_error('invalid_json', 'Invalid JSON format', 400)
+    try:
+        data = request.get_json()
+    except Exception:
+        return api_error('invalid_json', 'Invalid JSON format', 400)
 
-        if not isinstance(data, dict):
-            return api_error('invalid_json', 'JSON body must be an object', 400)
+    if not isinstance(data, dict):
+        return api_error('invalid_json', 'JSON body must be an object', 400)
 
-        username = data.get('username')
-        password = data.get('password')
+    username = data.get('username')
+    password = data.get('password')
 
-        if not username or not password:
-            return api_error('missing_fields', 'Missing username or password', 400)
+    if not username or not password:
+        return api_error('missing_fields', 'Missing username or password', 400)
 
-        if (not isinstance(username, str) or not isinstance(password, str)
-                or len(username) > 254 or len(password) > 128):
-            return api_error('invalid_credentials_format', 'Invalid username or password format', 400)
+    if not isinstance(username, str) or not isinstance(password, str):
+        return api_error('invalid_credentials_format', 'Invalid username or password format', 400)
 
-        username = username.strip()
-        user = User.query.filter_by(username=username).first()
-        if user is None and '@' in username:
-            from sqlalchemy import func
-            user = User.query.filter(func.lower(User.email) == username.lower()).first()
-        if user and user.check_password(password):
-            if not user.is_active:
-                return api_error('account_inactive', 'Account is inactive', 403)
+    username = username.strip()
+    # The same field accepts a username or an email address. Email support
+    # must not widen the 64-character username contract. Only the identity
+    # is trimmed; whitespace is part of an existing password.
+    if (not username or len(username) > (254 if '@' in username else 64)
+            or any(unicodedata.category(char) in ('Cc', 'Cs') for char in username)
+            or len(password) > 128
+            or any(unicodedata.category(char) == 'Cs' for char in password)):
+        return api_error('invalid_credentials_format', 'Invalid username or password format', 400)
 
-            # Update last login
-            user.last_login = datetime.now(timezone.utc)
-            db.session.commit()
+    user = User.query.filter_by(username=username).first()
+    if user is None and '@' in username:
+        from sqlalchemy import func
+        user = User.query.filter(func.lower(User.email) == username.lower()).first()
+    if user and user.check_password(password):
+        if not user.is_active:
+            return api_error('account_inactive', 'Account is inactive', 403)
 
-            # Create JWT tokens
-            tokens = create_tokens_for_user(user)
+        # Update last login
+        user.last_login = datetime.now(UTC)
+        db.session.commit()
 
-            return jsonify({
-                'success': True,
-                **tokens,
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'is_admin': user.is_admin if hasattr(user, 'is_admin') else False
-                }
-            })
+        # Create JWT tokens
+        tokens = create_tokens_for_user(user)
 
-        return api_error('invalid_credentials', 'Invalid credentials', 401)
+        return jsonify({
+            'success': True,
+            **tokens,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'is_admin': user.is_admin if hasattr(user, 'is_admin') else False
+            }
+        })
 
-    return _api_login_impl()
+    return api_error('invalid_credentials', 'Invalid credentials', 401)
 
 
 @api_auth.route('/refresh', methods=['POST'])

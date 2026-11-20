@@ -1,0 +1,538 @@
+{
+  "schema_version": 1,
+  "created": "2026-11-20",
+  "description": "Original optional supplement for the confirmed Future Perfect teaching gap;20 explicitly constrained exercises. Not an official mandatory CEFR topic list. No canonical module numbering or existing40exercises change.",
+  "references": [
+    "https://learnenglish.britishcouncil.org/free-resources/grammar/b1-b2/future-continuous-future-perfect",
+    "https://dictionary.cambridge.org/grammar/british-grammar/future-perfect"
+  ],
+  "topics": [
+    {
+      "slug": "b2-future-perfect",
+      "title": "Future Perfect: completion by a future point",
+      "title_ru": "Future Perfect: результат к будущему моменту",
+      "level": "B2",
+      "order": 1002,
+      "estimated_time": 10,
+      "difficulty": 2,
+      "content": {
+        "title": "Future Perfect: результат к будущему моменту",
+        "introduction": "В практике уже встречаются формы will have gained и will have had. Здесь разберём базовую конструкцию, чтобы понимать их смысл, а не угадывать по словам by или before.",
+        "rule": "Future Perfect Simple образуется как will have + V3. В этой теме используем его для действия, которое будет завершено к указанному моменту в будущем. Форма will have одинакова для всех лиц.",
+        "tldr": [
+          "<strong>Форма</strong>: will have + V3: <em>By Friday, we will have finished the report.</em>",
+          "<strong>Отрицание</strong>: will not have + V3, сокращённо won’t have: <em>I won’t have completed the course by Friday.</em>",
+          "<strong>Общий вопрос</strong>: Will + подлежащее + have + V3? <em>Will they have arrived by noon tomorrow?</em>",
+          "<strong>Смысл важнее маркера</strong>: by/before задают точку отсчёта; Future Perfect подчёркивает завершённость к ней. Само by не требует только этого времени.",
+          "<strong>Неправильные глаголы</strong>: берём V3, а не V2: <em>write → written; take → taken; do → done.</em>"
+        ],
+        "sections": [
+          {
+            "subtitle": "Результат к будущей точке",
+            "description": "Мысленно переносимся к будущему сроку и смотрим, что к нему уже будет сделано. By Friday — к пятнице, не позднее этого срока; before the meeting — до встречи. В приведённых примерах срок в будущем задан явно.",
+            "table": [
+              {
+                "example": "By Friday, we will have finished the report.",
+                "translation": "К пятнице мы уже закончим отчёт.",
+                "note": "Из будущей точки видим готовый результат."
+              },
+              {
+                "example": "Before the meeting starts tomorrow, she will have sent the email.",
+                "translation": "До начала завтрашней встречи она уже отправит письмо."
+              },
+              {
+                "example": "By the time you arrive tomorrow, they will have left.",
+                "translation": "К твоему завтрашнему приезду они уже уйдут.",
+                "note": "В обычном придаточном будущего времени — you arrive, без автоматического добавления will."
+              }
+            ]
+          },
+          {
+            "subtitle": "Утверждение, отрицание и вопрос",
+            "description": "Have после will не меняется на has. В общем вопросе will ставим перед подлежащим. Отрицание not идёт после will.",
+            "table": [
+              {
+                "form": "Утверждение",
+                "structure": "подлежащее + will have + V3",
+                "example": "She will have finished by Friday.",
+                "translation": "К пятнице она закончит."
+              },
+              {
+                "form": "Отрицание",
+                "structure": "подлежащее + will not have + V3",
+                "example": "She will not have left by seven tomorrow.",
+                "translation": "К семи часам завтра она ещё не уйдёт."
+              },
+              {
+                "form": "Вопрос",
+                "structure": "Will + подлежащее + have + V3?",
+                "example": "Will they have arrived by noon tomorrow?",
+                "translation": "Они прибудут к завтрашнему полудню?"
+              },
+              {
+                "form": "Короткий ответ",
+                "example": "Yes, they will. / No, they won’t.",
+                "translation": "Да. / Нет.",
+                "note": "В коротком ответе обычно достаточно will/won’t."
+              }
+            ]
+          },
+          {
+            "subtitle": "V3: правильные и неправильные формы",
+            "description": "Правильные глаголы обычно имеют V3 на -ed; у неправильных нужна отдельная форма. Совпадение V2/V3 иногда есть, но не является общим правилом.",
+            "table": [
+              {
+                "verb": "finish",
+                "v3": "finished"
+              },
+              {
+                "verb": "complete",
+                "v3": "completed"
+              },
+              {
+                "verb": "arrive",
+                "v3": "arrived"
+              },
+              {
+                "verb": "cook",
+                "v3": "cooked"
+              },
+              {
+                "verb": "write",
+                "v3": "written"
+              },
+              {
+                "verb": "send",
+                "v3": "sent"
+              },
+              {
+                "verb": "leave",
+                "v3": "left"
+              },
+              {
+                "verb": "do",
+                "v3": "done"
+              },
+              {
+                "verb": "build",
+                "v3": "built"
+              },
+              {
+                "verb": "take",
+                "v3": "taken"
+              }
+            ]
+          },
+          {
+            "subtitle": "Future Simple, Future Continuous или Future Perfect?",
+            "description": "Один маркер времени не выбирает форму автоматически. Выбор зависит от того, сообщаем ли о действии, показываем ли процесс или смотрим на результат к сроку. В заданиях этого пакета Future Perfect указан как требуемая учебная форма.",
+            "table": [
+              {
+                "form": "Future Simple",
+                "example": "I will cook dinner tomorrow.",
+                "translation": "Я приготовлю ужин завтра.",
+                "note": "Сообщение о будущем действии."
+              },
+              {
+                "form": "Future Continuous",
+                "example": "At eight tomorrow, I will be cooking dinner.",
+                "translation": "Завтра в восемь я буду готовить ужин.",
+                "note": "Процесс в указанное время."
+              },
+              {
+                "form": "Future Perfect",
+                "example": "By eight tomorrow, I will have cooked dinner.",
+                "translation": "К восьми часам завтра я уже приготовлю ужин.",
+                "note": "Готовый результат к этому времени."
+              },
+              {
+                "form": "By допускает и другие формы",
+                "example": "I will finish the report by Friday.",
+                "translation": "Я закончу отчёт к пятнице.",
+                "note": "Грамматичное обещание с Future Simple; by не делает его ошибкой."
+              }
+            ]
+          }
+        ],
+        "important_notes": [
+          "В этой теме разбираются действия и завершённый результат к будущему сроку. У Future Perfect есть и другие употребления, в том числе длительность состояния до будущей точки; здесь они не тестируются.",
+          "После will используем have для всех лиц: she will have, не she will has.",
+          "Сокращение I’ll/we’ll/they’ll have означает I/we/they will have; won’t have означает will not have.",
+          "Слова by/before сами по себе не гарантируют Future Perfect. Читайте смысл и явную инструкцию задания."
+        ],
+        "common_mistakes": [
+          {
+            "wrong": "She will has finished.",
+            "correct": "She will have finished.",
+            "explanation": "После will нужна базовая форма have."
+          },
+          {
+            "wrong": "We will have wrote the report.",
+            "correct": "We will have written the report.",
+            "explanation": "После have нужна V3 written, а не V2 wrote."
+          }
+        ],
+        "learning_goals": [
+          "Узнавать will have + V3 и объяснять результат к будущему моменту.",
+          "Строить отрицание и общий вопрос.",
+          "Выбирать V3 у неправильных глаголов.",
+          "Различать результат к сроку, процесс и обычное сообщение о будущем."
+        ]
+      },
+      "exercises": [
+        {
+          "key": "finish-by-six",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "By six tomorrow, I ___ (finish) the report.",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will have finished",
+            "alternatives": [
+              "'ll have finished"
+            ],
+            "explanation": "Future Perfect: will have + finished. К шести часам завтра отчёт уже будет закончен."
+          },
+          "difficulty": 1,
+          "order": 1
+        },
+        {
+          "key": "write-three-reports",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "By Friday, we ___ (write) three reports.",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will have written",
+            "alternatives": [
+              "'ll have written"
+            ],
+            "explanation": "У write третья форма written: will have written. К пятнице мы напишем три отчёта."
+          },
+          "difficulty": 1,
+          "order": 2
+        },
+        {
+          "key": "send-before-meeting",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "Before the meeting starts tomorrow, she ___ (send) the email.",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will have sent",
+            "alternatives": [
+              "'ll have sent"
+            ],
+            "explanation": "У send третья форма sent: will have sent. Письмо будет отправлено до начала завтрашней встречи."
+          },
+          "difficulty": 1,
+          "order": 3
+        },
+        {
+          "key": "leave-before-arrival",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "By the time you arrive tomorrow, they ___ (leave).",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will have left",
+            "alternatives": [
+              "'ll have left"
+            ],
+            "explanation": "Will have left показывает, что они уже уйдут к твоему приезду. В обычном придаточном будущего времени используем Present Simple: you arrive."
+          },
+          "difficulty": 1,
+          "order": 4
+        },
+        {
+          "key": "negative-complete",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "By Friday, I ___ (not complete) the course.",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will not have completed",
+            "alternatives": [
+              "won't have completed"
+            ],
+            "explanation": "Отрицательная форма: will not have + V3. К пятнице курс ещё не будет завершён."
+          },
+          "difficulty": 2,
+          "order": 5
+        },
+        {
+          "key": "negative-arrive",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "By ten tomorrow morning, the parcel ___ (not arrive).",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will not have arrived",
+            "alternatives": [
+              "won't have arrived"
+            ],
+            "explanation": "Will not have arrived: к десяти часам завтра посылка ещё не прибудет."
+          },
+          "difficulty": 2,
+          "order": 6
+        },
+        {
+          "key": "question-have",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "Will they ___ finished the job by five tomorrow?",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "have",
+            "alternatives": [],
+            "explanation": "В общем вопросе: Will + подлежащее + have + V3. Will they have finished...? К пяти часам завтра они закончат работу?"
+          },
+          "difficulty": 2,
+          "order": 7
+        },
+        {
+          "key": "do-homework",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "By Sunday evening, you ___ (do) all the homework.",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will have done",
+            "alternatives": [
+              "'ll have done"
+            ],
+            "explanation": "У do третья форма done: will have done. К вечеру воскресенья все задания будут сделаны."
+          },
+          "difficulty": 2,
+          "order": 8
+        },
+        {
+          "key": "build-bridge",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "By the end of next year, they ___ (build) the bridge.",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "will have built",
+            "alternatives": [
+              "'ll have built"
+            ],
+            "explanation": "Build → built → built. Future Perfect: will have built; мост будет построен к концу следующего года."
+          },
+          "difficulty": 2,
+          "order": 9
+        },
+        {
+          "key": "question-take",
+          "exercise_type": "fill_blank",
+          "content": {
+            "question": "Will you ___ (take) all the photographs by tomorrow evening?",
+            "instruction": "Дополни предложение формой Future Perfect (will have + V3). Впиши только пропущенные слова.",
+            "correct_answer": "have taken",
+            "alternatives": [],
+            "explanation": "После Will you нужен have + V3: have taken. Вопрос о том, будут ли все фотографии сделаны к завтрашнему вечеру."
+          },
+          "difficulty": 2,
+          "order": 10
+        },
+        {
+          "key": "mc-affirmative",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "Выбери правильную форму Future Perfect.",
+            "instruction": "Нужна именно форма Future Perfect; проверяем will have + V3.",
+            "options": [
+              "She will have finished by Friday.",
+              "She will has finished by Friday.",
+              "She will have finish by Friday.",
+              "She have finished by Friday."
+            ],
+            "correct_answer": "She will have finished by Friday.",
+            "explanation": "Will have + finished одинаково строится с любым подлежащим; после will не ставим has."
+          },
+          "difficulty": 1,
+          "order": 11
+        },
+        {
+          "key": "mc-negative",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "Выбери отрицательное предложение в Future Perfect.",
+            "instruction": "Нужна форма will not have + V3 (можно сокращение won't).",
+            "options": [
+              "They won't has arrived by noon tomorrow.",
+              "They won't have arrived by noon tomorrow.",
+              "They not will have arrived by noon tomorrow.",
+              "They won't have arrive by noon tomorrow."
+            ],
+            "correct_answer": "They won't have arrived by noon tomorrow.",
+            "explanation": "Won't have arrived = will not have arrived. После have нужна третья форма arrived."
+          },
+          "difficulty": 2,
+          "order": 12
+        },
+        {
+          "key": "mc-completion-not-process",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "By eight tomorrow evening, I ___ dinner.",
+            "instruction": "Выбери Future Perfect: подчёркиваем, что приготовление будет завершено к восьми. Остальные формы будущего здесь не являются целью задания.",
+            "options": [
+              "will be cooking",
+              "will cook",
+              "will have cooked",
+              "cooked"
+            ],
+            "correct_answer": "will have cooked",
+            "explanation": "Will have cooked — результат к будущей точке. Will be cooking показывает процесс, а will cook сообщает о будущем действии; by само по себе не запрещает другие формы."
+          },
+          "difficulty": 2,
+          "order": 13
+        },
+        {
+          "key": "mc-irregular-taken",
+          "exercise_type": "multiple_choice",
+          "content": {
+            "question": "By the end of tomorrow, she will have ___ all the photographs.",
+            "instruction": "Дополни Future Perfect третьей формой take.",
+            "options": [
+              "took",
+              "take",
+              "taking",
+              "taken"
+            ],
+            "correct_answer": "taken",
+            "explanation": "Take → took → taken. После will have нужна V3: taken, а не Past Simple took."
+          },
+          "difficulty": 2,
+          "order": 14
+        },
+        {
+          "key": "correct-written",
+          "exercise_type": "error_correction",
+          "content": {
+            "sentence": "By Friday, we will have wrote the report.",
+            "question": "Исправь форму write; сохрани остальные слова и Future Perfect.",
+            "instruction": "Исправь только форму write после will have; остальные слова и Future Perfect сохрани. Не меняй время на Future Simple.",
+            "correct_answer": "By Friday, we will have written the report.",
+            "alternatives": [
+              "written"
+            ],
+            "error_word": "wrote",
+            "correct_word": "written",
+            "explanation": "Write → wrote → written: исправляем только wrote на written."
+          },
+          "difficulty": 3,
+          "order": 15
+        },
+        {
+          "key": "correct-have-after-will",
+          "exercise_type": "error_correction",
+          "content": {
+            "sentence": "By tomorrow, she will has finished the job.",
+            "question": "Исправь вспомогательный глагол; сохрани остальные слова и Future Perfect.",
+            "instruction": "Исправь только вспомогательный глагол после will; остальные слова и Future Perfect сохрани. После will нужна базовая форма have, независимо от подлежащего.",
+            "correct_answer": "By tomorrow, she will have finished the job.",
+            "alternatives": [
+              "have"
+            ],
+            "error_word": "has",
+            "correct_word": "have",
+            "explanation": "Will has неверно: will have finished — правильная форма для she, как и для остальных лиц."
+          },
+          "difficulty": 2,
+          "order": 16
+        },
+        {
+          "key": "reorder-question",
+          "exercise_type": "reorder",
+          "content": {
+            "words": [
+              "Will",
+              "they",
+              "have",
+              "arrived",
+              "by",
+              "noon",
+              "tomorrow",
+              "?"
+            ],
+            "question": "Составь общий вопрос в Future Perfect.",
+            "instruction": "Используй все слова. Составь вопрос в Future Perfect, начни с Will; все слова о времени поставь в конец предложения.",
+            "correct_answer": "Will they have arrived by noon tomorrow?",
+            "explanation": "Will + they + have + arrived + by noon tomorrow? Вопрос: прибудут ли они к завтрашнему полудню?",
+            "alternatives": [
+              "Will they have arrived tomorrow by noon?",
+              "Will they have arrived by tomorrow noon?"
+            ]
+          },
+          "difficulty": 3,
+          "order": 17
+        },
+        {
+          "key": "reorder-negative",
+          "exercise_type": "reorder",
+          "content": {
+            "words": [
+              "She",
+              "will",
+              "not",
+              "have",
+              "left",
+              "by",
+              "seven",
+              "tomorrow",
+              "."
+            ],
+            "question": "Составь отрицательное предложение в Future Perfect.",
+            "instruction": "Используй все слова. Начни с She; сохрани полную форму will not в Future Perfect. Все слова о времени поставь в конец предложения.",
+            "correct_answer": "She will not have left by seven tomorrow.",
+            "explanation": "После подлежащего: will not have + left. К семи часам завтра она ещё не уйдёт.",
+            "alternatives": [
+              "She will not have left tomorrow by seven."
+            ]
+          },
+          "difficulty": 3,
+          "order": 18
+        },
+        {
+          "key": "translate-fixed-words",
+          "exercise_type": "translation",
+          "content": {
+            "question": "К пятнице мы закончим отчёт. (we / finish / the report / by Friday)",
+            "instruction": "Переведи, используя Future Perfect и данные слова; можно поставить by Friday в начале или в конце.",
+            "correct_answer": "We will have finished the report by Friday.",
+            "alternatives": [
+              "By Friday, we will have finished the report.",
+              "We'll have finished the report by Friday.",
+              "By Friday, we'll have finished the report."
+            ],
+            "explanation": "We will have finished — отчёт будет готов к будущей точке. В этом задании явно требуется Future Perfect; обычный will finish грамматичен, но не выполняет указанное условие."
+          },
+          "difficulty": 3,
+          "order": 19
+        },
+        {
+          "key": "match-v3",
+          "exercise_type": "matching",
+          "content": {
+            "question": "Подбери третью форму глагола для Future Perfect.",
+            "instruction": "После will have нужна V3. Соедини каждую начальную форму с её причастием.",
+            "pairs": [
+              {
+                "left": "write",
+                "right": "written"
+              },
+              {
+                "left": "take",
+                "right": "taken"
+              },
+              {
+                "left": "do",
+                "right": "done"
+              },
+              {
+                "left": "build",
+                "right": "built"
+              }
+            ],
+            "explanation": "Future Perfect использует will have + V3: written, taken, done, built."
+          },
+          "difficulty": 2,
+          "order": 20
+        }
+      ]
+    }
+  ]
+}

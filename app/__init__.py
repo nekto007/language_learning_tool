@@ -298,17 +298,26 @@ def create_app(config_class=Config):
 
     from app.modules.service import ModuleService
 
-    def has_module(module_code) -> bool:
+    def navigation_modules():
+        """Batch presentation-only checks; route authorization stays uncached."""
+        from flask import has_request_context, request
         from flask_login import current_user
         if not current_user.is_authenticated:
-            return False
-        return ModuleService.is_module_enabled_for_user(current_user.id, module_code)
+            return (), frozenset()
+        cached = request.environ.get('llt.navigation_modules') if has_request_context() else None
+        if cached is not None and cached[0] == current_user.id:
+            return cached[1], cached[2]
+        modules = tuple(ModuleService.get_user_modules(current_user.id, enabled_only=True))
+        codes = frozenset(module.code for module in modules)
+        if has_request_context():
+            request.environ['llt.navigation_modules'] = (current_user.id, modules, codes)
+        return modules, codes
+
+    def has_module(module_code) -> bool:
+        return module_code in navigation_modules()[1]
 
     def get_user_modules() -> list:
-        from flask_login import current_user
-        if not current_user.is_authenticated:
-            return []
-        return ModuleService.get_user_modules(current_user.id, enabled_only=True)
+        return list(navigation_modules()[0])
 
     def books_nav_visible() -> bool:
         from flask_login import current_user
@@ -866,3 +875,9 @@ def _register_cli_commands(app):
 
     from app.cli.content_commands import register_content_commands
     register_content_commands(app)
+    from app.cli.grammar_supplements import register_grammar_supplements
+    register_grammar_supplements(app)
+    from app.cli.grammar_recaps import grammar_recaps_command
+    app.cli.add_command(grammar_recaps_command)
+    from app.cli.grammar_prompts import grammar_prompts_command
+    app.cli.add_command(grammar_prompts_command)

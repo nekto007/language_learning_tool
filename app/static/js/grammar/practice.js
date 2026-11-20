@@ -210,6 +210,13 @@ function renderExercise(exercise) {
   // Data comes directly from exercise, NOT from exercise.content
   const question = exercise.question || exercise.instruction || '';
   const options = exercise.options || [];
+  // Separate authored constraints must stay visible alongside the source phrase.
+  const escapeInstruction = value => String(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
+  const instructionText = exercise.instruction ? escapeInstruction(exercise.instruction) : '';
+  const instructionHtml = instructionText && exercise.question
+    ? `<p class="practice-instruction">${instructionText}</p>` : '';
   const statement = exercise.statement || exercise.question || '';
   const sentence = exercise.sentence || exercise.question || '';
   const exerciseType = (exercise.exercise_type || '').toLowerCase();
@@ -228,13 +235,14 @@ function renderExercise(exercise) {
   switch (exerciseType) {
     case 'fill_blank':
       return `
+        ${instructionHtml}
         <label>${question || 'Заполните пропуск:'}</label>
         ${sourcePhraseHtml}
         <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
       `;
 
     case 'multiple_choice': {
-      let html = `<label>${question || 'Выберите правильный ответ:'}</label>`;
+      let html = `${instructionHtml}<label>${question || 'Выберите правильный ответ:'}</label>`;
       // Options are shown in a random order (the authored files put the
       // key in position 2 in 40 of 48 items — a positional cue), but the
       // value sent to the server stays the ORIGINAL index: the grader
@@ -258,6 +266,7 @@ function renderExercise(exercise) {
 
     case 'true_false':
       return `
+        ${instructionText ? `<p class="practice-instruction">${instructionText}</p>` : ''}
         <label>${statement}</label>
         <div class="practice-tf">
           <button type="button" class="practice-tf__btn practice-tf__btn--true" data-action="select-tf" data-value="true">
@@ -294,7 +303,7 @@ function renderExercise(exercise) {
       const defaultLabel = isToRussian ? 'Переведите на русский:' : 'Переведите на английский:';
       const translationText = (sentence || '').replace(/^Переведите на (английский|русский):\s*/i, '').trim();
       const questionIsPhrase = !!question && question.trim() === translationText;
-      const labelText = (question && !questionIsPhrase) ? question : defaultLabel;
+      const labelText = instructionText || ((question && !questionIsPhrase) ? question : defaultLabel);
       const placeholderText = isToRussian ? 'Ваш перевод (на русский)' : 'Ваш перевод';
       const phraseHtml = translationText
         ? `<p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${translationText}</p>`
@@ -314,7 +323,7 @@ function renderExercise(exercise) {
 
     case 'error_correction':
       return `
-        <label>Найдите и исправьте ошибку:</label>
+        <label>${instructionText || 'Найдите и исправьте ошибку:'}</label>
         <p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px;">${sentence}</p>
         <input type="text" id="user-answer" placeholder="Исправленное слово/фраза" autocomplete="off">
       `;

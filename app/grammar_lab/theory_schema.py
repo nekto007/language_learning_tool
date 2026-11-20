@@ -1,0 +1,182 @@
+"""Pure semantic table order shared by browser and native grammar views.
+
+JSONB object key order is storage-defined. Explicit authored columns should be
+used directly; these priorities apply only to inferred columns of row objects.
+"""
+
+THEORY_CELL_ORDER = (
+    # label-like cells first (what the row is about) …
+    "percentage",
+    "pronoun",
+    "person",
+    "subject",
+    "object",
+    "label",
+    "word",
+    "expression",
+    "phrase",
+    "singular",
+    "plural",
+    "distance",
+    "position",
+    "use",
+    "case",
+    "phrasal",
+    "idiom",
+    "literal",
+    "real_meaning",
+    "origin",
+    "feel",
+    "register",
+    "use_where",
+    "adjective",
+    "suffix",
+    "adverb",
+    "quality",
+    "noun",
+    "article",
+    "modal",
+    "preposition",
+    "particle",
+    "connector",
+    "conjunction",
+    "signal",
+    "tense",
+    "time_expression",
+    "time_indicator",
+    "situation",
+    "condition",
+    "result",
+    "trigger",
+    "reason",
+    "informal",
+    "formal",
+    "american",
+    "british",
+    "cliche",
+    "cliché",
+    "issue",
+    "direct",
+    "reported",
+    "direct_question",
+    "embedded",
+    "normal",
+    "inverted",
+    "with_if",
+    "with_inversion",
+    "marker",
+    "type",
+    "quantifier",
+    "few_little",
+    "less_fewer",
+    "rule",
+    "pattern",
+    "structure",
+    "verb",
+    "form",
+    "ending",
+    "action",
+    "usage",
+    "full_sentence",
+    "participle_clause",
+    "meaning",
+    "people",
+    "things",
+    "places",
+    "BrE",
+    "AmE",
+    "base",
+    "stem",
+    "infinitive",
+    "positive",
+    "affirmative",
+    "negative",
+    "translation_positive",
+    "translation_negative",
+    "translation_pos",
+    "translation_neg",
+    "active",
+    "passive",
+    "translation_active",
+    "translation_passive",
+    "when_to_use",
+    "ed_form",
+    "ed_translation",
+    "ing_form",
+    "ing_translation",
+    "with_pronoun",
+    "without_pronoun",
+    "earlier",
+    "later",
+    "base_form",
+    "comparative",
+    "superlative",
+    "present",
+    "past",
+    "gerund",
+    "v1",
+    "v3",
+    "if_clause",
+    "main_clause",
+    "statement",
+    "tag",
+    "question",
+    "translation_statement",
+    "translation_question",
+    "translation_q",
+    "answer",
+    "translation_a",
+    "countable",
+    "question_c",
+    "uncountable",
+    "question_u",
+    # … then the example pair; ``translation`` is placed by ``_order_theory_cells``
+    # (before the example when the row carries its own ``example_translation``,
+    # i.e. it translates the word, after it otherwise) …
+    "example",
+    "example_translation",
+    "translation_sg",
+    "translation_pl",
+    "examples",
+    "example_bad",
+    "substitution",
+    "full_form",
+    # … then commentary cells.
+    "wrong",
+    "correct",
+    "error",
+    "mistake",
+    "correction",
+    "alternative",
+    "emphasis",
+    "body_part",
+    "category",
+    "explanation",
+    "russian",
+    "context",
+    "logic",
+    "note",
+)
+
+
+def ordered_theory_keys(keys, *, after=None):
+    """Return all keys exactly once, keeping translations beside their example.
+
+    Unknown fields retain their supplied order for web compatibility. Native
+    callers may sort that unknown tail before calling for JSONB independence.
+    """
+    keys = list(keys)
+    present = set(keys)
+    ordered = []
+    priorities = list(THEORY_CELL_ORDER)
+    if after:
+        priorities = list(dict.fromkeys(column for key in THEORY_CELL_ORDER for column in (key, *after.get(key, ()))))
+    for key in priorities:
+        if key == "example" and {"translation", "example_translation"} <= present:
+            ordered.append("translation")
+        if key in present:
+            ordered.append(key)
+        if key == "example" and "translation" in present and "translation" not in ordered:
+            ordered.append("translation")
+    ordered.extend(key for key in keys if key not in ordered)
+    return ordered

@@ -46,6 +46,7 @@ def streak_user(db_session):
         username=f'streak_{suffix}',
         email=f'streak_{suffix}@test.com',
         active=True,
+        created_at=datetime(2020, 1, 1),  # Established account with repairable history.
     )
     user.set_password('test123')
     db_session.add(user)

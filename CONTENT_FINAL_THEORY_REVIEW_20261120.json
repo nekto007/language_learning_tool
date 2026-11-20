@@ -1,0 +1,642 @@
+{
+  "schema_version": 1,
+  "created": "2026-11-20",
+  "status": "APPLIED_TO_LOCAL_SOURCES_REVIEWED",
+  "scope": "Scan of all86 canonical grammar theory objects and227 categorical-language candidates, with targeted paradigm/table consistency checks. All10 findings independently approved and12 exact scalar text corrections merged into existing recap manifests, preserving original before-file SHA values. Not a full semantic certification; no real database access.",
+  "findings": [
+    {
+      "id": "plural_only_clothes",
+      "priority": 1,
+      "file": "module_A1_3_clothing.json",
+      "source_sha256": "5f8803486bd2aa7368efe0abb44ec003b386048d1ceb58bf9a9b907d29677aab",
+      "lesson_external_key": "curriculum:grammar:A1:03:clothing",
+      "reason": "The old list incorrectly classifies normal count nouns as plural-only; this directly teaches that a shoe/sock/glove cannot exist.",
+      "proposed_changes": [
+        {
+          "path": [
+            "important_notes",
+            4
+          ],
+          "before": "⚠️ Некоторые слова всегда во множественном числе: clothes, trousers, jeans, shoes, boots, socks, gloves, glasses",
+          "proposed_after": "Clothes, trousers, jeans и glasses (очки) употребляются во множественном числе. У shoes, boots, socks, gloves есть обычные формы единственного числа: a shoe, a boot, a sock, a glove."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/grammar/british-grammar/nouns-singular-and-plural"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_RECAPS_20261120.json",
+        "file": "module_A1_3_clothing.json",
+        "paths": [
+          [
+            "important_notes",
+            4
+          ]
+        ],
+        "after_file_sha256": "7bb07a546dbbff5e1cb8255cbbd03b398500d674527eee5f8447f9652867dcbe"
+      }
+    },
+    {
+      "id": "comparative_than_scope",
+      "priority": 1,
+      "file": "module_A2_10_animals.json",
+      "source_sha256": "2d53192861b95de2122594ce6346136032c0c38faf59e4122d0fefdb44fb5827",
+      "lesson_external_key": "curriculum:grammar:A2:10:animals",
+      "reason": "This note contradicts the reviewed recap in the same topic and falsely forbids standalone comparatives.",
+      "proposed_changes": [
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "⚠️ Всегда используйте 'than' после сравнительной степени: bigger than, more intelligent than",
+          "proposed_after": "Than используем, когда прямо называем второй объект сравнения: bigger than a cat. Без названного второго объекта comparative может быть без than: This room is bigger."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/grammar/british-grammar/comparison-adjectives-bigger"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_RECAPS_20261120.json",
+        "file": "module_A2_10_animals.json",
+        "paths": [
+          [
+            "important_notes",
+            0
+          ]
+        ],
+        "after_file_sha256": "c86938d5cb36eaab148aced11aaefc3221037fe9f776d7128e6612a91830c095"
+      }
+    },
+    {
+      "id": "past_subject_question_scope",
+      "priority": 1,
+      "file": "module_A2_23_past_irregular.json",
+      "source_sha256": "bbbd193d00244a1c800def1488446416dc9fd0c5fd3854fa3269ba256c9ba2a4",
+      "lesson_external_key": "curriculum:grammar:A2:23:past_irregular",
+      "reason": "The current universal question claim contradicts this source sections[5].table[11].example (Who broke this window?) and B1/M1 notes[2].",
+      "proposed_changes": [
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "В отрицании и вопросе ВСЕГДА используется базовая форма глагола: «I didn't went» — неверно, правильно «I didn't go».",
+          "proposed_after": "После вспомогательных did/didn't используем базовую форму: Did you go? I didn't go. В вопросе к подлежащему who/what вспомогательный did обычно не нужен: Who broke this window? У be — отдельные формы was/were."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/grammar/british-grammar/interrogative-pronouns"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_RECAPS_20261120.json",
+        "file": "module_A2_23_past_irregular.json",
+        "paths": [
+          [
+            "important_notes",
+            0
+          ]
+        ],
+        "after_file_sha256": "19e7b84c197deacf34215e7e935bbb857b24bcfb20c3e46f5e97c6517a8a794e"
+      }
+    },
+    {
+      "id": "ever_not_only_questions",
+      "priority": 1,
+      "file": "module_B1_14_travel_and_tourism.json",
+      "source_sha256": "844affb4bf8200a190baa7de95df0bd285242af67d4e544bcc9a0821fd32efcb",
+      "lesson_external_key": "curriculum:grammar:B1:13:travel_and_tourism",
+      "reason": "Ever is not limited to questions. A2/M11 sections[3].table[3] already teaches an affirmative superlative clause with ever.",
+      "proposed_changes": [
+        {
+          "path": [
+            "important_notes",
+            0
+          ],
+          "before": "⚠️ Ever используется ТОЛЬКО в вопросах, не в утверждениях",
+          "proposed_after": "Ever часто используется в вопросах об опыте: Have you ever been there? Но оно бывает и вне вопроса, например после превосходной степени: the best film I have ever seen."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/grammar/british-grammar/comparison-adjectives-bigger"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json",
+        "file": "module_B1_14_travel_and_tourism.json",
+        "paths": [
+          [
+            "important_notes",
+            0
+          ]
+        ],
+        "after_file_sha256": "6e5a5b1ef2430be3ec7961a74c7b72a235ba1d9cf776e0a2193a246c881339dc"
+      }
+    },
+    {
+      "id": "causative_not_always_participle",
+      "priority": 1,
+      "file": "module_B2_10_crime_and_law.json",
+      "source_sha256": "c2f4c3d83b0b28ba7632b9d6c66b0f9993451121fa5479871c6c4602452d290f",
+      "lesson_external_key": "curriculum:grammar:B2:09:crime_and_law",
+      "reason": "The existing note contradicts its own sections[2].table[0] and all three structures explicitly taught in sections[3].",
+      "proposed_changes": [
+        {
+          "path": [
+            "important_notes",
+            2
+          ],
+          "before": "⚠️ Всегда используется Past Participle (V3) после объекта",
+          "proposed_after": "В have/get + объект + V3 используем причастие: have the car repaired. В have + человек + V1 нужна базовая форма без to: have my lawyer review it. В get + человек + to V1 используется to: get my lawyer to review it."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/grammar/british-grammar/have-something-"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json",
+        "file": "module_B2_10_crime_and_law.json",
+        "paths": [
+          [
+            "important_notes",
+            2
+          ]
+        ],
+        "after_file_sha256": "feb8dbe42a67b91244c38b51cb996578600b093f2ac013b7e7a2dad547128fca"
+      }
+    },
+    {
+      "id": "could_have_no_actuality_inference",
+      "priority": 1,
+      "file": "module_C1_2_ecology_and_nature.json",
+      "source_sha256": "1d35c31037923468b2e32026c3f0da700163ffb5ae7fe83750d20f34fa28a44f",
+      "lesson_external_key": "curriculum:grammar:C1:02:ecology_and_nature",
+      "reason": "The phrase «и, видимо, сделали» invents a positive actuality/probability inference that could have does not supply. Keep the recorded English example unchanged; qualify only its interpretation.",
+      "proposed_changes": [
+        {
+          "path": [
+            "sections",
+            2,
+            "table",
+            2,
+            "note"
+          ],
+          "before": "возможность: «они могли это сделать (и, видимо, сделали)»",
+          "proposed_after": "Форма could have допускает разные прочтения: предположение о прошлом или возможность что-то сделать. Сама форма не означает, что действие действительно произошло; это уточняется контекстом."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/us/grammar/british-grammar/could%3A"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json",
+        "file": "module_C1_2_ecology_and_nature.json",
+        "paths": [
+          [
+            "sections",
+            2,
+            "table",
+            2,
+            "note"
+          ]
+        ],
+        "after_file_sha256": "34cc26052559626ffea023009ee72b38e40905d7ce8ed232045c8eb660518603"
+      }
+    },
+    {
+      "id": "correlative_ellipsis_both_clauses",
+      "priority": 1,
+      "file": "module_C1_5_culture_and_society.json",
+      "source_sha256": "968da2fa7f5cd17fd856ae6b1f1fd954279b78c5c9d1994b3ccaa8057c23836d",
+      "lesson_external_key": "curriculum:grammar:C1:06:culture_and_society",
+      "reason": "The example visibly contains the second comparative clause, so saying it was omitted teaches the wrong ellipsis operation. This also conflicts with the accurate notes[2] in the same source.",
+      "proposed_changes": [
+        {
+          "path": [
+            "important_notes",
+            4
+          ],
+          "before": "В разговорной речи часто опускается второе предложение: The more, the merrier (Чем больше, тем веселее).",
+          "proposed_after": "В кратких вариантах обе сравнительные части могут быть без подлежащего и глагола: The more, the merrier. Это сокращение структуры, а не исчезновение второй сравнительной части."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/grammar/british-grammar/comparison-adjectives-bigger"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json",
+        "file": "module_C1_5_culture_and_society.json",
+        "paths": [
+          [
+            "important_notes",
+            4
+          ]
+        ],
+        "after_file_sha256": "f3b341df7d188202359adabb5379ea1ba8372039397f55c6a5ec8b0b8c7de069"
+      }
+    },
+    {
+      "id": "a_few_summary_positive",
+      "priority": 1,
+      "file": "module_B1_8_money_and_finances.json",
+      "source_sha256": "400e0400e9db1f7663b92365d6a71bcf2dc74d30798097fbd4966ba1c936ac24",
+      "lesson_external_key": "curriculum:grammar:B1:07:grammar_few_little_less_fewer",
+      "reason": "The summary row titled A few vs A little currently repeats the negative few/no-a example, reversing the point of the section. Source sections[1].table[1] already has the correct positive a few example.",
+      "proposed_changes": [
+        {
+          "path": [
+            "summary",
+            "table",
+            1,
+            "example"
+          ],
+          "before": "I have few coins. (недостаточно).",
+          "proposed_after": "I have a few coins."
+        },
+        {
+          "path": [
+            "summary",
+            "table",
+            1,
+            "translation"
+          ],
+          "before": "У меня мало монет. (мало, недостаточно).",
+          "proposed_after": "У меня есть несколько монет."
+        }
+      ],
+      "references": [],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_ADVANCED_RECAPS_20261120.json",
+        "file": "module_B1_8_money_and_finances.json",
+        "paths": [
+          [
+            "summary",
+            "table",
+            1,
+            "example"
+          ],
+          [
+            "summary",
+            "table",
+            1,
+            "translation"
+          ]
+        ],
+        "after_file_sha256": "1b84ec95a805947b4956fff377a88f7803e7752f0c5259379ffd0d67c60c335c"
+      }
+    },
+    {
+      "id": "sound_not_spelling_a_an",
+      "priority": 2,
+      "file": "module_A1_2_objects_and_articles.json",
+      "source_sha256": "68a6db5cf8d7dbf1b625382ff3abe5779a8cd15aea42ef0a8e7072dc196fd436",
+      "lesson_external_key": "curriculum:grammar:A1:02:artikli_a_i_an",
+      "reason": "The sound rule is followed by a list of vowel letters, which can teach a/an by spelling. This is a precision issue rather than a missing article lesson.",
+      "proposed_changes": [
+        {
+          "path": [
+            "sections",
+            1,
+            "notes",
+            0
+          ],
+          "before": "В словаре этого модуля только umbrella начинается с гласного звука. Запомните правило: AN + гласный звук (a, e, i, o, u).",
+          "proposed_after": "В словаре этого модуля umbrella начинается с гласного звука: an umbrella. Выбираем a/an по звуку, а не по букве: a university, но an hour."
+        }
+      ],
+      "references": [
+        "https://dictionary.cambridge.org/grammar/british-grammar/a-an"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_RECAPS_20261120.json",
+        "file": "module_A1_2_objects_and_articles.json",
+        "paths": [
+          [
+            "sections",
+            1,
+            "notes",
+            0
+          ]
+        ],
+        "after_file_sha256": "dfe234991c7d394562be1e91525ffb07aa9cbb8d1dd3fe4fdb5f65ca7b94deed"
+      }
+    },
+    {
+      "id": "stative_usually_not_absolute",
+      "priority": 2,
+      "file": "module_A2_15_household_chores.json",
+      "source_sha256": "bd0e503eb7fd285e796c5db0f5f434c26c354b0665b32e61069ce8b467a155fd",
+      "lesson_external_key": "curriculum:grammar:A2:15:household_chores",
+      "reason": "The current absolute rule and table label overrule temporary/process readings, unlike the already qualified usually rule in B2/M1. A small scope correction avoids adding advanced material to the beginner lesson.",
+      "proposed_changes": [
+        {
+          "path": [
+            "important_notes",
+            4
+          ],
+          "before": "⚠️ Глаголы состояния (like, love, want, know, understand, need) в Continuous не используются: I want (не I am wanting)",
+          "proposed_after": "В значении состояния like, love, want, know, understand, need обычно не используются в Continuous: I want, I know. У некоторых глаголов возможны другие значения или особое временное употребление; это не универсальный запрет любой Continuous-формы."
+        },
+        {
+          "path": [
+            "sections",
+            4,
+            "table",
+            3,
+            "form"
+          ],
+          "before": "только Present Simple",
+          "proposed_after": "обычно Present Simple, когда глагол выражает состояние"
+        }
+      ],
+      "references": [
+        "https://learnenglish.britishcouncil.org/free-resources/grammar/english-grammar-reference/present-continuous?page=1"
+      ],
+      "applied_trace": {
+        "manifest": "MOBILE_GRAMMAR_RECAPS_20261120.json",
+        "file": "module_A2_15_household_chores.json",
+        "paths": [
+          [
+            "important_notes",
+            4
+          ],
+          [
+            "sections",
+            4,
+            "table",
+            3,
+            "form"
+          ]
+        ],
+        "after_file_sha256": "e31696a21388a64d3444d9fb448afc97c1a1fb6f3fc11771ad0a43a13eb550ce"
+      }
+    }
+  ],
+  "coverage": [
+    {
+      "concept": "Future Perfect",
+      "status": "No systematic explanation found in86 grammar theories; already occurs in practice",
+      "evidence": [
+        {
+          "file": "grammar_exercises_extra/grammar_extra_B1_9.json",
+          "session": 7,
+          "exercise_order": 2,
+          "value": "By next year, she will have gained enough experience, ___ she?"
+        },
+        {
+          "file": "grammar_exercises_extra/grammar_extra_B2_10.json",
+          "sessions_orders": [
+            [
+              4,
+              3
+            ],
+            [
+              6,
+              1
+            ],
+            [
+              6,
+              6
+            ]
+          ],
+          "value": "Future Perfect causative: will have had + object + V3"
+        }
+      ],
+      "recommendation": "Future candidate: teach completion before a future reference point before testing Future Perfect in tags/causatives. Do not call mandatory CEFR coverage; do not add a new lesson now.",
+      "resolution": "Root approved a separate optional b2-future-perfect supplementary topic with20 original exercises in MOBILE_GRAMMAR_FUTURE_PERFECT_20261120.json. No canonical module or existing course numbering changed; complete course integration remains a backlog decision."
+    },
+    {
+      "concept": "Past Perfect Continuous",
+      "status": "Present but brief: B2/M11 sections[4] gives had been+V-ing definition and2examples; B2/M3 teaches backshift to it",
+      "evidence": [
+        {
+          "file": "module_B2_3_media_and_communications.json",
+          "path": [
+            "sections",
+            0,
+            "table",
+            4,
+            "example"
+          ],
+          "value": "Past Perfect Continuous"
+        },
+        {
+          "file": "module_B2_3_media_and_communications.json",
+          "path": [
+            "sections",
+            0,
+            "table",
+            4,
+            "translation"
+          ],
+          "value": "I have been writing → She said she had been writing."
+        },
+        {
+          "file": "module_B2_11_travel_and_tourism.json",
+          "path": [
+            "sections",
+            4,
+            "table",
+            2,
+            "example"
+          ],
+          "value": "The factories had been polluting the river for years."
+        },
+        {
+          "file": "module_B2_11_travel_and_tourism.json",
+          "path": [
+            "sections",
+            4,
+            "table",
+            3,
+            "example"
+          ],
+          "value": "She had been waiting for an hour when the train arrived."
+        }
+      ],
+      "recommendation": "Do not mark absent. Candidate for clearer aspect comparison with Past Perfect Simple, duration/result and stative limits."
+    },
+    {
+      "concept": "Future Perfect Continuous",
+      "status": "No dedicated explanation/form/example found in86theories in this scan; Future Continuous exists C1/M1",
+      "recommendation": "Backlog concept only; prioritize prerequisite aspect/timeline clarity before adding a new tense lesson."
+    },
+    {
+      "concept": "Direct question word order",
+      "status": "A1/M1 be questions; A1/M11 do/does; subject-question exception explicitly in B1/M1 note2 and incidentally in A2/M23 example",
+      "evidence": [
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "sections",
+            1,
+            "rules",
+            0,
+            "examples",
+            1
+          ],
+          "value": "Direct: 'What happened?' → She wanted to know what happened."
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "sections",
+            3,
+            "table",
+            0,
+            "direct"
+          ],
+          "value": "Who called?"
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "sections",
+            3,
+            "table",
+            0,
+            "type"
+          ],
+          "value": "who — подлежащее"
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "sections",
+            3,
+            "table",
+            1,
+            "direct"
+          ],
+          "value": "What happened?"
+        },
+        {
+          "file": "module_B2_4_society_and_culture.json",
+          "path": [
+            "sections",
+            4,
+            "table",
+            3,
+            "explanation"
+          ],
+          "value": "who уже и есть подлежащее"
+        },
+        {
+          "file": "module_B1_1_past_irregular.json",
+          "path": [
+            "important_notes",
+            2
+          ],
+          "value": "Если who — подлежащее, вопрос может обходиться без did: Who came to the party?"
+        },
+        {
+          "file": "module_B1_1_past_irregular.json",
+          "path": [
+            "tldr",
+            5
+          ],
+          "value": "Свяжите историю: when/where → what happened → because → finally/how I felt. Важен понятный ход событий."
+        },
+        {
+          "file": "module_A2_23_past_irregular.json",
+          "path": [
+            "sections",
+            5,
+            "table",
+            11,
+            "example"
+          ],
+          "value": "Who broke this window?"
+        }
+      ],
+      "recommendation": "Not globally missing. Early subject/object question contrast is thin; qualify overbroad A2note now if approved, later consider one compact comparison."
+    },
+    {
+      "concept": "Indirect/reported question word order",
+      "status": "Systematically taught in B2/M6 embedded questions and B2/M8 reported questions; conditional backshift now qualified",
+      "evidence": [
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "rule"
+          ],
+          "value": "В косвенном вопросе обычно используем прямой порядок: подлежащее + сказуемое. Если who/what уже было подлежащим прямого вопроса, исходной инверсии не было."
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "description"
+          ],
+          "value": "В косвенном вопросе обычно используем прямой порядок: подлежащее + сказуемое. Если who/what уже было подлежащим прямого вопроса, исходной инверсии не было."
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "sections",
+            2,
+            "subtitle"
+          ],
+          "value": "Сдвиг времени в косвенном вопросе"
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "summary",
+            "table",
+            0,
+            "topic"
+          ],
+          "value": "Сдвиг времени в косвенном вопросе"
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "title"
+          ],
+          "value": "Reported Questions (Косвенные вопросы)"
+        },
+        {
+          "file": "module_B2_8_reported_questions.json",
+          "path": [
+            "tldr",
+            0
+          ],
+          "value": "<strong>Сдвиг времени в косвенном вопросе</strong>: <em>He asked where I lived.</em>"
+        },
+        {
+          "file": "module_B2_6_psychology_and_relationships.json",
+          "path": [
+            "rule"
+          ],
+          "value": "Embedded questions (или indirect questions) - это вопросы, встроенные в другое предложение."
+        },
+        {
+          "file": "module_B2_6_psychology_and_relationships.json",
+          "path": [
+            "description"
+          ],
+          "value": "Embedded questions (или indirect questions) - это вопросы, встроенные в другое предложение. Они используются для более вежливого или формального обращения, а также в качестве подчинённых предложений. В таких вопросах используется прямой порядок слов (как в утверждении), а не вопросительный."
+        },
+        {
+          "file": "module_B2_6_psychology_and_relationships.json",
+          "path": [
+            "important_notes",
+            0
+          ],
+          "value": "⚠️ В embedded questions всегда используется прямой порядок слов (subject + verb)"
+        },
+        {
+          "file": "module_B2_6_psychology_and_relationships.json",
+          "path": [
+            "important_notes",
+            1
+          ],
+          "value": "⚠️ Не используйте вспомогательные глаголы do/does/did в embedded questions (кроме смыслового значения)"
+        }
+      ],
+      "recommendation": "Do not add duplicate theory. Keep visible task constraints consistent with optional backshift and subject questions."
+    }
+  ],
+  "official_cefr_completeness_claimed": false,
+  "database_access": false,
+  "source_changes_applied": true
+}

@@ -828,6 +828,27 @@ def earn_daily_coin(user_id: int, for_date: date | None = None,
     return True
 
 
+def _repair_creation_floor(user_id: int, tz: str | None = None) -> date | None:
+    """First study day that existed for this account, using the 02:00 anchor.
+
+    Legacy accounts without a known creation timestamp retain their existing
+    repair behaviour. Historical repair rows are deliberately left untouched.
+    """
+    from app.auth.models import User
+
+    user = db.session.get(User, user_id)
+    created_at = getattr(user, 'created_at', None)
+    if not isinstance(created_at, datetime):
+        return None
+    timezone_name = tz or getattr(user, 'timezone', None) or DEFAULT_TIMEZONE
+    return study_day_date_for_tz(timezone_name, now_utc=created_at)
+
+
+def _repair_date_allowed(user_id: int, target_date: date) -> bool:
+    first_day = _repair_creation_floor(user_id)
+    return first_day is None or target_date >= first_day
+
+
 def has_repair_for_date(user_id: int, target_date: date) -> bool:
     """Check if a repair (free, paid, or shield) exists for a specific date."""
     return StreakEvent.query.filter(
@@ -858,7 +879,7 @@ def apply_free_repair(user_id: int, missed_date: date,
                       steps_done: int | None = None,
                       steps_total: int | None = None) -> bool:
     """Apply free repair for a missed date. Returns True on success."""
-    if has_repair_for_date(user_id, missed_date):
+    if not _repair_date_allowed(user_id, missed_date) or has_repair_for_date(user_id, missed_date):
         return False
 
     details: dict = {'reason': 'progressive_plan_complete'}
@@ -876,7 +897,7 @@ def apply_free_repair(user_id: int, missed_date: date,
 
 def apply_shield_repair(user_id: int, missed_date: date) -> bool:
     """Apply a shield repair for a missed date. Returns True on success."""
-    if has_repair_for_date(user_id, missed_date):
+    if not _repair_date_allowed(user_id, missed_date) or has_repair_for_date(user_id, missed_date):
         return False
     db.session.add(StreakEvent(
         user_id=user_id, event_type='shield_repair',
@@ -888,6 +909,8 @@ def apply_shield_repair(user_id: int, missed_date: date) -> bool:
 
 def apply_paid_repair(user_id: int, missed_date: date) -> dict:
     """Apply paid repair. Returns result dict."""
+    if not _repair_date_allowed(user_id, missed_date):
+        return {'success': False, 'cost': 0, 'balance': 0, 'error': 'before_registration'}
     if has_repair_for_date(user_id, missed_date):
         return {'success': False, 'cost': 0, 'balance': 0, 'error': 'already_repaired'}
 
@@ -929,10 +952,13 @@ def find_missed_date(user_id: int, tz: str = DEFAULT_TIMEZONE,
     # repair into `streak_events` under a different day than the one whose
     # window was actually found empty (DP-001).
     local_today = study_day_date_for_tz(tz)
+    first_day = _repair_creation_floor(user_id, tz)
 
     for offset in range(1, max_days + 1):
-        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
         check_date = local_today - timedelta(days=offset)
+        if first_day is not None and check_date < first_day:
+            return None
+        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
 
         if _has_activity_in_range(user_id, day_start, day_end):
             # Activity found — any gap must be BEFORE this day
@@ -982,13 +1008,19 @@ def find_auto_heal_date(
 
     # Study-day date — same basis as the windows walked below (DP-001).
     local_today = study_day_date_for_tz(tz)
+    first_day = _repair_creation_floor(user_id, tz)
+
+    if first_day is not None and local_today - timedelta(days=1) < first_day:
+        return None
 
     today_start, today_end = _user_day_boundaries(tz, offset_days=0)
     today_has_activity = _has_activity_in_range(user_id, today_start, today_end)
 
     for offset in range(1, max_days + 1):
-        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
         check_date = local_today - timedelta(days=offset)
+        if first_day is not None and check_date < first_day:
+            return None
+        day_start, day_end = _user_day_boundaries(tz, offset_days=-offset)
 
         if _has_activity_in_range(user_id, day_start, day_end):
             continue
@@ -1042,6 +1074,10 @@ def auto_heal_streak_on_activity(
     for _ in range(max_days):
         missed = find_auto_heal_date(user_id, tz, max_days=max_days)
         if missed is None:
+            break
+        # Also enforce the stored account timezone before any refund, even if
+        # a caller supplied a different discovery timezone.
+        if not _repair_date_allowed(user_id, missed):
             break
 
         # Refund any paid repair covering this gap

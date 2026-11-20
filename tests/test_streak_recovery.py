@@ -1,6 +1,6 @@
 """Tests for streak recovery system: coins, free/paid repair."""
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from tests.support_dates import study_today
 
 import pytest
@@ -20,7 +20,8 @@ from app.achievements.streak_service import (
 def user_id(db_session):
     """Create a test user and return their ID."""
     from app.auth.models import User
-    u = User(username=f'streak_test_{uuid.uuid4().hex[:8]}', email=f'{uuid.uuid4().hex[:8]}@test.com')
+    u = User(username=f'streak_test_{uuid.uuid4().hex[:8]}', email=f'{uuid.uuid4().hex[:8]}@test.com',
+             created_at=datetime(2020, 1, 1))  # Established account with repairable history.
     u.set_password('test123')
     db_session.add(u)
     db_session.flush()

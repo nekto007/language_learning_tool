@@ -1,0 +1,3323 @@
+{
+  "schema_version": 1,
+  "pack": "grammar-prompt-constraints-20261120",
+  "created": "2026-11-20",
+  "scope": "79 visible instruction constraints preserve all authored questions, primary keys, exercise types and ordering; one explicitly allowlisted if/whether accepted-alternative expansion. No progress changes. Database rollout requires the reviewed grammar-prompts CLI.",
+  "allowed_fields": [
+    "instruction",
+    "alternatives"
+  ],
+  "sources": [
+    {
+      "path": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "sha256_before": "c221c8251d5d39f021c843a167837e3d73cee1d78fba7811a55639f51013fbe4",
+      "sha256_after": "dc5027dc5cc8e186a4db5b11b4a8c953aceab722b3d070998a7c3ba25d664039",
+      "before_final_newline": true
+    },
+    {
+      "path": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "sha256_before": "9cbaa1038165fb2ff259881d943cc921855561f83f65fa1bded0391ccbd6a50e",
+      "sha256_after": "93330bce17d5fced23665296ddcca8a198d3ce0ca8d3d88c88bb335e0f6e5668",
+      "before_final_newline": false
+    }
+  ],
+  "changes": [
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 1,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If you mix red and blue, you ___ purple.",
+        "correct_answer": "get",
+        "options": [
+          "get",
+          "will get",
+          "would get",
+          "got"
+        ],
+        "explanation": "Zero Conditional описывает общую истину: If + Present, Present. Поэтому 'get', а не 'will get'."
+      },
+      "content_after": {
+        "question": "If you mix red and blue, you ___ purple.",
+        "correct_answer": "get",
+        "options": [
+          "get",
+          "will get",
+          "would get",
+          "got"
+        ],
+        "explanation": "Zero Conditional описывает общую истину: If + Present, Present. Поэтому 'get', а не 'will get'.",
+        "instruction": "Выбери форму для Zero Conditional: речь об общей закономерности."
+      },
+      "sha256_before": "0fc3fe70e69a1bc6b35099bb8d955e19e4ea5d675ea7e692a19128d668091c77",
+      "sha256_after": "3d8ebd7c73a404811afe40588473b8e8b7fe8936be9bcb120f91c8327c217c29",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Zero Conditional: речь об общей закономерности."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 1,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If she studies hard, she ___ the exam.",
+        "correct_answer": "will pass",
+        "options": [
+          "will pass",
+          "passes",
+          "would pass",
+          "passed"
+        ],
+        "explanation": "First Conditional (реальная возможность в будущем): If + Present Simple, will + инфинитив → 'will pass'."
+      },
+      "content_after": {
+        "question": "If she studies hard, she ___ the exam.",
+        "correct_answer": "will pass",
+        "options": [
+          "will pass",
+          "passes",
+          "would pass",
+          "passed"
+        ],
+        "explanation": "First Conditional (реальная возможность в будущем): If + Present Simple, will + инфинитив → 'will pass'.",
+        "instruction": "Выбери форму для First Conditional: речь о возможном будущем событии."
+      },
+      "sha256_before": "6251aafbf3835e83b7d730a13c6524ffbdf98bc732ddd3851b339704c59825ba",
+      "sha256_after": "7acb65d2afcb7c3a77f7a604cfa02db8223ce2387fab258d4bc7fa1cc2a3f0fb",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для First Conditional: речь о возможном будущем событии."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 1,
+      "exercise_order": 6,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If I had more time, I ___ a new language.",
+        "correct_answer": "would learn",
+        "options": [
+          "would learn",
+          "will learn",
+          "learn",
+          "learned"
+        ],
+        "explanation": "Second Conditional (гипотетика про настоящее): If + Past Simple, would + инфинитив → 'would learn'."
+      },
+      "content_after": {
+        "question": "If I had more time, I ___ a new language.",
+        "correct_answer": "would learn",
+        "options": [
+          "would learn",
+          "will learn",
+          "learn",
+          "learned"
+        ],
+        "explanation": "Second Conditional (гипотетика про настоящее): If + Past Simple, would + инфинитив → 'would learn'.",
+        "instruction": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+      },
+      "sha256_before": "8a16896f164c5b4868232639503d6007abb3ed4979df58703a57de00f759b02f",
+      "sha256_after": "f02b007451795c602e794793e3e5e744603c34f202f5c690c20c0398fba068fd",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 2,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If you press this button, the machine ___.",
+        "correct_answer": "starts",
+        "options": [
+          "starts",
+          "will start",
+          "would start",
+          "started"
+        ],
+        "explanation": "Zero Conditional описывает автоматический результат: If + Present, Present → 'starts'."
+      },
+      "content_after": {
+        "question": "If you press this button, the machine ___.",
+        "correct_answer": "starts",
+        "options": [
+          "starts",
+          "will start",
+          "would start",
+          "started"
+        ],
+        "explanation": "Zero Conditional описывает автоматический результат: If + Present, Present → 'starts'.",
+        "instruction": "Выбери форму для Zero Conditional: речь об общей закономерности."
+      },
+      "sha256_before": "18036c3bd57e678f34f6d5df0d84fa7964de78df4d40733300d8a1f61175eb41",
+      "sha256_after": "938e59154d640f04d441b5ed79460e411e74e2852afa9b61f3d92003521df944",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Zero Conditional: речь об общей закономерности."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 2,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If they invite me, I ___ to the party.",
+        "correct_answer": "will go",
+        "options": [
+          "will go",
+          "go",
+          "would go",
+          "went"
+        ],
+        "explanation": "First Conditional (реальная возможность): If + Present Simple, will + инфинитив → 'will go'."
+      },
+      "content_after": {
+        "question": "If they invite me, I ___ to the party.",
+        "correct_answer": "will go",
+        "options": [
+          "will go",
+          "go",
+          "would go",
+          "went"
+        ],
+        "explanation": "First Conditional (реальная возможность): If + Present Simple, will + инфинитив → 'will go'.",
+        "instruction": "Выбери форму для First Conditional: речь о возможном будущем событии."
+      },
+      "sha256_before": "3525c4a1138ec5618a0de11fc34c89bdfa5b5fd32d6e3b7462aec7d906ab0aa0",
+      "sha256_after": "f7dccebc3317d62c2737816f29ee5d86917744b5e27bd42d869c5eb5c500630f",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для First Conditional: речь о возможном будущем событии."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 2,
+      "exercise_order": 6,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If I were rich, I ___ around the world.",
+        "correct_answer": "would travel",
+        "options": [
+          "would travel",
+          "will travel",
+          "travel",
+          "traveled"
+        ],
+        "explanation": "Second Conditional (нереальная ситуация): If + were, would + инфинитив → 'would travel'."
+      },
+      "content_after": {
+        "question": "If I were rich, I ___ around the world.",
+        "correct_answer": "would travel",
+        "options": [
+          "would travel",
+          "will travel",
+          "travel",
+          "traveled"
+        ],
+        "explanation": "Second Conditional (нереальная ситуация): If + were, would + инфинитив → 'would travel'.",
+        "instruction": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+      },
+      "sha256_before": "5e079fab1bb081cbd8a5a4c0d68e85f47f4acc031e9d80cd10ee0287018b44eb",
+      "sha256_after": "38e0570fad644185e64211a9352b1153c45b3d420c5b4bf2da30afbda7b9809a",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 2,
+      "exercise_order": 7,
+      "exercise_type": "true_false",
+      "difficulty": 1,
+      "content_before": {
+        "statement": "Предложение 'If she will come, we will start the meeting' построено правильно.",
+        "correct_answer": false,
+        "explanation": "Неверно. После if в условии will не ставится. Правильно: 'If she comes, we will start the meeting'."
+      },
+      "content_after": {
+        "statement": "Предложение 'If she will come, we will start the meeting' построено правильно.",
+        "correct_answer": false,
+        "explanation": "Неверно. После if в условии will не ставится. Правильно: 'If she comes, we will start the meeting'.",
+        "instruction": "Оцени правильность формы условия. Речь об обычном условии на будущее, без значения готовности или вежливой просьбы."
+      },
+      "sha256_before": "6648de7411185db14bce829fd84d1f1a3e3d50da6520db9712d942197404da26",
+      "sha256_after": "991e4a9f89eb9a0c60e49a695bfa823a0516b4c63b9e146ff18ea2b3d0482e99",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Оцени правильность формы условия. Речь об обычном условии на будущее, без значения готовности или вежливой просьбы."
+        }
+      },
+      "reason": "Exclude grammatical willingness/polite-request meanings of modal verbs in if-clauses."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 2,
+      "exercise_order": 9,
+      "exercise_type": "error_correction",
+      "difficulty": 1,
+      "content_before": {
+        "sentence": "If I was you, I would apologise.",
+        "correct_answer": "If I were you, I would apologise.",
+        "error_word": "was",
+        "correct_word": "were",
+        "alternatives": [
+          "were"
+        ],
+        "explanation": "В Second Conditional 'be' принимает форму 'were' для всех лиц: 'If I were you…'."
+      },
+      "content_after": {
+        "sentence": "If I was you, I would apologise.",
+        "correct_answer": "If I were you, I would apologise.",
+        "error_word": "was",
+        "correct_word": "were",
+        "alternatives": [
+          "were"
+        ],
+        "explanation": "В Second Conditional 'be' принимает форму 'were' для всех лиц: 'If I were you…'.",
+        "instruction": "Перепиши гипотетическое условие в формальном стиле, употребив сослагательную форму глагола be."
+      },
+      "sha256_before": "666b79edbaa46b5702ffcb257784dbb1c6d5cefedbf40ccf99ef0c9a1da021d7",
+      "sha256_after": "cb97907e76d43fa2eaa4bdaa72b1a3419f897a31cae81e912e8bd34c729e4476",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши гипотетическое условие в формальном стиле, употребив сослагательную форму глагола be."
+        }
+      },
+      "reason": "Informal was is grammatical; this task specifically requests the formal hypothetical form."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 3,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "Unless you hurry, you ___ the bus.",
+        "correct_answer": "will miss",
+        "options": [
+          "will miss",
+          "miss",
+          "would miss",
+          "missed"
+        ],
+        "explanation": "'Unless' = 'if not' и используется в First Conditional. Условие — Present, главная часть — will → 'will miss'."
+      },
+      "content_after": {
+        "question": "Unless you hurry, you ___ the bus.",
+        "correct_answer": "will miss",
+        "options": [
+          "will miss",
+          "miss",
+          "would miss",
+          "missed"
+        ],
+        "explanation": "'Unless' = 'if not' и используется в First Conditional. Условие — Present, главная часть — will → 'will miss'.",
+        "instruction": "Выбери форму для First Conditional: речь о возможном будущем событии."
+      },
+      "sha256_before": "5c3694ad13f41e53b1e7c4615d544e0d644f8215ac9fcf8094a090e85a052240",
+      "sha256_after": "a0a55d9f9a0e971671080eb94c7cd9d31344728ca195e6955b4f408e2af34d3f",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для First Conditional: речь о возможном будущем событии."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 3,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If metal ___, it expands.",
+        "correct_answer": "gets hot",
+        "options": [
+          "gets hot",
+          "will get hot",
+          "would get hot",
+          "got hot"
+        ],
+        "explanation": "Zero Conditional (научный факт): обе части в Present Simple → 'gets hot'."
+      },
+      "content_after": {
+        "question": "If metal ___, it expands.",
+        "correct_answer": "gets hot",
+        "options": [
+          "gets hot",
+          "will get hot",
+          "would get hot",
+          "got hot"
+        ],
+        "explanation": "Zero Conditional (научный факт): обе части в Present Simple → 'gets hot'.",
+        "instruction": "Выбери форму для Zero Conditional: речь об общей закономерности."
+      },
+      "sha256_before": "f0f1e10ff6a1ff069c472216b8a4107c1341285b70b068b58db10ae01acc0b0e",
+      "sha256_after": "2818a5a5717565c6b2360d05adad587431d036c8564558262a3d6ca0e6adf882",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Zero Conditional: речь об общей закономерности."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 3,
+      "exercise_order": 6,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "If she didn't work so much, she ___ more relaxed.",
+        "correct_answer": "would be",
+        "options": [
+          "would be",
+          "will be",
+          "is",
+          "was"
+        ],
+        "explanation": "Second Conditional (гипотетика про настоящее): If + Past Simple, would + инфинитив → 'would be'."
+      },
+      "content_after": {
+        "question": "If she didn't work so much, she ___ more relaxed.",
+        "correct_answer": "would be",
+        "options": [
+          "would be",
+          "will be",
+          "is",
+          "was"
+        ],
+        "explanation": "Second Conditional (гипотетика про настоящее): If + Past Simple, would + инфинитив → 'would be'.",
+        "instruction": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+      },
+      "sha256_before": "8ead2e583ccdc57529bb6358bedbe1e03087da95b3469f54d2c83f4bf950f829",
+      "sha256_after": "00b58d7ab2be7e026d164a26916af84b922cd511bd4ae6422e1105eb1d1e7567",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 3,
+      "exercise_order": 9,
+      "exercise_type": "error_correction",
+      "difficulty": 1,
+      "content_before": {
+        "sentence": "If you would call me, I will help you.",
+        "correct_answer": "If you call me, I will help you.",
+        "error_word": "would call",
+        "correct_word": "call",
+        "alternatives": [
+          "call"
+        ],
+        "explanation": "После if в условии не ставится would. First Conditional: If + Present Simple ('call'), will в главной части."
+      },
+      "content_after": {
+        "sentence": "If you would call me, I will help you.",
+        "correct_answer": "If you call me, I will help you.",
+        "error_word": "would call",
+        "correct_word": "call",
+        "alternatives": [
+          "call"
+        ],
+        "explanation": "После if в условии не ставится would. First Conditional: If + Present Simple ('call'), will в главной части.",
+        "instruction": "Исправь форму условия. Речь об обычном условии на будущее, без значения готовности или вежливой просьбы."
+      },
+      "sha256_before": "ce736f152ce641e17a1db4c7659ca7d27110b2c3d63c6aa6c6e2c0a0a34600fc",
+      "sha256_after": "7a34f86fa98fe8fa851ee886e119187614b2cc04f0ef99939f7bd7d327d6e757",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Исправь форму условия. Речь об обычном условии на будущее, без значения готовности или вежливой просьбы."
+        }
+      },
+      "reason": "Exclude grammatical willingness/polite-request meanings of modal verbs in if-clauses."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 4,
+      "exercise_order": 3,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "If I spoke better French, I ___ for that job in Paris.",
+        "correct_answer": "would apply",
+        "options": [
+          "would apply",
+          "will apply",
+          "apply",
+          "applied"
+        ],
+        "explanation": "Second Conditional (нереальная ситуация): If + Past Simple ('spoke'), would + инфинитив → 'would apply'."
+      },
+      "content_after": {
+        "question": "If I spoke better French, I ___ for that job in Paris.",
+        "correct_answer": "would apply",
+        "options": [
+          "would apply",
+          "will apply",
+          "apply",
+          "applied"
+        ],
+        "explanation": "Second Conditional (нереальная ситуация): If + Past Simple ('spoke'), would + инфинитив → 'would apply'.",
+        "instruction": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+      },
+      "sha256_before": "3de62c746e4c22beef7c1d5869151816f93814a4efc039631f250f9c1675e7d5",
+      "sha256_after": "ee764dc25c65525c47bd68c832994519f9c7f6ac66536783540131e1cdc6313d",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 4,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "As long as you stay calm, everything ___ fine.",
+        "correct_answer": "will be",
+        "options": [
+          "will be",
+          "is",
+          "would be",
+          "was"
+        ],
+        "explanation": "'As long as' — синоним if (пока, при условии). First Conditional: условие в Present, главная часть — will → 'will be'."
+      },
+      "content_after": {
+        "question": "As long as you stay calm, everything ___ fine.",
+        "correct_answer": "will be",
+        "options": [
+          "will be",
+          "is",
+          "would be",
+          "was"
+        ],
+        "explanation": "'As long as' — синоним if (пока, при условии). First Conditional: условие в Present, главная часть — will → 'will be'.",
+        "instruction": "Выбери форму для First Conditional: речь о возможном будущем событии."
+      },
+      "sha256_before": "4ac8623c77875620955b6bdde5be7d46b5ee822316a238c8b63f420f44d98fc2",
+      "sha256_after": "54d46bada6a2ec382954471c59ab7a444536579f1514ef636e0b6e8a4d000cfc",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для First Conditional: речь о возможном будущем событии."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 4,
+      "exercise_order": 7,
+      "exercise_type": "error_correction",
+      "difficulty": 2,
+      "content_before": {
+        "sentence": "If the sun shines, plants will grow.",
+        "correct_answer": "If the sun shines, plants grow.",
+        "error_word": "will grow",
+        "correct_word": "grow",
+        "alternatives": [
+          "grow"
+        ],
+        "explanation": "Это общая истина → Zero Conditional. Обе части в Present Simple: 'grow', а не 'will grow'."
+      },
+      "content_after": {
+        "sentence": "If the sun shines, plants will grow.",
+        "correct_answer": "If the sun shines, plants grow.",
+        "error_word": "will grow",
+        "correct_word": "grow",
+        "alternatives": [
+          "grow"
+        ],
+        "explanation": "Это общая истина → Zero Conditional. Обе части в Present Simple: 'grow', а не 'will grow'.",
+        "instruction": "Переделай предложение в Zero Conditional как общую закономерность: обе части поставь в Present Simple."
+      },
+      "sha256_before": "574052991735253f41c1e40983f73adba87fb84f87212d8a32bcfa9bf59b2e7d",
+      "sha256_after": "ebe952510b33add7a79dc08b28965a2dc833a57b120cdd4f417b8e0fff69e5ad",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переделай предложение в Zero Conditional как общую закономерность: обе части поставь в Present Simple."
+        }
+      },
+      "reason": "The original first conditional is grammatical; request the intended transformation instead of declaring it universally wrong."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 5,
+      "exercise_order": 3,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "If we ___ a bigger flat, we would invite more guests.",
+        "correct_answer": "had",
+        "options": [
+          "had",
+          "have",
+          "will have",
+          "would have"
+        ],
+        "explanation": "Second Conditional: после if ставится Past Simple ('had'). Would — в главной части."
+      },
+      "content_after": {
+        "question": "If we ___ a bigger flat, we would invite more guests.",
+        "correct_answer": "had",
+        "options": [
+          "had",
+          "have",
+          "will have",
+          "would have"
+        ],
+        "explanation": "Second Conditional: после if ставится Past Simple ('had'). Would — в главной части.",
+        "instruction": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+      },
+      "sha256_before": "4117e86ca9416bc9f125eadc88ea3f80c6b2276c7c2c83801297fe4ee099c4f5",
+      "sha256_after": "dc081ae3c1bc09ab2c20465181f72a7d23db737d624462655235b9db08b74d97",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 5,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "Water ___ if you cool it below zero degrees.",
+        "correct_answer": "freezes",
+        "options": [
+          "freezes",
+          "will freeze",
+          "would freeze",
+          "froze"
+        ],
+        "explanation": "Zero Conditional (научный факт): главная часть тоже в Present Simple → 'freezes'."
+      },
+      "content_after": {
+        "question": "Water ___ if you cool it below zero degrees.",
+        "correct_answer": "freezes",
+        "options": [
+          "freezes",
+          "will freeze",
+          "would freeze",
+          "froze"
+        ],
+        "explanation": "Zero Conditional (научный факт): главная часть тоже в Present Simple → 'freezes'.",
+        "instruction": "Выбери форму для Zero Conditional: речь об общей закономерности."
+      },
+      "sha256_before": "b02d1e28532bc76a9f9a2c9881ebd096d8576e0e30982d16294d492f5a9b409b",
+      "sha256_after": "06e0f214a8281d97b1607c63d2763e955c03ebdbe45069748e068e211773cc9f",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Zero Conditional: речь об общей закономерности."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 6,
+      "exercise_order": 2,
+      "exercise_type": "multiple_choice",
+      "difficulty": 3,
+      "content_before": {
+        "question": "As long as the negotiations go well, the two companies ___ a deal next week.",
+        "correct_answer": "will sign",
+        "options": [
+          "will sign",
+          "sign",
+          "would sign",
+          "signed"
+        ],
+        "explanation": "'As long as' — синоним if. First Conditional: условие в Present ('go'), главная часть — will → 'will sign'."
+      },
+      "content_after": {
+        "question": "As long as the negotiations go well, the two companies ___ a deal next week.",
+        "correct_answer": "will sign",
+        "options": [
+          "will sign",
+          "sign",
+          "would sign",
+          "signed"
+        ],
+        "explanation": "'As long as' — синоним if. First Conditional: условие в Present ('go'), главная часть — will → 'will sign'.",
+        "instruction": "Выбери форму для First Conditional: речь о возможном будущем событии."
+      },
+      "sha256_before": "8780e047673b19240c066fed6a6805cde010fbed19603df21d32792d19f49ec8",
+      "sha256_after": "239ad567fb2619f060fed551a8d958bc77311a23eab93fe7faf9d1d65472f9b3",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для First Conditional: речь о возможном будущем событии."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 6,
+      "exercise_order": 7,
+      "exercise_type": "error_correction",
+      "difficulty": 3,
+      "content_before": {
+        "sentence": "If the client will agree to our terms, we will start the project on Monday.",
+        "correct_answer": "If the client agrees to our terms, we will start the project on Monday.",
+        "error_word": "will agree",
+        "correct_word": "agrees",
+        "alternatives": [
+          "agrees"
+        ],
+        "explanation": "После if в условии will не используется. First Conditional: If + Present Simple ('agrees'), will в главной части."
+      },
+      "content_after": {
+        "sentence": "If the client will agree to our terms, we will start the project on Monday.",
+        "correct_answer": "If the client agrees to our terms, we will start the project on Monday.",
+        "error_word": "will agree",
+        "correct_word": "agrees",
+        "alternatives": [
+          "agrees"
+        ],
+        "explanation": "После if в условии will не используется. First Conditional: If + Present Simple ('agrees'), will в главной части.",
+        "instruction": "Исправь форму условия. Речь об обычном условии на будущее, без значения готовности или вежливой просьбы."
+      },
+      "sha256_before": "b763f0dc39d9c89eaad64d54bb331fbeb6c244b3a37f207a2237e5740bc699aa",
+      "sha256_after": "990f96a7dd075c3f19c1b1506bad280c8cc85badc170a60360e7d91392630687",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Исправь форму условия. Речь об обычном условии на будущее, без значения готовности или вежливой просьбы."
+        }
+      },
+      "reason": "Exclude grammatical willingness/polite-request meanings of modal verbs in if-clauses."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 6,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "difficulty": 3,
+      "content_before": {
+        "sentence": "If I was a manager, I would change the whole schedule.",
+        "correct_answer": "If I were a manager, I would change the whole schedule.",
+        "error_word": "was",
+        "correct_word": "were",
+        "alternatives": [
+          "were"
+        ],
+        "explanation": "В Second Conditional 'be' принимает форму 'were' для всех лиц: 'If I were a manager…'."
+      },
+      "content_after": {
+        "sentence": "If I was a manager, I would change the whole schedule.",
+        "correct_answer": "If I were a manager, I would change the whole schedule.",
+        "error_word": "was",
+        "correct_word": "were",
+        "alternatives": [
+          "were"
+        ],
+        "explanation": "В Second Conditional 'be' принимает форму 'were' для всех лиц: 'If I were a manager…'.",
+        "instruction": "Перепиши гипотетическое условие в формальном стиле, употребив сослагательную форму глагола be."
+      },
+      "sha256_before": "6a5be3f1a8fb985b47301324009004890f60f721fd6804327f46cb72b24de02e",
+      "sha256_after": "a30b71c0bd4be4ea326c8e971925b2a0e8db589fc828940cb2f81e5f73b164ba",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши гипотетическое условие в формальном стиле, употребив сослагательную форму глагола be."
+        }
+      },
+      "reason": "Informal was is grammatical; this task specifically requests the formal hypothetical form."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 7,
+      "exercise_order": 2,
+      "exercise_type": "multiple_choice",
+      "difficulty": 3,
+      "content_before": {
+        "question": "If the manager approves the budget, the new department ___ next month.",
+        "correct_answer": "will open",
+        "options": [
+          "will open",
+          "opens",
+          "would open",
+          "opened"
+        ],
+        "explanation": "First Conditional (реальный план): If + Present Simple ('approves'), will + инфинитив → 'will open'."
+      },
+      "content_after": {
+        "question": "If the manager approves the budget, the new department ___ next month.",
+        "correct_answer": "will open",
+        "options": [
+          "will open",
+          "opens",
+          "would open",
+          "opened"
+        ],
+        "explanation": "First Conditional (реальный план): If + Present Simple ('approves'), will + инфинитив → 'will open'.",
+        "instruction": "Выбери форму для First Conditional: речь о возможном будущем событии."
+      },
+      "sha256_before": "31b5c2bcdf42584e095df794d637455f2f970445293b9da9d01e8d4d87533e4b",
+      "sha256_after": "4f3fa99e5d6e95da1fb2e1093bc4756f3e1fe80882c62f871f4e91d520935a8f",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для First Conditional: речь о возможном будущем событии."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B1_16.json",
+      "level": "B1",
+      "module_order": 16,
+      "grammar_topic_slug": "conditionals-intro",
+      "session_number": 8,
+      "exercise_order": 2,
+      "exercise_type": "multiple_choice",
+      "difficulty": 3,
+      "content_before": {
+        "question": "If I knew his email address, I ___ him the documents straight away.",
+        "correct_answer": "would send",
+        "options": [
+          "would send",
+          "will send",
+          "send",
+          "sent"
+        ],
+        "explanation": "Second Conditional (нереальная ситуация в настоящем): If + Past Simple ('knew'), would + инфинитив → 'would send'."
+      },
+      "content_after": {
+        "question": "If I knew his email address, I ___ him the documents straight away.",
+        "correct_answer": "would send",
+        "options": [
+          "would send",
+          "will send",
+          "send",
+          "sent"
+        ],
+        "explanation": "Second Conditional (нереальная ситуация в настоящем): If + Past Simple ('knew'), would + инфинитив → 'would send'.",
+        "instruction": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+      },
+      "sha256_before": "4a5dcfa7e8f36be43a4d6d92d09ba88a1e5e2762e1d9af7f812a0f6fd6738f99",
+      "sha256_after": "074c1ed3b5671c438cf295847b7a4148eced671b67de737729cdce82e90bf251",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Выбери форму для Second Conditional: речь о гипотетической ситуации в настоящем или будущем."
+        }
+      },
+      "reason": "Explicit conditional type distinguishes other grammatically possible readings."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "The manager asked ___ the quarterly report was ready for the meeting.",
+        "correct_answer": "if",
+        "alternatives": [
+          "whether"
+        ],
+        "explanation": "При передаче yes/no вопросов используются союзы if или whether. Прямой вопрос: «Is the quarterly report ready?» Перевод: Менеджер спросил, готов ли квартальный отчёт к совещанию."
+      },
+      "content_after": {
+        "question": "The manager asked ___ the quarterly report was ready for the meeting.",
+        "correct_answer": "if",
+        "alternatives": [
+          "whether"
+        ],
+        "explanation": "При передаче yes/no вопросов используются союзы if или whether. Прямой вопрос: «Is the quarterly report ready?» Перевод: Менеджер спросил, готов ли квартальный отчёт к совещанию.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "c061f4e06029e509806d09ff22d991b4ed6b4ec950ea6fe28c189a8d8337b839",
+      "sha256_after": "4f1b97b074be8447aaa353bbc8219bfc4afbd3fdbcd15b31bdc1f02961683b35",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 2,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "She wanted to know ___ the conference would take place that year.",
+        "correct_answer": "where",
+        "alternatives": [],
+        "explanation": "Wh-вопрос с where сохраняется в косвенной речи. Прямой вопрос: «Where will the conference take place?» Перевод: Она хотела знать, где в том году пройдёт конференция."
+      },
+      "content_after": {
+        "question": "She wanted to know ___ the conference would take place that year.",
+        "correct_answer": "where",
+        "alternatives": [],
+        "explanation": "Wh-вопрос с where сохраняется в косвенной речи. Прямой вопрос: «Where will the conference take place?» Перевод: Она хотела знать, где в том году пройдёт конференция.",
+        "instruction": "Передай косвенный вопрос о месте со смыслом «где»."
+      },
+      "sha256_before": "525627e87d632ab91abfb0bd74fc35475c19db6e3daa5ee0e1c84b33dca5ffdc",
+      "sha256_after": "0d3063a35b3e9811ff75be5d8fe93831fca7545a6879c47d67f3e3e7446ed6ca",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о месте со смыслом «где»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 3,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "My colleague asked me ___ I had finished the project on time.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether или if вводят косвенные yes/no вопросы. Прямой вопрос: «Did you finish the project on time?» Перевод: Коллега спросил меня, закончил ли я проект вовремя."
+      },
+      "content_after": {
+        "question": "My colleague asked me ___ I had finished the project on time.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether или if вводят косвенные yes/no вопросы. Прямой вопрос: «Did you finish the project on time?» Перевод: Коллега спросил меня, закончил ли я проект вовремя.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "385d53726f2990b8c3bbeac2dc0bc2c566a7f9f24afefef17a5220e0e65e1313",
+      "sha256_after": "de5e606f3deab0970ed4527754bc197f23c700d8e82967a37966606b99330515",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "He asked ___ the meeting had been postponed until the following week.",
+        "correct_answer": "why",
+        "options": [
+          "why",
+          "what",
+          "if",
+          "where"
+        ],
+        "explanation": "Вопрос о причине передаётся с помощью why. Прямой вопрос: «Why has the meeting been postponed?» Перевод: Он спросил, почему собрание перенесли на следующую неделю."
+      },
+      "content_after": {
+        "question": "He asked ___ the meeting had been postponed until the following week.",
+        "correct_answer": "why",
+        "options": [
+          "why",
+          "what",
+          "if",
+          "where"
+        ],
+        "explanation": "Вопрос о причине передаётся с помощью why. Прямой вопрос: «Why has the meeting been postponed?» Перевод: Он спросил, почему собрание перенесли на следующую неделю.",
+        "instruction": "Передай косвенный вопрос о причине со смыслом «почему»."
+      },
+      "sha256_before": "0507a3503dea70dc84569694da135987338638f781a8e89af1c7fe02b9f43063",
+      "sha256_after": "3e35bda21c5d28fc1e7ad67bd13a9675a4297a5a9c6cff5019a0e41f0b57b62a",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о причине со смыслом «почему»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "The teacher asked the students ___ they had completed their homework.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "what",
+          "who",
+          "how"
+        ],
+        "explanation": "Косвенный yes/no вопрос вводится союзом if (или whether). Прямой: «Have you completed your homework?» Перевод: Учитель спросил студентов, выполнили ли они домашнее задание."
+      },
+      "content_after": {
+        "question": "The teacher asked the students ___ they had completed their homework.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "what",
+          "who",
+          "how"
+        ],
+        "explanation": "Косвенный yes/no вопрос вводится союзом if (или whether). Прямой: «Have you completed your homework?» Перевод: Учитель спросил студентов, выполнили ли они домашнее задание.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "41825787527a4a5c62d1f5e297efa635ef8ecb26bf396b0abf68d680007b84c3",
+      "sha256_after": "066c139a01b37769442a4f5a8b17f6ea7d811fdc252790f14b6dea2cde7f09c4",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 6,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "She wanted to find out ___ had written the anonymous complaint letter.",
+        "correct_answer": "who",
+        "options": [
+          "who",
+          "if",
+          "when",
+          "where"
+        ],
+        "explanation": "Who используется как подлежащее косвенного вопроса. Прямой: «Who wrote the anonymous complaint letter?» Перевод: Она хотела выяснить, кто написал анонимную жалобу."
+      },
+      "content_after": {
+        "question": "She wanted to find out ___ had written the anonymous complaint letter.",
+        "correct_answer": "who",
+        "options": [
+          "who",
+          "if",
+          "when",
+          "where"
+        ],
+        "explanation": "Who используется как подлежащее косвенного вопроса. Прямой: «Who wrote the anonymous complaint letter?» Перевод: Она хотела выяснить, кто написал анонимную жалобу.",
+        "instruction": "Передай косвенный вопрос о человеке со смыслом «кто»."
+      },
+      "sha256_before": "fd471ad629af3f97c1767f0c88159e69aaff0ed5118d3c7ed7f092ca6b26184c",
+      "sha256_after": "53704c7e4aa609f3f88aa4f2a09da186b38b94415543698db09eb56d12263ba7",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о человеке со смыслом «кто»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 8,
+      "exercise_type": "translation",
+      "difficulty": 1,
+      "content_before": {
+        "question": "Он спросил, когда начнётся следующий семестр.",
+        "correct_answer": "He asked when the next semester would start.",
+        "alternatives": [
+          "He asked when the next semester would begin."
+        ],
+        "explanation": "When сохраняется в косвенном вопросе. Will → would (согласование времён). Прямой порядок слов: when + подлежащее + сказуемое."
+      },
+      "content_after": {
+        "question": "Он спросил, когда начнётся следующий семестр.",
+        "correct_answer": "He asked when the next semester would start.",
+        "alternatives": [
+          "He asked when the next semester would begin."
+        ],
+        "explanation": "When сохраняется в косвенном вопросе. Will → would (согласование времён). Прямой порядок слов: when + подлежащее + сказуемое.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "292c38b8ff6fbd74b1ccc5bc38181cb3de99faa235c92463f1835379d11f020d",
+      "sha256_after": "6e7c0c1043de40ee55bb823d721becc82a40ea35c689fcc521d4a7e84834cd9e",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 1,
+      "exercise_order": 9,
+      "exercise_type": "error_correction",
+      "difficulty": 1,
+      "content_before": {
+        "sentence": "She asked me where did I buy that beautiful painting.",
+        "correct_answer": "She asked me where I bought that beautiful painting.",
+        "error_word": "did I buy",
+        "correct_word": "I bought",
+        "explanation": "Ошибка: инверсия (did I buy) в косвенном вопросе. В reported questions используется прямой порядок слов: where + подлежащее + глагол. Перевод: Она спросила меня, где я купил эту красивую картину.",
+        "alternatives": [
+          "I bought"
+        ]
+      },
+      "content_after": {
+        "sentence": "She asked me where did I buy that beautiful painting.",
+        "correct_answer": "She asked me where I bought that beautiful painting.",
+        "error_word": "did I buy",
+        "correct_word": "I bought",
+        "explanation": "Ошибка: инверсия (did I buy) в косвенном вопросе. В reported questions используется прямой порядок слов: where + подлежащее + глагол. Перевод: Она спросила меня, где я купил эту красивую картину.",
+        "alternatives": [
+          "I bought"
+        ],
+        "instruction": "Исправь только порядок слов в косвенном вопросе; время глагола сохрани."
+      },
+      "sha256_before": "811edf8d0eb7d3e191b2eaba9a2bcafc74c728c38eac40b787e0331c0f4f6470",
+      "sha256_after": "86cc94dfd66b6f408ebe84dcf7b4d1643f8f1aca2afd3bce35e1b39bdd1bc8fc",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Исправь только порядок слов в косвенном вопросе; время глагола сохрани."
+        }
+      },
+      "reason": "Constrain this exercise to word order without inviting optional additional backshift."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "The interviewer asked ___ I could describe my greatest professional achievement.",
+        "correct_answer": "if",
+        "alternatives": [
+          "whether"
+        ],
+        "explanation": "If/whether вводят косвенные yes/no вопросы. Прямой: «Can you describe your greatest achievement?» Перевод: Интервьюер спросил, могу ли я описать своё главное профессиональное достижение."
+      },
+      "content_after": {
+        "question": "The interviewer asked ___ I could describe my greatest professional achievement.",
+        "correct_answer": "if",
+        "alternatives": [
+          "whether"
+        ],
+        "explanation": "If/whether вводят косвенные yes/no вопросы. Прямой: «Can you describe your greatest achievement?» Перевод: Интервьюер спросил, могу ли я описать своё главное профессиональное достижение.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "3536d870526153ba9c29c1a8b264a348bc40f9ba04ab3bef7808cfd4338de250",
+      "sha256_after": "8794a46725c1c230f57d079236bb1ec4295f02844722487aaa7eb90e5724d613",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 2,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "They wanted to know ___ the company planned to expand into Asian markets.",
+        "correct_answer": "when",
+        "alternatives": [],
+        "explanation": "When сохраняется в косвенном вопросе о времени. Прямой: «When does the company plan to expand?» Перевод: Они хотели знать, когда компания планирует выйти на азиатские рынки."
+      },
+      "content_after": {
+        "question": "They wanted to know ___ the company planned to expand into Asian markets.",
+        "correct_answer": "when",
+        "alternatives": [],
+        "explanation": "When сохраняется в косвенном вопросе о времени. Прямой: «When does the company plan to expand?» Перевод: Они хотели знать, когда компания планирует выйти на азиатские рынки.",
+        "instruction": "Передай косвенный вопрос о времени со смыслом «когда»."
+      },
+      "sha256_before": "bb9e9efc81b4a79435e7069fcd3438ebfd0a75935af5aa437f69d14395649c35",
+      "sha256_after": "c10a6e59ac9f2184b07ced58e7c015d3923687ee81a6862320d3577a8123a914",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о времени со смыслом «когда»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 3,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "The receptionist asked ___ many guests would be attending the dinner.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How many передаёт вопрос о количестве. Прямой: «How many guests will be attending?» Перевод: Администратор спросил, сколько гостей будет на ужине."
+      },
+      "content_after": {
+        "question": "The receptionist asked ___ many guests would be attending the dinner.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How many передаёт вопрос о количестве. Прямой: «How many guests will be attending?» Перевод: Администратор спросил, сколько гостей будет на ужине.",
+        "instruction": "Передай косвенный вопрос о количестве со смыслом «сколько»."
+      },
+      "sha256_before": "993120d63ae50cb1fcde95e57b579f16b4ef970a9edc5fb8a504730f047e586a",
+      "sha256_after": "2276d3f3810830eb5da609560bffbf63cbc9cc5bf91ad2f69cd2076b0ef21c92",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о количестве со смыслом «сколько»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "She asked ___ I had been doing before I moved to London.",
+        "correct_answer": "what",
+        "options": [
+          "what",
+          "if",
+          "where",
+          "who"
+        ],
+        "explanation": "What вводит вопрос о предмете/действии. Прямой: «What had you been doing before you moved?» Перевод: Она спросила, чем я занимался до переезда в Лондон."
+      },
+      "content_after": {
+        "question": "She asked ___ I had been doing before I moved to London.",
+        "correct_answer": "what",
+        "options": [
+          "what",
+          "if",
+          "where",
+          "who"
+        ],
+        "explanation": "What вводит вопрос о предмете/действии. Прямой: «What had you been doing before you moved?» Перевод: Она спросила, чем я занимался до переезда в Лондон.",
+        "instruction": "Передай косвенный вопрос о предмете или содержании со смыслом «что»."
+      },
+      "sha256_before": "d27282f7e37c9ebbd066fd9b2c90cec78992ad11d7590335092fa53823795bca",
+      "sha256_after": "9335e5c3dd4a830379986bd4dba28ac7c592bb7fe694faca4375791ab51a9a70",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о предмете или содержании со смыслом «что»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "The doctor asked the patient ___ he had been taking his medication regularly.",
+        "correct_answer": "whether",
+        "options": [
+          "whether",
+          "what",
+          "who",
+          "when"
+        ],
+        "explanation": "Whether вводит косвенный yes/no вопрос. Прямой: «Have you been taking your medication regularly?» Перевод: Врач спросил пациента, принимал ли он лекарства регулярно."
+      },
+      "content_after": {
+        "question": "The doctor asked the patient ___ he had been taking his medication regularly.",
+        "correct_answer": "whether",
+        "options": [
+          "whether",
+          "what",
+          "who",
+          "when"
+        ],
+        "explanation": "Whether вводит косвенный yes/no вопрос. Прямой: «Have you been taking your medication regularly?» Перевод: Врач спросил пациента, принимал ли он лекарства регулярно.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "0eaaf67929016a30a479c31b72a698eb88cd91e5418f6dca5f86966005560811",
+      "sha256_after": "30b8e6eb3be2ea88328fd6b2e56c1587ba0f232e15e01725b7205c0b4c393652",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 6,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "He wondered ___ the train to Edinburgh had already departed from the station.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "what",
+          "how",
+          "why"
+        ],
+        "explanation": "If вводит косвенный yes/no вопрос после wondered. Прямой: «Has the train departed?» Перевод: Он задумался, ушёл ли уже поезд до Эдинбурга со станции."
+      },
+      "content_after": {
+        "question": "He wondered ___ the train to Edinburgh had already departed from the station.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "what",
+          "how",
+          "why"
+        ],
+        "explanation": "If вводит косвенный yes/no вопрос после wondered. Прямой: «Has the train departed?» Перевод: Он задумался, ушёл ли уже поезд до Эдинбурга со станции.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "40a0d7e6eef95bd248730547dcfc20f43a533f776d6d45a3ede55c3fa460083e",
+      "sha256_after": "995e513ad8f8c11bb3ca7b9bf688e155cdbe949f21e7ca76b37c3d62d1b51401",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 8,
+      "exercise_type": "translation",
+      "difficulty": 1,
+      "content_before": {
+        "question": "Она спросила, как часто я тренируюсь в спортзале.",
+        "correct_answer": "She asked how often I worked out at the gym.",
+        "alternatives": [
+          "She asked how often I exercised at the gym."
+        ],
+        "explanation": "How often передаёт вопрос о частоте. Тренируюсь (настоящее) → worked out (Past Simple при согласовании времён)."
+      },
+      "content_after": {
+        "question": "Она спросила, как часто я тренируюсь в спортзале.",
+        "correct_answer": "She asked how often I worked out at the gym.",
+        "alternatives": [
+          "She asked how often I exercised at the gym."
+        ],
+        "explanation": "How often передаёт вопрос о частоте. Тренируюсь (настоящее) → worked out (Past Simple при согласовании времён).",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "816646d77a43087bc780b3a32676142d6a977e840469cb156c465313ae4bfab5",
+      "sha256_after": "fe8458b775cf94bbea2ccd04accfbaa8b4d17c4cd056fb688bc8dc8a8025239f",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 2,
+      "exercise_order": 9,
+      "exercise_type": "error_correction",
+      "difficulty": 1,
+      "content_before": {
+        "sentence": "The professor asked why was the student absent from the lecture.",
+        "correct_answer": "The professor asked why the student was absent from the lecture.",
+        "error_word": "was the student",
+        "correct_word": "the student was",
+        "explanation": "Ошибка: инверсия (was the student) в косвенном вопросе. Нужен прямой порядок слов: why + подлежащее + глагол. Перевод: Профессор спросил, почему студент отсутствовал на лекции.",
+        "alternatives": [
+          "the student was"
+        ]
+      },
+      "content_after": {
+        "sentence": "The professor asked why was the student absent from the lecture.",
+        "correct_answer": "The professor asked why the student was absent from the lecture.",
+        "error_word": "was the student",
+        "correct_word": "the student was",
+        "explanation": "Ошибка: инверсия (was the student) в косвенном вопросе. Нужен прямой порядок слов: why + подлежащее + глагол. Перевод: Профессор спросил, почему студент отсутствовал на лекции.",
+        "alternatives": [
+          "the student was"
+        ],
+        "instruction": "Исправь только порядок слов в косвенном вопросе; время глагола сохрани."
+      },
+      "sha256_before": "0714d9e1e84f66d656a75319f1355b61d36aab047a163729e36e491391201f35",
+      "sha256_after": "d785ba825bc7d7001c6df73bc13a2f120215c5d6712c0cae67a80a3b57d5c152",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Исправь только порядок слов в косвенном вопросе; время глагола сохрани."
+        }
+      },
+      "reason": "Constrain this exercise to word order without inviting optional additional backshift."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "My parents asked ___ I was planning to study abroad after graduation.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether/if вводят косвенные yes/no вопросы. Прямой: «Are you planning to study abroad?» Перевод: Родители спросили, планирую ли я учиться за границей после окончания учёбы."
+      },
+      "content_after": {
+        "question": "My parents asked ___ I was planning to study abroad after graduation.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether/if вводят косвенные yes/no вопросы. Прямой: «Are you planning to study abroad?» Перевод: Родители спросили, планирую ли я учиться за границей после окончания учёбы.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "36841d333ec059a717fd72f94e65a5359dd75fa85e384e072403e99a00114d9e",
+      "sha256_after": "030f363a29244cf8db22253b4e6b23be1a359336d64411d069e9ba23120ebf75",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 2,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "The journalist wanted to know ___ the government had decided to raise taxes.",
+        "correct_answer": "why",
+        "alternatives": [],
+        "explanation": "Why передаёт вопрос о причине. Прямой: «Why has the government decided to raise taxes?» Перевод: Журналист хотел узнать, почему правительство решило повысить налоги."
+      },
+      "content_after": {
+        "question": "The journalist wanted to know ___ the government had decided to raise taxes.",
+        "correct_answer": "why",
+        "alternatives": [],
+        "explanation": "Why передаёт вопрос о причине. Прямой: «Why has the government decided to raise taxes?» Перевод: Журналист хотел узнать, почему правительство решило повысить налоги.",
+        "instruction": "Передай косвенный вопрос о причине со смыслом «почему»."
+      },
+      "sha256_before": "9e774a6855bdc300f3dc2dc7b9be5b69012996efa8b18e8d6e8acb2c3b56a6a9",
+      "sha256_after": "6663fcf55d70421366cde2cf28f2ecd6ebbc04bf8c01a665fdc61f8f6367ebe8",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о причине со смыслом «почему»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 3,
+      "exercise_type": "fill_blank",
+      "difficulty": 1,
+      "content_before": {
+        "question": "He asked me ___ kind of music I preferred listening to in the evenings.",
+        "correct_answer": "what",
+        "alternatives": [],
+        "explanation": "What kind of передаёт вопрос о типе/виде. Прямой: «What kind of music do you prefer?» Перевод: Он спросил, какую музыку я предпочитаю слушать по вечерам."
+      },
+      "content_after": {
+        "question": "He asked me ___ kind of music I preferred listening to in the evenings.",
+        "correct_answer": "what",
+        "alternatives": [],
+        "explanation": "What kind of передаёт вопрос о типе/виде. Прямой: «What kind of music do you prefer?» Перевод: Он спросил, какую музыку я предпочитаю слушать по вечерам.",
+        "instruction": "Передай косвенный вопрос о предмете или содержании со смыслом «что»."
+      },
+      "sha256_before": "3ee17b108635fda6e6c3270550faf67bfed1f6746282db1799326116060f8b55",
+      "sha256_after": "d9fbd2527062ca13687054664689c7fff76a8738d7170e35c6a487499212fe6c",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о предмете или содержании со смыслом «что»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "She asked ___ long the flight from Moscow to New York usually took.",
+        "correct_answer": "how",
+        "options": [
+          "how",
+          "what",
+          "if",
+          "when"
+        ],
+        "explanation": "How long передаёт вопрос о продолжительности. Прямой: «How long does the flight take?» Перевод: Она спросила, сколько обычно длится перелёт из Москвы в Нью-Йорк."
+      },
+      "content_after": {
+        "question": "She asked ___ long the flight from Moscow to New York usually took.",
+        "correct_answer": "how",
+        "options": [
+          "how",
+          "what",
+          "if",
+          "when"
+        ],
+        "explanation": "How long передаёт вопрос о продолжительности. Прямой: «How long does the flight take?» Перевод: Она спросила, сколько обычно длится перелёт из Москвы в Нью-Йорк.",
+        "instruction": "Передай косвенный вопрос о продолжительности со смыслом «как долго»."
+      },
+      "sha256_before": "8fbc1c97702b4841a9e9edf1f4e473cab7f307d0144a7d54460ebadd9cf1c502",
+      "sha256_after": "daabb755589e4a2a13c86aa24103f93eac139ea4192d1c7939d603b246880c4b",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о продолжительности со смыслом «как долго»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 5,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "The customer asked ___ had left a message for her at the front desk.",
+        "correct_answer": "who",
+        "options": [
+          "who",
+          "if",
+          "how",
+          "what"
+        ],
+        "explanation": "Who используется как подлежащее косвенного вопроса. Прямой: «Who left a message for me?» Перевод: Клиентка спросила, кто оставил ей сообщение на стойке регистрации."
+      },
+      "content_after": {
+        "question": "The customer asked ___ had left a message for her at the front desk.",
+        "correct_answer": "who",
+        "options": [
+          "who",
+          "if",
+          "how",
+          "what"
+        ],
+        "explanation": "Who используется как подлежащее косвенного вопроса. Прямой: «Who left a message for me?» Перевод: Клиентка спросила, кто оставил ей сообщение на стойке регистрации.",
+        "instruction": "Передай косвенный вопрос о человеке со смыслом «кто»."
+      },
+      "sha256_before": "27153ef6cb5c139c796e5914aa6cf4b7512ea2cc470253f90505a81f692720b4",
+      "sha256_after": "e737b7bf2d3c6f571ec07b75f458fe634ec492ce250e9fb07c4718cf06b77ba0",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о человеке со смыслом «кто»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 6,
+      "exercise_type": "multiple_choice",
+      "difficulty": 1,
+      "content_before": {
+        "question": "He wondered ___ his application had been received by the university.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "who",
+          "what",
+          "why"
+        ],
+        "explanation": "If вводит косвенный yes/no вопрос после wondered. Прямой: «Has my application been received?» Перевод: Он думал, получил ли университет его заявку."
+      },
+      "content_after": {
+        "question": "He wondered ___ his application had been received by the university.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "who",
+          "what",
+          "why"
+        ],
+        "explanation": "If вводит косвенный yes/no вопрос после wondered. Прямой: «Has my application been received?» Перевод: Он думал, получил ли университет его заявку.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "2dc21e544445ea4751ef7146cf30c04c8e3478a173a5a02255d5c20921c0922a",
+      "sha256_after": "173ea7dac9e2e4948dc9debd96bf64600777ac53ce0ff72bc317eb1701d670d8",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 8,
+      "exercise_type": "translation",
+      "difficulty": 1,
+      "content_before": {
+        "question": "Они спросили, кто отвечает за организацию мероприятия.",
+        "correct_answer": "They asked who was responsible for organising the event.",
+        "alternatives": [
+          "They asked who was responsible for organizing the event.",
+          "They asked who was in charge of organising the event.",
+          "They asked who was in charge of organizing the event."
+        ],
+        "explanation": "Who в роли подлежащего сохраняется в косвенном вопросе. Organising (BrE) = organizing (AmE) — оба варианта корректны."
+      },
+      "content_after": {
+        "question": "Они спросили, кто отвечает за организацию мероприятия.",
+        "correct_answer": "They asked who was responsible for organising the event.",
+        "alternatives": [
+          "They asked who was responsible for organizing the event.",
+          "They asked who was in charge of organising the event.",
+          "They asked who was in charge of organizing the event."
+        ],
+        "explanation": "Who в роли подлежащего сохраняется в косвенном вопросе. Organising (BrE) = organizing (AmE) — оба варианта корректны.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "1e80ae6e0b888570ac537ba361620f432c080aa9dcc181e1db4ff768b948139d",
+      "sha256_after": "31946f33cc40b648e0f0fbbde1e2803624b7035b5aef9acc2e04dc6f98a56a80",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 3,
+      "exercise_order": 9,
+      "exercise_type": "error_correction",
+      "difficulty": 1,
+      "content_before": {
+        "sentence": "He asked me what time does the museum close on Sundays.",
+        "correct_answer": "He asked me what time the museum closed on Sundays.",
+        "error_word": "does the museum close",
+        "correct_word": "the museum closed",
+        "explanation": "Ошибка: инверсия (does the museum close) и отсутствие согласования времён. В reported questions: прямой порядок слов + Past Simple (close → closed). Перевод: Он спросил меня, во сколько музей закрывается по воскресеньям.",
+        "alternatives": [
+          "the museum closed"
+        ]
+      },
+      "content_after": {
+        "sentence": "He asked me what time does the museum close on Sundays.",
+        "correct_answer": "He asked me what time the museum closed on Sundays.",
+        "error_word": "does the museum close",
+        "correct_word": "the museum closed",
+        "explanation": "Ошибка: инверсия (does the museum close) и отсутствие согласования времён. В reported questions: прямой порядок слов + Past Simple (close → closed). Перевод: Он спросил меня, во сколько музей закрывается по воскресеньям.",
+        "alternatives": [
+          "the museum closed"
+        ],
+        "instruction": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+      },
+      "sha256_before": "567c7269b4f5ab71756482e334bfc8dd65b3c45153040c8b6611e83ff5efcbf6",
+      "sha256_after": "efd816f21e544866ce189d441548eb163491aaa34b480c42983fb0b6fc2cc17f",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+        }
+      },
+      "reason": "No backshift can be grammatical; request a scoped teaching transformation."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 4,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 2,
+      "content_before": {
+        "question": "The police officer asked the witness ___ she had noticed anything suspicious near the building.",
+        "correct_answer": "if",
+        "alternatives": [
+          "whether"
+        ],
+        "explanation": "If/whether вводят косвенные yes/no вопросы. Прямой: «Did you notice anything suspicious?» Перевод: Полицейский спросил свидетельницу, заметила ли она что-то подозрительное рядом со зданием."
+      },
+      "content_after": {
+        "question": "The police officer asked the witness ___ she had noticed anything suspicious near the building.",
+        "correct_answer": "if",
+        "alternatives": [
+          "whether"
+        ],
+        "explanation": "If/whether вводят косвенные yes/no вопросы. Прямой: «Did you notice anything suspicious?» Перевод: Полицейский спросил свидетельницу, заметила ли она что-то подозрительное рядом со зданием.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "d92ea64f855a9a267e10f9072b4f0ca9dd88754110088ad4383b59d27339a038",
+      "sha256_after": "0fdf4be876fa3e2e6153dca7d4a440f94d6efab9ee3ce39792f24aa954aa52ca",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 4,
+      "exercise_order": 2,
+      "exercise_type": "fill_blank",
+      "difficulty": 2,
+      "content_before": {
+        "question": "She wanted to find out ___ much the renovation of the apartment would cost.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How much передаёт вопрос о стоимости. Прямой: «How much will the renovation cost?» Перевод: Она хотела выяснить, сколько будет стоить ремонт квартиры."
+      },
+      "content_after": {
+        "question": "She wanted to find out ___ much the renovation of the apartment would cost.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How much передаёт вопрос о стоимости. Прямой: «How much will the renovation cost?» Перевод: Она хотела выяснить, сколько будет стоить ремонт квартиры.",
+        "instruction": "Передай косвенный вопрос о стоимости со смыслом «сколько»."
+      },
+      "sha256_before": "e05699ab7fed452557c93e6c11ccc3fe79d3d5eec037b760d951e7c4393242b2",
+      "sha256_after": "36166f94417e758bc8e9c5923e6407f3198b4489fd08ef4b90ebce80e764e270",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о стоимости со смыслом «сколько»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 4,
+      "exercise_order": 3,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "My boss asked me ___ I would be able to finish the presentation by Friday.",
+        "correct_answer": "whether",
+        "options": [
+          "whether",
+          "what",
+          "who",
+          "how"
+        ],
+        "explanation": "Whether вводит косвенный yes/no вопрос. Прямой: «Will you be able to finish the presentation by Friday?» Перевод: Начальник спросил меня, смогу ли я закончить презентацию к пятнице."
+      },
+      "content_after": {
+        "question": "My boss asked me ___ I would be able to finish the presentation by Friday.",
+        "correct_answer": "whether",
+        "options": [
+          "whether",
+          "what",
+          "who",
+          "how"
+        ],
+        "explanation": "Whether вводит косвенный yes/no вопрос. Прямой: «Will you be able to finish the presentation by Friday?» Перевод: Начальник спросил меня, смогу ли я закончить презентацию к пятнице.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "60b749b264ad858f728ee9cc601cf174017d7432bef28ef58488f08cddc6855b",
+      "sha256_after": "bf63bf75649e5de1110f416ebf0d0327b6ffbc73bfce3c36f20fcd9168a68236",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 4,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "The tourist asked the guide ___ the ancient temple had been built centuries ago.",
+        "correct_answer": "when",
+        "options": [
+          "when",
+          "if",
+          "who",
+          "what"
+        ],
+        "explanation": "When передаёт вопрос о времени. Прямой: «When was the ancient temple built?» Перевод: Турист спросил гида, когда был построен древний храм."
+      },
+      "content_after": {
+        "question": "The tourist asked the guide ___ the ancient temple had been built centuries ago.",
+        "correct_answer": "when",
+        "options": [
+          "when",
+          "if",
+          "who",
+          "what"
+        ],
+        "explanation": "When передаёт вопрос о времени. Прямой: «When was the ancient temple built?» Перевод: Турист спросил гида, когда был построен древний храм.",
+        "instruction": "Передай косвенный вопрос о времени со смыслом «когда»."
+      },
+      "sha256_before": "d1a0272dae8d80465d6e421fa95975db04163aaa1137a5e7f208df28edef7f89",
+      "sha256_after": "3b49cd6e699bc1dfed8d4c191df772bc448da3c6f3614105753ef73d85f91288",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о времени со смыслом «когда»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 4,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "difficulty": 2,
+      "content_before": {
+        "question": "Менеджер спросил, почему продажи упали в прошлом квартале.",
+        "correct_answer": "The manager asked why sales had dropped in the previous quarter.",
+        "alternatives": [
+          "The manager asked why sales had fallen in the previous quarter.",
+          "The manager asked why sales had decreased in the previous quarter."
+        ],
+        "explanation": "Why сохраняется. Согласование: dropped → had dropped (Past Simple → Past Perfect). Last quarter → the previous quarter."
+      },
+      "content_after": {
+        "question": "Менеджер спросил, почему продажи упали в прошлом квартале.",
+        "correct_answer": "The manager asked why sales had dropped in the previous quarter.",
+        "alternatives": [
+          "The manager asked why sales had fallen in the previous quarter.",
+          "The manager asked why sales had decreased in the previous quarter."
+        ],
+        "explanation": "Why сохраняется. Согласование: dropped → had dropped (Past Simple → Past Perfect). Last quarter → the previous quarter.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "f4e66b4a21f198f00df89569523e33b9cf8e496ec19b4f5682b412f6c8c1de7c",
+      "sha256_after": "017bd6a87da1489379840f69f0630785de0210b27d08414b2123d3ae72b76b51",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 4,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "difficulty": 2,
+      "content_before": {
+        "question": "Она хотела узнать, где он работал до того, как переехал в Берлин.",
+        "correct_answer": "She wanted to know where he had worked before he moved to Berlin.",
+        "alternatives": [
+          "She wanted to know where he had worked before he had moved to Berlin.",
+          "She wanted to know where he'd worked before he moved to Berlin."
+        ],
+        "explanation": "Where сохраняется в косвенном вопросе. Согласование: worked → had worked (Past Perfect для более раннего действия)."
+      },
+      "content_after": {
+        "question": "Она хотела узнать, где он работал до того, как переехал в Берлин.",
+        "correct_answer": "She wanted to know where he had worked before he moved to Berlin.",
+        "alternatives": [
+          "She wanted to know where he had worked before he had moved to Berlin.",
+          "She wanted to know where he'd worked before he moved to Berlin."
+        ],
+        "explanation": "Where сохраняется в косвенном вопросе. Согласование: worked → had worked (Past Perfect для более раннего действия).",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "cbf740deb63c70284a321a4ce8fd9f2d0dfa00f8c8a545e9828c4008fcd0806a",
+      "sha256_after": "a558630d97f767f9279d50d6cb95f24ef733acf8cd0860f70aedafe398169b43",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 4,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "difficulty": 2,
+      "content_before": {
+        "sentence": "They asked us where are we staying during the business trip.",
+        "correct_answer": "They asked us where we were staying during the business trip.",
+        "error_word": "are we staying",
+        "correct_word": "we were staying",
+        "explanation": "Ошибка: инверсия (are we) и отсутствие согласования (are → were). В reported questions: прямой порядок слов + сдвиг времени. Перевод: Они спросили нас, где мы останавливаемся во время командировки.",
+        "alternatives": [
+          "we were staying"
+        ]
+      },
+      "content_after": {
+        "sentence": "They asked us where are we staying during the business trip.",
+        "correct_answer": "They asked us where we were staying during the business trip.",
+        "error_word": "are we staying",
+        "correct_word": "we were staying",
+        "explanation": "Ошибка: инверсия (are we) и отсутствие согласования (are → were). В reported questions: прямой порядок слов + сдвиг времени. Перевод: Они спросили нас, где мы останавливаемся во время командировки.",
+        "alternatives": [
+          "we were staying"
+        ],
+        "instruction": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+      },
+      "sha256_before": "db842e2d23deec70660b6535c111afa1ff59193ce91f5f928acb6cf8c096f46c",
+      "sha256_after": "0d33a1d3e52dca54e20dae4a39e4a9dc62d89b082ad0c210e348b29049f68fa3",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+        }
+      },
+      "reason": "No backshift can be grammatical; request a scoped teaching transformation."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 5,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 2,
+      "content_before": {
+        "question": "The journalist asked the politician ___ the new policy would affect ordinary citizens.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How передаёт вопрос о способе/степени. Прямой: «How will the new policy affect ordinary citizens?» Перевод: Журналист спросил политика, как новая политика затронет обычных граждан."
+      },
+      "content_after": {
+        "question": "The journalist asked the politician ___ the new policy would affect ordinary citizens.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How передаёт вопрос о способе/степени. Прямой: «How will the new policy affect ordinary citizens?» Перевод: Журналист спросил политика, как новая политика затронет обычных граждан.",
+        "instruction": "Передай косвенный вопрос об образе действия со смыслом «как»."
+      },
+      "sha256_before": "a524c9a9ef7d09c4cd51b7242c2f25760a47d248d4b724c3647b02e71cedca70",
+      "sha256_after": "500033087bb951e7e51e0be583ace629add2d8dc41f0bdecb9b78026a5c93d91",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос об образе действия со смыслом «как»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 5,
+      "exercise_order": 2,
+      "exercise_type": "fill_blank",
+      "difficulty": 2,
+      "content_before": {
+        "question": "We wondered ___ the restaurant accepted credit cards or only cash.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether/if для yes/no вопросов. Whether особенно уместен перед or. Прямой: «Does the restaurant accept credit cards?» Перевод: Мы задавались вопросом, принимает ли ресторан кредитные карты или только наличные."
+      },
+      "content_after": {
+        "question": "We wondered ___ the restaurant accepted credit cards or only cash.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether/if для yes/no вопросов. Whether особенно уместен перед or. Прямой: «Does the restaurant accept credit cards?» Перевод: Мы задавались вопросом, принимает ли ресторан кредитные карты или только наличные.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "7e5263735adf4a2f8aaa72cdca5788b7aed5f6255182fed052fe1d4383a34a68",
+      "sha256_after": "e1e85cac8175243d13795cc3cd958710b7cae5cadec9ed540e1111cd321f6732",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 5,
+      "exercise_order": 3,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "She asked me ___ I thought about the new environmental regulations.",
+        "correct_answer": "what",
+        "options": [
+          "what",
+          "if",
+          "when",
+          "who"
+        ],
+        "explanation": "What передаёт вопрос о мнении/предмете. Прямой: «What do you think about the new regulations?» Перевод: Она спросила, что я думаю о новых экологических нормах."
+      },
+      "content_after": {
+        "question": "She asked me ___ I thought about the new environmental regulations.",
+        "correct_answer": "what",
+        "options": [
+          "what",
+          "if",
+          "when",
+          "who"
+        ],
+        "explanation": "What передаёт вопрос о мнении/предмете. Прямой: «What do you think about the new regulations?» Перевод: Она спросила, что я думаю о новых экологических нормах.",
+        "instruction": "Передай косвенный вопрос о предмете или содержании со смыслом «что»."
+      },
+      "sha256_before": "dbaef0337901858f933770da90da502a94266399efbde5acf0ebab244c9bd03d",
+      "sha256_after": "89ad6fa273610aeb27c224e2978f9d9b4f2a35aa65d384a66e26594447f67ed3",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о предмете или содержании со смыслом «что»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 5,
+      "exercise_order": 4,
+      "exercise_type": "multiple_choice",
+      "difficulty": 2,
+      "content_before": {
+        "question": "The students wanted to know ___ the exam results would be published online.",
+        "correct_answer": "when",
+        "options": [
+          "when",
+          "whether",
+          "who",
+          "how"
+        ],
+        "explanation": "When передаёт вопрос о времени. Прямой: «When will the exam results be published?» Перевод: Студенты хотели знать, когда результаты экзамена будут опубликованы онлайн."
+      },
+      "content_after": {
+        "question": "The students wanted to know ___ the exam results would be published online.",
+        "correct_answer": "when",
+        "options": [
+          "when",
+          "whether",
+          "who",
+          "how"
+        ],
+        "explanation": "When передаёт вопрос о времени. Прямой: «When will the exam results be published?» Перевод: Студенты хотели знать, когда результаты экзамена будут опубликованы онлайн.",
+        "instruction": "Передай косвенный вопрос о времени со смыслом «когда»."
+      },
+      "sha256_before": "25492178e1e54953e13c6af2a98740e8c6b9bec56f625fa5a9d633f6c5ed8f54",
+      "sha256_after": "633b9db8780724d64634eae803fb900b6c529ef629872c8dbd2476dbfcbc5452",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о времени со смыслом «когда»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 5,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "difficulty": 2,
+      "content_before": {
+        "question": "Клиент спросил, можно ли забронировать столик на следующий вечер.",
+        "correct_answer": "The client asked if it was possible to book a table for the following evening.",
+        "alternatives": [
+          "The client asked whether it was possible to reserve a table for the following evening.",
+          "The client asked if it was possible to reserve a table for the following evening."
+        ],
+        "explanation": "If/whether вводят yes/no вопрос. Next evening → the following evening (замена указательного слова). Book = reserve — синонимы."
+      },
+      "content_after": {
+        "question": "Клиент спросил, можно ли забронировать столик на следующий вечер.",
+        "correct_answer": "The client asked if it was possible to book a table for the following evening.",
+        "alternatives": [
+          "The client asked whether it was possible to reserve a table for the following evening.",
+          "The client asked if it was possible to reserve a table for the following evening."
+        ],
+        "explanation": "If/whether вводят yes/no вопрос. Next evening → the following evening (замена указательного слова). Book = reserve — синонимы.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "a474b6cfa9eb7cc66461fddfbc45105b092f614e2adaf99602f094b277608e29",
+      "sha256_after": "746d372f2e0d505ca2caedd0e9967b1370f0664e5c2eb3cf8938e5eceae21d12",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 5,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "difficulty": 2,
+      "content_before": {
+        "question": "Инспектор спросил, кто последним покинул здание прошлой ночью.",
+        "correct_answer": "The inspector asked who had been the last to leave the building the previous night.",
+        "alternatives": [
+          "The inspector asked who had been the last to leave the building the night before.",
+          "The inspector asked who had left the building last the previous night."
+        ],
+        "explanation": "Who как подлежащее косвенного вопроса. Left → had left / had been the last to leave (Past Perfect). Last night → the previous night / the night before."
+      },
+      "content_after": {
+        "question": "Инспектор спросил, кто последним покинул здание прошлой ночью.",
+        "correct_answer": "The inspector asked who had been the last to leave the building the previous night.",
+        "alternatives": [
+          "The inspector asked who had been the last to leave the building the night before.",
+          "The inspector asked who had left the building last the previous night."
+        ],
+        "explanation": "Who как подлежащее косвенного вопроса. Left → had left / had been the last to leave (Past Perfect). Last night → the previous night / the night before.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "9715bc3ed31d816e1eec416b3d2b004473011b0c2ae55fd1872082309293ab98",
+      "sha256_after": "deadc6f84670c73ba0e0ea27b98893640139a6c62278b680ecdb5c381b9ab11c",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 5,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "difficulty": 2,
+      "content_before": {
+        "sentence": "He wanted to know if I have ever travelled to South America before.",
+        "correct_answer": "He wanted to know if I had ever travelled to South America before.",
+        "error_word": "have",
+        "correct_word": "had",
+        "explanation": "Ошибка: отсутствие согласования времён. Have (Present Perfect) → had (Past Perfect) при сдвиге времён в косвенной речи. Перевод: Он хотел знать, путешествовал ли я когда-нибудь по Южной Америке.",
+        "alternatives": [
+          "had"
+        ]
+      },
+      "content_after": {
+        "sentence": "He wanted to know if I have ever travelled to South America before.",
+        "correct_answer": "He wanted to know if I had ever travelled to South America before.",
+        "error_word": "have",
+        "correct_word": "had",
+        "explanation": "Ошибка: отсутствие согласования времён. Have (Present Perfect) → had (Past Perfect) при сдвиге времён в косвенной речи. Перевод: Он хотел знать, путешествовал ли я когда-нибудь по Южной Америке.",
+        "alternatives": [
+          "had"
+        ],
+        "instruction": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+      },
+      "sha256_before": "5345684a1e25e78e2ec74e4b277c1076c7174059eba3c29e2d813f57dac8f7fa",
+      "sha256_after": "627e4c574abd0c31e410e9c54ac1137cc0da5c6112e3425a511122e4c17ad1d6",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+        }
+      },
+      "reason": "No backshift can be grammatical; request a scoped teaching transformation."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 6,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 3,
+      "content_before": {
+        "question": "The detective asked the suspect ___ he had been at the time of the robbery.",
+        "correct_answer": "where",
+        "alternatives": [],
+        "explanation": "Where передаёт вопрос о местонахождении. Прямой: «Where were you at the time of the robbery?» Перевод: Детектив спросил подозреваемого, где тот находился в момент ограбления."
+      },
+      "content_after": {
+        "question": "The detective asked the suspect ___ he had been at the time of the robbery.",
+        "correct_answer": "where",
+        "alternatives": [],
+        "explanation": "Where передаёт вопрос о местонахождении. Прямой: «Where were you at the time of the robbery?» Перевод: Детектив спросил подозреваемого, где тот находился в момент ограбления.",
+        "instruction": "Передай косвенный вопрос о месте со смыслом «где»."
+      },
+      "sha256_before": "d51d07819d4c321bba80a24858e453f16fcc688ad3a4e56115c5e5bd64936734",
+      "sha256_after": "ca03e4551eda02c6b0e08a51ff48606f089ed56966cd392b9d6e663bd9195019",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о месте со смыслом «где»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 6,
+      "exercise_order": 2,
+      "exercise_type": "multiple_choice",
+      "difficulty": 3,
+      "content_before": {
+        "question": "She inquired ___ the participants had received the updated schedule before the workshop.",
+        "correct_answer": "whether",
+        "options": [
+          "whether",
+          "what",
+          "who",
+          "how"
+        ],
+        "explanation": "Whether вводит косвенный yes/no вопрос после inquired. Inquired — формальный синоним asked. Перевод: Она поинтересовалась, получили ли участники обновлённое расписание до семинара."
+      },
+      "content_after": {
+        "question": "She inquired ___ the participants had received the updated schedule before the workshop.",
+        "correct_answer": "whether",
+        "options": [
+          "whether",
+          "what",
+          "who",
+          "how"
+        ],
+        "explanation": "Whether вводит косвенный yes/no вопрос после inquired. Inquired — формальный синоним asked. Перевод: Она поинтересовалась, получили ли участники обновлённое расписание до семинара.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "1dc480799126de5c9a45310d1634186cf6b80a14a8a4291fcd35c1495ed47e93",
+      "sha256_after": "51dbca1d7781cd987bafa08160196903e77a567fd693e7a97bd16d4f4c2879a9",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 6,
+      "exercise_order": 4,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Преподаватель спросил студентов, что они узнали из этого эксперимента.",
+        "correct_answer": "The professor asked the students what they had learnt from that experiment.",
+        "alternatives": [
+          "The professor asked the students what they had learned from that experiment.",
+          "The teacher asked the students what they had learnt from that experiment.",
+          "The teacher asked the students what they had learned from that experiment."
+        ],
+        "explanation": "What сохраняется. Learnt (BrE) = learned (AmE). This → that (замена указательного слова). Learnt → had learnt (Past Perfect)."
+      },
+      "content_after": {
+        "question": "Преподаватель спросил студентов, что они узнали из этого эксперимента.",
+        "correct_answer": "The professor asked the students what they had learnt from that experiment.",
+        "alternatives": [
+          "The professor asked the students what they had learned from that experiment.",
+          "The teacher asked the students what they had learnt from that experiment.",
+          "The teacher asked the students what they had learned from that experiment."
+        ],
+        "explanation": "What сохраняется. Learnt (BrE) = learned (AmE). This → that (замена указательного слова). Learnt → had learnt (Past Perfect).",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "14bcda62a1cd455f1088b051951f954c2bc9d6bfccf6c58676c01b6104a1fd2f",
+      "sha256_after": "5891e001cd830edf09f6461b4748148c72577751fb045814b559078146892171",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 6,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Мой друг поинтересовался, собираюсь ли я подавать заявку на стипендию.",
+        "correct_answer": "My friend asked if I was going to apply for the scholarship.",
+        "alternatives": [
+          "My friend asked whether I was going to apply for the scholarship.",
+          "My friend enquired if I was going to apply for the scholarship.",
+          "My friend enquired whether I was going to apply for the scholarship."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Am going to → was going to (согласование). Поинтересовался = asked / enquired."
+      },
+      "content_after": {
+        "question": "Мой друг поинтересовался, собираюсь ли я подавать заявку на стипендию.",
+        "correct_answer": "My friend asked if I was going to apply for the scholarship.",
+        "alternatives": [
+          "My friend asked whether I was going to apply for the scholarship.",
+          "My friend enquired if I was going to apply for the scholarship.",
+          "My friend enquired whether I was going to apply for the scholarship."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Am going to → was going to (согласование). Поинтересовался = asked / enquired.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "6974def2fa514fae57feca4189fab4675889dff1231ad232e0156328d823f250",
+      "sha256_after": "a46ed88566046b6ee02255e3fad9d6c9f5456e459b4074fd9ec839348e0fd80a",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 6,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Они спросили руководителя, сколько времени потребуется для завершения строительства.",
+        "correct_answer": "They asked the manager how long it would take to complete the construction.",
+        "alternatives": [
+          "They asked the manager how much time it would take to complete the construction.",
+          "They asked the manager how long it would take to finish the construction."
+        ],
+        "explanation": "How long / how much time передают вопрос о продолжительности. Will take → would take (согласование). Complete = finish — синонимы."
+      },
+      "content_after": {
+        "question": "Они спросили руководителя, сколько времени потребуется для завершения строительства.",
+        "correct_answer": "They asked the manager how long it would take to complete the construction.",
+        "alternatives": [
+          "They asked the manager how much time it would take to complete the construction.",
+          "They asked the manager how long it would take to finish the construction."
+        ],
+        "explanation": "How long / how much time передают вопрос о продолжительности. Will take → would take (согласование). Complete = finish — синонимы.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "129b6efb693bc84eaf855097f65d04a9af8eb1c375cb02fbe78c2fb27083e018",
+      "sha256_after": "78400d2b714ac528deade8f919332e852c74923c79d3d2dd511aa89072549bc5",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 6,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "difficulty": 3,
+      "content_before": {
+        "sentence": "The client wanted to know how much will the full renovation package cost.",
+        "correct_answer": "The client wanted to know how much the full renovation package would cost.",
+        "error_word": "will the full renovation package cost",
+        "correct_word": "the full renovation package would cost",
+        "explanation": "Ошибки: инверсия + отсутствие согласования (will → would). В reported questions: прямой порядок слов + сдвиг модального глагола. Перевод: Клиент хотел узнать, сколько будет стоить полный пакет ремонта.",
+        "alternatives": [
+          "the full renovation package would cost"
+        ]
+      },
+      "content_after": {
+        "sentence": "The client wanted to know how much will the full renovation package cost.",
+        "correct_answer": "The client wanted to know how much the full renovation package would cost.",
+        "error_word": "will the full renovation package cost",
+        "correct_word": "the full renovation package would cost",
+        "explanation": "Ошибки: инверсия + отсутствие согласования (will → would). В reported questions: прямой порядок слов + сдвиг модального глагола. Перевод: Клиент хотел узнать, сколько будет стоить полный пакет ремонта.",
+        "alternatives": [
+          "the full renovation package would cost"
+        ],
+        "instruction": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+      },
+      "sha256_before": "d690acd1723e9c6a725a3be47886dfec30e3dc38fe86f74101b2b943bc8c049a",
+      "sha256_after": "16b69c7121898e6826966ece6743fe78dec759c857c0407e1a4e3c6047fbf257",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+        }
+      },
+      "reason": "No backshift can be grammatical; request a scoped teaching transformation."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 7,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 3,
+      "content_before": {
+        "question": "The ambassador asked ___ the negotiations had progressed since the last summit.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How передаёт вопрос об образе действия/степени. Прямой: «How have the negotiations progressed?» Перевод: Посол спросил, как продвинулись переговоры с последнего саммита."
+      },
+      "content_after": {
+        "question": "The ambassador asked ___ the negotiations had progressed since the last summit.",
+        "correct_answer": "how",
+        "alternatives": [],
+        "explanation": "How передаёт вопрос об образе действия/степени. Прямой: «How have the negotiations progressed?» Перевод: Посол спросил, как продвинулись переговоры с последнего саммита.",
+        "instruction": "Передай косвенный вопрос об образе действия со смыслом «как»."
+      },
+      "sha256_before": "05fa28f32b19bc4aa1629f200f807bf5e6c0fc9b26356d037ed436d6244adc91",
+      "sha256_after": "f6512de0df02d4ba198eec4d9c7b4a6c3e9ebccf9c6acab011968eaaf924544b",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос об образе действия со смыслом «как»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 7,
+      "exercise_order": 2,
+      "exercise_type": "multiple_choice",
+      "difficulty": 3,
+      "content_before": {
+        "question": "He inquired ___ the deadline for the research proposal could be extended.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "what",
+          "who",
+          "when"
+        ],
+        "explanation": "If вводит косвенный yes/no вопрос. Прямой: «Can the deadline be extended?» Перевод: Он поинтересовался, может ли быть продлён срок подачи исследовательского предложения."
+      },
+      "content_after": {
+        "question": "He inquired ___ the deadline for the research proposal could be extended.",
+        "correct_answer": "if",
+        "options": [
+          "if",
+          "what",
+          "who",
+          "when"
+        ],
+        "explanation": "If вводит косвенный yes/no вопрос. Прямой: «Can the deadline be extended?» Перевод: Он поинтересовался, может ли быть продлён срок подачи исследовательского предложения.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "82cfde600f884443cccdb117f0a657453f47acf92cee67e3fbb2b8d427064b8f",
+      "sha256_after": "bd320e99d2b8f7556efc40e2400f6cf4c6acce01ff9c64a61bf07ccdc9fa62b5",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 7,
+      "exercise_order": 4,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Журналист спросил министра, какие меры правительство примет для борьбы с безработицей.",
+        "correct_answer": "The journalist asked the minister what measures the government would take to combat unemployment.",
+        "alternatives": [
+          "The journalist asked the minister what measures the government would take to fight unemployment.",
+          "The journalist asked the minister what steps the government would take to combat unemployment."
+        ],
+        "explanation": "What measures/steps передаёт вопрос о конкретных действиях. Will take → would take. Combat = fight — синонимы. Measures = steps — синонимы."
+      },
+      "content_after": {
+        "question": "Журналист спросил министра, какие меры правительство примет для борьбы с безработицей.",
+        "correct_answer": "The journalist asked the minister what measures the government would take to combat unemployment.",
+        "alternatives": [
+          "The journalist asked the minister what measures the government would take to fight unemployment.",
+          "The journalist asked the minister what steps the government would take to combat unemployment."
+        ],
+        "explanation": "What measures/steps передаёт вопрос о конкретных действиях. Will take → would take. Combat = fight — синонимы. Measures = steps — синонимы.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "d8dfdd3c729e3349846b620787bed10ed1bdec1281d6e80a05eae4a82644c773",
+      "sha256_after": "e180134daa817060a3d4403d2f70f415dad90e6555322714e19ff3967d248604",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 7,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Она поинтересовалась, знал ли кто-нибудь из присутствующих о произошедшем инциденте.",
+        "correct_answer": "She asked if anyone present had known about the incident that had occurred.",
+        "alternatives": [
+          "She asked whether anyone present had known about the incident that had occurred.",
+          "She enquired if anyone present had known about the incident that had happened."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Двойной Past Perfect: had known, had occurred — оба действия предшествовали моменту речи."
+      },
+      "content_after": {
+        "question": "Она поинтересовалась, знал ли кто-нибудь из присутствующих о произошедшем инциденте.",
+        "correct_answer": "She asked if anyone present had known about the incident that had occurred.",
+        "alternatives": [
+          "She asked whether anyone present had known about the incident that had occurred.",
+          "She enquired if anyone present had known about the incident that had happened."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Двойной Past Perfect: had known, had occurred — оба действия предшествовали моменту речи.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "b57ff577e1f432cbb17feb38bcdfc8ca78164d22f40dfc9750554fb2d5f903d9",
+      "sha256_after": "5dfd6d2a77b66489dab71d011be1aaa29cc7413a0f1d2647e884414d8359bd11",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 7,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Пациент спросил врача, когда ему можно будет вернуться к обычным физическим нагрузкам.",
+        "correct_answer": "The patient asked the doctor when he could return to his regular physical activity.",
+        "alternatives": [
+          "The patient asked the doctor when he would be able to return to his normal physical activity.",
+          "The patient asked the doctor when he could go back to his regular physical activity."
+        ],
+        "explanation": "When сохраняется. Can → could (согласование). Return to = go back to. Regular = normal — синонимы."
+      },
+      "content_after": {
+        "question": "Пациент спросил врача, когда ему можно будет вернуться к обычным физическим нагрузкам.",
+        "correct_answer": "The patient asked the doctor when he could return to his regular physical activity.",
+        "alternatives": [
+          "The patient asked the doctor when he would be able to return to his normal physical activity.",
+          "The patient asked the doctor when he could go back to his regular physical activity."
+        ],
+        "explanation": "When сохраняется. Can → could (согласование). Return to = go back to. Regular = normal — синонимы.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "6c5fe526b8a9597ea59123f26ab978b31561f26fd993b2dbc8040095add59c23",
+      "sha256_after": "f96f498400ff845dcf54c36acb45cbd84ca98a916c0a29f2761071b93d382dd8",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 7,
+      "exercise_order": 7,
+      "exercise_type": "error_correction",
+      "difficulty": 3,
+      "content_before": {
+        "sentence": "They asked us why we haven't submitted the required documents on time.",
+        "correct_answer": "They asked us why we hadn't submitted the required documents on time.",
+        "error_word": "haven't",
+        "correct_word": "hadn't",
+        "explanation": "Ошибка: haven't (Present Perfect) вместо hadn't (Past Perfect). При сдвиге времён в косвенной речи have → had. Перевод: Они спросили, почему мы не подали необходимые документы вовремя.",
+        "alternatives": [
+          "hadn't"
+        ]
+      },
+      "content_after": {
+        "sentence": "They asked us why we haven't submitted the required documents on time.",
+        "correct_answer": "They asked us why we hadn't submitted the required documents on time.",
+        "error_word": "haven't",
+        "correct_word": "hadn't",
+        "explanation": "Ошибка: haven't (Present Perfect) вместо hadn't (Past Perfect). При сдвиге времён в косвенной речи have → had. Перевод: Они спросили, почему мы не подали необходимые документы вовремя.",
+        "alternatives": [
+          "hadn't"
+        ],
+        "instruction": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+      },
+      "sha256_before": "2c02f9d99567f6b0d9816c67255561bca6cbbbd031e670f62a30a805aa481fb7",
+      "sha256_after": "b3f7cb6f270ae0ce996c77f2f441351d8f57ea72c55fa8354610a488225ae688",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+        }
+      },
+      "reason": "No backshift can be grammatical; request a scoped teaching transformation."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 7,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "difficulty": 3,
+      "content_before": {
+        "sentence": "My supervisor asked me that I could work overtime the following weekend.",
+        "correct_answer": "My supervisor asked me if I could work overtime the following weekend.",
+        "error_word": "that",
+        "correct_word": "if",
+        "explanation": "Ошибка: that не используется для введения косвенных вопросов (только для утверждений). Для yes/no вопроса нужен if или whether. Перевод: Мой руководитель спросил, смогу ли я поработать сверхурочно в следующие выходные.",
+        "alternatives": [
+          "if"
+        ]
+      },
+      "content_after": {
+        "sentence": "My supervisor asked me that I could work overtime the following weekend.",
+        "correct_answer": "My supervisor asked me if I could work overtime the following weekend.",
+        "error_word": "that",
+        "correct_word": "if",
+        "explanation": "Ошибка: that не используется для введения косвенных вопросов (только для утверждений). Для yes/no вопроса нужен if или whether. Перевод: Мой руководитель спросил, смогу ли я поработать сверхурочно в следующие выходные.",
+        "alternatives": [
+          "if",
+          "whether",
+          "My supervisor asked me whether I could work overtime the following weekend."
+        ]
+      },
+      "sha256_before": "db5bebfb155c2b27369bf68077df4712ae17aa297b7ce645189faa86e08b2c5b",
+      "sha256_after": "c2c917772649709ecba9adf0ed7c1e3b31af5303f9d874b778768248c4a0c38c",
+      "fields": {
+        "alternatives": {
+          "before_present": true,
+          "before": [
+            "if"
+          ],
+          "after_present": true,
+          "after": [
+            "if",
+            "whether",
+            "My supervisor asked me whether I could work overtime the following weekend."
+          ]
+        }
+      },
+      "reason": "Also accept the grammatical alternative introducer, as a word or complete corrected sentence; primary key unchanged."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 8,
+      "exercise_order": 1,
+      "exercise_type": "fill_blank",
+      "difficulty": 3,
+      "content_before": {
+        "question": "The chairman asked the board members ___ they supported the proposed merger with the rival firm.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether/if для косвенного yes/no вопроса. Прямой: «Do you support the proposed merger?» Перевод: Председатель спросил членов правления, поддерживают ли они предложенное слияние с конкурирующей фирмой."
+      },
+      "content_after": {
+        "question": "The chairman asked the board members ___ they supported the proposed merger with the rival firm.",
+        "correct_answer": "whether",
+        "alternatives": [
+          "if"
+        ],
+        "explanation": "Whether/if для косвенного yes/no вопроса. Прямой: «Do you support the proposed merger?» Перевод: Председатель спросил членов правления, поддерживают ли они предложенное слияние с конкурирующей фирмой.",
+        "instruction": "Передай косвенный общий вопрос со смыслом «ли»."
+      },
+      "sha256_before": "be83dbaac5998c5583c705c340142b9f43229f6727ad34a1e6004bb14b6d4285",
+      "sha256_after": "1cd598d6fe823e4fa5286d8a27a48a7babd122bb69cd8738b4c9e482eb61870c",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный общий вопрос со смыслом «ли»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 8,
+      "exercise_order": 2,
+      "exercise_type": "multiple_choice",
+      "difficulty": 3,
+      "content_before": {
+        "question": "She asked her colleague ___ had approved the unexpected budget increase last month.",
+        "correct_answer": "who",
+        "options": [
+          "who",
+          "if",
+          "when",
+          "what"
+        ],
+        "explanation": "Who как подлежащее косвенного вопроса (subject question). Прямой: «Who approved the budget increase?» Перевод: Она спросила коллегу, кто одобрил неожиданное увеличение бюджета в прошлом месяце."
+      },
+      "content_after": {
+        "question": "She asked her colleague ___ had approved the unexpected budget increase last month.",
+        "correct_answer": "who",
+        "options": [
+          "who",
+          "if",
+          "when",
+          "what"
+        ],
+        "explanation": "Who как подлежащее косвенного вопроса (subject question). Прямой: «Who approved the budget increase?» Перевод: Она спросила коллегу, кто одобрил неожиданное увеличение бюджета в прошлом месяце.",
+        "instruction": "Передай косвенный вопрос о человеке со смыслом «кто»."
+      },
+      "sha256_before": "cbfa612c1e7ee7e28dc75aaadb9e75419824add256005b438c32daafed61352f",
+      "sha256_after": "84b6622b0939a4cc94ef021e2acf58f5e9921d865d0dff5d79c3a0f0243325c7",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Передай косвенный вопрос о человеке со смыслом «кто»."
+        }
+      },
+      "reason": "Specify the intended question meaning; several question words may otherwise give grammatical sentences."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 8,
+      "exercise_order": 4,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Аудитор спросил, проводились ли какие-либо несанкционированные транзакции за последний квартал.",
+        "correct_answer": "The auditor asked if any unauthorised transactions had been conducted during the previous quarter.",
+        "alternatives": [
+          "The auditor asked whether any unauthorized transactions had been conducted during the previous quarter.",
+          "The auditor asked if any unauthorised transactions had been carried out during the previous quarter."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Conducted = carried out — синонимы. Unauthorised (BrE) = unauthorized (AmE). Last → previous."
+      },
+      "content_after": {
+        "question": "Аудитор спросил, проводились ли какие-либо несанкционированные транзакции за последний квартал.",
+        "correct_answer": "The auditor asked if any unauthorised transactions had been conducted during the previous quarter.",
+        "alternatives": [
+          "The auditor asked whether any unauthorized transactions had been conducted during the previous quarter.",
+          "The auditor asked if any unauthorised transactions had been carried out during the previous quarter."
+        ],
+        "explanation": "If/whether для yes/no вопроса. Conducted = carried out — синонимы. Unauthorised (BrE) = unauthorized (AmE). Last → previous.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "4c51c22794ff63130aa176c04e1ccabc49942a05e093f1a30146271dd9bf38fb",
+      "sha256_after": "ea18a286203103e36b715924b77dbb28203abcdf49590e743b47a2ebf5d33f68",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 8,
+      "exercise_order": 5,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Учёный хотел узнать, как результаты этого исследования соотносятся с предыдущими данными.",
+        "correct_answer": "The scientist wanted to know how the results of that study compared with the previous data.",
+        "alternatives": [
+          "The scientist wanted to know how the results of that research compared with the previous data.",
+          "The scientist wanted to know how the findings of that study compared with the previous data."
+        ],
+        "explanation": "How сохраняется. This → that (смена указательного слова). Results = findings, study = research — синонимы."
+      },
+      "content_after": {
+        "question": "Учёный хотел узнать, как результаты этого исследования соотносятся с предыдущими данными.",
+        "correct_answer": "The scientist wanted to know how the results of that study compared with the previous data.",
+        "alternatives": [
+          "The scientist wanted to know how the results of that research compared with the previous data.",
+          "The scientist wanted to know how the findings of that study compared with the previous data."
+        ],
+        "explanation": "How сохраняется. This → that (смена указательного слова). Results = findings, study = research — синонимы.",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "45abf0db833a2d24bf257cb27a15bd109e623af152b35deec6f287f7b9ef4650",
+      "sha256_after": "91a65980bfbedba93799874aaad82f7b7c9e9955401499c47b65466d3c486627",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 8,
+      "exercise_order": 6,
+      "exercise_type": "translation",
+      "difficulty": 3,
+      "content_before": {
+        "question": "Родители спросили учителя, что они могут сделать, чтобы помочь ребёнку с математикой.",
+        "correct_answer": "The parents asked the teacher what they could do to help the child with maths.",
+        "alternatives": [
+          "The parents asked the teacher what they could do to help the child with math.",
+          "The parents asked the teacher what they could do to help their child with maths."
+        ],
+        "explanation": "What сохраняется. Can → could (согласование). Maths (BrE) = math (AmE)."
+      },
+      "content_after": {
+        "question": "Родители спросили учителя, что они могут сделать, чтобы помочь ребёнку с математикой.",
+        "correct_answer": "The parents asked the teacher what they could do to help the child with maths.",
+        "alternatives": [
+          "The parents asked the teacher what they could do to help the child with math.",
+          "The parents asked the teacher what they could do to help their child with maths."
+        ],
+        "explanation": "What сохраняется. Can → could (согласование). Maths (BrE) = math (AmE).",
+        "instruction": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+      },
+      "sha256_before": "cfb264ba192677d02b44774087ca45446195b9b9108cd78c7373ac0745e999ce",
+      "sha256_after": "c781ff510c47be9d7230bf44012ccba6f6d409fe1a8fe1afaf0ee1fc162e6cc5",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Переведи на английский с учебным согласованием времён в косвенном вопросе. Считай, что пересказ происходит позже исходного разговора."
+        }
+      },
+      "reason": "Explicitly request backshift rather than rejecting grammatically valid no-backshift contexts."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 8,
+      "exercise_order": 7,
+      "exercise_type": "error_correction",
+      "difficulty": 3,
+      "content_before": {
+        "sentence": "He asked me when will I be ready to present the quarterly financial report.",
+        "correct_answer": "He asked me when I would be ready to present the quarterly financial report.",
+        "error_word": "will I be",
+        "correct_word": "I would be",
+        "explanation": "Ошибка: инверсия (will I be) и отсутствие согласования (will → would). В reported questions нужен прямой порядок слов + сдвиг модального глагола. Перевод: Он спросил, когда я буду готов представить квартальный финансовый отчёт.",
+        "alternatives": [
+          "I would be"
+        ]
+      },
+      "content_after": {
+        "sentence": "He asked me when will I be ready to present the quarterly financial report.",
+        "correct_answer": "He asked me when I would be ready to present the quarterly financial report.",
+        "error_word": "will I be",
+        "correct_word": "I would be",
+        "explanation": "Ошибка: инверсия (will I be) и отсутствие согласования (will → would). В reported questions нужен прямой порядок слов + сдвиг модального глагола. Перевод: Он спросил, когда я буду готов представить квартальный финансовый отчёт.",
+        "alternatives": [
+          "I would be"
+        ],
+        "instruction": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+      },
+      "sha256_before": "e1fade82c3e46f1ccc8fecd584539c112f8e0118329e601493c895ff28926b36",
+      "sha256_after": "de6155dcef2c271f80fab8bb4e078e508fe7b3fcbacea983a58b813f0b54e255",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+        }
+      },
+      "reason": "No backshift can be grammatical; request a scoped teaching transformation."
+    },
+    {
+      "source": "grammar_exercises_extra/grammar_extra_B2_8.json",
+      "level": "B2",
+      "module_order": 8,
+      "grammar_topic_slug": "reported-questions",
+      "session_number": 8,
+      "exercise_order": 8,
+      "exercise_type": "error_correction",
+      "difficulty": 3,
+      "content_before": {
+        "sentence": "The professor wondered why the student doesn't attend the lectures more regularly.",
+        "correct_answer": "The professor wondered why the student didn't attend the lectures more regularly.",
+        "error_word": "doesn't",
+        "correct_word": "didn't",
+        "explanation": "Ошибка: doesn't (Present Simple) вместо didn't (Past Simple) при согласовании времён. Wondered (past) требует сдвига: doesn't → didn't. Перевод: Профессор задавался вопросом, почему студент не посещает лекции регулярнее.",
+        "alternatives": [
+          "didn't"
+        ]
+      },
+      "content_after": {
+        "sentence": "The professor wondered why the student doesn't attend the lectures more regularly.",
+        "correct_answer": "The professor wondered why the student didn't attend the lectures more regularly.",
+        "error_word": "doesn't",
+        "correct_word": "didn't",
+        "explanation": "Ошибка: doesn't (Present Simple) вместо didn't (Past Simple) при согласовании времён. Wondered (past) требует сдвига: doesn't → didn't. Перевод: Профессор задавался вопросом, почему студент не посещает лекции регулярнее.",
+        "alternatives": [
+          "didn't"
+        ],
+        "instruction": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+      },
+      "sha256_before": "af858da6fb6bc646ad8a760036158cf9e0c4fa8ea7e1c17ec72b9b66fffa8463",
+      "sha256_after": "eac9524f04202b9f705f18efc5211105f5cb1d584d40cd07b9cf7d291da5c611",
+      "fields": {
+        "instruction": {
+          "before_present": false,
+          "before": null,
+          "after_present": true,
+          "after": "Перепиши косвенный вопрос с обязательным учебным сдвигом времён после глагола сообщения в прошедшем времени."
+        }
+      },
+      "reason": "No backshift can be grammatical; request a scoped teaching transformation."
+    }
+  ]
+}
