@@ -387,6 +387,7 @@ def project(lesson):
         _error()
     c = content_for(lesson)
     if lesson.type == "writing_prompt":
+        from app.curriculum.language_support import language_support_mode, question_translation
         from app.curriculum.routes.lessons import (
             _DEFAULT_WRITING_CHECKLIST,
             _writing_words_required,
@@ -420,7 +421,11 @@ def project(lesson):
                 ),
                 max(2, len(checklist)),
             ),
-            "translation": None,
+            "translation": (
+                _plain(question_translation(c))
+                if language_support_mode(lesson) in ("inline", "toggle")
+                else None
+            ),
         }
         questions = [q]
     elif lesson.type == "pronunciation":

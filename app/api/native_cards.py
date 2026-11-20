@@ -193,6 +193,7 @@ def _response(run):
         ),
     )
     response["next_round_words"] = min(ROUND_WORD_LIMIT, response["remaining_lesson_words"])
+    response.update(run.state.get("learning_guidance") or {})
     return response
 
 
@@ -314,6 +315,11 @@ def start_cards(lesson_id):
         allowed = {card["key"] for card in full_queue}
         covered = {key: value for key, value in covered.items() if key in allowed and value in (1, 2, 3)}
         queue = _short_round(full_queue, covered)
+        from app.api.learning_guidance import learning_guidance
+
+        guidance = learning_guidance(lesson)
+        if covered or completed_practice:
+            guidance.pop("introduction", None)
         from app.study.models import NativeSRSState, StudySession
 
         session = StudySession(user_id=current_user.id, session_type="cards", start_time=datetime.now(UTC))
@@ -333,6 +339,7 @@ def start_cards(lesson_id):
             "deck_size": len(full_queue),
             "full_keys": {card["key"]: card["word_id"] for card in full_queue},
             "lesson_words": len({card["word_id"] for card in full_queue}),
+            "learning_guidance": guidance,
             "practice_round": bool(completed_practice),
             "step": 0,
             "reviewed": 0,

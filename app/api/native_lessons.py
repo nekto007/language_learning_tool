@@ -248,6 +248,8 @@ def get_native_lesson(lesson_id):
                'passing_score': get_lesson_passing_score(lesson), 'theory': _theory(content),
                'questions': questions, 'support_mode': language_support_mode(lesson), 'session_token': token}
     if is_extended(lesson): payload.update(extras(lesson))
+    from app.api.learning_guidance import learning_guidance
+    payload.update(learning_guidance(lesson))
     return jsonify(success=True, lesson=payload)
 
 
