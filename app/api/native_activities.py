@@ -314,22 +314,21 @@ def _document(run):
 @api_native_activities.route("/grammar/topics", methods=["GET"])
 @api_bearer_required
 def grammar_topics():
-    from app.grammar_lab.models import GrammarTopic, GrammarExercise
+    from app.grammar_lab.models import GrammarTopic
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
-    from sqlalchemy import func
+    from app.api.native_grammar_progress import topic_progress
 
     topics = (
         GrammarTopic.query.filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
         .order_by(GrammarTopic.level, GrammarTopic.order)
         .all()
     )
-    counts = dict(db.session.query(GrammarExercise.topic_id, func.count(GrammarExercise.id))
-                  .filter(GrammarExercise.topic_id.in_([topic.id for topic in topics]))
-                  .group_by(GrammarExercise.topic_id).all()) if topics else {}
+    progress = topic_progress(current_user.id, [topic.id for topic in topics])
     fields = ('id', 'slug', 'title', 'title_ru', 'level', 'order', 'estimated_time', 'difficulty')
     return jsonify(success=True, topics=[{
         **{field: getattr(topic, field) for field in fields},
-        'exercise_count': counts.get(topic.id, 0),
+        'exercise_count': progress[topic.id]['total_exercises'],
+        'progress': progress[topic.id],
     } for topic in topics])
 
 
@@ -338,19 +337,42 @@ def grammar_topics():
 @limiter.limit('60 per minute', key_func=get_authenticated_user_key)
 def grammar_topic_material(topic_id):
     """Read rules without opening practice or mutating the learner's SRS."""
-    from app.grammar_lab.models import GrammarTopic, GrammarExercise
+    from app.grammar_lab.models import GrammarTopic
+    from app.api.native_grammar_progress import topic_progress, theory_revision
 
     topic = db.session.get(GrammarTopic, topic_id)
     if not _public_topic(topic):
         raise NativeLessonError('not_found', 404)
+    theory = _theory(topic.content or {})
+    progress = topic_progress(current_user.id, [topic.id])[topic.id]
     return jsonify(success=True, topic={
         'id': topic.id,
         'title': _plain(topic.title) or _plain(topic.title_ru) or 'Грамматика',
         'title_ru': _plain(topic.title_ru) or None,
         'level': topic.level,
-        'exercise_count': GrammarExercise.query.filter_by(topic_id=topic.id).count(),
-        'theory': _theory(topic.content or {}),
+        'exercise_count': progress['total_exercises'],
+        'theory': theory,
+        'theory_revision': theory_revision(theory),
+        'progress': progress,
     })
+
+
+@api_native_activities.post('/grammar/topics/<int:topic_id>/theory/complete')
+@csrf.exempt
+@api_bearer_required
+@limiter.limit('30 per minute', key_func=get_authenticated_user_key)
+def complete_grammar_theory(topic_id):
+    from app.api.native_grammar_progress import complete_theory
+
+    body = request.get_json(silent=True)
+    if (not isinstance(body, dict) or set(body) != {'theory_revision', 'completed'}
+            or body.get('completed') is not True
+            or not isinstance(body.get('theory_revision'), str)
+            or len(body['theory_revision']) != 64
+            or any(character not in '0123456789abcdef' for character in body['theory_revision'])):
+        raise NativeLessonError('invalid_input', 400)
+    progress, earned = complete_theory(current_user.id, topic_id, body['theory_revision'])
+    return jsonify(success=True, progress=progress, xp_earned=earned)
 
 
 @api_native_activities.route("/activities/<kind>/start", methods=["POST"])
