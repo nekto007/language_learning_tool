@@ -1,0 +1,81 @@
+BOOK_IMPORT_FORMAT_AUDIT_20261121
+mode=initial_read_only_audit_then_reviewed_narrow_fixes
+personal_or_production_books_read=false
+production_database_access=false
+test_database_access=guarded_local_postgresql
+network_uploads=false
+application_startup=guarded_test_app_only
+source_changes=approved_temp_upload_isolation_and_fb2_document_order_only
+
+SCOPE
+Existing iOS personal TXT/FB2/EPUB import; existing server admin ingestion/metadata routes; reader rendering and lexical-context transport. No new formats or public upload entrypoint added. Account ownership and library navigation are audited independently by the backend/UI agents.
+
+CONFIRMED FINDING 1: SHARED SERVER TEMP FILENAME
+Location: app/admin/services/book_processing_service.py:87-95, save_uploaded_book_file.
+Current behavior: target_path joins common BOOK_TEMP_DIR with secure_filename(original filename).
+Safe reproduction: two FileStorage objects named same.txt, saved sequentially inside a TemporaryDirectory, return the exact same path. Reading the first returned path after the second save returns SECOND_SYNTHETIC_BOOK. The subsequent request cleanup can also remove another request's input.
+Current exposure: admin-only /admin/books/extract-metadata and add-book routes use this helper; no ordinary-user upload access was found. This is a real concurrent-import data-integrity/isolation defect, not a demonstrated anonymous exploit.
+Recommended bounded fix: allocate a unique temporary path with mkstemp or UUID plus validated extension; keep the separately returned safe original filename for display only; clean partial file on failed save. Regression must preserve both same-name request contents and verify failure cleanup.
+Related safer path: app/books/parsers.py:609 already uses mkstemp for process_uploaded_book.
+
+CONFIRMED FINDING 2: SERVER EPUB EXPANSION HAS NO APPLICATION BUDGET
+Locations: app/books/parsers.py:295 and :417 call ebooklib.epub.read_epub directly.
+Installed implementation examined: ebooklib EpubReader._load_manifest reads every manifest item via ZipFile.read, including images/fonts/binary items not used in the text renderer. ZIP64 is enabled. The application currently has no entry-count, per-entry-expanded or cumulative-expanded preflight at these calls.
+Safe reproduction: a 2104-byte, valid synthetic EPUB with one tiny chapter and one unused 1048576-byte repetitive binary manifest item loads the entire unused resource in memory. No large archive or resource-exhaustion test was run.
+Current exposure: admin-only metadata and content import. Global MAX_CONTENT_LENGTH is 16MiB and the reusable admin upload helper permits 50MiB; neither bounds decompressed ZIP resources.
+Recommended bounded fix: before both EPUB metadata/content calls, validate archive entry count and safe normalized names; reject duplicates, traversal, encryption and unsupported compression; enforce explicit per-entry and cumulative expanded-byte budgets and bounded actual reads. Do not rely solely on compression ratio (legitimate text compresses well). Avoid silent TXT fallback when the archive is rejected. Retain current public/admin restriction until ownership and limits are designed for any future personal upload.
+No ZIP-slip write was found: current Python EPUB path uses ZipFile.read, not extract/extractall; the iOS ZIP reader never extracts files at all. Lack of Python archive preflight is primarily a resource-budget concern here.
+
+CONFIRMED BEHAVIOR 3: LEGACY SERVER XML IS LESS STRICT THAN IOS
+Locations: app/books/parsers.py:224/:360 and convert_fb2_to_txt.py:54 use stdlib ElementTree.
+Safe reproduction: a single small internal entity expands to SYNTHETIC_EXPANSION in FB2 body/metadata. External-file entity containing only a synthetic sentinel is not resolved; parser raises undefined entity and parse_fb2 falls back to TXT. No local-file disclosure was observed.
+Installed EbookLib XML helper explicitly sets resolve_entities=False; no external entity request was observed in the synthetic EPUB check.
+Assessment: not claiming XXE or an exploitable exponential bomb. The existing server does not adopt iOS's explicit reject-all-declarations policy; future untrusted import should use an explicit hardened XML policy and fail closed, without interpreting rejected XML as a book of raw markup. Cover binary decoding also has no dedicated decoded-image budget in extract_fb2_cover, beyond the uploaded raw file limit.
+
+ACTIVE MARKUP / RESOURCE REQUESTS
+A synthetic FB2 paragraph containing escaped img/event HTML is entity-decoded into raw parser output, so raw imported HTML must not be trusted by any later display path.
+Actual current reader format_chapter_text (app/utils/template_utils.py:74) removes event attributes, img tags and external URL from that sample. Admin content preview (app/static/js/books/content_editor_optimized.js:renderBookPreview) rebuilds a detached allowlisted tree with no source attributes. An active-XSS/resource-load route through these checked reader/preview paths was NOT confirmed.
+Synthetic EPUB script and external img src do not survive parse_epub output; parser extracts heading/paragraph text.
+iOS EPUBText suppresses script/style/svg/nav, ignores image/link attributes, and BookTextFormatting produces plain BookTextRun strings/styles. ReaderParagraphText uses native text display; no WKWebView, HTML resource loader or embedded image rendering is involved in imported book content. No book-authored automatic resource fetch was found.
+
+IOS EXISTING BOUNDS AND VERIFIED DEFENSES
+BookFileImporter.parse: raw data <=20000000 bytes, nonempty; extension dispatch TXT/FB2/EPUB.
+File picker checks file size before Data(contentsOf:) when provided and checks Data size afterward. A provider with missing/misreported size can still allocate the data before the second check; no reproducible harmful provider was exercised. A bounded stream read would be additional hardening, not an established ordinary-file bypass.
+XMLParser: external resolution disabled and .never policy; internal/external entity declarations abort parsing; resolving delegate returns nil.
+EPUB archive: <=5000 entries; normalized names, no absolute/backslash/colon/NUL, traversal rejected; duplicate normalized names rejected; no filesystem extraction. Unsupported/encrypted used entries rejected; CRC and declared-expanded length checked.
+Read budget: <=8000000 expanded bytes per used entry and <=40000000 cumulative read bytes; fixed bounded decompression allocation. XML <=40000000 bytes; spine <=2000 entries; generated readable text <=40000000 bytes, paragraph <=500000 bytes, <=2000 output chapters. Title/author trimmed to300 characters.
+Fonts may be obfuscated but are not read/rendered; supported font obfuscation is intentionally distinguished from text DRM.
+No confirmed parser security defect requiring an iOS source change in this audit.
+
+PRIVACY BOUNDARY: EXPLICIT WORD TRANSLATION IS A SERVER REQUEST
+Importing/reading a personal book does not upload the whole book. ReaderTranslationController.swift:172-175 nevertheless sends ContextualLookup when signed in and online, including selected text, the containing sentence, lemma and selection offsets. ContextualLookup excludes local filename, book title and localID.
+Endpoint app/api/native_translation.py:/reader/lexicon is authenticated/rate-limited/private-response. app/reader_translation/service.py validates bounded strings and queries dictionary/expression candidates; inspected service does not persist the sentence or call a remote model. This is a real intentional selected-excerpt transfer, not an automatic upload or a demonstrated cross-user disclosure.
+Saving a word/context is separately account-scoped sync: imported contexts can include book title/localID and a bounded sentence. Backend agent owns full owner-scope verification. Any UI promise that a book or its excerpts 'never leave this iPhone' must distinguish local full-file import from explicit lexical lookup and word synchronization.
+Legacy server metadata/import logs include book title/author/temp path (app/books/parsers.py and book_processing_service.py). These admin catalog logs are not a demonstrated other-user data leak; do not reuse that logging unchanged for future private manuscripts.
+
+VALIDATION
+Existing Swift OfflineLibraryTests + BookTextFormattingTests: 19 tests in2 suites passed; log /tmp/llt-book-format-core-tests.log. Covers normal EPUB spine/text import, traversal/encryption/corruption rejection, FB2 external-entity rejection, scripts/styles removal, account-separated local storage and nested text order.
+Synthetic read-only Python runner: /tmp/llt-book-import-synthetic-audit.py; results /tmp/llt-book-import-synthetic-audit.json. All files confined to a TemporaryDirectory and removed. No app startup/DB/network; socket.create_connection explicitly fails if invoked. The runner uses a <=1MiB unused resource, not an exhaustion payload.
+
+PRIORITY
+1. Fix confirmed admin shared-temp collision now (small isolated helper + tests).
+2. Add bounded EPUB archive preflight before any expansion or exposure to untrusted personal uploads; apply to metadata and content alike.
+3. Preserve explicit local-file/excerpt-sync distinction and strict uploader ownership; do not add a server upload feature merely to address this audit.
+4. Harden legacy XML/fallback/logging only within reviewed ingestion scope; avoid claiming unconfirmed XXE/XSS vulnerabilities.
+
+REVIEWED FIX STATUS
+Root approved the shared-temp collision correction after review. save_uploaded_book_file now reserves an exclusive mkstemp file, writes through its already-open descriptor, and removes only its own partial file if saving fails. Returned safe original filename/extension remain unchanged. Both helper callers were inspected: add-book title remains form.title; metadata handler passes safe original_filename to extract_file_metadata so TXT/PDF fallback titles do not become random temp IDs. The new optional argument preserves existing direct parser callers.
+Files changed for this approved correction: app/admin/services/book_processing_service.py; app/books/parsers.py (metadata fallback only); app/admin/routes/book_routes.py (one metadata call); tests/admin/routes/test_book_routes.py (obsolete basename-equals-original assertion only); new tests/admin/services/test_book_upload_isolation.py.
+Focused validation: 47 tests passed (new5 isolation/failure-cleanup/fallback/real-handler tests + existing upload-helper and book-parser tests); Ruff clean on the new test file. Final guarded local PostgreSQL verification supersedes the initial sandbox-blocked attempt: metadata routes, upload guards, existing helper and new isolation tests19PASS. The runner checked loopback host and a _test database name before pytest/app startup; production was not accessed. Log /tmp/llt-book-metadata-guarded-tests.log. The real metadata handler additionally passed in the minimal Flask/noDB test.
+EPUB budget proposal submitted for root review; NOT applied: existing admin raw50MiB helper/web16MiB retained; proposed configurable5000entries/32MiB per entry/128MiB aggregate, no compression-ratio rule and no rejection of otherwise-bounded ZIP64 solely by format. This larger admin policy intentionally does not copy the stricter mobile8MB/40MB defaults blindly.
+
+ADDITIONAL READ-ONLY FINDING: NESTED FB2 TEXT DUPLICATION
+app/books/parsers.py:371-387 loops over all descendant sections, then all descendant paragraphs of each section. A safe two-level synthetic FB2 with one UNIQUE_SYNTHETIC_LEAF produces that leaf twice; section titles also enter paragraph output. convert_fb2_to_txt.py uses the same all-descendant-section/paragraph pattern. Output amplification grows with section depth even without XML entity expansion. No exhaustion payload was run. Recommended separately reviewed correction: walk each node once, preserve order/titles and emit each paragraph exactly once; verify ordinary/nested/poetry body fixtures. Root subsequently approved the narrow shared document-order iterator correction; see final fix status below. Initial reproduction result /tmp/llt-nested-fb2-audit.json; no personal files read.
+
+FINAL FB2 FIX STATUS
+Root reviewed and approved a shared stdlib-only iter_fb2_blocks generator in convert_fb2_to_txt.py, imported by app/books/parsers.py. It walks document order iteratively; a title is emitted once as one heading and owns its descendant paragraph/inline text, while each ordinary paragraph owns its full itertext subtree. This keeps OuterTitle,Alpha,InnerTitle,Beta,Gamma in source order without duplicating inner text or losing trailing parent paragraphs. Namespace-free/default-namespace/prefixed-namespace inputs work. Parser retains its original first-body behavior and [a-zA-Z]+ word-count rule; converter retains its original all-body behavior, chapter-marker/title normalization and paragraph separator convention. Removed content-bearing title debug prints from the converter. No new format or cloud upload was added.
+Shared-module deployment verified: Dockerfile already COPYs convert_fb2_to_txt.py, and the file imports only Python stdlib. New test runs its actual CLI with python -S (no site packages), proving the converter does not depend on Flask/app import. The shared parser import has no circular dependency because converter never imports app.
+New synthetic regressions: tests/test_fb2_document_order.py checks nested sections including trailing parent text, siblings/untitled parents, multi-p title merging without duplicate title paragraphs, nested inline text, ASCII word counts, default/no/prefixed namespaces, existing numbered CHAPTER markers, no private title debug output, and the stdlib-only actual converter CLI.
+EPUB resource budgets remain an explicitly documented proposal only, pending a separate import-policy decision. No expanded-archive gate or new user upload feature was added in this patch.
+
+FINAL VALIDATION: source-only FB2/parser/upload-isolation50PASS; guarded local PostgreSQL metadata/upload19PASS; new test files Ruffclean. Existing Swift import/format19PASS. Source frozen after these checks; no production books or production database accessed.

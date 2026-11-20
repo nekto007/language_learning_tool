@@ -50,8 +50,13 @@ class WordFilterForm(FlaskForm):
         csrf = False  # Disable CSRF for GET forms
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super(WordFilterForm, self).__init__(*args, **kwargs)
         from app.books.models import Book
+        from app.books.access import visible_books_filter
+        if user is None:
+            from flask_login import current_user
+            user = current_user
 
         # Populate book choices dynamically
         books = [(0, _l('Все книги'))]
@@ -60,7 +65,7 @@ class WordFilterForm(FlaskForm):
 
             # Получаем книги отсортированные по названию
             all_books = db.session.execute(
-                db.select(Book).order_by(Book.title.asc())
+                db.select(Book).where(visible_books_filter(user)).order_by(Book.title.asc())
             ).scalars().all()
             books.extend([(b.id, b.title) for b in all_books])
         except Exception:

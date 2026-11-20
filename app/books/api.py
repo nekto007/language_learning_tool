@@ -540,6 +540,16 @@ def save_bookmark():
     if not book_id or not name:
         return jsonify({'success': False, 'error': 'Book ID and name are required'}), 400
 
+    from app.books.access import can_user_access_book
+    from app.books.models import Book
+    if type(book_id) is not int or book_id <= 0:
+        return jsonify({'success': False, 'error': 'Invalid book ID'}), 400
+    book = db.session.get(Book, book_id)
+    if book is None or (not book.is_published and not current_user.is_admin):
+        return jsonify({'success': False, 'error': 'Book not found'}), 404
+    if not can_user_access_book(current_user, book):
+        return jsonify({'success': False, 'error': 'Access denied'}), 403
+
     try:
         bookmark = Bookmark(
             user_id=current_user.id,

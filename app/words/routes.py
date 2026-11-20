@@ -1323,7 +1323,7 @@ def word_list():
 
     # Создаем формы фильтров с параметрами запроса
     search_form = WordSearchForm(request.args)
-    filter_form = WordFilterForm(request.args)
+    filter_form = WordFilterForm(request.args, user=current_user)
 
     # Формирование базового запроса с JOIN для получения статусов пользователя и информации о колоде
     from app.study.models import QuizDeck, QuizDeckWord
@@ -1430,7 +1430,11 @@ def word_list():
 
     # Применяем фильтр по книге
     if book_id:
+        from app.books.access import visible_books_filter
+        from app.books.models import Book
         from app.words.models import word_book_link
+        if db.session.query(Book.id).filter(Book.id == book_id, visible_books_filter(current_user)).first() is None:
+            abort(404)
         query = query.join(
             word_book_link,
             CollectionWords.id == word_book_link.c.word_id
@@ -1547,13 +1551,14 @@ def word_list():
         from sqlalchemy.orm import attributes as _sa_attrs
 
         from app.books.models import Book
+        from app.books.access import visible_books_filter
         from app.words.models import word_book_link as _wbl
         _page_word_ids = [w.id for w in word_list]
         _book_rows = db.session.query(Book, _wbl.c.word_id).join(
             _wbl, Book.id == _wbl.c.book_id
         ).filter(
             _wbl.c.word_id.in_(_page_word_ids),
-            Book.is_published == True,
+            visible_books_filter(current_user),
         ).all()
         _word_books: dict[int, list] = {}
         for _book, _wid in _book_rows:
@@ -1627,6 +1632,7 @@ def word_list():
 @module_required('words')
 def word_detail(word_id):
     from app.books.models import Book
+    from app.books.access import visible_books_filter
     from app.study.models import UserWord
     from app.words.models import word_book_link
 
@@ -1650,7 +1656,7 @@ def word_detail(word_id):
     books = (
         db.session.query(Book, word_book_link.c.frequency)
         .join(word_book_link, Book.id == word_book_link.c.book_id)
-        .filter(word_book_link.c.word_id == word.id)
+        .filter(word_book_link.c.word_id == word.id, visible_books_filter(current_user))
         .order_by(word_book_link.c.frequency.desc(), Book.title.asc())
         .all()
     )

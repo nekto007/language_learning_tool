@@ -41,6 +41,26 @@ def clean_text(text: str) -> str:
     return text
 
 
+def iter_fb2_blocks(body, namespace):
+    """Yield heading/paragraph text once, preserving the XML document order.
+
+    A title owns its descendant paragraphs, and a paragraph owns its inline
+    text. Neither subtree is revisited, including when sections are nested.
+    The iterative walk also avoids Python recursion for deep section trees.
+    """
+    stack = list(reversed(list(body)))
+    while stack:
+        node = stack.pop()
+        if node.tag == namespace + 'title':
+            paragraphs = [''.join(p.itertext()).strip() for p in node.iter(namespace + 'p')]
+            text = ' '.join(part for part in paragraphs if part) if paragraphs else ''.join(node.itertext()).strip()
+            yield 'heading', text
+        elif node.tag == namespace + 'p':
+            yield 'paragraph', ''.join(node.itertext()).strip()
+        else:
+            stack.extend(reversed(list(node)))
+
+
 def extract_text_from_fb2(fb2_path: str) -> str:
     """
     Extract text content from FB2 file
@@ -56,97 +76,28 @@ def extract_text_from_fb2(fb2_path: str) -> str:
         tree = ET.parse(fb2_path)
         root = tree.getroot()
 
-        # FB2 namespace
-        ns = {'fb': 'http://www.gribuser.ru/xml/fictionbook/2.0'}
-
-        # Track chapters
+        namespace = root.tag.split('}')[0] + '}' if root.tag.startswith('{') else ''
         chapter_num = 0
         output_parts = []
-
-        # Find all body elements
-        bodies = root.findall('.//fb:body', ns)
-
-        for body in bodies:
-            # Find sections (chapters)
-            sections = body.findall('.//fb:section', ns)
-            for section in sections:
-                # Extract paragraphs from this section
-                paragraphs = []
-
-                # Check if this is a chapter-level section with title
-                title_elem = section.find('.//fb:title', ns)
-                if title_elem is not None:
-                    # This looks like a chapter
+        for body in root.findall('.//' + namespace + 'body'):
+            for kind, text in iter_fb2_blocks(body, namespace):
+                if kind == 'heading':
                     chapter_num += 1
-
-                    # Extract title text
-                    title_parts = []
-                    for p in title_elem.findall('.//fb:p', ns):
-                        if p.text:
-                            print('p.text', p.text)
-                            title_parts.append(p.text.strip())
-                        else:
-                            p = ''.join(p.itertext())
-                            title_parts.append(p.strip())
-                    print('title_parts', title_parts)
-                    title_text = ' '.join(title_parts)
-                    print('title_text', title_text)
-                    # Remove chapter number prefix (e.g., "1. ", "2. ", "CHAPTER ONE", etc.)
-                    if title_text:
-                        # Remove numeric prefix
-                        title_text = re.sub(r'^\d+\.\s*', '', title_text)
-                        # Remove "CHAPTER ONE", "CHAPTER TWO", etc.
-                        title_text = re.sub(
-                            r'^CHAPTER\s+(ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|TWENTY-ONE|TWENTY-TWO|TWENTY-THREE|TWENTY-FOUR|TWENTY-FIVE)\s*',
-                            '', title_text, flags=re.IGNORECASE)
-                        # Remove "CHAPTER 1", "CHAPTER 2", etc.
-                        title_text = re.sub(r'^CHAPTER\s+\d+\s*', '', title_text, flags=re.IGNORECASE)
-                    print('title_text2', title_text)
-                    # Combine chapter marker with title on same line
-                    if title_text:
-                        paragraphs.append(f"### CHAPTER_{chapter_num:02d} {title_text}\n")
-                    else:
-                        paragraphs.append(f"### CHAPTER_{chapter_num:02d}\n")
-
-                # Find all paragraphs not in title
-                for p_elem in section.findall('.//fb:p', ns):
-                    # Check if this paragraph is not in a title
-                    in_title = False
-                    for title in section.findall('.//fb:title', ns):
-                        if p_elem in title.findall('.//fb:p', ns):
-                            in_title = True
-                            break
-
-                    if in_title:
-                        continue
-
-                    # Build paragraph text with proper handling of emphasis and other inline elements
-                    paragraph_text = ''
-                    if p_elem.text:
-                        paragraph_text += p_elem.text
-
-                    for child in p_elem:
-                        # Add child text (like emphasis content)
-                        if child.text:
-                            paragraph_text += child.text
-                        # Add tail text (text after the child element)
-                        if child.tail:
-                            paragraph_text += child.tail
-
-                    # Clean and add paragraph
-                    paragraph_text = paragraph_text.strip()
-                    if paragraph_text:
-                        paragraphs.append(paragraph_text)
-
-                if paragraphs:
-                    # Add all paragraphs to output
-                    output_parts.extend(paragraphs)
+                    # Preserve the existing chapter marker/title convention.
+                    title_text = re.sub(r'^\d+\.\s*', '', text)
+                    title_text = re.sub(
+                        r'^CHAPTER\s+(ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE|THIRTEEN|FOURTEEN|FIFTEEN|SIXTEEN|SEVENTEEN|EIGHTEEN|NINETEEN|TWENTY|TWENTY-ONE|TWENTY-TWO|TWENTY-THREE|TWENTY-FOUR|TWENTY-FIVE)\s*',
+                        '', title_text, flags=re.IGNORECASE)
+                    title_text = re.sub(r'^CHAPTER\s+\d+\s*', '', title_text, flags=re.IGNORECASE)
+                    output_parts.append(f"### CHAPTER_{chapter_num:02d}" + (f" {title_text}" if title_text else '') + "\n")
+                elif text:
+                    output_parts.append(text)
 
         # Join all parts with literal \n\n, but handle chapter titles specially
         result_parts = []
         prev_was_chapter = False
 
-        for i, part in enumerate(output_parts):
+        for part in output_parts:
             if part.startswith('### CHAPTER_'):
                 # Add chapter with real newline before (if not first) and after
                 if result_parts:

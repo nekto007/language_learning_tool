@@ -1,0 +1,134 @@
+BOOK PRIVACY / SERVER AUDIT — 2026-11-21
+
+Scope and evidence
+Read server/API/models and synthetic tests only. No real account, uploaded book,
+production database, backup, secret, or external network was read. No private
+upload feature, schema migration, catalogue redesign, or deployment is included.
+Existing admin-upload parser hardening is owned by the content-audit agent.
+
+Main conclusion
+Users may import FB2/EPUB locally in the iOS app, but the server currently has
+NO PersonalBook model and NO ordinary-user original-file upload endpoint.
+Server Book/Chapter records are the shared administrator-managed library.
+Opening the existing admin import to regular users would NOT make books private.
+Do not infer that an existing private cloud library has leaked: it does not exist.
+
+Current ownership and access
+- app/books/models.py Book: no owner/uploader column; is_published defaults true.
+  rights_status (public_domain/licensed/companion_only) is a copyright/module
+  entitlement, not an owner ACL. A draft is also not a private personal book.
+- app/books/access.py grants admins all shared books, public-domain titles to
+  registered users, licensed/companion-only titles to books-module users while
+  their licence is valid. Publication was historically checked by route callers.
+- app/admin/routes/book_routes.py add/extract-metadata and app/books/routes.py
+  add/content/cover/edit operations require administrator access.
+- app/books/parsers.py and BookProcessingService stage temporary input. There
+  is no owner-bound retained original-file download contract.
+- app/books/services/book_service.py is stale: refers to Book.user_id and other
+  absent columns; callers were not found outside its package export. It is NOT
+  proof of functional server-side personal-book ownership.
+- app/api/native_reader.py sync stores per-account NativeReaderVocabulary,
+  selected sentences, translations, book titles/local IDs and private deck
+  entries. It does not upload an entire imported file or create a server Book.
+  Owner IDs come from current_user; private decks and contexts remain scoped.
+  Thus local-file import does not mean that no reading excerpt ever syncs.
+
+Existing endpoints reviewed and correctly gated for current shared-book rules
+- app/api/books_catalog.py catalog/search/select: published + rights gates;
+  include_library history and preferences are keyed by the requesting user.
+  Its response is private, no-store.
+- app/api/books.py detail, chapter list by ID/slug, chapter text by number/ID,
+  task, block, progress and content resolve the parent Book and gate drafts and
+  rights before returning data. Progress uses current_user, never body user_id.
+  Shared chapter-list cache is behind the access gate, not an ACL bypass.
+- app/books/routes.py main catalogue/details/readers/word pages and
+  finish-reading check publication and rights.
+- app/books/api.py audio handler checks parent publication, text rights and
+  audio_rights_status. Reading start/save-position similarly gate parent Book.
+- Native reading wrappers delegate to these handlers with Bearer authentication.
+- app/daily_plan/items/reading.py, linear reading slot and next_step already
+  exclude books the recipient can no longer open.
+- Bookmark GET is account-scoped. Closing a reading session verifies the session
+  owner; a rights change after starting can still allow closing one's own old
+  session. This is not another user's data disclosure and was not changed.
+
+Confirmed current metadata/publication gaps, fixed after explicit root approval
+1. WordFilterForm choices loaded every Book, including hidden drafts/restricted
+   titles. Web word_detail and GET /api/words/<id> returned every book/frequency
+   association. The word-list association preload checked published but omitted
+   rights. All now use visible_books_filter(explicit_user), combining canonical
+   publication + module/licence gates while retaining admin preview.
+2. GET /words?book_id=... and /api/words?book_id=... allowed guessing hidden IDs
+   to enumerate vocabulary associations. They now return 404 for invisible IDs.
+3. Telegram get_daily_plan and get_daily_plan_v2 suggestions, onboarding book
+   counts, started-book continuation and active book-course metadata ignored
+   publication/rights. They now use the actual recipient User without request-
+   local identity. Filtered suggestions and counts cannot disclose hidden books.
+4. POST /books/<id>/add-to-queue omitted publication despite its rights check.
+   It now rejects non-admin draft requests before adding user words.
+5. POST /api/bookmarks inserted a row for any supplied book ID without checking
+   book existence/publication/rights. It now gates before writing and always
+   assigns current_user. No foreign user's bookmark-read bypass was found.
+
+Existing public assets — deliberately NOT changed
+- app/uploads/routes.py /uploads/covers/<filename> is unauthenticated and sends
+  Cache-Control: public, max-age=86400. A standalone Flask probe with only a
+  synthetic /tmp cover returned 200 anonymously and exactly those cache headers.
+  No real cover was accessed. Current upload-route tests also encode public use.
+- nginx/conf.d/app.conf /static/ and /media/ are direct unauthenticated aliases.
+- A protected audio endpoint cannot protect a second public static/media/object
+  URL to the same bytes. Actual private audio assets were not inspected.
+- Public-library cover policy is retained for native AsyncImage/bot/OG clients.
+  Any future personal originals, cover, chapter text and audio MUST use a new
+  private storage namespace and owner-authorized endpoints, not these routes.
+
+Recommended private-only design (proposal; not implemented)
+Keep administrator Book/Chapter library separate. Add PersonalBook owned by a
+non-null owner_user_id and PersonalChapter/PersonalReadingProgress (or equally
+strict independent personal tables), with a random external ID and explicit
+processing/ready/failed state. Keep uploads out of shared Book, CollectionWords
+book links, public catalogue/search, Telegram suggestions and course generation.
+
+POST private upload assigns the owner from the authenticated token and offers no
+public/share checkbox. Every metadata/chapter/search/progress/original/download/
+cover/audio/range route loads by BOTH personal-book ID and owner_user_id. Return
+the same 404 for foreign and nonexistent IDs. Never treat books-module access,
+public_domain metadata, or an ordinary admin UI session as ownership. If staff
+operational access is needed, design a separate explicit audited policy; do not
+silently inherit today's shared-library admin bypass.
+
+Store originals and all derived assets outside static/media/public covers, or in
+a private object bucket. Return owner-authorized content URLs only. Random UUIDs
+are not an ACL. Use private/no-store metadata and account-scoped device caches;
+short-lived signed URLs, if used, are bearer capabilities and must not be logged
+or shared. Avoid cross-account deduplication/existence oracles; checksum identity
+must be scoped to the owner. Parser jobs carry owner + personal-book identity.
+Quarantine input; bound file/archive entry count, total expanded bytes and XML
+parsing; allocate unique temporary paths. Account deletion must clean originals,
+derived text/covers, pending jobs and private vocabulary links after its grace
+period. Existing admin parsers are not ready for arbitrary user input as-is.
+
+Future acceptance matrix before any cloud-private feature release
+Use synthetic users A, B, unrelated admin and anonymous clients. Warm caches as A
+then verify all B/admin/anonymous routes return 404 without title, count, hash,
+chapter, cover, filename or processing-status leakage. Include list/detail/search,
+original/cover/audio/ranges, progress/bookmark writes, guessed IDs, parser failures,
+owner override in POST, logout/account switching and deletion cleanup. Verify a
+public-library entry and current-user private entry remain independently usable.
+
+Verification of the bounded current fixes
+- tests/books/test_visibility_surfaces.py: publication/rights matrix across
+  regular/entitled/admin/anonymous actors; word-form/list/detail/API metadata and
+  frequency; guessed vocabulary filters; no unauthorized bookmark/queue write;
+  account-scoped bookmark reads; both Telegram plans in an actual background
+  thread without request context; visible counts, continuation and linked course.
+- Final guarded PostgreSQL run: 223 tests, 0 failures/errors, including 54 new
+  privacy regressions and 169 existing focused books/access/routes/API/catalog,
+  words/forms/query-budget, Telegram, public-cover and book-course tests.
+  Log: /tmp/llt-book-visibility-final.log
+  JUnit: /tmp/llt-book-visibility-final.xml
+  Existing words query budgets pass. Bot visibility is computed once per plan;
+  the patch adds bulk predicates/joins, not per-book permission lookups in loops.
+- New regression file passes Ruff; git diff --check passes. The old source files
+  contain pre-existing whole-file lint findings and were not broadly reformatted.
+- No migrations, real DB changes, commit, push or deployment by this agent.

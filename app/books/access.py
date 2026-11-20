@@ -27,6 +27,20 @@ from app.modules.service import ModuleService
 BOOKS_MODULE_CODE = 'books'
 
 
+def visible_books_filter(user) -> Any:
+    """Publication AND rights gate for every user-facing book projection.
+
+    Accept an explicit user so background jobs use the recipient's rights,
+    never a request-local identity. Admins keep their draft preview access.
+    """
+    from sqlalchemy import and_
+
+    rights = accessible_books_filter(user)
+    if getattr(user, 'is_admin', False):
+        return rights
+    return and_(Book.is_published.is_(True), rights)
+
+
 def books_section_visible(user) -> bool:
     """Should the user see the /books navigation link / catalog at all?
 

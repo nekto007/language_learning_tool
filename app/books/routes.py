@@ -1032,6 +1032,9 @@ def book_words(book_id):
 def add_book_to_queue(book_id):
     book = Book.query.get_or_404(book_id)
 
+    if not book.is_published and not current_user.is_admin:
+        abort(404)
+
     if not can_user_access_book(current_user, book):
         abort(403)
 

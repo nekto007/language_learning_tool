@@ -391,7 +391,7 @@ def extract_book_metadata():
         return jsonify({'success': False, 'error': str(e)}), 400
 
     try:
-        metadata = extract_file_metadata(temp_file_path, file_ext)
+        metadata = extract_file_metadata(temp_file_path, file_ext, original_filename=filename)
         logger.info(f"[METADATA_EXTRACT] Extracted: {metadata.get('title', '')}")
         return jsonify({
             'success': True,

@@ -51,8 +51,9 @@ def save_uploaded_book_file(
     """
     Validate and persist an uploaded book file to a temp directory.
 
-    Performs extension allow-list check, max-size check, and path-traversal
-    defense: the resolved final path MUST stay inside ``temp_dir``.
+    Validates the extension and size, then reserves an exclusive temporary file
+    descriptor inside the trusted ``temp_dir``. The sanitized original filename
+    is returned for display/metadata only; it never determines the storage path.
 
     Returns (temp_path, safe_filename, ext_with_dot).
     Raises BookUploadError on any validation failure; the caller is expected
@@ -84,14 +85,19 @@ def save_uploaded_book_file(
     target_dir = temp_dir or BOOK_TEMP_DIR
     os.makedirs(target_dir, exist_ok=True)
 
-    target_path = os.path.join(target_dir, safe_name)
-    # Defense-in-depth: resolved path MUST stay inside target_dir.
-    real_dir = os.path.realpath(target_dir)
-    real_target = os.path.realpath(target_path)
-    if os.path.commonpath([real_dir, real_target]) != real_dir:
-        raise BookUploadError('Недопустимый путь файла')
-
-    file.save(target_path)
+    # Original filenames are display metadata, never shared storage identities.
+    # mkstemp reserves an exclusive file so concurrent same-name uploads cannot
+    # overwrite each other or remove another request's file during cleanup.
+    fd, target_path = tempfile.mkstemp(prefix='book-', suffix=f'.{extension}', dir=target_dir)
+    try:
+        with os.fdopen(fd, 'wb') as destination:
+            file.save(destination)
+    except BaseException:
+        try:
+            os.remove(target_path)
+        except OSError:
+            logger.warning('Failed to remove incomplete book upload: %s', target_path)
+        raise
     return target_path, safe_name, f'.{extension}'
 
 

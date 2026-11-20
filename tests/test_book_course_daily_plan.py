@@ -99,6 +99,16 @@ def hp_course(db_session, hp_book):
 @pytest.fixture
 def enrolled_user(db_session, test_user, hp_course):
     """Enroll test_user in the HP course."""
+    # The companion-only test title requires the same module entitlement as
+    # opening its chapters; enrollment alone does not grant reading rights.
+    from app.modules.models import SystemModule
+    from app.modules.service import ModuleService
+    books_module = SystemModule.query.filter_by(code='books').first()
+    if books_module is None:
+        books_module = SystemModule(code='books', name='Books', is_active=True, is_default=False)
+        db_session.add(books_module)
+        db_session.flush()
+    ModuleService.grant_module_to_user(test_user.id, books_module.id)
     modules = BookCourseModule.query.filter_by(course_id=hp_course.id).order_by(
         BookCourseModule.module_number
     ).all()

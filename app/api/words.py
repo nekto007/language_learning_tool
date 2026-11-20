@@ -51,7 +51,11 @@ def get_words():
         query = query.filter(CollectionWords.id.in_(new_system_words))
 
     if book_id is not None:
+        from app.books.access import visible_books_filter
+        from app.books.models import Book
         from app.words.models import word_book_link
+        if db.session.query(Book.id).filter(Book.id == book_id, visible_books_filter(current_user)).first() is None:
+            return api_error('not_found', 'Book not found', 404)
         query = query.join(
             word_book_link,
             CollectionWords.id == word_book_link.c.word_id
@@ -129,11 +133,12 @@ def get_word(word_id):
 
     # Get books containing this word
     from app.books.models import Book
+    from app.books.access import visible_books_filter
     from app.words.models import word_book_link
 
     books_query = db.select(Book, word_book_link.c.frequency) \
         .join(word_book_link, Book.id == word_book_link.c.book_id) \
-        .where(word_book_link.c.word_id == word_id)
+        .where(word_book_link.c.word_id == word_id, visible_books_filter(current_user))
 
     books_result = db.session.execute(books_query).all()
 

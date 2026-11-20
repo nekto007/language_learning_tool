@@ -489,7 +489,8 @@ class TestSaveUploadedBookFile:
         # The saved file resolves inside the requested temp dir.
         assert os.path.realpath(saved_path).startswith(os.path.realpath(str(tmp_path)))
         # And the saved filename contains no path separators.
-        assert os.path.basename(saved_path) == safe_name
+        assert os.path.basename(saved_path) != safe_name
+        assert os.path.splitext(saved_path)[1] == ext
         assert '..' not in safe_name and '/' not in safe_name and '\\' not in safe_name
 
     def test_happy_path_persists_file(self, tmp_path):

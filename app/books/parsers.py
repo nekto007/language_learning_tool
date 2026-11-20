@@ -9,6 +9,8 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from werkzeug.utils import secure_filename
 
+from convert_fb2_to_txt import iter_fb2_blocks
+
 logger = logging.getLogger(__name__)
 
 # Temp dir for upload processing — must match BOOK_TEMP_DIR in book_processing_service.py
@@ -331,7 +333,7 @@ def extract_docx_metadata(file_path):
         return {'title': '', 'author': ''}
 
 
-def extract_file_metadata(file_path, file_ext):
+def extract_file_metadata(file_path, file_ext, *, original_filename=None):
     """Универсальная функция для извлечения метаданных из файла"""
     logger.info(f"[METADATA_PARSER] Starting metadata extraction for {file_ext} file: {file_path}")
     file_ext = file_ext.lower()
@@ -348,7 +350,7 @@ def extract_file_metadata(file_path, file_ext):
     else:
         # Для TXT и других форматов пытаемся извлечь из имени файла
         logger.info(f"[METADATA_PARSER] Unsupported format {file_ext}, extracting title from filename")
-        filename = os.path.splitext(os.path.basename(file_path))[0]
+        filename = os.path.splitext(os.path.basename(original_filename or file_path))[0]
         result = {'title': filename, 'author': ''}
         logger.info(f"[METADATA_PARSER] Extracted metadata from filename - Title: '{result['title']}'")
         return result
@@ -371,27 +373,16 @@ def parse_fb2(file_path, format_type):
         html_parts = []
         word_count = 0
         unique_words = set()
-        # Перебираем секции и получаем текст
-        for section in body.findall('.//' + namespace + 'section'):
-            # Проверяем, есть ли заголовок
-            title = section.find('.//' + namespace + 'title')
-            if title is not None:
-                title_text = ''.join(title.itertext()).strip()
-                title_text = re.sub(r'[ \t]+', ' ', title_text)  # Нормализуем пробелы
-                if title_text:
-                    html_parts.append(f"<h2>{title_text}</h2>")
-
-            # Обрабатываем абзацы
-            for p in section.findall('.//' + namespace + 'p'):
-                p_text = ''.join(p.itertext()).strip()
-                p_text = re.sub(r'[ \t]+', ' ', p_text)  # Нормализуем пробелы
-                if p_text:
-                    html_parts.append(f'<p class="book-paragraph">{p_text}</p>')
-
-                    # Подсчет слов
-                    words = re.findall(r'\b[a-zA-Z]+\b', p_text.lower())
-                    word_count += len(words)
-                    unique_words.update(words)
+        for kind, text in iter_fb2_blocks(body, namespace):
+            text = re.sub(r'[ \t]+', ' ', text)
+            if kind == 'heading':
+                if text:
+                    html_parts.append(f"<h2>{text}</h2>")
+            elif text:
+                html_parts.append(f'<p class="book-paragraph">{text}</p>')
+                words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+                word_count += len(words)
+                unique_words.update(words)
 
         # Формируем HTML контент
         html_content = ''.join(html_parts)

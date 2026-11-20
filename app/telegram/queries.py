@@ -4,6 +4,8 @@ from typing import Any
 
 from sqlalchemy import func
 
+from app.auth.models import User
+from app.books.access import visible_books_filter
 from app.books.models import Book, UserChapterProgress
 from app.curriculum.book_courses import BookCourse, BookCourseEnrollment, BookCourseModule
 from app.curriculum.daily_lessons import DailyLesson, UserLessonProgress
@@ -105,6 +107,7 @@ def get_current_streak(user_id: int, tz: str = DEFAULT_TZ) -> int:
 def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     """Build daily study plan: next lesson, grammar topic, SRS words due."""
     now = datetime.now(timezone.utc)
+    book_visibility = visible_books_filter(db.session.get(User, user_id))
 
     # Next unfinished lesson
     next_lesson = None
@@ -280,7 +283,9 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     from app.books.models import Chapter
     started_book_ids = db.session.query(distinct(Chapter.book_id)).join(
         UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
-    ).filter(UserChapterProgress.user_id == user_id).all()
+    ).join(Book, Book.id == Chapter.book_id).filter(
+        UserChapterProgress.user_id == user_id, book_visibility,
+    ).all()
     started_book_ids = [r[0] for r in started_book_ids]
 
     if started_book_ids:
@@ -304,7 +309,7 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     suggested_books = None
     if not started_book_ids and not book_to_read:
         suggestions = Book.query.filter(
-            Book.chapters_cnt > 0,
+            Book.chapters_cnt > 0, book_visibility,
         ).order_by(Book.level, Book.title).limit(3).all()
         if suggestions:
             suggested_books = [
@@ -350,9 +355,9 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
         # Suggest books if user hasn't started any (max 5)
         if not has_any_books:
             available_books = Book.query.filter(
-                Book.chapters_cnt > 0,
+                Book.chapters_cnt > 0, book_visibility,
             ).order_by(Book.level, Book.title).limit(5).all()
-            total_books = Book.query.filter(Book.chapters_cnt > 0).count()
+            total_books = Book.query.filter(Book.chapters_cnt > 0, book_visibility).count()
             if available_books:
                 onboarding['available_books'] = [
                     {'id': b.id, 'title': b.title, 'author': b.author, 'level': b.level}
@@ -367,8 +372,11 @@ def get_daily_plan(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     book_course_lesson = None
     book_course_done_today = False
 
-    active_enrollment = BookCourseEnrollment.query.filter_by(
-        user_id=user_id, status='active'
+    active_enrollment = BookCourseEnrollment.query.join(
+        BookCourse, BookCourse.id == BookCourseEnrollment.course_id,
+    ).join(Book, Book.id == BookCourse.book_id).filter(
+        BookCourseEnrollment.user_id == user_id,
+        BookCourseEnrollment.status == 'active', book_visibility,
     ).first()
 
     if active_enrollment:
@@ -484,6 +492,7 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     """
     now = datetime.now(timezone.utc)
     today_start, today_end = _user_day_boundaries(tz)
+    book_visibility = visible_books_filter(db.session.get(User, user_id))
 
     # ── helpers ──
     from sqlalchemy import case as sa_case
@@ -822,7 +831,9 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
 
     started_book_ids = db.session.query(distinct(Chapter.book_id)).join(
         UserChapterProgress, UserChapterProgress.chapter_id == Chapter.id
-    ).filter(UserChapterProgress.user_id == user_id).all()
+    ).join(Book, Book.id == Chapter.book_id).filter(
+        UserChapterProgress.user_id == user_id, book_visibility,
+    ).all()
     started_book_ids = [r[0] for r in started_book_ids]
 
     books_read_today_ids: set[int] = set()
@@ -851,7 +862,7 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     # Suggest books for users without started books
     if not started_book_ids:
         suggestions = Book.query.filter(
-            Book.chapters_cnt > 0,
+            Book.chapters_cnt > 0, book_visibility,
         ).order_by(CEFR_ORDER, Book.title).limit(3).all()
         if suggestions:
             suggested_books = [{'id': b.id, 'title': b.title} for b in suggestions]
@@ -860,8 +871,11 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     book_course_lesson = None
     book_course_done_today = False
 
-    active_enrollment = BookCourseEnrollment.query.filter_by(
-        user_id=user_id, status='active'
+    active_enrollment = BookCourseEnrollment.query.join(
+        BookCourse, BookCourse.id == BookCourseEnrollment.course_id,
+    ).join(Book, Book.id == BookCourse.book_id).filter(
+        BookCourseEnrollment.user_id == user_id,
+        BookCourseEnrollment.status == 'active', book_visibility,
     ).first()
 
     if active_enrollment:
@@ -1032,9 +1046,9 @@ def get_daily_plan_v2(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
                     }
         if not has_any_books:
             available_books = Book.query.filter(
-                Book.chapters_cnt > 0,
+                Book.chapters_cnt > 0, book_visibility,
             ).order_by(CEFR_ORDER, Book.title).limit(5).all()
-            total_books = Book.query.filter(Book.chapters_cnt > 0).count()
+            total_books = Book.query.filter(Book.chapters_cnt > 0, book_visibility).count()
             if available_books:
                 onboarding['available_books'] = [
                     {'id': b.id, 'title': b.title, 'author': b.author, 'level': b.level}

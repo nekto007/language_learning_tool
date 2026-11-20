@@ -59,10 +59,10 @@ class TestWordFilterForm:
             assert len(form.book_id.choices) >= 1
             assert form.book_id.choices[0] == (0, 'Все книги')
 
-    def test_form_init_populates_book_choices(self, app, db_session, test_book):
+    def test_form_init_populates_book_choices(self, app, db_session, test_book, admin_user):
         """Тест заполнения списка книг"""
         with app.app_context():
-            form = WordFilterForm()
+            form = WordFilterForm(user=admin_user)
             # Should include our test book
             book_ids = [choice[0] for choice in form.book_id.choices]
             assert test_book.id in book_ids
