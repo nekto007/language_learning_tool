@@ -103,3 +103,42 @@ checkout соответствующей исходной версии:
 дубли и повторное использование одного ID блокируют apply, как и без флага.
 Повторный dry-run/apply необходимо запускать с тем же --preserve-metadata.
 Другие три команды пакета независимы и не требуют этого флага.
+
+8. Primary-key conflict при создании новой темы
+
+Старый CLI ошибочно называл любой IntegrityError конкурентным конфликтом.
+Теперь ошибка сообщает таблицу и constraint без SQL-параметров/контента.
+Если существующие ID тем выше grammar_topics_id_seq, следующий INSERT может
+получить занятый первичный ключ. Подтверждённый пример: max(id)=86, sequence=81.
+Исправляется только счётчик тем; записи и прогресс не переписываются.
+
+Следующая команда для public.grammar_topics поднимает sequence до текущего
+максимума, сохраняет более высокое значение sequence и блокирует одновременные
+INSERT на время проверки. Она работает в текущем контейнере:
+
+docker compose exec -T web python - <<'PY'
+from app import create_app
+from app.utils.db import db
+from sqlalchemy import text
+
+with create_app().app_context():
+    db.session.execute(text("SET LOCAL lock_timeout = '10s'"))
+    db.session.execute(text("LOCK TABLE public.grammar_topics IN SHARE ROW EXCLUSIVE MODE"))
+    value = db.session.execute(text("""
+        SELECT setval(
+            pg_get_serial_sequence('public.grammar_topics', 'id')::regclass,
+            GREATEST(
+                (SELECT MAX(id) FROM public.grammar_topics),
+                (SELECT last_value FROM public.grammar_topics_id_seq)
+            ),
+            true
+        )
+    """)).scalar_one()
+    db.session.commit()
+    print("grammar_topics sequence:", value)
+PY
+
+При указанном состоянии ожидается 86; следующая новая тема получает 87. После этого повторить
+два grammar-supplements --apply из раздела 3. Счётчик grammar_exercises в
+подтверждённом случае уже совпадает с max(id)=82706 и не требует исправления.
+Setval PostgreSQL не откатывается транзакцией; здесь он только поднимает счётчик.

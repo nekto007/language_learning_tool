@@ -261,6 +261,39 @@ def load_pack(path):
     return json.loads(path.read_text(encoding="utf-8"), parse_constant=reject_constant, object_pairs_hook=unique_keys)
 
 
+def _integrity_message(error):
+    """Describe safe driver metadata, never SQL parameters or lesson content."""
+    original = error.orig
+    code = getattr(original, "pgcode", None) or getattr(original, "sqlstate", None)
+    diag = getattr(original, "diag", None)
+
+    def identifier(name):
+        value = getattr(diag, name, None)
+        return value if isinstance(value, str) and re.fullmatch(r"[a-zA-Z0-9_.-]{1,128}", value) else None
+
+    table, constraint, column = (identifier(name) for name in ("table_name", "constraint_name", "column_name"))
+    details = ", ".join(
+        f"{name}={value}"
+        for name, value in (("table", table), ("constraint", constraint), ("column", column))
+        if value
+    )
+    suffix = f" ({details})" if details else ""
+    if code == "23505" and constraint and constraint.endswith("_pkey"):
+        return (
+            f"Primary-key conflict{suffix}; nothing was applied. "
+            "An out-of-sync ID sequence is possible: compare its value with max(id) before retrying."
+        )
+    if code == "23505" and table == "grammar_topics" and constraint == "grammar_topics_slug_key":
+        return f"Concurrent topic slug conflict{suffix}; nothing was applied. Run dry-run again."
+    kind = {
+        "23505": "Unique-constraint conflict",
+        "23502": "Required database column missing",
+        "23503": "Foreign-key conflict",
+        "23514": "Database check constraint rejected the content",
+    }.get(code, "Database integrity constraint rejected the import")
+    return f"{kind}{suffix}; nothing was applied. Inspect the database constraint before retrying."
+
+
 @click.command("grammar-supplements")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, readable=True, path_type=Path))
 @click.option("--apply", is_flag=True, help="Add missing reviewed topics/exercises. Default: dry-run, no writes.")
@@ -272,9 +305,9 @@ def grammar_supplements_command(file, apply):
     except (ValueError, OSError) as error:
         db.session.rollback()
         raise click.ClickException(str(error)) from None
-    except IntegrityError:
+    except IntegrityError as error:
         db.session.rollback()
-        raise click.ClickException("Concurrent content conflict; nothing was applied. Run dry-run again.") from None
+        raise click.ClickException(_integrity_message(error)) from None
     click.echo(("APPLIED" if apply else "DRY RUN") + f": topics +{report.topics_to_create}, exercises +{report.exercises_to_create}; unchanged topics {report.topics_unchanged}, exercises {report.exercises_unchanged}")
     if not apply:
         db.session.rollback()

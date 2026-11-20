@@ -3,9 +3,11 @@
 from copy import deepcopy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.cli.grammar_supplements import import_supplements, load_pack, validate_pack
 from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
@@ -251,3 +253,54 @@ def test_loader_rejects_duplicate_object_keys(tmp_path):
     path.write_text('{"schema_version":1,"schema_version":2,"topics":[]}')
     with pytest.raises(ValueError, match="Duplicate JSON"):
         load_pack(path)
+
+
+@pytest.mark.parametrize(
+    ("code", "table", "constraint", "column", "expected"),
+    [
+        ("23505", "grammar_topics", "grammar_topics_pkey", None, "Primary-key conflict"),
+        ("23505", "grammar_exercises", "grammar_exercises_pkey", None, "Primary-key conflict"),
+        ("23505", "grammar_topics", "grammar_topics_slug_key", None, "Concurrent topic slug conflict"),
+        ("23505", "grammar_topics", "custom_unique_key", None, "Unique-constraint conflict"),
+        ("23502", "grammar_topics", None, "legacy_required", "Required database column missing"),
+        ("23503", "grammar_exercises", "topic_fk", None, "Foreign-key conflict"),
+        ("23514", "grammar_topics", "level_check", None, "Database check constraint rejected"),
+        (None, None, None, None, "Database integrity constraint rejected"),
+    ],
+)
+def test_integrity_error_reports_actual_constraint_without_exposing_parameters(
+    native_app, tmp_path, pack, monkeypatch, code, table, constraint, column, expected
+):
+    before = counts()
+    original = Exception("private driver detail")
+    original.pgcode = code
+    original.diag = SimpleNamespace(table_name=table, constraint_name=constraint, column_name=column)
+
+    def failing_import(session, document, *, apply=False):
+        assert apply
+        session.add(GrammarTopic(
+            slug=pack["topics"][0]["slug"], title="Disposable topic", title_ru="Тест", level="A1", content={},
+        ))
+        session.flush()
+        raise IntegrityError("private SQL statement", {"private": "private answer"}, original)
+
+    monkeypatch.setattr("app.cli.grammar_supplements.import_supplements", failing_import)
+    result = native_app.test_cli_runner().invoke(args=["grammar-supplements", str(save(tmp_path, pack)), "--apply"])
+    assert result.exit_code != 0 and expected in result.output
+    assert "nothing was applied" in result.output
+    assert "private" not in result.output
+    assert counts() == before
+    if table:
+        assert f"table={table}" in result.output
+    if code == "23505" and constraint and constraint.endswith("_pkey"):
+        assert "max(id)" in result.output and "Concurrent" not in result.output
+
+
+def test_unknown_driver_metadata_is_not_printed_as_sql(native_app):
+    from app.cli.grammar_supplements import _integrity_message
+
+    original = Exception("private driver detail")
+    original.sqlstate = "23505"
+    original.diag = SimpleNamespace(table_name="SQL with spaces; private", constraint_name=None, column_name=None)
+    message = _integrity_message(IntegrityError("private SQL", {}, original))
+    assert "Unique-constraint conflict" in message and "private" not in message
