@@ -36,7 +36,7 @@ def _management_endpoint():
         # This does not grant admin access: the normal admin/CSRF gates still run.
         return True
     if endpoint.startswith(
-        ("auth.", "mobile_auth.", "legal.", "landing.", "health_check.", "feedback.", "notifications.")
+        ("auth.", "mobile_auth.", "api_family.", "family_web.", "legal.", "landing.", "health_check.", "feedback.", "notifications.")
     ):
         return True
     return request.path in {

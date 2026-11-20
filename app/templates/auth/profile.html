@@ -8,6 +8,11 @@
 {% block content %}
 
 <div class="profile-page">
+  <div class="pf-card">
+    <h2 class="pf-card__title">Моя семья</h2>
+    <p>Детские аккаунты, сводка занятий и управление семейным доступом.</p>
+    <a class="pf-btn" href="{{ url_for('family_web.index') }}">Открыть семейный кабинет</a>
+  </div>
   {# Rank / Title #}
   {% if rank %}
   <div class="pf-card pf-rank" data-rank-code="{{ rank.info.code }}">

@@ -31,7 +31,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'api_anki.',
     'api_native_push.',
     'api_native_translation.',
-    'mobile_auth.', 'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.', 'api_native_reading.', 'api_native_cards.', 'api_native_activities.', 'api_native_catalog.', 'api_native_controls.', 'api_native_reader.',
+    'mobile_auth.', 'api_family.', 'family_web.', 'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.', 'api_native_reading.', 'api_native_cards.', 'api_native_activities.', 'api_native_catalog.', 'api_native_controls.', 'api_native_reader.',
     'uploads.',
     'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
     'collection_admin.', 'topic_admin.', 'word_admin.',
@@ -201,6 +201,9 @@ def create_app(config_class=Config):
 
     from app.api.auth import api_auth as api_auth_blueprint
     app.register_blueprint(api_auth_blueprint, url_prefix='/api')
+    from app.family.routes import api_family, family_web
+    app.register_blueprint(api_family, url_prefix='/api/family')
+    app.register_blueprint(family_web)
 
     from app.api.mobile_auth import mobile_auth
     from app.api.mobile_social import register_social_routes
@@ -436,6 +439,8 @@ def create_app(config_class=Config):
             return redirect(new_url, code=code)
 
     from app.auth.deletion_access import deletion_access_guard
+    from app.family.security import family_session_guard
+    app.before_request(family_session_guard)
     app.before_request(deletion_access_guard)
 
     @app.before_request

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Моя семья | LLT English{% endblock %}
+{% block content %}
+<main class="container py-4" style="max-width: 850px">
+  <h1>Моя семья</h1>
+  <p>Свяжите существующие аккаунты. Учебный прогресс каждого остаётся отдельным.</p>
+  {% if family.parent %}
+  <section class="card card-body mb-4">
+    <h2 class="h5">Родительский аккаунт: {{ family.parent.username }}</h2>
+    <p>Родитель видит сводку занятий и может открыть ваш учебный профиль на общем телефоне.
+       Пароль, почта и удаление аккаунта недоступны через семейный вход.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="unlink">
+      <input type="hidden" name="link_id" value="{{ family.parent.link_id }}">
+      <button class="btn btn-outline-danger">Отключить семейный доступ</button>
+    </form>
+  </section>
+  {% else %}
+  <section class="card card-body mb-4">
+    <h2 class="h5">Пригласить ребёнка</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="invite">
+      <label for="family-username">Имя пользователя ребёнка на сайте</label>
+      <input id="family-username" class="form-control mb-2" name="username" maxlength="64" required autocomplete="off">
+      <button class="btn btn-primary">Создать приглашение</button>
+    </form>
+    {% if invitation %}
+    <div class="alert alert-info mt-3" role="status">
+      <p>Приглашение для {{ invitation.child_username }}:</p>
+      <code style="overflow-wrap:anywhere">{{ invitation.code }}</code>
+      <p class="mt-2 mb-0">Передайте этот код ребёнку. В своём аккаунте на странице «Моя семья»
+        он сможет подтвердить доступ. Код действует 30 минут и подходит только этому аккаунту.</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% for child in family.members %}
+  <section class="card card-body mb-3">
+    <h2 class="h5">{{ child.username }}</h2>
+    {% if child.summary %}
+      <p>План дня: {% if child.summary.day_secured == true %}засчитан{% elif child.summary.day_secured == false %}пока не засчитан{% else %}ещё не сформирован{% endif %}</p>
+      <p>Активных дней за неделю: {{ child.summary.active_days|length }} из 7.
+        Сегодня: {% if child.summary.today_active %}есть учебная активность{% else %}пока нет записанной учебной активности{% endif %}.</p>
+      {% if child.summary.lesson_title %}<p>Последний урок: {{ child.summary.lesson_title }}<br>
+        {{ child.summary.level or '' }} · {{ child.summary.module_title or '' }}</p>{% endif %}
+    {% else %}<p>Доступ приостановлен. Может потребоваться повторное подтверждение семейной связи.</p>{% endif %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="unlink">
+      <input type="hidden" name="link_id" value="{{ child.link_id }}">
+      <button class="btn btn-outline-secondary">Отключить связь с {{ child.username }}</button>
+    </form>
+  </section>
+  {% endfor %}
+
+  {% if not family.members %}
+  <section class="card card-body mt-4">
+    <h2 class="h5">{% if family.parent %}Обновить привязку по приглашению{% else %}У вас есть приглашение от родителя?{% endif %}</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="{% if incoming %}accept{% else %}preview{% endif %}">
+      {% if incoming %}
+      <p>Родительский аккаунт: <strong>{{ incoming.parent_name }}</strong></p>
+      <input type="hidden" name="code" value="{{ incoming.code }}">
+      {% else %}
+      <label for="family-code">Код приглашения</label>
+      <input id="family-code" class="form-control mb-2" name="code" minlength="24" maxlength="24" required autocomplete="off" spellcheck="false">
+      {% endif %}
+      {% if incoming %}
+      <label class="d-block my-3"><input type="checkbox" name="consent" value="yes" required>
+        Разрешаю родителю просматривать сводку моих занятий и открывать мой учебный профиль
+        на общем телефоне. Связь можно отключить здесь в любой момент.</label>
+      <button class="btn btn-primary">Подтвердить семейный доступ</button>
+      {% else %}<button class="btn btn-primary">Проверить приглашение</button>{% endif %}
+    </form>
+  </section>
+  {% endif %}
+  <p class="text-muted mt-4">Сводка учитывает сохранённые на сервере занятия. Ответы без интернета
+    появятся после синхронизации. Активность показана по часовому поясу аккаунта ребёнка.</p>
+  <a href="{{ url_for('auth.profile') }}">Вернуться в профиль</a>
+</main>
+{% endblock %}

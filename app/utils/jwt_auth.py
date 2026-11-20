@@ -19,7 +19,7 @@ from flask_jwt_extended import (
 from flask_jwt_extended.exceptions import JWTDecodeError
 
 
-def create_tokens_for_user(user):
+def create_tokens_for_user(user, *, family_link=None):
     """
     Create access and refresh tokens for a user
 
@@ -40,17 +40,28 @@ def create_tokens_for_user(user):
         'is_admin': user.is_admin if hasattr(user, 'is_admin') else False,
         'auth_version': user.auth_version(),
     }
+    family_claims = {}
+    if family_link is not None:
+        from app.family.service import valid_link
+        from app.auth.models import User
+        if family_link.child_id != user.id or not valid_link(family_link):
+            raise JWTDecodeError('Invalid family relationship')
+        parent = User.query.filter_by(id=family_link.parent_id).one()
+        family_claims = {'family_link': family_link.id, 'family_parent_id': parent.id,
+                         'family_parent_name': parent.username}
+        additional_claims.update(family_claims)
+        additional_claims['is_admin'] = False
 
     # Create tokens
     access_token = create_access_token(
         identity=str(user.id),
         additional_claims=additional_claims,
-        fresh=True  # Mark as fresh for sensitive operations
+        fresh=family_link is None
     )
 
     refresh_token = create_refresh_token(
         identity=str(user.id),
-        additional_claims={'username': user.username, 'auth_version': user.auth_version()}
+        additional_claims={'username': user.username, 'auth_version': user.auth_version(), **family_claims}
     )
 
     return {
@@ -122,14 +133,21 @@ def refresh_access_token():
     if not isinstance(current_user_id, str):
         current_user_id = str(current_user_id)
 
-    # Create new access token (not fresh, from refresh token)
+    family_claims = {}
+    if 'family_link' in current_claims:
+        from app.family.security import delegated_link
+        if not delegated_link(current_claims):
+            raise JWTDecodeError('Revoked family relationship')
+        family_claims = {key: current_claims[key] for key in ('family_link', 'family_parent_id', 'family_parent_name')}
+    # Family scope survives refresh and can never become an ordinary account.
     access_token = create_access_token(
         identity=current_user_id,
         additional_claims={
             'user_id': current_user_id,
             'username': user.username,
-            'is_admin': bool(user.is_admin),
+            'is_admin': bool(user.is_admin) if not family_claims else False,
             'auth_version': user.auth_version(),
+            **family_claims,
         },
         fresh=False
     )
