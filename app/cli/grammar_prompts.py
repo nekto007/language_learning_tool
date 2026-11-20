@@ -23,6 +23,7 @@ class PromptReport:
     unchanged: list[dict] = field(default_factory=list)
     unavailable: list[dict] = field(default_factory=list)
     conflicts: list[dict] = field(default_factory=list)
+    preserved_metadata: list[dict] = field(default_factory=list)
 
     def as_dict(self):
         return deepcopy(self.__dict__)
@@ -50,7 +51,7 @@ def _identity(change):
     }
 
 
-def patch_prompts(session, manifest, *, apply=False):
+def patch_prompts(session, manifest, *, apply=False, preserve_metadata=False):
     """Match exact full before/after content, preflight everything, then commit.
 
     The old importer did not save session numbers. Session/order/title alone can
@@ -58,6 +59,8 @@ def patch_prompts(session, manifest, *, apply=False):
     rows with the same primary answer. All topic/exercise IDs, order, attempts,
     SRS state and answer keys stay in place. One reviewed alternatives exception
     broadens accepted answers, enforced in the shared manifest validator.
+    Explicit preserve_metadata tolerates only order/difficulty differences after
+    unique exact content matching; it never writes either metadata field.
     """
     sources, changes = validate_manifest(manifest)
     if session.new or session.dirty or session.deleted:
@@ -115,15 +118,24 @@ def patch_prompts(session, manifest, *, apply=False):
                     )
                     continue
                 row = matches[0]
-                if (
-                    row.id in seen_ids
-                    or row.order != change["exercise_order"]
-                    or row.difficulty != max(1, min(3, int(change.get("difficulty") or 1)))
-                ):
+                expected_metadata = {"order": change["exercise_order"], "difficulty": change["difficulty"]}
+                actual_metadata = {"order": row.order, "difficulty": row.difficulty}
+                if row.id in seen_ids:
                     report.conflicts.append(
-                        {**detail, "id": row.id, "reason": "Ambiguous reuse or source order/difficulty mismatch"}
+                        {**detail, "id": row.id, "reason": "Ambiguous reuse of an imported exercise"}
                     )
                     continue
+                if actual_metadata != expected_metadata:
+                    difference = {
+                        **detail,
+                        "id": row.id,
+                        "expected_metadata": expected_metadata,
+                        "actual_metadata": actual_metadata,
+                    }
+                    if not preserve_metadata:
+                        report.conflicts.append({**difference, "reason": "Source order/difficulty mismatch"})
+                        continue
+                    report.preserved_metadata.append(difference)
                 seen_ids.add(row.id)
                 detail["id"] = row.id
                 before = deepcopy(row.content)
@@ -169,12 +181,19 @@ def patch_prompts(session, manifest, *, apply=False):
 @click.command("grammar-prompts")
 @click.argument("manifest", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--apply", "apply_changes", is_flag=True, help="Apply the fully checked pack in one transaction")
+@click.option(
+    "--preserve-metadata",
+    is_flag=True,
+    help="Keep current order/difficulty for unique exact content matches; report every difference",
+)
 @click.option("--report", "report_path", type=click.Path(dir_okay=False, path_type=Path))
 @with_appcontext
-def grammar_prompts_command(manifest, apply_changes, report_path):
+def grammar_prompts_command(manifest, apply_changes, preserve_metadata, report_path):
     """Patch reviewed imported prompts in place; default is a read-only dry-run."""
     try:
-        report = patch_prompts(db.session, load_manifest(manifest), apply=apply_changes)
+        report = patch_prompts(
+            db.session, load_manifest(manifest), apply=apply_changes, preserve_metadata=preserve_metadata
+        )
     except (ValueError, OSError, KeyError, TypeError) as error:
         raise click.ClickException(str(error)) from error
     if report_path:
@@ -182,7 +201,7 @@ def grammar_prompts_command(manifest, apply_changes, report_path):
     click.echo(
         f"{'APPLIED' if report.applied else 'DRY RUN'}: {len(report.updates)} updates, {len(report.unchanged)} unchanged, {len(report.unavailable)} unavailable, {len(report.conflicts)} conflicts"
     )
-    for status in ("unavailable", "conflicts"):
+    for status in ("unavailable", "conflicts", "preserved_metadata"):
         for detail in getattr(report, status):
             click.echo(f"{status}: {json.dumps(detail, ensure_ascii=False)}")
     if not report.applied:

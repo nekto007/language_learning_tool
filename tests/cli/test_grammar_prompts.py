@@ -73,9 +73,18 @@ def test_default_preflight_and_missing_targets_are_read_only(native_app, pack):
     assert GrammarExercise.query.count() == 0
 
 
-def test_full_80_row_rollout_is_idempotent_and_preserves_ids_answers_order_and_srs(native_app, pack):
+@pytest.mark.parametrize("preserve_metadata", [False, True])
+def test_full_80_row_rollout_is_idempotent_and_preserves_ids_answers_order_and_srs(native_app, pack, preserve_metadata):
     pack = load_manifest(PACK)
     rows = seeded(pack)
+    if preserve_metadata:
+        # Reproduce the four B1/session 3 conflicts reported during rollout.
+        for row, change in zip(rows, pack["changes"], strict=True):
+            if change["level"] == "B1" and change["session_number"] == 3:
+                row.difficulty = 2
+        db.session.commit()
+        strict = patch_prompts(db.session, pack)
+        assert len(strict.updates) == 76 and len(strict.conflicts) == 4
     user, _ = learner(native_app)
     progress = UserGrammarExercise(user_id=user.id, exercise_id=rows[0].id)
     progress.state, progress.interval, progress.repetitions = "review", 23, 7
@@ -83,15 +92,16 @@ def test_full_80_row_rollout_is_idempotent_and_preserves_ids_answers_order_and_s
     db.session.commit()
     before = [(row.id, row.order, row.difficulty, row.exercise_type, row.content["correct_answer"]) for row in rows]
     initial = deepcopy(rows[0].content)
-    report = patch_prompts(db.session, pack)
+    report = patch_prompts(db.session, pack, preserve_metadata=preserve_metadata)
     assert len(report.updates) == 80 and not report.applied
+    assert len(report.preserved_metadata) == (4 if preserve_metadata else 0)
     assert rows[0].content == initial
-    applied = patch_prompts(db.session, pack, apply=True)
+    applied = patch_prompts(db.session, pack, apply=True, preserve_metadata=preserve_metadata)
     assert applied.applied and len(applied.updates) == 80
     assert before == [
         (row.id, row.order, row.difficulty, row.exercise_type, row.content["correct_answer"]) for row in rows
     ]
-    replay = patch_prompts(db.session, pack, apply=True)
+    replay = patch_prompts(db.session, pack, apply=True, preserve_metadata=preserve_metadata)
     assert not replay.updates and len(replay.unchanged) == 80
     db.session.refresh(progress)
     assert (progress.exercise_id, progress.state, progress.interval, progress.repetitions) == (
@@ -223,3 +233,83 @@ def test_cli_defaults_to_read_only_and_reports_exact_targets(native_app, pack, t
     result = runner.invoke(grammar_prompts_command, [str(path), "--apply"])
     assert result.exit_code == 0, result.output
     assert "APPLIED" in result.output and rows[0].content.get("instruction")
+
+
+@pytest.mark.parametrize("metadata", [{"order": 24}, {"difficulty": 2}, {"order": 24, "difficulty": 2}])
+def test_explicit_preserve_metadata_reports_drift_and_keeps_it_on_apply_and_replay(native_app, pack, metadata):
+    rows = seeded(pack)
+    row = rows[0]
+    for name, value in metadata.items():
+        setattr(row, name, value)
+    db.session.commit()
+    actual = {"order": row.order, "difficulty": row.difficulty}
+    before = deepcopy(row.content)
+    strict = patch_prompts(db.session, pack)
+    assert strict.conflicts[0]["actual_metadata"] == actual
+    assert strict.conflicts[0]["expected_metadata"] == {
+        "order": pack["changes"][0]["exercise_order"],
+        "difficulty": pack["changes"][0]["difficulty"],
+    }
+    dry_run = patch_prompts(db.session, pack, preserve_metadata=True)
+    assert not dry_run.conflicts and not dry_run.unavailable
+    assert dry_run.preserved_metadata[0]["actual_metadata"] == actual
+    assert row.content == before
+    applied = patch_prompts(db.session, pack, apply=True, preserve_metadata=True)
+    assert applied.applied and len(applied.updates) == len(rows)
+    assert {"order": row.order, "difficulty": row.difficulty} == actual
+    assert row.content == {**pack["changes"][0]["content_after"], "source": "json_import"}
+    replay = patch_prompts(db.session, pack, apply=True, preserve_metadata=True)
+    assert not replay.updates and len(replay.unchanged) == len(rows)
+    assert replay.preserved_metadata == applied.preserved_metadata
+
+
+@pytest.mark.parametrize("fault", ["drift", "duplicate", "unmanaged", "wrong_type", "reuse"])
+def test_preserve_metadata_never_bypasses_exact_content_and_unique_identity(native_app, pack, fault):
+    rows = seeded(pack)
+    initial = deepcopy(rows[0].content)
+    last = rows[-1]
+    if fault == "drift":
+        last.content = {**last.content, "correct_answer": "A different answer"}
+    elif fault == "duplicate":
+        db.session.add(
+            GrammarExercise(
+                topic_id=last.topic_id,
+                exercise_type=last.exercise_type,
+                order=99,
+                difficulty=3,
+                content=deepcopy(last.content),
+            )
+        )
+    elif fault == "unmanaged":
+        last.content = {**last.content, "source": "manual"}
+    elif fault == "wrong_type":
+        last.exercise_type = "translation"
+    else:
+        duplicate_change = deepcopy(pack["changes"][0])
+        duplicate_change["exercise_order"] += 100
+        pack["changes"].append(duplicate_change)
+    db.session.commit()
+    report = patch_prompts(db.session, pack, preserve_metadata=True)
+    assert report.unavailable or report.conflicts
+    with pytest.raises(ValueError, match="refused"):
+        patch_prompts(db.session, pack, apply=True, preserve_metadata=True)
+    assert db.session.get(GrammarExercise, rows[0].id).content == initial
+
+
+def test_cli_preserve_metadata_is_explicit_and_prints_actual_values(native_app, pack, tmp_path):
+    import json
+
+    rows = seeded(pack)
+    rows[0].order = 24
+    db.session.commit()
+    path = tmp_path / "pack.json"
+    path.write_text(json.dumps(pack))
+    runner = native_app.test_cli_runner()
+    result = runner.invoke(grammar_prompts_command, [str(path), "--preserve-metadata"])
+    assert result.exit_code == 0, result.output
+    assert "DRY RUN" in result.output and '"actual_metadata": {"order": 24' in result.output
+    assert "preserved_metadata:" in result.output and "0 conflicts" in result.output
+    assert "instruction" not in rows[0].content
+    result = runner.invoke(grammar_prompts_command, [str(path), "--preserve-metadata", "--apply"])
+    assert result.exit_code == 0, result.output
+    assert rows[0].order == 24 and rows[0].content.get("instruction")

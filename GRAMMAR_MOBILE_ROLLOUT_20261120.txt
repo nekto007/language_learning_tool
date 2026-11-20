@@ -82,3 +82,24 @@ checkout соответствующей исходной версии:
 Смысловые изменения отдельно просмотрены участниками команды. Оплата Apple,
 подписание, APNs, физический Face ID и TestFlight остаются отдельной проверкой
 владельца; симулятор их не доказывает.
+
+7. Если grammar-prompts сообщает только о расхождении order/difficulty
+
+Строгий dry-run теперь печатает expected_metadata и actual_metadata. Совпадение
+по полному содержимому и типу уже найдено, но порядок/сложность отличаются от
+исходного JSON. Эти параметры не нужно переписывать ради добавления инструкции.
+Для такого случая предусмотрен отдельный явный режим сохранения метаданных:
+
+  flask grammar-prompts MOBILE_GRAMMAR_EXERCISE_PROMPTS_20261120.json --preserve-metadata --report /tmp/grammar-prompts-preserved-check.json
+
+Посмотреть строки preserved_metadata с точными ID и значениями. При 0 unavailable
+и 0 conflicts можно применить тот же режим:
+
+  flask grammar-prompts MOBILE_GRAMMAR_EXERCISE_PROMPTS_20261120.json --preserve-metadata --apply --report /tmp/grammar-prompts-preserved-applied.json
+
+Порядок, сложность, ID и прогресс сохраняются как в текущей БД. Флаг допускает
+только расхождения order/difficulty после единственного точного совпадения всего
+содержимого и типа в нужной теме. Изменённые тексты, ответы, ручные записи,
+дубли и повторное использование одного ID блокируют apply, как и без флага.
+Повторный dry-run/apply необходимо запускать с тем же --preserve-metadata.
+Другие три команды пакета независимы и не требуют этого флага.
