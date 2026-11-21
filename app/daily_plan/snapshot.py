@@ -250,7 +250,8 @@ def overlay_completion(
     Other fields (id, kind, title, subtitle, lesson_type, completion_signal)
     and the rest of ``data`` are passed through unchanged.
 
-    A finished reading book is dropped outright. Every other drop goes through
+    A finished reading book is retained when credited today; stale finished books
+    with no credit today are dropped. Every other drop goes through
     the single reachability predicate :func:`_item_unreachable`, and only for a
     *still-incomplete* item: the builder's gates cover only the day the
     snapshot is composed, the required list is then frozen, and the world under
@@ -264,9 +265,9 @@ def overlay_completion(
     for item in snapshot.get('items') or []:
         merged = dict(item)
         merged['section'] = 'required'
-        if _is_finished_reading_book(user_id, merged, db):
-            continue
         completed = _is_item_completed(user_id, merged, db)
+        if not completed and _is_finished_reading_book(user_id, merged, db):
+            continue
         # Reachability is checked AFTER completion: the point of the drop is to
         # unblock a slot that can no longer be finished, and a slot already
         # finished this morning is not blocking anything. Dropping it anyway
@@ -507,7 +508,7 @@ def _refresh_reading_target(user_id: int, item: dict[str, Any], db: Any) -> None
     refreshed.update({
         'time_spent_seconds': time_spent_seconds,
         'gate_seconds': target_seconds,
-        'gate_reached': time_spent_seconds >= target_seconds,
+        'gate_reached': bool(item.get('completed')) or time_spent_seconds >= target_seconds,
     })
     item['data'] = refreshed
     item['subtitle'] = ' · '.join(subtitle_parts)

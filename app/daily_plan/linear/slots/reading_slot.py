@@ -184,7 +184,7 @@ def build_reading_slot(
     today_target_seconds = get_daily_reading_target_seconds(
         get_user_local_date(user_id, db), user_id=user_id,
     )
-    gate_reached = time_spent_seconds >= today_target_seconds
+    gate_reached = completed or time_spent_seconds >= today_target_seconds
 
     level_too_hard, level_too_easy = _compute_level_mismatch(user_id, book.level, db)
 

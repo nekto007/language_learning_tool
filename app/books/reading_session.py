@@ -1,4 +1,4 @@
-"""Reading-session model + helpers for the reading-slot time gate.
+"""Reading sessions and the shared active-time or whole-book daily reading gate.
 
 The reading slot used to credit completion on any 5% offset delta — easily
 farmed by scrolling. ``UserReadingSession`` captures actual time-on-page
@@ -567,14 +567,41 @@ def compute_chapter_daily_target_state(
     }
 
 
+def was_book_completed_today(user_id: int, book_id: int, db_session: Any = db) -> bool:
+    """A whole book newly completed today closes today's reading task.
+
+    Use the server-issued, lifetime-idempotent chapter XP ledger as the dated
+    transition evidence, never UserChapterProgress.updated_at: reopening a book
+    refreshes that timestamp even when it was finished on a previous day.
+    The whole book must still be complete; one chapter alone is insufficient.
+    """
+    from app.achievements.models import StreakEvent
+    from app.achievements.xp_service import BOOK_CHAPTER_XP_EVENT_TYPE
+    from app.books.progress import get_book_completion_state
+    from app.utils.time_utils import get_user_local_date
+
+    if not get_book_completion_state(user_id, book_id, db_session)['is_completed']:
+        return False
+    today = get_user_local_date(user_id, db_session)
+    event = db_session.session.query(StreakEvent.id).filter(
+        StreakEvent.user_id == user_id,
+        StreakEvent.event_type == BOOK_CHAPTER_XP_EVENT_TYPE,
+        StreakEvent.event_date == today,
+        StreakEvent.details['book_id'].astext == str(book_id),
+    ).first()
+    return event is not None
+
+
 def is_daily_reading_target_met_today(
     user_id: int,
     book_id: int,
     db_session: Any = db,
 ) -> bool:
-    """Return True iff the user spent the day's reading-target seconds
-    reading any chapter of ``book_id`` today. Used by the unified daily
-    plan reading slot to decide completion.
+    """Complete reading by today's active-time goal OR finishing the whole book.
+
+    A newly completed whole book counts today even when the remaining text was
+    shorter than the time goal. The dated server chapter ledger keeps reopening
+    a book completed on a previous day from minting a fresh day's completion.
 
     Aggregation is book-level (sum across all of today's sessions on any
     chapter of the book), not per-chapter: when the user advances to the
@@ -586,12 +613,11 @@ def is_daily_reading_target_met_today(
     sendBeacon close that hasn't committed yet does not flip the slot
     back to incomplete.
 
-    Target alternates 5↔10 minutes by day-of-month parity (see
-    ``get_daily_reading_target_seconds``).
+    The time goal is the user's configured minutes, with a five-minute default.
     """
     from app.utils.time_utils import get_user_local_date
 
     today_local = get_user_local_date(user_id, db_session)
     target_seconds = get_daily_reading_target_seconds(today_local, user_id=user_id)
     total_seconds = get_book_reading_seconds_today(user_id, book_id, db_session)
-    return total_seconds >= target_seconds
+    return total_seconds >= target_seconds or was_book_completed_today(user_id, book_id, db_session)

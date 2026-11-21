@@ -8,11 +8,10 @@ the setup section instead. The access gate is the same one the reader routes
 enforce — a required slot the user cannot open would hold ``day_secured``
 hostage until midnight.
 
-Completion is gated on real reading activity: the user must have crossed
-the offset_pct threshold AND spent today's reading target on the selected
-book. Opening and closing the book without progress never marks the item done.
-When the selected book is fully read, this builder returns None so the plan
-can ask the user to choose the next book instead of assigning a dead slot.
+Completion shares the reading-session policy: today's active-time goal OR a
+whole book newly finished today, verified by the server's chapter ledger.
+A book credited today remains visible as completed. Older finished books with
+no credit today return None so the learner can choose the next book.
 """
 from __future__ import annotations
 
@@ -108,7 +107,7 @@ def _book_is_actionable_for_reading(user_id: int, book_id: int, db: Any) -> bool
     from app.books.progress import get_book_completion_state
 
     completion_state = get_book_completion_state(user_id, book.id, db)
-    if completion_state['is_completed']:
+    if completion_state['is_completed'] and not _read_today(user_id, book.id, db):
         logger.info("reading_item user=%s book=%s already_completed", user_id, book.id)
         return False
     return True
@@ -260,7 +259,7 @@ def build_reading_item(
         get_user_local_date(user_id, db), user_id=user_id,
     )
     time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
-    gate_reached = time_spent_seconds >= today_target_seconds
+    gate_reached = completed or time_spent_seconds >= today_target_seconds
 
     priority = focus == 'reading'
 
