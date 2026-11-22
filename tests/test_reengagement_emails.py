@@ -1,7 +1,7 @@
 """Tests for re-engagement email scheduler logic and unsubscribe flow."""
 import pytest
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, UTC, timedelta
 from app.auth.models import User
 
 
@@ -13,7 +13,7 @@ def inactive_3day_user(db_session):
         username=f'day3_{suffix}',
         email=f'day3_{suffix}@test.com',
         active=True,
-        last_login=datetime.now(timezone.utc) - timedelta(days=3),
+        last_login=datetime.now(UTC) - timedelta(days=3),
     )
     user.set_password('test')
     db_session.add(user)
@@ -38,7 +38,7 @@ class TestGetInactiveUsers:
             email=f'optout_{suffix}@test.com',
             active=True,
             email_opted_out=True,
-            last_login=datetime.now(timezone.utc) - timedelta(days=3),
+            last_login=datetime.now(UTC) - timedelta(days=3),
         )
         user.set_password('test')
         db_session.add(user)
@@ -56,7 +56,7 @@ class TestGetInactiveUsers:
             username=f'active_{suffix}',
             email=f'active_{suffix}@test.com',
             active=True,
-            last_login=datetime.now(timezone.utc),
+            last_login=datetime.now(UTC),
         )
         user.set_password('test')
         db_session.add(user)
@@ -186,7 +186,7 @@ class TestUnsubscribeLinksInMarketingEmails:
         html = render_template(
             'emails/reminders/default.html',
             user=FakeUser(),
-            now=datetime.now(timezone.utc),
+            now=datetime.now(UTC),
             unsubscribe_token='abc123',
         )
         assert 'отписаться' in html.lower() or 'token=abc123' in html.lower()
@@ -224,9 +224,10 @@ class TestEmailErrorLogging:
                     result = sender.send_email('Subj', 'to@test.com', 'welcome',
                                                {'username': 'X', 'dashboard_url': '#'})
                     assert result is False
-                    assert mock_logger.exception.called, (
-                        "SMTP failure must be logged via logger.exception"
-                    )
+                    assert mock_logger.warning.called, "SMTP failures need safe operational metadata"
+                    mock_logger.exception.assert_not_called()
+                    assert 'connection refused' not in str(mock_logger.warning.call_args)
+                    assert 'to@test.com' not in str(mock_logger.warning.call_args)
 
 
 class TestUnsubscribeFlow:

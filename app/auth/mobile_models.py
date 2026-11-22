@@ -1,11 +1,11 @@
 """Private, expiring native authentication proofs. Never store raw passwords or codes."""
 
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from app.utils.db import db
 
 
 def utcnow():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class MobileAuthChallenge(db.Model):
@@ -34,6 +34,7 @@ class MobileAuthThrottle(db.Model):
 
 class MobileAuthMail(db.Model):
     __tablename__ = "mobile_auth_mail"
+    __table_args__ = (db.Index("ix_mobile_auth_mail_due", "status", "available_at"),)
     id = db.Column(db.Integer, primary_key=True)
     challenge_id = db.Column(
         db.String(64),
@@ -47,6 +48,10 @@ class MobileAuthMail(db.Model):
     attempts = db.Column(db.Integer, nullable=False, default=0)
     available_at = db.Column(db.DateTime, nullable=False, default=utcnow)
     locked_at = db.Column(db.DateTime, nullable=True)
+    message_id = db.Column(db.String(255), nullable=True)
+    accepted_at = db.Column(db.DateTime, nullable=True)
+    last_error = db.Column(db.String(32), nullable=True)
+    last_smtp_code = db.Column(db.Integer, nullable=True)
 
 
 class SocialIdentity(db.Model):

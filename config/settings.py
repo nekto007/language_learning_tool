@@ -195,6 +195,10 @@ class Config:
     - SESSION_COOKIE_SECURE / REMEMBER_COOKIE_SECURE: True except FLASK_ENV=development
     - DB URI: built from POSTGRES_* env vars (required)
     """
+    # A dedicated worker may replace request-triggered nudge; scheduler remains
+    # a recovery path, and concurrent claims use PostgreSQL SKIP LOCKED.
+    MOBILE_AUTH_BACKGROUND_MAIL = os.environ.get('MOBILE_AUTH_BACKGROUND_MAIL', 'true').lower() == 'true'
+
     TESTING = IS_TESTING
     SECRET_KEY = os.environ.get("SECRET_KEY")
     SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI

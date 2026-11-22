@@ -10,7 +10,7 @@ from flask import current_app
 from sqlalchemy import and_, or_
 from app.auth.mobile_models import MobileAuthChallenge, MobileAuthMail, utcnow
 from app.utils.db import db
-from app.utils.email_utils import email_sender
+from app.utils.email_utils import auth_email_sender as email_sender
 
 _pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="llt-auth-mail")
 _running = threading.Lock()
@@ -22,10 +22,11 @@ def cipher():
     return Fernet(base64.urlsafe_b64encode(key))
 
 
-def process_auth_mail(batch_size=10):
-    from app.auth.account_deletion import process_account_deletion_files, process_account_deletion_mail
-    process_account_deletion_files()
-    process_account_deletion_mail()
+MAX_MAIL_ATTEMPTS = 5
+
+
+def cleanup_auth_mail():
+    """Bounded housekeeping; kept off the request-triggered OTP path."""
     now = utcnow()
     stale = [
         r.id
@@ -57,8 +58,12 @@ def process_auth_mail(batch_size=10):
             synchronize_session=False
         )
     db.session.commit()
+
+
+def process_auth_mail(batch_size=20, *, maintenance=True):
+    """Claim with SKIP LOCKED; release DB locks before bounded SMTP I/O."""
     sent = 0
-    for _ in range(min(20, batch_size)):
+    for _ in range(min(100, max(0, batch_size))):
         now = utcnow()
         row = (
             MobileAuthMail.query.filter(
@@ -73,7 +78,7 @@ def process_auth_mail(batch_size=10):
                     ),
                 )
             )
-            .order_by(MobileAuthMail.id)
+            .order_by(MobileAuthMail.available_at, MobileAuthMail.id)
             .with_for_update(skip_locked=True)
             .first()
         )
@@ -85,26 +90,33 @@ def process_auth_mail(batch_size=10):
             proof is None
             or proof.used_at
             or proof.expires_at <= now
-            or row.attempts >= 3
         ):
             row.status = "expired"
             row.encrypted_code = None
             db.session.commit()
             continue
+        if row.attempts >= MAX_MAIL_ATTEMPTS:
+            row.status = "failed"
+            row.encrypted_code = None
+            db.session.commit()
+            continue
         row.status = "sending"
+        if not row.message_id:
+            row.message_id = email_sender.message_id()
         row.locked_at = now
         row.attempts += 1
-        identifier, attempt, address, encrypted, purpose = (
+        identifier, attempt, address, encrypted, purpose, message_id = (
             row.id,
             row.attempts,
             row.email,
             row.encrypted_code,
             proof.kind,
+            row.message_id,
         )
         db.session.commit()
         try:
             code = cipher().decrypt(encrypted.encode()).decode()
-            ok = email_sender.send_email(
+            outcome = email_sender.submit_email(
                 subject="Код для LLT English",
                 to_email=address,
                 template_name="mobile_auth_code",
@@ -117,24 +129,51 @@ def process_auth_mail(batch_size=10):
                 },
                 timeout=8,
                 standalone=True,
+                message_id=message_id,
             )
         except Exception:
-            ok = False
-            current_app.logger.warning("Native auth email delivery failed")
-        row = db.session.get(MobileAuthMail, identifier)
+            from app.utils.email_utils import MailSubmission
+            outcome = MailSubmission(False, message_id, error="internal")
+            current_app.logger.warning("Native auth email submission failed")
+        row = db.session.get(MobileAuthMail, identifier, with_for_update=True, populate_existing=True)
         if (
             row
             and row.status == "sending"
             and row.attempts == attempt
             and row.locked_at == now
         ):
-            row.status = "sent" if ok else "pending"
-            row.available_at = utcnow() + timedelta(seconds=30)
+            finished_at = utcnow()
+            retry_at = finished_at + timedelta(seconds=30 * (2 ** (attempt - 1)))
+            row.last_error = outcome.error
+            row.last_smtp_code = outcome.smtp_code
             row.locked_at = None
-            if ok:
+            if outcome.accepted:
+                row.status = "accepted"
+                row.accepted_at = finished_at
                 row.encrypted_code = None
                 sent += 1
+            elif not outcome.retryable or attempt >= MAX_MAIL_ATTEMPTS:
+                row.status = "failed"
+                row.encrypted_code = None
+            elif proof.expires_at <= retry_at or proof.used_at:
+                row.status = "expired"
+                row.encrypted_code = None
+            else:
+                row.status = "pending"
+                row.available_at = retry_at
+            current_app.logger.info(
+                "Auth mail outcome id=%s status=%s attempt=%s category=%s smtp_code=%s message_id=%s",
+                row.id, row.status, attempt, row.last_error, row.last_smtp_code, row.message_id,
+            )
             db.session.commit()
+        else:
+            # A newer lease owns the row. Release the read lock immediately.
+            db.session.rollback()
+    if maintenance:
+        cleanup_auth_mail()
+        from app.auth.account_deletion import process_account_deletion_files, process_account_deletion_mail
+        process_account_deletion_files()
+        process_account_deletion_mail()
     return sent
 
 
@@ -150,7 +189,7 @@ def nudge_auth_mail():
     def work():
         try:
             with app.app_context():
-                process_auth_mail()
+                process_auth_mail(maintenance=False)
         except Exception:
             app.logger.warning("Native auth mail worker deferred to scheduler")
         finally:

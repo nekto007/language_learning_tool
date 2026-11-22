@@ -84,7 +84,7 @@ class TestSendEmail:
         assert result is True
 
         # Verify SMTP calls
-        mock_smtp.assert_called_once_with('smtp.example.com', 587)
+        mock_smtp.assert_called_once_with('smtp.example.com', 587, timeout=10)
         mock_server.set_debuglevel.assert_called_once_with(0)
         mock_server.starttls.assert_called_once()
         mock_server.login.assert_called_once_with('user@example.com', 'password123')

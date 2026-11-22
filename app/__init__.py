@@ -657,6 +657,8 @@ def _register_cli_commands(app):
     from app.grammar_lab.content_cli import register_content_commands
 
     register_content_commands(app)
+    from app.cli.auth_mail import register_auth_mail_commands
+    register_auth_mail_commands(app)
 
     @app.cli.command('seed')
     def seed_cmd():

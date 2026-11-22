@@ -255,6 +255,7 @@ def test_mail_outbox_sends_code_once_and_never_contains_plaintext_code(
     native_app, monkeypatch
 ):
     from app.auth.mobile_mail import process_auth_mail, email_sender
+    from app.utils.email_utils import MailSubmission
     from app.auth.mobile_models import MobileAuthMail
 
     client = native_app.test_client()
@@ -262,12 +263,12 @@ def test_mail_outbox_sends_code_once_and_never_contains_plaintext_code(
     right = code(proof["challenge_id"])
     observed = []
     monkeypatch.setattr(
-        email_sender, "send_email", lambda **kwargs: observed.append(kwargs) or True
+        email_sender, "submit_email", lambda **kwargs: observed.append(kwargs) or MailSubmission(True, kwargs["message_id"])
     )
     process_auth_mail(batch_size=20)
     assert any(v["context"]["code"] == right for v in observed)
     row = MobileAuthMail.query.filter_by(challenge_id=proof["challenge_id"]).one()
-    assert row.status == "sent" and row.encrypted_code is None
+    assert row.status == "accepted" and row.accepted_at is not None and row.encrypted_code is None
     before = len(observed)
     process_auth_mail(batch_size=20)
     assert len(observed) == before
@@ -736,25 +737,26 @@ def test_auth_migration_round_trip_and_single_head():
 
 def test_auth_mail_retries_are_bounded_and_clear_expired_code(native_app, monkeypatch):
     from app.auth.mobile_mail import process_auth_mail, email_sender
+    from app.utils.email_utils import MailSubmission
     from app.auth.mobile_models import MobileAuthMail, utcnow
     from app.utils.db import db
 
     client = native_app.test_client()
     challenge, _ = start(client)
-    monkeypatch.setattr(email_sender, "send_email", lambda **kwargs: False)
+    monkeypatch.setattr(email_sender, "submit_email", lambda **kwargs: MailSubmission(False, kwargs["message_id"], "network"))
     identifier = challenge["challenge_id"]
-    for attempt in range(1, 4):
+    for attempt in range(1, 6):
         row = MobileAuthMail.query.filter_by(challenge_id=identifier).one()
         row.available_at = utcnow() - timedelta(seconds=1)
         db.session.commit()
         process_auth_mail(batch_size=20)
         db.session.refresh(row)
-        assert row.attempts == attempt and row.status == "pending"
+        assert row.attempts == attempt and row.status == ("pending" if attempt < 5 else "failed")
     row.available_at = utcnow() - timedelta(seconds=1)
     db.session.commit()
     process_auth_mail(batch_size=20)
     db.session.refresh(row)
-    assert row.status == "expired" and row.attempts == 3 and row.encrypted_code is None
+    assert row.status == "failed" and row.attempts == 5 and row.encrypted_code is None
 
 
 def test_auth_mail_scheduler_has_context_and_always_cleans_session(

@@ -78,6 +78,24 @@ services:
     networks:
       - app_network
 
+  # Optional dedicated OTP worker: docker compose --profile auth-mail up -d auth-mail
+  auth-mail:
+    profiles: ["auth-mail"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      - FLASK_APP=run.py
+      - PYTHONPATH=/app
+    command: flask auth-mail-worker --interval 5 --batch-size 20
+    networks:
+      - app_network
+
   languagetool:
     image: erikvl87/languagetool:latest
     container_name: language_learning_tool_languagetool
