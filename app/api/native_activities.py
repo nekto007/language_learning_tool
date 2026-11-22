@@ -10,6 +10,7 @@ from flask_login import current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app import csrf, limiter
 from app.api.decorators import api_bearer_required
+from app.curriculum.constants import PASSING_SCORE_QUIZ
 from app.api.native_lessons import (
     NativeLessonError,
     native_error,
@@ -326,7 +327,7 @@ def _document(run):
         "id": run.session_id,
         "title": p["title"],
         "type": proxy.type,
-        "passing_score": 70,
+        "passing_score": PASSING_SCORE_QUIZ,
         "assessment": "practice",
         "theory": p["theory"],
         "questions": questions,
@@ -613,15 +614,10 @@ def _grade_activity(run, answers):
                         status.transition_to("practicing")
                 GrammarLabService().check_and_update_mastery(exercise.topic_id, current_user.id)
         elif kind == "phrase_review":
-            from app.daily_plan.items.phrase_review import normalise_phrase
+            from app.curriculum.grading import quiz_text_matches
 
             item = p["source"]["items"][i]
-            folded = normalise_phrase(value)
-            ok = bool(
-                folded
-                and folded
-                in {normalise_phrase(a) for a in item.get("accepted_answers") or [item["answer"]]}
-            )
+            ok = quiz_text_matches(value, [item["answer"], *(item.get("accepted_answers") or [])])
             expected = item["answer"]
             explanation = ""
             if ok and item.get("error_id"):
@@ -683,12 +679,12 @@ def _grade_activity(run, answers):
                 "id": str(i),
                 "prompt": q["prompt"],
                 "correct": ok,
-                "answer": _plain(given),
+                "answer": str(given),
                 "expected": _plain(expected),
                 "explanation": _plain(explanation),
             }
         )
-    score = round(correct / len(rows) * 100)
+    score = round(correct / len(rows) * 100, 2)
     study = StudySession.query.filter_by(id=run.session_id, user_id=current_user.id).one()
     study.words_studied = len(rows)
     study.correct_answers = correct
@@ -775,7 +771,7 @@ def _grade_activity(run, answers):
         "success": True,
         "lesson_id": run.session_id,
         "score": score,
-        "passed": score >= 70,
+        "passed": score >= PASSING_SCORE_QUIZ,
         "completed": completed,
         "assessment": "practice",
         "correct_count": correct,
@@ -826,14 +822,14 @@ def check_learning_answer(kind):
         if not _public_topic(exercise.topic):
             raise NativeLessonError("access_denied", 403)
     if kind == "phrase_review":
-        from app.daily_plan.items.phrase_review import normalise_phrase
+        from app.curriculum.grading import quiz_text_matches
         item = run.payload["source"]["items"][index]
         answer = body["answer"]
         if not isinstance(answer, str) or not answer.strip() or len(answer) > 2000:
             raise NativeLessonError("invalid_input")
-        accepted = item.get("accepted_answers") or [item["answer"]]
+        accepted = [item["answer"], *(item.get("accepted_answers") or [])]
         return jsonify(success=True, feedback={"id": questions[index]["id"], "prompt": questions[index]["prompt"],
-            "correct": normalise_phrase(answer) in {normalise_phrase(a) for a in accepted},
+            "correct": quiz_text_matches(answer, accepted),
             "answer": answer, "expected": item["answer"], "explanation": "Образец перевода: " + item["answer"]})
     return jsonify(success=True, feedback=check_answer(
         run.payload["rows"][index], questions[index], body["answer"], exercise=exercise,

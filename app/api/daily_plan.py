@@ -963,6 +963,10 @@ def record_daily_plan_event():
                 'Можно пропустить только текущий шаг плана',
                 400,
             )
+        if (active_slot.get('data') or {}).get('quiz_phase') == 'correction':
+            return api_error(
+                'correction_required', 'Сначала исправь ошибки уже выполненного квиза', 400,
+            )
         event_mission_type = get_slot_skip_key(active_slot, active_index)[:20]
 
     from sqlalchemy.exc import IntegrityError as _IntegrityError
@@ -1549,6 +1553,15 @@ def skip_lesson():
     lesson = db.session.get(Lessons, lesson_id)
     if lesson is None:
         return api_error('invalid_lesson', 'Lesson not found', 400)
+
+    from app.curriculum.models import LessonProgress
+    from app.daily_plan.quiz_corrections import is_pending_correction
+
+    progress = db.session.query(LessonProgress).filter_by(
+        user_id=current_user.id, lesson_id=lesson_id,
+    ).first()
+    if is_pending_correction(progress):
+        return api_error('correction_required', 'Сначала исправь ошибки уже выполненного квиза', 400)
 
     today = get_user_local_date(current_user.id, db)
     tomorrow = today + timedelta(days=1)

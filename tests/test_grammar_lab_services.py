@@ -99,7 +99,7 @@ class TestGraderNormalizeAnswer:
         assert grader._normalize_answer('Hello...') == 'hello'
 
     def test_spaces_before_punctuation(self, grader):
-        assert grader._normalize_answer('Hello , world !') == 'hello, world'
+        assert grader._normalize_answer('Hello , world !') == 'hello world'
 
     def test_none(self, grader):
         assert grader._normalize_answer(None) == ''

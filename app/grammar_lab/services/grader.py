@@ -9,7 +9,10 @@ import logging
 import re
 from typing import Any, Dict
 
-from app.curriculum.grading import text_answer_variants
+from app.curriculum.grading import _quiz_option_index, _quiz_text_candidates, quiz_text_matches
+from app.utils.normalization import (
+    EXPECTED_ZERO_ARTICLE_MARKERS, ZERO_ARTICLE_MARKERS, normalize_quiz_answer,
+)
 from app.grammar_lab.models import GrammarExercise
 
 logger = logging.getLogger(__name__)
@@ -69,17 +72,8 @@ class GrammarExerciseGrader:
             }
 
     def _normalize_answer(self, answer: str) -> str:
-        """Normalize answer for comparison"""
-        if not answer:
-            return ''
-        # Lowercase, strip, remove extra spaces
-        normalized = answer.lower().strip()
-        normalized = re.sub(r'\s+', ' ', normalized)
-        # Remove spaces before punctuation (for reorder exercises)
-        normalized = re.sub(r'\s+([.!?,;:])', r'\1', normalized)
-        # Remove punctuation at the end
-        normalized = re.sub(r'[.!?]+$', '', normalized)
-        return normalized
+        """Use the same case/punctuation policy as native and course quizzes."""
+        return normalize_quiz_answer(answer)
 
     _HINT_RE = re.compile(r"\s*\([^()]*\)")
 
@@ -87,17 +81,11 @@ class GrammarExerciseGrader:
     # which no learner can type: accept the usual ways of saying «nothing
     # goes here» when — and only when — the expected answer is such a marker
     # (lesson audit item 25; 14 items in a2-13 / a2-14).
-    _ZERO_ARTICLE_MARKERS = frozenset({
-        '—', '–', '-', '−', 'x', 'ø', '∅', '0', 'zero', 'zero article', 'no article',
-        'none', 'nothing', 'нет', 'ничего', 'нет артикля', 'без артикля', 'пусто',
-    })
+    _ZERO_ARTICLE_MARKERS = ZERO_ARTICLE_MARKERS
     # Expected answers must state an article placeholder explicitly. Ordinary
     # lexical targets such as "nothing", "none" and "zero" are words to learn,
     # not instructions to omit the blank. Keep permissive aliases on INPUT only.
-    _EXPECTED_ZERO_ARTICLE_MARKERS = frozenset({
-        '—', '–', '-', '−', 'x', 'ø', '∅', 'zero article', 'no article',
-        'нет артикля', 'без артикля',
-    })
+    _EXPECTED_ZERO_ARTICLE_MARKERS = EXPECTED_ZERO_ARTICLE_MARKERS
 
     @classmethod
     def _is_zero_marker(cls, text) -> bool:
@@ -118,24 +106,24 @@ class GrammarExerciseGrader:
     def _same_text(user: str, candidate: str) -> bool:
         """Free-text equality that tolerates contractions (doesn't / does
         not) and lexical variants (mum / mom / mother) on both sides —
-        shared with the course translation grader (``text_answer_variants``)
+        shared with the course quiz grader (``quiz_text_matches``)
         so the two zones accept the same answers. Empty strings never match."""
         if not (user or '').strip() or not (candidate or '').strip():
             return False
-        return bool(text_answer_variants(user) & text_answer_variants(candidate))
+        return quiz_text_matches(user, [candidate])
 
     def _text_matches(self, user: str, candidates) -> bool:
         """``user`` equals one of ``candidates`` after the lab normalisation
         or after contraction/lexical folding."""
         user_norm = self._normalize_answer(user)
-        if not user_norm:
-            return False
         for candidate in candidates:
             if candidate is None or not str(candidate).strip():
                 continue
             if self._expects_zero_article(candidate):
                 if self._is_zero_marker(user):
                     return True
+                continue
+            if not user_norm:
                 continue
             if user_norm == self._normalize_answer(candidate):
                 return True
@@ -146,7 +134,7 @@ class GrammarExerciseGrader:
     def _grade_fill_blank(self, exercise: GrammarExercise, answer: str) -> Dict:
         """Grade fill-in-the-blank exercise"""
         content = exercise.content
-        candidates = [content.get('correct_answer', '')] + list(content.get('alternatives', []) or [])
+        candidates = _quiz_text_candidates(content, content.get('correct_answer', ''))
 
         is_correct = self._text_matches(answer, candidates)
 
@@ -176,76 +164,20 @@ class GrammarExerciseGrader:
         }
 
     def _grade_multiple_choice(self, exercise: GrammarExercise, answer: Any) -> Dict:
-        """Grade multiple choice exercise"""
+        """Resolve source option indexes and numeric labels before text folding."""
         content = exercise.content
-        correct_value = content.get('correct_answer')
         options = content.get('options', [])
-
-        # correct_value can be index (int) or string (actual answer)
-        if isinstance(correct_value, int):
-            correct_index = correct_value
-            if 0 <= correct_index < len(options):
-                correct_answer_text = options[correct_index]
-            elif 1 <= correct_index <= len(options):
-                correct_answer_text = options[correct_index - 1]  # 1-indexed fallback
-                correct_index = correct_index - 1
-            else:
-                correct_answer_text = str(correct_value)
-        elif isinstance(correct_value, str) and correct_value in options:
-            correct_index = options.index(correct_value)
-            correct_answer_text = correct_value
-        elif isinstance(correct_value, str) and correct_value.isdigit():
-            # String index like "2" or "3"
-            ci = int(correct_value)
-            if 0 <= ci < len(options):
-                correct_index = ci
-                correct_answer_text = options[ci]
-            elif 1 <= ci <= len(options):
-                correct_index = ci - 1
-                correct_answer_text = options[ci - 1]
-            else:
-                correct_index = None
-                correct_answer_text = correct_value
-        else:
-            # Fallback: treat as string answer
-            correct_index = None
-            correct_answer_text = str(correct_value) if correct_value else ''
-
-        # Handle both string and int answer from user
-        try:
-            user_index = int(answer)
-        except (ValueError, TypeError):
-            # User sent string answer - compare directly
-            user_answer_text = str(answer) if answer else ''
-            is_correct = self._normalize_answer(user_answer_text) == self._normalize_answer(correct_answer_text)
-            return {
-                'is_correct': is_correct,
-                'correct_answer': correct_answer_text,
-                'explanation': content.get('explanation', ''),
-                'user_answer': user_answer_text
-            }
-
-        # Resolve user_index to text (with 1-indexed fallback)
-        if 0 <= user_index < len(options):
-            user_answer_text = options[user_index]
-        elif 1 <= user_index <= len(options):
-            user_answer_text = options[user_index - 1]
-            user_index = user_index - 1  # normalize for comparison
-        else:
-            user_answer_text = str(answer)
-
-        # User sent index
-        if correct_index is not None:
-            is_correct = user_index == correct_index
-        else:
-            # Compare by text
-            is_correct = self._normalize_answer(user_answer_text) == self._normalize_answer(correct_answer_text)
-
+        explicit_index = 'correct_index' in content and 'correct_answer' not in content
+        correct = content.get('correct_answer', content.get('correct_index'))
+        expected_index = _quiz_option_index(options, correct, prefer_literal=not explicit_index)
+        user_index = _quiz_option_index(options, answer)
+        expected = options[expected_index] if expected_index >= 0 else correct
+        given = options[user_index] if user_index >= 0 else answer
         return {
-            'is_correct': is_correct,
-            'correct_answer': correct_answer_text,
+            'is_correct': expected_index >= 0 and user_index >= 0 and user_index == expected_index,
+            'correct_answer': expected if expected is not None else '',
             'explanation': content.get('explanation', ''),
-            'user_answer': user_answer_text
+            'user_answer': given,
         }
 
     def _grade_reorder(self, exercise: GrammarExercise, answer: Any) -> Dict:
@@ -295,10 +227,8 @@ class GrammarExerciseGrader:
         # not talk» passes for a key written as «doesn't talk». The bool()
         # stays: an empty ``full_correct`` must never make a wrong answer
         # evaluate to '' when persisted to a Boolean column.
-        candidates = (
-            [content.get('correct_answer', ''), content.get('full_correct', '')]
-            + list(content.get('alternatives', []) or [])
-        )
+        candidates = _quiz_text_candidates(content, content.get('correct_sentence', content.get('correct_answer', '')))
+        candidates.append(content.get('full_correct', ''))
         is_correct = bool(self._text_matches(answer, candidates))
 
         return {
@@ -312,8 +242,7 @@ class GrammarExerciseGrader:
     def _grade_transformation(self, exercise: GrammarExercise, answer: str) -> Dict:
         """Grade transformation exercise"""
         content = exercise.content
-        correct = self._normalize_answer(content.get('correct_answer', ''))
-        candidates = [content.get('correct_answer', '')] + list(content.get('alternatives', []) or [])
+        candidates = _quiz_text_candidates(content, content.get('correct_answer', ''))
 
         is_correct = self._text_matches(answer, candidates)
 
@@ -327,9 +256,7 @@ class GrammarExerciseGrader:
     def _grade_translation(self, exercise: GrammarExercise, answer: str) -> Dict:
         """Grade translation exercise"""
         content = exercise.content
-        # Check both 'alternatives' and 'acceptable_answers' fields
-        alt_list = content.get('alternatives', []) or content.get('acceptable_answers', [])
-        candidates = [content.get('correct_answer', '')] + list(alt_list or [])
+        candidates = _quiz_text_candidates(content, content.get('correct_answer', ''))
 
         is_correct = self._text_matches(answer, candidates)
 
@@ -383,7 +310,7 @@ class GrammarExerciseGrader:
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
-            text = value.strip().lower()
+            text = normalize_quiz_answer(value)
             if text in ('true', '1', 'yes'):
                 return True
             if text in ('false', '0', 'no'):

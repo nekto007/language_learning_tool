@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy import and_, func
 
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, QUIZ_LESSON_TYPES, get_lesson_passing_score
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.utils.db import db
 
@@ -255,7 +256,7 @@ class ProgressService:
             user_id: int,
             lesson: 'Lessons',
             result: Dict,
-            passing_score: int = 70,
+            passing_score: int = PASSING_SCORE_DEFAULT,
             xp_score: object = _XP_SCORE_FROM_RESULT,
     ) -> tuple['LessonProgress', Optional[Dict]]:
         """
@@ -265,13 +266,15 @@ class ProgressService:
             user_id: User ID
             lesson: Lesson object
             result: Dictionary with score and result data
-            passing_score: Minimum score to mark as completed (default 70)
+            passing_score: Non-quiz override; quiz/grammar/final always use lesson policy
 
         Returns:
             Tuple of (progress, completion_result)
         """
         from sqlalchemy.orm.attributes import flag_modified
 
+        if getattr(lesson, 'type', '') in QUIZ_LESSON_TYPES | {'final_test'}:
+            passing_score = get_lesson_passing_score(lesson)
         score = result.get('score', 0)
         score = round(score, 2)
         is_completed = score >= passing_score
@@ -285,6 +288,10 @@ class ProgressService:
             user_id=user_id,
             lesson_id=lesson.id
         ).first()
+
+        from app.daily_plan.quiz_corrections import is_pending_correction
+        if getattr(lesson, 'type', None) != 'final_test' and is_pending_correction(progress):
+            raise ValueError('correction_required')
 
         now = datetime.now(UTC)
 

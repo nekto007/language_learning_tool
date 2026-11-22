@@ -104,16 +104,16 @@ class TestEffectivePassingScore:
         lesson = _make_lesson(db_session, lesson_type='audio_fill_blank', content={})
         assert _effective_passing_score(lesson) == 70
 
-    def test_other_default_is_70(self, db_session):
+    def test_final_default_is_75(self, db_session):
         lesson = _make_lesson(db_session, lesson_type='final_test', content={})
-        assert _effective_passing_score(lesson) == 70
+        assert _effective_passing_score(lesson) == 75
 
-    def test_explicit_percent_wins(self, db_session):
+    def test_final_policy_overrides_stale_authored_percent(self, db_session):
         lesson = _make_lesson(
             db_session, lesson_type='final_test',
             content={'passing_score_percent': 85},
         )
-        assert _effective_passing_score(lesson) == 85
+        assert _effective_passing_score(lesson) == 75
 
     def test_legacy_key_fallback(self, db_session):
         lesson = _make_lesson(
@@ -140,7 +140,7 @@ class TestReconcile:
         assert progress.score == 85.0  # promoted to attempt's higher score
 
     def test_flips_when_score_meets_default_threshold(self, db_session):
-        """Score 79 with default 70 threshold (final_test) → completed."""
+        """Score 79 with default 75 threshold (final_test) → completed."""
         user = _make_user(db_session)
         lesson = _make_lesson(db_session, content={})
         progress = _make_progress(db_session, user, lesson, score=79.0)
@@ -152,11 +152,11 @@ class TestReconcile:
         assert report.flipped_by_score == 1
         assert progress.status == 'completed'
 
-    def test_does_not_flip_when_score_below_explicit_threshold(self, db_session):
-        """Score 79 with explicit content threshold 85 → stays in_progress."""
+    def test_does_not_flip_below_final_policy_despite_stale_override(self, db_session):
+        """Score 74 with final threshold 75 → stays in_progress."""
         user = _make_user(db_session)
         lesson = _make_lesson(db_session, content={'passing_score_percent': 85})
-        progress = _make_progress(db_session, user, lesson, score=79.0)
+        progress = _make_progress(db_session, user, lesson, score=74.0)
 
         report = reconcile_stuck_lesson_progress(db_session, dry_run=False)
         db_session.refresh(progress)

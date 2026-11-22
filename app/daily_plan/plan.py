@@ -130,6 +130,10 @@ def _apply_unified_skip_state(
     for index, item in enumerate(required_dicts):
         if item.get('completed', False):
             continue
+        if (item.get('data') or {}).get('quiz_phase') == 'correction':
+            # Correcting an already-submitted round is not another quota-based
+            # lesson deferral. A skip of its first round must not skip repairs.
+            continue
         kind = item.get('kind', '')
         slot_key = get_slot_skip_key(item, index)
         matched = next(
@@ -164,6 +168,9 @@ def _annotate_unified_skip_quota(
         if item.get('completed') or item.get('skipped') or item.get('blocked'):
             continue
         data = item.setdefault('data', {})
+        if data.get('quiz_phase') == 'correction':
+            data['slot_skip_allowed'] = False
+            continue
         data['slot_skip_allowed'] = skips_remaining > 0
         data['slot_skips_remaining'] = skips_remaining
 
@@ -593,6 +600,12 @@ def get_daily_plan(
         )
 
     optional_dicts = [it.to_dict() for it in optional]
+
+    from app.daily_plan.quiz_corrections import reconcile_quiz_corrections
+
+    required_dicts, optional_dicts = reconcile_quiz_corrections(
+        user_id, session, required_dicts, optional_dicts,
+    )
 
     # ETA from the reconciled list — carried/completed slots cost 0 minutes.
     total_estimated_minutes = sum(

@@ -22,11 +22,11 @@ def test_lexical_variants_do_not_change_sense_or_part_of_speech(expected, answer
     assert not _strict_text_match(answer, [expected])
 
 
-def test_lab_preserves_possessive_number():
+def test_lab_ignores_apostrophe_position_by_quiz_policy():
     exercise = SimpleNamespace(id=1, exercise_type='translation', content={
         'correct_answer': "The girl's books are here.", 'alternatives': [],
     })
-    assert not GrammarExerciseGrader().grade(
+    assert GrammarExerciseGrader().grade(
         exercise, "The girls' books are here.")['is_correct']
 
 

@@ -82,23 +82,23 @@ def test_ordering_accepts_canonical_mandatory_tokens_with_terminal_punctuation_v
     [
         "We finished have.",
         "We have started.",
-        "We have finished,",
-        "We, have finished.",
-        "We. have finished.",
         "We have not finished.",
     ],
 )
-def test_ordering_does_not_ignore_wrong_words_order_or_internal_punctuation(wrong):
+def test_ordering_does_not_ignore_wrong_words_or_order(wrong):
     row = {"type": "ordering", "question": "Arrange", "correct": "We have finished."}
     assert not checked(row, wrong)
 
 
-def test_ordering_keeps_apostrophes_and_required_internal_comma():
+def test_ordering_ignores_apostrophes_and_punctuation_but_keeps_word_order():
     row = {"type": "ordering", "question": "Arrange", "correct": "If he's late, we'll wait."}
     assert checked(row, "If he's late , we'll wait !")
-    assert not checked(row, "If hes late, well wait.")
-    assert not checked(row, "If he's late we'll wait.")
+    assert checked(row, "If hes late, well wait.")
+    assert checked(row, "If he's late we'll wait.")
     assert not checked(row, "We'll wait, if he's late.")
+    row = {"type": "ordering", "question": "Arrange", "correct": "We have finished."}
+    for answer in ("We have finished,", "We, have finished.", "We. have finished."):
+        assert checked(row, answer)
 
 
 @pytest.mark.parametrize(

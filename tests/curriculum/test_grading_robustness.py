@@ -103,10 +103,10 @@ def test_final_test_matching_english_russian_pairs_no_keyerror():
 
 # --- final_test fill_in_blank typo tolerance (E-034) ----------------------
 
-def test_final_test_fill_in_blank_typo_tolerance():
+def test_final_test_fill_in_blank_does_not_accept_missing_letter():
     questions = [{"type": "fill_in_blank", "answer": "running"}]
     res = process_final_test_submission(questions, {"0": "runnig"})
-    assert res["feedback"]["0"]["is_correct"] is True
+    assert res["feedback"]["0"]["is_correct"] is False
 
 
 def test_final_test_reorder_list_correct_answer_no_crash():

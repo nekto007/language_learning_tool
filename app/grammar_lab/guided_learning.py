@@ -32,7 +32,7 @@ def grade_guided_answers(rows, answers):
         feedback[str(i)] = {**checked, "status": "correct" if ok else "incorrect"}
     return {"correct_exercises": correct, "correct_answers": correct,
             "total_exercises": len(rows), "total_questions": len(rows),
-            "score": round(correct / len(rows) * 100) if rows else 0,
+            "score": round(correct / len(rows) * 100, 2) if rows else 0,
             "feedback": feedback, "timestamp": datetime.now(UTC).isoformat()}
 
 

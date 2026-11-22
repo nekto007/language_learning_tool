@@ -32,7 +32,7 @@ from typing import Any, Iterable, Optional
 
 from sqlalchemy import func
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT, get_lesson_passing_score
+from app.curriculum.constants import get_lesson_passing_score
 from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
 
 logger = logging.getLogger(__name__)
@@ -116,20 +116,21 @@ def _iter_stuck_progress(db_session: Any) -> Iterable[tuple[LessonProgress, Less
         )
         .exists()
     )
-    score_at_least_default = (
+    score_might_pass = (
         LessonProgress.score.isnot(None)
-        & (LessonProgress.score >= PASSING_SCORE_DEFAULT)
+        & (LessonProgress.score >= 1)
     )
-    # Dictation rows can be stuck below PASSING_SCORE_DEFAULT (e.g. 79
-    # capped by the old attempt-limit override) while progress.data shows
-    # full mastery. Include them so the by_data_perfect signal can fire.
+    # A custom non-quiz threshold may be as low as 1; ordinary quizzes use
+    # 50. Do not discard candidates at the old global 70 before applying
+    # the authoritative per-lesson helper in Python. Dictation mastery data
+    # remains a separate signal, even when the score alone cannot pass.
     is_dictation = Lessons.type == 'dictation'
     rows = (
         db_session.query(LessonProgress, Lessons)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.status == 'in_progress',
-            (has_passed_attempt | score_at_least_default | is_dictation),
+            (has_passed_attempt | score_might_pass | is_dictation),
         )
         .order_by(LessonProgress.id)
         .yield_per(500)
@@ -185,6 +186,9 @@ def reconcile_stuck_lesson_progress(
         for progress, lesson in _iter_stuck_progress(db_session):
             report.scanned += 1
             try:
+                from app.daily_plan.quiz_corrections import is_pending_correction
+                if is_pending_correction(progress):
+                    continue
                 threshold = _effective_passing_score(lesson)
                 latest_passed = _latest_passed_attempt(
                     db_session, progress.user_id, progress.lesson_id,

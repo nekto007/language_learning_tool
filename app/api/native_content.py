@@ -653,7 +653,10 @@ def display_answer(question, value):
         return "\n".join(f"{left[i]} → {options[j]}" for i, j in indexes.items())
     if question.get("input") == "order":
         return " ".join(options[index] for index in _json_answer(value))
-    return _plain(value)
+    # This is learner input in a JSON document, displayed as native Text.
+    # Treating it as authored HTML drops e.g. the brackets in "<hello>" and
+    # breaks the client's confirmation that feedback belongs to its answer.
+    return str(value)
 
 
 def matching_answer(row):
@@ -677,7 +680,7 @@ def grade(lesson, questions, answers, passing):
             "id": q["id"],
             "prompt": q["prompt"],
             "correct": bool(correct),
-            "answer": _plain(answer),
+            "answer": str(answer),
             "expected": _plain(expected),
             "explanation": _plain(explanation),
         }
@@ -999,7 +1002,7 @@ def _writing_requirements(lesson, c, value):
     }
 
 
-def persist(lesson, progress, grade, feedback, assessment, completed, sealed, passing):
+def persist(lesson, progress, grade, feedback, assessment, completed, sealed, passing, answers=None):
     """Commit progress, attempt, diagnostics and repeat receipt atomically."""
     from datetime import datetime, UTC
     from flask_login import current_user
@@ -1038,6 +1041,21 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
         _error("rate_limit_exceeded", 429)
     now = datetime.now(UTC)
     score = grade.get("score")
+    from app.api.quiz_corrections import FLOW, eligible, first_round_state, pending_state
+
+    previous_correction = pending_state(progress)
+    if (sealed.get('quiz_flow') == FLOW and eligible(lesson)
+            and getattr(progress, 'status', None) != 'completed'
+            and (previous_correction is None or previous_correction.get('revision') != sealed['revision'])):
+        from app.daily_plan.linear.errors import archive_superseded_quiz_errors
+
+        # Enrollment replaces legacy live diagnostics; a changed revision also
+        # replaces the previous deferred round. Keep both as unresolved history.
+        archive_superseded_quiz_errors(current_user.id, lesson.id, db)
+    correction = first_round_state(lesson, progress, grade, feedback, answers or {}, sealed)
+    if correction:
+        grade["quiz_correction"] = correction
+        completed = False
     if progress is None:
         progress = LessonProgress(
             user_id=current_user.id,
@@ -1066,6 +1084,8 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
         "total_count": len(feedback),
         "feedback": feedback,
     }
+    if correction:
+        response["correction_pending"] = True
     if grade.get("total_items") is not None and lesson.type in (
         "dictation",
         "matching",

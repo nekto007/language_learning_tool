@@ -320,6 +320,19 @@ def _submission_passed(
         return False
 
 
+def _pending_correction_response(lesson, progress):
+    """A legacy browser form cannot overwrite a durable native correction."""
+    from app.daily_plan.quiz_corrections import is_pending_correction
+
+    if lesson.type == 'final_test' or not is_pending_correction(progress):
+        return None
+    message = 'Продолжите работу над ошибками в приложении.'
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': False, 'error': 'correction_required', 'message': message}), 409
+    flash(message, 'info')
+    return redirect(request.path)
+
+
 def render_grammar_lesson(lesson):
     """Рендер grammar урока"""
     if lesson.type != 'grammar':
@@ -411,6 +424,9 @@ def render_grammar_lesson(lesson):
         grammar_explanation = decode_html_in_dict(grammar_explanation)
 
     if request.method == 'POST':
+        blocked = _pending_correction_response(lesson, progress)
+        if blocked is not None:
+            return blocked
         try:
             answers = {}
             for key in request.form:
@@ -455,14 +471,14 @@ def render_grammar_lesson(lesson):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=PASSING_SCORE_DEFAULT
+            passing_score=get_lesson_passing_score(lesson)
         )
 
         # DP-050: gate on THIS submission's score, not on progress.status.
         # `update_progress_with_grading` never downgrades a lesson that was
         # completed before (`was_completed` guard in ProgressService), so a
         # failed retake still reads 'completed' and used to pay full XP.
-        if progress and _submission_passed(result):
+        if progress and _submission_passed(result, get_lesson_passing_score(lesson)):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():
@@ -479,6 +495,8 @@ def render_grammar_lesson(lesson):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
+                'passing_score': get_lesson_passing_score(lesson),
+                'passed': _submission_passed(result, get_lesson_passing_score(lesson)),
                 'score': result.get('score', 0),
                 'feedback': result.get('feedback', {}),
                 'correct_answers': result.get('correct_answers', 0),
@@ -496,6 +514,7 @@ def render_grammar_lesson(lesson):
         'curriculum/lessons/grammar.html',
         lesson=lesson,
         content=cleaned_content,
+        passing_score=get_lesson_passing_score(lesson),
         grammar_rule=grammar_rule,
         grammar_description=grammar_description,
         examples=examples,
@@ -569,7 +588,11 @@ def _dialogue_lesson_instruction(questions: list[dict]) -> tuple[str, list[str]]
 
 def _quiz_display_context(lesson, questions: list[dict]) -> dict:
     """Render-only extras for quiz.html shared by both quiz handlers."""
+    from app.utils.normalization import EXPECTED_ZERO_ARTICLE_MARKERS, ZERO_ARTICLE_MARKERS
+
     context: dict = {
+        'quiz_zero_article_markers': sorted(ZERO_ARTICLE_MARKERS),
+        'quiz_expected_zero_article_markers': sorted(EXPECTED_ZERO_ARTICLE_MARKERS),
         'ordering_translation_mode': _ordering_translation_mode(lesson),
         'lesson_instruction': None,
         'item_instructions': None,
@@ -728,6 +751,9 @@ def render_quiz_lesson(lesson):
         db.session.commit()
 
     if request.method == 'POST':
+        blocked = _pending_correction_response(lesson, progress)
+        if blocked is not None:
+            return blocked
         answers = _collect_quiz_form_answers(cleaned_content['questions'])
         result = process_quiz_submission(cleaned_content['questions'], answers)
 
@@ -746,10 +772,10 @@ def render_quiz_lesson(lesson):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=PASSING_SCORE_DEFAULT
+            passing_score=get_lesson_passing_score(lesson)
         )
 
-        if progress and _submission_passed(result):
+        if progress and _submission_passed(result, get_lesson_passing_score(lesson)):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():
@@ -766,6 +792,8 @@ def render_quiz_lesson(lesson):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
+                'passing_score': get_lesson_passing_score(lesson),
+                'passed': _submission_passed(result, get_lesson_passing_score(lesson)),
                 'score': result.get('score', 0),
                 'feedback': result.get('feedback', {}),
                 'correct_answers': result.get('correct_answers', 0),
@@ -785,6 +813,7 @@ def render_quiz_lesson(lesson):
         **_quiz_display_context(lesson, cleaned_content['questions']),
         questions=cleaned_content['questions'],
         settings=cleaned_content,
+        passing_score=get_lesson_passing_score(lesson),
         progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson
     )
@@ -970,9 +999,9 @@ def render_final_test_lesson(lesson):
         exercises=questions,
         sections=sections_meta,
         settings=cleaned_content,
+        passing_score=get_lesson_passing_score(lesson),
         progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson,
-        passing_score=get_lesson_passing_score(lesson),
         option_label=lambda value: localized_option(value, lesson),
     )
 
@@ -1073,6 +1102,9 @@ def grammar_lesson(lesson_id):
         grammar_explanation = decode_html_in_dict(grammar_explanation)
 
     if request.method == 'POST':
+        blocked = _pending_correction_response(lesson, progress)
+        if blocked is not None:
+            return blocked
         try:
             answers = {}
             for key in request.form:
@@ -1117,11 +1149,11 @@ def grammar_lesson(lesson_id):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=PASSING_SCORE_DEFAULT
+            passing_score=get_lesson_passing_score(lesson)
         )
 
         # DP-050, second copy of this handler — same gate, same reason.
-        if progress and _submission_passed(result):
+        if progress and _submission_passed(result, get_lesson_passing_score(lesson)):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():
@@ -1138,6 +1170,8 @@ def grammar_lesson(lesson_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
+                'passing_score': get_lesson_passing_score(lesson),
+                'passed': _submission_passed(result, get_lesson_passing_score(lesson)),
                 'score': result.get('score', 0),
                 'feedback': result.get('feedback', {}),
                 'correct_answers': result.get('correct_answers', 0),
@@ -1155,6 +1189,7 @@ def grammar_lesson(lesson_id):
         'curriculum/lessons/grammar.html',
         lesson=lesson,
         content=cleaned_content,
+        passing_score=get_lesson_passing_score(lesson),
         grammar_rule=grammar_rule,
         grammar_description=grammar_description,
         examples=examples,
@@ -1228,6 +1263,9 @@ def quiz_lesson(lesson_id):
         db.session.commit()
 
     if request.method == 'POST':
+        blocked = _pending_correction_response(lesson, progress)
+        if blocked is not None:
+            return blocked
         answers = _collect_quiz_form_answers(cleaned_content['questions'])
         result = process_quiz_submission(cleaned_content['questions'], answers)
 
@@ -1246,10 +1284,10 @@ def quiz_lesson(lesson_id):
             user_id=current_user.id,
             lesson=lesson,
             result=result,
-            passing_score=PASSING_SCORE_DEFAULT
+            passing_score=get_lesson_passing_score(lesson)
         )
 
-        if progress and _submission_passed(result):
+        if progress and _submission_passed(result, get_lesson_passing_score(lesson)):
             try:
                 from app.daily_plan.linear.xp import maybe_award_curriculum_xp
                 with db.session.begin_nested():
@@ -1266,6 +1304,8 @@ def quiz_lesson(lesson_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             response_data = {
                 'success': True,
+                'passing_score': get_lesson_passing_score(lesson),
+                'passed': _submission_passed(result, get_lesson_passing_score(lesson)),
                 'score': result.get('score', 0),
                 'feedback': result.get('feedback', {}),
                 'correct_answers': result.get('correct_answers', 0),
@@ -1285,6 +1325,7 @@ def quiz_lesson(lesson_id):
         **_quiz_display_context(lesson, cleaned_content['questions']),
         questions=cleaned_content['questions'],
         settings=cleaned_content,
+        passing_score=get_lesson_passing_score(lesson),
         progress=retry_display_progress(progress, force=reset_progress),
         next_lesson=next_lesson
     )

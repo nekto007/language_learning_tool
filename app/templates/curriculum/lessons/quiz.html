@@ -591,6 +591,29 @@
 </div>
 
 <script nonce="{{ csp_nonce }}">
+// Match the shared quiz punctuation policy: Unicode punctuation (including
+// underscores and apostrophes) never changes an otherwise complete answer.
+function normalizeQuizText(value) {
+  return String(value ?? '').toLowerCase().replace(/\u02bc/g, "'")
+    .replace(/\p{P}/gu, '').replace(/\s+/g, ' ').trim();
+}
+function quizTextCandidates(question, canonical) {
+  return [canonical].flat().concat(
+    question.alternatives || [], question.alternative_answers || [],
+    question.acceptable_answers || []
+  ).filter(value => value !== null && value !== undefined);
+}
+const quizZeroArticleMarkers = {{ quiz_zero_article_markers|default([])|tojson }};
+const quizExpectedZeroArticleMarkers = {{ quiz_expected_zero_article_markers|default([])|tojson }};
+function quizTextEquals(answer, question, canonical) {
+  if (quizTextCandidates(question, canonical).some(value =>
+      quizExpectedZeroArticleMarkers.includes(String(value).trim().toLowerCase())) &&
+      quizZeroArticleMarkers.includes(String(answer).trim().toLowerCase())) return true;
+  const normalized = normalizeQuizText(answer);
+  return !!normalized && quizTextCandidates(question, canonical)
+    .some(value => normalized === normalizeQuizText(value));
+}
+
 // Fisher-Yates shuffle algorithm
 function shuffleArray(array) {
   const shuffled = [...array];
@@ -818,11 +841,7 @@ function submitReorderAnswer(questionIndex) {
   const question = window.quizData.questions[questionIndex];
   const correctAnswer = question.correct_answer || question.correct || question.answer || '';
 
-  // Normalize for comparison. Keep Cyrillic: bare \w is ASCII-only, so the old
-  // /[^\w\s]/g stripped а-я and mangled Russian reorder previews (false "wrong"
-  // in-session). Matches the Cyrillic-aware normalizer used elsewhere in this file.
-  const normalize = (text) => text ? text.toLowerCase().replace(/[^\w\sа-яёА-ЯЁ]/g, '').replace(/\s+/g, ' ').trim() : '';
-  const isCorrect = normalize(sentence) === normalize(correctAnswer);
+  const isCorrect = quizTextEquals(sentence, question, correctAnswer);
 
   QuizApp.state.answers[questionIndex].correct = isCorrect;
 
@@ -1010,26 +1029,7 @@ function submitTransformationAnswer(questionIndex) {
   // Get correct answer
   let correctAnswer = question.correct_answer || question.answer || question.correct;
 
-  // Normalize for comparison
-  const normalize = (text) => {
-    if (!text) return '';
-    return text.toLowerCase()
-      .replace(/[^\w\sа-яёА-ЯЁ]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
-  let isCorrect = false;
-  if (Array.isArray(correctAnswer)) {
-    isCorrect = correctAnswer.some(ans => normalize(ans) === normalize(answer));
-  } else {
-    isCorrect = normalize(answer) === normalize(correctAnswer);
-  }
-
-  // Check acceptable_answers if not correct
-  if (!isCorrect && question.acceptable_answers) {
-    isCorrect = question.acceptable_answers.some(ans => normalize(ans) === normalize(answer));
-  }
+  const isCorrect = quizTextEquals(answer, question, correctAnswer);
 
   QuizApp.state.answers[questionIndex] = {
     value: answer,
@@ -1266,31 +1266,7 @@ window.QuizApp = {
     // Get correct answer from various possible fields
     let correctAnswer = question.correct_answer || question.answer || question.correct;
     
-    // Normalize text while preserving Cyrillic characters
-    const normalize = (text) => {
-      if (!text) return '';
-      return text.toLowerCase()
-        .replace(/[^\w\sа-яёА-ЯЁ]/gi, '') // Include Cyrillic characters, case insensitive
-        .replace(/\s+/g, ' ')
-        .trim();
-    };
-
-    let isCorrect = false;
-    if (Array.isArray(correctAnswer)) {
-      isCorrect = correctAnswer.some(ans => normalize(ans) === normalize(answer));
-    } else {
-      isCorrect = normalize(answer) === normalize(correctAnswer);
-    }
-
-    // Check alternative_answers
-    if (!isCorrect && question.alternative_answers) {
-      isCorrect = question.alternative_answers.some(ans => normalize(ans) === normalize(answer));
-    }
-
-    // Check acceptable_answers
-    if (!isCorrect && question.acceptable_answers) {
-      isCorrect = question.acceptable_answers.some(ans => normalize(ans) === normalize(answer));
-    }
+    const isCorrect = quizTextEquals(answer, question, correctAnswer);
 
     this.state.answers[questionIndex] = {
       value: answer,

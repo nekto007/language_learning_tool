@@ -670,7 +670,7 @@ function showResultsAndNavigation(data) {
   const score = data.score || 0;
   const correctCount = data.correct_answers || 0;
   const totalCount = data.total_count || 0;
-  const isPassed = score >= 70;
+  const isPassed = typeof data.passed === 'boolean' ? data.passed : score >= {{ passing_score | tojson }};
   
   resultsDiv.innerHTML = `
     <div class="results-summary ${isPassed ? 'success' : 'warning'}" role="status" aria-live="polite" aria-atomic="true">

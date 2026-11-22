@@ -7,8 +7,10 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Optional
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION
-from app.utils.normalization import normalize_text
+from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION, PASSING_SCORE_FINAL_TEST
+from app.utils.normalization import (
+    EXPECTED_ZERO_ARTICLE_MARKERS, ZERO_ARTICLE_MARKERS, normalize_text, normalize_quiz_answer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +293,37 @@ def _strict_text_match(user_answer, candidates):
     return False
 
 
+def quiz_text_matches(user_answer, candidates):
+    """Exact words after the quiz case/punctuation policy, plus authored aliases.
+
+    Used by ordinary/final quiz text and grammar, including preview and
+    submit. Existing contraction and lexical variants remain additional
+    accepted readings; no edit-distance, word-overlap or word-order
+    heuristic is used here. Apostrophes are ignored by explicit owner policy,
+    so girl's/girls' and don't/dont do not fail on punctuation alone.
+    Dictation and other non-quiz graders keep their existing normalization.
+    """
+    user = normalize_quiz_answer(user_answer)
+    readings = {normalize_quiz_answer(v) for v in text_answer_variants(user_answer)}
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        raw = str(candidate).strip().casefold()
+        if raw in EXPECTED_ZERO_ARTICLE_MARKERS:
+            if str(user_answer or '').strip().casefold() in ZERO_ARTICLE_MARKERS:
+                return True
+            continue
+        expected = normalize_quiz_answer(candidate)
+        if not user or not expected:
+            continue
+        if user == expected:
+            return True
+        other = {normalize_quiz_answer(v) for v in text_answer_variants(candidate)}
+        if (readings - {''}) & (other - {''}):
+            return True
+    return False
+
+
 def _grade_matching_pairs(user_pairs, correct_pairs):
     """
     Server-side validation of matching pairs.
@@ -313,7 +346,7 @@ def _grade_matching_pairs(user_pairs, correct_pairs):
         # Treat both shapes as equivalent so matching grading isn't a no-op.
         left = p.get('left') or p.get('english') or p.get('word')
         right = p.get('right') or p.get('russian') or p.get('translation')
-        return (_normalize_answer(left), _normalize_answer(right))
+        return (normalize_quiz_answer(left), normalize_quiz_answer(right))
 
     user_keys = [_key(p) for p in user_pairs]
     correct_keys = [_key(p) for p in correct_pairs]
@@ -862,326 +895,117 @@ def grade_pronunciation_match(recognized_text: str, target_word: str) -> dict:
     }
 
 
+def _quiz_text_candidates(row, correct):
+    candidates = list(correct) if isinstance(correct, list) else [correct]
+    for key in ('alternatives', 'alternative_answers', 'acceptable_answers'):
+        values = row.get(key) or []
+        if isinstance(values, list):
+            candidates.extend(values)
+    return candidates
+
+
 def process_grammar_submission(exercises: list, answers: dict) -> dict:
+    """Grade grammar with the same text policy as quiz preview/submit.
+
+    Choice and pair indexes remain discrete values. Reorder tasks still
+    require the complete authored words in their authored order.
+    """
     correct_count = 0
-    total_count = len(exercises)
     feedback = {}
-
     for i, exercise in enumerate(exercises):
-        # Преобразуем строковые ключи в числовые для совместимости
-        str_i = str(i)
-
-        if exercise.get('type') == 'sentence_builder':
-            user_answer = answers.get(i, answers.get(str_i, []))
-            correct_order = exercise.get('correct_order', [])
-            is_correct = user_answer == correct_order
-
-            if is_correct:
-                correct_count += 1
-                feedback[str_i] = {
-                    'status': 'correct',
-                    'message': 'Правильно!',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_order
-                }
-            else:
-                feedback[str_i] = {
-                    'status': 'incorrect',
-                    'message': f'Неправильно. Правильный порядок: {" ".join(correct_order)}',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_order
-                }
-            continue
-
-        if exercise.get('type') == 'error_correction':
-            user_answer = answers.get(i, answers.get(str_i, ''))
-            correct_answer = exercise.get('correct_sentence', exercise.get('answer', ''))
-            user_normalized = normalize_text(user_answer)
-            correct_normalized = normalize_text(correct_answer)
-
-            is_correct = user_normalized == correct_normalized
-
-            if is_correct:
-                correct_count += 1
-                feedback[str_i] = {
-                    'status': 'correct',
-                    'message': 'Правильно!',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_answer
-                }
-            else:
-                feedback[str_i] = {
-                    'status': 'incorrect',
-                    'message': f'Неправильно. Правильный ответ: {correct_answer}',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_answer
-                }
-            continue
-
-        if exercise.get('type') == 'reorder':
-            user_answer = answers.get(i, answers.get(str_i, ''))
-            correct_answer = exercise.get('answer', '')
-
-            def normalize_sentence(sentence):
-                if not sentence:
-                    return ""
-                normalized = sentence.strip()
-                normalized = re.sub(r'\s+', ' ', normalized)
-                normalized = re.sub(r'\s+([.,!?;:])', r'\1', normalized)
-                normalized = re.sub(r'(\()\s+', r'\1', normalized)
-                normalized = re.sub(r'\s+(\))', r'\1', normalized)
-                return normalized
-
-            user_normalized = normalize_sentence(user_answer)
-            correct_normalized = normalize_sentence(correct_answer)
-            is_correct = user_normalized == correct_normalized
-            if not is_correct:
-                is_correct = user_normalized.lower() == correct_normalized.lower()
-
-            if is_correct:
-                correct_count += 1
-                feedback[str_i] = {
-                    'status': 'correct',
-                    'message': 'Правильно!',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_answer
-                }
-            else:
-                feedback[str_i] = {
-                    'status': 'incorrect',
-                    'message': f'Неправильно. Правильный порядок: {correct_answer}',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_answer
-                }
-            continue
-
-        elif exercise.get('type') == 'match':
-            pairs = exercise.get('pairs', [])
-            user_matches_raw = answers.get(i, answers.get(str_i, '{}'))
-
-            if isinstance(user_matches_raw, str):
-                try:
-                    user_matches = json.loads(user_matches_raw)
-                except json.JSONDecodeError:
-                    user_matches = {}
-            else:
-                user_matches = user_matches_raw
-
-            is_correct = True
-            user_match_display = {}
-            correct_match_display = {}
-            for idx, pair in enumerate(pairs):
-                correct_match_display[_pair_left(pair)] = _pair_right(pair)
-
-            if len(user_matches) != len(pairs):
-                is_correct = False
-            else:
-                for left_idx_str, right_idx_str in user_matches.items():
-                    try:
-                        left_idx = int(left_idx_str)
-                        right_idx = int(right_idx_str)
-
-                        if left_idx >= len(pairs) or right_idx >= len(pairs):
-                            is_correct = False
-                            continue
-
-                        left_value = _pair_left(pairs[left_idx])
-                        user_right_value = _pair_right(pairs[right_idx])
-                        correct_right_value = _pair_right(pairs[left_idx])
-
-                        user_match_display[left_value] = user_right_value
-                        if user_right_value != correct_right_value:
-                            is_correct = False
-                    except (ValueError, IndexError, KeyError):
-                        is_correct = False
-                        break
-
-            if is_correct:
-                correct_count += 1
-                feedback[str_i] = {
-                    'status': 'correct',
-                    'message': 'Правильно! Все соответствия верны.',
-                    'user_matches': user_match_display,
-                    'correct_matches': correct_match_display
-                }
-            else:
-                feedback[str_i] = {
-                    'status': 'incorrect',
-                    'message': 'Неправильно. Проверьте соответствия.',
-                    'user_matches': user_match_display,
-                    'correct_matches': correct_match_display
-                }
-            continue
-
-        raw_user_answer = answers.get(i, answers.get(str_i, ''))
-        user_answer = str(raw_user_answer)
-        if isinstance(user_answer, str):
-            user_answer = user_answer.strip()
-
-        correct_answer = None
-        if 'answer' in exercise:
-            correct_answer = exercise['answer']
-        elif 'correct_answer' in exercise:
-            correct_answer = exercise['correct_answer']
-        elif 'correct' in exercise:
-            correct_answer = exercise['correct']
-        elif 'answers' in exercise and isinstance(exercise['answers'], list) and len(exercise['answers']) > 0:
-            correct_answer = exercise['answers'][0]
-        else:
-            correct_answer = None
-
-        exercise_type = exercise.get('type', '')
-
-        if exercise_type == 'true_false':
-            correct_bool = _strict_bool(correct_answer)
-            user_bool = _strict_bool(raw_user_answer)
-            if correct_bool is None:
-                feedback[str_i] = {
-                    'status': 'incorrect',
-                    'message': 'Ошибка в упражнении - не найден правильный ответ',
-                    'user_answer': user_answer,
-                    'correct_answer': 'unknown'
-                }
-                continue
-
-            is_correct = user_bool is not None and user_bool == correct_bool
-
-            if is_correct:
-                correct_count += 1
-                feedback[str_i] = {
-                    'status': 'correct',
-                    'message': 'Правильно!',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_answer
-                }
-            else:
-                feedback[str_i] = {
-                    'status': 'incorrect',
-                    'message': f'Неправильно. Правильный ответ: {"Верно" if correct_bool else "Неверно"}',
-                    'user_answer': user_answer,
-                    'correct_answer': correct_answer
-                }
-            continue
-
-        # Обработка радио-кнопок (multiple_choice)
-        elif exercise_type == 'multiple_choice' and 'options' in exercise:
-            options = exercise['options']
-            # Если правильный ответ - индекс
-            if isinstance(correct_answer, (int, str)) and str(correct_answer).isdigit():
-                correct_idx = int(correct_answer)
-                # Проверяем, что пользователь отправил текст варианта
-                if user_answer in options:
-                    # Находим индекс выбранного варианта
-                    user_idx = options.index(user_answer)
-                    # Сравниваем индексы
-                    user_answer = str(user_idx)
-                    correct_answer = str(correct_idx)
-                # Если пользователь отправил индекс
-                elif user_answer.isdigit():
-                    # Оставляем как есть для сравнения
-                    correct_answer = str(correct_idx)
-            # Если правильный ответ - текст
-            else:
-                # Если пользователь отправил индекс, преобразуем в текст
-                if user_answer.isdigit() and int(user_answer) < len(options):
-                    idx = int(user_answer)
-                    user_answer = options[idx]
-
-        # Преобразуем список в строку для сравнения
-        if isinstance(correct_answer, list):
-            # Для fill-in-blank упражнений с массивом ответов
-            if exercise_type in ['fill-blank', 'fill_in_blank']:
-                # Проверяем, если это начало предложения
-                user_norm = user_answer.lower().strip()
-                is_correct = any(user_norm == ans.lower().strip() for ans in correct_answer)
-
-                if is_correct:
-                    correct_count += 1
-                    feedback[str_i] = {
-                        'status': 'correct',
-                        'message': 'Правильно!',
-                        'user_answer': user_answer,
-                        'correct_answer': correct_answer
-                    }
+        key = str(i)
+        given = answers.get(i, answers.get(key, ''))
+        kind = exercise.get('type', '')
+        correct = next((exercise[field] for field in
+                        ('answer', 'correct_answer', 'correct', 'answers', 'correct_index') if field in exercise), None)
+        matches = None
+        if kind == 'sentence_builder':
+            correct = exercise.get('correct_order', [])
+            if isinstance(given, list) and isinstance(correct, list) and correct:
+                if all(isinstance(word, str) for word in given + correct):
+                    actual = normalize_quiz_answer(' '.join(given))
+                    expected = normalize_quiz_answer(' '.join(correct))
+                    ok = bool(actual) and actual == expected
                 else:
-                    feedback[str_i] = {
-                        'status': 'incorrect',
-                        'message': f'Неправильно. Правильный ответ: {correct_answer[0]}',
-                        'user_answer': user_answer,
-                        'correct_answer': correct_answer[0]
-                    }
-                continue
+                    ok = given == correct
             else:
-                correct_answer = correct_answer[0] if correct_answer else "UNKNOWN"
-
-        if not isinstance(correct_answer, str):
-            correct_answer = str(correct_answer)
-
-        def normalize_answer(answer):
-            if not answer:
-                return ""
-            normalized = answer.strip()
-            normalized = re.sub(r'\s+', ' ', normalized)
-            normalized = re.sub(r'\s*,\s*', ', ', normalized)
-            normalized = re.sub(r'\s*\.\s*', '. ', normalized)
-            normalized = re.sub(r'\s*!\s*', '! ', normalized)
-            normalized = re.sub(r'\s*\?\s*', '? ', normalized)
-            for char in ["'", '"', "[", "]"]:
-                normalized = normalized.replace(char, "")
-            return normalized.strip()
-
-        user_normalized = normalize_answer(user_answer)
-        correct_normalized = normalize_answer(correct_answer)
-        is_correct = user_normalized.lower() == correct_normalized.lower()
-
-        # Sentence-start fill-blank: capitalization matters for the first word
-        if not is_correct and exercise_type in ['fill-blank', 'fill_in_blank']:
-            prompt_text = exercise.get('prompt', exercise.get('text', ''))
-            if prompt_text.strip().startswith('___') or prompt_text.strip().startswith('_'):
-                is_correct = user_normalized == correct_normalized
-
-
-        if is_correct:
-            correct_count += 1
-            feedback[str_i] = {
-                'status': 'correct',
-                'message': 'Правильно!',
-                'user_answer': user_answer,
-                'correct_answer': correct_answer
-            }
+                ok = False
+        elif kind in ('match', 'matching'):
+            pairs = exercise.get('pairs', [])
+            raw = given
+            if isinstance(raw, str):
+                try:
+                    raw = json.loads(raw)
+                except (TypeError, ValueError):
+                    raw = None
+            correct = {_pair_left(pair): _pair_right(pair) for pair in pairs}
+            matches = {}
+            ok = isinstance(raw, dict) and bool(pairs) and len(raw) == len(pairs)
+            if ok:
+                try:
+                    indexes = {int(left): int(right) for left, right in raw.items()}
+                    expected_indexes = set(range(len(pairs)))
+                    ok = set(indexes) == expected_indexes and set(indexes.values()) == expected_indexes
+                    for left, right in indexes.items():
+                        if left not in expected_indexes or right not in expected_indexes:
+                            ok = False
+                            continue
+                        matches[_pair_left(pairs[left])] = _pair_right(pairs[right])
+                        if _pair_right(pairs[left]) != _pair_right(pairs[right]):
+                            ok = False
+                except (TypeError, ValueError, IndexError, KeyError):
+                    ok = False
+        elif kind in ('true_false', 'tf'):
+            expected_bool = _strict_bool(normalize_quiz_answer(correct) if isinstance(correct, str) else correct)
+            actual_bool = _strict_bool(normalize_quiz_answer(given) if isinstance(given, str) else given)
+            ok = expected_bool is not None and actual_bool is not None and expected_bool == actual_bool
+        elif kind == 'multiple_choice' or (kind in ('fill_blank', 'fill-blank', 'fill_in_blank', 'fill-in-blank')
+                                           and exercise.get('options')):
+            options = exercise.get('options') or []
+            explicit_index = ('correct_index' in exercise and not any(
+                field in exercise for field in ('answer', 'correct_answer', 'correct', 'answers')))
+            correct_index = _quiz_option_index(options, correct, prefer_literal=not explicit_index)
+            actual_index = _quiz_option_index(options, given)
+            ok = correct_index >= 0 and actual_index >= 0 and correct_index == actual_index
+            if correct_index >= 0:
+                correct = options[correct_index]
+            if actual_index >= 0:
+                given = options[actual_index]
         else:
-            feedback[str_i] = {
-                'status': 'incorrect',
-                'message': f'Неправильно. Правильный ответ: {correct_answer}',
-                'user_answer': user_answer,
-                'correct_answer': correct_answer
-            }
-
-    # A6: surface each exercise's explanation + alternative answers in the
-    # feedback so the client can render them AFTER grading. grammar.html ships
-    # only the exercise `type` to the page (not the answer key), so these
-    # post-grade fields must come from the server response, not the DOM.
-    for i, exercise in enumerate(exercises):
-        fb = feedback.get(str(i))
-        if not fb:
-            continue
-        explanation = exercise.get('explanation')
-        if explanation:
-            fb['explanation'] = explanation
-        alternative_answers = exercise.get('alternative_answers')
-        if alternative_answers:
-            fb['alternative_answers'] = alternative_answers
-
-    score = round((correct_count / total_count) * 100) if total_count > 0 else 0
-
+            if kind == 'error_correction':
+                correct = exercise.get('correct_sentence', correct)
+            candidates = _quiz_text_candidates(exercise, correct)
+            if kind == 'error_correction' and exercise.get('full_correct'):
+                candidates.append(exercise['full_correct'])
+            if kind in ('reorder', 'ordering'):
+                actual = normalize_quiz_answer(given)
+                ok = bool(actual) and any(actual == normalize_quiz_answer(value)
+                                          for value in candidates if value is not None)
+            else:
+                ok = quiz_text_matches(given, candidates)
+        correct_count += int(bool(ok))
+        entry = {
+            'status': 'correct' if ok else 'incorrect',
+            'message': 'Правильно!' if ok else f'Неправильно. Правильный ответ: {correct}',
+            'user_answer': given,
+            'correct_answer': correct,
+        }
+        if matches is not None:
+            entry.update(user_matches=matches, correct_matches=correct)
+        if exercise.get('explanation'):
+            entry['explanation'] = exercise['explanation']
+        if exercise.get('alternative_answers'):
+            entry['alternative_answers'] = exercise['alternative_answers']
+        feedback[key] = entry
+    count = len(exercises)
     return {
         'correct_exercises': correct_count,
-        'total_exercises': total_count,
-        'correct_answers': correct_count,  # Keep for backward compatibility
-        'total_questions': total_count,  # Keep for backward compatibility
-        'score': score,
+        'total_exercises': count,
+        'correct_answers': correct_count,
+        'total_questions': count,
+        'score': round(correct_count / count * 100, 2) if count else 0,
         'feedback': feedback,
-        'timestamp': datetime.now(UTC).isoformat()
+        'timestamp': datetime.now(UTC).isoformat(),
     }
 
 
@@ -1202,9 +1026,12 @@ def _quiz_option_index(options, answer, *, prefer_literal=False):
         value = answer.strip()
         if value in labels:
             return labels.index(value)
-        lowered = value.lower()
-        return next((index for index, label in enumerate(labels)
-                     if str(label).lower() == lowered), -1)
+        normalized = normalize_quiz_answer(value)
+        matches = [index for index, label in enumerate(labels)
+                   if normalized and normalize_quiz_answer(label) == normalized]
+        # When punctuation-only differences make labels ambiguous, the
+        # learner must select the actual option rather than guess a slot.
+        return matches[0] if len(matches) == 1 else -1
 
     if prefer_literal:
         literal = literal_index()
@@ -1239,10 +1066,12 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
             correct_answer = question['correct']
         elif 'correct_index' in question:
             correct_answer = question['correct_index']
+        elif 'correct_sentence' in question:
+            correct_answer = question['correct_sentence']
         is_correct = False
 
         # Special handling: fill_blank with options should be treated as multiple_choice
-        if question_type == 'fill_blank' and 'options' in question:
+        if question_type in ('fill_blank', 'fill-blank', 'fill_in_blank', 'fill-in-blank') and question.get('options'):
             question_type = 'multiple_choice'
 
         if question_type in ['multiple_choice', 'dialogue_completion', 'listening_choice', 'reading_comprehension']:
@@ -1260,52 +1089,35 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
 
 
         elif question_type == 'true_false':
-            user_bool = _strict_bool(user_answer)
-            correct_bool = _strict_bool(correct_answer)
+            user_bool = _strict_bool(normalize_quiz_answer(user_answer) if isinstance(user_answer, str) else user_answer)
+            correct_bool = _strict_bool(normalize_quiz_answer(correct_answer) if isinstance(correct_answer, str) else correct_answer)
             is_correct = (user_bool is not None and correct_bool is not None
                           and user_bool == correct_bool)
 
-        elif question_type in ['fill_in_blank', 'fill-in-blank', 'fill_blank', 'translation', 'transformation']:
-            # Strict grading: exact match after normalization, with single-word
-            # Levenshtein ≤1 typo tolerance. Multi-word overlap heuristics removed —
-            # they previously credited substantively wrong answers.
+        elif question_type in ['fill_in_blank', 'fill-in-blank', 'fill_blank', 'fill-blank', 'translation', 'transformation', 'error_correction']:
+            # Quiz text uses exact words after case/punctuation normalization.
+            # Authored aliases and contractions are additional accepted forms.
 
             if correct_answer is None:
                 is_correct = False
             else:
-                if isinstance(correct_answer, list):
-                    candidates = list(correct_answer)
-                else:
-                    candidates = [correct_answer]
-                    candidates.extend(question.get('alternative_answers', []) or [])
-                    candidates.extend(question.get('acceptable_answers', []) or [])
-
-                is_correct = _strict_text_match(user_answer, candidates)
+                candidates = _quiz_text_candidates(question, correct_answer)
+                if question_type == 'error_correction' and question.get('full_correct'):
+                    candidates.append(question['full_correct'])
+                is_correct = quiz_text_matches(user_answer, candidates)
 
 
         elif question_type in ['reorder', 'ordering']:
             if correct_answer is None:
                 is_correct = False
             else:
-                def normalize_sentence(sentence):
-                    if not sentence:
-                        return ""
-                    normalized = sentence.strip()
-                    normalized = re.sub(r'\s+', ' ', normalized)
-                    normalized = re.sub(r'\s+([.,!?;:])', r'\1', normalized)
-                    normalized = re.sub(r'(\()\s+', r'\1', normalized)
-                    normalized = re.sub(r'\s+(\))', r'\1', normalized)
-                    # Authored ordering tokens sometimes omit terminal marks
-                    # or include them as mandatory separate tokens. Ignore only
-                    # final sentence punctuation; internal punctuation, words,
-                    # apostrophes and their order remain significant.
-                    return normalized.rstrip('.!?').rstrip()
-
-                user_normalized = normalize_sentence(user_answer)
-                correct_normalized = normalize_sentence(str(correct_answer))
-                is_correct = bool(user_normalized) and user_normalized == correct_normalized
-                if not is_correct:
-                    is_correct = bool(user_normalized) and user_normalized.lower() == correct_normalized.lower()
+                user_normalized = normalize_quiz_answer(user_answer)
+                is_correct = bool(user_normalized) and any(
+                    user_normalized == normalize_quiz_answer(candidate)
+                    for candidate in ([' '.join(map(str, correct_answer))]
+                                      if isinstance(correct_answer, list)
+                                      else _quiz_text_candidates(question, correct_answer))
+                    if candidate is not None)
 
         elif question_type == 'matching':
             # Server-side validation: client must submit explicit pairs.
@@ -1345,7 +1157,8 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
                 is_correct = _grade_matching_pairs(user_pairs, correct_pairs)
 
         else:
-            is_correct = correct_answer is None
+            # Unsupported/malformed content must not award a correct answer.
+            is_correct = False
 
         display_user = user_answer
         display_correct = correct_answer
@@ -1439,7 +1252,7 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
                 'correct_answer': correct_text
             }
 
-    score = round((correct_count / total_count) * 100) if total_count > 0 else 0
+    score = round((correct_count / total_count) * 100, 2) if total_count > 0 else 0
 
     return {
         'correct_answers': correct_count,
@@ -1516,94 +1329,25 @@ def process_matching_submission(pairs: list, user_matches: dict) -> dict:
 def process_final_test_submission(
     questions: list,
     user_answers: dict,
-    passing_score: int = PASSING_SCORE_DEFAULT,
+    passing_score: int = PASSING_SCORE_FINAL_TEST,
 ) -> dict:
-    correct_count = 0
-    total_count = len(questions)
-    feedback = {}
+    """Grade final questions identically to ordinary quiz questions.
 
-
-    for i, question in enumerate(questions):
-        # Получаем ответ пользователя - поддержка обоих форматов (string and int keys)
-        user_answer = user_answers.get(str(i), user_answers.get(i))
-
-        correct_answer = question.get('answer')
-        if correct_answer is None:
-            correct_answer = question.get('correct_answer')
-        if correct_answer is None:
-            correct_answer = question.get('correct_index')
-        if correct_answer is None:
-            correct_answer = question.get('correct')
-
-        is_correct = False
-
-        qtype = question.get('type', '')
-        if qtype == 'multiple_choice':
-            if user_answer is not None:
-                # Resolve both sides to option indices so string-digit ("2"),
-                # int, and option-text ``correct_answer`` all grade correctly
-                # (parity with process_quiz_submission — audit E-031).
-                options = question.get('options')
-                user_idx = _coerce_to_index(user_answer, options)
-                correct_idx = _coerce_to_index(correct_answer, options)
-                is_correct = correct_idx != -1 and user_idx == correct_idx
-
-        elif qtype == 'true_false':
-            user_bool = _strict_bool(user_answer)
-            correct_bool = _strict_bool(correct_answer)
-            is_correct = (user_bool is not None and correct_bool is not None
-                          and user_bool == correct_bool)
-
-        elif qtype in ['fill_in_blank', 'translation']:
-            if user_answer and correct_answer is not None:
-                # Strict match with alternatives + single-word typo tolerance,
-                # same as quiz fill-in-blank (audit E-034).
-                if isinstance(correct_answer, list):
-                    candidates = list(correct_answer)
-                else:
-                    candidates = [correct_answer]
-                    candidates.extend(question.get('alternative_answers', []) or [])
-                    candidates.extend(question.get('acceptable_answers', []) or [])
-                is_correct = _strict_text_match(user_answer, candidates)
-
-        elif qtype == 'matching':
-            if isinstance(user_answer, dict):
-                # Multi-shape pair extraction so {english,russian}/{word,
-                # translation} content doesn't KeyError → 500 (audit E-033).
-                correct_pairs = {
-                    _pair_left(p): _pair_right(p)
-                    for p in question.get('pairs', []) if isinstance(p, dict)
-                }
-                matches_correct = all(
-                    user_answer.get(left) == right
-                    for left, right in correct_pairs.items()
-                )
-                all_answered = len(user_answer) == len(correct_pairs)
-                is_correct = matches_correct and all_answered
-
-        elif qtype == 'reorder':
-            if user_answer:
-                user_normalized = normalize_text(user_answer)
-                # str() guards list-shaped correct_answer (audit E-034).
-                correct_normalized = normalize_text(str(correct_answer))
-                is_correct = user_normalized == correct_normalized
-
-        if is_correct:
-            correct_count += 1
-
-        feedback[str(i)] = {
-            'is_correct': is_correct,
-            'user_answer': user_answer,
-            'correct_answer': correct_answer
-        }
-
-    score = round((correct_count / total_count) * 100) if total_count > 0 else 0
-    passed = score >= passing_score
-
+    Only the completion policy and historic feedback shape differ: final
+    tests require 75% by default and expose ``is_correct`` per question.
+    """
+    result = process_quiz_submission(questions, user_answers)
     return {
-        'score': round(score, 1),
-        'correct_answers': correct_count,
-        'total_questions': total_count,
-        'passed': passed,
-        'feedback': feedback
+        'score': result['score'],
+        'correct_answers': result['correct_answers'],
+        'total_questions': result['total_questions'],
+        'passed': result['score'] >= passing_score,
+        'feedback': {
+            key: {
+                'is_correct': checked['status'] == 'correct',
+                'user_answer': checked['user_answer'],
+                'correct_answer': checked['correct_answer'],
+            }
+            for key, checked in result['feedback'].items()
+        },
     }

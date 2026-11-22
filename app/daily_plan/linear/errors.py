@@ -103,9 +103,10 @@ def current_error_revision_clause():
     """Keep superseded positional errors as history, not as current practice.
 
     An index belongs to an authored revision: question zero in a replaced
-    lesson is not necessarily the same task. Legacy lessons keep their
-    existing behaviour. A correlated scalar query avoids multiplying logs
-    and keeps the callers' query/filter chains unchanged.
+    lesson is not necessarily the same task. Explicitly superseded deferred
+    rounds stay in history even for plain lessons without a guided digest.
+    A correlated scalar query avoids multiplying logs and keeps the callers'
+    query/filter chains unchanged.
     """
     from app.curriculum.models import Lessons
 
@@ -118,17 +119,22 @@ def current_error_revision_clause():
     logged_revision = QuizErrorLog.question_payload['guided_revision'].as_string()
     # Symmetric comparison matters after rollback too: a guided error must
     # not become a different legacy question merely because its index exists.
-    return func.coalesce(revision, '') == func.coalesce(logged_revision, '')
+    not_superseded = func.coalesce(
+        QuizErrorLog.question_payload['quiz_superseded'].as_boolean(), False,
+    ).is_(False)
+    return (func.coalesce(revision, '') == func.coalesce(logged_revision, '')) & not_superseded
 
 
-def _unresolved_question_indices(user_id: int, lesson_id: int, db: Any) -> set[int]:
+def _unresolved_question_indices(
+    user_id: int, lesson_id: int, db: Any, *, quiz_revision: str | None = None,
+) -> set[int]:
     """Return question indices that already have an unresolved row for this lesson.
 
     Prevents quiz re-attempts from stacking multiple rows per question,
     which would inflate the 4th-slot trigger count and surface the same
     question multiple times in the review pool.
     """
-    rows = (
+    query = (
         db.session.query(QuizErrorLog)
         .filter(
             QuizErrorLog.user_id == user_id,
@@ -136,8 +142,10 @@ def _unresolved_question_indices(user_id: int, lesson_id: int, db: Any) -> set[i
             QuizErrorLog.resolved_at.is_(None),
             current_error_revision_clause(),
         )
-        .all()
     )
+    if quiz_revision is not None:
+        query = query.filter(QuizErrorLog.question_payload['quiz_revision'].as_string() == quiz_revision)
+    rows = query.all()
     indices: set[int] = set()
     for row in rows:
         payload = row.question_payload if isinstance(row.question_payload, dict) else None
@@ -152,6 +160,20 @@ def _unresolved_question_indices(user_id: int, lesson_id: int, db: Any) -> set[i
             except (TypeError, ValueError):
                 continue
     return indices
+
+
+def archive_superseded_quiz_errors(user_id: int, lesson_id: int, db: Any) -> None:
+    """Keep changed-lesson errors as history without claiming they were fixed.
+
+    The caller detected a changed deferred-first-round revision and owns the
+    transaction. Reassign JSON so both JSON and JSONB backends track the flag.
+    """
+    rows = db.session.query(QuizErrorLog).filter(
+        QuizErrorLog.user_id == user_id, QuizErrorLog.lesson_id == lesson_id,
+        QuizErrorLog.resolved_at.is_(None),
+    ).all()
+    for row in rows:
+        row.question_payload = {**_sanitize_payload(row.question_payload), 'quiz_superseded': True}
 
 
 def log_quiz_errors_from_result(
@@ -175,8 +197,8 @@ def log_quiz_errors_from_result(
     the pool doesn't accumulate duplicates.
 
     ``source`` distinguishes ``'quiz'`` from ``'grammar'`` in the stored
-    payload so the review slot can group/filter by origin; dedup still
-    uses ``question_index`` regardless.
+    payload so the review slot can group/filter by origin. Deferred first
+    rounds deduplicate positional IDs only inside their exact content revision.
 
     Silent no-op when feedback is missing/empty — malformed results from
     older test flows must not crash grading.
@@ -185,7 +207,13 @@ def log_quiz_errors_from_result(
     if not isinstance(feedback, dict) or not feedback:
         return []
 
-    already_logged = _unresolved_question_indices(user_id, lesson_id, db)
+    correction = result.get('quiz_correction')
+    quiz_revision = correction.get('revision') if isinstance(correction, dict) else None
+    quiz_attempt_id = correction.get('attempt_id') if isinstance(correction, dict) else None
+    tagged_quiz = isinstance(quiz_revision, str) and isinstance(quiz_attempt_id, str)
+    already_logged = _unresolved_question_indices(
+        user_id, lesson_id, db, quiz_revision=quiz_revision if tagged_quiz else None,
+    )
 
     logged: list[QuizErrorLog] = []
     for raw_idx, entry in feedback.items():
@@ -223,6 +251,8 @@ def log_quiz_errors_from_result(
             'correct_answer': entry.get('correct_answer'),
             'source': source,
         }
+        if tagged_quiz:
+            payload.update(quiz_revision=quiz_revision, quiz_attempt_id=quiz_attempt_id)
         # Preserve the original GrammarExercise id and difficulty when we have
         # them — the review-slot sibling lookup uses both to pick a related but
         # not-identical exercise.

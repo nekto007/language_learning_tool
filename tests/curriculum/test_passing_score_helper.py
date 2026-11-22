@@ -1,71 +1,47 @@
-"""Tests for ``app.curriculum.constants.get_lesson_passing_score``.
-
-This is the canonical helper that grader / route / reconcile-cron all use
-to resolve the effective passing threshold for a lesson — a divergence
-between any of them re-introduces the "UI passed / DB in_progress" bug class.
-"""
-from __future__ import annotations
+"""The same owner-level thresholds apply despite stale authored overrides."""
+from types import SimpleNamespace
 
 import pytest
 
 from app.curriculum.constants import (
     PASSING_SCORE_DEFAULT,
     PASSING_SCORE_DICTATION,
+    QUIZ_LESSON_TYPES,
     get_lesson_passing_score,
 )
 
 
-class _Lesson:
-    """Lightweight stand-in for ``Lessons`` (no DB required)."""
-
-    def __init__(self, lesson_type: str = 'quiz', content=None):
-        self.type = lesson_type
-        self.content = content
+def lesson(kind, content=None):
+    return SimpleNamespace(type=kind, content=content)
 
 
-class TestTypeDefaults:
-    def test_dictation_defaults_to_80(self):
-        assert get_lesson_passing_score(_Lesson('dictation', {})) == PASSING_SCORE_DICTATION
-
-    def test_audio_fill_blank_defaults_to_70(self):
-        """Despite being audio-themed, audio_fill_blank uses the default
-        70 threshold in both grader and route — only dictation is 80."""
-        assert get_lesson_passing_score(_Lesson('audio_fill_blank', {})) == PASSING_SCORE_DEFAULT
-
-    def test_final_test_defaults_to_70(self):
-        assert get_lesson_passing_score(_Lesson('final_test', {})) == PASSING_SCORE_DEFAULT
-
-    def test_missing_content_uses_default(self):
-        assert get_lesson_passing_score(_Lesson('quiz', None)) == PASSING_SCORE_DEFAULT
+@pytest.mark.parametrize('kind', sorted(QUIZ_LESSON_TYPES))
+@pytest.mark.parametrize('content', [None, {}, {'passing_score_percent': 70},
+                                    {'passing_score': 80}, {'passing_score_percent': 100}])
+def test_ordinary_quiz_and_grammar_always_use_50(kind, content):
+    assert get_lesson_passing_score(lesson(kind, content)) == 50
 
 
-class TestContentOverride:
-    def test_passing_score_percent_wins(self):
-        lesson = _Lesson('quiz', {'passing_score_percent': 85})
-        assert get_lesson_passing_score(lesson) == 85
-
-    def test_legacy_passing_score_key(self):
-        lesson = _Lesson('quiz', {'passing_score': 75})
-        assert get_lesson_passing_score(lesson) == 75
-
-    def test_percent_takes_precedence_over_legacy(self):
-        lesson = _Lesson('quiz', {'passing_score_percent': 90, 'passing_score': 50})
-        assert get_lesson_passing_score(lesson) == 90
-
-    def test_override_applies_to_dictation_too(self):
-        lesson = _Lesson('dictation', {'passing_score_percent': 60})
-        assert get_lesson_passing_score(lesson) == 60
+@pytest.mark.parametrize('content', [None, {}, {'passing_score_percent': 70},
+                                    {'passing_score': 80}, {'passing_score_percent': 100}])
+def test_final_test_always_uses_75(content):
+    assert get_lesson_passing_score(lesson('final_test', content)) == 75
 
 
-class TestRobustness:
-    def test_non_numeric_override_falls_back(self):
-        assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': 'bogus'})) == PASSING_SCORE_DEFAULT
+def test_unrelated_defaults_are_unchanged():
+    assert get_lesson_passing_score(lesson('dictation', {})) == PASSING_SCORE_DICTATION == 75
+    assert get_lesson_passing_score(lesson('audio_fill_blank', {})) == PASSING_SCORE_DEFAULT == 70
+    assert get_lesson_passing_score(lesson('translation', None)) == 70
 
-    def test_out_of_range_override_falls_back(self):
-        assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': 150})) == PASSING_SCORE_DEFAULT
-        assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': -10})) == PASSING_SCORE_DEFAULT
 
-    def test_zero_threshold_treated_as_malformed(self):
-        """An explicit 0 would disable the threshold (every attempt passes), so
-        it's treated as malformed and falls through to the type default (E-041)."""
-        assert get_lesson_passing_score(_Lesson('quiz', {'passing_score_percent': 0})) == PASSING_SCORE_DEFAULT
+@pytest.mark.parametrize('kind', ['dictation', 'translation', 'audio_fill_blank', 'test_out'])
+def test_unrelated_types_preserve_authored_overrides(kind):
+    assert get_lesson_passing_score(lesson(kind, {'passing_score_percent': 85})) == 85
+    assert get_lesson_passing_score(lesson(kind, {'passing_score': 80})) == 80
+    assert get_lesson_passing_score(lesson(kind, {'passing_score_percent': 90, 'passing_score': 50})) == 90
+
+
+@pytest.mark.parametrize('invalid', ['bogus', 150, -10, 0])
+def test_malformed_non_quiz_override_falls_back(invalid):
+    assert get_lesson_passing_score(lesson('translation', {'passing_score_percent': invalid})) == 70
+    assert get_lesson_passing_score(lesson('dictation', {'passing_score_percent': invalid})) == 75

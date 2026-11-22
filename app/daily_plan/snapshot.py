@@ -697,7 +697,7 @@ def _curriculum_lesson_done_today(
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     row = (
-        db.session.query(LessonProgress.score, Lessons)
+        db.session.query(LessonProgress.score, Lessons, LessonProgress.data)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -711,8 +711,8 @@ def _curriculum_lesson_done_today(
     )
     if row is None:
         return False
-    score, lesson = row
-    return _lesson_meets_passing(lesson, score)
+    score, lesson, progress_data = row
+    return _lesson_meets_passing(lesson, score, progress_data)
 
 
 def _grammar_topic_practiced_today(

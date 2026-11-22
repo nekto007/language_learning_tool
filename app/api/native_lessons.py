@@ -198,13 +198,13 @@ def get_native_lesson(lesson_id):
     lesson._native_challenge = _guard_plan(lesson_id) == "challenge"
     questions = project_questions(lesson)
     content = _content(lesson)
-    token = _signer().dumps({'user': current_user.id, 'lesson': lesson_id, 'revision': _digest(content),
-                             'version': _version(progress), 'projection_version': NATIVE_PROJECTION_VERSION,
-                             'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()})
+    sealed = {'user': current_user.id, 'lesson': lesson_id, 'revision': _digest(content),
+              'version': _version(progress), 'projection_version': NATIVE_PROJECTION_VERSION,
+              'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()}
     from app.api.native_content import is_extended, extras
     payload = {'id': lesson.id, 'title': plain(lesson.title), 'type': lesson.type,
                'passing_score': get_lesson_passing_score(lesson), 'theory': _theory(content),
-               'questions': questions, 'support_mode': language_support_mode(lesson), 'session_token': token}
+               'questions': questions, 'support_mode': language_support_mode(lesson)}
     if is_extended(lesson): payload.update(extras(lesson))
     from app.api.learning_guidance import learning_guidance
     payload.update(learning_guidance(lesson))
@@ -220,6 +220,31 @@ def get_native_lesson(lesson_id):
         if not payload['theory']:
             payload['theory'] = lesson_reference(lesson)
     payload['immediate_feedback'] = bool(questions) and lesson.type in ({'grammar'} | (QUIZZES - {'final_test'}))
+    from app.api.quiz_corrections import FLOW, eligible, pending_state, project_correction
+
+    if questions and eligible(lesson) and (request.args.get('quiz_flow') == FLOW or pending_state(progress)):
+        sealed['quiz_flow'] = FLOW
+        sealed['quiz_phase'] = 'first'
+        payload['quiz_phase'] = 'first'
+        correction = project_correction(lesson, progress, questions, content)
+        if correction:
+            payload.update(correction)
+            # Forced review is about the failed grammar rule, independent of
+            # whether this CEFR level displays translations/theory shortcuts.
+            if correction['correction']['theory_required'] and not payload['theory']:
+                payload['theory'] = lesson_reference(lesson)
+                if not payload['theory']:
+                    # Legacy quizzes may have neither an authored chapter nor
+                    # a linked grammar lesson. Review the actual explanations
+                    # instead of presenting an empty mandatory theory page.
+                    blocks = [b for q in correction['questions'] for b in q.get('theory_help', [])]
+                    if not blocks:
+                        blocks = [{'title': 'Разбор задания', 'body': q['correction_help']['hint'], 'kind': 'text'}
+                                  for q in correction['questions'] if q.get('correction_help', {}).get('hint')]
+                    payload['theory'] = list({b['body']: b for b in blocks}.values())
+            sealed['quiz_phase'] = 'correction'
+            sealed['correction_attempt'] = correction['correction']['attempt_id']
+    payload['session_token'] = _signer().dumps(sealed)
     return jsonify(success=True, lesson=payload)
 
 
@@ -232,7 +257,8 @@ def check_native_learning_answer(lesson_id):
     from app.grammar_lab.guided_learning import check_answer
 
     body = request.get_json(silent=True)
-    if (not isinstance(body, dict) or set(body) != {'session_token', 'question_id', 'answer'}
+    if (not isinstance(body, dict) or set(body) - {'session_token', 'question_id', 'answer', 'help_level'}
+            or not {'session_token', 'question_id', 'answer'} <= set(body)
             or not isinstance(body['session_token'], str) or not isinstance(body['question_id'], str)):
         raise NativeLessonError('invalid_input')
     try:
@@ -251,10 +277,25 @@ def check_native_learning_answer(lesson_id):
     from app.api.native_content import QUIZZES
     if lesson.type not in ({'grammar'} | (QUIZZES - {'final_test'})):
         raise NativeLessonError('not_found', 404)
+    correction = None
+    if sealed.get('quiz_phase') == 'correction':
+        from app.api.quiz_corrections import check_correction
+        correction = check_correction(lesson, progress, sealed)
+        if body['question_id'] not in correction['pending_ids']:
+            raise NativeLessonError('invalid_input')
+    level = body.get('help_level', 0)
+    if (type(level) is not int or not 0 <= level <= 3
+            or ('help_level' in body and not correction)):
+        raise NativeLessonError('invalid_input')
     index = next((i for i, q in enumerate(questions) if q['id'] == body['question_id']), None)
     if index is None:
         raise NativeLessonError('invalid_input')
-    return jsonify(success=True, feedback=check_answer(rows_for(lesson)[index], questions[index], body['answer'], grammar=lesson.type == 'grammar'))
+    row, question = rows_for(lesson)[index], questions[index]
+    feedback = check_answer(row, question, body['answer'], grammar=lesson.type == 'grammar')
+    if correction:
+        from app.api.quiz_corrections import correction_help
+        feedback['correction_help'] = correction_help(row, question, body['answer'], feedback, level)
+    return jsonify(success=True, feedback=feedback)
 
 
 def _display_answer(question, value):
@@ -310,6 +351,10 @@ def submit_native_lesson(lesson_id):
         saved = (progress.data or {}).get('_native_submission') if progress and isinstance(progress.data, dict) else None
         if isinstance(saved, dict) and saved.get('nonce') == sealed.get('nonce'):
             return jsonify(saved['response'])
+        correction_saved = (progress.data or {}).get('quiz_correction') if progress and isinstance(progress.data, dict) else None
+        receipt = correction_saved.get('receipt') if isinstance(correction_saved, dict) else None
+        if isinstance(receipt, dict) and receipt.get('nonce') == sealed.get('nonce'):
+            return jsonify(receipt['response'])
         if sealed.get('projection_version') != NATIVE_PROJECTION_VERSION:
             raise NativeLessonError('lesson_changed', 409)
         if sealed.get('revision') != _digest(_content(lesson)) or sealed.get('version') != _version(progress):
@@ -317,6 +362,10 @@ def submit_native_lesson(lesson_id):
         if plan_error is not None:
             raise plan_error
         questions = project_questions(lesson)
+        if sealed.get('quiz_phase') == 'correction':
+            from app.api.quiz_corrections import check_correction
+            correction = check_correction(lesson, progress, sealed)
+            questions = [q for q in questions if q['id'] in correction['pending_ids']]
         answers = data['answers']
         if not isinstance(answers, dict) or set(answers) != {q['id'] for q in questions}:
             raise NativeLessonError('invalid_input')
@@ -327,10 +376,14 @@ def submit_native_lesson(lesson_id):
             if q['options'] and q.get('input') in (None,'choice') and answer not in {o['value'] for o in q['options']}:
                 raise NativeLessonError('invalid_input')
         from app.api.native_content import is_extended, grade as grade_extended, persist as persist_extended
-        if is_extended(lesson):
+        if sealed.get('quiz_phase') == 'correction':
+            from app.api.quiz_corrections import submit_correction
+            return jsonify(submit_correction(lesson, progress, sealed, questions, answers))
+        from app.api.quiz_corrections import FLOW
+        if is_extended(lesson) or sealed.get('quiz_flow') == FLOW:
             passing = get_lesson_passing_score(lesson)
             grade, feedback, assessment, completed = grade_extended(lesson, questions, answers, passing)
-            return jsonify(persist_extended(lesson, progress, grade, feedback, assessment, completed, sealed, passing))
+            return jsonify(persist_extended(lesson, progress, grade, feedback, assessment, completed, sealed, passing, answers=answers))
         content = _content(lesson)
         rows = content.get('exercises' if lesson.type == 'grammar' else 'questions', [])
         if not questions:

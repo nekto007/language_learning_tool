@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.curriculum.constants import PASSING_SCORE_DEFAULT
+from app.curriculum.constants import get_lesson_passing_score
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.utils.db import db
 from app.utils.db_utils import query_by_ids
@@ -191,6 +191,13 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
         lesson_id=lesson_id
     ).first()
 
+    from app.daily_plan.quiz_corrections import is_pending_correction
+
+    lesson = Lessons.query.get(lesson_id)
+    if getattr(lesson, 'type', None) != 'final_test' and is_pending_correction(progress):
+        raise ValueError('correction_required')
+    passing_score = get_lesson_passing_score(lesson)
+
     # Track if this is an existing progress (for legacy attempt detection)
     existing_progress = progress is not None
     previous_score = progress.score if existing_progress else 0
@@ -230,7 +237,7 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
                 started_at=progress.started_at,
                 completed_at=progress.completed_at or progress.last_activity,
                 score=progress.score,
-                passed=(progress.score >= PASSING_SCORE_DEFAULT)
+                passed=(progress.score >= passing_score)
             )
             db.session.add(legacy_attempt)
             db.session.commit()
@@ -246,7 +253,7 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
             started_at=progress.started_at,
             completed_at=progress.completed_at,
             score=score,
-            passed=(score >= PASSING_SCORE_DEFAULT)
+            passed=(score >= passing_score)
         )
         db.session.add(attempt)
         db.session.commit()

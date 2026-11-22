@@ -357,6 +357,12 @@ def update_lesson_progress(lesson_id):
             lesson_id=lesson_id
         ).first()
 
+        from app.daily_plan.quiz_corrections import is_pending_correction
+        if (lesson_for_check and lesson_for_check.type != 'final_test'
+                and is_pending_correction(progress)):
+            return jsonify({'success': False, 'error': 'correction_required',
+                            'message': 'Продолжите работу над ошибками в приложении.'}), 409
+
         if not progress:
             progress = LessonProgress(
                 user_id=current_user.id,

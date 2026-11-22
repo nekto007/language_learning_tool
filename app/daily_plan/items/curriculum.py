@@ -100,7 +100,7 @@ _ADAPTIVE_HIGH_THRESHOLD = 90.0
 _ADAPTIVE_HINT_WINDOW = 5
 
 
-def _lesson_meets_passing(lesson: Any, score: Optional[float]) -> bool:
+def _lesson_meets_passing(lesson: Any, score: Optional[float], progress_data: Any = None) -> bool:
     """True when a completed lesson counts as *done today*.
 
     Completion-only types always count; score-based types must have met their
@@ -112,6 +112,13 @@ def _lesson_meets_passing(lesson: Any, score: Optional[float]) -> bool:
     (passed at 55 vs bar 50) whenever its XP StreakEvent didn't land.
     """
     from app.curriculum.constants import get_lesson_passing_score
+    from app.daily_plan.quiz_corrections import correction_state_from_data
+
+    correction = correction_state_from_data(progress_data)
+    if correction and correction['status'] == 'completed' and getattr(lesson, 'type', None) != 'final_test':
+        # The independent score stays untouched. Assisted completion is a
+        # separate, durable condition and must not ask for the first round again.
+        return True
     if (getattr(lesson, 'type', '') or '') not in _SCORE_BASED_LESSON_TYPES:
         return True
     return (score or 0) >= get_lesson_passing_score(lesson)
@@ -146,7 +153,7 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     rows = (
-        db.session.query(LessonProgress.score, Lessons)
+        db.session.query(LessonProgress.score, Lessons, LessonProgress.data)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -158,7 +165,7 @@ def _curriculum_done_today(user_id: int, db: Any) -> bool:
         )
         .all()
     )
-    return any(_lesson_meets_passing(lesson, score) for score, lesson in rows)
+    return any(_lesson_meets_passing(lesson, score, progress_data) for score, lesson, progress_data in rows)
 
 
 def _get_lesson_completed_today(user_id: int, db: Any) -> Optional[Lessons]:
@@ -229,7 +236,7 @@ def get_curriculum_lessons_completed_today(
 
     today_start, today_end = get_user_local_day_bounds(user_id, db)
     fallback_rows = (
-        db.session.query(LessonProgress.lesson_id, LessonProgress.score, Lessons)
+        db.session.query(LessonProgress.lesson_id, LessonProgress.score, Lessons, LessonProgress.data)
         .join(Lessons, Lessons.id == LessonProgress.lesson_id)
         .filter(
             LessonProgress.user_id == user_id,
@@ -242,10 +249,10 @@ def get_curriculum_lessons_completed_today(
         .order_by(LessonProgress.completed_at.asc())
         .all()
     )
-    for lesson_id, score, lesson in fallback_rows:
+    for lesson_id, score, lesson, progress_data in fallback_rows:
         if lesson_id in excluded or lesson_id in seen_ids:
             continue
-        if not _lesson_meets_passing(lesson, score):  # honor per-lesson bar (E-043)
+        if not _lesson_meets_passing(lesson, score, progress_data):  # honor per-lesson bar (E-043)
             continue
         seen_ids.add(lesson_id)
         ordered_ids.append(lesson_id)

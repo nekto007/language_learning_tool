@@ -205,6 +205,9 @@ def c(monkeypatch):
     monkeypatch.setattr(lessons, "_lesson_and_progress", lookup)
     monkeypatch.setattr(cards, "_lesson", lookup)
     monkeypatch.setattr(lessons, "_guard_plan", lambda *a: None)
+    # This fixture replaces progress/account persistence with a tiny schema;
+    # module-reference lookup belongs to the real ORM integration fixtures.
+    monkeypatch.setattr("app.grammar_lab.guided_learning.lesson_reference", lambda *a: [])
     monkeypatch.setattr(cards, "_guard_plan", lambda *a: None)
     monkeypatch.setattr(activities, "_guard", lambda *a: None)
     monkeypatch.setattr(srs, "_day", lambda: "2026-11-16")

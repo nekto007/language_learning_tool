@@ -184,10 +184,16 @@ def check_lesson_access(lesson_id: int) -> bool:
         user_id=current_user.id,
         lesson_id=lesson_id,
     ).first()
-    # A lesson the learner already opened stays open (any status): the row
-    # only exists because access was granted at the time, and a later
-    # renumbering of the module (item 18 moved the second deck to position
-    # 9) must not lock someone out of a lesson they are in the middle of.
+    # Reviews remain accessible. An open draft also stays accessible after
+    # renumbering, except while an earlier quiz still requires corrections.
+    if own_progress is not None and own_progress.status == 'completed':
+        return True
+
+    from app.daily_plan.quiz_corrections import pending_correction_blocks_lesson
+    from app.utils.db import db
+
+    if pending_correction_blocks_lesson(current_user.id, lesson, db):
+        return False
     if own_progress is not None:
         return True
 

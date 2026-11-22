@@ -98,10 +98,10 @@ def test_quiz_submission_fill_in_blank_strict():
     assert result["correct_answers"] == 1
 
 
-def test_quiz_submission_fill_in_blank_typo_tolerance_single_word():
+def test_quiz_submission_fill_in_blank_does_not_accept_wrong_word():
     questions = [{"type": "fill_in_blank", "answer": "apple"}]
     result = process_quiz_submission(questions, {0: "aple"})
-    assert result["correct_answers"] == 1
+    assert result["correct_answers"] == 0
     result = process_quiz_submission(questions, {0: "banana"})
     assert result["correct_answers"] == 0
 
