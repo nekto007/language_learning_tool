@@ -33,6 +33,7 @@ ADMIN_BLUEPRINT_PREFIXES = (
     "curriculum_admin.",
     "dashboard_admin.",
     "grammar_lab_admin.",
+    "growth_admin.",
     "seo_admin.",
     "settings_admin.",
     "system_admin.",

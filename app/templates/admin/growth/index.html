@@ -1,0 +1,76 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb %}
+{% block title %}Цель: 100 учеников{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/growth.css') }}?v=1">{% endblock %}
+{% block breadcrumb %}{{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Цель: 100 учеников', '')]) }}{% endblock %}
+{% macro date_label(value) %}{{ value.strftime('%d.%m %H:%M') if value else '—' }}{% endmacro %}
+{% block content %}
+<div class="growth-page">
+  <header class="growth-heading"><div><p class="growth-eyebrow">Рост учебного ядра</p><h1>Цель: 100 учеников</h1><p>Хотя бы одно учебное действие за последние 7 дней.</p></div>
+    {% if report %}<span class="growth-asof">Обновлено {{ date_label(report.now) }} UTC</span>{% endif %}
+  </header>
+  {% if not report %}
+  <div class="alert alert-warning" role="alert" data-persist="true">Не удалось рассчитать отчёт. Проверьте доступность базы и настройки исключений. Вместо недоступных данных нули не подставлены.</div>
+  {% else %}
+  <nav class="growth-tabs" aria-label="Разделы роста">
+    <a href="{{ url_for('growth_admin.index') }}" {% if view == 'overview' %}aria-current="page"{% endif %}>Обзор и ученики</a>
+    <a href="{{ url_for('growth_admin.index', view='exclusions') }}" {% if view == 'exclusions' %}aria-current="page"{% endif %}>Исключения <span>{{ report.excluded|length }}</span></a>
+  </nav>
+  {% if view == 'exclusions' %}
+  <section class="growth-panel">
+    <h2>Кого учитываем в цели</h2>
+    <p class="text-muted">Исключения действуют во всём этом разделе: в цели, динамике, источниках и списке учеников. Они не удаляют аккаунт и не меняют доступ к обучению.</p>
+    <p><strong>{{ report.total }}</strong> учитываются · <strong>{{ report.excluded|length }}</strong> исключены. Администраторы и известные аккаунты автопроверок исключаются автоматически. Семью и другие служебные аккаунты отметьте здесь.</p>
+    <form method="get" class="growth-filters"><input type="hidden" name="view" value="exclusions"><label>Найти аккаунт<input name="q" value="{{ q }}" placeholder="Имя, email или ID" class="form-control"></label><button class="btn btn-primary">Найти</button><a href="{{ url_for('growth_admin.index', view='exclusions') }}">Все аккаунты</a></form>
+    <div class="table-responsive"><table class="table growth-table"><thead><tr><th>Аккаунт</th><th>Учитывается</th><th>Изменить участие в аналитике</th></tr></thead><tbody>
+    {% for u in rows %}<tr id="account-{{ u.id }}"><td><strong>{{ u.username }}</strong><div class="growth-muted">#{{ u.id }} · {{ u.email or 'Почта не указана' }}</div></td><td>{% if u.excluded_reason %}<span class="growth-badge growth-badge--muted">Исключён</span><div class="growth-muted">{{ u.excluded_reason }}</div>{% else %}<span class="growth-badge growth-badge--green">Учитывается</span>{% endif %}</td><td>
+      {% if u.is_admin %}<span class="growth-muted">Администратор · автоматически</span>{% else %}
+      <form method="post" action="{{ url_for('growth_admin.account_visibility', user_id=u.id) }}" class="growth-account-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if u.excluded_reason %}<button name="action" value="include" class="btn btn-sm btn-outline-success">Вернуть в аналитику</button>
+      {% else %}<label class="visually-hidden" for="reason-{{ u.id }}">Причина исключения {{ u.username }}</label><select id="reason-{{ u.id }}" name="reason" class="form-select form-select-sm">{% for key,label in reasons.items() %}<option value="{{ key }}" {% if key == 'test' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button name="action" value="exclude" class="btn btn-sm btn-outline-secondary">Исключить</button>{% endif %}
+      </form>{% endif %}
+    </td></tr>{% else %}<tr><td colspan="3">Ничего не найдено.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% else %}
+  {% if report.missing %}<div class="alert alert-warning" role="alert" data-persist="true">Данные неполные: недоступны источники {{ report.missing|join(', ') }}. Цель и остальные показатели могут быть занижены.</div>{% endif %}
+  <section class="growth-goal" aria-labelledby="goal-title">
+    <div><p class="growth-eyebrow" id="goal-title">Занимались за последние 7 дней</p><div class="growth-goal-number"><strong>{{ report.active7 }}</strong><span>/ 100</span></div><p>{% if report.remaining %}Ещё {{ report.remaining }} до цели{% elif report.missing %}100 достигнуто по доступным источникам{% else %}Цель достигнута{% endif %} · {{ report.total }} учеников в очищенной базе</p></div>
+    <div class="growth-goal-change"><strong>{{ '+' if report.delta > 0 else '' }}{{ report.delta }}</strong><span>к предыдущим 7 дням</span><span>Было {{ report.previous7 }} · повторно занимались в {{ report.repeat7 }} аккаунтах</span></div>
+    <progress value="{{ report.progress_percent }}" max="100" aria-label="Прогресс к 100 занимающимся">{{ report.active7 }} из 100</progress>
+  </section>
+  <div class="growth-flow" aria-label="Изменение учебного ядра">
+    <div><strong>+{{ report.new_active }}</strong><span>Впервые начали заниматься</span></div><div><strong>{{ report.retained }}</strong><span>Занимались обе недели</span></div><div><strong>+{{ report.returned }}</strong><span>Вернулись после перерыва</span></div><a href="{{ url_for('growth_admin.index', state='lost', _anchor='learners') }}"><strong>−{{ report.lost }}</strong><span>Были активны, эту неделю пропустили</span></a>
+  </div>
+  <div class="growth-columns">
+    <section class="growth-panel"><h2>Как меняется недельная активность</h2><p class="growth-muted">Уникальные ученики в восьми последовательных окнах по 7 дней.</p>
+      {% set peak = [report.trend|map(attribute='count')|max, 1]|max %}
+      <div class="growth-trend" role="list" aria-label="Занимающиеся по неделям">{% for point in report.trend %}<div role="listitem" class="growth-trend-item"><strong>{{ point.count }}</strong><div class="growth-trend-track"><div style="height: {{ 100 * point.count / peak }}%"></div></div><span>до {{ point.label }}</span></div>{% endfor %}</div>
+    </section>
+    <section class="growth-panel"><h2>Начинают ли новые ученики</h2><p class="growth-muted">{{ report.new30 }} регистраций за последние 30 дней. Для каждой строки учитываются только полностью прошедшие окна наблюдения.</p>
+      {% for key,title,detail in [('first24','Начали заниматься за первые сутки','Ответ, тренировка или выполненный урок'),('return7','Пришли заниматься в другой день','Дни 1–6 после дня регистрации'),('week2','Занимались на следующей неделе','Дни 7–13 после дня регистрации')] %}{% set m = report.metrics[key] %}
+      <div class="growth-metric"><div><strong>{{ title }}</strong><span>{{ detail }}</span></div><div><strong>{{ m.count }} / {{ m.eligible }}</strong><span>{{ m.percent ~ '%' if m.percent is not none else 'Окно ещё не прошло' }}</span></div></div>{% endfor %}
+    </section>
+  </div>
+  <section class="growth-panel"><h2>Какие источники приводят занимающихся</h2><p class="growth-muted">Источник первого обращения, сохранённый при регистрации. Сравнивайте вклад в цель, а не число посещений.</p>
+    <div class="table-responsive"><table class="table growth-table"><thead><tr><th>Источник</th><th>Новых за 30 дней</th><th>Занимались за 7 дней</th><th>Занимались в 2+ дня за неделю</th><th>Всего учеников</th></tr></thead><tbody>{% for s in report.sources %}<tr><td><a href="{{ url_for('growth_admin.index', source=s.label, _anchor='learners') }}">{{ s.label }}</a></td><td>{{ s.new30 }}</td><td><strong>{{ s.active7 }}</strong></td><td>{{ s.repeat7 }}</td><td>{{ s.total }}</td></tr>{% else %}<tr><td colspan="5">Пока нет учеников после исключений.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+  <section class="growth-panel"><h2>Где остановились новые ученики</h2><p class="growth-muted">Регистрации за 30 дней: последний открытый урок не завершён, действий в нём нет сутки и более, более поздние занятия не записаны. Это наблюдение, а не доказанная причина ухода.</p>
+    <div class="growth-stops">{% for b in report.bottlenecks %}<a href="{{ url_for('growth_admin.index', lesson_id=b.id, _anchor='learners') }}"><span><strong>{{ b.title }}</strong><small>{{ b.level or 'Курс' }}</small></span><span class="growth-stop-count">{{ b.count }} уч.</span></a>{% else %}<p class="growth-muted">Таких остановок сейчас не найдено.</p>{% endfor %}</div>
+  </section>
+  <section class="growth-panel" id="learners"><div class="growth-section-heading"><div><h2>Ученики и следующий шаг</h2><p class="growth-muted">{{ row_count }} в списке. Фильтры ниже меняют только список; показатели цели выше — по всей очищенной базе.</p></div><a href="{{ url_for('growth_admin.index', view='exclusions') }}">Управлять исключениями</a></div>
+    <form method="get" class="growth-filters"><label>Ученик<input name="q" value="{{ q }}" placeholder="Имя, email или ID" class="form-control"></label><label>Состояние<select name="state" class="form-select"><option value="">Все</option><option value="active7" {% if state == 'active7' %}selected{% endif %}>Занимались за 7 дней</option><option value="lost" {% if state == 'lost' %}selected{% endif %}>Пропустили эту неделю</option>{% for key,label in states.items() %}<option value="{{ key }}" {% if state == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><label>Источник<select name="source" class="form-select"><option value="">Все</option>{% for s in report.sources %}<option value="{{ s.label }}" {% if source == s.label %}selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>{% if lesson_id %}<input type="hidden" name="lesson_id" value="{{ lesson_id }}">{% endif %}<button class="btn btn-primary">Показать</button><a href="{{ url_for('growth_admin.index', _anchor='learners') }}">Сбросить</a></form>
+    <div class="table-responsive"><table class="table growth-table"><thead><tr><th>Ученик</th><th>Откуда пришёл</th><th>Как занимается</th><th>Последний шаг</th><th>Что видно сейчас</th></tr></thead><tbody>{% for u in rows %}<tr>
+      <td><a class="fw-semibold" href="{{ url_for('activity_admin.activity_student_detail', user_id=u.id) }}">{{ u.username }}</a><div class="growth-muted">#{{ u.id }} · {{ u.onboarding_level or 'Уровень не выбран' }}<br>Регистрация {{ u.created_at.strftime('%d.%m.%Y') }}</div></td>
+      <td><strong>{{ u.source.label }}</strong><div class="growth-muted">{{ u.source.evidence }}{% if u.source.medium %} · {{ u.source.medium }}{% endif %}{% if u.source.campaign %}<br>{{ u.source.campaign }}{% endif %}{% if u.source.landing %}<br>Вход: {{ u.source.landing }}{% endif %}</div></td>
+      <td><strong>{{ u.days7 }} дн. за неделю</strong><div class="growth-muted">{{ u.days28 }} дн. за 28 дней<br>{{ u.kinds_label or 'Учебных действий пока нет' }}<br>Уроков выполнено: {{ u.completed }}</div></td>
+      <td>{% if u.latest_lesson %}{{ u.latest_lesson.title }}<div class="growth-muted">{{ u.latest_lesson.level or '' }} · М{{ u.latest_lesson.module_number }} · урок {{ u.latest_lesson.number }}<br>{{ 'Завершён' if u.latest_lesson.status == 'completed' else 'Не завершён' }}</div>{% endif %}{% if u.last %}<div class="growth-muted">Последнее занятие {{ date_label(u.last) }}<br>{{ u.last_title }}</div>{% elif not u.latest_lesson %}—{% endif %}</td>
+      <td><span class="growth-badge {% if u.state == 'active' %}growth-badge--green{% elif u.state in ['stopped','errors'] %}growth-badge--amber{% else %}growth-badge--muted{% endif %}">{{ u.state_label }}</span><div class="growth-row-links"><a href="{{ url_for('activity_admin.activity_student_detail', user_id=u.id) }}">Учебный путь</a><a href="{{ url_for('growth_admin.index', view='exclusions', q=u.id) }}">Исключить аккаунт</a></div></td>
+    </tr>{% else %}<tr><td colspan="5">Нет учеников по этим условиям.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+  <details class="growth-definitions"><summary>Что считается занятием и что важно знать о данных</summary><p>За последние 7 × 24 часа считаются ответы на упражнения (в том числе неудачные), выполненные уроки курса, ответы по карточкам, законченные словарные тренировки с ответами, Grammar Lab и завершённое чтение не менее 60 секунд с продвижением по тексту. Один человек учитывается один раз, даже если занимается на сайте и в приложении. Входы, открытия, пустые сессии и синтетическая сдача экстерном не считаются.</p><p>Дни занятий и окна возврата считаются в UTC. Метка «Занимается» не доказывает усвоение материала. Исторические даты завершения курса могут меняться при повторных попытках; старые действия без сохранённой истории восстановить нельзя. Локальное чтение личных книг на устройстве без серверных событий здесь не видно. Отсутствующий источник не подменяется прямым или поисковым трафиком.</p><p>Динамика недели: впервые начали + занимались обе недели + вернулись после перерыва = текущее число. Из прошлой недели отдельно показаны те, кто на этой неделе ещё не занимался.</p></details>
+  {% endif %}
+  {% if pages > 1 %}<nav class="growth-pagination" aria-label="Страницы учеников">{% set prev = request.args.to_dict() %}{% set _ = prev.update({'page':page-1}) %}{% set next = request.args.to_dict() %}{% set _ = next.update({'page':page+1}) %}{% if page > 1 %}<a href="{{ url_for('growth_admin.index', **prev) }}">← Назад</a>{% endif %}<span>{{ page }} / {{ pages }}</span>{% if page < pages %}<a href="{{ url_for('growth_admin.index', **next) }}">Далее →</a>{% endif %}</nav>{% endif %}
+  {% endif %}
+</div>
+{% endblock %}

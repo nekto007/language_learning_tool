@@ -79,6 +79,10 @@
                     <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
                 </button>
                 <div class="nav-section-content" id="nav-content-main">
+                    <a href="{{ url_for('growth_admin.index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('growth_admin.') }}" {% if request.endpoint.startswith('growth_admin.') %}aria-current="page"{% endif %}>
+                        <i class="fas fa-bullseye" aria-hidden="true"></i>
+                        <span>Цель: 100 учеников</span>
+                    </a>
                     <a href="{{ url_for('dashboard_admin.dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard_admin.dashboard' }}" {{ 'aria-current="page"' if request.endpoint == 'dashboard_admin.dashboard' }}>
                         <i class="fas fa-home" aria-hidden="true"></i>
                         <span>Главная</span>
@@ -337,6 +341,7 @@
 
         // Global Search
         const adminSearchData = [
+            { title: 'Цель: 100 учеников', url: '{{ url_for("growth_admin.index") }}', icon: 'fa-bullseye', section: 'Main' },
             { title: 'Dashboard', url: '{{ url_for("dashboard_admin.dashboard") }}', icon: 'fa-home', section: 'Main' },
             { title: 'Users', url: '{{ url_for("user_admin.users") }}', icon: 'fa-users', section: 'Main' },
             { title: 'Statistics', url: '{{ url_for("user_admin.stats") }}', icon: 'fa-chart-bar', section: 'Main' },
