@@ -285,6 +285,7 @@ def upload_cover(book_id):
 @login_required
 def read_selection():
     from app.books.models import UserChapterProgress
+    from app.books.short_readings import reading_catalogue_order
 
     if not books_section_visible(current_user):
         flash('У вас нет доступа к этому разделу. Обратитесь к администратору.', 'error')
@@ -293,7 +294,7 @@ def read_selection():
     books_query = Book.query.join(Chapter).filter(accessible_books_filter(current_user))
     if not current_user.is_admin:
         books_query = books_query.filter(Book.is_published == True)
-    all_books = books_query.distinct().order_by(Book.title).all()
+    all_books = books_query.distinct().order_by(*reading_catalogue_order()).all()
 
     user_progress = db.session.query(
         UserChapterProgress, Chapter
@@ -584,10 +585,12 @@ def finish_book_reading(book_id):
 @books.route('/books')
 @login_required
 def book_list():
+    from app.books.short_readings import reading_catalogue_order
+
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
 
-    sort_by = request.args.get('sort', 'title')
+    sort_by = request.args.get('sort', 'learning')
     sort_order = request.args.get('order', 'asc')
 
     search_query = request.args.get('search', '')
@@ -618,7 +621,9 @@ def book_list():
         # Filter by first letter of title
         query = query.where(Book.title.ilike(f"{letter_filter}%"))
 
-    if sort_by == 'title':
+    if sort_by == 'learning':
+        query = query.order_by(*reading_catalogue_order())
+    elif sort_by == 'title':
         query = query.order_by(Book.title.desc() if sort_order == 'desc' else Book.title)
     elif sort_by == 'author':
         query = query.order_by(Book.author.desc() if sort_order == 'desc' else Book.author)

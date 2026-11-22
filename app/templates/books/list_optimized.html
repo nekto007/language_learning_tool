@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ _('Книги - Приложение для изучения английского') }}{% endblock %}
+{% block title %}{{ _('Тексты и книги - Приложение для изучения английского') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/books/short_reading_catalogue.css') }}">
+{% endblock %}
 
 {% block content %}
 <!-- Modern Header with Search -->
@@ -8,7 +12,7 @@
     <div class="row align-items-center">
         <div class="col-md-8">
             <h1 class="mb-2">📚 {{ _('Тексты и книги') }}</h1>
-            <p class="mb-0 opacity-75">{{ _('Открывайте книги и улучшайте свой английский словарный запас') }}</p>
+            <p class="mb-0 opacity-75">{{ _('Читайте короткие тексты и книги на английском. Материалы A1 идут от простого к сложному.') }}</p>
         </div>
         {% if current_user.is_authenticated and current_user.is_admin %}
         <div class="col-md-4 text-end">
@@ -25,7 +29,7 @@
             <form method="GET" action="{{ url_for('books.book_list') }}">
                 <div class="input-group">
                     <input type="text" name="search" class="form-control form-control-lg" 
-                           placeholder="{{ _('Поиск книг по названию или автору...') }}" 
+                           placeholder="{{ _('Поиск текстов и книг...') }}"
                            value="{{ request.args.get('search', '') }}">
                     <button class="btn btn-light" type="submit">
                         <i class="fas fa-search"></i>
@@ -102,9 +106,13 @@
 
 <!-- Books Grid -->
 {% if books %}
-<div class="row g-4">
+<div class="reading-catalogue-grid">
     {% for book in books %}
-    <div class="col-lg-3 col-md-4 col-sm-6">
+    <div>
+        {% if book.is_short_reading %}
+        {% set reading_progress = book_reading_progress.get(book.id) %}
+        {% include 'books/_short_reading_card.html' %}
+        {% else %}
         <div class="card h-100">
             <!-- Book Cover -->
             <div class="book-cover">
@@ -212,6 +220,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
@@ -222,7 +231,7 @@
     <ul class="pagination justify-content-center">
         {% if pagination.has_prev %}
         <li class="page-item">
-            <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
+            <a class="page-link" href="{{ url_for('books.book_list', page=pagination.prev_num, sort=sort_by, order=sort_order, per_page=request.args.get('per_page', 10), search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
                 <i class="fas fa-chevron-left"></i>
             </a>
         </li>
@@ -232,7 +241,7 @@
             {% if page_num %}
                 {% if page_num != pagination.page %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('books.book_list', page=page_num, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
+                    <a class="page-link" href="{{ url_for('books.book_list', page=page_num, sort=sort_by, order=sort_order, per_page=request.args.get('per_page', 10), search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
                         {{ page_num }}
                     </a>
                 </li>
@@ -250,7 +259,7 @@
         
         {% if pagination.has_next %}
         <li class="page-item">
-            <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
+            <a class="page-link" href="{{ url_for('books.book_list', page=pagination.next_num, sort=sort_by, order=sort_order, per_page=request.args.get('per_page', 10), search=request.args.get('search', ''), level=request.args.get('level', ''), letter=request.args.get('letter', '')) }}">
                 <i class="fas fa-chevron-right"></i>
             </a>
         </li>

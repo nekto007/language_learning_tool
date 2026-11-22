@@ -68,6 +68,18 @@ def reading_summary(book):
     return {key: deepcopy(value) for key, value in book.reading.items() if key not in {'questions', 'glossary'}}
 
 
+def reading_catalogue_order():
+    """Put short materials in learning order before paginating a catalogue."""
+    from sqlalchemy import case
+
+    short = Book.reading['format'].as_string().in_(sorted(FORMATS))
+    return (
+        case((short, 0), else_=1),
+        case((short, Book.reading['order'].as_integer()), else_=0),
+        Book.title.asc(), Book.id.asc(),
+    )
+
+
 def install_pack(*, apply=False, path=None):
     pack = load_pack(path)
     report = {'applied': apply, 'created': [], 'unchanged': [], 'materials': []}

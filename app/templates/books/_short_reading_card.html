@@ -1,0 +1,32 @@
+{% set progress = reading_progress or {} %}
+{% set stage = {'start': _('Первые тексты'), 'growing': _('Следующий шаг'), 'confident': _('Читаю увереннее')} %}
+{% set word_count = book.words_total or 0 %}
+<article class="card h-100 short-reading-card" data-reading-order="{{ book.reading.get('order', '') }}">
+  <div class="short-reading-card__top">
+    <span class="short-reading-card__number">{{ _('Материал') }} {{ book.reading.get('order', '') }}</span>
+    {% if book.level %}<span class="badge rounded-pill bg-primary">{{ book.level }}</span>{% endif %}
+  </div>
+  <div class="card-body d-flex flex-column">
+    <p class="short-reading-card__stage">{{ stage.get(book.reading.get('stage'), '') }}</p>
+    <h2 class="short-reading-card__title">{{ book.title }}</h2>
+    <p class="short-reading-card__meta">{{ book.reading_label }} · {{ word_count }} {% if word_count % 10 == 1 and word_count % 100 != 11 %}{{ _('слово') }}{% elif word_count % 10 in [2, 3, 4] and word_count % 100 not in [12, 13, 14] %}{{ _('слова') }}{% else %}{{ _('слов') }}{% endif %}</p>
+    {% if book.reading.get('focus') %}<p class="short-reading-card__focus">{{ book.reading.focus }}</p>{% endif %}
+    <p class="short-reading-card__meta">{{ _('Вопросов:') }} {{ book.reading.get('questions', [])|length }} · {{ _('Без таймера') }}</p>
+    <div class="short-reading-card__status">
+      {% if progress.get('is_completed') %}
+        <span class="text-success"><i class="fas fa-check-circle" aria-hidden="true"></i> {{ _('Текст прочитан') }}</span>
+      {% elif progress.get('progress_pct', 0) > 0 %}
+        <span>{{ _('Прочитано') }} {{ progress.progress_pct }}%</span>
+        <div class="progress progress-mini" role="progressbar" aria-label="{{ _('Прогресс чтения') }}" aria-valuenow="{{ progress.progress_pct }}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar" style="width: {{ progress.progress_pct }}%"></div>
+        </div>
+      {% else %}<span>{{ _('Ещё не начат') }}</span>{% endif %}
+    </div>
+    <div class="short-reading-card__actions mt-auto">
+      <a class="btn btn-primary" href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter={{ progress.get('last_chapter_num', 1) }}">
+        {% if progress.get('is_completed') %}{{ _('Перечитать') }}{% elif progress.get('progress_pct', 0) > 0 %}{{ _('Продолжить') }}{% else %}{{ _('Читать') }}{% endif %}
+      </a>
+      <a class="short-reading-card__details" href="{{ url_for('books.book_details', book_id=book.id) }}">{{ _('О материале') }}</a>
+    </div>
+  </div>
+</article>

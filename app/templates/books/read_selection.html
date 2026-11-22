@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/books/read_selection.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/books/short_reading_catalogue.css') }}">
 {% endblock %}
 
 {% block title %}{{ _('Выбрать книгу для чтения - Приложение для изучения английского') }}{% endblock %}
@@ -42,8 +43,12 @@
       <h2 class="rs-section__title">{{ _('Продолжить чтение') }}</h2>
     </div>
 
-    <div class="rs-grid">
+    <div class="rs-grid rs-grid--materials">
       {% for book, progress in recent_books[:6] %}
+      {% if book.is_short_reading %}
+      {% set reading_progress = progress %}
+      {% include 'books/_short_reading_card.html' %}
+      {% else %}
       <div class="rs-card rs-card--recent">
         <div class="rs-card__cover">
           {% if book.cover_image %}
@@ -87,6 +92,7 @@
           </a>
         </div>
       </div>
+      {% endif %}
       {% endfor %}
     </div>
   </section>
@@ -109,9 +115,15 @@
     </div>
 
     {% if all_books %}
-    <div class="rs-grid" id="booksGrid">
+    <div class="rs-grid rs-grid--materials" id="booksGrid">
       {% for book in all_books %}
       {% set bp = book_progress.get(book.id) if book_progress else None %}
+      {% if book.is_short_reading %}
+      <div class="book-item" data-title="{{ book.title.lower() }}" data-author="{{ book.author.lower() if book.author else '' }}">
+        {% set reading_progress = bp %}
+        {% include 'books/_short_reading_card.html' %}
+      </div>
+      {% else %}
       <div class="rs-card book-item"
            data-title="{{ book.title.lower() }}"
            data-author="{{ book.author.lower() if book.author else '' }}">
@@ -176,6 +188,7 @@
           {% endif %}
         </div>
       </div>
+      {% endif %}
       {% endfor %}
     </div>
     {% else %}
