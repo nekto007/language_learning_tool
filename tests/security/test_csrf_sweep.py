@@ -73,6 +73,8 @@ CSRF_EXEMPT_ALLOWLIST = {
     'app.api.native_cards.grade_cards': 'JWT-only; cookie authentication rejected',
     'app.api.native_activities.start_activity': 'JWT-only; cookie authentication rejected',
     'app.api.native_activities.submit_activity': 'JWT-only; cookie authentication rejected',
+    'app.api.native_activities.check_learning_answer': 'JWT-only read-only practice feedback; cookie authentication rejected',
+    'app.api.native_lessons.check_native_learning_answer': 'JWT-only read-only practice feedback; cookie authentication rejected',
     'app.api.native_activities.complete_grammar_theory': 'JWT-only explicit theory completion; cookie authentication rejected',
 
     'app.api.native_srs.start_srs': 'JWT-only; cookie authentication rejected',
@@ -131,6 +133,8 @@ SWEEP_MAY_REACH = {
     'app.api.native_cards.grade_cards',
     'app.api.native_activities.start_activity',
     'app.api.native_activities.submit_activity',
+    'app.api.native_activities.check_learning_answer',
+    'app.api.native_lessons.check_native_learning_answer',
     'app.api.native_activities.complete_grammar_theory',
 
     'app.api.native_srs.start_srs',

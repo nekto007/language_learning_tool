@@ -75,6 +75,8 @@ def is_extended(lesson):
     if lesson.type not in ("grammar", "quiz"):
         return True
     c = content_for(lesson)
+    if c.get("learning_steps"):
+        return True
     rows = c.get("exercises" if lesson.type == "grammar" else "questions")
     if rows is not None and not isinstance(rows, list):
         return True
@@ -392,7 +394,15 @@ def _question(lesson, row, index):
             "order": "Расположи слова по порядку",
             "choice": "Выбери ответ",
         }.get(question["input"], "Введи ответ")
-    question["instruction"] = _question_hints(lesson, row, index, question["instruction"])
+    if lesson.type != "final_test":
+        question["instruction"] = _question_hints(lesson, row, index, question["instruction"])
+    # Final module tests deliberately offer no theory during the attempt.
+    if lesson.type != "final_test" and language_support_mode(lesson) in ("inline", "toggle"):
+        from app.grammar_lab.guided_learning import question_help
+
+        help_blocks = question_help(content_for(lesson), row, index, len(rows_for(lesson)))
+        if help_blocks:
+            question["theory_help"] = help_blocks
     random.Random(f"native:{lesson.id}:{index}").shuffle(question["options"])
     return question
 
@@ -682,6 +692,10 @@ def grade(lesson, questions, answers, passing):
             if t == "grammar"
             else graders.process_quiz_submission
         )(rows, converted)
+        if t == "grammar" and c.get("learning_steps"):
+            from app.grammar_lab.guided_learning import grade_guided_answers
+
+            result = grade_guided_answers(rows, converted)
         for row, q in zip(rows, questions, strict=True):
             checked = result["feedback"].get(q["id"], {})
             expected = (

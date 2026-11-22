@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import re
 import secrets
+import math
 from datetime import timedelta
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy import func
@@ -27,14 +28,25 @@ mobile_auth.after_request(private_response)
 
 
 class AuthProblem(Exception):
-    def __init__(self, code, message, status=400):
+    def __init__(self, code, message, status=400, *, retry_after=None, attempts_remaining=None):
         self.code, self.message, self.status = code, message, status
+        self.retry_after = retry_after
+        self.attempts_remaining = attempts_remaining
 
 
 @mobile_auth.errorhandler(AuthProblem)
 def problem(error):
     db.session.rollback()
-    return jsonify(success=False, error=error.code, message=error.message), error.status
+    payload = dict(success=False, error=error.code, message=error.message)
+    if error.retry_after is not None:
+        payload["retry_after"] = error.retry_after
+    if error.attempts_remaining is not None:
+        payload["attempts_remaining"] = error.attempts_remaining
+    response = jsonify(payload)
+    response.status_code = error.status
+    if error.retry_after is not None:
+        response.headers["Retry-After"] = str(error.retry_after)
+    return response
 
 
 def body(keys):
@@ -53,6 +65,10 @@ def text(value, limit, minimum=1):
         or "\x00" in value
     ):
         raise AuthProblem("invalid_input", "Проверь заполненные поля.")
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        raise AuthProblem("invalid_input", "Проверь заполненные поля.") from None
     return value
 
 
@@ -62,7 +78,7 @@ def email_address(value):
             text(value, 120).strip(), check_deliverability=False, allow_smtputf8=False
         ).normalized.lower()
     except (EmailNotValidError, AuthProblem):
-        raise AuthProblem("invalid_email", "Проверь адрес электронной почты.")
+        raise AuthProblem("invalid_email", "Проверь адрес электронной почты.") from None
     if len(value) > 120:
         raise AuthProblem("invalid_email", "Адрес почты слишком длинный.")
     return value
@@ -115,8 +131,13 @@ def throttle(address=None, channel="email"):
             row.window_at = now
             row.count = 0
         if row.count >= limit or (now - row.last_at).total_seconds() < cooldown:
+            wait = (
+                3600 - (now - row.window_at).total_seconds()
+                if row.count >= limit else cooldown - (now - row.last_at).total_seconds()
+            )
             raise AuthProblem(
-                "rate_limited", "Подожди немного перед новой попыткой.", 429
+                "rate_limited", "Подожди немного перед новой попыткой.", 429,
+                retry_after=max(1, math.ceil(wait)),
             )
         row.count += 1
         row.last_at = now
@@ -161,8 +182,12 @@ def check_code(row, value):
     if not hmac.compare_digest(row.code_hash or "", digest(row.id + "|" + value)):
         row.attempts += 1
         db.session.commit()
+        remaining = max(0, 5 - row.attempts)
         raise AuthProblem(
-            "invalid_code", "Код не подошёл. Проверь письмо и попробуй ещё раз."
+            "invalid_code" if remaining else "code_attempts_exhausted",
+            "Код не подошёл. Проверь письмо и попробуй ещё раз."
+            if remaining else "Попытки закончились. Запроси новый код.",
+            attempts_remaining=remaining,
         )
 
 
@@ -283,9 +308,15 @@ def register_start():
     level = data.get("level", "A1")
     if level not in ["A1", "A2", "B1", "B2", "C1"]:
         raise AuthProblem("invalid_level", "Выбери уровень английского.")
+    throttle(address)
+    if find_email(address):
+        raise AuthProblem(
+            "account_exists",
+            "Этот адрес уже зарегистрирован. Войди в аккаунт или восстанови пароль.",
+            409,
+        )
     if User.query.filter(func.lower(User.username) == name.lower()).first():
         raise AuthProblem("username_taken", "Это имя уже занято. Выбери другое.", 409)
-    throttle(address)
     temporary = User(username=name, email=address)
     temporary.set_password(raw)
     row = make_challenge(
@@ -327,7 +358,7 @@ def register_verify():
         db.session.rollback()
         raise AuthProblem(
             "account_exists", "Имя или почта уже используются. Попробуй войти.", 409
-        )
+        ) from None
 
 
 @mobile_auth.post("/password/start")
@@ -394,7 +425,7 @@ def resend_code():
     ):
         raise AuthProblem(
             "challenge_expired",
-            "Запроси новый код с экрана регистрации или восстановления.",
+            "Открой регистрацию или восстановление и запроси новый код.",
         )
     throttle(row.email)
     row.used_at = utcnow()

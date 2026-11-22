@@ -208,7 +208,53 @@ def get_native_lesson(lesson_id):
     if is_extended(lesson): payload.update(extras(lesson))
     from app.api.learning_guidance import learning_guidance
     payload.update(learning_guidance(lesson))
+    from app.grammar_lab.guided_learning import learning_steps, question_help, lesson_reference
+    if lesson.type == 'grammar':
+        payload['learning_steps'] = learning_steps(content, len(questions))
+    from app.api.native_content import QUIZZES, rows_for
+    if lesson.type in ({'grammar'} | (QUIZZES - {'final_test'})) and language_support_mode(lesson) in ('inline', 'toggle'):
+        for i, (row, question) in enumerate(zip(rows_for(lesson), questions, strict=True)):
+            help_blocks = question_help(content, row, i, len(questions))
+            if help_blocks:
+                question['theory_help'] = help_blocks
+        if not payload['theory']:
+            payload['theory'] = lesson_reference(lesson)
+    payload['immediate_feedback'] = bool(questions) and lesson.type in ({'grammar'} | (QUIZZES - {'final_test'}))
     return jsonify(success=True, lesson=payload)
+
+
+@api_native_lessons.post('/lessons/<int:lesson_id>/check')
+@csrf.exempt
+@api_bearer_required
+@limiter.limit('90 per minute', key_func=get_authenticated_user_key)
+def check_native_learning_answer(lesson_id):
+    from app.api.native_content import NATIVE_PROJECTION_VERSION, rows_for
+    from app.grammar_lab.guided_learning import check_answer
+
+    body = request.get_json(silent=True)
+    if (not isinstance(body, dict) or set(body) != {'session_token', 'question_id', 'answer'}
+            or not isinstance(body['session_token'], str) or not isinstance(body['question_id'], str)):
+        raise NativeLessonError('invalid_input')
+    try:
+        sealed = _signer().loads(body['session_token'], max_age=21600)
+    except (BadSignature, SignatureExpired):
+        raise NativeLessonError('lesson_changed', 409) from None
+    if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
+        raise NativeLessonError('access_denied', 403)
+    lesson, progress = _lesson_and_progress(lesson_id)
+    _guard_plan(lesson_id)
+    content = _content(lesson)
+    if (sealed.get('revision') != _digest(content) or sealed.get('version') != _version(progress)
+            or sealed.get('projection_version') != NATIVE_PROJECTION_VERSION):
+        raise NativeLessonError('lesson_changed', 409)
+    questions = project_questions(lesson)
+    from app.api.native_content import QUIZZES
+    if lesson.type not in ({'grammar'} | (QUIZZES - {'final_test'})):
+        raise NativeLessonError('not_found', 404)
+    index = next((i for i, q in enumerate(questions) if q['id'] == body['question_id']), None)
+    if index is None:
+        raise NativeLessonError('invalid_input')
+    return jsonify(success=True, feedback=check_answer(rows_for(lesson)[index], questions[index], body['answer'], grammar=lesson.type == 'grammar'))
 
 
 def _display_answer(question, value):

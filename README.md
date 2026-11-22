@@ -41,27 +41,27 @@ Language Learning Tool combines structured lessons, vocabulary review, spaced re
 cp .env.example .env
 # Edit .env with your database credentials and SECRET_KEY
 
-docker compose up -d --build
+docker compose up -d --build db web languagetool
 docker compose exec web flask db upgrade head
 docker compose exec web flask seed
 docker compose exec web python create_admin.py
 ```
 
-App available at http://localhost:5000
+App available at http://localhost:5001
 
 ### Local Development
 
 ```bash
-python -m venv .venv
+python3.13 -m venv .venv
 source .venv/bin/activate
 
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env — set POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, SECRET_KEY
+pip install -r requirements-test.txt
+# On first setup, copy .env.example to .env and fill in your local credentials.
+docker compose up -d db
 
-flask db upgrade head
-flask seed
-flask run
+POSTGRES_HOST=127.0.0.1 flask db upgrade head
+POSTGRES_HOST=127.0.0.1 flask seed
+POSTGRES_HOST=127.0.0.1 flask run --port 5000
 ```
 
 ## Official Entry Points
@@ -154,3 +154,7 @@ docs/                   Documentation
 ## License
 
 MIT License — see [LICENSE](LICENSE).
+
+## Mobile apps
+
+Исходники приложений iOS и Android пока хранятся только локально и исключены из Git.

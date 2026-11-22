@@ -1,12 +1,15 @@
 from datetime import timedelta
 from uuid import uuid4
 from urllib.parse import urlparse, parse_qs
-import base64, hashlib, secrets, time
+import base64
+import hashlib
+import secrets
+import time
 from types import SimpleNamespace
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
-from tests.api.test_native_full_integration import native_app, learner
+from tests.api.test_native_full_integration import native_app as native_app, learner as learner
 
 PREFIX = "/api/mobile/auth"
 PASSWORD = "River!Mango64"
@@ -781,3 +784,83 @@ def test_auth_mail_scheduler_has_context_and_always_cleans_session(
         job.args[0]()
         rollback.assert_called_once()
         assert remove.call_count >= 1
+
+
+@pytest.mark.parametrize("collision", ["email", "username", "both"])
+def test_existing_account_is_explained_before_creating_or_sending_a_signup_code(native_app, collision):
+    from app.auth.models import User
+    from app.auth.mobile_models import MobileAuthChallenge, MobileAuthMail
+    from app.utils.db import db
+    marker = uuid4().hex
+    existing = User(username="Existing_" + marker, email=marker + "@example.com", active=True)
+    existing.set_password(PASSWORD)
+    db.session.add(existing)
+    db.session.commit()
+    before = (MobileAuthChallenge.query.count(), MobileAuthMail.query.count(), User.query.count())
+    payload = dict(username="new_" + marker, email=address(), password=PASSWORD, terms_accepted=True)
+    if collision in {"email", "both"}:
+        payload["email"] = existing.email.upper()
+    if collision in {"username", "both"}:
+        payload["username"] = existing.username.swapcase()
+    response = native_app.test_client().post(PREFIX + "/register/start", json=payload)
+    assert response.status_code == 409
+    assert response.json["error"] == ("account_exists" if collision in {"email", "both"} else "username_taken")
+    assert (MobileAuthChallenge.query.count(), MobileAuthMail.query.count(), User.query.count()) == before
+
+
+@pytest.mark.parametrize("collision", ["email", "username"])
+def test_account_created_during_email_verification_returns_recoverable_conflict(native_app, collision):
+    from app.auth.models import User
+    from app.utils.db import db
+    client = native_app.test_client()
+    challenge, fields = start(client)
+    existing = User(username=fields["username"] if collision == "username" else "other_" + uuid4().hex,
+                    email=fields["email"] if collision == "email" else address(), active=True)
+    existing.set_password(PASSWORD)
+    db.session.add(existing)
+    db.session.commit()
+    before = User.query.count()
+    response = client.post(PREFIX + "/register/verify", json={"challenge_id": challenge["challenge_id"],
+                                                           "code": code(challenge["challenge_id"])})
+    assert response.status_code == 409
+    assert response.json["error"] == ("account_exists" if collision == "email" else "username_taken")
+    assert "access_token" not in response.json
+    assert User.query.count() == before
+
+
+def test_code_exhaustion_reports_remaining_attempts_and_resend_can_recover(native_app):
+    from app.auth.mobile_models import MobileAuthThrottle, utcnow
+    from app.utils.db import db
+    client = native_app.test_client()
+    challenge, _ = start(client)
+    identifier = challenge["challenge_id"]
+    original_code = code(identifier)
+    wrong = "000000" if original_code != "000000" else "111111"
+    for remaining in range(4, -1, -1):
+        response = client.post(PREFIX + "/register/verify", json={"challenge_id": identifier, "code": wrong})
+        assert response.status_code == 400
+        assert response.json["attempts_remaining"] == remaining
+        assert response.json["error"] == ("invalid_code" if remaining else "code_attempts_exhausted")
+    for row in MobileAuthThrottle.query.all():
+        row.last_at = utcnow() - timedelta(seconds=61)
+    db.session.commit()
+    renewed = client.post(PREFIX + "/code/resend", json={"challenge_id": identifier})
+    assert renewed.status_code == 200
+    new_identifier = renewed.json["challenge_id"]
+    assert client.post(PREFIX + "/register/verify", json={"challenge_id": identifier, "code": original_code}).status_code == 400
+    assert client.post(PREFIX + "/register/verify", json={"challenge_id": new_identifier, "code": code(new_identifier)}).status_code == 200
+
+
+def test_retry_deadline_is_explicit_and_invalid_unicode_does_not_create_a_challenge(native_app):
+    from app.auth.mobile_models import MobileAuthChallenge
+    client = native_app.test_client()
+    before = MobileAuthChallenge.query.count()
+    response = client.post(PREFIX + "/register/start", json={"username": "unicode_" + uuid4().hex,
+        "email": address(), "password": "River!Mango64\ud800", "terms_accepted": True})
+    assert response.status_code == 400
+    assert MobileAuthChallenge.query.count() == before
+    challenge, _ = start(client)
+    response = client.post(PREFIX + "/code/resend", json={"challenge_id": challenge["challenge_id"]})
+    assert response.status_code == 429
+    assert 1 <= response.json["retry_after"] <= 60
+    assert int(response.headers["Retry-After"]) == response.json["retry_after"]

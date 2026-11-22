@@ -401,6 +401,13 @@ def test_native_lab_all_eight_formats_use_the_existing_grader(native_app, kind, 
     elif question["input"] == "order":
         positions = {option["label"]: option["value"] for option in question["options"]}
         answer = json.dumps([positions[word] for word in answer.split()])
+    preview = client.post(
+        "/api/native/activities/grammar_topic/check", headers=headers,
+        json={"session_token": lesson["session_token"], "question_id": "0", "answer": answer},
+    )
+    assert preview.status_code == 200 and preview.json["feedback"]["correct"], preview.json
+    assert preview.json["feedback"]["expected"]
+    assert GrammarAttempt.query.filter_by(user_id=user.id, exercise_id=exercise.id).count() == 0
     response = client.post(
         "/api/native/activities/grammar_topic/submit",
         headers=headers,

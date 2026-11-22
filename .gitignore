@@ -417,3 +417,19 @@ app/temp/
 /add_new_achievements.py
 /extensions.py
 /test_pages.py
+
+# Local database and build archives
+/llt-db-backups/
+/IOS_BUILD*.patch
+
+# Native clients remain local until the owner approves publication.
+/ios/
+/android/
+
+# Reviewed grammar pilot and its repeatable local import.
+!/scripts/install_plurals_pilot.py
+!/docs/
+/docs/*
+!/docs/plans/
+/docs/plans/*
+!/docs/plans/2026-11-22-guided-grammar-pilot.md

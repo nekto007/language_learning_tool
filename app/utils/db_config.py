@@ -32,7 +32,7 @@ def configure_database_engine(app, db):
     elif 'sqlite' in database_uri:
         configure_sqlite(app, db)
     else:
-        logger.info(f"No specific optimizations for database type: {database_uri}")
+        logger.info("No specific optimizations for database type: %s", str(database_uri).split(":", 1)[0])
 
     configure_slow_query_logging(app, db)
 

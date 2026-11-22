@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "topic_slug": "a1-4",
+  "title": "Множественное число и указательные местоимения",
+  "goal": "Назови один или несколько предметов и укажи, находятся они рядом или далеко.",
+  "steps": [
+    {
+      "id": "plural-s",
+      "title": "Один предмет и несколько",
+      "body": "Обычно для нескольких предметов добавляем к существительному -s.\none book → two books\none pen → three pens\nПрилагательное не меняется: one red book → two red books.",
+      "exercises": [
+        {"type": "fill_blank", "instruction": "Поставь cat во множественное число. Впиши одно слово в пропуск.", "question": "one cat → three ___", "correct_answer": "cats", "explanation": "Для нескольких кошек добавляем -s: cat → cats."},
+        {"type": "multiple_choice", "instruction": "Выбери правильное словосочетание: «две красные книги».", "question": "Две красные книги", "options": ["two reds books", "two red books", "two red book"], "correct_answer": "two red books", "explanation": "Books получает -s, а прилагательное red не меняется."},
+        {"type": "transformation", "instruction": "Перепиши словосочетание для трёх ручек. Замени one на three. Введи всё словосочетание.", "question": "one blue pen", "correct_answer": "three blue pens", "explanation": "Three означает несколько: pen → pens. Blue не меняется."}
+      ]
+    },
+    {
+      "id": "plural-es",
+      "title": "Когда добавляем -es",
+      "body": "После окончаний -s, -ss, -x, -sh и -ch с произношением «ч» обычно добавляем -es.\nbox → boxes · bus → buses · watch → watches\nУже знакомое правило -s продолжает работать для других обычных слов: pen → pens.",
+      "exercises": [
+        {"type": "fill_blank", "instruction": "Поставь box во множественное число. Впиши одно слово.", "question": "one box → two ___", "correct_answer": "boxes", "explanation": "Box оканчивается на -x: добавляем -es → boxes."},
+        {"type": "multiple_choice", "instruction": "Выбери форму множественного числа слова watch.", "question": "one watch → three …", "options": ["watchs", "watches", "watch"], "correct_answer": "watches", "explanation": "После -ch со звуком «ч» добавляем -es: watches."},
+        {"type": "fill_blank", "instruction": "Поставь bus во множественное число. Впиши только пропущенное слово.", "question": "one bus → two ___", "correct_answer": "buses", "explanation": "Bus оканчивается на -s: bus → buses."}
+      ]
+    },
+    {
+      "id": "this-that",
+      "title": "Один предмет: рядом или далеко",
+      "body": "This — «этот, эта, это»: один предмет рядом с говорящим.\nThat — «тот, та, то»: один предмет далеко от говорящего.\nКнига у меня в руках: This is a book.\nКнига вон там: That is a book.",
+      "exercises": [
+        {"type": "multiple_choice", "instruction": "Книга у тебя в руках. Выбери слово для одного предмета рядом с тобой.", "question": "___ is a book.", "options": ["This", "That"], "correct_answer": "This", "explanation": "Книга рядом с говорящим, поэтому This."},
+        {"type": "multiple_choice", "instruction": "Коробка далеко от тебя, в другом конце комнаты. Выбери подходящее слово.", "question": "___ is a box.", "options": ["This", "That"], "correct_answer": "That", "explanation": "Для одного предмета далеко от говорящего используем That."},
+        {"type": "fill_blank", "instruction": "Ручка у тебя в руке. Впиши this или that в пропуск. Введи одно слово.", "question": "___ is a pen.", "correct_answer": "This", "explanation": "Ручка рядом с тобой: This is a pen."}
+      ]
+    },
+    {
+      "id": "these-those",
+      "title": "Несколько предметов: these и those",
+      "body": "These — «эти»: несколько предметов рядом.\nThose — «те»: несколько предметов далеко.\nРядом: this book → these books.\nДалеко: that box → those boxes.\nСначала определи количество предметов, затем расстояние до них.",
+      "exercises": [
+        {"type": "multiple_choice", "instruction": "Две книги лежат прямо перед тобой. Выбери слово для нескольких предметов рядом.", "question": "___ books", "options": ["This", "These", "Those"], "correct_answer": "These", "explanation": "Книг несколько и они рядом: these books."},
+        {"type": "multiple_choice", "instruction": "Три коробки стоят далеко от тебя. Выбери подходящее слово.", "question": "___ boxes", "options": ["That", "These", "Those"], "correct_answer": "Those", "explanation": "Коробок несколько и они далеко: those boxes."},
+        {"type": "transformation", "instruction": "Перепиши словосочетание для нескольких книг. Книги остаются рядом с тобой. Введи оба слова.", "question": "this book", "correct_answer": "these books", "explanation": "This меняется на these, book — на books. Расстояние не меняется."}
+      ]
+    },
+    {
+      "id": "is-are",
+      "title": "Собираем предложение: is или are",
+      "body": "Один предмет: This is a book. / That is a box.\nНесколько предметов: These are books. / Those are boxes.\nВ этих предложениях для одного предмета используем is, для нескольких — are. Перед существительным во множественном числе a не ставим.",
+      "exercises": [
+        {"type": "multiple_choice", "instruction": "Книг несколько. Выбери подходящий глагол: is или are.", "question": "These ___ books.", "options": ["is", "are"], "correct_answer": "are", "explanation": "These обозначает несколько предметов, поэтому нужно are."},
+        {"type": "transformation", "instruction": "Перепиши предложение для нескольких книг. Они по-прежнему рядом с тобой. Введи полное предложение.", "question": "This is a book.", "correct_answer": "These are books.", "explanation": "This → These, is → are, a book → books."},
+        {"type": "error_correction", "instruction": "Исправь одну ошибку в глаголе. Перепиши всё предложение правильно.", "question": "Those is boxes.", "correct_answer": "Those are boxes.", "explanation": "Those означает несколько предметов: Those are boxes."}
+      ]
+    },
+    {
+      "id": "plural-y",
+      "title": "Слова на -y",
+      "body": "Если перед -y стоит согласная, заменяем y на ies: baby → babies, city → cities.\nЕсли перед -y стоит гласная, просто добавляем -s: boy → boys, toy → toys.\nСравни: baby → babies, но toy → toys.",
+      "exercises": [
+        {"type": "fill_blank", "instruction": "Поставь baby во множественное число. Впиши одно слово.", "question": "one baby → two ___", "correct_answer": "babies", "explanation": "Перед y стоит согласная b: baby → babies."},
+        {"type": "multiple_choice", "instruction": "Выбери форму множественного числа слова toy.", "question": "one toy → three …", "options": ["toies", "toys", "toyes"], "correct_answer": "toys", "explanation": "Перед y стоит гласная o, поэтому добавляем только -s: toys."},
+        {"type": "fill_blank", "instruction": "Поставь city во множественное число. Впиши только пропущенное слово.", "question": "one city → two ___", "correct_answer": "cities", "explanation": "Перед y стоит согласная t: y заменяем на ies → cities."}
+      ]
+    },
+    {
+      "id": "irregular-people",
+      "title": "Четыре частые особые формы",
+      "body": "У некоторых слов множественное число нужно запомнить отдельно. Начнём с четырёх частых форм:\nchild → children · man → men\nwoman → women · person → people\nК этим формам не добавляем -s: two children, three people.",
+      "exercises": [
+        {"type": "multiple_choice", "instruction": "Выбери форму множественного числа слова child.", "question": "one child → two …", "options": ["childs", "children", "childes"], "correct_answer": "children", "explanation": "Child имеет особую форму children, без дополнительного -s."},
+        {"type": "fill_blank", "instruction": "Поставь woman во множественное число. Впиши одно слово.", "question": "one woman → three ___", "correct_answer": "women", "explanation": "Особую форму нужно запомнить: woman → women."},
+        {"type": "fill_blank", "instruction": "Заполни пропуск обычной формой множественного числа слова person. Впиши одно слово.", "question": "one person → two ___", "correct_answer": "people", "explanation": "Для людей в обычной речи используем person → people."}
+      ]
+    },
+    {
+      "id": "mixed-recall",
+      "title": "Применяем вместе",
+      "body": "Проверь три вещи:\n1. Предмет один или их несколько?\n2. Они рядом с тобой или далеко?\n3. Как меняются существительное и is/are?\nРядом: This is a pen. → These are pens.\nДалеко: That is a box. → Those are boxes.",
+      "exercises": [
+        {"type": "transformation", "instruction": "Перепиши предложение для нескольких коробок. Они остаются далеко от тебя. Введи полное предложение.", "question": "That is a box.", "correct_answer": "Those are boxes.", "explanation": "Несколько и далеко: Those. Далее are и boxes."},
+        {"type": "translation", "instruction": "Переведи на английский. Дети стоят рядом с тобой. Введи полное предложение.", "question": "Это дети.", "correct_answer": "These are children.", "explanation": "Детей несколько и они рядом: These are children."},
+        {"type": "error_correction", "instruction": "Исправь форму существительного. Остальные слова верны. Перепиши всё предложение.", "question": "These are red book.", "correct_answer": "These are red books.", "explanation": "These are указывает на несколько предметов: books. Прилагательное red не меняется."}
+      ]
+    }
+  ]
+}

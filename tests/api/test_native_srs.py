@@ -44,7 +44,6 @@ class Learner(UserMixin):
 def context(monkeypatch):
     from app import csrf
     from app.api import native_srs as native, decorators
-    import app.auth.models as auth
     import app.study.models as models
     from app.achievements import xp_service
     import app.daily_plan.linear.xp as linear
@@ -54,7 +53,8 @@ def context(monkeypatch):
     for cls in (Account, Run, Session): cls.query = session.query_property()
     session.add(Account(id=7)); session.commit()
     monkeypatch.setattr(native, 'db', SimpleNamespace(session=session))
-    monkeypatch.setattr(auth,'User',Account)
+    monkeypatch.setattr(native, '_lock_user', lambda: session.query(Account.id).filter(
+        Account.id == native.current_user.id).with_for_update().one())
     monkeypatch.setattr(models,'StudySession',Session)
     monkeypatch.setattr(models,'NativeSRSState',Run,raising=False)
     guard_function=native._guard
@@ -62,6 +62,7 @@ def context(monkeypatch):
     monkeypatch.setattr(native,'_day',lambda:'2026-11-16')
     monkeypatch.setattr(native,'_remaining',lambda:0)
     monkeypatch.setattr(native,'_pool',lambda:[{'word_id':1,'direction':'eng-rus','front':'book','back':'книга','examples':'A book.','state':'review','revision':'v1'}])
+    pack_function=native._pack_pool
     monkeypatch.setattr(native,'_pack_pool',lambda items:items)
     def award(uid, amount, source):
         account = session.get(Account,uid); account.xp += amount
@@ -84,7 +85,7 @@ def context(monkeypatch):
     monkeypatch.setattr(decorators,'db_get_user',lambda uid:learner if uid==7 else None)
     app.register_blueprint(native.api_native_srs,url_prefix='/api/native')
     with app.app_context():token=create_access_token(identity='7',additional_claims={'auth_version':1})
-    c=SimpleNamespace(app=app,client=app.test_client(),headers={'Authorization':'Bearer '+token},native=native,db=session,grades=grades,learner=learner,grade_function=grade_function,guard_function=guard_function)
+    c=SimpleNamespace(app=app,client=app.test_client(),headers={'Authorization':'Bearer '+token},native=native,db=session,grades=grades,learner=learner,grade_function=grade_function,guard_function=guard_function,pack_function=pack_function)
     yield c
     session.remove();engine.dispose()
 
@@ -313,3 +314,28 @@ def test_empty_pool_persists_a_completed_receipt_without_session_xp(context,monk
     assert c.db.get(Run,7).state['complete']
     assert c.db.get(Account,7).xp==0
     assert start(c,request_id).json==response.json
+
+
+def test_audio_recording_survives_real_queue_assembly(context,monkeypatch):
+    from unittest.mock import Mock
+    from flask import g
+    import app.study.models as models
+    query=Mock();query.join.return_value=query;query.filter.return_value=query;query.all.return_value=[]
+    monkeypatch.setattr(models,'UserCardDirection',SimpleNamespace(query=query))
+    with context.app.test_request_context('/api/native/srs/session'):
+        g._login_user=context.learner
+        queue=context.pack_function([{'word_id':42,'direction':'eng-rus','word':'book','translation':'книга','examples':'','state':'new','audio_url':'/static/audio/book.mp3'}])
+    assert queue[0]['audio_url']=='/static/audio/book.mp3'
+    assert queue[0]['front']=='book' and queue[0]['back']=='книга'
+
+
+def test_recording_url_survives_resume_requeue_and_receipt(context,monkeypatch):
+    c=context
+    monkeypatch.setattr(c.native,'_pool',lambda:[{'word_id':1,'direction':'eng-rus','front':'book','back':'книга','examples':'','state':'new','revision':None,'audio_url':'/static/audio/book.mp3'}])
+    run=start(c).json
+    assert run['card']['audio_url']=='/static/audio/book.mp3'
+    assert start(c).json['card']['audio_url']==run['card']['audio_url']
+    again=grade(c,run,1)
+    assert again.status_code==200
+    assert again.json['card']['audio_url']==run['card']['audio_url']
+    assert grade(c,run,1).json==again.json

@@ -118,13 +118,28 @@ def _prepare(kind, item_id):
         if not _public_topic(topic):
             raise NativeLessonError("not_found", 404)
         service = GrammarLabService()
-        selected = service.start_topic_practice(topic_id, current_user.id)
+        guided = (topic.content or {}).get("guided_exercise_ids") if kind == "grammar_topic" else None
+        if guided:
+            from app.grammar_lab.services.grammar_lab_service import _get_unified_srs_service
+            from uuid import uuid4
+
+            if not isinstance(guided, list) or not all(type(key) is int for key in guided):
+                raise NativeLessonError("unsupported_lesson", 422)
+            service.srs.get_or_create_topic_status(current_user.id, topic_id)
+            _get_unified_srs_service().get_or_create_grammar_exercise_progress(current_user.id, guided)
+            _get_unified_srs_service().reset_grammar_session_attempts(current_user.id, topic_id=topic_id)
+            selected = {"session_id": f"grammar_{topic_id}_{current_user.id}_{uuid4().hex[:8]}",
+                        "exercises": [{"id": key} for key in guided]}
+        else:
+            selected = service.start_topic_practice(topic_id, current_user.id)
         if selected.get("error"):
             raise NativeLessonError("not_found", 404)
         ids = [int(e["id"]) for e in selected.get("exercises") or []]
         all_ex = {e.id: e for e in GrammarExercise.query.filter(GrammarExercise.id.in_(ids)).all()}
         for key in ids:
-            e = all_ex[key]
+            e = all_ex.get(key)
+            if e is None or e.topic_id != topic_id:
+                raise NativeLessonError("unsupported_lesson", 422)
             rows.append(
                 {
                     **deepcopy(e.content),
@@ -137,6 +152,10 @@ def _prepare(kind, item_id):
             "revision": {str(k): _digest(all_ex[k].content) for k in ids},
             "session_key": selected["session_id"],
         }
+        if guided:
+            from app.grammar_lab.guided_learning import learning_steps
+
+            source["learning_steps"] = learning_steps(topic.content, len(rows))
         theory = _theory(topic.content or {})
         title = topic.title_ru or topic.title
         level = topic.level
@@ -287,7 +306,7 @@ def _document(run):
         id=run.session_id,
         type="grammar" if run.kind in ("grammar_topic", "grammar_review") else "quiz",
         module=SimpleNamespace(level=SimpleNamespace(code=p.get("level", "A1"))),
-        content={},
+        content={"exercises": p["rows"], "learning_steps": p["source"].get("learning_steps")},
     )
     questions = [_question(proxy, row, i) for i, row in enumerate(p["rows"])]
     token = _signer().dumps(
@@ -302,6 +321,8 @@ def _document(run):
         "assessment": "practice",
         "theory": p["theory"],
         "questions": questions,
+        "learning_steps": p["source"].get("learning_steps", []),
+        "immediate_feedback": True,
         "support_mode": (
             "inline"
             if p.get("level") in ("A0", "A1")
@@ -353,6 +374,7 @@ def grammar_topic_material(topic_id):
         'exercise_count': progress['total_exercises'],
         'theory': theory,
         'theory_revision': theory_revision(theory),
+        'guided_learning': bool((topic.content or {}).get('learning_steps')),
         'progress': progress,
     })
 
@@ -639,6 +661,24 @@ def _grade_activity(run, answers):
     study.incorrect_answers = len(rows) - correct
     study.complete_session()
     if kind in ("grammar_review", "grammar_topic"):
+        if p["source"].get("learning_steps"):
+            # The native flow explicitly visits every authored rule and checks
+            # every exercise before submitting. Reading is separate from SRS
+            # mastery; completing this flow must never mark a topic mastered.
+            from app.grammar_lab.models import UserGrammarTopicStatus
+            from app.grammar_lab.services.grammar_lab_service import GRAMMAR_XP
+
+            status = UserGrammarTopicStatus.get_or_create(current_user.id, p["source"]["topic_id"])
+            if not status.theory_completed:
+                from app.api.native_grammar_progress import topic_progress
+
+                already_read = topic_progress(current_user.id, [status.topic_id])[status.topic_id]["theory_completed"]
+                status.theory_completed = True
+                status.theory_completed_at = datetime.now(UTC)
+                if not already_read:
+                    status.add_xp(GRAMMAR_XP["theory_completed"])
+                if status.status == "new":
+                    status.status = "practicing"
         from app.daily_plan.linear.xp import maybe_award_grammar_review_xp
 
         maybe_award_grammar_review_xp(current_user.id, db_session=db)
@@ -708,6 +748,62 @@ def _grade_activity(run, answers):
         "total_count": len(rows),
         "feedback": feedback,
     }
+
+
+@api_native_activities.post("/activities/<kind>/check")
+@csrf.exempt
+@api_bearer_required
+@limiter.limit("90 per minute", key_func=get_authenticated_user_key)
+def check_learning_answer(kind):
+    from app.study.models import NativeLearningRun
+    from app.grammar_lab.models import GrammarExercise
+    from app.grammar_lab.guided_learning import check_answer
+
+    if kind not in KINDS:
+        raise NativeLessonError("not_found", 404)
+    body = request.get_json(silent=True)
+    if (not isinstance(body, dict) or set(body) != {"session_token", "question_id", "answer"}
+            or not isinstance(body["session_token"], str) or not isinstance(body["question_id"], str)):
+        raise NativeLessonError("invalid_input")
+    try:
+        sealed = _signer().loads(body["session_token"], max_age=21600)
+    except (BadSignature, SignatureExpired, TypeError):
+        raise NativeLessonError("lesson_changed", 409) from None
+    if not isinstance(sealed, dict) or sealed.get("user") != current_user.id or sealed.get("kind") != kind:
+        raise NativeLessonError("access_denied", 403)
+    run = NativeLearningRun.query.filter_by(
+        session_id=sealed.get("session"), user_id=current_user.id, kind=kind).first()
+    if run is None:
+        raise NativeLessonError("not_found", 404)
+    if (sealed.get("day") != _day() or sealed.get("projection_version") != NATIVE_PROJECTION_VERSION
+            or run.response is not None):
+        raise NativeLessonError("lesson_changed", 409)
+    _guard(kind, run.payload["item_id"])
+    questions = _document(run)["questions"]
+    index = next((i for i, q in enumerate(questions) if q["id"] == body["question_id"]), None)
+    if index is None:
+        raise NativeLessonError("invalid_input")
+    exercise = None
+    if kind in ("grammar_topic", "grammar_review"):
+        exercise = GrammarExercise.query.get(run.payload["source"]["exercise_ids"][index])
+        if exercise is None or _digest(exercise.content) != run.payload["source"]["revision"][str(exercise.id)]:
+            raise NativeLessonError("lesson_changed", 409)
+        if not _public_topic(exercise.topic):
+            raise NativeLessonError("access_denied", 403)
+    if kind == "phrase_review":
+        from app.daily_plan.items.phrase_review import normalise_phrase
+        item = run.payload["source"]["items"][index]
+        answer = body["answer"]
+        if not isinstance(answer, str) or not answer.strip() or len(answer) > 2000:
+            raise NativeLessonError("invalid_input")
+        accepted = item.get("accepted_answers") or [item["answer"]]
+        return jsonify(success=True, feedback={"id": questions[index]["id"], "prompt": questions[index]["prompt"],
+            "correct": normalise_phrase(answer) in {normalise_phrase(a) for a in accepted},
+            "answer": answer, "expected": item["answer"], "explanation": "Образец перевода: " + item["answer"]})
+    return jsonify(success=True, feedback=check_answer(
+        run.payload["rows"][index], questions[index], body["answer"], exercise=exercise,
+        grammar=kind in ("grammar_topic", "grammar_review") or (
+            kind == "error_review" and run.payload["source"]["sources"][index] == "grammar")))
 
 
 @api_native_activities.route("/activities/<kind>/submit", methods=["POST"])
