@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "topic_slug": "a1-15",
+  "title": "Квантификаторы (Quantifiers)",
+  "goal": "Выбирай слова количества для предметов, которые можно посчитать, и вещества.",
+  "steps": [
+    {
+      "id": "countability",
+      "title": "Можно ли посчитать предметы",
+      "body": "Исчисляемые существительные имеют число: one apple, two apples.\nНеисчисляемые в обычном значении количества не считаем поштучно: water, milk, rice.\nМожно посчитать бутылки воды или стаканы молока, но не добавлять -s к water/milk в этой модели.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери исчисляемое существительное во множественном числе.",
+          "question": "Что здесь можно посчитать поштучно?",
+          "correct_answer": "apples",
+          "options": [
+            "apples",
+            "water",
+            "milk"
+          ],
+          "explanation": "Яблоки можно посчитать: one apple, two apples."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение о воде как веществе.",
+          "question": "Мне нужно немного воды.",
+          "correct_answer": "I need some water.",
+          "options": [
+            "I need some water.",
+            "I need some waters."
+          ],
+          "explanation": "В этой модели water неисчисляемое и не получает -s."
+        }
+      ]
+    },
+    {
+      "id": "some-any",
+      "title": "Some и any",
+      "body": "В обычном утверждении часто используем some: I have some apples. There is some milk.\nВ обычном вопросе и отрицании — any: Do you have any apples? I don’t have any milk.\nПредложения с some в вопросах о предложении еды разбираются отдельно.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши some или any в обычное отрицание о наличии молока.",
+          "question": "I don't have ___ milk.",
+          "correct_answer": "any",
+          "explanation": "В обычном отрицании используем any."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши some или any в нейтральное утверждение о наличии нескольких яблок.",
+          "question": "I have ___ apples.",
+          "correct_answer": "some",
+          "explanation": "В этом утвердительном предложении ожидается some."
+        }
+      ]
+    },
+    {
+      "id": "much-many",
+      "title": "Much или many",
+      "body": "Many используем с исчисляемыми во множественном числе: many apples.\nMuch — с неисчисляемыми: much water. Особенно часто они встречаются в вопросах и отрицаниях.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово количества для яблок, которые можно посчитать.",
+          "question": "How ___ apples do you need?",
+          "correct_answer": "many",
+          "options": [
+            "much",
+            "many"
+          ],
+          "explanation": "Apples — исчисляемое множественное число: many."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово количества для time в значении времени как ресурса.",
+          "question": "We don't have ___ time.",
+          "correct_answer": "much",
+          "options": [
+            "much",
+            "many"
+          ],
+          "explanation": "Time здесь неисчисляемое: much."
+        }
+      ]
+    },
+    {
+      "id": "a-lot",
+      "title": "A lot of подходит обоим типам",
+      "body": "A lot of означает «много»: a lot of books и a lot of water.\nВ обычном утвердительном предложении эта конструкция часто естественнее, чем much с неисчисляемым.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи конструкцию со значением «много» перед books. Впиши только пропущенное слово.",
+          "question": "We have a lot ___ books.",
+          "correct_answer": "of",
+          "explanation": "Полная конструкция: a lot of + существительное."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение с полной конструкцией a lot of.",
+          "question": "У нас много воды.",
+          "correct_answer": "We have a lot of water.",
+          "options": [
+            "We have a lot of water.",
+            "We have a lot water."
+          ],
+          "explanation": "После a lot перед существительным необходимо of."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Some в вопросах",
+      "body": "В предложении угощения или просьбе some возможно и в вопросе: Would you like some tea? Can I have some water? Общее правило «any во всех вопросах» слишком грубое."
+    }
+  ]
+}

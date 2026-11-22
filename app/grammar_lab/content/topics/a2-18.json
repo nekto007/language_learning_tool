@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "topic_slug": "a2-18",
+  "title": "Future Simple (will) — предсказания и спонтанные решения",
+  "goal": "Используй will для решения сейчас, обещания и прогноза.",
+  "steps": [
+    {
+      "id": "will-base",
+      "title": "Will + начальная форма",
+      "body": "После will используем начальную форму без to и без -s: I will help. She will call.\nФорма will одинакова для всех лиц.\nВ речи I will часто сокращается до I’ll.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь call в Future Simple. Впиши полное сказуемое, два слова.",
+          "question": "She ___ you tomorrow. (call)",
+          "correct_answer": "will call",
+          "explanation": "Future Simple: will + начальная форма call."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную форму глагола после will.",
+          "question": "He will … us.",
+          "options": [
+            "helps",
+            "to help",
+            "help"
+          ],
+          "correct_answer": "help",
+          "explanation": "После will нужна начальная форма help без to."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Will not и won’t",
+      "body": "Отрицание: will not + начальная форма. Сокращение will not — won’t.\nThe shop will not open tomorrow.\nПосле won’t глагол также остаётся в начальной форме.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Используй will not или won't. Введи всё предложение.",
+          "question": "They will come tomorrow.",
+          "correct_answer": "They will not come tomorrow.",
+          "explanation": "Not ставим после will.",
+          "alternatives": [
+            "They won't come tomorrow."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Магазин завтра не откроется. Используй Future Simple и впиши полное отрицательное сказуемое.",
+          "question": "The shop ___ tomorrow. (not / open)",
+          "correct_answer": "will not open",
+          "explanation": "Отрицательная форма: will not open или won’t open.",
+          "alternatives": [
+            "won't open"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "question",
+      "title": "Вопрос с will",
+      "body": "Вопрос: Will + подлежащее + начальная форма?\nWill you help me?\nВопросительное слово ставим перед will: When will she arrive?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос с Will. Перепиши всё предложение.",
+          "question": "They will arrive at six.",
+          "correct_answer": "Will they arrive at six?",
+          "explanation": "Will переносим перед they."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный вопрос о времени прибытия.",
+          "question": "Когда она приедет?",
+          "options": [
+            "When she will arrive?",
+            "When will she arrive?",
+            "When will she arrives?"
+          ],
+          "correct_answer": "When will she arrive?",
+          "explanation": "После When идёт will, затем she и начальная форма arrive."
+        }
+      ]
+    },
+    {
+      "id": "functions",
+      "title": "Решение сейчас, обещание, мнение",
+      "body": "Will часто выражает решение в момент речи: The phone is ringing. I’ll answer it.\nТакже обещание: I’ll help you, I promise.\nПрогноз-мнение: I think it will be cold tomorrow. Это не запрет использовать другие формы будущего в подходящем контексте.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Телефон только что зазвонил, и ты решаешь ответить прямо сейчас. Впиши подходящий вспомогательный глагол будущего времени.",
+          "question": "I ___ answer it.",
+          "correct_answer": "will",
+          "explanation": "Will подходит для решения, принятого сейчас."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Дай обещание с I will. Замени I promise to на I will и введи всё предложение.",
+          "question": "I promise to help you.",
+          "correct_answer": "I will help you.",
+          "explanation": "I will help you может выражать обещание."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Shall иногда используется с I/we, особенно в предложениях помощи: Shall I open the window? Это не обязательная форма будущего для I/we. В обычном будущем употребляется will. Сравни контексты: I think it will rain — мнение; Look at those clouds! It is going to rain — прогноз по явным признакам."
+    }
+  ]
+}

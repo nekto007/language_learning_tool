@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "b1-11",
+  "title": "Прилагательные с окончаниями -ed и -ing",
+  "goal": "Отличи переживаемое чувство от того, что вызывает это чувство.",
+  "steps": [
+    {
+      "id": "feeling",
+      "title": "-ed: какое чувство испытывают",
+      "body": "Прилагательное на -ed часто описывает переживаемое чувство: bored — скучающий; interested — заинтересованный; tired — уставший.\nI am bored. She is interested.\nВыбирай по роли в ситуации, а не просто по тому, человек это или вещь.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Человек испытывает скуку. Впиши bored или boring.",
+          "question": "I am ___ because there is nothing to do.",
+          "correct_answer": "bored",
+          "explanation": "Говорящий испытывает скуку, поэтому bored."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Она заинтересована темой. Впиши interested или interesting.",
+          "question": "She is ___ in the topic and wants to learn more.",
+          "correct_answer": "interested",
+          "explanation": "Она испытывает интерес: interested in."
+        }
+      ]
+    },
+    {
+      "id": "cause",
+      "title": "-ing: что вызывает чувство",
+      "body": "Прилагательное на -ing часто описывает источник чувства: boring — вызывающий скуку; interesting — вызывающий интерес; tiring — утомительный.\nThe lesson is interesting.\nДлинный день может быть tiring, а человек после него — tired.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Урок вызывает интерес у слушателей. Впиши interested или interesting.",
+          "question": "The lesson is ___. Everyone wants to hear more.",
+          "correct_answer": "interesting",
+          "explanation": "Урок вызывает интерес, поэтому interesting."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Долгая работа утомляет. Впиши tired или tiring.",
+          "question": "Working for twelve hours is ___.",
+          "correct_answer": "tiring",
+          "explanation": "Работа вызывает усталость: tiring."
+        }
+      ]
+    },
+    {
+      "id": "people-can-cause",
+      "title": "Человек тоже может вызывать чувство",
+      "body": "Неверно правило «человек всегда -ed, вещь всегда -ing».\nHe is bored — ему скучно. He is boring — с ним скучно другим.\nThe speaker is interesting — оратор вызывает интерес у слушателей.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Оратор увлекает слушателей: им интересно его слушать. Выбери правильное описание оратора.",
+          "question": "The speaker is …",
+          "options": [
+            "interesting",
+            "interested",
+            "interest"
+          ],
+          "correct_answer": "interesting",
+          "explanation": "Оратор вызывает интерес, поэтому interesting, хотя он человек."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Оратор сам заинтересован темой. Выбери описание его чувства.",
+          "question": "The speaker is … in the topic.",
+          "options": [
+            "interesting",
+            "interested",
+            "interest"
+          ],
+          "correct_answer": "interested",
+          "explanation": "Оратор испытывает интерес к теме: interested in."
+        }
+      ]
+    },
+    {
+      "id": "pairs",
+      "title": "Проверь источник и переживание",
+      "body": "Сначала спроси: кто испытывает чувство и что его вызывает?\nThe news was surprising. I was surprised.\nSurprising — новость удивляет; surprised — человек удивлён. Такой же принцип у frightened/frightening, excited/exciting.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Новость вызвала удивление у всех. Впиши surprised или surprising.",
+          "question": "The news was ___, so nobody expected it.",
+          "correct_answer": "surprising",
+          "explanation": "Новость — источник удивления: surprising."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Человек удивился новости. Впиши surprised или surprising.",
+          "question": "I was ___ when I heard the news.",
+          "correct_answer": "surprised",
+          "explanation": "Говорящий испытывает удивление: surprised."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Не каждый глагол образует обычную пару прилагательных на -ed/-ing. Проверяй слово в словаре. Сохраняй нужный предлог: interested in, bored with/by, excited about, frightened of/by. Животные тоже могут испытывать чувства: The dog was frightened. Прилагательное на -ing может описывать человека как источник чувства: a frightening man."
+    }
+  ]
+}

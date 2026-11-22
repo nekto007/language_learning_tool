@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "topic_slug": "a2-16",
+  "title": "Present Continuous для будущих планов",
+  "goal": "Используй Present Continuous для уже согласованных будущих встреч и планов.",
+  "steps": [
+    {
+      "id": "arrangement",
+      "title": "Будущая договорённость",
+      "body": "Present Continuous может описывать будущее, когда уже есть договорённость или организация. Форма та же: am/is/are + -ing.\nI am meeting Anna tomorrow. Мы уже договорились.\nУказатель tomorrow или on Friday помогает отличить будущее от действия сейчас.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Встреча с Анной уже согласована на завтра. Впиши форму meeting или meet. Введи одно слово.",
+          "question": "I am ___ Anna tomorrow.",
+          "correct_answer": "meeting",
+          "explanation": "Для договорённости используем am meeting."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Билеты на пятницу уже куплены. Впиши am, is или are.",
+          "question": "We ___ flying to Rome on Friday.",
+          "correct_answer": "are",
+          "explanation": "С we используем are: We are flying."
+        }
+      ]
+    },
+    {
+      "id": "time-place",
+      "title": "Укажи время будущего плана",
+      "body": "Сохраняй am/is/are и -ing, даже когда речь о будущем: She is seeing the dentist at ten tomorrow.\nНе добавляй will в эту форму. Упоминание будущего времени и договорённость делают значение ясным.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь конструкцию: используй Present Continuous для согласованной встречи. Убери лишнее слово и перепиши всё предложение.",
+          "question": "We will are meeting at six tomorrow.",
+          "correct_answer": "We are meeting at six tomorrow.",
+          "explanation": "В Present Continuous достаточно are meeting; will здесь не добавляем."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Поездка на завтра уже организована. Переделай предложение в Present Continuous и добавь tomorrow в конец. Введи всё предложение.",
+          "question": "They leave at nine.",
+          "correct_answer": "They are leaving at nine tomorrow.",
+          "explanation": "Are leaving описывает организованный план; tomorrow указывает на будущее."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отмена или отсутствие договорённости",
+      "body": "Отрицание: am/is/are + not + -ing.\nWe are not meeting on Monday. Встреча в понедельник не состоится.\nСокращение are not → aren’t, is not → isn’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Скажи, что встреча завтра не состоится. Сделай предложение отрицательным и перепиши целиком.",
+          "question": "We are meeting tomorrow.",
+          "correct_answer": "We are not meeting tomorrow.",
+          "explanation": "Not ставим после are.",
+          "alternatives": [
+            "We aren't meeting tomorrow."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поездка на пятницу отменена. Вставь одно отрицательное слово, чтобы сообщить об отмене.",
+          "question": "She is ___ travelling on Friday.",
+          "correct_answer": "not",
+          "explanation": "Отрицание образуется как is not travelling."
+        }
+      ]
+    },
+    {
+      "id": "question",
+      "title": "Уточни будущую встречу",
+      "body": "В вопросе am/is/are стоит перед подлежащим: Are you meeting Sam tomorrow?\nС вопросительным словом: When are you leaving?\nПорядок: вопросительное слово → am/is/are → подлежащее → -ing.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос о согласованной встрече. Начни с Are. Введи всё предложение.",
+          "question": "You are meeting Sam tomorrow.",
+          "correct_answer": "Are you meeting Sam tomorrow?",
+          "explanation": "Are переносим перед you."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вопрос «Когда ты уезжаешь?» о согласованном будущем плане.",
+          "question": "Ты знаешь, что человек уже организовал поездку.",
+          "options": [
+            "When you are leaving?",
+            "When are you leaving?",
+            "When do you leaving?"
+          ],
+          "correct_answer": "When are you leaving?",
+          "explanation": "После When ставим are, затем you и leaving."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Эта форма особенно естественна для встреч, поездок и организованных событий. Она не заменяет все способы говорить о будущем: going to часто выражает намерение, а will — решение в момент речи или прогноз. В реальной речи некоторые планы можно выразить несколькими способами; контекст и смысл важнее единственного слова tomorrow."
+    }
+  ]
+}

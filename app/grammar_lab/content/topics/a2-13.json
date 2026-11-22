@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "a2-13",
+  "title": "Артикль THE с географическими названиями",
+  "goal": "Выбери the или нулевой артикль перед географическим названием.",
+  "steps": [
+    {
+      "id": "countries-cities",
+      "title": "Страны и города: обычно без артикля",
+      "body": "Большинство стран, городов и континентов называем без артикля: France, Tokyo, Europe.\nWe live in France.\nВ заданиях этой темы введи - (один дефис), если артикль не нужен.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши the или один дефис -, если перед названием страны артикль не нужен.",
+          "question": "She lives in ___ France.",
+          "correct_answer": "-",
+          "explanation": "France — обычное название страны: артикль не нужен."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильное предложение о городе. Дефис означает отсутствие артикля.",
+          "question": "Она живёт в Токио.",
+          "options": [
+            "She lives in the Tokyo.",
+            "She lives in Tokyo.",
+            "She lives in a Tokyo."
+          ],
+          "correct_answer": "She lives in Tokyo.",
+          "explanation": "Перед названием города Tokyo артикль обычно не ставим."
+        }
+      ]
+    },
+    {
+      "id": "water",
+      "title": "Реки, моря и океаны: the",
+      "body": "Перед названиями рек, морей и океанов обычно ставим the: the Nile, the Black Sea, the Atlantic Ocean.\nThe Nile is a river.\nСлово the пишется перед всем названием.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши the или один дефис -, если артикль не нужен. Речь о реке Нил.",
+          "question": "We sailed along ___ Nile.",
+          "correct_answer": "the",
+          "explanation": "Перед названием реки используем the: the Nile."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни пропуск артиклем the или одним дефисом -. Речь об океане.",
+          "question": "The ship crossed ___ Atlantic Ocean.",
+          "correct_answer": "the",
+          "explanation": "Перед названием океана ставим the: the Atlantic Ocean."
+        }
+      ]
+    },
+    {
+      "id": "plural-names",
+      "title": "Группы и составные названия",
+      "body": "The ставим перед названиями горных цепей и групп островов: the Alps, the Maldives.\nThe также входит в названия the United Kingdom, the United States и the Netherlands. Эти названия нужно запомнить.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильное название Соединённого Королевства.",
+          "question": "Мы едем в Соединённое Королевство.",
+          "options": [
+            "the United Kingdom",
+            "United Kingdom",
+            "a United Kingdom"
+          ],
+          "correct_answer": "the United Kingdom",
+          "explanation": "В этом составном названии нужен the."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши the или один дефис -. Речь о горной цепи Альпы.",
+          "question": "They climbed in ___ Alps.",
+          "correct_answer": "the",
+          "explanation": "Названия горных цепей обычно употребляем с the: the Alps."
+        }
+      ]
+    },
+    {
+      "id": "single-mountain-lake",
+      "title": "Одна гора и озеро",
+      "body": "Названия отдельных гор и названия с Mount обычно без the: Everest, Mount Fuji.\nНазвания с Lake тоже обычно без the: Lake Baikal.\nСравни: the Alps — горная цепь, но Mount Fuji — отдельная гора.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши the или один дефис -, если артикль не нужен перед названием отдельной горы.",
+          "question": "We saw ___ Mount Fuji.",
+          "correct_answer": "-",
+          "explanation": "Перед Mount Fuji артикль не ставим."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши the или один дефис -, если артикль не нужен перед названием озера с Lake.",
+          "question": "They visited ___ Lake Baikal.",
+          "correct_answer": "-",
+          "explanation": "В названии Lake Baikal артикль не нужен."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Названия языков обычно без артикля: She speaks English. Название народа как группы может употребляться с the: the French. Не переносим это правило на язык French. У отдельных географических названий бывают традиционные исключения: например, the Matterhorn. Сверяй необычное название со словарём; форма названия важнее общего шаблона."
+    }
+  ]
+}

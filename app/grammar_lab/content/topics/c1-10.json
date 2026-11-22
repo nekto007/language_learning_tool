@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "topic_slug": "c1-10",
+  "title": "Inversion with Negative Adverbs.",
+  "goal": "Строй инверсию с отрицательными наречиями и последовательностью событий.",
+  "steps": [
+    {
+      "id": "tense",
+      "title": "Сохраняй исходное время",
+      "body": "При инверсии время не меняется. Never has she failed сохраняет Present Perfect. Never did she fail сохраняет Past Simple: появляется did, а fail теряет прошедшую форму. Это утверждение с акцентом, не вопрос.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с Never, сохрани Present Perfect. Перепиши всё предложение.",
+          "question": "She has never failed a test.",
+          "correct_answer": "Never has she failed a test.",
+          "explanation": "Has остаётся в Present Perfect и перемещается перед she."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только форму failed после did. Перепиши предложение.",
+          "question": "Never did she failed a test.",
+          "correct_answer": "Never did she fail a test.",
+          "explanation": "После did смысловой глагол принимает базовую форму fail."
+        }
+      ]
+    },
+    {
+      "id": "hardly",
+      "title": "Hardly / scarcely / barely … when",
+      "body": "Для тесной последовательности прошлых событий часто используем Hardly had + подлежащее + V3 + when + Past Simple. Hardly had we sat down when the phone rang. Не добавляем not: hardly уже имеет отрицательный смысл.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с Hardly и сохрани when the phone rang. Используй Past Perfect в первой части.",
+          "question": "We had just sat down when the phone rang.",
+          "correct_answer": "Hardly had we sat down when the phone rang.",
+          "explanation": "Hardly had we sat down подчёркивает почти немедленный звонок после посадки."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши союз после Scarcely had в этой модели. Одно слово.",
+          "question": "Scarcely had she arrived ___ the meeting began.",
+          "correct_answer": "when",
+          "explanation": "Scarcely … when связывает два быстро следующих события."
+        }
+      ]
+    },
+    {
+      "id": "no-sooner",
+      "title": "No sooner … than",
+      "body": "Для похожего смысла используется No sooner had + подлежащее + V3 + than + Past Simple: No sooner had he left than it started raining. В этой паре нужен than, а не when.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши союз, который связывает события в конструкции с начальным No sooner. Одно слово.",
+          "question": "No sooner had he left ___ it started raining.",
+          "correct_answer": "than",
+          "explanation": "Устойчивая последовательность — no sooner … than."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Переформулируй с No sooner…than. Сохрани the show и the lights; введи одно предложение.",
+          "question": "The show had just begun when the lights went out.",
+          "correct_answer": "No sooner had the show begun than the lights went out.",
+          "explanation": "No sooner требует инверсии had the show и союза than."
+        }
+      ]
+    },
+    {
+      "id": "not-until",
+      "title": "Not until: меняется главная часть",
+      "body": "После начального Not until + придаточное инверсия возникает только в главной части: Not until I checked did I notice the error. Внутри I checked порядок прямой. Обычная фраза I did not notice it until… не имеет такого выноса.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с Not until I checked и используй did в главной части. Сохрани the error.",
+          "question": "I did not notice the error until I checked.",
+          "correct_answer": "Not until I checked did I notice the error.",
+          "explanation": "После временной части инверсия did I notice; отрицание уже выражено Not until."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь порядок и формы глаголов в конструкции Not until. Введи полное предложение.",
+          "question": "Not until did I check I noticed the error.",
+          "correct_answer": "Not until I checked did I notice the error.",
+          "explanation": "В придаточном нужен прямой порядок I checked, в главном — did I notice."
+        }
+      ]
+    }
+  ]
+}

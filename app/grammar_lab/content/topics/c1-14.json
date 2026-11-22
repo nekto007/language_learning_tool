@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "topic_slug": "c1-14",
+  "title": "Регистр идиом: где какая уместна",
+  "goal": "Выбирай идиоматическую или прямую формулировку под адресата, цель и регистр.",
+  "steps": [
+    {
+      "id": "purpose",
+      "title": "Сначала адресат и цель",
+      "body": "Регистр — не жёсткий запрет «идиомы нельзя на работе». Оцени адресата, цель и понятность. A piece of cake естественно другу; в формальном отчёте о сложности задачи проще straightforward. Одно выражение может быть уместно в одной рабочей ситуации и неудачно в другой.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Для формального отчёта замени a piece of cake на straightforward. Сохрани прошлое время; введи всё предложение.",
+          "question": "The task was a piece of cake.",
+          "correct_answer": "The task was straightforward.",
+          "explanation": "Straightforward передаёт смысл без разговорного образа."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери наиболее ясную формулировку для официальной инструкции.",
+          "question": "Нужно точно описать сложность процедуры в официальной инструкции.",
+          "correct_answer": "The procedure is straightforward.",
+          "explanation": "Прямая формулировка ясна без знания разговорной идиомы.",
+          "options": [
+            "The procedure is straightforward.",
+            "This thing is a piece of cake, mate!",
+            "Break a leg with the procedure!"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "business",
+      "title": "Рабочая метафора и точность отчёта",
+      "body": "On the same page — одинаково понимать ситуацию; get the ball rolling — начать работу. Такие выражения обычны в разговоре команды. В точном протоколе полезнее назвать, о чём договорились или что начали, а не полагаться только на образ.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл рабочей идиомы on the same page в этой реплике.",
+          "question": "Перед встречей коллега говорит: Let us make sure we are on the same page about the goals.",
+          "correct_answer": "Проверим, одинаково ли мы понимаем цели.",
+          "explanation": "About the goals задаёт переносный смысл общей согласованности понимания.",
+          "options": [
+            "Проверим, одинаково ли мы понимаем цели.",
+            "Проверим номера страниц в документах.",
+            "Отложим обсуждение целей."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени got the ball rolling на started work, сохрани остальное. Введи всё предложение.",
+          "question": "The team got the ball rolling on the project.",
+          "correct_answer": "The team started work on the project.",
+          "explanation": "Started work прямо называет начало проекта."
+        }
+      ]
+    },
+    {
+      "id": "formal-images",
+      "title": "Выразительность и ясность",
+      "body": "Метафоры вроде Achilles’ heel — уязвимое место — встречаются и в серьёзной речи. Но для договора, инструкции или международной аудитории прямое обозначение риска часто точнее. «Формальный образ» сам по себе не делает текст юридически точным.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери значение Achilles’ heel в оценке проекта.",
+          "question": "Poor data quality is the project’s Achilles’ heel.",
+          "correct_answer": "Качество данных — главное уязвимое место проекта.",
+          "explanation": "Achilles’ heel называет уязвимость, а не буквальную часть тела.",
+          "options": [
+            "Качество данных — главное уязвимое место проекта.",
+            "Данные определяют дату запуска.",
+            "У проекта нет существенных рисков."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Для ясного технического сообщения замени Achilles’ heel на main weakness. Сохрани our и остальное.",
+          "question": "Poor data quality is our Achilles’ heel.",
+          "correct_answer": "Poor data quality is our main weakness.",
+          "explanation": "Main weakness прямо передаёт образ уязвимого места.",
+          "alternatives": [
+            "Poor data quality is our main weakness."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "regional",
+      "title": "Региональные варианты не равны ошибке",
+      "body": "Take something with a pinch of salt характерно для BrE; with a grain of salt — для AmE. Оба выражают скептическое отношение к сказанному. Не нужно объявлять понятный региональный вариант грамматической ошибкой.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши характерный для BrE вариант существительного: pinch или grain. Одно слово.",
+          "question": "Вариант BrE: Take that claim with a ___ of salt.",
+          "correct_answer": "pinch",
+          "explanation": "Cambridge маркирует pinch of salt как UK-вариант этой идиомы."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши характерный для AmE вариант: pinch или grain. Одно слово.",
+          "question": "Вариант AmE: Take that claim with a ___ of salt.",
+          "correct_answer": "grain",
+          "explanation": "Grain of salt — характерный американский вариант."
+        }
+      ]
+    },
+    {
+      "id": "precision",
+      "title": "Не перегружай текст клише",
+      "body": "Идиома уместна, когда помогает смыслу и понятна аудитории. Скопление образов и клише может делать текст туманным. Важный отчёт требует конкретики: например, launch the project on 1 June яснее, чем набор метафор о начале работы. Think outside the box — искать нестандартные подходы.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери наиболее точную запись решения для протокола.",
+          "question": "Что лучше фиксирует согласованное действие и срок в протоколе?",
+          "correct_answer": "We will launch the project on 1 June.",
+          "explanation": "Прямое предложение называет действие и срок вместо расплывчатого набора клише.",
+          "options": [
+            "We will launch the project on 1 June.",
+            "We will get the ball rolling and hit the ground running at some point.",
+            "We will think outside the box sooner or later."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени think outside the box на consider new approaches. Сохрани We need to и введи предложение.",
+          "question": "We need to think outside the box.",
+          "correct_answer": "We need to consider new approaches.",
+          "explanation": "Consider new approaches передаёт задачу без распространённого образного клише."
+        }
+      ]
+    }
+  ]
+}

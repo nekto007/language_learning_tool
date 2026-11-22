@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "topic_slug": "b1-12",
+  "title": "Passive Voice (Present Simple) - Страдательный залог в настоящем времени",
+  "goal": "Скажи, что обычно делают с предметом, с помощью Present Simple Passive.",
+  "steps": [
+    {
+      "id": "form",
+      "title": "Предмет получает действие: be + V3",
+      "body": "Present Simple Passive: am/is/are + третья форма (V3).\nThe room is cleaned every day. Toys are made here.\nВыбираем be по подлежащему: I am; he/she/it is; you/we/they are.\nУ правильных глаголов V3 на -ed; make → made, send → sent.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Комнату убирают каждый день. Впиши is или are.",
+          "question": "The room ___ cleaned every day.",
+          "correct_answer": "is",
+          "explanation": "The room — единственное число, поэтому is cleaned."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Игрушки производят здесь. Впиши V3 глагола make.",
+          "question": "Toys are ___ here. (make)",
+          "correct_answer": "made",
+          "explanation": "После are в пассиве нужна V3: make → made."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отрицание: be + not + V3",
+      "body": "Добавляем not после am/is/are:\nThe room is not cleaned on Sundays.\nНе нужен do/does, потому что в конструкции уже есть be.\nV3 сохраняется: is not made, are not sent.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай пассивное предложение отрицательным. Используй is not или isn't. Введи всё предложение.",
+          "question": "The room is cleaned on Sundays.",
+          "correct_answer": "The room is not cleaned on Sundays.",
+          "explanation": "Not ставим после is, а cleaned сохраняем.",
+          "alternatives": [
+            "The room isn't cleaned on Sundays."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь отрицание в пассиве. Перепиши всё предложение без do.",
+          "question": "The letters do not are sent on Sundays.",
+          "correct_answer": "The letters are not sent on Sundays.",
+          "explanation": "В пассиве отрицание образуется как are not sent.",
+          "alternatives": [
+            "The letters aren't sent on Sundays."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "question",
+      "title": "Вопрос: be перед подлежащим",
+      "body": "Для вопроса переносим am/is/are перед подлежащим:\nAre the letters sent every day?\nС вопросительным словом: Where are these toys made?\nНе добавляем do/does.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос в пассиве. Начни с Is и перепиши всё предложение.",
+          "question": "The room is cleaned every day.",
+          "correct_answer": "Is the room cleaned every day?",
+          "explanation": "Is ставим перед the room; cleaned остаётся."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный вопрос о месте производства.",
+          "question": "Где производят эти игрушки?",
+          "options": [
+            "Where are these toys made?",
+            "Where do these toys are made?",
+            "Where these toys are made?"
+          ],
+          "correct_answer": "Where are these toys made?",
+          "explanation": "Порядок: Where + are + these toys + made."
+        }
+      ]
+    },
+    {
+      "id": "active-passive",
+      "title": "Из активного залога в пассивный",
+      "body": "В активном предложении исполнитель — подлежащее: The company makes toys.\nВ пассивном подлежащим становятся toys: Toys are made by the company.\nBy вводит исполнителя, если его важно назвать; в других контекстах исполнителя можно опустить.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Поставь Toys в начало и преобразуй предложение в Present Simple Passive. Сохрани исполнителя с by the company. Введи всё предложение.",
+          "question": "The company makes toys.",
+          "correct_answer": "Toys are made by the company.",
+          "explanation": "Toys становится подлежащим; используем are made, исполнителя вводим с by."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Начни с The room и преобразуй предложение в пассив. Сохрани by the students. Введи всё предложение.",
+          "question": "The students clean the room every day.",
+          "correct_answer": "The room is cleaned by the students every day.",
+          "explanation": "Единственное the room требует is cleaned.",
+          "alternatives": [
+            "The room is cleaned every day by the students."
+          ]
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Другие V3: write → written, speak → spoken, build → built. Пассив возможен у глаголов с объектом; не образуем обычный пассив от happen или arrive. Сравни: The room is cleaned every day — регулярное действие; The room is being cleaned now — процесс сейчас. Некоторые формы be + V3 могут описывать состояние, и тогда роль контекста особенно важна."
+    }
+  ]
+}

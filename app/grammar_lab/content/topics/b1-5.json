@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "topic_slug": "b1-5",
+  "title": "Reflexive Pronouns (Возвратные местоимения).",
+  "goal": "Используй возвратное местоимение, когда действие направлено на самого исполнителя.",
+  "steps": [
+    {
+      "id": "same-person",
+      "title": "Кто делает и на кого направлено действие",
+      "body": "Возвратная форма нужна, когда исполнитель и объект — одно лицо: I hurt myself.\nI → myself; you (один человек) → yourself; he → himself; she → herself; it → itself.\nСравни: She saw him — другого человека; She saw herself — саму себя.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Она увидела в зеркале саму себя. Впиши возвратную форму для she.",
+          "question": "She saw ___ in the mirror.",
+          "correct_answer": "herself",
+          "explanation": "Исполнитель she и объект совпадают: herself."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Я случайно порезал сам себя. Впиши возвратную форму для I.",
+          "question": "I cut ___ by accident.",
+          "correct_answer": "myself",
+          "explanation": "Для I используем myself."
+        }
+      ]
+    },
+    {
+      "id": "plural",
+      "title": "Формы для нескольких людей",
+      "body": "Во множественном числе: we → ourselves; you (несколько человек) → yourselves; they → themselves.\nWe introduced ourselves.\nНе образуем формы ourself или theirselves.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Мы представили самих себя. Впиши возвратную форму для we.",
+          "question": "We introduced ___.",
+          "correct_answer": "ourselves",
+          "explanation": "Для we правильная форма ourselves."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Обращаются сразу к двум гостям. Выбери возвратную форму для you во множественном числе.",
+          "question": "Please help ___ to some tea.",
+          "options": [
+            "yourself",
+            "yourselves",
+            "themselves"
+          ],
+          "correct_answer": "yourselves",
+          "explanation": "При обращении к нескольким людям используем yourselves."
+        }
+      ]
+    },
+    {
+      "id": "by-self",
+      "title": "By myself: один или без помощи",
+      "body": "By + возвратная форма означает «один / самостоятельно»: I live by myself.\nShe fixed it by herself — она справилась без помощи.\nБез by местоимение может выражать другой смысл: she hurt herself — она навредила самой себе.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Она сделала это без чьей-либо помощи. Используй конструкцию с by и возвратной формой. Впиши два слова.",
+          "question": "She fixed the bike ___.",
+          "correct_answer": "by herself",
+          "explanation": "By herself подчёркивает самостоятельность."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение со смыслом «они живут одни».",
+          "question": "Они живут без других людей.",
+          "options": [
+            "They live by themselves.",
+            "They live themselves.",
+            "They live by himself."
+          ],
+          "correct_answer": "They live by themselves.",
+          "explanation": "By themselves означает «одни, самостоятельно»."
+        }
+      ]
+    },
+    {
+      "id": "emphasis",
+      "title": "Сам лично; когда возвратная форма не нужна",
+      "body": "Возвратная форма может подчёркивать «сам лично»: The manager himself called me.\nНо после повседневных действий вроде dress и wash её часто опускают: I got dressed.\nНе добавляй myself только потому, что в русском есть «-ся».",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение, которое подчёркивает: звонил сам директор, а не помощник.",
+          "question": "Директор лично позвонил мне.",
+          "options": [
+            "The manager himself called me.",
+            "The manager itself called me.",
+            "The manager called myself."
+          ],
+          "correct_answer": "The manager himself called me.",
+          "explanation": "Himself после the manager подчёркивает «сам лично»."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери обычную фразу «я оделся», без специального акцента на самостоятельности.",
+          "question": "Я оделся и ушёл.",
+          "options": [
+            "I got dressed and left.",
+            "I got dress and left.",
+            "I got dressed himself and left."
+          ],
+          "correct_answer": "I got dressed and left.",
+          "explanation": "В обычной ситуации got dressed достаточно; myself не требуется."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Возвратное местоимение не заменяет обычное подлежащее: Tom and I went, а не Tom and myself went. После предлогов места часто используют обычное объектное местоимение: She looked behind her. By herself и herself не равнозначны во всех контекстах: She made it herself — сама лично; She made it by herself — без помощи."
+    }
+  ]
+}

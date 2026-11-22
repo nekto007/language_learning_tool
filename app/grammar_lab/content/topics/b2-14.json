@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "topic_slug": "b2-14",
+  "title": "Образный язык: как работают метафоры в идиомах",
+  "goal": "Понимай образность знакомых идиом и проверяй догадки по контексту.",
+  "steps": [
+    {
+      "id": "fear",
+      "title": "Образ не равен буквальному событию",
+      "body": "Get cold feet — потерять решимость перед важным действием. Keep your chin up — не падать духом. Это значения выражений, а не описание температуры ног или положения головы. Не считай образ доказанной историей происхождения идиомы.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл get cold feet в контексте сделки.",
+          "question": "He was about to sign, but he got cold feet and postponed the deal.",
+          "correct_answer": "Он испугался и потерял решимость.",
+          "explanation": "Отказ подписывать подтверждает значение get cold feet.",
+          "options": [
+            "Он испугался и потерял решимость.",
+            "У него диагностировали обморожение.",
+            "Он немедленно подписал договор."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни изученную идиому поддержки. Впиши одно существительное.",
+          "question": "I know it is a setback, but keep your ___ up.",
+          "correct_answer": "chin",
+          "explanation": "Keep your chin up — поддержка со значением «не падай духом»."
+        }
+      ]
+    },
+    {
+      "id": "social",
+      "title": "Социальный смысл важнее буквальной картинки",
+      "body": "The elephant in the room — очевидная важная проблема, которую избегают обсуждать. A hot potato — спорный или щекотливый вопрос. Наличие животного в выражении само по себе не делает его олицетворением.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл the elephant in the room по контексту.",
+          "question": "Everyone knew the company was losing money, but nobody mentioned it: the elephant in the room.",
+          "correct_answer": "Очевидная проблема, которую обходят молчанием.",
+          "explanation": "Контекст коллективного молчания задаёт значение этой идиомы.",
+          "options": [
+            "Очевидная проблема, которую обходят молчанием.",
+            "Новый сотрудник с большим опытом.",
+            "Любая неожиданная победа."
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери переносное значение a hot potato.",
+          "question": "Nobody wanted to take responsibility for the controversial policy: it was a hot potato.",
+          "correct_answer": "Щекотливый спорный вопрос.",
+          "explanation": "A hot potato обозначает проблему, к которой не хотят прикасаться из-за споров.",
+          "options": [
+            "Щекотливый спорный вопрос.",
+            "Простая повседневная задача.",
+            "Официально утверждённый бюджет."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "money",
+      "title": "Финансовые образы",
+      "body": "In the red — иметь дефицит или убыток. Tighten your belt — сократить расходы. Эти значения нужно знать в устойчивой форме; слова одной тематической группы не делают идиомы взаимозаменяемыми.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни идиому «сократить расходы» при подлежащем we. Впиши существительное во множественном числе.",
+          "question": "We are spending more than we earn, so we need to tighten our ___.",
+          "correct_answer": "belts",
+          "explanation": "Tighten our belts означает уменьшить расходы."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери финансовое значение in the red.",
+          "question": "The company has been in the red for three years.",
+          "correct_answer": "Компания несёт убытки.",
+          "explanation": "In the red в финансовом контексте означает убыточное положение.",
+          "options": [
+            "Компания несёт убытки.",
+            "Компания получила награду.",
+            "Компания сменила логотип."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "limits",
+      "title": "Не угадывай перевод только по теме",
+      "body": "Pull someone’s leg — разыгрывать человека; play it by ear — действовать по обстоятельствам. Обе идиомы содержат часть тела, но имеют разные значения. Контекст сужает выбор; неизвестное выражение стоит проверить, а не выводить из одного образа.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери значение pulling your leg по контексту шутки.",
+          "question": "I was only pulling your leg; the story was a joke.",
+          "correct_answer": "Я тебя разыгрывал.",
+          "explanation": "Уточнение о шутке подтверждает переносное значение «разыгрывать».",
+          "options": [
+            "Я тебя разыгрывал.",
+            "Я буквально тянул тебя за ногу.",
+            "Я хотел действовать без плана."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни изученную идиому о действии по обстоятельствам. Впиши одно существительное.",
+          "question": "We cannot plan everything now; let us play it by ___.",
+          "correct_answer": "ear",
+          "explanation": "Play it by ear означает действовать по обстоятельствам."
+        }
+      ]
+    }
+  ]
+}

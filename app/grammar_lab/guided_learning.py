@@ -134,7 +134,8 @@ def check_answer(row, question, answer, *, grammar=True, exercise=None):
     if question.get("options") and row.get("type") in ("true_false", "tf"):
         expected = next((option["label"] for option in question["options"]
                          if option["value"] == str(expected).lower()), expected)
-    if question.get("input") == "choice" and str(expected).isdigit() and row.get("options"):
+    if (question.get("input") == "choice" and str(expected).isdigit() and row.get("options")
+            and expected not in row["options"]):
         position = int(expected)
         if position < len(row["options"]):
             expected = row["options"][position]

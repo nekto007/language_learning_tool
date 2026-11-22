@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "topic_slug": "b2-8",
+  "title": "Reported Questions (Косвенные вопросы)",
+  "goal": "Передавай вопросы и просьбы, сохраняя смысл и прямой порядок слов.",
+  "steps": [
+    {
+      "id": "yes-no",
+      "title": "Общие вопросы: if / whether",
+      "body": "В косвенном общем вопросе используем asked + адресат + if/whether + подлежащее + глагол. Если сообщаем о прошлом разговоре со сдвигом времени: \"Are you ready?\" → She asked me if I was ready. Сам отчёт — утверждение, не прямой вопрос.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай вчерашний вопрос Нины с backshift. Начни с Nina asked me if; введи предложение с точкой.",
+          "question": "Yesterday Nina asked me, \"Are you ready?\"",
+          "correct_answer": "Nina asked me if I was ready.",
+          "explanation": "You относится к рассказчику, поэтому I; are сдвигается в was."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Добавь if и исправь порядок слов. Перепиши всё предложение.",
+          "question": "He asked me was I busy.",
+          "correct_answer": "He asked me if I was busy.",
+          "explanation": "Общему косвенному вопросу нужны if и прямой порядок I was."
+        }
+      ]
+    },
+    {
+      "id": "wh",
+      "title": "Специальные вопросы сохраняют вопросительное слово",
+      "body": "Where/when/why/how сохраняются, но вопросительная инверсия и do/does/did убираются: \"Where do you work?\" → He asked me where I worked. После asked в прошлом возможен backshift.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай вопрос Дэна с backshift. Начни с Dan asked me where; введи полное предложение.",
+          "question": "Yesterday Dan asked me, \"Where do you work?\"",
+          "correct_answer": "Dan asked me where I worked.",
+          "explanation": "Do исчезает; I worked передаёт вопрос со сдвигом времени."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай прошлый вопрос Эллы с явным сдвигом Past Simple в Past Perfect. Начни с Ella asked me why.",
+          "question": "Ella asked me, \"Why did you leave early?\"",
+          "correct_answer": "Ella asked me why I had left early.",
+          "explanation": "При требуемом backshift did leave переходит в had left; порядок прямой."
+        }
+      ]
+    },
+    {
+      "id": "subject",
+      "title": "Когда who — подлежащее",
+      "body": "В вопросе Who called? слово who уже является подлежащим. При передаче не добавляем he/they: She asked who had called. После asked me who called backshift может зависеть от ситуации; здесь отдельно тренируем had called.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай вопрос Сэма с backshift в Past Perfect. Начни с Sam asked who.",
+          "question": "Yesterday Sam asked, \"Who called?\"",
+          "correct_answer": "Sam asked who had called.",
+          "explanation": "Who сохраняется как подлежащее; called при заданном backshift → had called."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери корректный отчёт о вопросе «Кто звонил?» с had called.",
+          "question": "Выбери структуру без лишнего подлежащего после who.",
+          "correct_answer": "She asked who had called.",
+          "explanation": "В конструкции who had called слово who само является подлежащим.",
+          "options": [
+            "She asked who had called.",
+            "She asked who he had called us.",
+            "She asked who did had called."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "requests",
+      "title": "Просьбы и команды: to / not to",
+      "body": "Просьбу часто передаём asked + адресат + to + глагол, команду — told + адресат + to. Для отрицания ставим not to: \"Do not touch it\" → He told me not to touch it. Называй адресата явно.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай просьбу через Mia asked me to. Сохрани close the window; введи полное предложение.",
+          "question": "Mia said to me, \"Please close the window.\"",
+          "correct_answer": "Mia asked me to close the window.",
+          "explanation": "Вежливая просьба передаётся asked me to close."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай команду охранника через told us not to. Введи полное предложение.",
+          "question": "The guard said to us, \"Do not enter.\"",
+          "correct_answer": "The guard told us not to enter.",
+          "explanation": "Запрет в переданной команде оформляется told us not to enter."
+        }
+      ]
+    }
+  ]
+}

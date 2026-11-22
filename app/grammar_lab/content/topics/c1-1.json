@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "c1-1",
+  "title": "Future Continuous",
+  "goal": "Описывай процесс в будущий момент и нейтрально спрашивай о планах.",
+  "steps": [
+    {
+      "id": "future-point",
+      "title": "Процесс в будущий момент",
+      "body": "Future Continuous: will be + V-ing. Мы смотрим на действие из определённого будущего момента: At ten tomorrow, I will be presenting the results. Подчёркивается ход действия, а не его завершение.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь present в Future Continuous. Впиши три слова.",
+          "question": "At ten tomorrow, I ___ the results. (present)",
+          "correct_answer": "will be presenting",
+          "explanation": "В заданный будущий момент презентация будет в процессе."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери временной смысл Future Continuous в предложении.",
+          "question": "At this time tomorrow, we will be flying to Rome.",
+          "correct_answer": "В этот будущий момент перелёт будет в процессе.",
+          "explanation": "Will be flying показывает ход действия в будущем, а не завершённость.",
+          "options": [
+            "В этот будущий момент перелёт будет в процессе.",
+            "К этому моменту перелёт точно завершится.",
+            "Перелёт произошёл вчера."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "negation-question",
+      "title": "Вопрос и отрицание",
+      "body": "Вопрос: Will + подлежащее + be + V-ing? Отрицание: will not be + V-ing. Be сохраняется во всех лицах; will не получает -s: Will she be working?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай общий вопрос в Future Continuous. Перепиши всё предложение.",
+          "question": "She will be working at noon.",
+          "correct_answer": "Will she be working at noon?",
+          "explanation": "Will переносится перед she, be working сохраняется."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь not work в Future Continuous с полным not. Впиши четыре слова.",
+          "question": "I ___ tomorrow evening. (not work)",
+          "correct_answer": "will not be working",
+          "explanation": "Will not be working — полная отрицательная форма."
+        }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Нейтральный вопрос о планах",
+      "body": "Will you be using…? часто спрашивает о предполагаемом ходе событий без прямой просьбы изменить план: Will you be using the car tonight? Вежливость зависит и от ситуации/тона, не только от грамматической формы.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Переформулируй вопрос о плане через Will you be using. Сохрани the car tonight.",
+          "question": "Are you planning to use the car tonight?",
+          "correct_answer": "Will you be using the car tonight?",
+          "explanation": "Вопрос касается предполагаемого использования машины, а не приказа."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Добавь недостающий вспомогательный be. Перепиши полный вопрос.",
+          "question": "Will she working when we arrive?",
+          "correct_answer": "Will she be working when we arrive?",
+          "explanation": "В Future Continuous между she и working необходимо be."
+        }
+      ]
+    },
+    {
+      "id": "time-clauses",
+      "title": "Временное придаточное",
+      "body": "В обычном придаточном будущего времени после when/while используем настоящее время: I will be waiting when you arrive. Глаголы состояния вроде know обычно не ставим в Continuous.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь arrive в форму временного придаточного. Впиши одно слово.",
+          "question": "I will be waiting outside when you ___. (arrive)",
+          "correct_answer": "arrive",
+          "explanation": "В обычном when-придаточном будущего используем Present Simple."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму know, сохрани будущее значение. Перепиши всё предложение.",
+          "question": "Tomorrow I will be knowing the result.",
+          "correct_answer": "Tomorrow I will know the result.",
+          "explanation": "Know описывает состояние, поэтому здесь нужна форма will know."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Процесс и завершённость",
+      "body": "At noon I will be writing — в полдень письмо будет в процессе. By noon I will have written it — к полудню письмо будет закончено. Future Continuous и Future Perfect выделяют разные стороны будущего действия."
+    }
+  ]
+}

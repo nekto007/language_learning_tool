@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "b1-14",
+  "title": "Present Perfect для описания жизненного опыта",
+  "goal": "Расскажи об опыте к настоящему моменту, не называя точное завершённое время.",
+  "steps": [
+    {
+      "id": "experience-form",
+      "title": "Опыт: have/has + V3",
+      "body": "Present Perfect для опыта: have/has + V3.\nI have visited Rome. She has seen that film.\nI/you/we/they have; he/she/it has. Частые V3: be → been, see → seen, do → done, eat → eaten.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши have или has для she. Введи одно слово.",
+          "question": "She ___ visited Rome.",
+          "correct_answer": "has",
+          "explanation": "После she используем has visited."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши V3 глагола see. Введи одно слово.",
+          "question": "I have ___ that film. (see)",
+          "correct_answer": "seen",
+          "explanation": "После have нужна третья форма: seen."
+        }
+      ]
+    },
+    {
+      "id": "ever-question",
+      "title": "Был ли такой опыт: ever",
+      "body": "Ever означает «когда-либо» и часто встречается в вопросе об опыте.\nHave you ever been to Paris?\nПорядок: Have/Has → подлежащее → ever → V3. Краткий ответ: Yes, I have. / No, I haven’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай вопрос об опыте с Have you ever. Перепиши всё предложение.",
+          "question": "You have been to Paris.",
+          "correct_answer": "Have you ever been to Paris?",
+          "explanation": "Have ставим в начало, ever — перед been."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный краткий положительный ответ.",
+          "question": "Has she seen this film?",
+          "options": [
+            "Yes, she has.",
+            "Yes, she did.",
+            "Yes, she seen."
+          ],
+          "correct_answer": "Yes, she has.",
+          "explanation": "Повторяем вспомогательный глагол has."
+        }
+      ]
+    },
+    {
+      "id": "never",
+      "title": "Never уже означает отрицание",
+      "body": "Never означает «никогда»: I have never eaten sushi.\nНе добавляем haven’t в ту же простую конструкцию: неверно I haven’t never eaten sushi.\nВ вопросе об опыте выбираем ever; в сообщении об отсутствии опыта — never.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Такого опыта совсем не было. Выбери ever или never. Впиши одно слово.",
+          "question": "I have ___ eaten sushi in my life.",
+          "correct_answer": "never",
+          "explanation": "Never само передаёт отрицательный смысл «никогда»."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Сохрани never и убери лишнее отрицание. Перепиши всё предложение.",
+          "question": "She hasn't never been to Rome.",
+          "correct_answer": "She has never been to Rome.",
+          "explanation": "Never уже отрицательное, поэтому используем has, не hasn’t."
+        }
+      ]
+    },
+    {
+      "id": "finished-time",
+      "title": "Точное завершённое время: Past Simple",
+      "body": "Если называем завершённое время события, обычно используем Past Simple: I visited Rome last year.\nPresent Perfect сообщает об опыте к настоящему моменту: I have visited Rome.\nНе соединяем обычное Present Perfect опыта с yesterday или last year.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение с точным завершённым временем last year.",
+          "question": "Я посетил Рим в прошлом году.",
+          "options": [
+            "I visited Rome last year.",
+            "I have visited Rome last year.",
+            "I has visited Rome last year."
+          ],
+          "correct_answer": "I visited Rome last year.",
+          "explanation": "Last year задаёт завершённое прошлое: Past Simple."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Замени Present Perfect на Past Simple, сохрани yesterday. Перепиши всё предложение.",
+          "question": "I have seen Tom yesterday.",
+          "correct_answer": "I saw Tom yesterday.",
+          "explanation": "С yesterday нужен Past Simple; V2 глагола see — saw."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Been to описывает посещение с возвращением: She has been to Paris. Gone to часто означает, что человек уехал и ещё не вернулся: She has gone to Paris. Вопрос When ...? о точном времени события обычно требует Past Simple: When did you go? Жизненный опыт связывается с периодом, продолжающимся до настоящего момента; о жизни умершего человека обычно рассказывают в Past Simple."
+    }
+  ]
+}

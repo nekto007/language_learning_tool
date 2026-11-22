@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "b1-15",
+  "title": "Present Perfect с for и since (длительность действий).",
+  "goal": "Скажи, как долго продолжается ситуация, используя Present Perfect с for и since.",
+  "steps": [
+    {
+      "id": "continues-now",
+      "title": "Началось раньше и продолжается сейчас",
+      "body": "Present Perfect может связывать прошлое с настоящим: I have lived here for five years — я всё ещё живу здесь.\nФорма: have/has + V3.\nShe has known Sam since school. В этом значении know обычно не ставим в Continuous.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Она всё ещё живёт здесь. Впиши have или has.",
+          "question": "She ___ lived here for five years.",
+          "correct_answer": "has",
+          "explanation": "После she используем has lived."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Они знают друг друга до сих пор. Впиши V3 от know. Введи одно слово.",
+          "question": "They have ___ each other since school. (know)",
+          "correct_answer": "known",
+          "explanation": "Третья форма know — known; ситуация продолжается сейчас."
+        }
+      ]
+    },
+    {
+      "id": "for-duration",
+      "title": "For: сколько времени",
+      "body": "For ставим перед периодом длительности: for two days, for five years, for a long time.\nI have worked here for three years.\nFor не сообщает дату начала, а измеряет продолжительность.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши for или since перед длительностью three years.",
+          "question": "I have worked here ___ three years.",
+          "correct_answer": "for",
+          "explanation": "Three years — период, поэтому for."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши for или since перед a long time.",
+          "question": "We have known each other ___ a long time.",
+          "correct_answer": "for",
+          "explanation": "A long time выражает длительность: for a long time."
+        }
+      ]
+    },
+    {
+      "id": "since-start",
+      "title": "Since: с какого момента",
+      "body": "Since ставим перед точкой начала: since Monday, since 2020, since I was a child.\nI have lived here since 2020.\nПосле since может быть целое предложение о начале в прошлом.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши for или since перед годом начала.",
+          "question": "She has lived here ___ 2020.",
+          "correct_answer": "since",
+          "explanation": "2020 — точка начала: since 2020."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши for или since перед событием начала.",
+          "question": "I have known him ___ I was a child.",
+          "correct_answer": "since",
+          "explanation": "I was a child задаёт начальную точку в прошлом, поэтому since."
+        }
+      ]
+    },
+    {
+      "id": "how-long",
+      "title": "Спроси о длительности: How long ...?",
+      "body": "Для продолжающейся ситуации спрашиваем: How long have you lived here?\nНе заменяем это вопросом When do you live here?\nЕсли ситуация уже закончилась, возможен Past Simple с for: I lived there for two years, then moved away.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай вопрос о длительности продолжающегося проживания. Начни с How long have you. Введи всё предложение.",
+          "question": "You have lived here for five years.",
+          "correct_answer": "How long have you lived here?",
+          "explanation": "Порядок: How long + have + you + lived."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Человек больше там не живёт: он уехал. Выбери предложение о закончившемся периоде.",
+          "question": "Он жил там два года, затем переехал.",
+          "options": [
+            "He lived there for two years, then moved away.",
+            "He has lived there for two years, then moved away.",
+            "He lives there since two years."
+          ],
+          "correct_answer": "He lived there for two years, then moved away.",
+          "explanation": "Ситуация закончилась, поэтому Past Simple; for может использоваться и с ним."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "For не является автоматическим указателем только Present Perfect: I stayed for two days — законченный период; I will stay for two days — будущая длительность. Since может вводить событие в Past Simple: since we met. В отрицаниях Present Perfect с for/since часто выражается отсутствие события до сих пор: I haven’t seen her for months. Для процессов возможен Present Perfect Continuous: I have been working for two hours; это отдельная тема."
+    }
+  ]
+}

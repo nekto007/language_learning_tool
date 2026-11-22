@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "topic_slug": "b2-7",
+  "title": "Gerund vs Infinitive: после каких глаголов",
+  "goal": "Выбирай -ing или to-infinitive и замечай изменение смысла.",
+  "steps": [
+    {
+      "id": "verb-patterns",
+      "title": "Форма зависит от главного глагола",
+      "body": "Enjoy, avoid, finish обычно требуют V-ing: enjoy reading, avoid waiting. Decide, hope, plan требуют to + глагол: decide to leave, hope to win. Учим глагол вместе с моделью.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь read в форму после enjoys. Впиши одно слово.",
+          "question": "She enjoys ___ before bed. (read)",
+          "correct_answer": "reading",
+          "explanation": "После enjoy требуется V-ing."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни decided нужной формой leave. Впиши два слова.",
+          "question": "We decided ___ early. (leave)",
+          "correct_answer": "to leave",
+          "explanation": "После decide нужен to-infinitive."
+        }
+      ]
+    },
+    {
+      "id": "remember",
+      "title": "Remember: память или задача",
+      "body": "Remember doing — помнить уже случившееся: I remember locking the door. Remember to do — не забыть выполнить действие: Remember to lock the door when you leave.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу, выражающую воспоминание о вчерашнем действии.",
+          "question": "Я помню сам момент: вчера я запер дверь.",
+          "correct_answer": "I remember locking the door.",
+          "explanation": "Locking относится к воспоминанию о совершённом действии.",
+          "options": [
+            "I remember locking the door.",
+            "I remember to lock the door.",
+            "I remember lock the door."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь switch off в нужную форму после remember. Впиши три слова.",
+          "question": "Please remember ___ the lights before you leave. (switch off)",
+          "correct_answer": "to switch off",
+          "explanation": "Действие ещё нужно выполнить: remember to switch off."
+        }
+      ]
+    },
+    {
+      "id": "stop-try",
+      "title": "Stop и try меняют смысл",
+      "body": "Stop doing — перестать действие: stop smoking. Stop to do — остановиться ради другого действия: stop to rest. Try doing — испытать способ решения; try to do — попытаться выполнить трудное действие.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение о цели остановки, а не о прекращении отдыха.",
+          "question": "После часа ходьбы мы остановились, чтобы отдохнуть.",
+          "correct_answer": "We stopped to rest.",
+          "explanation": "To rest называет цель остановки.",
+          "options": [
+            "We stopped to rest.",
+            "We stopped resting.",
+            "We stopped rest."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Предложи испытать способ через try + V-ing. Впиши одно слово.",
+          "question": "The screen is frozen. Try ___ the app; that may solve it. (restart)",
+          "correct_answer": "restarting",
+          "explanation": "Проверяем способ решения проблемы: try restarting."
+        }
+      ]
+    },
+    {
+      "id": "prepositions",
+      "title": "После предлога — форма на -ing",
+      "body": "После предлогов используем V-ing: interested in learning, without checking. В look forward to слово to — предлог, поэтому look forward to seeing, а не to see. Begin/start часто допускают обе формы: start working / start to work.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только форму meet после look forward to. Перепиши всё предложение.",
+          "question": "I look forward to meet you.",
+          "correct_answer": "I look forward to meeting you.",
+          "explanation": "To здесь предлог, поэтому meeting."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь send в форму после before. Впиши одно слово.",
+          "question": "Check the figures before ___ the report. (send)",
+          "correct_answer": "sending",
+          "explanation": "Before здесь предлог перед глагольной формой, поэтому sending."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Ещё пары с разным смыслом",
+      "body": "Forget to do — забыть выполнить действие; forget doing — утратить воспоминание о сделанном. Regret doing — сожалеть о сделанном; regret to say/inform — формально сообщать неприятную новость. Go on doing — продолжать то же действие; go on to do — перейти к следующему."
+    },
+    {
+      "title": "Возможны обе формы",
+      "body": "После begin/start, а во многих контекстах и like/love/hate возможны V-ing и to-infinitive. Не объявляй один вариант ошибкой без контекста или явного требования формы в задании."
+    }
+  ]
+}

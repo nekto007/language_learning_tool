@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "topic_slug": "a2-9",
+  "title": "Союзы and, but, because: добавление, контраст и причина",
+  "goal": "Соедини идеи, противопоставь их или объясни причину с and, but, because.",
+  "steps": [
+    {
+      "id": "and",
+      "title": "And добавляет информацию",
+      "body": "And соединяет слова или части предложения: I like tea and coffee. She sings and dances.\nЗдесь and означает «и».",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Соедини два напитка словом «и». Впиши and, but или because.",
+          "question": "I like tea ___ coffee.",
+          "correct_answer": "and",
+          "explanation": "Для добавления второго предмета используем and."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Соедини два действия, которые она умеет делать: поёт и танцует.",
+          "question": "She sings ___ dances.",
+          "correct_answer": "and",
+          "options": [
+            "and",
+            "because"
+          ],
+          "explanation": "Два равноправных действия соединяются and."
+        }
+      ]
+    },
+    {
+      "id": "but",
+      "title": "But показывает контраст",
+      "body": "But означает «но» и противопоставляет идеи: I am tired, but I can work.\nВыбор союза зависит от связи между мыслями, а не только от слов в предложении.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Соедини мысли с заданным противопоставлением «Я устал, но могу работать». Впиши союз.",
+          "question": "I am tired, ___ I can work.",
+          "correct_answer": "but",
+          "explanation": "Контраст вводим с but."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Соедини контраст: сумка маленькая, но тяжёлая. Выбери союз.",
+          "question": "The bag is small, ___ it is heavy.",
+          "correct_answer": "but",
+          "options": [
+            "but",
+            "because"
+          ],
+          "explanation": "Заданный контраст выражает but."
+        }
+      ]
+    },
+    {
+      "id": "because",
+      "title": "Because вводит причину",
+      "body": "Because означает «потому что»: I stay at home because I am ill.\nПосле because здесь идёт часть предложения с подлежащим и глаголом. Because — подчинительный союз, а не сочинительный.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Вторая часть объясняет причину: «потому что я болен». Впиши and, but или because.",
+          "question": "I stay at home ___ I am ill.",
+          "correct_answer": "because",
+          "explanation": "Причину вводит because."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери прямой ответ с причиной на вопрос «Почему ты устал?».",
+          "question": "Why are you tired?",
+          "correct_answer": "Because I work at night.",
+          "options": [
+            "Because I work at night.",
+            "But I work at night."
+          ],
+          "explanation": "В ответе на why причину можно начать с Because."
+        }
+      ]
+    },
+    {
+      "id": "reason-first",
+      "title": "Причина может стоять первой",
+      "body": "Можно начать предложение с причины: Because I am ill, I stay at home.\nЕсли придаточная часть с because идёт первой, после неё обычно ставим запятую. Для той же связи не добавляем so во вторую часть этой учебной модели.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Переставь причину в начало, начиная с Because. Введи всё предложение.",
+          "question": "I stay at home because I am ill.",
+          "correct_answer": "Because I am ill, I stay at home.",
+          "explanation": "Часть Because I am ill идёт первой, затем основная мысль."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишнее so, сохранив because. Перепиши всё предложение.",
+          "question": "Because I am ill, so I stay at home.",
+          "correct_answer": "Because I am ill, I stay at home.",
+          "explanation": "В этой модели because уже связывает причину и результат; so не требуется."
+        }
+      ]
+    }
+  ]
+}

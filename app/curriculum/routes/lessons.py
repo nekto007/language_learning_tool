@@ -4,6 +4,7 @@ import logging
 import math
 import random
 import re
+from collections.abc import Mapping
 from types import SimpleNamespace
 from datetime import UTC, datetime
 
@@ -589,6 +590,47 @@ def check_sentence_completion_item(lesson_id):
     return jsonify(resp)
 
 
+def _locked_grammar_submission_lesson(lesson):
+    """Serialize a grammar submission with content replacement by the importer."""
+    return (Lessons.query.filter_by(id=lesson.id, type='grammar')
+            .with_for_update().populate_existing().first_or_404())
+
+
+def _guided_grammar_revision_error(lesson, payload):
+    content = lesson.content if isinstance(lesson.content, dict) else {}
+    revision = content.get('guided_catalog_digest')
+    payload_revision = payload.get('guided_revision') if isinstance(payload, Mapping) else None
+    if revision != payload_revision:
+        return jsonify({
+            'success': False,
+            'error': 'lesson_changed',
+            'message': 'Материал урока изменился. Откройте урок заново перед новой попыткой.',
+        }), 409
+    return None
+
+
+def _grade_web_guided_grammar(exercises, answers, *, option_text=False):
+    """Browser values are option labels; JSON API values retain index support."""
+    from app.grammar_lab.guided_learning import grade_guided_answers
+
+    if (not isinstance(answers, dict) or set(answers) != set(map(str, range(len(exercises))))
+            or any(not isinstance(value, str) or not value.strip() or len(value) > 2000
+                   for value in answers.values())):
+        raise ValueError('Every grammar question requires one bounded text answer')
+    values = dict(answers)
+    for index, row in enumerate(exercises):
+        if row.get('type') == 'multiple_choice':
+            value = values[str(index)]
+            options = row.get('options') or []
+            if option_text:
+                if value not in options:
+                    raise ValueError('Unknown grammar option')
+                values[str(index)] = str(options.index(value))
+            elif value not in options and value not in set(map(str, range(len(options)))):
+                raise ValueError('Unknown grammar option')
+    return grade_guided_answers(exercises, values)
+
+
 @lessons_bp.route('/api/lesson/<int:lesson_id>/submit', methods=['POST'])
 @login_required
 @limiter.limit("30 per minute", key_func=get_authenticated_user_key)
@@ -598,6 +640,11 @@ def submit_lesson(lesson_id):
     try:
         lesson = Lessons.query.get_or_404(lesson_id)
         data = request.get_json(silent=True) or {}
+        if lesson.type == 'grammar':
+            lesson = _locked_grammar_submission_lesson(lesson)
+            revision_error = _guided_grammar_revision_error(lesson, data)
+            if revision_error:
+                return revision_error
 
         # Rate limit checks to prevent leaderboard abuse.
         # The finish=True action only marks the lesson completed; it does not
@@ -622,7 +669,14 @@ def submit_lesson(lesson_id):
             result = process_quiz_submission(_content.get('questions', []), data.get('answers', {}))
         elif lesson.type == 'grammar':
             _content = lesson.content if isinstance(lesson.content, dict) else {}
-            result = process_grammar_submission(_content.get('exercises', []), data.get('answers', {}))
+            if _content.get('guided_catalog_digest'):
+                try:
+                    result = _grade_web_guided_grammar(_content.get('exercises', []), data.get('answers', {}))
+                    result['guided_revision'] = _content['guided_catalog_digest']
+                except ValueError:
+                    return jsonify({'success': False, 'error': 'invalid_answers'}), 400
+            else:
+                result = process_grammar_submission(_content.get('exercises', []), data.get('answers', {}))
         elif lesson.type == 'matching':
             # Memory-game matching: words are dynamic (study.get_matching_words),
             # so there is no content answer key. Score is recomputed server-side

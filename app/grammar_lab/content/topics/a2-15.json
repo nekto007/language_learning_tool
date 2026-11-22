@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "topic_slug": "a2-15",
+  "title": "Present Continuous для текущих действий",
+  "goal": "Расскажи, что происходит сейчас, и задай вопрос о текущем действии.",
+  "steps": [
+    {
+      "id": "now-form",
+      "title": "Действие происходит сейчас",
+      "body": "Present Continuous: am/is/are + глагол с -ing.\nI am reading now. She is cooking. They are working.\nBe согласуется с подлежащим: I am; he/she/it is; you/we/they are.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши am, is или are. Сейчас она готовит. Введи одно слово.",
+          "question": "She ___ cooking now.",
+          "correct_answer": "is",
+          "explanation": "С she используем is: She is cooking."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши форму read с окончанием -ing. Введи одно слово.",
+          "question": "I am ___ now. (read)",
+          "correct_answer": "reading",
+          "explanation": "После am нужна форма -ing: reading."
+        }
+      ]
+    },
+    {
+      "id": "ing-spelling",
+      "title": "Как написать форму -ing",
+      "body": "Обычно добавляем -ing: read → reading.\nНемую конечную -e убираем: make → making.\nВ коротких глаголах вроде stop удваиваем последнюю согласную: stop → stopping. Не удваиваем согласную автоматически у любого глагола.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй форму -ing от make. Впиши одно слово.",
+          "question": "She is ___ tea. (make)",
+          "correct_answer": "making",
+          "explanation": "В make убираем конечную e и добавляем -ing: making."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй форму -ing от stop. Впиши одно слово.",
+          "question": "The bus is ___ now. (stop)",
+          "correct_answer": "stopping",
+          "explanation": "В коротком stop удваиваем p: stopping."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Что сейчас не происходит",
+      "body": "Для отрицания ставим not после am/is/are: I am not sleeping. She is not working.\nВозможны сокращения is not → isn’t, are not → aren’t.\nГлагол с -ing сохраняется.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Используй is not или isn't. Введи всё предложение.",
+          "question": "She is working now.",
+          "correct_answer": "She is not working now.",
+          "explanation": "Not ставим после is, а working не меняем.",
+          "alternatives": [
+            "She isn't working now."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму основного глагола после are. Перепиши всё предложение.",
+          "question": "They are not sleep now.",
+          "correct_answer": "They are not sleeping now.",
+          "explanation": "В Present Continuous после are not нужна форма -ing: sleeping."
+        }
+      ]
+    },
+    {
+      "id": "questions-habits",
+      "title": "Вопрос и отличие от привычки",
+      "body": "Для вопроса ставим am/is/are перед подлежащим: Are you reading?\nСравни: I read every day — привычка (Present Simple). I am reading now — действие сейчас.\nВ вопросе Present Continuous дополнительный do не нужен.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос к этому действию сейчас. Начни с Are. Введи полное предложение.",
+          "question": "They are studying now.",
+          "correct_answer": "Are they studying now?",
+          "explanation": "Are переносим перед they; studying остаётся на месте."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение о действии прямо сейчас, а не о привычке.",
+          "question": "Посмотри: он сейчас бежит.",
+          "options": [
+            "He runs every morning.",
+            "He is running now.",
+            "He run now."
+          ],
+          "correct_answer": "He is running now.",
+          "explanation": "Is running показывает действие в процессе сейчас."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Другие частые формы: lie → lying, run → running, sit → sitting. У многосложных глаголов удвоение связано с ударением: begin → beginning, но visit → visiting. Глаголы состояния вроде know, want, believe обычно не ставим в Continuous в их обычном значении: I know, а не I am knowing."
+    }
+  ]
+}

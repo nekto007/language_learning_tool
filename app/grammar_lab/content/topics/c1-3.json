@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "topic_slug": "c1-3",
+  "title": "Perfect Passive (Present Perfect Passive).",
+  "goal": "Строй Present Perfect Passive с фокусом на нынешнем результате действия.",
+  "steps": [
+    {
+      "id": "present-result",
+      "title": "Have / has been + V3",
+      "body": "Present Perfect Passive: have/has + been + V3. Действие с объектом связано с настоящим результатом: The road has been repaired, so it is open now. Исполнителя можно не называть.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь repair в Present Perfect Passive. Впиши три слова.",
+          "question": "The road ___, so it is open now. (repair)",
+          "correct_answer": "has been repaired",
+          "explanation": "Road — единственное число; has been repaired сообщает о нынешнем результате."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Перепиши в Present Perfect Passive. Начни с The files; неизвестного исполнителя не называй.",
+          "question": "Someone has updated the files.",
+          "correct_answer": "The files have been updated.",
+          "explanation": "The files становится подлежащим; have been updated — пассивная форма."
+        }
+      ]
+    },
+    {
+      "id": "agreement",
+      "title": "Согласование и неправильные V3",
+      "body": "Have/has согласуется с новым подлежащим: The report has been written. The reports have been written. После been нужен V3: written, made, sent, taken.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши третью форму send. Одно слово.",
+          "question": "The invitations have been ___. (send)",
+          "correct_answer": "sent",
+          "explanation": "После have been требуется V3 от send: sent."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только согласование have/has. Перепиши всё предложение.",
+          "question": "The reports has been checked.",
+          "correct_answer": "The reports have been checked.",
+          "explanation": "Множественное reports требует have, а не has."
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Вопрос, отрицание, yet",
+      "body": "Вопрос: Has the work been finished? Отрицание: The work has not been finished yet. Been сохраняется; yet часто стоит в конце вопроса или отрицания.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай общий вопрос в Present Perfect Passive. Введи полное предложение.",
+          "question": "The work has been finished.",
+          "correct_answer": "Has the work been finished?",
+          "explanation": "Has переносится перед the work; been finished остаётся."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь not publish в Present Perfect Passive с полным not. Впиши четыре слова.",
+          "question": "The results ___ yet. (not publish)",
+          "correct_answer": "have not been published",
+          "explanation": "Results требует have; отрицательный пассив — have not been published."
+        }
+      ]
+    },
+    {
+      "id": "past-or-perfect",
+      "title": "Завершённое прошлое или нынешний результат",
+      "body": "С конкретным завершённым прошлым временем употребляем Past Simple Passive: It was repaired yesterday. Present Perfect Passive не сочетаем с yesterday в этой модели: It has been repaired, so we can use it.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери пассивную форму для события с yesterday.",
+          "question": "The bridge ___ yesterday.",
+          "correct_answer": "was repaired",
+          "explanation": "Yesterday задаёт завершённое прошлое время, поэтому Past Simple Passive.",
+          "options": [
+            "was repaired",
+            "has been repaired",
+            "has repaired"
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Переведи первую часть в Present Perfect Passive, начав The proposal. Сохрани всё после so.",
+          "question": "They have approved the proposal, so work can begin now.",
+          "correct_answer": "The proposal has been approved, so work can begin now.",
+          "explanation": "Present Perfect Passive сохраняет связь одобрения с нынешним результатом."
+        }
+      ]
+    }
+  ]
+}

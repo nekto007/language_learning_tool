@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "topic_slug": "a1-9",
+  "title": "Формальное подлежащее It для описания погоды и времени",
+  "goal": "Расскажи о погоде и времени с формальным подлежащим it.",
+  "steps": [
+    {
+      "id": "weather",
+      "title": "Погода: It is + признак",
+      "body": "В английском предложении о погоде используем подлежащее it: It is cold. It is sunny.\nНа русский it в таких предложениях отдельно не переводится. It is можно сократить до it’s.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи «Сегодня холодно». Впиши подлежащее, нужное в английском предложении.",
+          "question": "___ is cold today.",
+          "correct_answer": "It",
+          "explanation": "В предложении о погоде используем It."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму be после it.",
+          "question": "It ___ sunny.",
+          "correct_answer": "is",
+          "options": [
+            "am",
+            "is",
+            "are"
+          ],
+          "explanation": "С it используем is."
+        }
+      ]
+    },
+    {
+      "id": "raining",
+      "title": "Дождь и снег сейчас",
+      "body": "Когда дождь или снег идёт прямо сейчас, используем готовые модели It is raining. / It is snowing.\nНе смешивай их с признаком погоды: It is rainy означает «дождливо».",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери полное предложение «Сейчас идёт дождь».",
+          "question": "Дождь идёт сейчас.",
+          "correct_answer": "It is raining.",
+          "options": [
+            "It is raining.",
+            "It raining.",
+            "It are raining."
+          ],
+          "explanation": "В модели нужны It, is и raining."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Снег идёт прямо сейчас. Поставь snow в форму после is. Впиши только одно слово.",
+          "question": "It is ___.",
+          "correct_answer": "snowing",
+          "explanation": "Для идущего снега используем It is snowing."
+        }
+      ]
+    },
+    {
+      "id": "time",
+      "title": "Время и день",
+      "body": "Для времени и дня также нужен it: It is five o’clock. It is Monday.\nВопрос о времени: What time is it?",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши подлежащее в английское предложение «Сегодня понедельник».",
+          "question": "___ is Monday.",
+          "correct_answer": "It",
+          "explanation": "Для обозначения дня используем It is."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово в вопросе «Который час?».",
+          "question": "What time ___ it?",
+          "correct_answer": "is",
+          "options": [
+            "is",
+            "are",
+            "do"
+          ],
+          "explanation": "Правильная модель: What time is it?"
+        }
+      ]
+    },
+    {
+      "id": "negative-question",
+      "title": "Отрицание и вопрос",
+      "body": "Отрицание: It is not cold. / It isn’t cold.\nОбщий вопрос: Is it cold?\nО погоде можно спросить: What is the weather like?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Спроси, холодно ли. Перепиши всё предложение вопросом.",
+          "question": "It is cold.",
+          "correct_answer": "Is it cold?",
+          "explanation": "Is ставим перед it."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Скажи, что погода не солнечная. Добавь not и введи всё предложение.",
+          "question": "It is sunny.",
+          "correct_answer": "It is not sunny.",
+          "explanation": "Not ставится после is.",
+          "alternatives": [
+            "It isn't sunny.",
+            "It isn’t sunny."
+          ]
+        }
+      ]
+    }
+  ]
+}

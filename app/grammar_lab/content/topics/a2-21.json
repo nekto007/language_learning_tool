@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "topic_slug": "a2-21",
+  "title": "First Conditional (if + Present Simple, will).",
+  "goal": "Расскажи о реальном условии в будущем и возможном результате.",
+  "steps": [
+    {
+      "id": "future-result",
+      "title": "Условие и будущий результат",
+      "body": "First Conditional: If + Present Simple, will + начальная форма.\nIf it rains tomorrow, we will stay home.\nДождь возможен; мы говорим о конкретной будущей ситуации, а не о постоянной привычке.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни условие о завтрашней погоде. Поставь rain в Present Simple после it. Впиши одно слово.",
+          "question": "If it ___ tomorrow, we will stay home. (rain)",
+          "correct_answer": "rains",
+          "explanation": "После if в обычном будущем условии используем Present Simple: it rains."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь catch в форму будущего результата First Conditional. Впиши два слова.",
+          "question": "If you leave now, you ___ the bus. (catch)",
+          "correct_answer": "will catch",
+          "explanation": "Возможный будущий результат: will + catch."
+        }
+      ]
+    },
+    {
+      "id": "no-will-in-if",
+      "title": "В условии обычно не нужен will",
+      "body": "Для обычного будущего условия: if she comes, а не if she will come.\nПосле will глагол в начальной форме: will help, а не will helps.\nБудущее значение уже задаётся всей ситуацией.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь обычное будущее условие: убери will из части с if. Перепиши всё предложение.",
+          "question": "If she will arrive early, we will have dinner together.",
+          "correct_answer": "If she arrives early, we will have dinner together.",
+          "explanation": "В if-части ставим Present Simple: she arrives."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную форму результата после will.",
+          "question": "If he studies, he will … the exam.",
+          "options": [
+            "passes",
+            "pass",
+            "to pass"
+          ],
+          "correct_answer": "pass",
+          "explanation": "После will используем начальную форму pass."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отрицание в условии и результате",
+      "body": "В if-части используем don’t/doesn’t + начальную форму: If you don’t hurry...\nВ результате will not / won’t: ...you won’t catch the bus.\nIf she doesn’t call, I will send a message.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши does not или doesn't для отрицательного условия после she.",
+          "question": "If she ___ call, I will send a message.",
+          "correct_answer": "does not",
+          "explanation": "После she используем does not call, без -s у call.",
+          "alternatives": [
+            "doesn't"
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Сделай результат отрицательным, сохрани условие. Используй will not или won't. Введи всё предложение.",
+          "question": "If it rains, we will go out.",
+          "correct_answer": "If it rains, we will not go out.",
+          "explanation": "Отрицание результата: will not go out.",
+          "alternatives": [
+            "If it rains, we won't go out."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "order-and-meaning",
+      "title": "Переставляем части без изменения смысла",
+      "body": "Можно начать с результата: We will stay home if it rains.\nПосле перестановки if-часть остаётся в Present Simple.\nСравни: If I am tired, I rest — привычка; If I am tired tonight, I will rest — возможная ситуация сегодня вечером.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с We will stay home. Перенеси условие в конец и введи всё предложение.",
+          "question": "If it rains, we will stay home.",
+          "correct_answer": "We will stay home if it rains.",
+          "explanation": "Перестановка не меняет времён: will stay + if it rains."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение о конкретном возможном событии завтра.",
+          "question": "Если завтра пойдёт дождь, мы останемся дома.",
+          "options": [
+            "If it rains tomorrow, we will stay home.",
+            "If it rained tomorrow, we stay home.",
+            "If it will rain tomorrow, we stay home."
+          ],
+          "correct_answer": "If it rains tomorrow, we will stay home.",
+          "explanation": "Для реального будущего условия: if + Present Simple, will + начальная форма."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "В главной части возможны can, may, should или команда, если этого требует смысл: If you finish, you can leave; If you feel ill, call a doctor. Unless обычно означает if ... not: We will go unless it rains. Will в if-части возможен в особых значениях вроде готовности что-то сделать; запрет касается обычного нейтрального будущего условия."
+    }
+  ]
+}

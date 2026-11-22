@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "topic_slug": "a1-11",
+  "title": "Do/Does в вопросах и отрицаниях (Present Simple)",
+  "goal": "Задавай вопросы о привычках и строй отрицания с do/does.",
+  "steps": [
+    {
+      "id": "do-does",
+      "title": "Вопрос: Do или Does",
+      "body": "О привычках спрашиваем так: Do you work here? Does she work here?\nDo — с I/you/we/they; does — с he/she/it. После does основной глагол идёт без -s.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши Do или Does, чтобы спросить, живёт ли она здесь.",
+          "question": "___ she live here?",
+          "correct_answer": "Does",
+          "explanation": "С she в вопросе используем Does."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму основного глагола после Does he.",
+          "question": "Does he ___ English?",
+          "correct_answer": "speak",
+          "options": [
+            "speak",
+            "speaks"
+          ],
+          "explanation": "После does окончание -s у основного глагола не нужно."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Don’t и doesn’t",
+      "body": "I/you/we/they + do not (don’t) + глагол.\nHe/she/it + does not (doesn’t) + глагол без -s.\nI don’t work here. She doesn’t work here.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Введи всё предложение.",
+          "question": "She works on Sundays.",
+          "correct_answer": "She does not work on Sundays.",
+          "explanation": "После does not используем work без -s.",
+          "alternatives": [
+            "She doesn't work on Sundays.",
+            "She doesn’t work on Sundays."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши do или does перед not после they.",
+          "question": "They ___ not live here.",
+          "correct_answer": "do",
+          "explanation": "С they отрицание строится через do not."
+        }
+      ]
+    },
+    {
+      "id": "wh-questions",
+      "title": "Вопросительное слово в начале",
+      "body": "В специальных вопросах ставим вопросительное слово перед do/does: Where do you live? What does he study?\nПорядок: вопросительное слово → do/does → человек → основной глагол.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вспомогательный глагол в вопросе о месте работы Анны.",
+          "question": "Where ___ Anna work?",
+          "correct_answer": "does",
+          "options": [
+            "do",
+            "does",
+            "is"
+          ],
+          "explanation": "Anna соответствует she: Where does Anna work?"
+        },
+        {
+          "type": "transformation",
+          "instruction": "Спроси, где живёт собеседник. Используй Where и введи весь вопрос без названия города.",
+          "question": "You live in London.",
+          "correct_answer": "Where do you live?",
+          "explanation": "Where ставим перед do; затем you и live."
+        }
+      ]
+    },
+    {
+      "id": "short-answers",
+      "title": "Короткий ответ",
+      "body": "Do you work? — Yes, I do. / No, I don’t.\nDoes she study? — Yes, she does. / No, she doesn’t.\nВ коротком ответе сохраняем do или does; основной глагол не повторяем.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Дай краткий утвердительный ответ. Впиши одно слово.",
+          "question": "Does he work here? — Yes, he ___.",
+          "correct_answer": "does",
+          "explanation": "Для he сохраняем does."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери сокращённое отрицание в кратком ответе после they.",
+          "question": "Do they live here? — No, they ___.",
+          "correct_answer": "don't",
+          "options": [
+            "don't",
+            "doesn't",
+            "aren't"
+          ],
+          "explanation": "В вопросе Do they... ответ No, they don’t."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "topic_slug": "b2-9",
+  "title": "Passive Voice (Past Simple)",
+  "goal": "Описывай прошлое событие с фокусом на получателе действия.",
+  "steps": [
+    {
+      "id": "form",
+      "title": "Was / were + V3",
+      "body": "Past Simple Passive: was/were + past participle. Получатель действия становится подлежащим: They repaired the bridge → The bridge was repaired. С единственным числом was, с множественным were.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь repair в Past Simple Passive. Впиши два слова.",
+          "question": "The bridge ___ last year. (repair)",
+          "correct_answer": "was repaired",
+          "explanation": "Bridge — единственное число, поэтому was + repaired."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь clean в Past Simple Passive. Впиши два слова.",
+          "question": "The windows ___ yesterday. (clean)",
+          "correct_answer": "were cleaned",
+          "explanation": "Windows — множественное число, поэтому were cleaned."
+        }
+      ]
+    },
+    {
+      "id": "irregular",
+      "title": "Нужна третья форма, не Past Simple",
+      "body": "У неправильных глаголов берём V3: write → written, steal → stolen, make → made. Сравни: Someone stole the car. → The car was stolen.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Переделай в Past Simple Passive. Начни с My bike; неизвестного исполнителя не называй.",
+          "question": "Someone stole my bike last night.",
+          "correct_answer": "My bike was stolen last night.",
+          "explanation": "Bike становится подлежащим; V3 от steal — stolen."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши третью форму write после was. Одно слово.",
+          "question": "The letter was ___ in French. (write)",
+          "correct_answer": "written",
+          "explanation": "После was в пассиве требуется V3: written."
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Отрицание и вопрос",
+      "body": "Отрицание: was/were not + V3. Вопрос: Was/Were + подлежащее + V3? Did в такой пассивной конструкции не нужен: Was the door locked?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай общий вопрос в Past Simple Passive. Перепиши предложение.",
+          "question": "The files were deleted.",
+          "correct_answer": "Were the files deleted?",
+          "explanation": "Were переносится перед files; deleted сохраняется."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь вспомогательный глагол, сохрани полное not. Перепиши всё предложение.",
+          "question": "The parcel did not delivered yesterday.",
+          "correct_answer": "The parcel was not delivered yesterday.",
+          "explanation": "Для отрицательного пассива нужен was not, а не did not."
+        }
+      ]
+    },
+    {
+      "id": "agent",
+      "title": "Называем исполнителя только когда он важен",
+      "body": "Исполнитель после by: The novel was written by Orwell. Если он неизвестен, очевиден или неважен, by-фразу можно опустить: The road was closed. Сохраняй в новом предложении время события.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Перепиши в Past Simple Passive, начав The novel. Обязательно сохрани автора через by.",
+          "question": "Orwell wrote the novel.",
+          "correct_answer": "The novel was written by Orwell.",
+          "explanation": "Автор важен, поэтому сохраняем его в by Orwell."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери корректное пассивное сообщение без ненужного исполнителя.",
+          "question": "Кто сломал окно, неизвестно. Нужно сообщить только о событии.",
+          "correct_answer": "The window was broken.",
+          "explanation": "Was broken правильно передаёт прошлый пассив; неизвестного исполнителя можно не добавлять.",
+          "options": [
+            "The window was broken.",
+            "The window broke by someone unknownly.",
+            "The window was broke."
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "topic_slug": "b2-1",
+  "title": "Present Perfect Continuous",
+  "goal": "Выражай длительность процесса и отличай её от готового результата.",
+  "steps": [
+    {
+      "id": "process",
+      "title": "Процесс до настоящего момента",
+      "body": "Present Perfect Continuous: have/has + been + V-ing. Действие началось раньше и продолжается сейчас или только что закончилось с видимым результатом: I have been painting, so my hands are dirty.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь study в Present Perfect Continuous. Впиши всю глагольную форму — три слова.",
+          "question": "She ___ for two hours and is still working. (study)",
+          "correct_answer": "has been studying",
+          "explanation": "Для she используем has been + studying; процесс продолжается."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Используй Present Perfect Continuous с paint. Впиши три слова.",
+          "question": "My hands are dirty because I ___ the wall. (paint)",
+          "correct_answer": "have been painting",
+          "explanation": "Объясняем нынешнее состояние недавним процессом."
+        }
+      ]
+    },
+    {
+      "id": "negative-question",
+      "title": "Вопрос и отрицание",
+      "body": "Вопрос: Have/Has + подлежащее + been + V-ing? Отрицание: haven’t/hasn’t been + V-ing. How long спрашивает о длительности: How long have you been waiting?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай общий вопрос в Present Perfect Continuous. Перепиши всё предложение.",
+          "question": "You have been waiting for an hour.",
+          "correct_answer": "Have you been waiting for an hour?",
+          "explanation": "Have переносится перед you; been waiting сохраняется."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь not sleep в Present Perfect Continuous. Используй полное not; впиши четыре слова.",
+          "question": "He ___ well recently. (not sleep)",
+          "correct_answer": "has not been sleeping",
+          "explanation": "Has not been sleeping — отрицательная форма для he."
+        }
+      ]
+    },
+    {
+      "id": "duration",
+      "title": "For и since",
+      "body": "For + период: for three weeks. Since + момент начала: since Monday. Оба выражения возможны с длительным процессом: We have been testing it for a month / since June.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши for или since перед моментом начала. Одно слово.",
+          "question": "We have been testing this app ___ Monday.",
+          "correct_answer": "since",
+          "explanation": "Monday задаёт момент начала, поэтому since."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши for или since перед длительностью. Одно слово.",
+          "question": "They have been discussing the plan ___ two hours.",
+          "correct_answer": "for",
+          "explanation": "Two hours — длительность, поэтому for."
+        }
+      ]
+    },
+    {
+      "id": "result",
+      "title": "Процесс или количество результата",
+      "body": "Continuous выделяет процесс: I have been writing emails all morning. Simple выделяет выполненное количество: I have written five emails. Глаголы состояния вроде know обычно не используют в Continuous: I have known her for years.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму, которая подчёркивает пять уже готовых писем.",
+          "question": "Five emails are finished. I ___ five emails this morning.",
+          "correct_answer": "have written",
+          "explanation": "Готовое количество five emails делает акцент на результате.",
+          "options": [
+            "have written",
+            "have been writing",
+            "am writing"
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только форму know, сохрани длительность. Перепиши предложение.",
+          "question": "I have been knowing her for ten years.",
+          "correct_answer": "I have known her for ten years.",
+          "explanation": "Know описывает состояние; здесь требуется Present Perfect Simple."
+        }
+      ]
+    }
+  ]
+}

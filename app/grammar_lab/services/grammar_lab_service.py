@@ -217,7 +217,9 @@ class GrammarLabService:
         data = topic.to_dict(include_content=True)
 
         # Get exercises
-        exercises = GrammarExercise.query.filter_by(topic_id=topic_id).order_by(
+        from app.grammar_lab.exercise_visibility import active_exercise_clause
+
+        exercises = GrammarExercise.query.filter_by(topic_id=topic_id).filter(active_exercise_clause()).order_by(
             GrammarExercise.order,
             GrammarExercise.difficulty
         ).all()
@@ -288,7 +290,9 @@ class GrammarLabService:
         session_id = f"grammar_{topic_id}_{user_id}_{uuid.uuid4().hex[:8]}"
 
         # Get all exercises
-        all_exercises = GrammarExercise.query.filter_by(topic_id=topic_id).all()
+        from app.grammar_lab.exercise_visibility import active_exercise_clause
+
+        all_exercises = GrammarExercise.query.filter_by(topic_id=topic_id).filter(active_exercise_clause()).all()
 
         if not all_exercises:
             return {
@@ -403,6 +407,9 @@ class GrammarLabService:
         exercise = GrammarExercise.query.get(exercise_id)
         if not exercise:
             return {'error': 'Exercise not found'}
+        if (exercise.content or {}).get('guided_retired'):
+            return {'error': 'Упражнение обновлено. Открой актуальную практику.',
+                    'code': 'lesson_changed', 'status': 409}
 
         # Grade the answer
         result = self.grader.grade(exercise, answer)
@@ -517,7 +524,9 @@ class GrammarLabService:
         if topic_status.status not in ('practicing', 'mastered'):
             return False
 
-        exercises = GrammarExercise.query.filter_by(topic_id=topic_id).all()
+        from app.grammar_lab.exercise_visibility import active_exercise_clause
+
+        exercises = GrammarExercise.query.filter_by(topic_id=topic_id).filter(active_exercise_clause()).all()
         if not exercises:
             return False
 
@@ -562,7 +571,9 @@ class GrammarLabService:
         now = datetime.now(timezone.utc)
 
         # Build exercise query
-        query = GrammarExercise.query
+        from app.grammar_lab.exercise_visibility import active_exercise_clause
+
+        query = GrammarExercise.query.filter(active_exercise_clause())
         if topic_ids:
             query = query.filter(GrammarExercise.topic_id.in_(topic_ids))
 
@@ -640,6 +651,8 @@ class GrammarLabService:
 
     def get_recommendations(self, user_id: int, limit: int = 5) -> List[Dict]:
         """Get recommended topics based on exercise states."""
+        from app.grammar_lab.exercise_visibility import active_exercise_clause
+
         recommendations = []
         now = datetime.now(timezone.utc)
 
@@ -649,6 +662,7 @@ class GrammarLabService:
             .join(GrammarExercise)
             .join(UserGrammarExercise)
             .filter(
+                active_exercise_clause(),
                 UserGrammarExercise.user_id == user_id,
                 UserGrammarExercise.next_review <= now,
                 UserGrammarExercise.state.in_([CardState.RELEARNING.value, CardState.REVIEW.value])
@@ -672,6 +686,7 @@ class GrammarLabService:
                 .join(GrammarExercise)
                 .join(UserGrammarExercise)
                 .filter(
+                    active_exercise_clause(),
                     UserGrammarExercise.user_id == user_id,
                     UserGrammarExercise.state == CardState.LEARNING.value
                 )
@@ -693,7 +708,7 @@ class GrammarLabService:
             started_topic_ids = (
                 db.session.query(GrammarExercise.topic_id)
                 .join(UserGrammarExercise)
-                .filter(UserGrammarExercise.user_id == user_id)
+                .filter(UserGrammarExercise.user_id == user_id, active_exercise_clause())
                 .distinct()
                 .subquery()
             )

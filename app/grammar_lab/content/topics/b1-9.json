@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "topic_slug": "b1-9",
+  "title": "Question Tags (Разделительные вопросы).",
+  "goal": "Построй короткий вопрос-хвостик с подходящим вспомогательным глаголом.",
+  "steps": [
+    {
+      "id": "opposite",
+      "title": "Утверждение и отрицательный хвостик",
+      "body": "В обычном вопросе-подтверждении положительная часть получает отрицательный хвостик, отрицательная — положительный.\nShe is here, isn’t she? She isn’t here, is she?\nИспользуем подходящее местоимение и уже имеющийся вспомогательный глагол.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь отрицательный хвостик-подтверждение. Впиши два слова без запятой.",
+          "question": "She is here, ___?",
+          "correct_answer": "isn't she",
+          "explanation": "Положительной части She is here соответствует isn’t she."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь положительный хвостик после отрицательной части. Впиши два слова.",
+          "question": "They are not ready, ___?",
+          "correct_answer": "are they",
+          "explanation": "После отрицательного are not используем положительное are they."
+        }
+      ]
+    },
+    {
+      "id": "do-support",
+      "title": "Если вспомогательного глагола нет",
+      "body": "В Present Simple используем do/does, в Past Simple — did.\nYou work here, don’t you? He works here, doesn’t he?\nShe called, didn’t she? Основной глагол в хвостик не переносим.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь обычный отрицательный хвостик в Present Simple после he. Впиши два слова.",
+          "question": "He works here, ___?",
+          "correct_answer": "doesn't he",
+          "explanation": "После he works нужен вспомогательный does: doesn’t he."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь обычный отрицательный хвостик в Past Simple. Впиши два слова.",
+          "question": "She called yesterday, ___?",
+          "correct_answer": "didn't she",
+          "explanation": "Called стоит в Past Simple, поэтому используем didn’t she."
+        }
+      ]
+    },
+    {
+      "id": "modal-perfect",
+      "title": "Повторяем can, will, have/has",
+      "body": "Если в основной части уже есть can, will, have/has в Perfect, используем его и в хвостике.\nYou can swim, can’t you?\nShe has finished, hasn’t she?\nВремя и лицо должны совпадать.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь отрицательный хвостик с can. Впиши два слова.",
+          "question": "You can swim, ___?",
+          "correct_answer": "can't you",
+          "explanation": "С can в основной части используем can’t you."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь отрицательный хвостик к Present Perfect. Впиши два слова.",
+          "question": "She has finished, ___?",
+          "correct_answer": "hasn't she",
+          "explanation": "В Present Perfect вспомогательный глагол has: hasn’t she."
+        }
+      ]
+    },
+    {
+      "id": "special",
+      "title": "Два частых особых случая",
+      "body": "После I am обычный отрицательный хвостик — aren’t I?\nI am late, aren’t I?\nПосле предложения с Let’s обычно shall we?\nLet’s go, shall we? Эти формы нужно запомнить.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь обычный отрицательный хвостик после I am. Впиши два слова.",
+          "question": "I am late, ___?",
+          "correct_answer": "aren't I",
+          "explanation": "Стандартный хвостик после I am — aren’t I."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Добавь обычный хвостик к предложению с Let's. Впиши два слова.",
+          "question": "Let's go, ___?",
+          "correct_answer": "shall we",
+          "explanation": "После Let’s обычно используем shall we."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Never, nobody и nothing уже придают отрицательный смысл: He never calls, does he? Everybody обычно получает they: Everyone is ready, aren’t they? С there is/are повторяем there: There is a problem, isn’t there? Утвердительный хвостик после утверждения тоже бывает, но выражает иной оттенок, например удивление; основной разбор учит нейтральному подтверждению."
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "topic_slug": "a2-23",
+  "title": "Past Simple: неправильные глаголы",
+  "goal": "Используй частые неправильные формы и возвращай глагол к начальной форме после did.",
+  "steps": [
+    {
+      "id": "irregular-forms",
+      "title": "Неправильная форма вместо -ed",
+      "body": "Некоторые формы Past Simple запоминаем отдельно:\ngo → went · eat → ate · see → saw\nhave → had · buy → bought · take → took.\nОни одинаковы для разных лиц: I went, she went, they went.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь go в Past Simple. Впиши одно слово.",
+          "question": "She ___ to school yesterday. (go)",
+          "correct_answer": "went",
+          "explanation": "У go особая прошедшая форма went."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь buy в Past Simple. Впиши одно слово.",
+          "question": "We ___ bread yesterday. (buy)",
+          "correct_answer": "bought",
+          "explanation": "У buy особая форма bought."
+        }
+      ]
+    },
+    {
+      "id": "did-not",
+      "title": "После didn’t — начальная форма",
+      "body": "Отрицание: did not / didn’t + начальная форма.\nI went → I didn’t go.\nНеправильная прошедшая форма после didn’t не нужна.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Используй did not или didn't. Введи всё предложение.",
+          "question": "She saw Tom yesterday.",
+          "correct_answer": "She did not see Tom yesterday.",
+          "explanation": "После did not используем see, не saw.",
+          "alternatives": [
+            "She didn't see Tom yesterday."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь глагол после didn't. Перепиши всё предложение.",
+          "question": "We didn't ate breakfast.",
+          "correct_answer": "We didn't eat breakfast.",
+          "explanation": "После didn’t возвращаем ate к начальной форме eat.",
+          "alternatives": [
+            "We did not eat breakfast."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "did-question",
+      "title": "Вопрос: Did + начальная форма",
+      "body": "Вопрос образуется с did, а основной глагол возвращается к начальной форме.\nThey took the bus. → Did they take the bus?\nКраткие ответы: Yes, they did. / No, they didn’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос с Did. Перепиши всё предложение.",
+          "question": "He bought a ticket yesterday.",
+          "correct_answer": "Did he buy a ticket yesterday?",
+          "explanation": "После Did нужна начальная форма buy."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный вопрос о вчерашнем завтраке.",
+          "question": "Он вчера позавтракал?",
+          "options": [
+            "Did he had breakfast yesterday?",
+            "Did he have breakfast yesterday?",
+            "Does he had breakfast yesterday?"
+          ],
+          "correct_answer": "Did he have breakfast yesterday?",
+          "explanation": "Прошлое выражает did; дальше have."
+        }
+      ]
+    },
+    {
+      "id": "was-were",
+      "title": "Особый случай: be → was/were",
+      "body": "Прошедшие формы be: I/he/she/it was; you/we/they were.\nShe was tired. They were at home.\nОтрицание: was not / were not. Вопрос: Was she tired? Did здесь не добавляем.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Выбери was или were. Впиши одно слово.",
+          "question": "They ___ at home last night.",
+          "correct_answer": "were",
+          "explanation": "С they используем were."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Задай вопрос с Was. Не используй did. Введи всё предложение.",
+          "question": "She was tired yesterday.",
+          "correct_answer": "Was she tired yesterday?",
+          "explanation": "В вопросе с be переносим was перед she."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Другие частые формы: come → came, get → got, make → made, give → gave, write → wrote, read → read (прошлая форма произносится /red/). Не путай V2 и V3: went — Past Simple, gone — третья форма. Вопрос к подлежащему может быть без did: Who came? Это отличается от Did you come?"
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "topic_slug": "a2-17",
+  "title": "BE GOING TO — планы и намерения",
+  "goal": "Расскажи о намерении и прогнозе по видимым признакам с be going to.",
+  "steps": [
+    {
+      "id": "form",
+      "title": "Be going to + начальная форма",
+      "body": "Формула: am/is/are + going to + начальная форма глагола.\nI am going to cook. She is going to travel. They are going to study.\nМеняется be; после going to не добавляем -s и не используем -ing.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши am, is или are для намерения сестры. Введи одно слово.",
+          "question": "My sister ___ going to study French.",
+          "correct_answer": "is",
+          "explanation": "My sister — единственное число: is going to."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную форму после going to.",
+          "question": "She is going to …",
+          "options": [
+            "travels",
+            "travel",
+            "travelling"
+          ],
+          "correct_answer": "travel",
+          "explanation": "После going to нужна начальная форма travel."
+        }
+      ]
+    },
+    {
+      "id": "negative-question",
+      "title": "Отрицание и вопрос",
+      "body": "Отрицание: be + not + going to: We are not going to leave.\nВопрос: be перед подлежащим: Are you going to leave?\nDo/does для этой конструкции не нужен.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай намерение отрицательным. Перепиши всё предложение, используя is not или isn't.",
+          "question": "She is going to buy a car.",
+          "correct_answer": "She is not going to buy a car.",
+          "explanation": "Not ставим после is.",
+          "alternatives": [
+            "She isn't going to buy a car."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос с Are. Сохрани going to и введи всё предложение.",
+          "question": "You are going to cook tonight.",
+          "correct_answer": "Are you going to cook tonight?",
+          "explanation": "Are переносим перед you; going to cook остаётся."
+        }
+      ]
+    },
+    {
+      "id": "intention",
+      "title": "Намерение принято заранее",
+      "body": "Going to удобно, когда решение уже принято: I am going to learn to drive.\nПлан может быть без точного времени и без договорённости с другим человеком.\nСравни: «я собираюсь учиться» — намерение, не обещание выполнить действие прямо сейчас.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни предложение с I am going to, чтобы передать заранее принятое намерение. Введи всё предложение.",
+          "question": "I plan to learn to drive.",
+          "correct_answer": "I am going to learn to drive.",
+          "explanation": "Am going to передаёт уже принятое намерение."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Решение принято заранее. Заполни два пропуска в конструкции намерения. Введи два слова.",
+          "question": "We are ___ ___ paint the kitchen next month.",
+          "correct_answer": "going to",
+          "explanation": "Полная конструкция: are going to paint."
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "title": "Прогноз по тому, что видно",
+      "body": "Going to также подходит для прогноза по явным признакам сейчас: Look at those black clouds. It is going to rain.\nЭто не правило «going to — только планы». Здесь намерения нет, но есть наблюдаемые признаки.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Построй прогноз по тёмным тучам с be going to. Впиши три слова перед rain.",
+          "question": "Look at those clouds! It ___ ___ ___ rain.",
+          "correct_answer": "is going to",
+          "explanation": "Прогноз по видимым признакам: It is going to rain."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери грамматически правильный прогноз с going to.",
+          "question": "Стакан стоит на самом краю стола.",
+          "options": [
+            "It is going to fall.",
+            "It going to fall.",
+            "It is going fall."
+          ],
+          "correct_answer": "It is going to fall.",
+          "explanation": "Нужны все части: is + going to + fall."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "В разговорной речи встречается gonna, но в обычном учебном письме пиши going to. Не смешивай be going to и go + -ing: I am going to swim — намерение; I am going swimming — иду плавать. Для отрицания am not не сокращается до amn’t в стандартном учебном варианте: I’m not going to leave."
+    }
+  ]
+}

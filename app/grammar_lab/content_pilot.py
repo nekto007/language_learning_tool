@@ -28,6 +28,12 @@ def install_plurals_pilot(*, apply=False):
     from app.utils.db import db
 
     topic = GrammarTopic.query.filter_by(slug="a1-4").one()
+    if (topic.content or {}).get("guided_catalog_digest"):
+        # The old one-topic entry point must not undo a reviewed catalog or
+        # bypass its drift/backup checks once the full roll-out is installed.
+        from app.grammar_lab.content_install import install_catalog
+
+        return {**install_catalog(slugs=["a1-4"], apply=apply), "topic_id": topic.id}
     content = plurals_content()
     learning_steps(content, len(content["exercises"]))
     # Resolve by explicit relationship or authored external key, never by an

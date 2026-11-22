@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "b1-13",
+  "title": "Выражение цели: to, in order to, so that",
+  "goal": "Объясни цель действия с to, in order to и so that.",
+  "steps": [
+    {
+      "id": "to-purpose",
+      "title": "Зачем: to + начальная форма",
+      "body": "Цель часто выражаем to + начальная форма глагола: I went to the shop to buy bread.\nTo buy отвечает на «зачем пошёл?».\nПосле to в этой конструкции не ставим -ing.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши to или so that, чтобы правильно выразить цель перед buy bread.",
+          "question": "I went to the shop ___ buy bread.",
+          "correct_answer": "to",
+          "explanation": "To buy объясняет цель действия went."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму после to, когда говорим о цели учёбы.",
+          "question": "She studies English to … abroad.",
+          "options": [
+            "working",
+            "work",
+            "works"
+          ],
+          "correct_answer": "work",
+          "explanation": "Цель выражается to + начальная форма: to work."
+        }
+      ]
+    },
+    {
+      "id": "in-order-to",
+      "title": "In order to: та же цель, более явно",
+      "body": "In order to + начальная форма тоже означает «чтобы»: We left early in order to catch the bus.\nОборот часто звучит более формально или подчёркивает цель.\nИсполнитель цели обычно тот же, что и у главного действия.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени to catch на in order to catch. Другие слова не меняй. Введи всё предложение.",
+          "question": "We left early to catch the bus.",
+          "correct_answer": "We left early in order to catch the bus.",
+          "explanation": "In order to сохраняет значение цели."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Вырази цель более явно с помощью оборота со словом order. Впиши три слова.",
+          "question": "She saved money ___ buy a bike.",
+          "correct_answer": "in order to",
+          "explanation": "In order to buy означает «чтобы купить»."
+        }
+      ]
+    },
+    {
+      "id": "so-that",
+      "title": "So that + отдельное предложение",
+      "body": "После so that идёт подлежащее и глагол, часто с can/could:\nI speak slowly so that you can understand me.\nЗдесь цель относится к другому человеку — you. Нельзя просто поставить to перед you can.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши to или so that перед отдельным подлежащим you и глаголом can.",
+          "question": "I speak slowly ___ you can understand me.",
+          "correct_answer": "so that",
+          "explanation": "После so that можно поставить полное предложение you can understand me."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную конструкцию цели с другим исполнителем.",
+          "question": "Я оставил дверь открытой, чтобы она могла войти.",
+          "options": [
+            "I left the door open so that she could come in.",
+            "I left the door open to she could come in.",
+            "I left the door open in order she could come in."
+          ],
+          "correct_answer": "I left the door open so that she could come in.",
+          "explanation": "После so that стоит отдельное подлежащее she и could come."
+        }
+      ]
+    },
+    {
+      "id": "negative-purpose",
+      "title": "Чтобы не: in order not to",
+      "body": "Отрицательную цель можно выразить in order not to + начальная форма:\nWe left early in order not to be late.\nNot ставим перед to. Также возможны so as not to и so that ... not, но в упражнениях будет указан нужный вариант.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Покажи, что цель — не опоздать. Заполни отрицательную конструкцию: впиши два слова в пропуски.",
+          "question": "We left early in order ___ ___ be late.",
+          "correct_answer": "not to",
+          "explanation": "В отрицательной цели порядок in order not to be late."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Вырази отрицательную цель с in order not to. Начни с She whispered и введи всё предложение.",
+          "question": "She whispered. She did not want to wake the baby.",
+          "correct_answer": "She whispered in order not to wake the baby.",
+          "explanation": "In order not to wake показывает цель: не разбудить ребёнка."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Не всякое to означает цель: в want to go инфинитив требуется самим глаголом want. Для цели отвечает вопрос «зачем?». So that может сочетаться с разными модальными формами в зависимости от времени и смысла: can/could, will/would. In order to обычно не вводит новое подлежащее: для другого исполнителя удобнее so that + подлежащее или конструкция for someone to do."
+    }
+  ]
+}

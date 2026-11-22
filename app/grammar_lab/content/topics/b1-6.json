@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "topic_slug": "b1-6",
+  "title": "Фразовые глаголы: separable, inseparable, intransitive",
+  "goal": "Выбери место дополнения у разделяемого и неразделяемого фразового глагола.",
+  "steps": [
+    {
+      "id": "meaning",
+      "title": "Глагол и частица дают общее значение",
+      "body": "Значение сочетания часто нужно запоминать целиком: turn on — включить; turn off — выключить; look up — найти информацию.\nTurn on the light.\nОдна частица не определяет значение без контекста.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Свет выключен; нужно включить его. Впиши on или off.",
+          "question": "Please turn ___ the light.",
+          "correct_answer": "on",
+          "explanation": "Turn on означает «включить»."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери значение look up в данном контексте.",
+          "question": "Look up this word in the dictionary.",
+          "options": [
+            "найти слово в словаре",
+            "посмотреть вверх на слово",
+            "переписать слово"
+          ],
+          "correct_answer": "найти слово в словаре",
+          "explanation": "Look up information означает искать сведения, здесь — слово в словаре."
+        }
+      ]
+    },
+    {
+      "id": "separable-noun",
+      "title": "Разделяемый глагол и существительное",
+      "body": "У разделяемых сочетаний существительное возможно в двух местах:\nTurn on the light. / Turn the light on.\nОба варианта правильны. Похожим образом: pick up the bag / pick the bag up.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Перенеси the light между turn и on. Остальные слова не меняй. Введи всё предложение.",
+          "question": "Turn on the light.",
+          "correct_answer": "Turn the light on.",
+          "explanation": "У turn on существительное можно поставить между глаголом и частицей."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вариант с существительным между частями pick up.",
+          "question": "Подними сумку.",
+          "options": [
+            "Pick the bag up.",
+            "Pick up the bag.",
+            "Pick the up bag."
+          ],
+          "correct_answer": "Pick the bag up.",
+          "explanation": "Оба первых порядка возможны вообще, но инструкция просит поставить the bag между pick и up."
+        }
+      ]
+    },
+    {
+      "id": "separable-pronoun",
+      "title": "Местоимение обязательно в середине",
+      "body": "Если объект разделяемого глагола — it, them, him и т. п., ставим его между глаголом и частицей.\nTurn it on. Pick them up.\nНельзя: turn on it в значении «включи это».",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени the light на it и сохрани значение «включи». Введи всё предложение.",
+          "question": "Turn on the light.",
+          "correct_answer": "Turn it on.",
+          "explanation": "Местоимение it у разделяемого turn on обязательно ставим в середину."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь положение them у разделяемого pick up. Перепиши всё предложение.",
+          "question": "Please pick up them.",
+          "correct_answer": "Please pick them up.",
+          "explanation": "Объект-местоимение them должен стоять между pick и up."
+        }
+      ]
+    },
+    {
+      "id": "other-types",
+      "title": "Неразделяемые сочетания и глаголы без объекта",
+      "body": "У look after — «присматривать» — объект идёт после всего сочетания: look after the baby / look after her. Не разделяем look и after объектом.\nУ некоторых глаголов объекта нет: get up — вставать; the car broke down — машина сломалась.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь положение her у неразделяемого look after. Перепиши всё предложение.",
+          "question": "I look her after every evening.",
+          "correct_answer": "I look after her every evening.",
+          "explanation": "Look after не разделяем объектом: look after her."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери полное предложение с break down — «сломаться», без прямого объекта.",
+          "question": "Машина сломалась вчера.",
+          "options": [
+            "The car broke down yesterday.",
+            "The car broke it down yesterday.",
+            "The car broke yesterday down it."
+          ],
+          "correct_answer": "The car broke down yesterday.",
+          "explanation": "В значении «машина сломалась» break down употребляется без объекта."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Тип зависит от конкретного значения: take off a coat — снять пальто, разделяемый глагол; a plane takes off — самолёт взлетает, без объекта. Сочетания вроде look after и look for часто относят к prepositional verbs; для порядка слов важно, что объект не ставим между глаголом и предлогом. Проверяй значение и тип сочетания в словаре, а не выводи их только по частице."
+    }
+  ]
+}

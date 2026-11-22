@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "topic_slug": "c1-2",
+  "title": "Модальные глаголы для размышлений о прошлом",
+  "goal": "Выражай выводы, возможность и сожаление о прошлом через modal + have + V3.",
+  "steps": [
+    {
+      "id": "deduction",
+      "title": "Уверенный вывод о прошлом",
+      "body": "Must have + V3 — сильный положительный вывод, а не обязанность в прошлом: She must have left — по имеющимся признакам она, должно быть, ушла. Для сильного отрицательного вывода: can’t/couldn’t have + V3.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни must конструкцией have + V3 от leave. Впиши два слова.",
+          "question": "The lights are off and her car is gone. She must ___ already. (leave)",
+          "correct_answer": "have left",
+          "explanation": "Must have left — вывод о более раннем событии."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай сильный отрицательный вывод через cannot have + V3. Начни с He и сохрани this; введи полное предложение.",
+          "question": "It is impossible that he wrote this: he was abroad and had no access.",
+          "correct_answer": "He cannot have written this.",
+          "explanation": "Cannot have written выражает сильный отрицательный вывод о прошлом."
+        }
+      ]
+    },
+    {
+      "id": "possibility",
+      "title": "Неуверенное объяснение прошлого",
+      "body": "May/might/could have + V3 называют возможное прошлое событие: She might have missed the email. Контекст решает, идёт ли речь о реальной возможности или о нереализованном варианте; точных процентов у форм нет. Для пассива: may/might/could have been + V3.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай предположение через might have. Сохрани she и missed the email.",
+          "question": "Perhaps she missed the email.",
+          "correct_answer": "She might have missed the email.",
+          "explanation": "Might have missed предлагает возможное объяснение, а не подтверждает событие."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни may пассивной perfect-конструкцией: have + been + V3. Впиши три слова.",
+          "question": "The delay may ___ by a technical fault. (be caused)",
+          "correct_answer": "have been caused",
+          "explanation": "May have been caused — возможное прошлое пассивное событие."
+        }
+      ]
+    },
+    {
+      "id": "regret",
+      "title": "Should have: действие было желательным",
+      "body": "Should have + V3 часто выражает сожаление или критику о том, что не сделали: I should have checked. Should not have + V3 — сделали то, чего не следовало: I should not have rushed.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Вырази сожаление о неисполненном действии через should have. Начни с I; сохрани back up the file и введи полное предложение.",
+          "question": "I did not back up the file, and that was a mistake.",
+          "correct_answer": "I should have backed up the file.",
+          "explanation": "Should have backed up оценивает упущенное действие как желательное."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай сожаление о сделанном через should not have. Сохрани I и the password.",
+          "question": "I shared the password, and that was wrong.",
+          "correct_answer": "I should not have shared the password.",
+          "explanation": "Should not have shared критикует совершённое действие."
+        }
+      ]
+    },
+    {
+      "id": "opportunity",
+      "title": "Could have и need not have",
+      "body": "Could have + V3 может описывать неиспользованную возможность: We could have won, but we lost. Need not have + V3 означает: действие произошло, но оказалось ненужным. Didn’t need to само по себе не всегда сообщает, выполнили действие или нет.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай неиспользованную возможность через could have и глагол win. Сохрани but we lost; введи полное предложение.",
+          "question": "We had a chance to win, but we lost.",
+          "correct_answer": "We could have won, but we lost.",
+          "explanation": "Could have won вместе с but we lost явно означает нереализованную возможность."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл need not have printed в этой ситуации.",
+          "question": "You need not have printed it; I already had a copy.",
+          "correct_answer": "Ты распечатал документ, хотя это было не нужно.",
+          "explanation": "Need not have printed подразумевает совершённое, но ненужное действие.",
+          "options": [
+            "Ты распечатал документ, хотя это было не нужно.",
+            "Тебе было запрещено печатать документ.",
+            "Ты точно не распечатал документ."
+          ]
+        }
+      ]
+    }
+  ]
+}

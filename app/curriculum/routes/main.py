@@ -522,6 +522,15 @@ def lesson_by_id(lesson_id):
     )
 
     lesson = Lessons.query.get_or_404(lesson_id)
+    if request.method == 'POST' and lesson.type == 'grammar':
+        from app.curriculum.routes.lessons import (
+            _guided_grammar_revision_error, _locked_grammar_submission_lesson,
+        )
+
+        lesson = _locked_grammar_submission_lesson(lesson)
+        revision_error = _guided_grammar_revision_error(lesson, request.form)
+        if revision_error:
+            return revision_error
     if lesson.type in _CANONICAL_LESSON_ROUTE_TYPES:
         # Сохраняем query string при редиректе: иначе ?from=linear_plan&
         # slot=... теряется и daily_plan_ctx приходит is_daily_plan=False,
@@ -533,45 +542,51 @@ def lesson_by_id(lesson_id):
             target = f'{target}?{query}'
         return redirect(target)
 
-    # Get or create user progress
-    progress = LessonProgress.query.filter_by(
-        user_id=current_user.id,
-        lesson_id=lesson.id
-    ).first()
+    # Guided POST persists progress only after revision validation and grading;
+    # keep the lesson lock until that transaction commits.
+    guided_post = (request.method == 'POST' and lesson.type == 'grammar'
+                   and isinstance(lesson.content, dict)
+                   and bool(lesson.content.get('guided_catalog_digest')))
+    if not guided_post:
+        # Get or create user progress
+        progress = LessonProgress.query.filter_by(
+            user_id=current_user.id,
+            lesson_id=lesson.id
+        ).first()
 
-    # Кнопка «Повторить» (?retry=true) — единая пересдача для типов,
-    # которые рендерятся прямо здесь (канонические получают reset в
-    # своих view через redirect с сохранением query string).
-    from app.curriculum.routes.lessons import maybe_reset_lesson_progress
-    maybe_reset_lesson_progress(progress)
+        # Кнопка «Повторить» (?retry=true) — единая пересдача для типов,
+        # которые рендерятся прямо здесь (канонические получают reset в
+        # своих view через redirect с сохранением query string).
+        from app.curriculum.routes.lessons import maybe_reset_lesson_progress
+        maybe_reset_lesson_progress(progress)
 
-    if not progress:
-        try:
-            progress = LessonProgress(
-                user_id=current_user.id,
-                lesson_id=lesson.id,
-                status='in_progress',
-                started_at=datetime.now(UTC),
-                last_activity=datetime.now(UTC)
-            )
-            db.session.add(progress)
-            db.session.commit()
-        except IntegrityError:
-            # Concurrent request already created the row — fetch it
-            db.session.rollback()
-            progress = LessonProgress.query.filter_by(
-                user_id=current_user.id,
-                lesson_id=lesson.id,
-            ).first()
-        except Exception as e:
-            logger.error(f"Error creating lesson progress: {str(e)}")
-            db.session.rollback()
-            flash('Ошибка при создании прогресса урока', 'error')
-            return redirect('/learn/')
-    else:
-        if progress.status != 'completed':
-            progress.last_activity = datetime.now(UTC)
-            db.session.commit()
+        if not progress:
+            try:
+                progress = LessonProgress(
+                    user_id=current_user.id,
+                    lesson_id=lesson.id,
+                    status='in_progress',
+                    started_at=datetime.now(UTC),
+                    last_activity=datetime.now(UTC)
+                )
+                db.session.add(progress)
+                db.session.commit()
+            except IntegrityError:
+                # Concurrent request already created the row — fetch it
+                db.session.rollback()
+                progress = LessonProgress.query.filter_by(
+                    user_id=current_user.id,
+                    lesson_id=lesson.id,
+                ).first()
+            except Exception as e:
+                logger.error(f"Error creating lesson progress: {str(e)}")
+                db.session.rollback()
+                flash('Ошибка при создании прогресса урока', 'error')
+                return redirect('/learn/')
+        else:
+            if progress.status != 'completed':
+                progress.last_activity = datetime.now(UTC)
+                db.session.commit()
 
     # Маппинг типов уроков на render-функции
     render_map = {

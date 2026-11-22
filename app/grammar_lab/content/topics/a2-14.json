@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "a2-14",
+  "title": "Zero Article with Meals (Нулевой артикль с приёмами пищи)",
+  "goal": "Различай обычный приём пищи, один особенный обед и уже известный ужин.",
+  "steps": [
+    {
+      "id": "routine",
+      "title": "Обычный завтрак, обед, ужин",
+      "body": "Когда говорим о приёме пищи как обычном действии, артикль не нужен: have breakfast, eat lunch, cook dinner.\nI have breakfast at seven.\nВ пропуске без артикля введи один дефис -.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a, the или один дефис -, если артикль не нужен. Речь об обычном завтраке.",
+          "question": "I have ___ breakfast at seven every day.",
+          "correct_answer": "-",
+          "explanation": "Обычный приём пищи: have breakfast, без артикля."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a, the или один дефис -. Речь о привычном времени ужина.",
+          "question": "We eat ___ dinner at six every evening.",
+          "correct_answer": "-",
+          "explanation": "Eat dinner описывает обычный приём пищи без артикля."
+        }
+      ]
+    },
+    {
+      "id": "one-meal",
+      "title": "Один особенный приём пищи",
+      "body": "Можно представить один приём пищи как отдельное событие: a big breakfast, a wonderful dinner.\nWe had a wonderful dinner.\nДело не просто в наличии прилагательного: a показывает один такой завтрак или ужин.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a, the или один дефис -. Один сытный завтрак упоминается впервые.",
+          "question": "We had ___ big breakfast before the trip.",
+          "correct_answer": "a",
+          "explanation": "Один отдельный завтрак описан как событие: a big breakfast."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу об одном прекрасном ужине, который упоминается впервые.",
+          "question": "Вчера мы прекрасно поужинали.",
+          "options": [
+            "We had a wonderful dinner yesterday.",
+            "We had an wonderful dinner yesterday.",
+            "We had wonderful a dinner yesterday."
+          ],
+          "correct_answer": "We had a wonderful dinner yesterday.",
+          "explanation": "A ставим перед прилагательным wonderful и существительным dinner."
+        }
+      ]
+    },
+    {
+      "id": "known-meal",
+      "title": "Уже известный ужин: the",
+      "body": "The нужен, когда говорим о конкретном, определённом приёме пищи.\nWe had dinner at a new cafe. The dinner was delicious.\nВо втором предложении понятно, какой именно ужин имеется в виду.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a, the или один дефис -. Речь о том самом ужине, который уже упомянут.",
+          "question": "We had dinner at a cafe. ___ dinner was delicious.",
+          "correct_answer": "The",
+          "explanation": "Повторное упоминание конкретного ужина требует the."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a, the или один дефис -. Придаточное уточняет, какой именно обед обсуждают.",
+          "question": "___ lunch you cooked yesterday was excellent.",
+          "correct_answer": "The",
+          "explanation": "You cooked yesterday определяет конкретный lunch: the lunch."
+        }
+      ]
+    },
+    {
+      "id": "meal-phrases",
+      "title": "До, после и на завтрак",
+      "body": "В выражениях for breakfast, before lunch, after dinner речь обычно о приёме пищи вообще: артикль не ставим.\nI drink tea for breakfast.\nПосле притяжательного слова артикль не добавляем: my lunch, our dinner.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a, the или один дефис -. Используй обычное выражение «после обеда».",
+          "question": "We went for a walk after ___ lunch.",
+          "correct_answer": "-",
+          "explanation": "Обычное выражение after lunch употребляется без артикля."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишний артикль после my. Перепиши всё предложение.",
+          "question": "My a lunch is in this bag.",
+          "correct_answer": "My lunch is in this bag.",
+          "explanation": "My уже определяет существительное; a перед lunch не добавляем."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Lunch, dinner, breakfast, brunch и supper подчиняются смыслу, а не правилу «после любого прилагательного всегда a». Сравни: my usual breakfast — без артикля после my; a late breakfast — один поздний завтрак; the usual breakfast at this hotel — конкретный известный вариант. Packed lunch часто обозначает один набор еды: a packed lunch."
+    }
+  ]
+}

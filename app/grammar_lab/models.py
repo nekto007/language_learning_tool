@@ -110,7 +110,9 @@ class GrammarTopic(db.Model):
 
     @property
     def exercise_count(self):
-        return self.exercises.count()
+        from app.grammar_lab.exercise_visibility import active_exercise_clause
+
+        return self.exercises.filter(active_exercise_clause()).count()
 
     def to_dict(self, include_content=False):
         """Convert to dictionary for JSON response"""

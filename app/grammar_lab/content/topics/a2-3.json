@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "topic_slug": "a2-3",
+  "title": "Вежливые просьбы с would like",
+  "goal": "Вежливо скажи, чего хочешь, попроси что-то или предложи это другому.",
+  "steps": [
+    {
+      "id": "would-like",
+      "title": "Вежливое желание: would like",
+      "body": "I would like a cup of tea. — Я хотел бы чашку чая.\nWould like в этой модели выражает вежливое желание сейчас, а не постоянное предпочтение.\nWould не меняется после he/she; сокращение I would — I’d.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи вежливую просьбу. Впиши одно слово перед like.",
+          "question": "I ___ like a cup of tea, please.",
+          "correct_answer": "would",
+          "explanation": "Вежливая модель — I would like."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму would после she.",
+          "question": "She ___ like some water.",
+          "correct_answer": "would",
+          "options": [
+            "would",
+            "woulds"
+          ],
+          "explanation": "Would одинаков для всех лиц и не получает -s."
+        }
+      ]
+    },
+    {
+      "id": "would-like-to",
+      "title": "Would like to + действие",
+      "body": "Если называем желаемое действие, после would like ставим to + начальную форму: I would like to go home.\nСравни: I would like some tea. / I would like to drink some tea.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни пропуск между would like и действием go. Впиши одно слово.",
+          "question": "I would like ___ go home.",
+          "correct_answer": "to",
+          "explanation": "Перед действием используем would like to go."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму действия после would like.",
+          "question": "I would like ___ some tea.",
+          "correct_answer": "to drink",
+          "options": [
+            "drink",
+            "to drink",
+            "drinking"
+          ],
+          "explanation": "После would like в этой модели используем to drink."
+        }
+      ]
+    },
+    {
+      "id": "offers",
+      "title": "Вопрос-предложение",
+      "body": "Вопрос начинается с would: Would you like some tea?\nПредложение действия: Would you like to sit down?\nВежливые ответы: Yes, please. / No, thank you.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Предложи собеседнику чай: переставь would и введи весь вопрос.",
+          "question": "You would like some tea.",
+          "correct_answer": "Would you like some tea?",
+          "explanation": "Would ставим перед you."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вежливый отказ от предложенной воды.",
+          "question": "Would you like some water?",
+          "correct_answer": "No, thank you.",
+          "options": [
+            "No, thank you.",
+            "No, I don't."
+          ],
+          "explanation": "На предложение угощения естественный ответ — No, thank you."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Вежливый отказ от действия",
+      "body": "Чтобы сказать, чего не хотелось бы, используем would not like / wouldn’t like: I wouldn’t like to work at night.\nЭто отличается от I don’t like working at night — общего отношения к работе ночью.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи, что не хотел бы работать ночью. Впиши отрицательное слово.",
+          "question": "I would ___ like to work at night.",
+          "correct_answer": "not",
+          "explanation": "Not ставим после would."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Введи всё предложение.",
+          "question": "I would like to go out.",
+          "correct_answer": "I would not like to go out.",
+          "explanation": "Отрицательная форма: would not like to.",
+          "alternatives": [
+            "I wouldn't like to go out.",
+            "I wouldn’t like to go out."
+          ]
+        }
+      ]
+    }
+  ]
+}

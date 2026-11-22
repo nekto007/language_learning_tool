@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "topic_slug": "a1-6",
+  "title": "Притяжательные местоимения и притяжательный падеж 's",
+  "goal": "Покажи, кому принадлежит предмет, с my/his/her и формой имени с апострофом.",
+  "steps": [
+    {
+      "id": "before-noun",
+      "title": "My, your, our, their",
+      "body": "Перед названием вещи используем my — мой, your — твой/ваш, our — наш, their — их.\nMy book. Your pen. Our house. Their car.\nВ этой позиции артикль a/the перед my и другими такими словами не нужен.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Укажи владельца книги: она принадлежит мне. Впиши my, your или their.",
+          "question": "I have a book. This is ___ book.",
+          "correct_answer": "my",
+          "explanation": "Вещь принадлежит I: my book."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово для машины, которая принадлежит им.",
+          "question": "They have a car. This is ___ car.",
+          "correct_answer": "their",
+          "options": [
+            "our",
+            "their",
+            "your"
+          ],
+          "explanation": "Владельцы — they, поэтому their car."
+        }
+      ]
+    },
+    {
+      "id": "his-her-its",
+      "title": "Владелец определяет his или her",
+      "body": "His — его, her — её. Its используем для вещи, а также для животного, когда не указываем его пол. Для питомца известного пола можно использовать his/her.\nAnna has a bag. Her bag is blue. Tom has a bag. His bag is red.\nВыбор зависит от владельца, а не от вещи. Its без апострофа обозначает принадлежность; it’s = it is.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Велосипед принадлежит Анне. Впиши his или her.",
+          "question": "Anna has a bike. ___ bike is red.",
+          "correct_answer": "Her",
+          "explanation": "Владелица — Anna: her bike."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово, которое показывает принадлежность мяча собаке.",
+          "question": "The dog has a ball. This is ___ ball.",
+          "correct_answer": "its",
+          "options": [
+            "its",
+            "it's"
+          ],
+          "explanation": "Its показывает принадлежность; it’s означает it is."
+        }
+      ]
+    },
+    {
+      "id": "apostrophe",
+      "title": "Имя владельца + ’s",
+      "body": "После имени человека добавляем ’s: Anna’s book — книга Анны.\nПосле обычного существительного во множественном числе на -s добавляем только апостроф: the teachers’ room — комната учителей.\nПосле children пишем ’s: the children’s toys.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Перепиши фразу с именем владельца и ’s. Введи только словосочетание.",
+          "question": "the bag of Anna",
+          "correct_answer": "Anna's bag",
+          "explanation": "Имя Anna получает ’s и стоит перед bag.",
+          "alternatives": [
+            "Anna’s bag"
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу для комнаты, которая принадлежит нескольким учителям.",
+          "question": "Комната нескольких учителей",
+          "correct_answer": "the teachers' room",
+          "options": [
+            "the teacher's room",
+            "the teachers' room"
+          ],
+          "explanation": "Teachers уже оканчивается на -s: добавляем только апостроф."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Формы без существительного",
+      "body": "My/your/his/her/our/their обычно стоят перед существительным: my book, her bag. Если существительное не повторяем, используем самостоятельные формы: mine/yours/his/hers/ours/theirs. This book is mine. Не добавляем апостроф в hers, yours, ours или theirs."
+    }
+  ]
+}

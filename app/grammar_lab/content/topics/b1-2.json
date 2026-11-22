@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "b1-2",
+  "title": "Past Continuous vs Past Simple.",
+  "goal": "Отдели фоновый процесс в прошлом от отдельного произошедшего события.",
+  "steps": [
+    {
+      "id": "past-process",
+      "title": "Процесс в определённый момент",
+      "body": "Past Continuous: was/were + -ing.\nI/he/she/it was; you/we/they were.\nAt eight I was reading. Мы смотрим на процесс в этот момент, а не сообщаем, что книга прочитана целиком.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Действие было в процессе в восемь. Впиши was или were.",
+          "question": "At eight, I ___ reading.",
+          "correct_answer": "was",
+          "explanation": "С I используем was reading."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь cook в форму -ing. Впиши одно слово.",
+          "question": "At six, they were ___. (cook)",
+          "correct_answer": "cooking",
+          "explanation": "После were в Past Continuous нужна форма cooking."
+        }
+      ]
+    },
+    {
+      "id": "background-event",
+      "title": "Фон и событие",
+      "body": "Past Continuous задаёт фон, Past Simple — отдельное событие на этом фоне.\nI was reading when the phone rang.\nНе каждое событие обязательно прекращает процесс: телефон мог зазвонить, а чтение затем продолжилось.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Чтение уже шло, когда зазвонил телефон. Впиши was reading или read.",
+          "question": "I ___ when the phone rang.",
+          "correct_answer": "was reading",
+          "explanation": "Was reading показывает процесс, который уже шёл."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Звонок — отдельное событие во время чтения. Поставь ring в Past Simple. Впиши одно слово.",
+          "question": "I was reading when the phone ___. (ring)",
+          "correct_answer": "rang",
+          "explanation": "Вторая форма ring — rang; это отдельное событие на фоне чтения."
+        }
+      ]
+    },
+    {
+      "id": "parallel",
+      "title": "Два одновременных процесса",
+      "body": "Два процесса, которые шли одновременно, можно описать в Past Continuous: While I was cooking, Sam was washing the dishes.\nWhile часто вводит фон или параллельное действие, но само слово не выбирает время автоматически.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Оба действия шли одновременно. Впиши was или were.",
+          "question": "While I was cooking, Sam ___ washing the dishes.",
+          "correct_answer": "was",
+          "explanation": "Sam — один человек, поэтому was washing."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери описание двух процессов, которые шли в тот момент одновременно.",
+          "question": "Пока мы ждали, дети играли.",
+          "options": [
+            "While we were waiting, the children were playing.",
+            "While we was waiting, the children was playing.",
+            "While we waiting, the children played."
+          ],
+          "correct_answer": "While we were waiting, the children were playing.",
+          "explanation": "Оба процесса выражены формами were + -ing."
+        }
+      ]
+    },
+    {
+      "id": "finished-versus-process",
+      "title": "Завершённый шаг или взгляд внутрь процесса",
+      "body": "Past Simple удобно для последовательности событий: I opened the door and walked in.\nPast Continuous показывает действие изнутри: I was opening the door when I heard a noise.\nВыбирай по смыслу, а не по тому, что действие «долгое».",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери последовательность двух завершённых событий.",
+          "question": "Я открыл дверь и вошёл.",
+          "options": [
+            "I opened the door and walked in.",
+            "I was opened the door and walked in.",
+            "I opening the door and walked in."
+          ],
+          "correct_answer": "I opened the door and walked in.",
+          "explanation": "Для двух завершённых шагов рассказа здесь подходит Past Simple."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь согласование was/were в фоновом действии. Перепиши всё предложение.",
+          "question": "They was sleeping when I arrived.",
+          "correct_answer": "They were sleeping when I arrived.",
+          "explanation": "С they используем were sleeping; arrived — отдельное событие."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "When может сочетаться и с Past Simple, и с Past Continuous: When I arrived, she was cooking; When I was walking home, I saw Tom. While не означает обязательный Continuous в любой ситуации. Глаголы состояния know, believe, own обычно не употребляем в Continuous в их обычном значении."
+    }
+  ]
+}

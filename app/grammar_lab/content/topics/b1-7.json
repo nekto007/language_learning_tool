@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "topic_slug": "b1-7",
+  "title": "Adverbs of Manner - Наречия образа действия.",
+  "goal": "Опиши, как выполняется действие, и отличи наречие от прилагательного.",
+  "steps": [
+    {
+      "id": "ly",
+      "title": "Наречие описывает действие",
+      "body": "Наречие образа действия отвечает на «как?»: She speaks quietly.\nЧасто добавляем -ly к прилагательному: slow → slowly, careful → carefully.\nПрилагательное описывает существительное: a careful driver; наречие — действие: drives carefully.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй наречие от slow, чтобы описать действие. Впиши одно слово.",
+          "question": "Please speak ___. (slow)",
+          "correct_answer": "slowly",
+          "explanation": "Глагол speak описываем наречием slowly."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму, которая описывает, как он водит машину.",
+          "question": "He drives …",
+          "options": [
+            "careful",
+            "carefully",
+            "carefull"
+          ],
+          "correct_answer": "carefully",
+          "explanation": "Drives — действие, поэтому нужно наречие carefully."
+        }
+      ]
+    },
+    {
+      "id": "spelling",
+      "title": "Написание -ly и исключения",
+      "body": "Согласная + y обычно меняется на -ily: happy → happily.\nНекоторые формы особые: good → well.\nFast и hard могут быть наречиями без -ly: run fast, work hard. Hardly значит «едва», а не «усердно».",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй наречие от happy. Впиши одно слово.",
+          "question": "The children played ___. (happy)",
+          "correct_answer": "happily",
+          "explanation": "В happy меняем y на i и добавляем -ly: happily."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Он усердно работает, а не едва работает. Впиши hard или hardly.",
+          "question": "He works ___ every day.",
+          "correct_answer": "hard",
+          "explanation": "Work hard — усердно работать; hardly меняет значение на «едва»."
+        }
+      ]
+    },
+    {
+      "id": "position",
+      "title": "После глагола или его объекта",
+      "body": "Наречие часто стоит после глагола или после прямого объекта:\nShe smiled happily. She opened the door carefully.\nВ обычном нейтральном порядке не вставляем carefully между opened и the door.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Добавь carefully в конец предложения, после объекта. Введи всё предложение.",
+          "question": "She opened the door.",
+          "correct_answer": "She opened the door carefully.",
+          "explanation": "Carefully стоит после объекта the door."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери нейтральный порядок с наречием после объекта.",
+          "question": "Он прочитал письмо внимательно.",
+          "options": [
+            "He read the letter carefully.",
+            "He read carefully the letter.",
+            "He carefully the letter read."
+          ],
+          "correct_answer": "He read the letter carefully.",
+          "explanation": "Нейтральная позиция здесь — после the letter."
+        }
+      ]
+    },
+    {
+      "id": "linking-verbs",
+      "title": "После be/seem/feel часто прилагательное",
+      "body": "После be, seem, feel, look, когда они описывают состояние или качество, часто нужно прилагательное:\nShe looks tired. I feel happy.\nСравни: She looks careful — выглядит осторожной; She looks carefully at the picture — внимательно смотрит.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму для состояния человека, а не для способа действия.",
+          "question": "I feel … today.",
+          "options": [
+            "happy",
+            "happily",
+            "happiness"
+          ],
+          "correct_answer": "happy",
+          "explanation": "Feel здесь описывает состояние, поэтому используем прилагательное happy."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь good на наречие, которое описывает пение. Перепиши всё предложение.",
+          "question": "She sings good.",
+          "correct_answer": "She sings well.",
+          "explanation": "Глагол sings описываем наречием well, не прилагательным good."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Не каждое слово на -ly является наречием: friendly и lonely обычно прилагательные. Для friendly часто используют in a friendly way. Late — поздно, lately — в последнее время. Прилагательное good и наречие well различаются, но well также может означать здоровый: I feel well. Позиции наречий гибки; правило о позиции после объекта — удобный нейтральный вариант, не абсолютный запрет всех других порядков."
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "c1-12",
+  "title": "Nominalization (Номинализация).",
+  "goal": "Используй номинализацию для формального текста, не теряя ясность и участников действия.",
+  "steps": [
+    {
+      "id": "nouns",
+      "title": "Глагол или прилагательное становится существительным",
+      "body": "Номинализация превращает действие или качество в существительное: develop → development, decide → decision, effective → effectiveness. Суффиксы помогают узнавать форму, но не позволяют автоматически образовать любое слово.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй существительное от decide для позиции после a. Впиши одно слово.",
+          "question": "The team made a ___ after the discussion. (decide)",
+          "correct_answer": "decision",
+          "explanation": "Существительное от decide — decision; сочетание make a decision."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй существительное от develop. Впиши одно слово.",
+          "question": "The ___ of the system took a year. (develop)",
+          "correct_answer": "development",
+          "explanation": "Существительное development называет процесс разработки."
+        }
+      ]
+    },
+    {
+      "id": "qualities",
+      "title": "Существительные качеств: написание запоминаем",
+      "body": "Effective → effectiveness; responsible → responsibility; flexible → flexibility. Не делаем ложное правило, будто глаголы на -ant/-ent автоматически дают -ance/-ence: perform → performance, refer → reference — конкретные словарные пары.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Преобразуй effective в существительное качества. Впиши одно слово.",
+          "question": "The ___ of the treatment was tested. (effective)",
+          "correct_answer": "effectiveness",
+          "explanation": "Effective образует effectiveness с -ness."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь существительное от responsible в устойчивое сочетание accepted… Впиши одно слово.",
+          "question": "The manager accepted ___ for the mistake. (responsible)",
+          "correct_answer": "responsibility",
+          "explanation": "Responsible → responsibility; это словарная форма существительного."
+        }
+      ]
+    },
+    {
+      "id": "clause-to-noun",
+      "title": "От придаточного к именной группе",
+      "body": "Номинализация часто делает связь более формальной: Because the team revised the plan, costs fell. → Due to the team’s revision of the plan, costs fell. Сохраняй, кто действовал, что менялось и какое было следствие.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени придаточное причины именной группой с Due to и существительным revision. Сохрани команду как исполнителя, plan и главное costs fell.",
+          "question": "Because the team revised the plan, costs fell.",
+          "correct_answer": "Due to the team’s revision of the plan, costs fell.",
+          "explanation": "The team’s revision сохраняет действие и исполнителя, а costs fell — результат.",
+          "alternatives": [
+            "Due to the team's revision of the plan, costs fell."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени придаточное причины именной группой с Due to и существительным approval. Сохрани директора как исполнителя, proposal и главное work began.",
+          "question": "Because the director approved the proposal, work began.",
+          "correct_answer": "Due to the director’s approval of the proposal, work began.",
+          "explanation": "Approval заменяет approved; принадлежность director’s сохраняет участника.",
+          "alternatives": [
+            "Due to the director's approval of the proposal, work began."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clarity",
+      "title": "Формально не всегда значит лучше",
+      "body": "Цепочки абстрактных существительных могут скрывать действие и участника. The committee conducted an evaluation of the plan можно яснее передать The committee evaluated the plan. Выбирай номинализацию по задаче текста, а не ради сложности.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени conducted an evaluation of одним глаголом evaluate в Past Simple. Введи всё предложение.",
+          "question": "The committee conducted an evaluation of the plan.",
+          "correct_answer": "The committee evaluated the plan.",
+          "explanation": "Глагол evaluated передаёт то же действие проще и сохраняет committee."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери наиболее ясную формулировку с явно названным исполнителем.",
+          "question": "Нужно ясно назвать, кто утвердил изменение.",
+          "correct_answer": "The director approved the change.",
+          "explanation": "Прямой глагол и названный исполнитель делают смысл ясным.",
+          "options": [
+            "The director approved the change.",
+            "The implementation of the approval of the change occurred.",
+            "An approval-related occurrence was observed."
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "topic_slug": "a2-22",
+  "title": "PAST SIMPLE — правильные глаголы (+ ago/last)",
+  "goal": "Опиши завершённые события с правильными глаголами и задай вопрос с did.",
+  "steps": [
+    {
+      "id": "past-ed",
+      "title": "Завершённое действие: -ed",
+      "body": "Для завершённого прошлого у правильных глаголов добавляем -ed: work → worked, clean → cleaned.\nФорма одинакова для I, she, we: She worked yesterday.\nМаркеры: yesterday, last week, two days ago. Ago ставим после периода времени.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь clean в Past Simple. Впиши одно слово.",
+          "question": "She ___ the room yesterday. (clean)",
+          "correct_answer": "cleaned",
+          "explanation": "Clean — правильный глагол: cleaned."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный порядок слов «два дня назад».",
+          "question": "We finished the work …",
+          "options": [
+            "ago two days",
+            "two days ago",
+            "two ago days"
+          ],
+          "correct_answer": "two days ago",
+          "explanation": "Ago ставим после периода: two days ago."
+        }
+      ]
+    },
+    {
+      "id": "ed-spelling",
+      "title": "Изменения в написании",
+      "body": "После немой -e добавляем -d: live → lived.\nСогласная + y меняется на -ied: study → studied; гласная + y сохраняется: play → played.\nВ коротких глаголах вроде stop удваиваем согласную: stopped.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь study в Past Simple. Впиши одно слово.",
+          "question": "I ___ English last night. (study)",
+          "correct_answer": "studied",
+          "explanation": "В study перед y согласная: y → ied."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь stop в Past Simple. Впиши одно слово.",
+          "question": "The bus ___ near the school. (stop)",
+          "correct_answer": "stopped",
+          "explanation": "В коротком stop удваиваем p и добавляем -ed: stopped."
+        }
+      ]
+    },
+    {
+      "id": "did-not",
+      "title": "Отрицание: didn’t + начальная форма",
+      "body": "В отрицании используем did not / didn’t + начальную форму.\nShe worked → She didn’t work.\nПрошлое выражает did, поэтому -ed у основного глагола убираем.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Используй did not или didn't и введи всё предложение.",
+          "question": "We watched the film yesterday.",
+          "correct_answer": "We did not watch the film yesterday.",
+          "explanation": "После did not используем watch без -ed.",
+          "alternatives": [
+            "We didn't watch the film yesterday."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму глагола после didn't. Перепиши всё предложение.",
+          "question": "She didn't cleaned the kitchen.",
+          "correct_answer": "She didn't clean the kitchen.",
+          "explanation": "После didn’t нужна начальная форма clean.",
+          "alternatives": [
+            "She did not clean the kitchen."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "did-question",
+      "title": "Вопрос: Did ... + начальная форма?",
+      "body": "Вопрос: Did + подлежащее + начальная форма?\nDid you work yesterday?\nКраткий ответ: Yes, I did. / No, I didn’t.\nВ вопросе основной глагол тоже без -ed.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос с Did. Перепиши всё предложение.",
+          "question": "They visited the museum yesterday.",
+          "correct_answer": "Did they visit the museum yesterday?",
+          "explanation": "После Did возвращаем visit в начальную форму."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный краткий положительный ответ с they.",
+          "question": "Did they finish the work?",
+          "options": [
+            "Yes, they did.",
+            "Yes, they do.",
+            "Yes, they finished."
+          ],
+          "correct_answer": "Yes, they did.",
+          "explanation": "В кратком ответе повторяем вспомогательный did."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "У правильных глаголов -ed произносится по-разному: worked /t/, played /d/, wanted /ɪd/. Это не меняет написание. У многосложных глаголов удвоение связано с ударением: prefer → preferred, но visit → visited. Глагол be образует прошлое как was/were и не использует did в обычных вопросах и отрицаниях."
+    }
+  ]
+}

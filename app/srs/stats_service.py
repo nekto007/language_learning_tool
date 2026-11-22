@@ -13,6 +13,7 @@ import logging
 from typing import Any, Dict, List
 
 from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise, UserGrammarTopicStatus
+from app.grammar_lab.exercise_visibility import active_exercise_clause
 from app.srs.mixins import SRSFieldsMixin
 from app.srs.utils import count_srs_states, count_srs_states_with_accuracy
 from app.study.models import QuizDeckWord, UserCardDirection, UserWord
@@ -105,7 +106,7 @@ class SRSStatsService:
             Dict with stats (new_count, learning_count, review_count, mastered_count, total, due_today)
         """
         # Get exercise IDs based on filters
-        exercise_query = GrammarExercise.query
+        exercise_query = GrammarExercise.query.filter(active_exercise_clause())
 
         if topic_id:
             exercise_query = exercise_query.filter(GrammarExercise.topic_id == topic_id)
@@ -160,7 +161,7 @@ class SRSStatsService:
         }
 
         exercises = GrammarExercise.query.filter(
-            GrammarExercise.topic_id.in_(topic_ids)
+            GrammarExercise.topic_id.in_(topic_ids), active_exercise_clause()
         ).all()
 
         if not exercises:
@@ -203,7 +204,8 @@ class SRSStatsService:
             Dict with aggregated stats, topics progress, and by-level breakdown.
         """
         statuses = UserGrammarTopicStatus.query.filter_by(user_id=user_id).all()
-        all_progress = UserGrammarExercise.query.filter_by(user_id=user_id).all()
+        all_progress = (UserGrammarExercise.query.filter_by(user_id=user_id)
+                        .join(GrammarExercise).filter(active_exercise_clause()).all())
 
         total_topics = GrammarTopic.query.count()
         total_xp = sum(s.xp_earned or 0 for s in statuses)
@@ -222,7 +224,7 @@ class SRSStatsService:
         all_topics = GrammarTopic.query.all()
         topics_mastered = 0
         for topic in all_topics:
-            topic_exercise_ids = {e.id for e in topic.exercises}
+            topic_exercise_ids = {e.id for e in topic.exercises.filter(active_exercise_clause())}
             if topic_exercise_ids and topic.id in mastered_exercises_by_topic:
                 if mastered_exercises_by_topic[topic.id] >= topic_exercise_ids:
                     topics_mastered += 1
@@ -241,7 +243,7 @@ class SRSStatsService:
                 continue
 
             level_exercises = GrammarExercise.query.filter(
-                GrammarExercise.topic_id.in_(level_topic_ids)
+                GrammarExercise.topic_id.in_(level_topic_ids), active_exercise_clause()
             ).all()
             level_exercise_ids = set(e.id for e in level_exercises)
 

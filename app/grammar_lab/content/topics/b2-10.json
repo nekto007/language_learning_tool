@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "topic_slug": "b2-10",
+  "title": "Causative Have/Get (Have something done).",
+  "goal": "Говори об услуге, которую для тебя выполняет другой человек.",
+  "steps": [
+    {
+      "id": "arrangement",
+      "title": "Have + предмет + V3",
+      "body": "Have something done означает, что действие с предметом выполняет кто-то другой, часто по твоей договорённости: I have my hair cut. Порядок: have + my hair + cut. Это не I cut my hair myself.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Опиши регулярную услугу через I have my car… Не называй механика; введи полное предложение.",
+          "question": "A mechanic repairs my car for me.",
+          "correct_answer": "I have my car repaired.",
+          "explanation": "My car — предмет услуги; repaired — V3 после предмета."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение, которое показывает, что работу выполнил другой человек.",
+          "question": "Кто-то другой покрасил мою кухню по моему заказу.",
+          "correct_answer": "I had my kitchen painted.",
+          "explanation": "Had + my kitchen + painted описывает организованную услугу.",
+          "options": [
+            "I had my kitchen painted.",
+            "I painted my kitchen myself.",
+            "I had painted my kitchen myself."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tense",
+      "title": "Время меняется у have",
+      "body": "Время выражает have: I have the car serviced every year. I had the car serviced yesterday. I will have it serviced tomorrow. Предмет и V3 остаются после have.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь только have в Past Simple. Впиши одно слово.",
+          "question": "Yesterday I ___ my laptop repaired. (have)",
+          "correct_answer": "had",
+          "explanation": "Время Yesterday требует Past Simple от have: had."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Перенеси действие на завтра: используй will have и замени every year на tomorrow. Введи предложение.",
+          "question": "I have my eyes tested every year.",
+          "correct_answer": "I will have my eyes tested tomorrow.",
+          "explanation": "Будущее выражается will have; tested остаётся V3."
+        }
+      ]
+    },
+    {
+      "id": "get",
+      "title": "Get something done",
+      "body": "Get + предмет + V3 тоже может описывать услугу; это часто менее формально: I got my phone fixed. Не путай с get someone to do something, где после get стоит исполнитель: I got Alex to fix it.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени had на got, сохрани предмет и V3. Перепиши всё предложение.",
+          "question": "I had my phone fixed.",
+          "correct_answer": "I got my phone fixed.",
+          "explanation": "Got + phone + fixed сохраняет значение услуги в прошлом."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишнее to в конструкции услуги. Перепиши предложение.",
+          "question": "I got my phone to fixed.",
+          "correct_answer": "I got my phone fixed.",
+          "explanation": "После предмета в get something done нужен V3 без to."
+        }
+      ]
+    },
+    {
+      "id": "unwanted",
+      "title": "Не всякое had something done — заказ",
+      "body": "Та же форма бывает с неприятным событием, которое не заказывали: She had her bag stolen. Контекст отличает организованную услугу от пережитого события. Не делай вывод «она попросила украсть сумку».",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл конструкции had her bag stolen в контексте ограбления.",
+          "question": "During the robbery, she had her bag stolen.",
+          "correct_answer": "Её сумку украли без её желания.",
+          "explanation": "Контекст ограбления указывает на нежелательное событие.",
+          "options": [
+            "Её сумку украли без её желания.",
+            "Она заказала кражу собственной сумки.",
+            "Она сама украла чужую сумку."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши третью форму steal после passport. Одно слово.",
+          "question": "During the trip, he had his passport ___. (steal)",
+          "correct_answer": "stolen",
+          "explanation": "V3 от steal — stolen; паспорт стал объектом нежелательного события."
+        }
+      ]
+    }
+  ]
+}

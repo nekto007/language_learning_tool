@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "topic_slug": "a2-20",
+  "title": "Zero Conditional - Нулевой условный тип",
+  "goal": "Опиши обычное условие и повторяющийся результат с Zero Conditional.",
+  "steps": [
+    {
+      "id": "general-rule",
+      "title": "Общее правило: Present Simple в обеих частях",
+      "body": "Zero Conditional описывает обычную закономерность, факт или повторяющуюся реакцию.\nIf + Present Simple, Present Simple.\nIf you heat ice, it melts. В примере речь о том, что обычно происходит, а не об одном плане на завтра.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни Zero Conditional. Поставь melt в Present Simple после it. Впиши одно слово.",
+          "question": "If you heat ice, it ___. (melt)",
+          "correct_answer": "melts",
+          "explanation": "В обеих частях Present Simple; после it добавляем -s: melts."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни обычное правило. Поставь press в Present Simple после you. Впиши одно слово.",
+          "question": "If you ___ this button, the light comes on. (press)",
+          "correct_answer": "press",
+          "explanation": "С you используем press без -s."
+        }
+      ]
+    },
+    {
+      "id": "negative-routine",
+      "title": "Привычки и отрицание",
+      "body": "Та же форма описывает привычную реакцию: If I am tired, I go to bed early.\nДля обычного отрицания do not/don’t или does not/doesn’t: If she doesn’t eat, she gets hungry.\nПосле doesn’t основной глагол без -s.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни обычную закономерность. Впиши do not или don't.",
+          "question": "If I ___ sleep enough, I feel tired.",
+          "correct_answer": "do not",
+          "explanation": "В отрицании Present Simple с I используем do not sleep.",
+          "alternatives": [
+            "don't"
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму глагола после doesn't. Перепиши всё предложение.",
+          "question": "If she doesn't drinks water, she gets thirsty.",
+          "correct_answer": "If she doesn't drink water, she gets thirsty.",
+          "explanation": "После doesn’t используем drink без -s.",
+          "alternatives": [
+            "If she does not drink water, she gets thirsty."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "when",
+      "title": "When для обычной повторяемой ситуации",
+      "body": "Когда мы описываем повторяющуюся ситуацию, when может заменять if: When I get home, I make tea.\nЗдесь when означает «каждый раз, когда».\nЭто не значит, что if и when взаимозаменяемы в любом контексте.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени If на When, сохранив смысл обычной привычки. Введи всё предложение.",
+          "question": "If I get home late, I eat a sandwich.",
+          "correct_answer": "When I get home late, I eat a sandwich.",
+          "explanation": "When здесь означает «каждый раз, когда я прихожу поздно»."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение об обычной повторяющейся реакции.",
+          "question": "Каждый раз, когда я пью кофе вечером, я плохо сплю.",
+          "options": [
+            "When I drink coffee in the evening, I sleep badly.",
+            "When I drank coffee in the evening, I will sleep badly.",
+            "When I drinking coffee in the evening, I sleep badly."
+          ],
+          "correct_answer": "When I drink coffee in the evening, I sleep badly.",
+          "explanation": "Для привычки используем Present Simple в обеих частях."
+        }
+      ]
+    },
+    {
+      "id": "order",
+      "title": "Условие можно поставить в конце",
+      "body": "Части можно менять местами: If I am tired, I rest. → I rest if I am tired.\nКогда if-часть стоит первой, обычно ставим запятую. Если она в конце, запятая обычно не нужна. Времена от перестановки не меняются.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни предложение с I stay at home. Перенеси условие с if в конец и введи всё предложение.",
+          "question": "If I am ill, I stay at home.",
+          "correct_answer": "I stay at home if I am ill.",
+          "explanation": "If-часть перенесли в конец, Present Simple сохранили."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь времена для общего правила, а не отдельного будущего события. Перепиши всё предложение без will.",
+          "question": "If you will heat ice, it melts.",
+          "correct_answer": "If you heat ice, it melts.",
+          "explanation": "Общую закономерность здесь выражаем Present Simple в обеих частях."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Zero Conditional может описывать личную привычку, а не абсолютный закон природы. Например, If I am busy, I order food. First Conditional говорит о конкретной возможной будущей ситуации: If I am busy tomorrow, I will order food. Команда в главной части тоже возможна: If you feel ill, call a doctor."
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "topic_slug": "a2-12",
+  "title": "Too and Enough - Слишком и Достаточно",
+  "goal": "Скажи, что чего-то слишком много или что количества и качества достаточно.",
+  "steps": [
+    {
+      "id": "too-adjective",
+      "title": "Too + признак: чрезмерно",
+      "body": "Too перед прилагательным означает «слишком», то есть больше подходящего или желательного: The bag is too heavy.\nToo не просто усиливает слово как very: в предложении обычно есть идея проблемы или ограничения.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Сумка чрезмерно тяжёлая, её невозможно нести. Впиши too или enough.",
+          "question": "The bag is ___ heavy to carry.",
+          "correct_answer": "too",
+          "explanation": "Too heavy показывает, что вес мешает действию."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл too перед cold.",
+          "question": "The water is too cold.",
+          "correct_answer": "Вода слишком холодная.",
+          "options": [
+            "Вода слишком холодная.",
+            "Вода достаточно холодная."
+          ],
+          "explanation": "Too указывает на чрезмерную степень."
+        }
+      ]
+    },
+    {
+      "id": "adjective-enough",
+      "title": "Признак + enough: достаточно",
+      "body": "Enough ставим после прилагательного: The room is warm enough.\nС действием: The room is warm enough to sleep in.\nПорядок: прилагательное → enough, а не enough → прилагательное.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи, что в комнате достаточно тепло. Выбери too или enough и впиши одно слово.",
+          "question": "The room is warm ___.",
+          "correct_answer": "enough",
+          "explanation": "После прилагательного warm используем enough."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь место enough после прилагательного. Перепиши всё предложение.",
+          "question": "This car is enough big.",
+          "correct_answer": "This car is big enough.",
+          "explanation": "С прилагательным порядок big enough."
+        }
+      ]
+    },
+    {
+      "id": "enough-nouns",
+      "title": "Enough перед существительным",
+      "body": "Перед существительным enough ставим первым: enough time, enough chairs.\nI have enough time. — У меня достаточно времени.\nВ отрицании not enough означает «недостаточно»: We don’t have enough chairs.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери нейтральный порядок слов «достаточно времени» перед существительным.",
+          "question": "I have ___ for lunch.",
+          "correct_answer": "enough time",
+          "options": [
+            "enough time",
+            "time enough"
+          ],
+          "explanation": "В обычной модели enough ставим перед time."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи, что стульев недостаточно. Заполни пропуск одним словом со значением «достаточно».",
+          "question": "We don't have ___ chairs.",
+          "correct_answer": "enough",
+          "explanation": "Don’t have enough chairs — недостаточно стульев."
+        }
+      ]
+    },
+    {
+      "id": "too-much-many",
+      "title": "Too much или too many",
+      "body": "Перед неисчисляемым существительным используем too much: too much water, too much time.\nПеред исчисляемым во множественном числе — too many: too many books, too many people.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово для слишком большого количества людей, которых можно посчитать.",
+          "question": "There are too ___ people here.",
+          "correct_answer": "many",
+          "options": [
+            "much",
+            "many"
+          ],
+          "explanation": "People здесь исчисляемое множественное число: too many people."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово для работы как неисчисляемого объёма дел.",
+          "question": "I have too ___ work today.",
+          "correct_answer": "much",
+          "options": [
+            "much",
+            "many"
+          ],
+          "explanation": "Work в значении объёма работы неисчисляемое: too much work."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Enough и инфинитив",
+      "body": "Enough to + действие показывает достаточность для действия: She is old enough to drive. С отрицанием: The room is not warm enough. Too обычно указывает, что степень мешает: too young to drive."
+    }
+  ]
+}

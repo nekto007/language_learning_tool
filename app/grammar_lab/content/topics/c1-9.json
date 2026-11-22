@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "topic_slug": "c1-9",
+  "title": "Inversion: усиление и формальный стиль",
+  "goal": "Выделяй ограничение или отрицание через формальную инверсию.",
+  "steps": [
+    {
+      "id": "negative-front",
+      "title": "Отрицательное обстоятельство в начале",
+      "body": "После начальных never, rarely, seldom в формальном акценте меняем местами вспомогательный и подлежащее: Never have I seen this. Если вспомогательного нет, добавляем do/does/did: Rarely does she complain.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Выдели отрицание, начав с Never. Сохрани Present Perfect и все остальные слова.",
+          "question": "I have never seen such a result.",
+          "correct_answer": "Never have I seen such a result.",
+          "explanation": "Начальное Never вызывает инверсию have I."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Начни с Rarely и используй инверсию с does. Введи полное предложение.",
+          "question": "She rarely complains.",
+          "correct_answer": "Rarely does she complain.",
+          "explanation": "Для Present Simple добавляем does, а complains меняется на complain."
+        }
+      ]
+    },
+    {
+      "id": "only",
+      "title": "Only: инверсия в главной части",
+      "body": "После вынесенного only when/after/if + придаточное инверсия идёт в главной части: Only when she arrived did we start. Внутри when she arrived порядок прямой. Но Only Maya understood не требует инверсии: only выделяет подлежащее.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с Only when she arrived. Используй did в главной части и сохрани смысл.",
+          "question": "We started only when she arrived.",
+          "correct_answer": "Only when she arrived did we start.",
+          "explanation": "Инверсия did we start появляется после завершённого when-придаточного."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение с only перед подлежащим, без лишней инверсии.",
+          "question": "Только Майя поняла объяснение.",
+          "correct_answer": "Only Maya understood the explanation.",
+          "explanation": "Only выделяет само подлежащее Maya, поэтому инверсия не нужна.",
+          "options": [
+            "Only Maya understood the explanation.",
+            "Only did Maya understand the explanation.",
+            "Only Maya did understood the explanation."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "not-only",
+      "title": "Not only: выделяем первую часть",
+      "body": "Если Not only вводит целую первую клаузу, в ней возникает инверсия: Not only did she apologise, but she also offered a refund. Во второй части обычный порядок. Not only с отдельным существительным — другая структура.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Усиль сообщение моделью Not only… but…also. Сохрани she и оба действия; используй did в первой части.",
+          "question": "She apologised and also offered a refund.",
+          "correct_answer": "Not only did she apologise, but she also offered a refund.",
+          "explanation": "После Not only используем did she apologise; вторая часть остаётся прямой."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только порядок слов первой части. Перепиши всё предложение.",
+          "question": "Not only she did apologise, but she also offered help.",
+          "correct_answer": "Not only did she apologise, but she also offered help.",
+          "explanation": "В первой клаузе вспомогательный did должен стоять перед she."
+        }
+      ]
+    },
+    {
+      "id": "formal-limits",
+      "title": "Формальные ограничения и запреты",
+      "body": "Under no circumstances, on no account, at no time в начале дают инверсию: Under no circumstances should you share the code. Не добавляем второе отрицание к тому же смыслу: initial no уже выражает запрет.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с Under no circumstances, используй инверсию и сохрани share the code.",
+          "question": "You should not share the code under any circumstances.",
+          "correct_answer": "Under no circumstances should you share the code.",
+          "explanation": "После начального отрицательного обстоятельства ставим should перед you и убираем повторное not."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь порядок вспомогательного и подлежащего. Введи полное предложение.",
+          "question": "On no account you should open this file.",
+          "correct_answer": "On no account should you open this file.",
+          "explanation": "После On no account нужен порядок should you."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "topic_slug": "b1-10",
+  "title": "Defining Relative Clauses (Определительные придаточные предложения)",
+  "goal": "Уточни, о каком человеке или предмете идёт речь, с defining relative clause.",
+  "steps": [
+    {
+      "id": "who-which",
+      "title": "Кто или что: who, which, that",
+      "body": "Определительное придаточное помогает понять, о каком человеке или предмете речь.\nThe woman who lives next door is a doctor.\nДля людей — who или that; для вещей — which или that. В этом типе придаточного несколько вариантов могут быть правильными.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши who или that для человека. Введи одно слово.",
+          "question": "The woman ___ lives next door is a doctor.",
+          "correct_answer": "who",
+          "explanation": "Для человека в defining relative clause подходят who и that.",
+          "alternatives": [
+            "that"
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши which или that для вещи. Введи одно слово.",
+          "question": "The phone ___ is on the table is mine.",
+          "correct_answer": "which",
+          "explanation": "Для вещи подходят which и that.",
+          "alternatives": [
+            "that"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "essential-position",
+      "title": "Сразу после существительного, без запятых",
+      "body": "Ставим уточнение сразу после слова, которое оно определяет.\nThe book that I bought is interesting.\nDefining relative clause даёт существенную информацию и обычно не отделяется запятыми: иначе тип и смысл придаточного меняются.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Нужна существенная информация: речь только о студентах, которые пришли рано. Убери две запятые и перепиши всё предложение.",
+          "question": "The students, who arrived early, got good seats.",
+          "correct_answer": "The students who arrived early got good seats.",
+          "explanation": "Без запятых придаточное определяет нужную группу студентов."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение, где уточнение относится к the bag, а не к the woman.",
+          "question": "Сумка на столе принадлежит женщине.",
+          "options": [
+            "The bag that is on the table belongs to the woman.",
+            "The bag belongs to the woman that is on the table.",
+            "The bag is belongs the woman."
+          ],
+          "correct_answer": "The bag that is on the table belongs to the woman.",
+          "explanation": "That is on the table стоит сразу после the bag и уточняет именно сумку."
+        }
+      ]
+    },
+    {
+      "id": "omit-object",
+      "title": "Когда местоимение можно убрать",
+      "body": "Если относительное слово — объект, его часто можно опустить: The book that I bought → The book I bought.\nЕсли оно само выполняет действие, опускать нельзя: The woman who called me.\nВ I bought подлежащее I уже есть; в who called me подлежащее — who.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Убери только that: оно является объектом bought. Остальные слова сохрани. Введи всё предложение.",
+          "question": "The book that I bought is new.",
+          "correct_answer": "The book I bought is new.",
+          "explanation": "That здесь объект, поэтому его можно опустить."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение, где нельзя опустить who без изменения структуры.",
+          "question": "В каком примере who само выполняет действие?",
+          "options": [
+            "The woman who called me is a doctor.",
+            "The woman who I called is a doctor.",
+            "The woman I called is a doctor."
+          ],
+          "correct_answer": "The woman who called me is a doctor.",
+          "explanation": "В who called me слово who — подлежащее; его не опускаем."
+        }
+      ]
+    },
+    {
+      "id": "where-when",
+      "title": "Место и время: where, when",
+      "body": "Where обозначает место, в котором происходит действие: the cafe where we met.\nWhen обозначает время: the day when we met.\nНе заменяй where словом which без нужного предлога: the cafe in which we met — более формальный вариант.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Выбери who, where или when для места, в котором произошла встреча. Впиши одно слово.",
+          "question": "This is the cafe ___ we met.",
+          "correct_answer": "where",
+          "explanation": "Where означает «в котором месте»; здесь речь о кафе."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Выбери who, where или when для дня, в который произошла встреча. Впиши одно слово.",
+          "question": "I remember the day ___ we met.",
+          "correct_answer": "when",
+          "explanation": "When вводит уточнение времени: день, когда мы встретились."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Whose выражает принадлежность: the woman whose car is outside. Whom — формальная объектная форма для людей, особенно после предлога: the person to whom I spoke. В defining clause that часто заменяет who/which, но не стоит сразу после предлога: the house in which I live, не in that. Не добавляй второй объект после уже выбранного относительного объекта: the book that I bought, а не that I bought it."
+    }
+  ]
+}

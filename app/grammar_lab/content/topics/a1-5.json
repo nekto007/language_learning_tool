@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "topic_slug": "a1-5",
+  "title": "Конструкция There is / There are",
+  "goal": "Расскажи, что есть в комнате, и спроси о наличии предметов.",
+  "steps": [
+    {
+      "id": "there-is",
+      "title": "Есть один предмет",
+      "body": "There is сообщает, что где-то есть один предмет: There is a table in the room.\nСначала называем предмет, затем место. В этой модели there не переводится отдельным словом «там».",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши is или are: в комнате один стул.",
+          "question": "There ___ a chair in the room.",
+          "correct_answer": "is",
+          "explanation": "Один стул: There is a chair."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери начало предложения: на столе одна книга.",
+          "question": "___ a book on the desk.",
+          "correct_answer": "There is",
+          "options": [
+            "There is",
+            "There are"
+          ],
+          "explanation": "Перед a book используем There is."
+        }
+      ]
+    },
+    {
+      "id": "there-are",
+      "title": "Есть несколько предметов",
+      "body": "Для нескольких предметов используем There are: There are two chairs in the room.\nСуществительное ставим во множественное число: two books, three tables.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши is или are: в комнате две кровати.",
+          "question": "There ___ two beds in the room.",
+          "correct_answer": "are",
+          "explanation": "Две кровати — множественное число: There are."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Скажи, что на столе две книги. Замени a book на two books и перепиши всё предложение.",
+          "question": "There is a book on the desk.",
+          "correct_answer": "There are two books on the desk.",
+          "explanation": "There is меняется на There are, book — на books."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Чего нет",
+      "body": "Добавляем not после is/are: There is not a TV here. There are not any chairs here.\nВместо is not/are not можно использовать isn’t/aren’t. Any часто встречается в отрицании с несколькими предметами.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Скажи, что телевизора здесь нет. Добавь not и перепиши всё предложение.",
+          "question": "There is a TV here.",
+          "correct_answer": "There is not a TV here.",
+          "explanation": "Not ставится после is.",
+          "alternatives": [
+            "There isn't a TV here.",
+            "There isn’t a TV here."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи, что стульев здесь нет. Впиши отрицательное слово.",
+          "question": "There are ___ any chairs here.",
+          "correct_answer": "not",
+          "explanation": "Отрицание: There are not any chairs."
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Как спросить, есть ли предмет",
+      "body": "В вопросе is/are ставим перед there: Is there a table? Are there two windows?\nКоротко: Yes, there is. / No, there aren’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Спроси, есть ли два окна. Перепиши всё предложение вопросом.",
+          "question": "There are two windows.",
+          "correct_answer": "Are there two windows?",
+          "explanation": "Are ставится перед there."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дай краткий утвердительный ответ. Впиши одно слово.",
+          "question": "Is there a table? — Yes, there ___.",
+          "correct_answer": "is",
+          "explanation": "После there в этом ответе используем is."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Неисчисляемое и some/any",
+      "body": "С неисчисляемым существительным используем there is: There is some water. В вопросе о наличии: Is there any water? В отрицании: There isn’t any water. Эти модели не требуют множественного числа waters."
+    }
+  ]
+}

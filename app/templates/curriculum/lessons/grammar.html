@@ -17,7 +17,7 @@
 {% set previous_data = None %}
 {% set previous_feedback = {} %}
 {% set is_completed = False %}
-{% if progress and progress.data %}
+{% if progress and progress.data and progress.data.get('guided_revision') == content.get('guided_catalog_digest') %}
   {% set previous_data = progress.data %}
   {% set previous_feedback = previous_data.get('feedback', {}) %}
   {% set is_completed = progress.status == 'completed' %}
@@ -245,6 +245,9 @@
       <h3 class="section-title">{{ _('Упражнения') }} ({{ exercises|length }})</h3>
 
       <form id="grammarForm">
+        {% if content.guided_catalog_digest %}
+          <input type="hidden" name="guided_revision" value="{{ content.guided_catalog_digest }}">
+        {% endif %}
         {% for exercise in exercises %}
           <div class="exercise-item" data-index="{{ loop.index0 }}">
             <div class="exercise-header">
@@ -261,8 +264,11 @@
             </div>
 
             <div class="exercise-content">
-              {% if exercise.type in ['fill-blank', 'fill_in_blank', 'translation'] %}
-                <p class="exercise-prompt">{{ exercise.prompt or exercise.text }}</p>
+              {% if exercise.instruction %}
+                <p class="exercise-instruction">{{ exercise.instruction }}</p>
+              {% endif %}
+              {% if exercise.type in ['fill-blank', 'fill_blank', 'fill_in_blank', 'fill-in-blank', 'translation', 'transformation', 'error_correction'] %}
+                <p class="exercise-prompt">{{ exercise.question or exercise.prompt or exercise.text or exercise.incorrect_sentence }}</p>
                 <div class="answer-input">
                   {% set prev_answer = previous_feedback.get(loop.index0|string, {}).get('user_answer', '') %}
                   <input type="text"
@@ -491,7 +497,7 @@ function checkAnswers() {
     const answerInput = document.querySelector(`[name="answer_${index}"]`);
     let userAnswer = null;
 
-    if (exercise.type === 'fill-blank' || exercise.type === 'fill_in_blank' || exercise.type === 'translation' || exercise.type === 'reorder') {
+    if (['fill-blank', 'fill_blank', 'fill_in_blank', 'fill-in-blank', 'translation', 'transformation', 'error_correction', 'reorder'].includes(exercise.type)) {
       userAnswer = answerInput.value.trim();
     } else {
       const checked = document.querySelector(`[name="answer_${index}"]:checked`);

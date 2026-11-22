@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "topic_slug": "c1-6",
+  "title": "Ellipsis and Substitution: Avoiding Repetition.",
+  "goal": "Избегай повторов, сохраняя понятный смысл через эллипсис и замещение.",
+  "steps": [
+    {
+      "id": "ellipsis",
+      "title": "Опускаем только восстановимое",
+      "body": "При эллипсисе слова опускаются, если их легко восстановить: I can help, and Sam can too. Can во второй части сохраняет смысл can help. Если непонятно, что опущено, лучше назвать действие явно.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Убери только второе help, сохрани can и too. Введи всё предложение.",
+          "question": "I can help, and Sam can help too.",
+          "correct_answer": "I can help, and Sam can too.",
+          "explanation": "Вторая часть опускает повторяющееся help, но сохраняет can."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Избеги повтора attend во второй части. Сохрани полные will not; впиши два слова.",
+          "question": "I will attend, but Mia ___. (will not attend)",
+          "correct_answer": "will not",
+          "explanation": "Will not заменяет полную отрицательную фразу will not attend."
+        }
+      ]
+    },
+    {
+      "id": "do",
+      "title": "Do/does/did заменяют простой глагол",
+      "body": "Для повторяющегося смыслового глагола в Present/Past Simple используем do/does/did: I liked it, and she did too. Do согласуется со временем и лицом; не заменяет любой вспомогательный без разбора.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Замени повторяющееся liked the proposal одним вспомогательным глаголом. Впиши одно слово.",
+          "question": "I liked the proposal, and she ___ too.",
+          "correct_answer": "did",
+          "explanation": "Повторяем прошедшее liked через did."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только форму do во второй части. Перепиши всё предложение.",
+          "question": "I work remotely, and he do too.",
+          "correct_answer": "I work remotely, and he does too.",
+          "explanation": "В Present Simple для he требуется does."
+        }
+      ]
+    },
+    {
+      "id": "auxiliaries",
+      "title": "Сохраняем исходный вспомогательный",
+      "body": "Если в полной форме уже есть be, have или modal, обычно сохраняем именно его: I have finished, and Leo has too. She is waiting, and I am too. Не подменяем их do.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Избеги повторения finished. Впиши согласованную форму have для Leo — одно слово.",
+          "question": "I have finished, and Leo ___ too.",
+          "correct_answer": "has",
+          "explanation": "Present Perfect во второй части представлен has, согласованным с Leo."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Замени do подходящей формой be, сохрани too. Введи всё предложение.",
+          "question": "She is ready, and I do too.",
+          "correct_answer": "She is ready, and I am too.",
+          "explanation": "Для повторения be ready после I нужен am, а не do."
+        }
+      ]
+    },
+    {
+      "id": "one-ones",
+      "title": "One/ones заменяют исчисляемое существительное",
+      "body": "One заменяет одно исчисляемое существительное, ones — множественное: the red bag → the red one; the red bags → the red ones. Для неисчисляемого advice нельзя просто сказать a useful one в значении «полезный совет» без подходящего исчисляемого контекста.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени оба bag на one, сохрани цвета и остальное предложение.",
+          "question": "I prefer the red bag to the blue bag.",
+          "correct_answer": "I prefer the red one to the blue one.",
+          "explanation": "One заменяет повторяющееся исчисляемое bag."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Замени повторяющееся shoes словом one или ones. Впиши одно слово.",
+          "question": "These shoes are too small; do you have larger ___?",
+          "correct_answer": "ones",
+          "explanation": "Shoes — множественное число, поэтому заменяем его ones."
+        }
+      ]
+    },
+    {
+      "id": "so-not",
+      "title": "So и not заменяют целую мысль",
+      "body": "После think/expect/hope можно заменить содержание на so: Will it work? — I hope so. Для отрицательного ответа: I hope not. После think часто естественно I don’t think so. Выбор зависит от главного глагола.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Ответь утвердительно через I hope, не повторяя целую мысль. Впиши одно слово.",
+          "question": "Will the weather improve? — I hope ___. (yes)",
+          "correct_answer": "so",
+          "explanation": "I hope so заменяет I hope the weather will improve."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Ответь отрицательно через I hope, не повторяя вопрос. Впиши одно слово.",
+          "question": "Will the flight be cancelled? — I hope ___. (no)",
+          "correct_answer": "not",
+          "explanation": "I hope not передаёт надежду, что отмены не будет."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Краткое согласие",
+      "body": "So do I / So am I / So have I выражают совпадение положительного сообщения. Neither do I / Neither am I — совпадение отрицательного. Вспомогательный согласуется с исходным временем и конструкцией: I am tired. — So am I."
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "topic_slug": "c1-8",
+  "title": "Смешанные условные предложения (Mixed Conditionals).",
+  "goal": "Различай прошлую причину нынешнего результата и постоянное условие прошлого исхода.",
+  "steps": [
+    {
+      "id": "past-present",
+      "title": "Прошлое условие → результат сейчас",
+      "body": "Если нереальное прошлое влияет на воображаемое настоящее: if + had + V3, would + глагол. If I had accepted the job, I would live in Berlin now. Не добавляем have в результат, который относится к now.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни нынешний результат mixed conditional через would и live. Впиши два слова.",
+          "question": "If I had accepted the job, I ___ in Berlin now. (live)",
+          "correct_answer": "would live",
+          "explanation": "Результат относится к настоящему now, поэтому would live без have."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Переформулируй через If I had saved the file, I could… Сохрани now; введи одно предложение.",
+          "question": "I did not save the file, so I cannot use it now.",
+          "correct_answer": "If I had saved the file, I could use it now.",
+          "explanation": "Прошлое сохранение выражаем had saved, нынешнюю возможность — could use."
+        }
+      ]
+    },
+    {
+      "id": "present-past",
+      "title": "Постоянное условие → результат в прошлом",
+      "body": "Если постоянная характеристика могла изменить прошлый исход: if + Past Simple, would have + V3. If I were more organised, I would not have missed yesterday’s deadline. «Неорганизованность» здесь не ограничена вчерашним днём.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Вырази отрицательный прошлый результат через would not have. Впиши четыре слова.",
+          "question": "If I were more organised, I ___ yesterday’s deadline. (not miss)",
+          "correct_answer": "would not have missed",
+          "explanation": "Последствие относится к завершённому прошлому; нужна perfect-форма."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Построй mixed conditional: начни If he were a careful person. Сохрани yesterday и используй would not have.",
+          "question": "He is not a careful person, so he lost the keys yesterday.",
+          "correct_answer": "If he were a careful person, he would not have lost the keys yesterday.",
+          "explanation": "Постоянная характеристика выражается were; прошлый результат — would not have lost."
+        }
+      ]
+    },
+    {
+      "id": "time-reference",
+      "title": "Сначала определяй время каждой части",
+      "body": "В mixed conditional каждая часть имеет свою временную точку. Had studied относится к прошлому, would understand now — к настоящему. Не выбирай один тип только по словам if/would; сначала прочитай смысл и указатели времени.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Определи время условия и результата, учитывая last year и now.",
+          "question": "If she had taken the course last year, she would understand this topic now.",
+          "correct_answer": "Условие прошлое, результат нынешний.",
+          "explanation": "Last year и now явно задают разные временные планы.",
+          "options": [
+            "Условие прошлое, результат нынешний.",
+            "Условие нынешнее, результат прошлый.",
+            "Обе части относятся только к прошлому."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Говорящий сейчас не знает японский. Заполни прошлый результат с would have и understand — три слова.",
+          "question": "If I spoke Japanese, I ___ that interview last month. (understand)",
+          "correct_answer": "would have understood",
+          "explanation": "Общее знание языка — нынешнее условие, интервью last month — прошлый результат."
+        }
+      ]
+    },
+    {
+      "id": "contrast-third",
+      "title": "Смешанный или полностью прошлый результат",
+      "body": "If I had studied, I would have passed yesterday — обе части прошлые, это Third Conditional. If I had studied, I would know the answer now — прошлое условие и нынешний результат, это mixed conditional.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение: нереальное прошлое условие → результат сейчас.",
+          "question": "Выбери mixed conditional с нынешним результатом.",
+          "correct_answer": "If I had revised, I would know the answer now.",
+          "explanation": "Would know + now относится к нынешнему результату прошлого условия.",
+          "options": [
+            "If I had revised, I would know the answer now.",
+            "If I had revised, I would have passed yesterday.",
+            "If I revise, I will pass tomorrow."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только результат, чтобы он относился к now. Перепиши всё предложение.",
+          "question": "If I had taken the map, I would have know where we are now.",
+          "correct_answer": "If I had taken the map, I would know where we are now.",
+          "explanation": "Нынешнее знание требует would know, не would have know."
+        }
+      ]
+    }
+  ]
+}

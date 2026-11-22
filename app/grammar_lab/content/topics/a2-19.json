@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "topic_slug": "a2-19",
+  "title": "So и Such для усиления",
+  "goal": "Выбери so или such по словам, которые идут после усилителя.",
+  "steps": [
+    {
+      "id": "so-adjective",
+      "title": "So перед прилагательным или наречием",
+      "body": "So усиливает прилагательное или наречие без существительного сразу после него: so cold, so quickly.\nIt is so cold! She speaks so quietly.\nПосле so не добавляем a перед одиночным прилагательным.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши so или such. После пропуска только прилагательное.",
+          "question": "The room is ___ cold.",
+          "correct_answer": "so",
+          "explanation": "Перед одиночным прилагательным cold используем so."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши so или such перед наречием quickly.",
+          "question": "You work ___ quickly!",
+          "correct_answer": "so",
+          "explanation": "So усиливает наречие quickly."
+        }
+      ]
+    },
+    {
+      "id": "such-one-noun",
+      "title": "Such a/an + существительное в единственном числе",
+      "body": "Перед одним исчисляемым существительным используем such a/an, часто с прилагательным: such a nice day, such an interesting book.\nПорядок: such → a/an → прилагательное → существительное.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши so или such. Артикль a уже стоит после пропуска.",
+          "question": "It is ___ a lovely day.",
+          "correct_answer": "such",
+          "explanation": "Перед a lovely day используем such."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь порядок слов после such. Перепиши всё предложение.",
+          "question": "It is a such interesting book.",
+          "correct_answer": "It is such an interesting book.",
+          "explanation": "Порядок such an interesting book; перед звуком в interesting нужен an."
+        }
+      ]
+    },
+    {
+      "id": "plural-and-amount",
+      "title": "Such без a; so many и so much",
+      "body": "С неисчисляемым существительным и множественным числом: such good advice, such friendly people — без a.\nНо с many и much используем so: so many books, so much water.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши so или such перед неисчисляемым существительным advice с прилагательным.",
+          "question": "She gave me ___ useful advice.",
+          "correct_answer": "such",
+          "explanation": "Useful advice — именная группа с неисчисляемым существительным: such useful advice."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши so или such перед many.",
+          "question": "There are ___ many people here.",
+          "correct_answer": "so",
+          "explanation": "Перед many используем so: so many people."
+        }
+      ]
+    },
+    {
+      "id": "result",
+      "title": "So/such ... that: результат",
+      "body": "Результат добавляем с that: It was so cold that we stayed inside.\nС именной группой: It was such a cold day that we stayed inside.\nВыбор so/such по-прежнему зависит от следующей группы слов.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши so или such перед прилагательным; после that указан результат.",
+          "question": "I was ___ tired that I went to bed early.",
+          "correct_answer": "so",
+          "explanation": "После пропуска tired без существительного, поэтому so tired that."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши so или such перед a noisy room; после that указан результат.",
+          "question": "It was ___ a noisy room that I could not sleep.",
+          "correct_answer": "such",
+          "explanation": "Перед a noisy room нужна конструкция such a ... that."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Such a lot of и so much/so many могут выражать большое количество: such a lot of work; so much work. Также so few и so little: so few seats, so little time. Слова advice, information и furniture в обычном значении неисчисляемые: such useful information, без a. Не выбирай so/such только по эмоциональности — смотри на структуру."
+    }
+  ]
+}

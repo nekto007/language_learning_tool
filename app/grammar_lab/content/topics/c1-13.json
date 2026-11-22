@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "c1-13",
+  "title": "Mandative Subjunctive: I suggest that he be...",
+  "goal": "Передавай требования и рекомендации через mandative subjunctive.",
+  "steps": [
+    {
+      "id": "base",
+      "title": "Базовая форма после требования",
+      "body": "После demand, recommend, suggest в значении требования/предложения возможна модель that + подлежащее + базовая форма. The chair recommended that he attend. У he нет -s: attend, не attends. Это особая конструкция, не обычное описание факта.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Выбери именно mandative subjunctive после recommended. Впиши форму attend одним словом.",
+          "question": "The chair recommended that he ___ the meeting. (attend)",
+          "correct_answer": "attend",
+          "explanation": "Mandative subjunctive использует базовую форму attend без -s."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму leaves на mandative subjunctive. Перепиши предложение.",
+          "question": "They demanded that she leaves immediately.",
+          "correct_answer": "They demanded that she leave immediately.",
+          "explanation": "После demanded that в mandative subjunctive требуется leave без -s."
+        }
+      ]
+    },
+    {
+      "id": "be-not",
+      "title": "Be для всех лиц и not перед глаголом",
+      "body": "В этой модели be остаётся be при любом подлежащем: It is essential that he be present. Отрицание — not + базовая форма без do: They requested that she not disclose the details.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь be в mandative subjunctive. Впиши одно слово.",
+          "question": "It is essential that he ___ present. (be)",
+          "correct_answer": "be",
+          "explanation": "В mandative subjunctive используется be, а не is."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Сделай рекомендацию отрицательной в mandative subjunctive. Добавь not перед disclose и сохрани остальное.",
+          "question": "They requested that she disclose the details.",
+          "correct_answer": "They requested that she not disclose the details.",
+          "explanation": "Not ставится перед disclose; does not не требуется."
+        }
+      ]
+    },
+    {
+      "id": "passive",
+      "title": "Пассив: be + V3",
+      "body": "Пассивная mandative-конструкция: that + подлежащее + be + V3. They insisted that the document be signed. После insisted в прошедшем be всё равно не становится was, если передаём требование в этой модели.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь sign в пассивный mandative subjunctive. Впиши два слова.",
+          "question": "They insisted that the document ___ immediately. (sign)",
+          "correct_answer": "be signed",
+          "explanation": "Пассивный subjunctive — be + signed."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Переведи require that в mandative subjunctive, заменив только is на be. Введи всё предложение.",
+          "question": "The rules require that every form is signed before submission.",
+          "correct_answer": "The rules require that every form be signed before submission.",
+          "explanation": "В требуемой subjunctive-модели пассив — be signed."
+        }
+      ]
+    },
+    {
+      "id": "meaning-register",
+      "title": "Should и различие требования/факта",
+      "body": "В британском английском часто возможно should + базовая форма: They recommended that he should attend. Но insist/suggest могут иметь другой смысл: She insists that he is innocent утверждает факт, а не требует стать невиновным. Значение решает выбор модели.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай ту же рекомендацию через should. Вставь should перед attend; введи предложение.",
+          "question": "They recommended that he attend.",
+          "correct_answer": "They recommended that he should attend.",
+          "explanation": "Should attend — вариант модели рекомендации, особенно привычный в BrE."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение с insist в значении «утверждать», а не «требовать».",
+          "question": "Она утверждает, что он невиновен; это не требование к его поведению.",
+          "correct_answer": "She insists that he is innocent.",
+          "explanation": "Is innocent сообщает утверждаемый факт, а не предписывает действие.",
+          "options": [
+            "She insists that he is innocent.",
+            "She demands that he become innocent.",
+            "She recommends that he be innocent."
+          ]
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Другие вводные слова",
+      "body": "Mandative subjunctive встречается после ask, demand, insist, propose, recommend, request, suggest в значении требования/рекомендации; после important, essential, necessary, vital в конструкции It is…that. Само наличие слова не отменяет проверки смысла: suggest может означать и «указывать на факт»."
+    }
+  ]
+}

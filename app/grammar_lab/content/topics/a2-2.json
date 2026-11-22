@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "a2-2",
+  "title": "Вопросительные слова How much? и How many?",
+  "goal": "Спроси о количестве предметов, количестве вещества и цене.",
+  "steps": [
+    {
+      "id": "how-many",
+      "title": "How many: сколько предметов",
+      "body": "How many используем перед исчисляемым существительным во множественном числе: How many books do you have?\nСуществительное после many ставим во множественное число: books, apples, chairs.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши much или many: книги можно посчитать поштучно.",
+          "question": "How ___ books do you have?",
+          "correct_answer": "many",
+          "explanation": "Books — исчисляемое множественное число: How many books."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму существительного после How many.",
+          "question": "How many ___ do you need?",
+          "correct_answer": "apples",
+          "options": [
+            "apple",
+            "apples"
+          ],
+          "explanation": "После How many используем множественное число apples."
+        }
+      ]
+    },
+    {
+      "id": "how-much",
+      "title": "How much: сколько вещества",
+      "body": "How much используем с неисчисляемыми: How much water do you need? How much time do we have?\nВ этой модели water и time не получают -s.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши much или many: water обозначает воду как вещество.",
+          "question": "How ___ water do you need?",
+          "correct_answer": "much",
+          "explanation": "Water здесь неисчисляемое: How much water."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вопросительное выражение для времени как ресурса.",
+          "question": "How ___ time do we have?",
+          "correct_answer": "much",
+          "options": [
+            "much",
+            "many"
+          ],
+          "explanation": "Time здесь неисчисляемое, поэтому much."
+        }
+      ]
+    },
+    {
+      "id": "price",
+      "title": "How much: сколько стоит",
+      "body": "О цене спрашиваем How much is it? — Сколько это стоит?\nДля нескольких вещей: How much are these books?\nВ вопросе о цене much не зависит от того, можно ли посчитать сами вещи.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Спроси цену одной сумки. Впиши is или are.",
+          "question": "How much ___ this bag?",
+          "correct_answer": "is",
+          "explanation": "Одна сумка: How much is this bag?"
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму be в вопросе о цене пары shoes во множественном числе.",
+          "question": "How much ___ these shoes?",
+          "correct_answer": "are",
+          "options": [
+            "is",
+            "are"
+          ],
+          "explanation": "These shoes — множественное число, поэтому are."
+        }
+      ]
+    },
+    {
+      "id": "containers",
+      "title": "Считаем упаковки",
+      "body": "Water неисчисляемое, но bottles можно посчитать: How many bottles of water do you need?\nСравни: How much water...? / How many bottles of water...?",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Спроси количество бутылок, а не объём воды. Выбери much или many.",
+          "question": "How ___ bottles of water do you need?",
+          "correct_answer": "many",
+          "options": [
+            "much",
+            "many"
+          ],
+          "explanation": "Bottles — исчисляемое множественное число: many."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Спроси, сколько стульев нужно собеседнику. Используй How many и введи весь вопрос.",
+          "question": "You need three chairs.",
+          "correct_answer": "How many chairs do you need?",
+          "explanation": "How many ставим перед chairs, затем do you need."
+        }
+      ]
+    }
+  ]
+}

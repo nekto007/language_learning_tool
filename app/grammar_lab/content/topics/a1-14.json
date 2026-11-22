@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "topic_slug": "a1-14",
+  "title": "Модальный глагол CAN/CAN'T",
+  "goal": "Скажи, что умеешь делать, и задай вопрос или просьбу с can.",
+  "steps": [
+    {
+      "id": "ability",
+      "title": "Умение: can + глагол",
+      "body": "Can показывает умение или возможность: I can swim. She can sing.\nПосле can используем начальную форму без to; can не получает -s после he/she/it.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи, что она умеет плавать. Заполни пропуск модальным глаголом. Впиши одно слово.",
+          "question": "She ___ swim.",
+          "correct_answer": "can",
+          "explanation": "Can одинаков для I и she."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму глагола после can.",
+          "question": "He can ___ English.",
+          "correct_answer": "speak",
+          "options": [
+            "speak",
+            "speaks",
+            "to speak"
+          ],
+          "explanation": "После can нужен speak без to и без -s."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Can’t: не умею или не могу",
+      "body": "Отрицание: cannot или can’t. I can’t swim.\nНе добавляем don’t: I can’t swim, а не I don’t can swim.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Скажи, что не умеешь петь. Сделай всё предложение отрицательным.",
+          "question": "I can sing.",
+          "correct_answer": "I cannot sing.",
+          "explanation": "Отрицательная форма can — cannot или can’t.",
+          "alternatives": [
+            "I can't sing.",
+            "I can’t sing."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь отрицание с can. Перепиши всё предложение.",
+          "question": "She doesn't can swim.",
+          "correct_answer": "She cannot swim.",
+          "explanation": "Doesn’t с can не нужно: используем cannot.",
+          "alternatives": [
+            "She can't swim.",
+            "She can’t swim."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Вопрос и краткий ответ",
+      "body": "В вопросе can ставим первым: Can you swim? Can she sing?\nКоротко: Yes, I can. / No, I can’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Спроси, умеет ли она петь. Введи весь вопрос.",
+          "question": "She can sing.",
+          "correct_answer": "Can she sing?",
+          "explanation": "Can ставим перед she."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дай краткий утвердительный ответ. Впиши одно слово.",
+          "question": "Can you swim? — Yes, I ___.",
+          "correct_answer": "can",
+          "explanation": "В коротком ответе используем can."
+        }
+      ]
+    },
+    {
+      "id": "requests",
+      "title": "Просьба и разрешение",
+      "body": "Can you help me, please? — просьба о помощи.\nCan I open the window? — просьба разрешить действие.\nПосле can порядок тот же: человек → начальная форма глагола.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери просьбу о помощи, обращённую к другому человеку.",
+          "question": "Ты просишь собеседника помочь тебе.",
+          "correct_answer": "Can you help me, please?",
+          "options": [
+            "Can you help me, please?",
+            "Can I help me, please?"
+          ],
+          "explanation": "В просьбе к собеседнику используем Can you..."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вопрос о разрешении сделать действие самому.",
+          "question": "Ты хочешь получить разрешение открыть окно.",
+          "correct_answer": "Can I open the window?",
+          "options": [
+            "Can I open the window?",
+            "Can you open the window?"
+          ],
+          "explanation": "Can I... — просьба разрешить мне действие."
+        }
+      ]
+    }
+  ]
+}

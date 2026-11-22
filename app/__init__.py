@@ -654,6 +654,9 @@ def _start_background_services(app) -> None:
 def _register_cli_commands(app):
     """Register CLI commands for operations previously done as side effects in create_app()."""
     import click
+    from app.grammar_lab.content_cli import register_content_commands
+
+    register_content_commands(app)
 
     @app.cli.command('seed')
     def seed_cmd():

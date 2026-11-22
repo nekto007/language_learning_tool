@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "topic_slug": "c1-5",
+  "title": "Корреляционные сравнения (The more... the more...).",
+  "goal": "Связывай две меняющиеся величины с помощью the + comparative.",
+  "steps": [
+    {
+      "id": "correlation",
+      "title": "Чем…, тем…",
+      "body": "Модель: the + сравнительная форма…, the + сравнительная форма… Одна степень изменения связана с другой: The harder you practise, the better you perform. Это корреляция, а не автоматическое доказательство причины.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Продолжи корреляционную конструкцию сравнительной формой confident. Впиши два слова.",
+          "question": "The more you practise, the ___ you become. (confident)",
+          "correct_answer": "more confident",
+          "explanation": "Длинное прилагательное confident образует сравнительную форму more confident."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Переформулируй по модели The harder you practise, the… Используй better и perform; введи одно предложение.",
+          "question": "If you practise harder, your performance improves.",
+          "correct_answer": "The harder you practise, the better you perform.",
+          "explanation": "The harder… the better… сопоставляет степень практики и выполнения."
+        }
+      ]
+    },
+    {
+      "id": "adjectives",
+      "title": "Сравнительные формы прилагательных",
+      "body": "Короткие прилагательные часто получают -er, длинные — more: bigger, more difficult. Особые формы: good → better, bad → worse. Двойные more better и more easier в этой модели неверны.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Удали лишнее more только в первой части. Перепиши всё предложение.",
+          "question": "The more better the data, the more reliable the result.",
+          "correct_answer": "The better the data, the more reliable the result.",
+          "explanation": "Better уже является сравнительной формой, поэтому more перед ним лишнее."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь great в сравнительную степень после the. Впиши одно слово.",
+          "question": "The more difficult the task, the ___ the satisfaction. (great)",
+          "correct_answer": "greater",
+          "explanation": "Great образует сравнительную форму greater."
+        }
+      ]
+    },
+    {
+      "id": "adverbs",
+      "title": "Сравниваем способ действия",
+      "body": "В той же модели используются наречия: The more carefully you check, the fewer errors you miss. Hard → harder, quickly → more quickly. Не добавляем обычную вопросительную инверсию.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь carefully в сравнительную степень в первой части. Впиши два слова.",
+          "question": "The ___ you plan, the fewer surprises you face. (carefully)",
+          "correct_answer": "more carefully",
+          "explanation": "Для carefully нужна сравнительная форма more carefully."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь порядок слов в первой части. Сохрани смысл и перепиши предложение.",
+          "question": "The harder do you work, the more you learn.",
+          "correct_answer": "The harder you work, the more you learn.",
+          "explanation": "После сравнительного оборота нужен обычный порядок you work без do."
+        }
+      ]
+    },
+    {
+      "id": "nouns",
+      "title": "More, less и fewer перед существительными",
+      "body": "More используется с количеством в целом. Less — с неисчисляемым: less time. В аккуратной письменной речи fewer — с множественными исчисляемыми: fewer errors. В обеих частях сохраняется the.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши сравнительную форму little перед неисчисляемым time. Одно слово.",
+          "question": "The ___ time we waste, the more we achieve. (little)",
+          "correct_answer": "less",
+          "explanation": "Time неисчисляемо; сравнительное уменьшение выражается less."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши сравнительную форму few перед errors. Одно слово.",
+          "question": "The more carefully we proofread, the ___ errors remain. (few)",
+          "correct_answer": "fewer",
+          "explanation": "Errors — исчисляемое множественное число, поэтому fewer."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Краткие модели",
+      "body": "В контексте понятные части можно опускать: The sooner, the better. The bigger the budget, the greater the risk. The перед сравнительной формой — часть корреляционной модели, а не обычный артикль при существительном."
+    }
+  ]
+}

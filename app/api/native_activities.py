@@ -138,7 +138,7 @@ def _prepare(kind, item_id):
         all_ex = {e.id: e for e in GrammarExercise.query.filter(GrammarExercise.id.in_(ids)).all()}
         for key in ids:
             e = all_ex.get(key)
-            if e is None or e.topic_id != topic_id:
+            if e is None or e.topic_id != topic_id or (e.content or {}).get("guided_retired"):
                 raise NativeLessonError("unsupported_lesson", 422)
             rows.append(
                 {
@@ -182,18 +182,26 @@ def _prepare(kind, item_id):
         errors = get_review_pool(current_user.id, db)
         ids = []
         sources = []
+        revisions = []
         for error in errors:
             if not check_lesson_access(error.lesson_id):
                 raise NativeLessonError("access_denied", 403)
             p = error.question_payload or {}
+            revision = (error.lesson.content or {}).get("guided_catalog_digest") if error.lesson else None
+            if (p.get("guided_revision") or None) != (revision or None):
+                raise NativeLessonError("lesson_changed", 409)
             raw = None
             try:
                 original = rows_for(error.lesson)
                 index = int(p.get("question_index", -1))
                 if 0 <= index < len(original):
                     raw = deepcopy(original[index])
+                    if revision and raw.get("guided_key") != p.get("guided_key"):
+                        raise NativeLessonError("lesson_changed", 409)
             except (ValueError, TypeError):
                 pass
+            if revision and raw is None:
+                raise NativeLessonError("lesson_changed", 409)
             if raw is None:
                 raw = {
                     "type": p.get("question_type") or "fill_in_blank",
@@ -204,10 +212,11 @@ def _prepare(kind, item_id):
             rows.append(raw)
             ids.append(error.id)
             sources.append("grammar" if p.get("source") == "grammar" else "quiz")
+            revisions.append(revision)
             topic = error.lesson.grammar_topic if error.lesson is not None else None
             if topic and not theory:
                 theory = _theory(topic.content or {})
-        source = {"error_ids": ids, "sources": sources}
+        source = {"error_ids": ids, "sources": sources, "error_revisions": revisions}
         title = "Разбор ошибок"
     elif kind == "deck_quiz":
         from app.modules.service import ModuleService
@@ -501,6 +510,24 @@ def _event(kind, reason):
         )
 
 
+def _validate_error_revision(run, index):
+    """An in-flight review cannot resolve an unrelated question after import."""
+    if run.kind != "error_review":
+        return
+    from app.daily_plan.linear.models import QuizErrorLog
+
+    source = run.payload["source"]
+    error = QuizErrorLog.query.filter_by(id=source["error_ids"][index], user_id=current_user.id).first()
+    if error is None:
+        raise NativeLessonError("lesson_changed", 409)
+    current = (error.lesson.content or {}).get("guided_catalog_digest") if error.lesson else None
+    revisions = source.get("error_revisions")
+    expected = revisions[index] if isinstance(revisions, list) and index < len(revisions) else None
+    logged = (error.question_payload or {}).get("guided_revision")
+    if (current or None) != (expected or None) or (current or None) != (logged or None):
+        raise NativeLessonError("lesson_changed", 409)
+
+
 def _grade_activity(run, answers):
     from app.curriculum.grading import process_quiz_submission, process_grammar_submission
     from app.study.models import StudySession
@@ -514,6 +541,7 @@ def _grade_activity(run, answers):
     correct = 0
     resolved_today = 0
     for i, (row, q) in enumerate(zip(rows, questions, strict=True)):
+        _validate_error_revision(run, i)
         value = answers[str(i)]
         if not isinstance(value, str) or not value.strip() or len(value) > 20000:
             raise NativeLessonError("invalid_input")
@@ -602,9 +630,14 @@ def _grade_activity(run, answers):
                 resolve_quiz_error(item["error_id"], current_user.id, db, commit=False)
         else:
             grammar = kind == "error_review" and p["source"]["sources"][i] == "grammar"
-            grade = (process_grammar_submission if grammar else process_quiz_submission)(
-                [row], {"0": converted}
-            )
+            if grammar and row.get("guided_key"):
+                from app.grammar_lab.guided_learning import grade_guided_answers
+
+                grade = grade_guided_answers([row], {"0": converted})
+            else:
+                grade = (process_grammar_submission if grammar else process_quiz_submission)(
+                    [row], {"0": converted}
+                )
             checked = grade["feedback"].get("0") or {}
             ok = checked.get("status") == "correct"
             expected = checked.get("correct_matches") or checked.get("correct_answer") or ""
@@ -639,6 +672,7 @@ def _grade_activity(run, answers):
                 and p["source"]["sources"][i] == "grammar"
                 and str(expected).isdigit()
                 and row.get("options")
+                and expected not in row["options"]
                 and int(expected) < len(row["options"])
             ):
                 expected = row["options"][int(expected)]
@@ -783,6 +817,7 @@ def check_learning_answer(kind):
     index = next((i for i, q in enumerate(questions) if q["id"] == body["question_id"]), None)
     if index is None:
         raise NativeLessonError("invalid_input")
+    _validate_error_revision(run, index)
     exercise = None
     if kind in ("grammar_topic", "grammar_review"):
         exercise = GrammarExercise.query.get(run.payload["source"]["exercise_ids"][index])

@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "topic_slug": "c1-4",
+  "title": "Cleft Sentences (Расщепленные предложения).",
+  "goal": "Выделяй нужную часть сообщения с помощью cleft sentences.",
+  "steps": [
+    {
+      "id": "it-focus",
+      "title": "It-cleft выделяет контраст",
+      "body": "Модель: It is/was + выделяемая часть + who/that + остальное. It was Maya who found the error подчёркивает Maya, например в ответ на неверное предположение о Leo. Сохраняй исходное время события.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Подчеркни именно Maya с помощью It was…who. Сохрани событие в прошлом и введи предложение.",
+          "question": "Maya found the error.",
+          "correct_answer": "It was Maya who found the error.",
+          "explanation": "It was Maya who… выделяет человека, выполнившего действие."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери, какая информация является фокусом cleft-конструкции.",
+          "question": "It was Maya who found the error, not Leo. Что выделено?",
+          "correct_answer": "Человек, обнаруживший ошибку.",
+          "explanation": "Maya находится в позиции фокуса после It was.",
+          "options": [
+            "Человек, обнаруживший ошибку.",
+            "Время обнаружения.",
+            "Причина ошибки."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "object-time",
+      "title": "Выделяй объект или обстоятельство",
+      "body": "It-cleft может выделять объект, место или время: It was the report that Maya checked. It was on Monday that she called. При переносе объекта не добавляем его второй раз в остаток: that Maya checked, без it.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Выдели объект the report через It was…that. Введи полное предложение.",
+          "question": "Maya checked the report.",
+          "correct_answer": "It was the report that Maya checked.",
+          "explanation": "The report вынесен в фокус; в остатке checked больше нет повторного объекта."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Выдели время on Monday через It was…that. Сохрани she called.",
+          "question": "She called on Monday.",
+          "correct_answer": "It was on Monday that she called.",
+          "explanation": "On Monday занимает фокусную позицию обстоятельства времени."
+        }
+      ]
+    },
+    {
+      "id": "what-focus",
+      "title": "What-cleft выделяет содержание",
+      "body": "Модель: What + подлежащее + глагол + is/was + фокус. What I need is a quiet room. What I did was (to) call a taxi. В последней модели после did возможен инфинитив как с to, так и без него.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с What I need is и выдели a quiet room. Введи полное предложение.",
+          "question": "I need a quiet room.",
+          "correct_answer": "What I need is a quiet room.",
+          "explanation": "What I need создаёт тему, а a quiet room становится фокусом."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Начни с What I did was и сохрани действие call a taxi. Введи предложение.",
+          "question": "I called a taxi.",
+          "correct_answer": "What I did was call a taxi.",
+          "explanation": "После What I did was допустим bare infinitive call; вариант to call тоже возможен.",
+          "alternatives": [
+            "What I did was to call a taxi."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "control",
+      "title": "Не добавляй вопросительную инверсию",
+      "body": "What в what-cleft не делает всю конструкцию вопросом: What she wants is an explanation. Остаток it-cleft тоже сохраняет структуру сообщения. Выделение меняет подачу информации, а не факты события.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только структуру What-clause. Перепиши всё предложение.",
+          "question": "What does she want is an explanation.",
+          "correct_answer": "What she wants is an explanation.",
+          "explanation": "В what-cleft нужен порядок she wants без does."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишний повтор объекта в it-cleft. Перепиши предложение.",
+          "question": "It was the report that Maya checked it.",
+          "correct_answer": "It was the report that Maya checked.",
+          "explanation": "The report уже представлен относительным that; it дублирует объект."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Согласование выделенного подлежащего",
+      "body": "В конструкции It is you who are responsible форма are соотносится с you в относительной части. Не заменяй are на is только потому, что всё предложение начинается с It is. Фокус может выделять человека, предмет, время или причину."
+    }
+  ]
+}

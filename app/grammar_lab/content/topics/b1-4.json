@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "b1-4",
+  "title": "Конструкция равенства AS...AS",
+  "goal": "Сравни равные качества и действия с as ... as и вырази неравенство.",
+  "steps": [
+    {
+      "id": "equal-adjective",
+      "title": "Одинаковое качество: as + прилагательное + as",
+      "body": "Для равного качества используем as + обычное прилагательное + as.\nSam is as tall as Alex.\nНе нужна сравнительная форма taller: внутри этой конструкции ставим tall.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Сэм и Алекс одного роста. Заполни конструкцию равенства с tall. Впиши три слова.",
+          "question": "Sam is ___ ___ ___ Alex. (tall)",
+          "correct_answer": "as tall as",
+          "explanation": "Равенство выражаем as + обычная форма tall + as."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму прилагательного внутри as ... as. Перепиши всё предложение.",
+          "question": "This bag is as heavier as mine.",
+          "correct_answer": "This bag is as heavy as mine.",
+          "explanation": "Для равенства используем as heavy as, без -er."
+        }
+      ]
+    },
+    {
+      "id": "not-as",
+      "title": "Меньшая степень: not as ... as",
+      "body": "Not as + прилагательное + as показывает, что качество выражено слабее.\nTom is not as tall as Sam — Том ниже Сэма.\nНе меняй местами людей: это изменит смысл сравнения.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Том ниже Сэма. Заполни отрицательную конструкцию равенства: впиши два слова перед tall.",
+          "question": "Tom is ___ tall as Sam.",
+          "correct_answer": "not as",
+          "explanation": "Not as tall as означает «не такой высокий, как»."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение: эта сумка дешевле той, то есть не такая дорогая.",
+          "question": "Эта сумка стоит 20, та — 50.",
+          "options": [
+            "This bag is not as expensive as that one.",
+            "That bag is not as expensive as this one.",
+            "This bag is as more expensive as that one."
+          ],
+          "correct_answer": "This bag is not as expensive as that one.",
+          "explanation": "Меньшая степень дороговизны у этой сумки: this bag is not as expensive."
+        }
+      ]
+    },
+    {
+      "id": "adverb",
+      "title": "Так же выполняет действие: as + наречие + as",
+      "body": "Сравнивать можно и действие: She runs as fast as her brother.\nЕсли нужно наречие, используй его форму: as carefully as, не as careful as.\nFast бывает и прилагательным, и наречием.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Сравни, насколько аккуратно они работают. Образуй наречие от careful и впиши одно слово.",
+          "question": "She works as ___ as her brother. (careful)",
+          "correct_answer": "carefully",
+          "explanation": "Глагол works описываем наречием carefully."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильное сравнение скорости бега.",
+          "question": "Она бегает так же быстро, как её брат.",
+          "options": [
+            "She runs as fast as her brother.",
+            "She runs as faster as her brother.",
+            "She runs as fastly as her brother."
+          ],
+          "correct_answer": "She runs as fast as her brother.",
+          "explanation": "Fast — правильная форма наречия здесь; faster и fastly не нужны."
+        }
+      ]
+    },
+    {
+      "id": "degree",
+      "title": "Точно так же или почти так же",
+      "body": "Just as ... as подчёркивает равенство: just as useful as — точно так же полезен.\nNearly as ... as означает «почти такой же»: есть небольшая разница.\nОбычная форма прилагательного сохраняется.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши just или nearly, чтобы передать смысл «почти такой же удобный». Введи одно слово.",
+          "question": "This chair is ___ as comfortable as that one.",
+          "correct_answer": "nearly",
+          "explanation": "Nearly as comfortable as означает «почти такой же удобный»."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь сравнительную форму после just as. Перепиши всё предложение.",
+          "question": "This book is just as better as the other one.",
+          "correct_answer": "This book is just as good as the other one.",
+          "explanation": "В конструкции just as ... as используем good, а не better."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Можно сравнивать количество: as many books as — столько же книг; as much time as — столько же времени. Many сочетается с исчисляемым множественным числом, much — с неисчисляемым. После второго as возможна полная часть предложения: She works as carefully as I do. В отрицании встречается not so ... as, но not as ... as употребляется шире."
+    }
+  ]
+}

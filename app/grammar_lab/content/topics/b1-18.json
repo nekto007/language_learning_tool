@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "topic_slug": "b1-18",
+  "title": "Модальные глаголы совета и обязанности",
+  "goal": "Различай совет, необходимость, запрет и отсутствие обязанности.",
+  "steps": [
+    {
+      "id": "advice",
+      "title": "Совет: should и ought to",
+      "body": "Should + глагол без to даёт совет, а не приказ: You should rest. Отрицание: You should not drive. Ought to близко по смыслу: You ought to rest.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Дай совет с should. Поставь take в нужную форму; впиши одно слово.",
+          "question": "You should ___ a break. (take)",
+          "correct_answer": "take",
+          "explanation": "После should нужна базовая форма без to."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени should на ought to, сохрани совет. Перепиши всё предложение.",
+          "question": "You should see a doctor.",
+          "correct_answer": "You ought to see a doctor.",
+          "explanation": "Ought to выражает совет и требует to перед глаголом."
+        }
+      ]
+    },
+    {
+      "id": "obligation",
+      "title": "Обязанность: must и have to",
+      "body": "Must и have to выражают сильную необходимость. Различие «личное/внешнее» полезно как ориентир, но не абсолютное правило. В прошлом обычно had to: Yesterday I had to work late.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Вырази обязанность в прошлом с have to. Впиши два слова.",
+          "question": "Yesterday we ___ show our tickets. (have to)",
+          "correct_answer": "had to",
+          "explanation": "Для необходимости в завершённом прошлом используем had to."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Начни с All visitors must и передай обязательное правило. Введи полное предложение.",
+          "question": "The rules require all visitors to wear a badge.",
+          "correct_answer": "All visitors must wear a badge.",
+          "explanation": "Must + wear выражает обязательное правило."
+        }
+      ]
+    },
+    {
+      "id": "prohibition",
+      "title": "Запрещено или необязательно",
+      "body": "Must not / mustn’t — запрещено. Do not have to — необязательно, но можно: You mustn’t park here. You don’t have to come early.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение со значением «приходить рано необязательно».",
+          "question": "Приходить рано можно, но это не обязательно.",
+          "correct_answer": "You do not have to come early.",
+          "explanation": "Do not have to снимает обязанность, а не запрещает действие.",
+          "options": [
+            "You must not come early.",
+            "You do not have to come early.",
+            "You cannot come early."
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение, которое выражает запрет, а не совет.",
+          "question": "Посетителям запрещено трогать картины.",
+          "correct_answer": "Visitors must not touch the paintings.",
+          "explanation": "Must not обозначает запрет.",
+          "options": [
+            "Visitors do not have to touch the paintings.",
+            "Visitors must not touch the paintings.",
+            "Visitors should touch the paintings."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "better",
+      "title": "Настойчивый совет: had better",
+      "body": "Had better + глагол без to — совет для конкретной ситуации с возможными плохими последствиями: You had better leave now. Отрицание: had better not. Had здесь не означает прошедшее время.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Дай настойчивый совет с had better. Впиши not и глагол без to — два слова.",
+          "question": "The road is icy. You had better ___ fast. (not drive)",
+          "correct_answer": "not drive",
+          "explanation": "Отрицание стоит после better: had better not drive."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишнее слово после had better. Перепиши всё предложение.",
+          "question": "You had better to call her now.",
+          "correct_answer": "You had better call her now.",
+          "explanation": "После had better частица to не ставится."
+        }
+      ]
+    }
+  ]
+}

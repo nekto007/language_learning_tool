@@ -830,6 +830,8 @@ class UnifiedSRSService:
         result = []
 
         def base_query():
+            from app.grammar_lab.exercise_visibility import active_exercise_clause
+
             q = UserGrammarExercise.query.filter(
                 UserGrammarExercise.user_id == user_id,
                 # Filter out buried exercises
@@ -838,8 +840,9 @@ class UnifiedSRSService:
                     UserGrammarExercise.buried_until <= now
                 )
             )
+            q = q.join(GrammarExercise).filter(active_exercise_clause())
             if topic_id:
-                q = q.join(GrammarExercise).filter(GrammarExercise.topic_id == topic_id)
+                q = q.filter(GrammarExercise.topic_id == topic_id)
             if exclude_exercise_ids:
                 q = q.filter(~UserGrammarExercise.exercise_id.in_(exclude_exercise_ids))
             return q

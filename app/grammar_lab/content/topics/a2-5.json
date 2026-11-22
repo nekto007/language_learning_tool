@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "topic_slug": "a2-5",
+  "title": "Герундий после глаголов like/love/hate (Gerund: -ing form)",
+  "goal": "Расскажи о любимых занятиях с формой глагола на -ing.",
+  "steps": [
+    {
+      "id": "activities",
+      "title": "Like, love, hate + занятие",
+      "body": "После like/love/hate можно назвать занятие формой на -ing: I like reading. She loves swimming. We hate waiting.\nВ этом уроке тренируем модель с -ing. После like/love/hate возможен и to-infinitive в других естественных контекстах, поэтому -ing не единственный допустимый вариант вообще.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Назови занятие после like именно формой на -ing. Впиши только форму read.",
+          "question": "I like ___. (read)",
+          "correct_answer": "reading",
+          "explanation": "В выбранной модели: like reading."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму на -ing для занятия после loves.",
+          "question": "She loves ___.",
+          "correct_answer": "swimming",
+          "options": [
+            "swimming",
+            "swim",
+            "swims"
+          ],
+          "explanation": "Занятие выражаем формой swimming."
+        }
+      ]
+    },
+    {
+      "id": "spelling",
+      "title": "Как получить -ing",
+      "body": "Обычно добавляем -ing: read → reading.\nУбираем конечную немую -e: dance → dancing.\nВ коротких словах типа swim и run удваиваем последнюю согласную: swimming, running.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй форму dance на -ing. Впиши одно слово.",
+          "question": "dance → ___",
+          "correct_answer": "dancing",
+          "explanation": "Немая конечная e убирается: dancing."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную форму run на -ing.",
+          "question": "run → …",
+          "correct_answer": "running",
+          "options": [
+            "runing",
+            "running",
+            "runny"
+          ],
+          "explanation": "В running конечная n удваивается."
+        }
+      ]
+    },
+    {
+      "id": "enjoy",
+      "title": "После enjoy нужна -ing-форма",
+      "body": "Enjoy тоже означает, что занятие приносит удовольствие: I enjoy cooking.\nПосле enjoy употребляем -ing-форму, а не to + глагол: enjoy reading, не enjoy to read.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь cook в форму после enjoy. Впиши одно слово.",
+          "question": "I enjoy ___. (cook)",
+          "correct_answer": "cooking",
+          "explanation": "После enjoy используем cooking."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Замени to read на правильную форму после enjoys. Перепиши всё предложение.",
+          "question": "She enjoys to read.",
+          "correct_answer": "She enjoys reading.",
+          "explanation": "После enjoy нужна форма на -ing."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отрицание относится к like/love/hate",
+      "body": "В Present Simple отрицание строим с don’t/doesn’t: I don’t like waiting. She doesn’t like dancing.\nПосле doesn’t пишем like, не likes; форма занятия на -ing сохраняется.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным, сохрани модель с -ing. Введи всё предложение.",
+          "question": "She likes dancing.",
+          "correct_answer": "She does not like dancing.",
+          "explanation": "После does not используем like; dancing сохраняется.",
+          "alternatives": [
+            "She doesn't like dancing.",
+            "She doesn’t like dancing."
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму занятия после doesn’t like в модели этого урока.",
+          "question": "He doesn't like ___.",
+          "correct_answer": "waiting",
+          "options": [
+            "waiting",
+            "waits",
+            "wait"
+          ],
+          "explanation": "Отрицание не меняет -ing-форму занятия: waiting."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Не все формы на -ing — герундий",
+      "body": "В I like swimming форма swimming называет занятие. В I am swimming она входит в форму времени Present Continuous. Внешне формы совпадают, но их роль в предложении различается. После like/love/hate -ing не единственный возможный вариант, а после enjoy необходима именно -ing-модель."
+    }
+  ]
+}

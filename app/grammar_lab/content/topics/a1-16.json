@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "topic_slug": "a1-16",
+  "title": "Глагол Have / Has (got) — Иметь",
+  "goal": "Расскажи, что у тебя есть, и не смешивай конструкции have и have got.",
+  "steps": [
+    {
+      "id": "have-has",
+      "title": "Have или has",
+      "body": "Для обладания используем have: I/you/we/they have a bike.\nС he/she/it используем has: She has a bike.\nВ этом значении have значит «иметь».",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму have для she в утверждении.",
+          "question": "She ___ a bike.",
+          "correct_answer": "has",
+          "options": [
+            "have",
+            "has"
+          ],
+          "explanation": "С she используем has."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши have или has после we.",
+          "question": "We ___ a car.",
+          "correct_answer": "have",
+          "explanation": "После we используем have."
+        }
+      ]
+    },
+    {
+      "id": "have-got",
+      "title": "Та же идея с have got",
+      "body": "Have got/has got тоже показывает, что у человека что-то есть: I have got a bike. She has got a bike.\nМожно сократить I’ve got и she’s got. В этой конструкции got сохраняется.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи утверждение с got после she. Впиши have или has.",
+          "question": "She ___ got a bike.",
+          "correct_answer": "has",
+          "explanation": "С she полная конструкция — has got."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай ту же мысль с have got без сокращений. Введи всё предложение.",
+          "question": "I have a car.",
+          "correct_answer": "I have got a car.",
+          "explanation": "В утверждении об обладании I have и I have got передают одну основную мысль."
+        }
+      ]
+    },
+    {
+      "id": "without-got",
+      "title": "Вопрос и отрицание с обычным have",
+      "body": "С обычным have строим вопрос через do/does: Do you have a car? Does she have a bike?\nОтрицание: I don’t have a car. She doesn’t have a bike. После does/doesn’t — have, не has.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай вопрос с does и обычным have, без got. Введи весь вопрос.",
+          "question": "She has a bike.",
+          "correct_answer": "Does she have a bike?",
+          "explanation": "Does выражает третье лицо; основной глагол остаётся have."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму have после doesn’t. Перепиши всё предложение, сохранив сокращение.",
+          "question": "She doesn't has a car.",
+          "correct_answer": "She doesn't have a car.",
+          "explanation": "После doesn’t используем have без окончания -s.",
+          "alternatives": [
+            "She doesn’t have a car."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "with-got",
+      "title": "Вопрос и отрицание с have got",
+      "body": "В модели have got вопрос начинается с have/has: Have you got a car? Has she got a bike?\nОтрицание: I haven’t got a car. She hasn’t got a bike.\nНе смешиваем модели: не говорим Do you have got...?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай вопрос в модели have got. Перепиши весь вопрос.",
+          "question": "She has got a bike.",
+          "correct_answer": "Has she got a bike?",
+          "explanation": "Has переносится перед she, got остаётся."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильное отрицание именно в модели have got.",
+          "question": "У меня нет машины.",
+          "correct_answer": "I haven't got a car.",
+          "options": [
+            "I haven't got a car.",
+            "I don't have got a car."
+          ],
+          "explanation": "В этой модели отрицание — haven’t got, без don’t."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Сокращения и значение",
+      "body": "В конструкции She’s got a bike сокращение ’s означает has. В She’s happy оно означает is. Have/has got обычно описывает текущее обладание; не переносим механически got во все времена."
+    }
+  ]
+}

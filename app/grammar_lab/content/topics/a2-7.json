@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "topic_slug": "a2-7",
+  "title": "Should/Shouldn't для советов",
+  "goal": "Давай советы и спрашивай, как лучше поступить, с should.",
+  "steps": [
+    {
+      "id": "advice",
+      "title": "Should: стоит сделать",
+      "body": "Should выражает совет: You should rest. — Тебе стоит отдохнуть.\nПосле should используем начальную форму без to. Should не меняется после he/she/it.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Дай совет отдохнуть, используя изученный модальный глагол. Впиши одно слово.",
+          "question": "You ___ rest.",
+          "correct_answer": "should",
+          "explanation": "Совет строим с should + начальная форма."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму глагола после should.",
+          "question": "She should ___ a doctor.",
+          "correct_answer": "see",
+          "options": [
+            "see",
+            "sees",
+            "to see"
+          ],
+          "explanation": "После should нужен see без to и без -s."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Shouldn’t: не стоит",
+      "body": "Should not / shouldn’t — совет не делать что-то: You shouldn’t stay up late.\nЭто не то же самое, что строгий запрет с mustn’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Переделай грамматическую модель в совет не покупать новую сумку. Введи всё предложение.",
+          "question": "You should buy a new bag.",
+          "correct_answer": "You should not buy a new bag.",
+          "explanation": "Отрицательная форма: should not + глагол.",
+          "alternatives": [
+            "You shouldn't buy a new bag.",
+            "You shouldn’t buy a new bag."
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл совета с shouldn’t.",
+          "question": "You shouldn't stay up late.",
+          "correct_answer": "Тебе не стоит ложиться поздно.",
+          "options": [
+            "Тебе не стоит ложиться поздно.",
+            "Ты не можешь ложиться поздно."
+          ],
+          "explanation": "Shouldn’t здесь означает «не стоит», а не отсутствие способности."
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Как спросить совета",
+      "body": "В вопросе ставим should перед человеком: Should I call her?\nДля открытого вопроса: What should I do?\nКоротко: Yes, you should. / No, you shouldn’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Спроси, стоит ли тебе ей позвонить. Введи весь вопрос.",
+          "question": "I should call her.",
+          "correct_answer": "Should I call her?",
+          "explanation": "Should переносим перед I."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Спроси совета: «Что мне следует сделать?». Заполни пропуск одним модальным глаголом.",
+          "question": "What ___ I do?",
+          "correct_answer": "should",
+          "explanation": "Вопрос о совете: What should I do?"
+        }
+      ]
+    }
+  ]
+}

@@ -19,7 +19,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
 
-from sqlalchemy import case, func
+from sqlalchemy import case, func, select
 
 from app.daily_plan.linear.models import QuizErrorLog
 
@@ -99,6 +99,28 @@ def log_quiz_error(
     return entry
 
 
+def current_error_revision_clause():
+    """Keep superseded positional errors as history, not as current practice.
+
+    An index belongs to an authored revision: question zero in a replaced
+    lesson is not necessarily the same task. Legacy lessons keep their
+    existing behaviour. A correlated scalar query avoids multiplying logs
+    and keeps the callers' query/filter chains unchanged.
+    """
+    from app.curriculum.models import Lessons
+
+    revision = (
+        select(Lessons.content['guided_catalog_digest'].as_string())
+        .where(Lessons.id == QuizErrorLog.lesson_id)
+        .correlate(QuizErrorLog)
+        .scalar_subquery()
+    )
+    logged_revision = QuizErrorLog.question_payload['guided_revision'].as_string()
+    # Symmetric comparison matters after rollback too: a guided error must
+    # not become a different legacy question merely because its index exists.
+    return func.coalesce(revision, '') == func.coalesce(logged_revision, '')
+
+
 def _unresolved_question_indices(user_id: int, lesson_id: int, db: Any) -> set[int]:
     """Return question indices that already have an unresolved row for this lesson.
 
@@ -112,6 +134,7 @@ def _unresolved_question_indices(user_id: int, lesson_id: int, db: Any) -> set[i
             QuizErrorLog.user_id == user_id,
             QuizErrorLog.lesson_id == lesson_id,
             QuizErrorLog.resolved_at.is_(None),
+            current_error_revision_clause(),
         )
         .all()
     )
@@ -207,6 +230,9 @@ def log_quiz_errors_from_result(
             payload['exercise_id'] = question.get('id')
         if question.get('difficulty') is not None:
             payload['difficulty'] = question.get('difficulty')
+        for key in ('guided_revision', 'guided_key'):
+            if isinstance(question.get(key), str) and question[key]:
+                payload[key] = question[key]
         logged.append(log_quiz_error(user_id, lesson_id, payload, db))
         already_logged.add(q_idx)
     return logged
@@ -257,6 +283,7 @@ def count_unresolved(user_id: int, db: Any) -> int:
         .filter(
             QuizErrorLog.user_id == user_id,
             QuizErrorLog.resolved_at.is_(None),
+            current_error_revision_clause(),
         )
         .scalar()
         or 0
@@ -293,6 +320,7 @@ def get_review_pool(
         .filter(
             QuizErrorLog.user_id == user_id,
             QuizErrorLog.resolved_at.is_(None),
+            current_error_revision_clause(),
         )
         .order_by(QuizErrorLog.created_at.asc(), QuizErrorLog.id.asc())
         .limit(limit)
@@ -368,12 +396,15 @@ def get_sibling_exercise(
 
     exercise_id, difficulty, exercise_type = _resolve_original_exercise_meta(error, db)
 
+    from app.grammar_lab.exercise_visibility import active_exercise_clause
+
     excluded: set[int] = set(exclude_exercise_ids or ())
     if exercise_id is not None:
         excluded.add(exercise_id)
 
     query = db.session.query(GrammarExercise).filter(
         GrammarExercise.topic_id == lesson.grammar_topic_id,
+        active_exercise_clause(),
     )
     if difficulty is not None:
         query = query.filter(GrammarExercise.difficulty == difficulty)
@@ -429,6 +460,8 @@ def get_topic_sibling_exercises(
     from app.grammar_lab.models import GrammarExercise
 
     # Positional whens (not a list) — the list form is removed in SQLAlchemy 2.0.
+    from app.grammar_lab.exercise_visibility import active_exercise_clause
+
     type_priority = case(
         (GrammarExercise.exercise_type == 'multiple_choice', 0),
         (GrammarExercise.exercise_type == 'fill_blank', 1),
@@ -437,6 +470,7 @@ def get_topic_sibling_exercises(
 
     query = db.session.query(GrammarExercise).filter(
         GrammarExercise.topic_id == topic_id,
+        active_exercise_clause(),
     )
     if exclude_ids:
         query = query.filter(~GrammarExercise.id.in_(exclude_ids))

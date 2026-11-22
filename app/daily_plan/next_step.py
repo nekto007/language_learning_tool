@@ -333,6 +333,8 @@ def _check_writing_suggestion(user_id: int, db) -> Optional[NextStep]:
 
 
 def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
+    from app.grammar_lab.exercise_visibility import active_exercise_clause
+
     from app.grammar_lab.models import (
         GrammarExercise,
         GrammarTopic,
@@ -362,6 +364,7 @@ def _check_grammar_weak(user_id: int, db) -> Optional[NextStep]:
                 UserGrammarExercise.user_id == user_id,
                 UserGrammarExercise.next_review <= now,
                 GrammarExercise.topic_id == uts.topic_id,
+                active_exercise_clause(),
             )
             .count()
         )

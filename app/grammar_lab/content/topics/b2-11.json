@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "topic_slug": "b2-11",
+  "title": "Past Perfect (Прошедшее совершенное время).",
+  "goal": "Обозначай действие, которое уже завершилось к прошлой точке отсчёта.",
+  "steps": [
+    {
+      "id": "earlier",
+      "title": "Сначала одно прошлое, потом другое",
+      "body": "Past Perfect: had + V3. Он показывает более раннее действие относительно другого прошлого события: When we arrived, the train had left. Отправление поезда произошло до нашего прихода.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь leave в Past Perfect и включи already между had и V3. Впиши три слова.",
+          "question": "When we arrived, the train ___. (already / leave)",
+          "correct_answer": "had already left",
+          "explanation": "Had left обозначает отправление до прибытия; already стоит между had и V3."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери более раннее событие по смыслу времён.",
+          "question": "When we arrived, the train had left. Что произошло раньше?",
+          "correct_answer": "Поезд уехал.",
+          "explanation": "Had left отмечает действие раньше прошлого arrived.",
+          "options": [
+            "Поезд уехал.",
+            "Мы прибыли.",
+            "Оба события произошли одновременно."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отрицание и вопрос",
+      "body": "Отрицание: had not + V3. Вопрос: Had + подлежащее + V3? Вспомогательный had одинаков для всех лиц: Had she seen it before?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай общий вопрос в Past Perfect. Перепиши всё предложение.",
+          "question": "She had seen the film before.",
+          "correct_answer": "Had she seen the film before?",
+          "explanation": "Had переносится перед she; seen сохраняется."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Вырази более раннее отсутствие действия в Past Perfect с полным not. Впиши три слова.",
+          "question": "I could not open the door because I ___ my keys. (not bring)",
+          "correct_answer": "had not brought",
+          "explanation": "Ключи не были взяты до попытки открыть дверь."
+        }
+      ]
+    },
+    {
+      "id": "past-reference",
+      "title": "Нужна прошлая точка отсчёта",
+      "body": "Не выбирай Past Perfect только из-за слова before. Нужна понятная прошлая точка: By the time the meeting began, we had checked the figures. Отдельное событие с yesterday обычно передаёт Past Simple.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь check в Past Perfect, чтобы подчеркнуть завершение до начала встречи. Впиши два слова.",
+          "question": "By the time the meeting began, we ___ the figures. (check)",
+          "correct_answer": "had checked",
+          "explanation": "Проверка закончилась к началу встречи — прошлой точке отсчёта."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери естественную форму для одного завершённого события вчера.",
+          "question": "Называем одно самостоятельное событие вчера, без другого прошлого ориентира.",
+          "correct_answer": "I sent the report yesterday.",
+          "explanation": "Для самостоятельного события с завершённым временем yesterday подходит Past Simple.",
+          "options": [
+            "I sent the report yesterday.",
+            "I had send the report yesterday.",
+            "I have sent the report yesterday."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "narrative",
+      "title": "Смена времени меняет порядок событий",
+      "body": "When I got home, she cooked dinner — приготовление следует за приходом или описывается как часть ситуации. When I got home, she had cooked dinner — ужин уже был приготовлен. Past Perfect помогает убрать неоднозначность порядка.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сократи описание до When I got home, she… Используй cook в Past Perfect; введи одно предложение.",
+          "question": "When I got home, dinner was already ready because she had finished cooking it.",
+          "correct_answer": "When I got home, she had cooked dinner.",
+          "explanation": "Had cooked явно относит приготовление к моменту до прихода."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь meet в Past Perfect. Впиши два слова.",
+          "question": "I recognised him because we ___ before. (meet)",
+          "correct_answer": "had met",
+          "explanation": "Предыдущая встреча состоялась раньше узнавания."
+        }
+      ]
+    }
+  ]
+}

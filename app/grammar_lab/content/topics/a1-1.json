@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "topic_slug": "a1-1",
+  "title": "Глагол TO BE - Быть",
+  "goal": "Скажи, кто ты, где находятся люди, и задай простой вопрос с be.",
+  "steps": [
+    {
+      "id": "forms",
+      "title": "Am, is и are",
+      "body": "В английском предложении о том, кто человек или где он находится, нужен be.\nI am a student. — Я студент.\nHe/she/it + is; you/we/they + are.\nWe are at home. — Мы дома.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни пропуск формой be после I. Впиши одно слово.",
+          "question": "I ___ a student.",
+          "correct_answer": "am",
+          "explanation": "После I используем am."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму be для нескольких людей — they.",
+          "question": "They ___ at home.",
+          "correct_answer": "are",
+          "options": [
+            "am",
+            "is",
+            "are"
+          ],
+          "explanation": "После they используем are."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Как сказать «не»",
+      "body": "Для отрицания поставь not после be: I am not tired. She is not here. We are not late.\nIs not можно сократить до isn’t, are not — до aren’t. Am not не сокращается до amn’t в стандартной учебной модели.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Скажи, что он не устал. Добавь not и перепиши всё предложение.",
+          "question": "He is tired.",
+          "correct_answer": "He is not tired.",
+          "explanation": "Not стоит после is.",
+          "alternatives": [
+            "He isn't tired.",
+            "He isn’t tired."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи «Мы не опоздали»: впиши отрицательное слово в пропуск.",
+          "question": "We are ___ late.",
+          "correct_answer": "not",
+          "explanation": "Отрицательная форма: are not."
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Вопрос и короткий ответ",
+      "body": "В вопросе be ставим перед подлежащим: You are ready. → Are you ready?\nShe is at home. → Is she at home?\nКоротко: Yes, she is. / No, she isn’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай вопрос, дома ли она. Перепиши всё предложение вопросом.",
+          "question": "She is at home.",
+          "correct_answer": "Is she at home?",
+          "explanation": "Is переносится перед she."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дай краткий утвердительный ответ. Впиши только форму be.",
+          "question": "Is she ready? — Yes, she ___.",
+          "correct_answer": "is",
+          "explanation": "С she сохраняется форма is."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Сокращённые формы",
+      "body": "I am → I’m; he is → he’s; she is → she’s; it is → it’s; we are → we’re; you are → you’re; they are → they’re. В кратком утвердительном ответе be обычно не сокращаем: Yes, I am; Yes, she is."
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "b2-2",
+  "title": "Modal Verbs of Uncertainty: May, Might, Could.",
+  "goal": "Описывай возможность с may, might и could без ложной точности вероятностей.",
+  "steps": [
+    {
+      "id": "possibility",
+      "title": "Возможность, а не обещание",
+      "body": "May, might и could могут выражать неуверенную возможность сейчас или в будущем. Они не соответствуют фиксированным процентам; оттенок зависит от контекста: The results might change.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени will на might, чтобы выразить возможность. Введи всё предложение.",
+          "question": "The results will change.",
+          "correct_answer": "The results might change.",
+          "explanation": "Might превращает уверенное предсказание в указание на возможность."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай возможность через may be. Начни с The device и введи полное предложение.",
+          "question": "It is possible that the device is faulty.",
+          "correct_answer": "The device may be faulty.",
+          "explanation": "May be указывает на возможное состояние устройства."
+        }
+      ]
+    },
+    {
+      "id": "form",
+      "title": "Модальный глагол не изменяется",
+      "body": "После may/might/could используем базовую форму без to. У модального глагола нет окончания -s: She may need help. Для состояния — may be; для процесса — might be working.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Удали лишнюю частицу после might. Перепиши полное предложение.",
+          "question": "She might to need more time.",
+          "correct_answer": "She might need more time.",
+          "explanation": "После might нужно need без to."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни may формой be + V-ing от examine. Впиши два слова.",
+          "question": "Do not call now. He may ___ a patient. (examine)",
+          "correct_answer": "be examining",
+          "explanation": "May be examining выражает возможный процесс сейчас."
+        }
+      ]
+    },
+    {
+      "id": "not",
+      "title": "Не перепутай возможное отрицание",
+      "body": "May not / might not могут означать «возможно, не»: It may not work. Could not часто означает невозможность или отсутствие способности; поэтому это не универсальная замена might not.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение со значением «возможно, посылка сегодня не придёт».",
+          "question": "Говорящий не уверен, что доставка будет сегодня; отсутствие доставки тоже возможно.",
+          "correct_answer": "The parcel might not arrive today.",
+          "explanation": "Might not arrive оставляет открытой возможность, что посылка не приедет.",
+          "options": [
+            "The parcel might not arrive today.",
+            "The parcel definitely arrived today.",
+            "The parcel must arrive today."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай возможность отрицательного результата через may not. Начни с The treatment.",
+          "question": "It is possible that the treatment will not work.",
+          "correct_answer": "The treatment may not work.",
+          "explanation": "May not work выражает возможное отсутствие результата."
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "title": "Осторожный научный вывод",
+      "body": "В научном обсуждении may/might/could отмечают гипотезу, которую данные ещё не доказывают. Модальный глагол не заменяет доказательство. Сравни: The change may indicate stress и The change proves stress.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери формулировку, которая не преувеличивает силу предварительных данных.",
+          "question": "Есть предварительные данные, но причинная связь ещё не доказана.",
+          "correct_answer": "The change may indicate stress.",
+          "explanation": "May согласуется с предварительным, а не окончательным выводом.",
+          "options": [
+            "The change may indicate stress.",
+            "The change conclusively proves stress.",
+            "The change can only indicate stress."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Сделай вывод осторожнее с could. Сохрани остальные слова, убрав окончание -s у indicates.",
+          "question": "The signal indicates a fault.",
+          "correct_answer": "The signal could indicate a fault.",
+          "explanation": "Could делает вывод осторожным: неисправность — возможное объяснение."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Отрицательная возможность и запрет",
+      "body": "It may not work — возможно, не сработает. You may not enter — в подходящем контексте запрет на вход. Одинаковые may not читаются по ситуации; нельзя свести их к одному универсальному переводу."
+    }
+  ]
+}

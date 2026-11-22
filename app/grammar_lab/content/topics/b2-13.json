@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "b2-13",
+  "title": "Concessive Constructions: Although, Despite, In Spite Of.",
+  "goal": "Выражай уступку с although, despite и in spite of, сохраняя правильную структуру.",
+  "steps": [
+    {
+      "id": "although",
+      "title": "Although + полное придаточное",
+      "body": "Although и though вводят подлежащее + сказуемое: Although it was raining, we left. Основная часть показывает неожиданный на фоне условия результат. В обычной модели не добавляем второе but.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с Although, сохрани оба действия и убери but. Введи одно полное предложение.",
+          "question": "It was raining, but we left.",
+          "correct_answer": "Although it was raining, we left.",
+          "explanation": "Although заменяет уступительную связь; but больше не нужен."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери только лишний союз. Перепиши всё предложение.",
+          "question": "Although she was tired, but she kept working.",
+          "correct_answer": "Although she was tired, she kept working.",
+          "explanation": "В этой структуре although и but не дублируются."
+        }
+      ]
+    },
+    {
+      "id": "despite",
+      "title": "Despite + существительное или -ing",
+      "body": "Despite и in spite of — предлоги. После них ставим существительное или V-ing: despite the rain, in spite of feeling tired. Не добавляем of после despite: despite the delay.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени Although it was raining на Despite the rain. Сохрани главное предложение.",
+          "question": "Although it was raining, we left.",
+          "correct_answer": "Despite the rain, we left.",
+          "explanation": "После despite используется существительное the rain, не it was raining."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Удали лишнее of после despite. Перепиши полное предложение.",
+          "question": "Despite of the delay, we arrived on time.",
+          "correct_answer": "Despite the delay, we arrived on time.",
+          "explanation": "Despite употребляется без of; in spite of содержит of."
+        }
+      ]
+    },
+    {
+      "id": "fact",
+      "title": "Если нужна полная клауза",
+      "body": "После despite / in spite of можно поставить the fact that + подлежащее + глагол: despite the fact that he was tired. Форма despite he was tired без the fact that в этой модели неверна.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени Although на Despite the fact that, сохрани остальное. Введи предложение.",
+          "question": "Although he was tired, he continued.",
+          "correct_answer": "Despite the fact that he was tired, he continued.",
+          "explanation": "The fact that позволяет сохранить полную клаузу после despite."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь feel в форму после in spite of. Впиши одно слово.",
+          "question": "In spite of ___ tired, she finished the task. (feel)",
+          "correct_answer": "feeling",
+          "explanation": "После in spite of требуется V-ing."
+        }
+      ]
+    },
+    {
+      "id": "contrast",
+      "title": "Уступка не равна причине",
+      "body": "Although подчёркивает контраст: Although the service was expensive, it was poor. Because называет причину: Because it was expensive, we chose another service. Выбирай союз по смыслу, не только по грамматической форме.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери грамматически правильное предложение с уступкой по заданному смыслу.",
+          "question": "Дорого обычно связывают с качеством, но здесь услуга оказалась плохой.",
+          "correct_answer": "Although the service was expensive, it was poor.",
+          "explanation": "Although выражает заданный неожиданный контраст; despite требует другой структуры.",
+          "options": [
+            "Although the service was expensive, it was poor.",
+            "Because the service was expensive, it was poor.",
+            "Despite the service was expensive, it was poor."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Начни с In spite of having little experience. Сохрани главное предложение.",
+          "question": "Although I had little experience, I got the job.",
+          "correct_answer": "In spite of having little experience, I got the job.",
+          "explanation": "После in spite of используем having, сохраняя общего исполнителя I."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Even though и even if",
+      "body": "Even though подчёркивает реальный сильный контраст: Even though it was raining, we left. Even if вводит условие, которое не изменит результат: Even if it rains, we will leave. Не заменяй их автоматически друг другом."
+    }
+  ]
+}

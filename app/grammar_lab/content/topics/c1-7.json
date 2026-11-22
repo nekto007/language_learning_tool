@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "topic_slug": "c1-7",
+  "title": "Third Conditional (Третий тип условных предложений)",
+  "goal": "Обсуждай нереализованное прошлое и его воображаемый прошлый результат.",
+  "steps": [
+    {
+      "id": "past-counterfactual",
+      "title": "Нереальное прошлое условие",
+      "body": "Third Conditional: if + had + V3, would have + V3. Ситуация уже не меняется: If I had left earlier, I would have caught the train. В реальности я не вышел раньше и не успел на поезд.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь leave в условную часть Third Conditional. Впиши два слова.",
+          "question": "If I ___ earlier, I would have caught the train. (leave)",
+          "correct_answer": "had left",
+          "explanation": "Для нереального прошлого условия используется Past Perfect."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни следствие Third Conditional через would и pass. Впиши три слова.",
+          "question": "If she had studied, she ___ the exam. (pass)",
+          "correct_answer": "would have passed",
+          "explanation": "Воображаемый прошлый результат строится would have + V3."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отрицание в обеих частях",
+      "body": "Отрицание в условии: had not + V3. В результате: would not have + V3. Не ставим would have в обычную if-часть: If I had known, …, а не If I would have known.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только условную часть на Third Conditional. Перепиши всё предложение.",
+          "question": "If I would have known, I would have helped.",
+          "correct_answer": "If I had known, I would have helped.",
+          "explanation": "If-часть требует had known; would have остаётся в результате."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни следствие через would not have и V3 от make. Впиши четыре слова.",
+          "question": "If we had checked, we ___ that mistake. (not make)",
+          "correct_answer": "would not have made",
+          "explanation": "Полная отрицательная форма результата — would not have made."
+        }
+      ]
+    },
+    {
+      "id": "modal-results",
+      "title": "Could have и might have в результате",
+      "body": "Would have выражает воображаемое следствие. Could have подчёркивает возможность/способность, might have — менее определённый исход: If we had left earlier, we might have avoided the traffic.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени would на might в результате. Остальные слова сохрани; введи всё предложение.",
+          "question": "If we had trained harder, we would have won.",
+          "correct_answer": "If we had trained harder, we might have won.",
+          "explanation": "Might делает прошлый воображаемый результат менее определённым."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени would на could, чтобы выделить возможность. Сохрани всю остальную структуру.",
+          "question": "If I had had the right tools, I would have repaired it.",
+          "correct_answer": "If I had had the right tools, I could have repaired it.",
+          "explanation": "Could have repaired подчёркивает возможность ремонта при наличии инструментов."
+        }
+      ]
+    },
+    {
+      "id": "regret",
+      "title": "Wish и if only о прошлом",
+      "body": "Для сожаления о прошлом после wish/if only используем Past Perfect: I wish I had checked. If only I had checked! Это не открытое будущее условие, а оценка уже случившегося.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Вырази сожаление через I wish и Past Perfect. Сохрани действие check the figures.",
+          "question": "I did not check the figures, and I regret it.",
+          "correct_answer": "I wish I had checked the figures.",
+          "explanation": "Wish + had checked выражает сожаление о несовершённой прошлой проверке."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь notice в Past Perfect после If only. Впиши два слова.",
+          "question": "If only I ___ that warning! (notice)",
+          "correct_answer": "had noticed",
+          "explanation": "If only + Past Perfect выражает сожаление о прошлом."
+        }
+      ]
+    }
+  ]
+}

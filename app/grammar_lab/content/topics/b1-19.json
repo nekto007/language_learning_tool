@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "topic_slug": "b1-19",
+  "title": "Идиомы: структура, значение, использование",
+  "goal": "Понимай знакомые идиомы по контексту и используй устойчивую форму.",
+  "steps": [
+    {
+      "id": "meaning",
+      "title": "Идиома передаёт целый смысл",
+      "body": "Идиома — устойчивое выражение, которое часто понимается не буквально. A piece of cake значит «очень легко», under the weather — «нездоровится». Контекст помогает выбрать значение, но не гарантирует, что любую идиому можно угадать.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери значение a piece of cake именно в этом контексте.",
+          "question": "The exam was a piece of cake: I finished it in ten minutes.",
+          "correct_answer": "Экзамен был очень лёгким.",
+          "explanation": "Контекст быстрого выполнения подтверждает переносный смысл piece of cake.",
+          "options": [
+            "Экзамен был очень лёгким.",
+            "На экзамене подавали торт.",
+            "Экзамен был слишком длинным."
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл under the weather в сообщении о самочувствии.",
+          "question": "I am under the weather, so I am staying in bed today.",
+          "correct_answer": "Мне нездоровится.",
+          "explanation": "Under the weather в этом сообщении означает плохое самочувствие.",
+          "options": [
+            "Мне нездоровится.",
+            "Я наблюдаю за погодой.",
+            "Я готовлюсь к экзамену."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixed-words",
+      "title": "Сохраняй устойчивые слова",
+      "body": "Break the ice — помочь людям начать общение. Spill the beans — раскрыть секрет. В этих идиомах нельзя свободно заменять существительные, но время глагола меняется: She broke the ice. He spilled the beans.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь только break в Past Simple. Впиши одно слово; остальную идиому не меняй.",
+          "question": "Yesterday Maya ___ the ice with a friendly question. (break)",
+          "correct_answer": "broke",
+          "explanation": "Слова the ice сохраняются, а break меняется на broke для прошлого."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только существительное в идиоме «выдать секрет». Перепиши всё предложение.",
+          "question": "Do not spill the peas about the surprise party.",
+          "correct_answer": "Do not spill the beans about the surprise party.",
+          "explanation": "Устойчивая форма со значением «выдать секрет» — spill the beans."
+        }
+      ]
+    },
+    {
+      "id": "context",
+      "title": "Ситуация определяет прочтение",
+      "body": "Break a leg! — дружеское пожелание удачи перед выступлением. Hit the books — усердно взяться за учёбу. В другом контексте похожие слова могут употребляться буквально, поэтому учитывай ситуацию.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл реплики друга перед выступлением.",
+          "question": "Перед выходом актёра на сцену друг говорит: Break a leg!",
+          "correct_answer": "Удачи!",
+          "explanation": "Перед выступлением это условное пожелание удачи.",
+          "options": [
+            "Удачи!",
+            "Сломай ногу.",
+            "Останься дома."
+          ]
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни изученную идиому «взяться за учёбу». Впиши одно существительное.",
+          "question": "The exams start on Monday. It is time to hit the ___.",
+          "correct_answer": "books",
+          "explanation": "Hit the books означает заняться учёбой."
+        }
+      ]
+    },
+    {
+      "id": "audience",
+      "title": "Учитывай адресата",
+      "body": "Разговорная идиома может быть уместна другу и неудачна в официальном сообщении. Under the weather естественно в разговоре; в официальном уведомлении проще I am unwell. Регистр зависит от ситуации, а не от жёсткого запрета на все идиомы в работе.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери наиболее ясное и нейтральное уведомление по заданной ситуации.",
+          "question": "Нужно официально уведомить руководителя об отсутствии по болезни.",
+          "correct_answer": "I am unwell and cannot attend today.",
+          "explanation": "Прямое нейтральное сообщение ясно объясняет причину отсутствия.",
+          "options": [
+            "I am unwell and cannot attend today.",
+            "Break a leg at the meeting!",
+            "This illness is a piece of cake!"
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени under the weather на unwell. Сохрани остальное и введи полное предложение.",
+          "question": "I am under the weather today.",
+          "correct_answer": "I am unwell today.",
+          "explanation": "Unwell передаёт плохое самочувствие без разговорной идиомы."
+        }
+      ]
+    }
+  ]
+}

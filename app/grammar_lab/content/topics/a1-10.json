@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "topic_slug": "a1-10",
+  "title": "Present Simple с окончанием -s в 3-м лице единственного числа",
+  "goal": "Расскажи о регулярных действиях человека с he/she/it.",
+  "steps": [
+    {
+      "id": "basic-s",
+      "title": "Обычное действие: he/she/it + -s",
+      "body": "Present Simple описывает привычки и регулярные действия.\nI work every day. She works every day.\nПосле he, she, it в утвердительном предложении у обычного глагола появляется -s.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь work в форму после she. Впиши только глагол.",
+          "question": "She ___ every day. (work)",
+          "correct_answer": "works",
+          "explanation": "В утвердительном Present Simple после she: works."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму глагола после they.",
+          "question": "They ___ English.",
+          "correct_answer": "study",
+          "options": [
+            "study",
+            "studies"
+          ],
+          "explanation": "Окончание третьего лица нужно с he/she/it, но не с they."
+        }
+      ]
+    },
+    {
+      "id": "es",
+      "title": "Когда нужно -es",
+      "body": "После окончаний -s, -ss, -sh, -ch со звуком «ч» и -x обычно добавляем -es: watch → watches, wash → washes.\nУ частых глаголов go и do тоже формы с -es: goes, does.\nHe watches TV in the evening.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь watch в форму после he. Впиши одно слово.",
+          "question": "He ___ TV every evening. (watch)",
+          "correct_answer": "watches",
+          "explanation": "Watch заканчивается на -ch: watches."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь go в форму после she. Впиши одно слово.",
+          "question": "She ___ to school every day. (go)",
+          "correct_answer": "goes",
+          "explanation": "Форма go после she — goes."
+        }
+      ]
+    },
+    {
+      "id": "y",
+      "title": "Согласная + y и гласная + y",
+      "body": "Согласная + y: study → studies.\nГласная + y: play → plays.\nShe studies. He plays. Остальные слова предложения не меняются.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь study в форму после she. Впиши одно слово.",
+          "question": "She ___ English every day. (study)",
+          "correct_answer": "studies",
+          "explanation": "Перед y стоит согласная d: y → ies."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму play после he.",
+          "question": "He ___ tennis on Sundays.",
+          "correct_answer": "plays",
+          "options": [
+            "plays",
+            "plaies",
+            "play"
+          ],
+          "explanation": "Перед y стоит гласная a, поэтому добавляем только -s."
+        }
+      ]
+    },
+    {
+      "id": "have",
+      "title": "Особая форма have → has",
+      "body": "У have есть особая форма: I have a bike. She has a bike.\nПосле he/she/it используем has. Это правило относится к утверждению; вопросы и отрицания разбираются отдельно.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь have в форму для Тома. Впиши одно слово.",
+          "question": "Tom ___ a bike. (have)",
+          "correct_answer": "has",
+          "explanation": "Tom соответствует he: have → has."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени I на She и измени глагол. Введи всё предложение.",
+          "question": "I work at home.",
+          "correct_answer": "She works at home.",
+          "explanation": "После she глагол work получает -s."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Границы Present Simple",
+      "body": "В утверждении окончание -s относится к смысловому глаголу после he/she/it. После модального can его нет: She can swim. В вопросе с does основной глагол тоже без -s: Does she work? Be имеет свои формы am/is/are."
+    }
+  ]
+}

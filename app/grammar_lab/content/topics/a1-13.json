@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "topic_slug": "a1-13",
+  "title": "Повелительное наклонение (Imperative Mood)",
+  "goal": "Дай простую инструкцию или просьбу и скажи, чего не делать.",
+  "steps": [
+    {
+      "id": "positive",
+      "title": "Начинаем с глагола",
+      "body": "Для инструкции используем начальную форму глагола без подлежащего you: Open the door. Sit down.\nОдна и та же форма подходит одному человеку и группе.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери инструкцию, которая начинается с начальной формы глагола.",
+          "question": "Открой дверь.",
+          "correct_answer": "Open the door.",
+          "options": [
+            "Open the door.",
+            "Opens the door.",
+            "To open the door."
+          ],
+          "explanation": "В инструкции используем Open, без -s и без to."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Дай инструкцию «Прочитай текст». Убери you и введи всё предложение.",
+          "question": "You read the text.",
+          "correct_answer": "Read the text.",
+          "explanation": "Повелительная форма начинается с Read."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Don’t + глагол",
+      "body": "Чтобы сказать «не делай», используем Don’t + начальную форму: Don’t run. Don’t open the window.\nПосле don’t не добавляем -s и не ставим to.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи «Не бегай». Впиши сокращённое отрицание перед run.",
+          "question": "___ run.",
+          "correct_answer": "Don't",
+          "explanation": "Отрицательная инструкция: Don’t run.",
+          "alternatives": [
+            "Don’t"
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Запрети открывать окно. Сделай инструкцию отрицательной и введи всё предложение.",
+          "question": "Open the window.",
+          "correct_answer": "Do not open the window.",
+          "explanation": "Do not или don’t ставим перед open.",
+          "alternatives": [
+            "Don't open the window.",
+            "Don’t open the window."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "please",
+      "title": "Вежливая просьба",
+      "body": "Please смягчает просьбу: Please sit down. / Sit down, please.\nВ обоих вариантах глагол остаётся в начальной форме. Интонация и ситуация тоже влияют на вежливость.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай просьбу вежливее: добавь please в начало. Введи всё предложение.",
+          "question": "Close the door.",
+          "correct_answer": "Please close the door.",
+          "explanation": "Please ставится перед глаголом, форма close не меняется."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вежливую отрицательную инструкцию.",
+          "question": "Пожалуйста, не бегай.",
+          "correct_answer": "Please don't run.",
+          "options": [
+            "Please don't run.",
+            "Please doesn't run."
+          ],
+          "explanation": "Для запрета сохраняем don’t, а please смягчает просьбу."
+        }
+      ]
+    }
+  ]
+}

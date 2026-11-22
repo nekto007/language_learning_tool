@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "topic_slug": "a2-6",
+  "title": "Have to / Don't have to - Обязанность и отсутствие обязанности",
+  "goal": "Отличай обязанность от отсутствия необходимости с have to.",
+  "steps": [
+    {
+      "id": "obligation",
+      "title": "Have to: необходимо",
+      "body": "Have to + начальная форма обозначает необходимость или обязанность: I have to work today.\nС he/she/it: has to. She has to get up early.\nПосле to основной глагол не получает -s.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши have или has для she в утверждении об обязанности.",
+          "question": "She ___ to work today.",
+          "correct_answer": "has",
+          "explanation": "С she используем has to."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери форму действия после has to.",
+          "question": "He has to ___ early.",
+          "correct_answer": "get up",
+          "options": [
+            "get up",
+            "gets up",
+            "getting up"
+          ],
+          "explanation": "После to нужна начальная форма get up."
+        }
+      ]
+    },
+    {
+      "id": "no-necessity",
+      "title": "Don’t have to: необязательно",
+      "body": "Don’t have to / doesn’t have to означает «нет необходимости», а не запрет.\nYou don’t have to come. — Приходить необязательно; при желании можно.\nПосле doesn’t используем have, не has.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Скажи, что ей необязательно работать в воскресенье. Введи всё предложение с отрицанием have to.",
+          "question": "She has to work on Sunday.",
+          "correct_answer": "She does not have to work on Sunday.",
+          "explanation": "После does not используем have to.",
+          "alternatives": [
+            "She doesn't have to work on Sunday.",
+            "She doesn’t have to work on Sunday."
+          ]
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери смысл предложения с don’t have to.",
+          "question": "You don't have to come.",
+          "correct_answer": "Приходить необязательно.",
+          "options": [
+            "Приходить необязательно.",
+            "Приходить запрещено."
+          ],
+          "explanation": "Don’t have to снимает необходимость, но не запрещает действие."
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Do/Does ... have to?",
+      "body": "О необходимости спрашиваем с do/does: Do you have to work today? Does she have to leave now?\nПосле does пишем have to. Коротко: Yes, she does. / No, she doesn’t.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Спроси, обязана ли она уйти сейчас. Введи весь вопрос.",
+          "question": "She has to leave now.",
+          "correct_answer": "Does she have to leave now?",
+          "explanation": "Вопрос начинается с Does; has меняется на have."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дай краткий утвердительный ответ. Впиши одно слово.",
+          "question": "Does he have to work? — Yes, he ___.",
+          "correct_answer": "does",
+          "explanation": "В кратком ответе сохраняем does."
+        }
+      ]
+    },
+    {
+      "id": "contrast",
+      "title": "Необязательно или запрещено",
+      "body": "Don’t have to — необязательно. Mustn’t — нельзя, запрещено.\nYou don’t have to wear a tie. — Галстук необязателен.\nYou mustn’t smoke here. — Курить здесь запрещено.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу об отсутствии обязанности, а не о запрете.",
+          "question": "Галстук необязателен, но его можно надеть.",
+          "correct_answer": "You don't have to wear a tie.",
+          "options": [
+            "You don't have to wear a tie.",
+            "You mustn't wear a tie."
+          ],
+          "explanation": "Нет необходимости: don’t have to."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу, которая выражает запрет курения.",
+          "question": "Курение запрещено.",
+          "correct_answer": "You mustn't smoke.",
+          "options": [
+            "You don't have to smoke.",
+            "You mustn't smoke."
+          ],
+          "explanation": "Запрет выражаем mustn’t, а не don’t have to."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Must и have to",
+      "body": "Must и have to могут выражать необходимость, но различаются по контексту. Важно не смешивать отрицания: mustn’t — запрет; don’t have to — нет необходимости. Прошлую необходимость выражаем had to, не musted."
+    }
+  ]
+}

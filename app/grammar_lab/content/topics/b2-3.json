@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "b2-3",
+  "title": "Reported Speech - Косвенная речь (утверждения, backshift).",
+  "goal": "Передавай прошлые утверждения, меняя время и точки отсчёта по ситуации.",
+  "steps": [
+    {
+      "id": "reporting",
+      "title": "Said или told",
+      "body": "Said (that) вводит сообщение без обязательного адресата: Anna said that she was tired. Told требует адресата: Anna told me that she was tired. That часто можно опустить.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Замени только told на said; адресата не добавляй. Введи полное предложение.",
+          "question": "Anna told that she was tired.",
+          "correct_answer": "Anna said that she was tired.",
+          "explanation": "Без адресата в этой конструкции используем said, а не told."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши said или told перед адресатом me. Одно слово.",
+          "question": "Leo ___ me that the office was closed.",
+          "correct_answer": "told",
+          "explanation": "Перед me, называющим адресата, здесь подходит told."
+        }
+      ]
+    },
+    {
+      "id": "backshift",
+      "title": "Сдвиг времени после прошлого сообщения",
+      "body": "При передаче прошлой речи время часто сдвигается назад: am/is → was, Present Simple → Past Simple, have done → had done, will → would. Местоимения меняем по тому, кто говорит и о ком речь.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай слова Анны позже в косвенной речи со сдвигом времени. Начни с Anna said that.",
+          "question": "On Monday Anna said, \"I am tired.\"",
+          "correct_answer": "Anna said that she was tired.",
+          "explanation": "I относится к Anna, поэтому she; am сдвигается в was."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Передай прошлые слова Лео с backshift. Начни с Leo said that.",
+          "question": "Leo said, \"I have finished the report.\"",
+          "correct_answer": "Leo said that he had finished the report.",
+          "explanation": "I → he, have finished → had finished."
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Время и место зависят от точки отсчёта",
+      "body": "Today становится that day, yesterday — the day before, tomorrow — the next day, если отчёт переносится в другой день. Here становится there, если меняется место. Это изменение смысла ссылки, а не обязательная замена во всех ситуациях.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Передай слова Мии в пятницу с backshift. Начни с Mia said that; замени tomorrow на the next day.",
+          "question": "On Monday Mia said, \"I will leave tomorrow.\"",
+          "correct_answer": "Mia said that she would leave the next day.",
+          "explanation": "При более позднем отчёте will → would, tomorrow → the next day."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Позже, уже в другом городе, передай слова Тома с backshift. Начни с Tom said that; используй there.",
+          "question": "At the station Tom said, \"I live here.\"",
+          "correct_answer": "Tom said that he lived there.",
+          "explanation": "Отчёт из другого места требует there; live сдвигается в lived."
+        }
+      ]
+    },
+    {
+      "id": "still-true",
+      "title": "Когда сдвиг не обязателен",
+      "body": "Если сообщение по-прежнему истинно или актуально, настоящее время можно сохранить: The teacher said that water boils at 100°C at sea level. Past Perfect обычно дальше не сдвигается: had left остаётся had left.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери грамматически корректный отчёт с сохранением настоящего времени для научного факта.",
+          "question": "Учитель сообщил научный факт, который остаётся верным.",
+          "correct_answer": "The teacher said that water boils at 100°C at sea level.",
+          "explanation": "Для по-прежнему истинного факта Present Simple допустимо сохранить.",
+          "options": [
+            "The teacher said that water boils at 100°C at sea level.",
+            "The teacher said that water will boiled at 100°C at sea level.",
+            "The teacher told that water boiling at 100°C at sea level."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Ким — женщина. Передай её слова, начав Kim said that. Сохрани Past Perfect.",
+          "question": "Kim said, \"I had left before noon.\"",
+          "correct_answer": "Kim said that she had left before noon.",
+          "explanation": "Past Perfect had left сохраняется; I меняется на she."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Другие сдвиги в косвенной речи",
+      "body": "В стандартном backshift: Present Continuous → Past Continuous; Past Simple и Present Perfect → Past Perfect; will → would; can → could. Past Perfect обычно сохраняется. Для актуальной истины сдвиг бывает необязателен. У must выбор зависит от смысла: прошлую обязанность часто передают had to, вывод может сохранять must."
+    }
+  ]
+}

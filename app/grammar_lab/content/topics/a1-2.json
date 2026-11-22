@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "topic_slug": "a1-2",
+  "title": "Артикли A и AN",
+  "goal": "Выбирай a или an перед одним предметом по первому звуку следующего слова.",
+  "steps": [
+    {
+      "id": "one-object",
+      "title": "Один предмет впервые",
+      "body": "A/an ставим перед исчисляемым существительным в единственном числе, когда называем один предмет без уточнения, какой именно.\nI have a book. — У меня есть книга.\nВо множественном числе a/an не ставим: two books.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери артикль перед book: слово начинается со звука «б».",
+          "question": "I have ___ book.",
+          "correct_answer": "a",
+          "options": [
+            "a",
+            "an"
+          ],
+          "explanation": "Book начинается с согласного звука: a book."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную фразу «две книги» без лишнего артикля.",
+          "question": "Две книги",
+          "correct_answer": "two books",
+          "options": [
+            "a two books",
+            "an two books",
+            "two books"
+          ],
+          "explanation": "Перед множественным числом a/an не употребляем."
+        }
+      ]
+    },
+    {
+      "id": "sounds",
+      "title": "Смотрим на звук, а не букву",
+      "body": "Перед согласным звуком — a, перед гласным — an: a cat, an apple.\nСравни: a university (начинается со звука «й»), an hour (h не произносится).",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a или an перед apple: первый звук — гласный.",
+          "question": "___ apple",
+          "correct_answer": "an",
+          "explanation": "Перед гласным звуком в apple используем an."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери артикль перед hour. Буква h в этом слове не произносится.",
+          "question": "___ hour",
+          "correct_answer": "an",
+          "options": [
+            "a",
+            "an"
+          ],
+          "explanation": "Первый произносимый звук — гласный, поэтому an hour."
+        }
+      ]
+    },
+    {
+      "id": "adjective",
+      "title": "Если есть прилагательное",
+      "body": "Артикль ставим перед прилагательным и выбираем по его первому звуку: a red apple, an old book.\nСуществительное остаётся в единственном числе.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a или an перед old book. Ориентируйся на звук в old.",
+          "question": "___ old book",
+          "correct_answer": "an",
+          "explanation": "Old начинается с гласного звука: an old book."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери артикль для red apple: сразу после пропуска идёт red.",
+          "question": "___ red apple",
+          "correct_answer": "a",
+          "options": [
+            "a",
+            "an"
+          ],
+          "explanation": "Артикль зависит от red, а не от apple: a red apple."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Граница модели",
+      "body": "A/an относится к одному исчисляемому предмету, а не к веществу в обычном значении: a book, но some water. В профессии тоже нужен артикль: She is a doctor. Выбор a/an зависит от звука, не от буквы: a university, an hour."
+    }
+  ]
+}

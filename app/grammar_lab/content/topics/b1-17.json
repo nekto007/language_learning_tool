@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "topic_slug": "b1-17",
+  "title": "Past Perfect: had + V3",
+  "goal": "Покажи, какое из двух прошлых действий произошло раньше, с had + V3.",
+  "steps": [
+    {
+      "id": "earlier-past",
+      "title": "Раньше другого момента в прошлом",
+      "body": "Past Perfect: had + V3 для всех лиц. Он помогает показать действие, произошедшее раньше другого прошлого момента.\nWhen I arrived, the train had left.\nЧастые V3: leave → left, see → seen, go → gone, finish → finished.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поезд ушёл в восемь, ты приехал в девять. Поставь leave в Past Perfect: впиши два слова.",
+          "question": "When I arrived at nine, the train ___. (leave)",
+          "correct_answer": "had left",
+          "explanation": "Уход поезда раньше прибытия: had left."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни Past Perfect: впиши подходящий вспомогательный глагол. Введи одно слово.",
+          "question": "She ___ finished the work before I arrived.",
+          "correct_answer": "had",
+          "explanation": "Для Past Perfect используем had + finished."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отрицание: had not + V3",
+      "body": "Отрицание: had not / hadn’t + V3.\nI had not finished when she called.\nV3 сохраняется; did not здесь не добавляем.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Используй had not или hadn't. Введи всё предложение.",
+          "question": "She had finished before I arrived.",
+          "correct_answer": "She had not finished before I arrived.",
+          "explanation": "Not ставим после had, finished сохраняем.",
+          "alternatives": [
+            "She hadn't finished before I arrived."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь отрицание Past Perfect без did. Перепиши всё предложение.",
+          "question": "They did not had left when I arrived.",
+          "correct_answer": "They had not left when I arrived.",
+          "explanation": "Правильная отрицательная форма — had not left.",
+          "alternatives": [
+            "They hadn't left when I arrived."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "question",
+      "title": "Вопрос: had перед подлежащим",
+      "body": "Вопрос: Had + подлежащее + V3?\nHad you seen the film before that evening?\nКраткий ответ: Yes, I had. / No, I hadn’t.\nС вопросительным словом: Why had they left?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос в Past Perfect. Начни с Had и перепиши всё предложение.",
+          "question": "They had left before six.",
+          "correct_answer": "Had they left before six?",
+          "explanation": "Had ставим перед they; left остаётся."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный краткий отрицательный ответ с she.",
+          "question": "Had she finished by six?",
+          "options": [
+            "No, she had not.",
+            "No, she did not.",
+            "No, she was not."
+          ],
+          "correct_answer": "No, she had not.",
+          "explanation": "В кратком ответе повторяем had; отрицание had not."
+        }
+      ]
+    },
+    {
+      "id": "timeline",
+      "title": "Последовательность и точка отсчёта",
+      "body": "Past Perfect подчёркивает «к тому прошлому моменту уже».\nI lost my key, so I could not get in. → I could not get in because I had lost my key.\nВ обычной последовательности двух действий часто достаточно Past Simple: I opened the door and walked in.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "К моменту возвращения ключ уже был потерян. Поставь lose в Past Perfect. Впиши два слова.",
+          "question": "I could not get in because I ___ my key.",
+          "correct_answer": "had lost",
+          "explanation": "Потеря ключа предшествует невозможности войти."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери обычный рассказ о двух последовательных завершённых действиях без отдельного взгляда назад.",
+          "question": "Я открыл дверь и вошёл.",
+          "options": [
+            "I opened the door and walked in.",
+            "I had open the door and walked in.",
+            "I opening the door and walked in."
+          ],
+          "correct_answer": "I opened the door and walked in.",
+          "explanation": "Для обычной хронологической последовательности здесь достаточно Past Simple."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Слова before, after, already не требуют Past Perfect автоматически. Если порядок и так ясен, в некоторых случаях достаточно Past Simple: After I finished, I went home. Не подменяй Past Perfect просто любой формой с had: I had a bike — Past Simple глагола have; I had bought a bike — Past Perfect. Неправильные V3 нужно запоминать: write → written, eat → eaten, take → taken."
+    }
+  ]
+}

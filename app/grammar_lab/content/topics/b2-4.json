@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "topic_slug": "b2-4",
+  "title": "Non-defining Relative Clauses.",
+  "goal": "Добавляй уточнение о уже известном объекте через non-defining relative clause.",
+  "steps": [
+    {
+      "id": "extra",
+      "title": "Дополнительное, а не идентифицирующее",
+      "body": "Non-defining relative clause добавляет необязательную информацию о уже определённом объекте: Maya, who lives in Oslo, is visiting us. При удалении who lives in Oslo личность Maya остаётся понятной. Оборот отделяем запятыми.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Объедини предложения, добавив lives in Oslo после Maya как non-defining clause с who. Введи полное предложение.",
+          "question": "Maya is visiting us. Maya lives in Oslo.",
+          "correct_answer": "Maya, who lives in Oslo, is visiting us.",
+          "explanation": "Who вводит дополнительную информацию о Maya; оборот выделяется с двух сторон."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери оформление с дополнительной, а не уточняющей личность информацией.",
+          "question": "У говорящего одна сестра, и он лишь добавляет её профессию.",
+          "correct_answer": "My sister, who is a doctor, lives in Leeds.",
+          "explanation": "Запятые отмечают дополнительное пояснение; that здесь не используется.",
+          "options": [
+            "My sister, who is a doctor, lives in Leeds.",
+            "My sister who is a doctor lives in Leeds.",
+            "My sister, that is a doctor, lives in Leeds."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pronouns",
+      "title": "Who, which и whose",
+      "body": "Для людей используем who, для предметов which, для принадлежности whose: The museum, whose roof was repaired, reopened. В non-defining clauses не используем that и не опускаем относительное местоимение.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши who, which или whose для моста. Одно слово.",
+          "question": "The bridge, ___ opened in 1920, is closed for repairs.",
+          "correct_answer": "which",
+          "explanation": "Для предмета в дополнительном придаточном используем which."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Замени только неверное относительное слово. Сохрани запятые и перепиши предложение.",
+          "question": "Mr Lee, that teaches physics, is retiring.",
+          "correct_answer": "Mr Lee, who teaches physics, is retiring.",
+          "explanation": "В non-defining clause о человеке нужно who, не that."
+        }
+      ]
+    },
+    {
+      "id": "object",
+      "title": "Местоимение сохраняется и в роли дополнения",
+      "body": "В дополнительном придаточном относительное слово не исчезает: The book, which I bought yesterday, is excellent. Не дублируем его ещё одним it: which I bought, а не which I bought it.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишнее it внутри придаточного. Сохрани which и перепиши всё предложение.",
+          "question": "The book, which I bought it yesterday, is excellent.",
+          "correct_answer": "The book, which I bought yesterday, is excellent.",
+          "explanation": "Which уже представляет дополнение bought, поэтому it лишнее."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Выбери who, which или whose перед существительным lectures. Впиши одно слово.",
+          "question": "Professor Hill, ___ lectures we attended, is here.",
+          "correct_answer": "whose",
+          "explanation": "Whose указывает на принадлежность lectures профессору."
+        }
+      ]
+    },
+    {
+      "id": "whole-clause",
+      "title": "Which может относиться к целой мысли",
+      "body": "После запятой which может комментировать всё предыдущее событие: The train was cancelled, which delayed us. Это означает, что нас задержала отмена поезда, а не слово train само по себе.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Объедини два предложения через запятую и which. Не меняй глаголы; введи всё предложение.",
+          "question": "The train was cancelled. This delayed us.",
+          "correct_answer": "The train was cancelled, which delayed us.",
+          "explanation": "Which заменяет факт отмены всего поезда как причину задержки."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери, к чему относится which в этом предложении.",
+          "question": "The team won, which surprised everyone. Что удивило людей?",
+          "correct_answer": "Победа команды.",
+          "explanation": "Здесь which относится к целой предыдущей мысли: команда выиграла.",
+          "options": [
+            "Победа команды.",
+            "Название команды.",
+            "Слово everyone."
+          ]
+        }
+      ]
+    }
+  ]
+}

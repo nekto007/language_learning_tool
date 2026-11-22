@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "topic_slug": "a2-4",
+  "title": "ПАРТИТИВЫ — обозначение количества",
+  "goal": "Назови порцию или упаковку и правильно измени её количество.",
+  "steps": [
+    {
+      "id": "portions",
+      "title": "Порция + of + продукт",
+      "body": "Чтобы посчитать неисчисляемый продукт, называем порцию: a cup of tea, a glass of water, a slice of bread.\nOf связывает название порции с продуктом. Сам продукт в этой модели не получает -s.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи словосочетание «чашка чая». Впиши связующее слово.",
+          "question": "a cup ___ tea",
+          "correct_answer": "of",
+          "explanation": "Модель: a cup of tea."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери полное словосочетание для одного ломтика хлеба.",
+          "question": "Один ломтик хлеба",
+          "correct_answer": "a slice of bread",
+          "options": [
+            "a slice of bread",
+            "a slice bread",
+            "a slice of breads"
+          ],
+          "explanation": "После slice нужно of; bread остаётся неисчисляемым."
+        }
+      ]
+    },
+    {
+      "id": "containers",
+      "title": "Называем упаковку",
+      "body": "A bottle of water — бутылка воды; a carton of milk — картонная упаковка молока; a jar of jam — банка варенья.\nВыбор слова зависит от реальной упаковки: вода бывает и в бутылке, и в стакане.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери словосочетание именно для бутылки с водой.",
+          "question": "Бутылка воды",
+          "correct_answer": "a bottle of water",
+          "options": [
+            "a bottle of water",
+            "a jar of jam",
+            "a carton of milk"
+          ],
+          "explanation": "Bottle — бутылка, поэтому a bottle of water."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи фразу «банка варенья». Впиши одно слово.",
+          "question": "a jar ___ jam",
+          "correct_answer": "of",
+          "explanation": "Название упаковки связываем с содержимым через of."
+        }
+      ]
+    },
+    {
+      "id": "plural",
+      "title": "Считаем порции, не вещество",
+      "body": "Меняем число слова, обозначающего порцию или упаковку: one bottle of water → two bottles of water.\nOne slice of bread → three slices of bread. Water и bread в этой модели не меняются.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай фразу про две бутылки воды. Замени one на two и введи всё словосочетание.",
+          "question": "one bottle of water",
+          "correct_answer": "two bottles of water",
+          "explanation": "Множественное число получает bottle: bottles. Water не меняется."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную фразу для трёх ломтиков хлеба.",
+          "question": "Три ломтика хлеба",
+          "correct_answer": "three slices of bread",
+          "options": [
+            "three slice of bread",
+            "three slices of bread",
+            "three slices of breads"
+          ],
+          "explanation": "Считаем slices, а не bread."
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Как спросить о порциях",
+      "body": "Количество порций спрашиваем с How many, потому что cup/bottle/slice — исчисляемые: How many cups of tea do you need?\nОбщее количество напитка: How much tea do you need?",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Спроси, сколько нужно чашек чая. Выбери many или much.",
+          "question": "How ___ cups of tea do you need?",
+          "correct_answer": "many",
+          "options": [
+            "many",
+            "much"
+          ],
+          "explanation": "Cups — исчисляемые порции: many."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь число слова bottle после two. Перепиши всё предложение.",
+          "question": "I need two bottle of water.",
+          "correct_answer": "I need two bottles of water.",
+          "explanation": "После two слово bottle ставим во множественное число."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Не единственная упаковка",
+      "body": "Один продукт может быть в разных ёмкостях: a glass of water и a bottle of water обе фразы верны. Выбор зависит от названного предмета. A piece of information — единица информации; не добавляем -s к information в обычном значении."
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "b1-16",
+  "title": "Условные предложения: 0 / 1 / 2 (введение)",
+  "goal": "Выбери условную конструкцию по смыслу: общее правило, возможное будущее или воображаемая ситуация.",
+  "steps": [
+    {
+      "id": "zero",
+      "title": "Zero: обычно бывает так",
+      "body": "Zero Conditional описывает закономерность или привычную реакцию:\nIf + Present Simple, Present Simple.\nIf you heat ice, it melts.\nЗдесь не обсуждается один будущий случай.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Используй Zero Conditional для общей закономерности. Впиши форму melts или will melt.",
+          "question": "If you heat ice, it ___.",
+          "correct_answer": "melts",
+          "explanation": "Общий факт выражаем Present Simple в обеих частях."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Используй Present Simple для обычной реакции. Поставь feel после she. Впиши одно слово.",
+          "question": "If she sleeps badly, she ___ tired. (feel)",
+          "correct_answer": "feels",
+          "explanation": "После she в Present Simple используем feels."
+        }
+      ]
+    },
+    {
+      "id": "first",
+      "title": "First: реальная возможность в будущем",
+      "body": "First Conditional: if + Present Simple, will + начальная форма.\nIf it rains tomorrow, we will stay home.\nЭто конкретная возможная ситуация; в обычной if-части не ставим will.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Используй First Conditional для конкретного будущего результата. Впиши will или would.",
+          "question": "If you leave now, you ___ catch the bus.",
+          "correct_answer": "will",
+          "explanation": "Реальная будущая возможность: will catch."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь нейтральное будущее условие. Перепиши всё предложение.",
+          "question": "If she will come tomorrow, I will tell her.",
+          "correct_answer": "If she comes tomorrow, I will tell her.",
+          "explanation": "В обычной if-части используем Present Simple: she comes."
+        }
+      ]
+    },
+    {
+      "id": "second",
+      "title": "Second: воображаемая ситуация сейчас",
+      "body": "Second Conditional: if + Past Simple, would + начальная форма.\nIf I lived near the sea, I would swim every day. Сейчас я там не живу.\nPast Simple здесь показывает воображаемый характер ситуации, а не прошлое время события.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Используй Second Conditional для воображаемой ситуации. Впиши would или will.",
+          "question": "If I lived near the sea, I ___ swim every day.",
+          "correct_answer": "would",
+          "explanation": "Воображаемый результат выражаем would swim."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Используй Past Simple глагола live в воображаемом условии. Впиши одно слово.",
+          "question": "If she ___ closer, we would meet more often. (live)",
+          "correct_answer": "lived",
+          "explanation": "Для Second Conditional в if-части используем lived."
+        }
+      ]
+    },
+    {
+      "id": "choose-meaning",
+      "title": "Одна структура — один смысл",
+      "body": "Выбирай смысл всей ситуации, а не только слово if.\nПривычка: If I am tired, I rest.\nВозможность сегодня: If I am tired tonight, I will rest.\nВоображаемое сейчас: If I had more time, I would rest. Had здесь означает воображаемое наличие времени.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Времени сейчас нет: выбери воображаемую ситуацию, а не план.",
+          "question": "Если бы у меня было больше времени, я бы отдыхал.",
+          "options": [
+            "If I had more time, I would rest.",
+            "If I have more time tonight, I will rest.",
+            "If I am tired, I rest."
+          ],
+          "correct_answer": "If I had more time, I would rest.",
+          "explanation": "Недостаток времени сейчас передаём Second Conditional."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь результат Second Conditional: после would нужна начальная форма. Перепиши всё предложение.",
+          "question": "If I lived closer, I would visited you.",
+          "correct_answer": "If I lived closer, I would visit you.",
+          "explanation": "После would используем visit без -ed."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "В нейтральном Second Conditional would обычно не ставим в if-части. С be часто используют were для всех лиц, особенно в If I were you: If I were you, I would call. В разговорной речи в некоторых контекстах встречается was. Unless означает if ... not. Provided that и as long as задают условие; они не отменяют выбор времени по смыслу."
+    }
+  ]
+}

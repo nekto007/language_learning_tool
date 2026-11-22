@@ -283,11 +283,13 @@ def api_topic_detail(topic_id):
 @login_required
 def api_topic_exercises(topic_id):
     """GET: Exercises for a topic"""
+    from app.grammar_lab.exercise_visibility import active_exercise_clause
+
     topic = GrammarTopic.query.get(topic_id)
     if not topic:
         return jsonify({'error': 'Topic not found'}), 404
 
-    exercises = GrammarExercise.query.filter_by(topic_id=topic_id).order_by(
+    exercises = GrammarExercise.query.filter_by(topic_id=topic_id).filter(active_exercise_clause()).order_by(
         GrammarExercise.order,
         GrammarExercise.difficulty
     ).all()
@@ -315,6 +317,9 @@ def api_submit_answer(exercise_id):
     exercise = GrammarExercise.query.get(exercise_id)
     if not exercise:
         return jsonify({'error': 'Exercise not found'}), 404
+    if (exercise.content or {}).get('guided_retired'):
+        return jsonify({'error': 'Упражнение обновлено. Открой актуальную практику.',
+                        'code': 'lesson_changed'}), 409
 
     result = grammar_service.submit_answer(
         exercise_id=exercise_id,

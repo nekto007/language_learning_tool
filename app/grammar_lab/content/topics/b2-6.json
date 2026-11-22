@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "b2-6",
+  "title": "Embedded Questions (Встроенные вопросы).",
+  "goal": "Строй вежливые встроенные вопросы с прямым порядком слов.",
+  "steps": [
+    {
+      "id": "word-order",
+      "title": "Внутри вопроса — прямой порядок",
+      "body": "После Could you tell me…, Do you know…, I wonder… встроенная часть использует подлежащее + глагол: Where is the station? → Could you tell me where the station is?",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Встрой вопрос в Could you tell me… Сохрани where и station; введи полный вежливый вопрос.",
+          "question": "Where is the station?",
+          "correct_answer": "Could you tell me where the station is?",
+          "explanation": "Внутри where-clause the station стоит перед is."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только порядок слов во встроенной части. Перепиши весь вопрос.",
+          "question": "Do you know where is the manager?",
+          "correct_answer": "Do you know where the manager is?",
+          "explanation": "Инверсия относится к внешнему Do you know, а не к embedded clause."
+        }
+      ]
+    },
+    {
+      "id": "no-do",
+      "title": "Do/does/did исчезает из внутреннего вопроса",
+      "body": "Встроенная часть не использует do/does/did как вопросительный вспомогательный: When does it start? → Do you know when it starts? Смысл времени сохраняется: Where did she go? → …where she went.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Встрой вопрос в Do you know… Введи полное предложение с вопросительным знаком.",
+          "question": "When does the meeting start?",
+          "correct_answer": "Do you know when the meeting starts?",
+          "explanation": "Does исчезает, а start получает -s при meeting."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Начни с Do you know и встрой вопрос, сохранив прошедшее время.",
+          "question": "Where did she go?",
+          "correct_answer": "Do you know where she went?",
+          "explanation": "Did убирается; прошедшее время передаётся went."
+        }
+      ]
+    },
+    {
+      "id": "yes-no",
+      "title": "Вопрос без вопросительного слова",
+      "body": "Если исходный вопрос требует yes/no, используем if или whether: Is the shop open? → Do you know if the shop is open? Сохраняем прямой порядок слов.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни с Do you know if и встрой вопрос. Введи полный вопрос.",
+          "question": "Is the shop open?",
+          "correct_answer": "Do you know if the shop is open?",
+          "explanation": "If вводит общий встроенный вопрос; the shop стоит перед is."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Начни с Could you tell me whether и встрой вопрос о парковке.",
+          "question": "Can we park here?",
+          "correct_answer": "Could you tell me whether we can park here?",
+          "explanation": "Whether вводит общий вопрос; we can сохраняет прямой порядок."
+        }
+      ]
+    },
+    {
+      "id": "punctuation",
+      "title": "Знак в конце зависит от внешней фразы",
+      "body": "Could you tell me…? — внешний вопрос, поэтому ?. I wonder… — повествовательное сообщение, обычно заканчивается точкой. Если who само является подлежащим, не добавляем лишнее подлежащее: …who called.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Встрой вопрос в I wonder и закончи точкой. Не добавляй he или they.",
+          "question": "Who called?",
+          "correct_answer": "I wonder who called.",
+          "explanation": "Who уже является подлежащим called; фраза I wonder повествовательная."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери грамматически правильный встроенный вопрос после I wonder.",
+          "question": "Выбери фразу с правильным порядком слов.",
+          "correct_answer": "I wonder why she left.",
+          "explanation": "Внутренний вопрос имеет порядок she left, без did.",
+          "options": [
+            "I wonder why she left.",
+            "I wonder why did she leave.",
+            "I wonder why she did left."
+          ]
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Whether перед to и после предлога",
+      "body": "Перед to-infinitive и после предлога используем whether: I cannot decide whether to apply. It depends on whether they agree. В обычном встроенном общем вопросе часто возможны и if, и whether: Do you know if/whether it is open?"
+    }
+  ]
+}

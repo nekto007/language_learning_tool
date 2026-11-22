@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "topic_slug": "a2-10",
+  "title": "Сравнительная степень прилагательных (Comparative Adjectives)",
+  "goal": "Сравни два предмета или человека с формой прилагательного и than.",
+  "steps": [
+    {
+      "id": "short",
+      "title": "Короткое прилагательное + -er",
+      "body": "У многих односложных прилагательных сравнительная степень образуется с -er: old → older, tall → taller.\nПри сравнении с другим объектом используем than: Tom is taller than Ben.\nНе все двусложные слова образуют сравнительную степень одинаково.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь small в сравнительную степень. Впиши одно слово.",
+          "question": "My bag is ___ than yours. (small)",
+          "correct_answer": "smaller",
+          "explanation": "К короткому small добавляем -er: smaller."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи сравнение двух людей. Впиши связующее слово.",
+          "question": "Tom is taller ___ Ben.",
+          "correct_answer": "than",
+          "explanation": "В сравнении taller than используем than."
+        }
+      ]
+    },
+    {
+      "id": "spelling",
+      "title": "Изменения в написании",
+      "body": "Если слово оканчивается на -e, добавляем -r: nice → nicer.\nУ коротких слов типа big удваиваем последнюю согласную: big → bigger.\nСогласная + y: happy → happier.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй сравнительную степень big. Впиши одно слово.",
+          "question": "big → ___",
+          "correct_answer": "bigger",
+          "explanation": "В bigger конечная g удваивается."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй сравнительную степень happy. Впиши одно слово.",
+          "question": "happy → ___",
+          "correct_answer": "happier",
+          "explanation": "Согласная + y: y заменяем на i перед -er."
+        }
+      ]
+    },
+    {
+      "id": "more",
+      "title": "Длинное прилагательное: more",
+      "body": "С длинными прилагательными обычно используем more + прилагательное: more expensive, more interesting.\nНе добавляем одновременно more и -er: more expensive, а не more expensiver.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери сравнительную степень длинного прилагательного interesting.",
+          "question": "This book is ___ than that one.",
+          "correct_answer": "more interesting",
+          "options": [
+            "more interesting",
+            "interestinger",
+            "more interestinger"
+          ],
+          "explanation": "Длинное interesting используем с more."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишнее more, сохранив форму cheaper. Перепиши всё предложение.",
+          "question": "This bag is more cheaper than that one.",
+          "correct_answer": "This bag is cheaper than that one.",
+          "explanation": "Cheaper уже сравнительная степень; more перед ней не нужно."
+        }
+      ]
+    },
+    {
+      "id": "irregular",
+      "title": "Особые формы good и bad",
+      "body": "Good → better; bad → worse. Эти формы нужно запомнить.\nThis book is better than that one.\nПорядок сравнения остаётся прежним: сравнительная форма + than + второй объект.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Напиши особую сравнительную форму good. Впиши одно слово.",
+          "question": "good → ___",
+          "correct_answer": "better",
+          "explanation": "Сравнительная степень good — better."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери обычную сравнительную форму bad в этой учебной модели.",
+          "question": "bad → …",
+          "correct_answer": "worse",
+          "options": [
+            "worse",
+            "badder",
+            "more bad"
+          ],
+          "explanation": "Сравнительная степень bad — worse."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Двусложные прилагательные",
+      "body": "Нельзя делить все слова только по правилу «1–2 слога = -er». Многие двусложные слова на -y дают -ier: happier. У других, например careful, обычно more careful. У некоторых возможны варианты, например cleverer/more clever. Учим привычную форму со словом."
+    },
+    {
+      "title": "Расстояние: far",
+      "body": "У far есть сравнительные формы farther и further. Обе возможны при описании физического расстояния. Further также используется в значении «дальнейший, дополнительный»; его не нужно механически заменять на farther."
+    }
+  ]
+}

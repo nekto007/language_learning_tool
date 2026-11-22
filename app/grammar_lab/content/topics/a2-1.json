@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "topic_slug": "a2-1",
+  "title": "a/an · some · any",
+  "goal": "Выбирай a/an, some и any по типу существительного и смыслу фразы.",
+  "steps": [
+    {
+      "id": "single-countable",
+      "title": "Один исчисляемый предмет",
+      "body": "Для одного исчисляемого предмета без уточнения используем a/an: a banana, an apple.\nA/an выбираем по первому звуку следующего слова: a small apple, an old bag.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши a или an перед apple. Речь об одном яблоке.",
+          "question": "I need ___ apple.",
+          "correct_answer": "an",
+          "explanation": "Apple начинается с гласного звука: an apple."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери артикль перед small apple: первый звук после артикля — согласный.",
+          "question": "___ small apple",
+          "correct_answer": "a",
+          "options": [
+            "a",
+            "an"
+          ],
+          "explanation": "Артикль зависит от small: a small apple."
+        }
+      ]
+    },
+    {
+      "id": "some",
+      "title": "Несколько предметов или некоторое количество",
+      "body": "Some используем с исчисляемым множественным числом и неисчисляемыми в обычном утверждении: some apples, some rice.\nНе говорим a rice, если имеем в виду рис как продукт, а не отдельную порцию.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи нейтральное утверждение о наличии нескольких яблок. Впиши some или any.",
+          "question": "I have ___ apples.",
+          "correct_answer": "some",
+          "explanation": "В таком утвердительном предложении используем some."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу о некотором количестве неисчисляемого rice.",
+          "question": "Мне нужен рис как продукт.",
+          "correct_answer": "I need some rice.",
+          "options": [
+            "I need a rice.",
+            "I need some rice."
+          ],
+          "explanation": "Rice в значении продукта неисчисляемое: some rice."
+        }
+      ]
+    },
+    {
+      "id": "any",
+      "title": "Обычный вопрос и отрицание",
+      "body": "В нейтральном вопросе о наличии используем any: Do you have any rice?\nВ отрицании: I don’t have any apples.\nС одним неуточнённым исчисляемым предметом в обычной модели отрицания сохраняем a/an: I don’t have a bag.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши some или any в обычное отрицание о наличии хлеба.",
+          "question": "We don't have ___ bread.",
+          "correct_answer": "any",
+          "explanation": "В отрицании о количестве используем any."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово перед одним исчисляемым bag в отрицании.",
+          "question": "I don't have ___ bag.",
+          "correct_answer": "a",
+          "options": [
+            "a",
+            "some"
+          ],
+          "explanation": "Bag в единственном числе сохраняет a."
+        }
+      ]
+    },
+    {
+      "id": "offers-requests",
+      "title": "Some в предложениях и просьбах",
+      "body": "Some бывает в вопросе, если мы предлагаем что-то или просим: Would you like some tea? Can I have some water, please?\nЭто не противоречит правилу об any в нейтральном вопросе о наличии.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Ты предлагаешь собеседнику чай. Впиши some или any в стандартной модели предложения угощения.",
+          "question": "Would you like ___ tea?",
+          "correct_answer": "some",
+          "explanation": "В предложении чая обычно используем some."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери слово в вежливой просьбе дать немного воды.",
+          "question": "Can I have ___ water, please?",
+          "correct_answer": "some",
+          "options": [
+            "some",
+            "a"
+          ],
+          "explanation": "Water неисчисляемое; в просьбе о некотором количестве подходит some."
+        }
+      ]
+    }
+  ]
+}

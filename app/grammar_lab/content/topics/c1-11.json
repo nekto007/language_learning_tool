@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "c1-11",
+  "title": "Инверсия в условных предложениях без 'if' (Had I known...).",
+  "goal": "Заменяй if на формальную условную инверсию, сохраняя тип условия.",
+  "steps": [
+    {
+      "id": "had",
+      "title": "Had + подлежащее + V3",
+      "body": "Нереальное прошлое if + had + V3 можно передать без if: If I had known → Had I known. Остальная часть Third Conditional сохраняется: Had I known, I would have helped.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Убери if и используй условную инверсию с Had. Введи всё предложение.",
+          "question": "If I had known, I would have helped.",
+          "correct_answer": "Had I known, I would have helped.",
+          "explanation": "If убирается, had переносится перед I, прошлый результат не меняется."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только порядок слов в условной части. Перепиши предложение.",
+          "question": "Had known I, I would have acted differently.",
+          "correct_answer": "Had I known, I would have acted differently.",
+          "explanation": "Порядок условной инверсии — Had + I + known."
+        }
+      ]
+    },
+    {
+      "id": "were",
+      "title": "Were для нереального настоящего",
+      "body": "Условие с were можно инвертировать: If I were there → Were I there. С другим глаголом формальная модель — Were + подлежащее + to + глагол: Were she to leave, we would need a replacement.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Убери if и начни с Were I. Введи всё предложение.",
+          "question": "If I were there, I would object.",
+          "correct_answer": "Were I there, I would object.",
+          "explanation": "Were переносится перед I; нереальное настоящее сохраняется."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Переформулируй условие через Were she to leave. Сохрани главный результат.",
+          "question": "If she left, we would need a replacement.",
+          "correct_answer": "Were she to leave, we would need a replacement.",
+          "explanation": "Для leave используется формальная условная модель were she to leave."
+        }
+      ]
+    },
+    {
+      "id": "should",
+      "title": "Should для возможного будущего",
+      "body": "Should + подлежащее + базовая форма может вводить формальное возможное условие: Should you need help, call us. Это не совет «тебе следует нуждаться», а условие «если понадобится».",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Убери if и начни с Should you. Сохрани просьбу call us.",
+          "question": "If you need help, call us.",
+          "correct_answer": "Should you need help, call us.",
+          "explanation": "Should you need help — формальное условие о возможном будущем."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери значение should в этом формальном условном предложении.",
+          "question": "Should you require further information, contact the office.",
+          "correct_answer": "Если понадобится дополнительная информация, свяжитесь с офисом.",
+          "explanation": "Начальное Should you require здесь выражает условие.",
+          "options": [
+            "Если понадобится дополнительная информация, свяжитесь с офисом.",
+            "Вам следует обязательно требовать дополнительную информацию.",
+            "Вы уже получили всю информацию."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Not после подлежащего",
+      "body": "При отрицательной условной инверсии not ставится после подлежащего: Had I not checked, …; Were it not for your help, … Не ставим not между Had и I в этой формальной модели.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Убери if и используй Had I not. Сохрани полное not и главный результат.",
+          "question": "If I had not checked, I would have missed the error.",
+          "correct_answer": "Had I not checked, I would have missed the error.",
+          "explanation": "После переноса had отрицание остаётся после I."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Переставь not на правильное место. Перепиши всё предложение.",
+          "question": "Had not I checked, I would have missed the error.",
+          "correct_answer": "Had I not checked, I would have missed the error.",
+          "explanation": "В формальной отрицательной условной инверсии порядок — Had I not checked."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Were it not for / Had it not been for",
+      "body": "Were it not for your help, I would be lost — нереальное нынешнее условие. Had it not been for your help, I would have failed — нереальное прошлое. В этих формальных моделях отрицание идёт после подлежащего it."
+    }
+  ]
+}

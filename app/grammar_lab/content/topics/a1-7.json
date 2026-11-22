@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "topic_slug": "a1-7",
+  "title": "Предлоги места (Prepositions of Place)",
+  "goal": "Опиши, где находится предмет: внутри, на поверхности, под или рядом с другим.",
+  "steps": [
+    {
+      "id": "in-on-under",
+      "title": "Внутри, на поверхности, под",
+      "body": "In — внутри: The key is in the bag.\nOn — на поверхности: The book is on the desk.\nUnder — под: The cat is under the chair.\nЧтобы выбрать предлог, нужно знать расположение предметов.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Ключ находится внутри сумки. Выбери предлог по описанному расположению.",
+          "question": "The key is ___ the bag.",
+          "correct_answer": "in",
+          "options": [
+            "in",
+            "on",
+            "under"
+          ],
+          "explanation": "Внутри сумки: in the bag."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Кот находится под стулом. Выбери подходящий предлог.",
+          "question": "The cat is ___ the chair.",
+          "correct_answer": "under",
+          "options": [
+            "in",
+            "on",
+            "under"
+          ],
+          "explanation": "Под стулом: under the chair."
+        }
+      ]
+    },
+    {
+      "id": "next-between",
+      "title": "Рядом и между",
+      "body": "Next to — непосредственно рядом: The chair is next to the desk.\nBetween — между двумя предметами или явно названными участниками: The lamp is between the bed and the desk.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Стул стоит непосредственно рядом со столом. Впиши предлог из двух слов, означающий «рядом с».",
+          "question": "The chair is ___ the desk.",
+          "correct_answer": "next to",
+          "explanation": "Next to означает «рядом с». Это одна предложная конструкция."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Лампа стоит между кроватью и столом. Выбери предлог.",
+          "question": "The lamp is ___ the bed and the desk.",
+          "correct_answer": "between",
+          "options": [
+            "between",
+            "under",
+            "in"
+          ],
+          "explanation": "Between связывает положение между двумя названными предметами."
+        }
+      ]
+    },
+    {
+      "id": "front-behind",
+      "title": "Перед и позади",
+      "body": "In front of — перед: The car is in front of the house.\nBehind — позади: The tree is behind the house.\nВ конструкции there is/are предлог работает так же: There is a tree behind the house.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Дерево находится позади дома. Выбери предлог.",
+          "question": "The tree is ___ the house.",
+          "correct_answer": "behind",
+          "options": [
+            "behind",
+            "in front of"
+          ],
+          "explanation": "Позади дома: behind the house."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Машина стоит перед домом. Впиши предлог из трёх слов, означающий «перед».",
+          "question": "The car is ___ the house.",
+          "correct_answer": "in front of",
+          "explanation": "In front of — цельная конструкция «перед»."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "At и in",
+      "body": "At часто обозначает точку или место деятельности: at the bus stop, at school. In подчёркивает нахождение внутри или на территории: in the room, in London. Один предлог нельзя выбирать по русскому слову «в» без контекста."
+    },
+    {
+      "title": "Near и next to",
+      "body": "Near означает «недалеко от», а next to — непосредственно рядом. Near the school не обязательно означает вплотную к школе. Between требует понятных объектов сравнения: between the bed and the desk."
+    }
+  ]
+}

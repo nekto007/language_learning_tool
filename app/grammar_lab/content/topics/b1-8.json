@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "topic_slug": "b1-8",
+  "title": "Few/Little и Less/Fewer (Квантификаторы количества).",
+  "goal": "Различай few/little, a few/a little и fewer/less по количеству и смыслу.",
+  "steps": [
+    {
+      "id": "countable",
+      "title": "Few или little: что считаем",
+      "body": "Few ставим перед исчисляемым множественным числом: few books — мало книг.\nLittle — перед неисчисляемым: little time — мало времени.\nВ таком употреблении часто подразумевается недостаток.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши few или little перед исчисляемым словом books.",
+          "question": "We have very ___ books for the class.",
+          "correct_answer": "few",
+          "explanation": "Books можно посчитать; с множественным числом используем few."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши few или little перед неисчисляемым time.",
+          "question": "We have very ___ time left.",
+          "correct_answer": "little",
+          "explanation": "Time в значении количества времени неисчисляемое: little time."
+        }
+      ]
+    },
+    {
+      "id": "some-left",
+      "title": "A few/a little: немного есть",
+      "body": "A few и a little подчёркивают, что некоторое количество есть.\nA few chairs — несколько стульев; a little water — немного воды.\nСравни: little water — мало, этого может не хватить; a little water — немного всё же есть.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу «несколько стульев есть, этого хватит для гостей».",
+          "question": "We have … chairs, enough for our guests.",
+          "options": [
+            "a few",
+            "few",
+            "a little"
+          ],
+          "correct_answer": "a few",
+          "explanation": "A few подходит к исчисляемым chairs и подчёркивает наличие нескольких стульев."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Немного воды есть, этого хватит. Впиши a little или a few.",
+          "question": "There is ___ water, enough for one cup.",
+          "correct_answer": "a little",
+          "explanation": "Water неисчисляемое; положительный смысл небольшого количества — a little."
+        }
+      ]
+    },
+    {
+      "id": "comparison",
+      "title": "Fewer или less: меньше",
+      "body": "Fewer — сравнительное количество исчисляемых предметов: fewer cars.\nLess — меньше неисчисляемого: less traffic, less money.\nЭто сравнение, а не просто сообщение «мало»: We have fewer cars than before.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Сравни количество машин. Впиши fewer или less.",
+          "question": "There are ___ cars than yesterday.",
+          "correct_answer": "fewer",
+          "explanation": "Cars — исчисляемое множественное число, поэтому fewer."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Сравни количество денег. Впиши fewer или less.",
+          "question": "I spend ___ money than before.",
+          "correct_answer": "less",
+          "explanation": "Money неисчисляемое: less money."
+        }
+      ]
+    },
+    {
+      "id": "meaning-check",
+      "title": "Проверь и существительное, и смысл",
+      "body": "Сначала проверь, можно ли посчитать существительное: books — да, information — обычно нет.\nЗатем выбери смысл: мало — few/little; немного есть — a few/a little; меньше по сравнению — fewer/less.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери сочетание со смыслом «меньше информации, чем раньше».",
+          "question": "We receive … than before.",
+          "options": [
+            "less information",
+            "fewer information",
+            "a few information"
+          ],
+          "correct_answer": "less information",
+          "explanation": "Information неисчисляемое; сравнение выражаем less information."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу «несколько друзей есть, поэтому я не одинок».",
+          "question": "I have … friends here, so I am not lonely.",
+          "options": [
+            "a few",
+            "few",
+            "a little"
+          ],
+          "correct_answer": "a few",
+          "explanation": "Friends исчисляемое, а контекст подчёркивает наличие: a few."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "В обычной речи less часто встречается с измеряемой суммой, временем и расстоянием: less than ten pounds, less than two hours. Это не то же самое, что считать отдельные предметы: fewer coins, fewer meetings. Few/little без a часто имеют отрицательный оттенок, но точный смысл зависит от контекста; не выбирай вариант в предложении без достаточных смысловых указаний."
+    }
+  ]
+}

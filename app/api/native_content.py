@@ -719,6 +719,7 @@ def grade(lesson, questions, answers, passing):
                 if (
                     t == "grammar"
                     and str(expected).isdigit()
+                    and expected not in row["options"]
                     and int(str(expected)) < len(row["options"])
                 ):
                     expected = row["options"][int(str(expected))]

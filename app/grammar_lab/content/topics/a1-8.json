@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "topic_slug": "a1-8",
+  "title": "Предлоги времени AT, ON, IN",
+  "goal": "Используй at, on и in для времени, дней и длительных периодов.",
+  "steps": [
+    {
+      "id": "at",
+      "title": "At: точное время",
+      "body": "At используем с показаниями часов: at seven o’clock, at 8:30.\nТакже запоминаем at noon — в полдень и at night — ночью.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши at, on или in перед точным временем 9:00.",
+          "question": "The lesson starts ___ 9:00.",
+          "correct_answer": "at",
+          "explanation": "Перед временем на часах используем at."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предлог в выражении «ночью».",
+          "question": "___ night",
+          "correct_answer": "at",
+          "options": [
+            "at",
+            "on",
+            "in"
+          ],
+          "explanation": "Устойчивое выражение: at night."
+        }
+      ]
+    },
+    {
+      "id": "on",
+      "title": "On: день или дата",
+      "body": "On используем с днями недели и датами: on Monday, on 5 May.\nЕсли названа часть конкретного дня: on Monday morning.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши at, on или in перед днём недели Tuesday.",
+          "question": "I work ___ Tuesday.",
+          "correct_answer": "on",
+          "explanation": "День недели требует on."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предлог для утра конкретного понедельника.",
+          "question": "___ Monday morning",
+          "correct_answer": "on",
+          "options": [
+            "at",
+            "on",
+            "in"
+          ],
+          "explanation": "Когда назван конкретный день, используем on."
+        }
+      ]
+    },
+    {
+      "id": "in",
+      "title": "In: месяц, год, сезон, часть дня",
+      "body": "In используем с месяцами, годами и сезонами: in June, in 2025, in winter.\nЧасти дня без конкретного дня: in the morning, in the afternoon, in the evening.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши at, on или in перед названием месяца June.",
+          "question": "My birthday is ___ June.",
+          "correct_answer": "in",
+          "explanation": "Для месяца используем in."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предлог в выражении «вечером» без указания конкретного дня.",
+          "question": "___ the evening",
+          "correct_answer": "in",
+          "options": [
+            "at",
+            "on",
+            "in"
+          ],
+          "explanation": "Общая часть дня: in the evening."
+        }
+      ]
+    },
+    {
+      "id": "without-preposition",
+      "title": "Когда предлог не нужен",
+      "body": "Перед last, next, this и every в обычных выражениях времени предлог не ставим: last Monday, next year, this morning, every day.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери, нужен ли предлог перед next Monday.",
+          "question": "___ next Monday",
+          "correct_answer": "Без предлога",
+          "options": [
+            "at",
+            "on",
+            "in",
+            "Без предлога"
+          ],
+          "explanation": "Перед next Monday предлог не нужен."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери один лишний предлог. Перепиши всё предложение.",
+          "question": "I study English on every day.",
+          "correct_answer": "I study English every day.",
+          "explanation": "Перед every day не ставим on."
+        }
+      ]
+    }
+  ]
+}

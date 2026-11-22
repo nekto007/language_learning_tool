@@ -80,7 +80,7 @@
       "body": "Проверь три вещи:\n1. Предмет один или их несколько?\n2. Они рядом с тобой или далеко?\n3. Как меняются существительное и is/are?\nРядом: This is a pen. → These are pens.\nДалеко: That is a box. → Those are boxes.",
       "exercises": [
         {"type": "transformation", "instruction": "Перепиши предложение для нескольких коробок. Они остаются далеко от тебя. Введи полное предложение.", "question": "That is a box.", "correct_answer": "Those are boxes.", "explanation": "Несколько и далеко: Those. Далее are и boxes."},
-        {"type": "translation", "instruction": "Переведи на английский. Дети стоят рядом с тобой. Введи полное предложение.", "question": "Это дети.", "correct_answer": "These are children.", "explanation": "Детей несколько и они рядом: These are children."},
+        {"type": "translation", "instruction": "Переведи на английский, используя child в нужной форме. Дети стоят рядом с тобой. Введи полное предложение.", "question": "Это дети.", "correct_answer": "These are children.", "explanation": "Детей несколько и они рядом: These are children."},
         {"type": "error_correction", "instruction": "Исправь форму существительного. Остальные слова верны. Перепиши всё предложение.", "question": "These are red book.", "correct_answer": "These are red books.", "explanation": "These are указывает на несколько предметов: books. Прилагательное red не меняется."}
       ]
     }

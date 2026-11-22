@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "topic_slug": "b1-1",
+  "title": "Past Simple: irregular verbs",
+  "goal": "Расскажи короткую историю с неправильными глаголами в Past Simple.",
+  "steps": [
+    {
+      "id": "story-forms",
+      "title": "Неправильные формы в рассказе",
+      "body": "Для завершённых событий в прошлом используем V2: find → found, leave → left, meet → met, tell → told, think → thought.\nYesterday I found my keys and left the house. Форма V2 одинакова для всех лиц.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь find в Past Simple. Впиши одно слово.",
+          "question": "Yesterday I ___ my old notebook. (find)",
+          "correct_answer": "found",
+          "explanation": "У find прошедшая форма found."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь tell в Past Simple. Впиши одно слово.",
+          "question": "She ___ us the news last night. (tell)",
+          "correct_answer": "told",
+          "explanation": "У tell прошедшая форма told."
+        }
+      ]
+    },
+    {
+      "id": "negative",
+      "title": "Отрицание: did not + V1",
+      "body": "Прошлое в отрицании показывает did: I did not find the key.\nПосле did not/didn’t нужна начальная форма, даже у неправильного глагола.\nMet → didn’t meet, thought → didn’t think.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Используй did not или didn't. Перепиши всё предложение.",
+          "question": "We met Anna yesterday.",
+          "correct_answer": "We did not meet Anna yesterday.",
+          "explanation": "После did not возвращаем met к meet.",
+          "alternatives": [
+            "We didn't meet Anna yesterday."
+          ]
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь форму глагола после didn't. Перепиши всё предложение.",
+          "question": "He didn't left early.",
+          "correct_answer": "He didn't leave early.",
+          "explanation": "После didn’t нужна начальная форма leave.",
+          "alternatives": [
+            "He did not leave early."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "questions",
+      "title": "Вопрос с did",
+      "body": "Вопрос: Did + подлежащее + V1?\nShe found it. → Did she find it?\nС вопросительным словом: Where did she find it?\nНе оставляй V2 после did.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос с Did. Перепиши всё предложение.",
+          "question": "They left at ten.",
+          "correct_answer": "Did they leave at ten?",
+          "explanation": "После Did нужна форма leave, не left."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильный вопрос о встрече в прошлом.",
+          "question": "Кого она встретила вчера?",
+          "options": [
+            "Who did she met yesterday?",
+            "Who did she meet yesterday?",
+            "Who does she met yesterday?"
+          ],
+          "correct_answer": "Who did she meet yesterday?",
+          "explanation": "Who здесь — объект вопроса; после did используем meet."
+        }
+      ]
+    },
+    {
+      "id": "subject-question",
+      "title": "Когда who само выполняет действие",
+      "body": "Если who — подлежащее («кто сделал?»), обычно did не добавляем: Who found the key?\nЕсли спрашиваем об объекте: Who did you meet?\nСравни: Who called you? — кто позвонил; Who did you call? — кому позвонил ты.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери вопрос к подлежащему: неизвестно, кто нашёл ключ.",
+          "question": "Кто нашёл ключ?",
+          "options": [
+            "Who found the key?",
+            "Who did found the key?",
+            "Who find the key yesterday?"
+          ],
+          "correct_answer": "Who found the key?",
+          "explanation": "Who — подлежащее, поэтому используем V2 found без did."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Заполни вопрос к подлежащему. Поставь leave в Past Simple и впиши одно слово.",
+          "question": "Who ___ the office at nine yesterday? (leave)",
+          "correct_answer": "left",
+          "explanation": "В вопросе к подлежащему who используем left без did."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Past Simple не требует слова yesterday: завершённое прошлое может быть понятно из рассказа. У be свои формы was/were: Was she there? В обычных вопросах с be did не добавляем. В утвердительной речи did иногда используют для подчёркивания: I did see him. Тогда после did тоже начальная форма."
+    }
+  ]
+}

@@ -158,3 +158,18 @@ MIT License — see [LICENSE](LICENSE).
 ## Mobile apps
 
 Исходники приложений iOS и Android пока хранятся только локально и исключены из Git.
+
+## Guided grammar content
+
+Grammar content is stored in the database; pulling code does not install it.
+The reviewed A1-C1 catalog contains 86 topics. Validate it before applying:
+
+```bash
+docker compose exec web flask grammar-guided-install
+docker compose exec web flask grammar-guided-install --apply
+```
+
+The installer backs up content, preserves existing IDs and learning history,
+and archives the previous exercise bank. Repeating the import does not create
+duplicates. `--level A1` or `--topic a1-1` selects a smaller rollout. See
+[rollout notes](docs/plans/2026-11-22-guided-grammar-pilot.md).

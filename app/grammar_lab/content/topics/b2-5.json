@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "topic_slug": "b2-5",
+  "title": "Second Conditional: if + Past Simple, would + base",
+  "goal": "Описывай малореальную ситуацию сейчас и её воображаемое следствие.",
+  "steps": [
+    {
+      "id": "hypothesis",
+      "title": "Нереальное условие сейчас или в будущем",
+      "body": "Second Conditional: if + Past Simple, would + глагол без to. Прошедшая форма делает ситуацию воображаемой, а не обязательно прошлой: If I had more time, I would travel.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь have в форму условия Second Conditional. Впиши одно слово.",
+          "question": "If I ___ more time, I would learn Japanese. (have)",
+          "correct_answer": "had",
+          "explanation": "Past Simple had обозначает воображаемое условие сейчас."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Дополни следствие через would и meet. Впиши два слова.",
+          "question": "If we lived closer, we ___ more often. (meet)",
+          "correct_answer": "would meet",
+          "explanation": "В воображаемом следствии используем would + meet."
+        }
+      ]
+    },
+    {
+      "id": "were",
+      "title": "Were и совет",
+      "body": "В формальном или учебном нереальном условии с be часто используется were для всех лиц: If I were you, I would wait. Was встречается в менее формальной речи, но в этом упражнении тренируем were.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Дай совет через If I were you, I would. Используй wait и введи полное предложение.",
+          "question": "My advice to you is to wait.",
+          "correct_answer": "If I were you, I would wait.",
+          "explanation": "If I were you — устойчивая модель гипотетического совета."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши форму be для формального Second Conditional — одно слово.",
+          "question": "If she ___ here now, she would know what to do. (be)",
+          "correct_answer": "were",
+          "explanation": "Для формального нереального условия тренируем were."
+        }
+      ]
+    },
+    {
+      "id": "could-might",
+      "title": "Would, could и might меняют следствие",
+      "body": "Would описывает ожидаемое воображаемое следствие. Could — возможность или способность: If I had a car, I could drive you home. Might — менее определённое следствие: I might visit you.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Замени would на could, чтобы выделить возможность. Сохрани всё остальное и введи предложение.",
+          "question": "If I had a car, I would drive you home.",
+          "correct_answer": "If I had a car, I could drive you home.",
+          "explanation": "Could подчёркивает возможность отвезти, а не обещает само действие."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени would на might. Сохрани условие и введи всё предложение.",
+          "question": "If I had more time, I would visit them.",
+          "correct_answer": "If I had more time, I might visit them.",
+          "explanation": "Might делает воображаемое следствие менее определённым."
+        }
+      ]
+    },
+    {
+      "id": "contrast",
+      "title": "First или Second Conditional",
+      "body": "First Conditional оставляет будущее условие открытым: If it rains, we will stay home. Second представляет ситуацию менее реальной: If I lived abroad, I would miss my family. В обычном условии Second не ставим would после if.",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь только условную часть на Second Conditional. Перепиши всё предложение.",
+          "question": "If I would know the answer, I would tell you.",
+          "correct_answer": "If I knew the answer, I would tell you.",
+          "explanation": "Условие требует Past Simple knew, а would остаётся в следствии."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери условное предложение для явно воображаемой нынешней ситуации.",
+          "question": "Я не живу за границей; представляю такую жизнь сейчас.",
+          "correct_answer": "If I lived abroad, I would miss my family.",
+          "explanation": "Нынешняя воображаемая ситуация выражается Past Simple + would.",
+          "options": [
+            "If I live abroad, I will miss my family.",
+            "If I lived abroad, I would miss my family.",
+            "If I will live abroad, I miss my family."
+          ]
+        }
+      ]
+    }
+  ]
+}

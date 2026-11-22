@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "topic_slug": "a2-11",
+  "title": "Превосходная степень прилагательных (Superlatives)",
+  "goal": "Выдели самый заметный предмет в группе с превосходной степенью.",
+  "steps": [
+    {
+      "id": "meaning-est",
+      "title": "Самый в группе",
+      "body": "Превосходная степень выделяет один объект среди всей группы: Tom is the tallest student in the class.\nУ многих односложных прилагательных используем the + -est: tall → the tallest, small → the smallest.\nСравнительная степень сопоставляет один объект или группу с другим объектом или группой; превосходная выделяет самый в группе.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Поставь tall в превосходную степень. The уже дано; впиши одно слово.",
+          "question": "Tom is the ___ student in the class. (tall)",
+          "correct_answer": "tallest",
+          "explanation": "Для самого высокого в группе: the tallest."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери обычный артикль перед превосходной степенью smallest.",
+          "question": "___ smallest bag",
+          "correct_answer": "the",
+          "options": [
+            "the",
+            "a"
+          ],
+          "explanation": "В этой модели перед превосходной степенью ставим the."
+        }
+      ]
+    },
+    {
+      "id": "spelling",
+      "title": "Как меняется написание",
+      "body": "После конечной -e добавляем -st: nice → nicest.\nВ коротких словах типа big удваиваем согласную: biggest.\nСогласная + y: happy → happiest.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй превосходную степень big. The уже дано; впиши одно слово.",
+          "question": "big → the ___",
+          "correct_answer": "biggest",
+          "explanation": "В biggest удваиваем g."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Образуй превосходную степень happy. The уже дано; впиши одно слово.",
+          "question": "happy → the ___",
+          "correct_answer": "happiest",
+          "explanation": "Y после согласной меняется на i: happiest."
+        }
+      ]
+    },
+    {
+      "id": "most",
+      "title": "Длинные прилагательные: the most",
+      "body": "С длинными прилагательными обычно используем the most + прилагательное: the most expensive, the most interesting.\nНе добавляем -est к expensive. Для некоторых двусложных слов возможны разные модели; учим форму вместе со словом.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери превосходную степень expensive. The уже стоит перед пропуском.",
+          "question": "This is the ___ book in the shop.",
+          "correct_answer": "most expensive",
+          "options": [
+            "most expensive",
+            "expensivest",
+            "most expensivest"
+          ],
+          "explanation": "Длинное expensive: the most expensive."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Исправь превосходную степень interesting, сохранив the most. Перепиши всё предложение.",
+          "question": "It is the most interestingest book.",
+          "correct_answer": "It is the most interesting book.",
+          "explanation": "После the most прилагательное остаётся без -est."
+        }
+      ]
+    },
+    {
+      "id": "irregular",
+      "title": "The best и the worst",
+      "body": "Good → the best; bad → the worst.\nShe is the best player in the team.\nПосле my/your и других слов принадлежности отдельный the не ставим: my best friend.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Напиши особую превосходную форму good. The уже дано; впиши одно слово.",
+          "question": "good → the ___",
+          "correct_answer": "best",
+          "explanation": "Превосходная степень good — best."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную фразу после слова принадлежности my.",
+          "question": "Мой лучший друг",
+          "correct_answer": "my best friend",
+          "options": [
+            "my best friend",
+            "my the best friend"
+          ],
+          "explanation": "My уже определяет существительное; отдельный the после него не нужен."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "The не всегда отдельным словом",
+      "body": "Обычная модель: the best player. Но после my и других притяжательных определителей отдельный the не нужен: my best friend. В превосходной степени важно указать понятную группу сравнения, например in the class."
+    },
+    {
+      "title": "Расстояние: far",
+      "body": "Превосходные формы far — the farthest и the furthest. Обе могут обозначать самое большое физическое расстояние. Не образуем форму farest."
+    }
+  ]
+}

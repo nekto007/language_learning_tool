@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "topic_slug": "b2-12",
+  "title": "Причастные обороты (Participle Clauses: -ing/-ed).",
+  "goal": "Сокращай придаточные через причастные обороты без потери подлежащего и времени.",
+  "steps": [
+    {
+      "id": "active",
+      "title": "Активный оборот с -ing",
+      "body": "Оборот с V-ing может выражать одновременное действие или обстоятельство: Walking home, Lena called me. Обычно у оборота и главной части одно подлежащее: именно Lena шла и звонила.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сократи while-придаточное до оборота Walking home. Сохрани имя Lena в главной части; введи предложение.",
+          "question": "While Lena was walking home, she called me.",
+          "correct_answer": "Walking home, Lena called me.",
+          "explanation": "Общий исполнитель Lena позволяет сократить придаточное до Walking home."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери исполнителя действия Walking home.",
+          "question": "Кто шёл домой в Walking home, Lena called me?",
+          "correct_answer": "Lena.",
+          "explanation": "Подразумеваемое подлежащее оборота совпадает с Lena.",
+          "options": [
+            "Lena.",
+            "Рассказчик me.",
+            "Неизвестный человек."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "passive",
+      "title": "Пассивный оборот с V3",
+      "body": "Past participle описывает пассивное значение или состояние: Written in plain English, the guide is easy to follow. Именно guide был написан. Форма V3 сама по себе не означает, что всё предложение обязательно в прошлом.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Начни предложение с Written in plain English и сократи пояснение. Сохрани the guide is easy to follow.",
+          "question": "The guide is written in plain English, so it is easy to follow.",
+          "correct_answer": "Written in plain English, the guide is easy to follow.",
+          "explanation": "Written передаёт пассивное отношение: guide был написан."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши V3 от build в начале пассивного оборота. Одно слово.",
+          "question": "___ in 1890, the house still looks impressive. (build)",
+          "correct_answer": "Built",
+          "explanation": "Дом был построен, поэтому нужна пассивная форма Built."
+        }
+      ]
+    },
+    {
+      "id": "perfect",
+      "title": "Завершённость до главного действия",
+      "body": "Having + V3 подчёркивает более раннее завершение: Having finished the report, I went home. Для более раннего пассива — having been + V3: Having been warned, we stayed away.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сократи after-придаточное до оборота с Having. Сохрани подлежащее I и всё главное предложение.",
+          "question": "After I had finished the report, I went home.",
+          "correct_answer": "Having finished the report, I went home.",
+          "explanation": "Having finished обозначает завершение до went home."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Сократи придаточное до Having been + V3. Введи полное предложение.",
+          "question": "After we had been warned, we stayed away.",
+          "correct_answer": "Having been warned, we stayed away.",
+          "explanation": "Having been warned сохраняет более раннее пассивное действие."
+        }
+      ]
+    },
+    {
+      "id": "dangling",
+      "title": "Не оставляй оборот без правильного исполнителя",
+      "body": "Нельзя случайно приписать действие не тому предмету: Driving home, the rain started — получается, будто дождь ехал. Если исполнители разные, оставь полное придаточное: While I was driving home, the rain started. Отрицание ставим перед оборотом: Not knowing…, …",
+      "exercises": [
+        {
+          "type": "error_correction",
+          "instruction": "Исправь dangling participle через While I was driving home. Сохрани the rain started.",
+          "question": "Driving home, the rain started.",
+          "correct_answer": "While I was driving home, the rain started.",
+          "explanation": "Полное придаточное явно называет водителя I; дождь не оказывается исполнителем driving."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Замени because-придаточное оборотом Not knowing. Сохрани главное предложение.",
+          "question": "Because I did not know the answer, I remained silent.",
+          "correct_answer": "Not knowing the answer, I remained silent.",
+          "explanation": "Общий исполнитель I сохраняется, not ставится перед knowing."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Проверка подлежащего",
+      "body": "Разворачивая начальный причастный оборот обратно в придаточное, проверь, кто выполняет действие. Having read the report, Nina replied означает, что Nina прочитала и ответила. Если исполнители разные, обычное полное придаточное часто яснее. У специальных абсолютных оборотов своя структура."
+    }
+  ]
+}

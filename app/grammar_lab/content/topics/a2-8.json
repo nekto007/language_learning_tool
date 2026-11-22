@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "topic_slug": "a2-8",
+  "title": "Предлоги движения (Prepositions of Movement)",
+  "goal": "Выбери предлог движения по направлению и пути.",
+  "steps": [
+    {
+      "id": "to-into",
+      "title": "К месту или внутрь",
+      "body": "To называет место назначения: We go to the park.\nInto подчёркивает движение снаружи внутрь: She walks into the room.\nIn описывает положение внутри, а не само пересечение границы.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Она пересекает дверной проём и входит снаружи внутрь комнаты. Выбери предлог движения.",
+          "question": "She walks ___ the room.",
+          "correct_answer": "into",
+          "options": [
+            "into",
+            "in"
+          ],
+          "explanation": "Пересечение границы внутрь: into."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Назови парк как место назначения, не описывая путь внутри него. Впиши одно слово-предлог.",
+          "question": "We go ___ the park every day.",
+          "correct_answer": "to",
+          "explanation": "Место назначения вводим с to."
+        }
+      ]
+    },
+    {
+      "id": "along-past",
+      "title": "Вдоль или мимо",
+      "body": "Along — вдоль: Walk along the river.\nPast — мимо: Walk past the bank.\nВ первой модели следуем вдоль протяжённого объекта, во второй оставляем объект позади, не заходя в него.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Иди вдоль реки, следуя её берегу. Выбери предлог.",
+          "question": "Walk ___ the river.",
+          "correct_answer": "along",
+          "options": [
+            "along",
+            "into",
+            "past"
+          ],
+          "explanation": "Движение вдоль реки: along the river."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Пройди мимо банка и продолжай путь, не заходя в здание. Выбери предлог.",
+          "question": "Walk ___ the bank.",
+          "correct_answer": "past",
+          "options": [
+            "past",
+            "into"
+          ],
+          "explanation": "Мимо объекта: past."
+        }
+      ]
+    },
+    {
+      "id": "across-through",
+      "title": "На другую сторону или сквозь",
+      "body": "Across — с одной стороны на другую по открытой поверхности: across the street.\nThrough — сквозь пространство с окружающими границами: through the tunnel.\nСравни переход улицы и путь внутри тоннеля.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Перейди с одной стороны улицы на другую по поверхности. Выбери предлог.",
+          "question": "Walk ___ the street.",
+          "correct_answer": "across",
+          "options": [
+            "across",
+            "through"
+          ],
+          "explanation": "Через открытую поверхность улицы: across."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Поезд проходит внутри тоннеля от входа до выхода. Выбери предлог.",
+          "question": "The train goes ___ the tunnel.",
+          "correct_answer": "through",
+          "options": [
+            "across",
+            "through"
+          ],
+          "explanation": "Движение внутри ограниченного пространства: through."
+        }
+      ]
+    },
+    {
+      "id": "home",
+      "title": "Home без to",
+      "body": "После go, come и walk слово home в значении направления обычно употребляем без to: go home, come home, walk home.\nСравни: go to the house, но go home.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную фразу направления с home.",
+          "question": "Я иду домой.",
+          "correct_answer": "I go home.",
+          "options": [
+            "I go home.",
+            "I go to home."
+          ],
+          "explanation": "В go home предлог to не нужен."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишний предлог перед home. Перепиши всё предложение.",
+          "question": "We walk to home.",
+          "correct_answer": "We walk home.",
+          "explanation": "В значении направления home здесь не требует to."
+        }
+      ]
+    }
+  ]
+}

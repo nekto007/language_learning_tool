@@ -27,6 +27,8 @@ def topic_progress(user_id, topic_ids):
     Both queries are read-only. In particular, do not reuse the web topic-list
     service, whose curriculum lazy-sync creates status rows and commits on GET.
     """
+    from app.grammar_lab.exercise_visibility import active_exercise_clause
+
     ids = list(dict.fromkeys(topic_ids))
     if not ids:
         return {}
@@ -51,6 +53,7 @@ def topic_progress(user_id, topic_ids):
             ),
         )
         .filter(GrammarExercise.topic_id.in_(ids))
+        .filter(active_exercise_clause())
         .group_by(GrammarExercise.topic_id)
         .all()
     )

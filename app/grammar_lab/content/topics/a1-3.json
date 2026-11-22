@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "topic_slug": "a1-3",
+  "title": "Указательные местоимения (Demonstrative Pronouns)",
+  "goal": "Укажи один или несколько предметов рядом с тобой или далеко.",
+  "steps": [
+    {
+      "id": "single",
+      "title": "This или that: один предмет",
+      "body": "This — один предмет рядом с говорящим; that — один предмет далеко.\nThis is a shirt. — Вот рубашка рядом.\nThat is a coat. — Вон то пальто.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Рубашка у тебя в руках. Выбери слово для одного предмета рядом.",
+          "question": "___ is a shirt.",
+          "correct_answer": "This",
+          "options": [
+            "This",
+            "That"
+          ],
+          "explanation": "Предмет один и рядом с тобой: This."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Пальто висит далеко от тебя, в другом конце комнаты. Выбери подходящее слово.",
+          "question": "___ is a coat.",
+          "correct_answer": "That",
+          "options": [
+            "This",
+            "That"
+          ],
+          "explanation": "Предмет один и далеко от тебя: That."
+        }
+      ]
+    },
+    {
+      "id": "plural",
+      "title": "These или those: несколько",
+      "body": "These — несколько предметов рядом; those — несколько предметов далеко.\nThese are shirts. Those are coats.\nДля нескольких предметов используем are, для одного — is.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Две туфли находятся прямо перед тобой. Выбери слово для нескольких предметов рядом.",
+          "question": "___ are shoes.",
+          "correct_answer": "These",
+          "options": [
+            "This",
+            "These",
+            "Those"
+          ],
+          "explanation": "Несколько предметов рядом: These."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Впиши is или are: речь идёт о нескольких пальто.",
+          "question": "Those ___ coats.",
+          "correct_answer": "are",
+          "explanation": "Those обозначает несколько предметов, поэтому are."
+        }
+      ]
+    },
+    {
+      "id": "change-number",
+      "title": "Меняем количество, сохраняем расстояние",
+      "body": "Рядом: this shirt → these shirts.\nДалеко: that coat → those coats.\nВ целом предложении меняются указательное слово, is/are и число существительного: This is a shirt. → These are shirts.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение про несколько рубашек. Рубашки остаются рядом с тобой. Введи всё предложение.",
+          "question": "This is a shirt.",
+          "correct_answer": "These are shirts.",
+          "explanation": "This → These, is → are, a shirt → shirts."
+        },
+        {
+          "type": "transformation",
+          "instruction": "Сделай фразу про несколько пальто далеко от тебя. Введи оба слова.",
+          "question": "that coat",
+          "correct_answer": "those coats",
+          "explanation": "That меняется на those; к coat добавляем -s."
+        }
+      ]
+    }
+  ]
+}

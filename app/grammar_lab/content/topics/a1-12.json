@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "topic_slug": "a1-12",
+  "title": "Наречия частотности в предложении",
+  "goal": "Скажи, как часто происходит действие, и поставь наречие на нужное место.",
+  "steps": [
+    {
+      "id": "frequency",
+      "title": "От always до never",
+      "body": "Always — всегда, usually — обычно, often — часто, sometimes — иногда, rarely — редко, never — никогда.\nЭто слова о частотности; usually и often не задают точный процент.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Ты совсем не пьёшь кофе, ни в один день. Выбери слово, означающее «никогда».",
+          "question": "I ___ drink coffee.",
+          "correct_answer": "never",
+          "options": [
+            "always",
+            "sometimes",
+            "never"
+          ],
+          "explanation": "Never означает «никогда». Здесь не нужно дополнительное don’t."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Ты ходишь в школу пешком каждый раз, без исключений. Впиши слово «всегда» по-английски.",
+          "question": "I ___ walk to school.",
+          "correct_answer": "always",
+          "explanation": "Always означает «всегда»."
+        }
+      ]
+    },
+    {
+      "id": "before-main-verb",
+      "title": "Перед обычным глаголом",
+      "body": "В нейтральном порядке наречие обычно стоит перед основным глаголом: I often read. She never drinks coffee.\nNever уже несёт отрицательное значение: She never drinks coffee, без doesn’t.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери нейтральный порядок слов с often перед основным глаголом.",
+          "question": "Я часто читаю.",
+          "correct_answer": "I often read.",
+          "options": [
+            "I often read.",
+            "I read often never."
+          ],
+          "explanation": "Often ставим перед read."
+        },
+        {
+          "type": "error_correction",
+          "instruction": "Убери лишнее отрицание и согласуй глагол с she. Используй never и перепиши всё предложение.",
+          "question": "She does not never drink coffee.",
+          "correct_answer": "She never drinks coffee.",
+          "explanation": "В этой модели never не сочетается с does not; после she нужен drinks."
+        }
+      ]
+    },
+    {
+      "id": "after-be",
+      "title": "После am/is/are",
+      "body": "С be наречие ставим после формы глагола: I am often tired. She is usually at home.\nСравни: She usually works. / She is usually busy.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери нейтральный порядок слов: наречие обычно стоит после is.",
+          "question": "Она обычно дома.",
+          "correct_answer": "She is usually at home.",
+          "options": [
+            "She is at usually home.",
+            "She is usually at home."
+          ],
+          "explanation": "В нейтральной учебной модели: is usually."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Скажи «Я никогда не опаздываю». Впиши одно наречие после am.",
+          "question": "I am ___ late.",
+          "correct_answer": "never",
+          "explanation": "С be наречие never ставим после am."
+        }
+      ]
+    },
+    {
+      "id": "how-often",
+      "title": "Точная частота",
+      "body": "О частоте спрашиваем How often...?\nОтвет можно дать точнее: every day — каждый день; once a week — раз в неделю; twice a month — дважды в месяц. Эти выражения обычно ставим в конце: I swim twice a week.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Закончи вопрос «Как часто ты плаваешь?». Впиши первое слово.",
+          "question": "___ often do you swim?",
+          "correct_answer": "How",
+          "explanation": "Вопрос о частоте начинается с How often."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери предложение с точной частотой «дважды в неделю».",
+          "question": "Я плаваю два раза в неделю.",
+          "correct_answer": "I swim twice a week.",
+          "options": [
+            "I swim twice a week.",
+            "I swim two week."
+          ],
+          "explanation": "Twice a week означает «дважды в неделю»."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Позиция иногда меняется",
+      "body": "Sometimes и often могут стоять в разных позициях ради акцента; пример с usually перед is возможен в особом контексте. В начальной практике отрабатываем нейтральный порядок: She is usually at home, She usually works."
+    }
+  ]
+}

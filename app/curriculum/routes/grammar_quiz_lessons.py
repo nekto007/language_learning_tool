@@ -17,6 +17,9 @@ from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.curriculum.language_support import language_support_mode, localized_option, question_translation
 from app.curriculum.routes.lessons import (
+    _grade_web_guided_grammar,
+    _guided_grammar_revision_error,
+    _locked_grammar_submission_lesson,
     is_lesson_retry_requested,
     lessons_bp,
     retry_display_progress,
@@ -322,9 +325,18 @@ def render_grammar_lesson(lesson):
     if lesson.type != 'grammar':
         abort(400, "This is not a grammar lesson")
 
+    if request.method == 'POST':
+        lesson = _locked_grammar_submission_lesson(lesson)
+        revision_error = _guided_grammar_revision_error(lesson, request.form)
+        if revision_error:
+            return revision_error
+    raw_content = lesson.content
+    if isinstance(raw_content, dict) and raw_content.get('guided_catalog_digest'):
+        raw_content = {**raw_content, 'description': raw_content.get('introduction') or lesson.title}
+
     try:
         is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-            'grammar', lesson.content
+            'grammar', raw_content
         )
     except ValidationError as e:
         error_msg = str(e.messages)
@@ -406,8 +418,15 @@ def render_grammar_lesson(lesson):
                     exercise_idx = key.replace('answer_', '')
                     answers[exercise_idx] = request.form[key]
 
-            from app.curriculum.service import process_grammar_submission as service_process_grammar
-            result = service_process_grammar(exercises, answers)
+            if (lesson.content or {}).get('guided_catalog_digest'):
+                try:
+                    result = _grade_web_guided_grammar(exercises, answers, option_text=True)
+                    result['guided_revision'] = lesson.content['guided_catalog_digest']
+                except ValueError:
+                    return jsonify({'success': False, 'error': 'invalid_answers'}), 400
+            else:
+                from app.curriculum.service import process_grammar_submission as service_process_grammar
+                result = service_process_grammar(exercises, answers)
 
         except Exception as e:
             logger.error(f"Error processing grammar submission: {str(e)}")
@@ -968,9 +987,18 @@ def grammar_lesson(lesson_id):
     if lesson.type != 'grammar':
         abort(400, "This is not a grammar lesson")
 
+    if request.method == 'POST':
+        lesson = _locked_grammar_submission_lesson(lesson)
+        revision_error = _guided_grammar_revision_error(lesson, request.form)
+        if revision_error:
+            return revision_error
+    raw_content = lesson.content
+    if isinstance(raw_content, dict) and raw_content.get('guided_catalog_digest'):
+        raw_content = {**raw_content, 'description': raw_content.get('introduction') or lesson.title}
+
     try:
         is_valid, error_msg, cleaned_content = LessonContentValidator.validate(
-            'grammar', lesson.content
+            'grammar', raw_content
         )
     except ValidationError as e:
         error_msg = str(e.messages)
@@ -1052,8 +1080,15 @@ def grammar_lesson(lesson_id):
                     exercise_idx = key.replace('answer_', '')
                     answers[exercise_idx] = request.form[key]
 
-            from app.curriculum.service import process_grammar_submission as service_process_grammar
-            result = service_process_grammar(exercises, answers)
+            if (lesson.content or {}).get('guided_catalog_digest'):
+                try:
+                    result = _grade_web_guided_grammar(exercises, answers, option_text=True)
+                    result['guided_revision'] = lesson.content['guided_catalog_digest']
+                except ValueError:
+                    return jsonify({'success': False, 'error': 'invalid_answers'}), 400
+            else:
+                from app.curriculum.service import process_grammar_submission as service_process_grammar
+                result = service_process_grammar(exercises, answers)
 
         except Exception as e:
             logger.error(f"Error processing grammar submission: {str(e)}")

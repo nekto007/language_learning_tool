@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "topic_slug": "b1-3",
+  "title": "USED TO для прошлых привычек",
+  "goal": "Расскажи о прежней привычке или состоянии с used to и отличи их от разового события.",
+  "steps": [
+    {
+      "id": "past-habit",
+      "title": "Привычка, которая была раньше",
+      "body": "Used to + начальная форма описывает прежнюю привычку и обычно подразумевает, что сейчас иначе.\nI used to walk to work, but now I take the bus.\nФорма used to одинакова для всех лиц.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Опиши прежнюю привычку, которой больше нет. Впиши два слова перед walk.",
+          "question": "I ___ walk to school, but now I drive.",
+          "correct_answer": "used to",
+          "explanation": "Used to walk обозначает привычку, которая осталась в прошлом."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери правильную форму после used to.",
+          "question": "She used to … here.",
+          "options": [
+            "works",
+            "working",
+            "work"
+          ],
+          "correct_answer": "work",
+          "explanation": "После used to нужна начальная форма work."
+        }
+      ]
+    },
+    {
+      "id": "past-state",
+      "title": "Не только действие, но и состояние",
+      "body": "Used to подходит и для состояний: There used to be a shop here.\nShe used to have long hair, but now it is short.\nЭто не обязательно действие, которое человек много раз повторял.",
+      "exercises": [
+        {
+          "type": "fill_blank",
+          "instruction": "Раньше здесь был магазин, а теперь его нет. Используй конструкцию прежнего состояния из разбора: впиши два слова перед be.",
+          "question": "There ___ be a shop here.",
+          "correct_answer": "used to",
+          "explanation": "Used to be описывает прежнее состояние места."
+        },
+        {
+          "type": "fill_blank",
+          "instruction": "Раньше у неё были длинные волосы. Выбери have, has или had после used to. Впиши одно слово.",
+          "question": "She used to ___ long hair.",
+          "correct_answer": "have",
+          "explanation": "После used to используем have, а не had или has."
+        }
+      ]
+    },
+    {
+      "id": "did-use",
+      "title": "Вопрос и отрицание с did",
+      "body": "В учебном стандартном варианте после did используем use to, без -d:\nI didn’t use to drive. Did you use to drive?\nФорма did уже показывает прошлое.",
+      "exercises": [
+        {
+          "type": "transformation",
+          "instruction": "Сделай предложение отрицательным. Используй did not use to или didn't use to. Перепиши целиком.",
+          "question": "He used to smoke.",
+          "correct_answer": "He did not use to smoke.",
+          "explanation": "После did not пишем use to без -d.",
+          "alternatives": [
+            "He didn't use to smoke."
+          ]
+        },
+        {
+          "type": "transformation",
+          "instruction": "Задай общий вопрос с Did ... use to. Перепиши всё предложение.",
+          "question": "You used to live here.",
+          "correct_answer": "Did you use to live here?",
+          "explanation": "В вопросе после did используем use to."
+        }
+      ]
+    },
+    {
+      "id": "one-event",
+      "title": "Разовое событие: Past Simple",
+      "body": "Used to не выбираем для одного конкретного завершённого события.\nI visited Rome last year — одна поездка.\nI used to visit Rome every summer — прежняя привычка.\nСамо Past Simple тоже может описывать прошлые привычки, если контекст это показывает.",
+      "exercises": [
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери фразу об одной конкретной поездке в прошлом году.",
+          "question": "Я один раз посетил Рим в прошлом году.",
+          "options": [
+            "I visited Rome last year.",
+            "I used to visit Rome once last year.",
+            "I use to visit Rome last year."
+          ],
+          "correct_answer": "I visited Rome last year.",
+          "explanation": "Для одного события используем Past Simple, не used to."
+        },
+        {
+          "type": "multiple_choice",
+          "instruction": "Выбери описание прежней привычки, которой больше нет.",
+          "question": "Раньше я играл здесь каждое воскресенье, но теперь не играю.",
+          "options": [
+            "I used to play here every Sunday.",
+            "I am used to play here every Sunday.",
+            "I use playing here every Sunday."
+          ],
+          "correct_answer": "I used to play here every Sunday.",
+          "explanation": "Used to + play передаёт прежнюю привычку."
+        }
+      ]
+    }
+  ],
+  "reference_sections": [
+    {
+      "title": "Полезные уточнения",
+      "body": "Не путай used to do с be used to doing: I used to drive — раньше водил; I am used to driving — привык водить. Get used to doing означает привыкать. Would может описывать повторявшиеся прошлые действия в рассказе, но обычно не заменяет used to для состояний вроде used to own a house."
+    }
+  ]
+}
