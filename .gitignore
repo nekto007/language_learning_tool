@@ -394,6 +394,8 @@ grammar_extra_audit_report.md
 
 # Локальный контент и инструменты — не отправляем в гит
 /content/
+# Private reading packs must never be published with application code.
+/app/books/content/
 # Якорь к корню: без него правило глотало и tests/scripts/
 /scripts/
 !/scripts/

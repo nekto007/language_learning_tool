@@ -24,6 +24,7 @@
             </div>
             <div class="col-md-9">
                 <h1 class="h4 fw-bold mb-1">{{ book.title }}</h1>
+                {% if book.is_short_reading %}<p class="small text-muted">{{ book.reading_label }} · {{ book.words_total }} слов</p>{% endif %}
                 {% if book.author %}
                 <p class="mb-1 text-light">{{ _('Автор:') }} {{ book.author }}</p>
                 {% endif %}
@@ -50,7 +51,7 @@
                     <a href="{{ url_for('books.book_list') }}"
                        class="btn-action btn-primary-gradient">
                         <i class="fas fa-check"></i>
-                        {{ _('Книга прочитана') }}
+                        {% if book.is_short_reading %}Текст прочитан{% else %}{{ _('Книга прочитана') }}{% endif %}
                     </a>
                     {% elif last_read_chapter %}
                     <a href="{{ url_for('books.read_book_chapters', book_id=book.id, chapter=last_read_chapter) }}"

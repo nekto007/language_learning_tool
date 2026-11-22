@@ -155,12 +155,15 @@ def apply_chapter_completion_effects(user_id: int, book_id: int, chapter, db):
 
     logger = logging.getLogger(__name__)
     sess = getattr(db, 'session', db)
+    from app.books.models import Book
+    book = sess.get(Book, book_id)
+    short_reading = book is not None and getattr(book, 'is_short_reading', False) is True
 
     chapter_xp_award = award_book_chapter_xp_idempotent(
         user_id=user_id,
         book_id=book_id,
         chapter_id=chapter.id,
-        xp=BOOK_CHAPTER_XP,
+        xp=10 if short_reading else BOOK_CHAPTER_XP,
         for_date=get_user_local_date(user_id, db),
         db_session=db,
     )
@@ -169,7 +172,8 @@ def apply_chapter_completion_effects(user_id: int, book_id: int, chapter, db):
     try:
         from app.daily_plan.milestones import check_book_milestone
         percent = compute_book_progress_percent(user_id, book_id, db)
-        check_book_milestone(user_id, book_id, percent, db)
+        if not short_reading:
+            check_book_milestone(user_id, book_id, percent, db)
     except Exception:
         logger.warning(
             "book milestone check failed user=%s book=%s",
@@ -185,7 +189,7 @@ def apply_chapter_completion_effects(user_id: int, book_id: int, chapter, db):
         # Detect full book completion: every chapter must be read (offset_pct
         # at/above the shared completion threshold).
         completion_state = get_book_completion_state(user_id, book_id, db)
-        if completion_state['is_completed']:
+        if completion_state['is_completed'] and not short_reading:
             stats.total_books_completed = (stats.total_books_completed or 0) + 1
         sess.flush()
     except Exception:

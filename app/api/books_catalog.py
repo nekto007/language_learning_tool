@@ -70,6 +70,11 @@ def get_books_catalog():
     if codes:
         query = query.filter(Book.level.in_(codes))
     books = query.order_by(Book.level.asc(), Book.title.asc()).all()
+    # The original A1 pack follows its learning sequence, not alphabetic title order.
+    books.sort(key=lambda book: (
+        book.level or '', 0 if book.is_short_reading else 1,
+        (book.reading or {}).get('order', 0) if book.is_short_reading else 0, book.title,
+    ))
     completed_book_ids = get_completed_book_ids(current_user.id, [book.id for book in books], db)
     books = [book for book in books if book.id not in completed_book_ids]
 
@@ -82,6 +87,8 @@ def get_books_catalog():
 
 
 def _book_payload(book):
+    from app.books.short_readings import reading_summary
+
     return {
         'id': book.id,
         'title': book.title,
@@ -91,6 +98,7 @@ def _book_payload(book):
         'cover_image': book.cover_image,
         'chapters_cnt': book.chapters_cnt,
         'words_total': book.words_total,
+        'reading': reading_summary(book),
     }
 
 

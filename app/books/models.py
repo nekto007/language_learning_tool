@@ -37,6 +37,9 @@ class Book(db.Model):
     summary = Column(Text)  # Book annotation/description
     words_total = Column(Integer, default=0)
     unique_words = Column(Integer, default=0)
+    # Publisher-granted free access is independent of copyright status.
+    is_free_access = Column(db.Boolean, nullable=False, default=False, server_default='false')
+    reading = Column(JSONBCompat, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     cover_image = Column(String(255))
     
@@ -98,6 +101,16 @@ class Book(db.Model):
     @property
     def is_public_domain(self) -> bool:
         return self.rights_status == 'public_domain'
+
+    @property
+    def is_short_reading(self) -> bool:
+        return isinstance(self.reading, dict) and self.reading.get('format') in {'short_text', 'dialogue', 'story'}
+
+    @property
+    def reading_label(self) -> str:
+        if not self.is_short_reading:
+            return 'Книга'
+        return {'short_text': 'Короткий текст', 'dialogue': 'Диалог', 'story': 'История'}[self.reading['format']]
 
     @property
     def license_is_expired(self) -> bool:

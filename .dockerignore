@@ -106,6 +106,9 @@ ops/
 
 # Native builds, local authoring sources and agent configuration are not server inputs.
 ios/
+android/
+content/
+app/books/content/
 module_completed/
 grammar_exercises_extra/
 .agents/

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/books/reader_simple.css') }}?v=1">
+{% if book.is_short_reading %}<link rel="stylesheet" href="{{ url_for('static', filename='css/books/short_reading.css') }}">{% endif %}
 {% endblock %}
 
 {% block title %}{{ book.title }} - Глава {{ current_chapter.chap_num }}/{{ chapters|length }}{% endblock %}
@@ -34,7 +35,7 @@
         {% for ch in chapters %}
         <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
                 {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
-          Глава {{ ch.chap_num }}
+          {% if book.is_short_reading %}Текст{% else %}Глава {{ ch.chap_num }}{% endif %}
         </option>
         {% endfor %}
       </select>
@@ -80,7 +81,7 @@
   {% endif %}
 
   <!-- Reading timer + pause: always-visible bar between header and content -->
-  <div id="reading-timer-bar" class="rdr-timer-bar">
+  <div id="reading-timer-bar" class="rdr-timer-bar" {% if book.is_short_reading %}hidden{% endif %}>
     <span class="rdr-timer-bar__icon" aria-hidden="true">📖</span>
     <span class="rdr-timer-bar__text">
       <span id="reading-timer-elapsed">00:00</span>
@@ -100,7 +101,13 @@
   <!-- Scrollable content -->
   <div class="rdr-body" id="readerBody">
     <div class="rdr-content">
-      <h1>Глава {{ current_chapter.chap_num }}: {{ current_chapter.title }}</h1>
+      <h1>{% if not book.is_short_reading %}Глава {{ current_chapter.chap_num }}: {% endif %}{{ current_chapter.title }}</h1>
+      {% if book.is_short_reading %}
+      <p>{{ book.reading.focus }} · {{ book.words_total }} слов</p>
+      <details class="short-reading-hints"><summary>Слова-подсказки</summary><ul>
+      {% for hint in book.reading.glossary %}<li><strong>{{ hint.english }}</strong> — {{ hint.translation }}</li>{% endfor %}
+      </ul></details>
+      {% endif %}
 
       <div id="chapterContent" class="text-size-18">
         {{ (chapter_text if chapter_text is defined else current_chapter.text_raw) | format_chapter_text }}
@@ -112,6 +119,12 @@
       </div>
       {% endif %}
 
+      {% if book.is_short_reading %}
+      <section id="short-reading-practice" class="short-reading-practice" aria-label="Проверка понимания"></section>
+      <button id="short-reading-finish" type="button" class="rdr-bottom-btn rdr-bottom-btn--primary" disabled>Завершить чтение текста</button>
+      <p id="short-reading-save-status" role="status" aria-live="polite"></p>
+      <script id="short-reading-data" type="application/json" nonce="{{ csp_nonce }}">{{ book.reading | tojson }}</script>
+      {% endif %}
       <div class="rdr-end-spacer" aria-hidden="true"></div>
 
       <!-- Chapter navigation at bottom -->
@@ -128,7 +141,7 @@
 
         <a href="{{ back_url if back_url else url_for('books.book_details', book_id=book.id) }}"
            class="rdr-bottom-btn">
-          К книге
+          {% if book.is_short_reading %}К материалу{% else %}К книге{% endif %}
         </a>
 
         {% if current_chapter.chap_num < chapters|length %}
@@ -252,7 +265,7 @@
         {% for ch in chapters %}
         <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
                 {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
-          Глава {{ ch.chap_num }}: {{ ch.title }}
+          {% if book.is_short_reading %}Текст{% else %}Глава {{ ch.chap_num }}{% endif %}: {{ ch.title }}
         </option>
         {% endfor %}
       </select>
@@ -295,6 +308,31 @@ const readerBody = document.getElementById('readerBody');
 const progressBar = document.getElementById('progressBar');
 const progressText = document.getElementById('readingProgress');
 let saveTimeout = null;
+const isShortReading = {{ book.is_short_reading | tojson }};
+let shortPracticeComplete = false;
+function guardedReadingOffset(value) {
+    return isShortReading && !shortPracticeComplete ? Math.min(0.89, value) : value;
+}
+document.addEventListener('shortReadingPracticeComplete', () => {
+    shortPracticeComplete = true;
+    const finish = document.getElementById('short-reading-finish');
+    if (finish) finish.disabled = false;
+});
+const shortFinish = document.getElementById('short-reading-finish');
+if (shortFinish) shortFinish.addEventListener('click', async () => {
+    if (!shortPracticeComplete || shortFinish.disabled) return;
+    shortFinish.disabled = true;
+    const status = document.getElementById('short-reading-save-status');
+    status.textContent = 'Сохраняем завершение текста…';
+    const result = await saveProgress(1);
+    if (result && result.book_completed) {
+        status.textContent = 'Текст прочитан. Результат сохранён в аккаунте.';
+        shortFinish.textContent = 'Текст прочитан';
+    } else {
+        status.textContent = 'Не удалось сохранить результат. Попробуй ещё раз.';
+        shortFinish.disabled = false;
+    }
+});
 
 // Compute reading progress relative to the chapter text only — not the
 // whole scroll container. 100% is reached when the BOTTOM of
@@ -320,7 +358,7 @@ function computeReadingProgress() {
 }
 
 function updateProgress() {
-    const progress = computeReadingProgress();
+    const progress = guardedReadingOffset(computeReadingProgress());
 
     progressBar.style.width = (progress * 100) + '%';
     progressText.textContent = Math.round(progress * 100);
@@ -351,6 +389,7 @@ function updateSidebarProgress(progress) {
 var _readingStepCompleteDispatched = false;
 
 function saveProgress(offsetPct) {
+    offsetPct = guardedReadingOffset(offsetPct);
     return fetch('/api/progress', {
         method: 'PATCH',
         headers: {
@@ -387,6 +426,7 @@ function saveProgress(offsetPct) {
         if (data && data.book_completed) {
             document.dispatchEvent(new CustomEvent('bookCompleted', { detail: data }));
         }
+        return data;
     })
     .catch(error => {
         console.error('Error saving progress:', error);
@@ -469,11 +509,11 @@ setTimeout(updateProgress, 100);
             const chapter = document.getElementById('chapterContent');
             if (chapter && chapter.offsetHeight > 0) {
                 const scrolled = Math.max(0, readerBody.scrollTop - chapter.offsetTop);
-                return Math.min(scrolled / chapter.offsetHeight, 1);
+                return guardedReadingOffset(Math.min(scrolled / chapter.offsetHeight, 1));
             }
             const scrollHeight = readerBody.scrollHeight - readerBody.clientHeight;
             if (scrollHeight > 0) {
-                return Math.min(readerBody.scrollTop / scrollHeight, 1);
+                return guardedReadingOffset(Math.min(readerBody.scrollTop / scrollHeight, 1));
             }
         } catch (e) { /* readerBody may be detached on pagehide */ }
         return null;
@@ -700,7 +740,7 @@ setTimeout(updateProgress, 100);
         const bookFinished = data.book_completed === true || data.banner_state === 'book_completed';
         let title = '';
         if (bookFinished) {
-            title = 'Книга прочитана';
+            title = isShortReading ? 'Текст прочитан' : 'Книга прочитана';
         } else if (data.banner_state === 'both') {
             title = '🎉 Глава прочитана и дневная норма выполнена!';
         } else if (data.banner_state === 'daily_target') {
@@ -1165,6 +1205,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 </script>
+{% if book.is_short_reading %}<script src="{{ url_for('static', filename='js/books/short_reading.js') }}"></script>{% endif %}
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
 {% if current_chapter.audio_url %}
 <script nonce="{{ csp_nonce }}">

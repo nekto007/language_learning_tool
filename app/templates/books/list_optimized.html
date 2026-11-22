@@ -7,7 +7,7 @@
 <div class="page-header-primary">
     <div class="row align-items-center">
         <div class="col-md-8">
-            <h1 class="mb-2">📚 {{ _('Коллекция книг') }}</h1>
+            <h1 class="mb-2">📚 {{ _('Тексты и книги') }}</h1>
             <p class="mb-0 opacity-75">{{ _('Открывайте книги и улучшайте свой английский словарный запас') }}</p>
         </div>
         {% if current_user.is_authenticated and current_user.is_admin %}
@@ -120,6 +120,7 @@
                 <h6 class="card-title mb-2" title="{{ book.title }}">
                     {{ book.title[:50] }}{% if book.title|length > 50 %}...{% endif %}
                 </h6>
+                {% if book.is_short_reading %}<p class="small text-muted mb-1">{{ book.reading_label }} · {{ book.words_total }} слов</p>{% endif %}
                 
                 {% if book.author %}
                 <p class="card-text text-muted small mb-2">{{ book.author }}</p>

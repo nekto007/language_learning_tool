@@ -575,6 +575,7 @@ def was_book_completed_today(user_id: int, book_id: int, db_session: Any = db) -
     refreshes that timestamp even when it was finished on a previous day.
     The whole book must still be complete; one chapter alone is insufficient.
     """
+    from sqlalchemy import String
     from app.achievements.models import StreakEvent
     from app.achievements.xp_service import BOOK_CHAPTER_XP_EVENT_TYPE
     from app.books.progress import get_book_completion_state
@@ -587,7 +588,7 @@ def was_book_completed_today(user_id: int, book_id: int, db_session: Any = db) -
         StreakEvent.user_id == user_id,
         StreakEvent.event_type == BOOK_CHAPTER_XP_EVENT_TYPE,
         StreakEvent.event_date == today,
-        StreakEvent.details['book_id'].astext == str(book_id),
+        StreakEvent.details['book_id'].astext.cast(String) == str(book_id),
     ).first()
     return event is not None
 
@@ -620,4 +621,8 @@ def is_daily_reading_target_met_today(
     today_local = get_user_local_date(user_id, db_session)
     target_seconds = get_daily_reading_target_seconds(today_local, user_id=user_id)
     total_seconds = get_book_reading_seconds_today(user_id, book_id, db_session)
+    from app.books.models import Book
+    book = db_session.session.get(Book, book_id)
+    if book is not None and getattr(book, 'is_short_reading', False) is True:
+        return was_book_completed_today(user_id, book_id, db_session)
     return total_seconds >= target_seconds or was_book_completed_today(user_id, book_id, db_session)

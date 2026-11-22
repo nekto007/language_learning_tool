@@ -259,7 +259,7 @@ def build_reading_item(
         get_user_local_date(user_id, db), user_id=user_id,
     )
     time_spent_seconds = get_book_reading_seconds_today(user_id, book.id, db)
-    gate_reached = completed or time_spent_seconds >= today_target_seconds
+    gate_reached = completed if book.is_short_reading else completed or time_spent_seconds >= today_target_seconds
 
     priority = focus == 'reading'
 
@@ -270,6 +270,10 @@ def build_reading_item(
     if chapter_title:
         subtitle_parts.append(chapter_title)
     subtitle_parts.append(f'Норма дня — {target_minutes} мин')
+    if book.is_short_reading:
+        count = len(book.reading.get('questions') or [])
+        subtitle_parts = [f'Прочитай текст и ответь на вопросы: {count}']
+        target_minutes = book.reading.get('estimated_minutes', 3)
 
     return PlanItem(
         id=f'reading:book:{book.id}',
@@ -296,5 +300,7 @@ def build_reading_item(
             'time_spent_seconds': time_spent_seconds,
             'gate_seconds': today_target_seconds,
             'gate_reached': gate_reached,
+            'completion_mode': 'short_reading' if book.is_short_reading else 'active_reading',
+            'goal_texts': 1 if book.is_short_reading else None,
         },
     )

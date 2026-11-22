@@ -184,7 +184,7 @@ def build_reading_slot(
     today_target_seconds = get_daily_reading_target_seconds(
         get_user_local_date(user_id, db), user_id=user_id,
     )
-    gate_reached = completed or time_spent_seconds >= today_target_seconds
+    gate_reached = completed if book.is_short_reading else completed or time_spent_seconds >= today_target_seconds
 
     level_too_hard, level_too_easy = _compute_level_mismatch(user_id, book.level, db)
 
@@ -199,7 +199,7 @@ def build_reading_slot(
         kind='reading',
         title=title,
         lesson_type=None,
-        eta_minutes=_READING_SLOT_ETA_MINUTES,
+        eta_minutes=(book.reading or {}).get('estimated_minutes', 3) if book.is_short_reading else _READING_SLOT_ETA_MINUTES,
         url=build_slot_url(f'/read/{book.id}', LinearSlotKind.BOOK),
         completed=completed,
         data={
@@ -214,6 +214,8 @@ def build_reading_slot(
             'time_spent_seconds': time_spent_seconds,
             'gate_seconds': today_target_seconds,
             'gate_reached': gate_reached,
+            'completion_mode': 'short_reading' if book.is_short_reading else 'active_reading',
+            'goal_texts': 1 if book.is_short_reading else None,
             'level_too_hard': level_too_hard,
             'level_too_easy': level_too_easy,
         },

@@ -12,6 +12,7 @@ from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.books.access import can_user_access_book
 from app.books.models import Block, Book, Chapter, Task, UserChapterProgress
+from app.books.short_readings import reading_summary
 from app.curriculum.cache import cached
 from app.study.models import QuizDeck, QuizDeckWord
 from app.utils.db import db
@@ -151,7 +152,13 @@ def get_book(book_id):
         'words_total': book.words_total,
         'unique_words': book.unique_words,
         'created_at': book.created_at.isoformat() if book.created_at else None,
-        'word_stats': word_stats
+        'word_stats': word_stats,
+        'author': book.author,
+        'level': book.level,
+        'summary': book.summary,
+        'cover_image': book.cover_image,
+        'chapters_cnt': book.chapters_cnt,
+        'reading': reading_summary(book),
     })
 
 
@@ -240,6 +247,9 @@ def get_chapter_content(book_id, chapter_num):
         'num': chapter.chap_num,
         'title': chapter.title,
         'text': chapter.text_raw,
+        # Formative practice only, not an assessment: hints and model answers
+        # deliberately travel with the text and remain available offline.
+        'reading': book.reading if book.is_short_reading else None,
         'next': next_chapter.chap_num if next_chapter else None,
         'prev': prev_chapter.chap_num if prev_chapter else None
     }

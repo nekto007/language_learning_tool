@@ -6,7 +6,8 @@ Rules:
 * ``rights_status='public_domain'`` books are accessible to every registered
   user, regardless of whether the optional ``books`` module is enabled for
   them. Public-domain titles have no expiration concept.
-* ``licensed`` and ``companion_only`` titles still require the admin-granted
+* Publisher-granted free ``licensed`` titles require a non-expired licence.
+* Other ``licensed`` and ``companion_only`` titles require the admin-granted
   ``books`` module *and* a non-expired licence.
 
 Use :func:`can_user_access_book` for ad-hoc checks and
@@ -18,7 +19,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from app.books.models import Book
 from app.modules.service import ModuleService
@@ -45,17 +46,14 @@ def books_section_visible(user) -> bool:
     """Should the user see the /books navigation link / catalog at all?
 
     A user with the ``books`` module is the obvious case. Users without the
-    module still see the section if there is at least one published
-    public-domain book — that single row is enough to make the catalog
-    non-empty for them.
+    module still see the section if at least one published book is accessible
+    under its public-domain or publisher-granted free licence.
     """
     if getattr(user, 'is_admin', False):
         return True
     if _user_has_books_module(user):
         return True
-    return Book.query.filter_by(
-        is_published=True, rights_status='public_domain',
-    ).first() is not None
+    return Book.query.filter(Book.is_published.is_(True), accessible_books_filter(user)).first() is not None
 
 
 def _user_has_books_module(user) -> bool:
@@ -82,6 +80,8 @@ def can_user_access_book(user, book: Book) -> bool:
     # licensed / companion_only paths
     if book.license_is_expired:
         return False
+    if book.rights_status == 'licensed' and getattr(book, 'is_free_access', False):
+        return True
     return _user_has_books_module(user)
 
 
@@ -102,10 +102,10 @@ def accessible_books_filter(user) -> Any:
         return Book.id.is_(None)
 
     public_domain = Book.rights_status == 'public_domain'
+    licensed_ok = or_(
+        Book.expiration_date.is_(None),
+        Book.expiration_date >= datetime.now(timezone.utc).date(),
+    )
     if _user_has_books_module(user):
-        licensed_ok = or_(
-            Book.expiration_date.is_(None),
-            Book.expiration_date >= datetime.now(timezone.utc).date(),
-        )
         return or_(public_domain, licensed_ok)
-    return public_domain
+    return or_(public_domain, and_(Book.is_free_access.is_(True), Book.rights_status == 'licensed', licensed_ok))

@@ -83,7 +83,9 @@ def _context(context):
         book = db.session.get(Book, clean['bookID'])
         # Keep only an accessible book identity; saving a user supplied excerpt
         # never grants access to a private or licensed book.
-        if book is None or not book.is_published or book.rights_status != 'public_domain':
+        if (book is None or not book.is_published or not (
+            book.rights_status == 'public_domain' or (book.is_free_access and book.rights_status == 'licensed' and not book.license_is_expired)
+        )):
             clean.pop('bookID')
     result = {'sentence': _text(context.get('sentence'), 1200), 'location': clean,
               'date': _date(context.get('date'))}
