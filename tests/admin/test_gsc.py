@@ -145,6 +145,72 @@ class TestGSCService:
         assert not is_invalid_refresh_token_error(Exception('temporary network failure'))
 
 
+class TestGSCTokenScopes:
+    """Exercise the real OAuthlib parser with Google's token responses."""
+
+    @staticmethod
+    def _exchange(payload):
+        import json
+
+        from requests import Request, Response
+
+        from app.admin.services.gsc_service import build_flow
+
+        flow = build_flow('https://example.com/callback', 'test-id', 'test-secret')
+        response = Response()
+        response.status_code = 200
+        response._content = json.dumps(payload).encode()
+        response.request = Request('POST', 'https://oauth2.googleapis.com/token').prepare()
+        with patch.object(flow.oauth2session, 'request', return_value=response) as request_token:
+            flow.fetch_token(code='test-code')
+        # The authorization code is exchanged once; scope expansion needs no retry.
+        request_token.assert_called_once()
+        return flow
+
+    @pytest.mark.parametrize('extra_scopes', ['', ' https://www.googleapis.com/auth/calendar'])
+    def test_accepts_required_scope_with_optional_previous_grants(self, extra_scopes, monkeypatch):
+        from app.admin.services.gsc_service import SCOPES
+
+        monkeypatch.delenv('OAUTHLIB_RELAX_TOKEN_SCOPE', raising=False)
+        scope = SCOPES[0] + extra_scopes
+        flow = self._exchange({
+            'access_token': 'access-token', 'refresh_token': 'refresh-token',
+            'token_type': 'Bearer', 'expires_in': 3600, 'scope': scope,
+        })
+        assert flow.credentials.refresh_token == 'refresh-token'
+        assert set(flow.credentials.granted_scopes) == set(scope.split())
+
+    @pytest.mark.parametrize('scope', ['', 'https://www.googleapis.com/auth/calendar', None])
+    def test_rejects_tokens_without_required_permission(self, scope, monkeypatch):
+        # Even a globally relaxed OAuthlib setting must not bypass our check.
+        monkeypatch.setenv('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
+        with pytest.raises(ValueError, match='required Search Console permission'):
+            self._exchange({
+                'access_token': 'access-token', 'token_type': 'Bearer',
+                'expires_in': 3600, 'scope': scope,
+            })
+
+    def test_accepts_omitted_scope_as_requested_per_oauth(self):
+        from app.admin.services.gsc_service import SCOPES
+
+        flow = self._exchange({
+            'access_token': 'access-token', 'token_type': 'Bearer', 'expires_in': 3600,
+        })
+        assert flow.credentials.scopes == SCOPES
+
+    def test_preserves_google_token_errors(self):
+        from oauthlib.oauth2 import InvalidGrantError
+
+        with pytest.raises(InvalidGrantError):
+            self._exchange({'error': 'invalid_grant'})
+
+    def test_preserves_missing_access_token_error(self):
+        from oauthlib.oauth2 import MissingTokenError
+
+        with pytest.raises(MissingTokenError):
+            self._exchange({'token_type': 'Bearer', 'expires_in': 3600})
+
+
 # ---------------------------------------------------------------------------
 # GSC route tests
 # ---------------------------------------------------------------------------
@@ -190,6 +256,7 @@ class TestGSCRoutes:
                 response = client.get('/admin/seo/connect')
             assert response.status_code == 302
             assert 'accounts.google.com' in response.headers['Location']
+            assert mock_flow.authorization_url.call_args.kwargs['include_granted_scopes'] == 'false'
         finally:
             app.config.pop('GOOGLE_CLIENT_ID', None)
             app.config.pop('GOOGLE_CLIENT_SECRET', None)

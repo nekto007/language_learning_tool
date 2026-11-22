@@ -52,7 +52,27 @@ def build_flow(redirect_uri: str, client_id: str, client_secret: str):
             'token_uri': 'https://oauth2.googleapis.com/token',
         }
     }
-    return Flow.from_client_config(client_config, scopes=SCOPES, redirect_uri=redirect_uri)
+    flow = Flow.from_client_config(client_config, scopes=SCOPES, redirect_uri=redirect_uri)
+
+    def accept_granted_scopes(response):
+        # Google can return previously granted permissions alongside GSC.
+        # Validate the required permission before letting OAuthlib parse that
+        # superset, without relaxing scope checks for other OAuth sessions.
+        try:
+            token = response.json()
+        except ValueError:
+            return response  # Leave malformed responses to OAuthlib.
+        if not isinstance(token, dict) or 'error' in token or 'access_token' not in token:
+            return response
+        if 'scope' in token:
+            scope = token['scope']
+            if not isinstance(scope, str) or not set(SCOPES).issubset(scope.split()):
+                raise ValueError('Google did not grant the required Search Console permission')
+            flow.oauth2session.scope = scope.split()
+        return response
+
+    flow.oauth2session.register_compliance_hook('access_token_response', accept_granted_scopes)
+    return flow
 
 
 _VERIFIED_PERMISSION_LEVELS = frozenset(

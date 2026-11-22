@@ -49,7 +49,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/landing/index.css') }}?v=20261113a">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing/index.css') }}?v=20261122a">
 {% endblock %}
 
 {% block body_class %}landing-page{% endblock %}
@@ -67,6 +67,8 @@
             Английский с первых фраз.<br>С объяснениями на русском.
         </h1>
         <p class="land-hero__desc land-anim land-anim--d2">
+            LLT English — сайт и приложение для изучения английского языка:
+            уроки A1–C1, грамматика, карточки слов, чтение книг и сохранение прогресса.
             Начинаете или возвращаетесь после перерыва? На уровне A1 начните
             с приветствий и знакомства. Практикуйте слова, слушайте записи
             и разбирайте ответы в своём темпе. Обучение бесплатное.
@@ -323,6 +325,18 @@
         </div>
     </section>
     {% endif %}
+
+    <section id="google-integration" class="land-google" aria-labelledby="google-integration-title">
+        <h2 id="google-integration-title" class="land-section__title">LLT English и сервисы Google</h2>
+        <p>В приложении можно по желанию войти через Google, чтобы создать или открыть свой учебный аккаунт.
+            Для входа используются идентификатор Google-аккаунта и подтверждённый адрес почты.
+            Администратор сайта может отдельно подключить Google Search Console только для чтения статистики
+            поиска и улучшения учебных страниц. Учащимся этот доступ предоставлять не требуется.</p>
+        <p>Ознакомиться с описанием платформы и попробовать пример задания на этой странице можно без входа.
+            Подробнее об использовании, хранении и удалении данных Google —
+            в <a href="{{ url_for('legal.privacy', _anchor='google-data') }}">политике конфиденциальности LLT English</a>.
+            По вопросам о приложении доступна <a href="{{ url_for('legal.mobile_support') }}">поддержка</a>.</p>
+    </section>
 
     <!-- Bottom CTA -->
     <section class="land-cta land-anim land-anim--d7">

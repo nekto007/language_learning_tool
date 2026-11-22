@@ -242,6 +242,19 @@
     line-height: 1.65;
 }
 
+.land-google {
+    margin-bottom: 2.5rem;
+    padding: 1.5rem;
+    background: var(--land-surface);
+    border: 1px solid var(--land-border);
+    border-radius: var(--land-radius);
+    line-height: 1.65;
+}
+
+.land-google p:last-child { margin-bottom: 0; }
+.land-google a { color: var(--land-primary-dark); }
+.land-google a:hover { text-decoration: underline; }
+
 /* === Features grid === */
 .land-features {
     margin-bottom: 3rem;
