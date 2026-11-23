@@ -1,4 +1,5 @@
 {# Unified daily plan partial: required / optional / setup. #}
+{% set dashboard_today = dashboard_today|default(false) %}
 {% set u_position = unified_plan.get('position') %}
 {% set u_progress = unified_plan.get('progress') or {} %}
 {% set u_module = unified_plan.get('module_progress') or {} %}
@@ -12,7 +13,7 @@
 {# The first ``u_optional_fold`` optional items render open; the rest render
    folded (``hidden``) and unfold in place — no network, no reload. A reload
    re-rendered the same first five and never showed anything new (DP-036). #}
-{% set u_optional_fold = 5 %}
+{% set u_optional_fold = 3 if dashboard_today else 5 %}
 {% set u_has_hidden_optional = (u_optional | length) > u_optional_fold %}
 {% set u_optional_hidden_count = ((u_optional | length) - u_optional_fold) if u_has_hidden_optional else 0 %}
 
@@ -122,6 +123,10 @@
 
 <section id="daily-plan" class="daily-plan" data-daily-plan="true" data-mode="unified">
 
+  {% if dashboard_today %}
+    {% include 'components/_today_header.html' %}
+    {% include 'components/_fox_day_complete.html' %}
+  {% else %}
   {# ── Header: human-readable spine position + module progress ── #}
   <header class="daily-plan__header">
     {% if u_position %}
@@ -215,6 +220,7 @@
       </ul>
     {% endif %}
   </header>
+  {% endif %}
 
   {# ── PROMINENT SETUP (book selection belongs above today's queue) ── #}
   {% if u_setup_prominent %}
@@ -244,6 +250,7 @@
 
   {# ── REQUIRED ── #}
   <div class="daily-plan__section daily-plan__section--required" data-section="required">
+    {% if not dashboard_today %}
     <div class="daily-plan__section-header">
       <h3 class="daily-plan__section-title">
         Обязательно сегодня
@@ -272,6 +279,7 @@
       {% endif %}
     </div>
 
+    {% endif %}
     {% if u_required %}
       {# Running counter of how many items of each kind we've seen so far —
          drives the "(N/M)" suffix on duplicate eyebrows. #}
@@ -306,10 +314,11 @@
           {% set _display_title = item.get('title') %}
           {% if _kind == 'curriculum' %}
               {% set _label = lesson_kind_labels.get(item.get('lesson_type'), 'Урок курса') %}
-              {% if _item_data.get('module_title') %}{% set _display_title = _item_data.get('module_title') %}{% endif %}
+              {% if not dashboard_today and _item_data.get('module_title') %}{% set _display_title = _item_data.get('module_title') %}{% endif %}
           {% elif _kind in kind_section_labels %}
               {% set _label = kind_section_labels[_kind] %}
           {% endif %}
+          {% if dashboard_today and not _label %}{% set _label = 'Задание' %}{% endif %}
           {# Disambiguate duplicate kinds in required: "(1/2)", "(2/2)". #}
           {% set _kind_total = kind_totals.get(_kind, 0) %}
           {% set _kind_seen = ns_kinds.counts.get(_kind, 0) + 1 %}
@@ -336,7 +345,7 @@
                 </span>
               </div>
             {% elif _state == 'locked' %}
-              <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
+              <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">{{ loop.index if dashboard_today else '🔒' }}</span>
               <div class="plan-item__body">
                 {% if _label %}
                   <span class="plan-item__kind-label">
@@ -360,12 +369,12 @@
                   {% endif %}
                 {% endif %}
                 <span class="plan-item__lock-hint">{% if _prev_label %}Откроется после шага «{{ _prev_label }}»{% else %}Откроется после предыдущего шага{% endif %}</span>
-                {% if _kind == 'srs' and _overdue_reviews > 0 %}
+                {% if not dashboard_today and _kind == 'srs' and _overdue_reviews > 0 %}
                   <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}{% if (_item_data.get('reviews_today') or 0) > 0 %} · повторено сегодня: {{ _item_data.get('reviews_today') }}{% endif %}</span>
                 {% endif %}
               </div>
             {% elif _state == 'blocked' %}
-              <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">&#128274;</span>
+              <span class="plan-item__marker plan-item__marker--locked" aria-hidden="true">{{ loop.index if dashboard_today else '🔒' }}</span>
               <div class="plan-item__body">
                 {% if _label %}
                   <span class="plan-item__kind-label">
@@ -376,7 +385,7 @@
                 {% endif %}
                 <span class="plan-item__title plan-item__title--locked">{{ _display_title }}</span>
                 <span class="plan-item__lock-hint">{{ _item_data.get('locked_reason') or 'Сначала завершите урок курса' }}</span>
-                {% if _kind == 'srs' and _overdue_reviews > 0 %}
+                {% if not dashboard_today and _kind == 'srs' and _overdue_reviews > 0 %}
                   <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}{% if (_item_data.get('reviews_today') or 0) > 0 %} · повторено сегодня: {{ _item_data.get('reviews_today') }}{% endif %}</span>
                 {% endif %}
               </div>
@@ -418,7 +427,18 @@
                     <span class="plan-item__subtitle">~{{ item.get('eta_minutes') }} мин</span>
                   {% endif %}
                 </a>
-                {% if _kind == 'srs' and _overdue_reviews > 0 %}
+                {% if dashboard_today and _kind == 'srs' %}
+                  <p class="today-review-note">Небольшое повторение, чтобы знакомые слова запоминались надолго.</p>
+                  {% if _overdue_reviews or _item_data.get('reason_hint') %}
+                  <details class="today-review-details">
+                    <summary>О повторении</summary>
+                    {% if _overdue_reviews %}<p>Всего ждут повторения: {{ _overdue_reviews }} {{ _debt_card_word }}. Сегодня занимаемся только выбранной порцией.</p>{% endif %}
+                    {% if _item_data.get('reason_hint') %}<p>{{ _item_data.get('reason_hint') }}</p>{% endif %}
+                    <a href="{{ url_for('study.settings') }}">Настроить нагрузку</a>
+                  </details>
+                  {% endif %}
+                {% else %}
+                {% if not dashboard_today and _kind == 'srs' and _overdue_reviews > 0 %}
                   <span class="plan-item__srs-debt">Долг: {{ _overdue_reviews }} {{ _debt_card_word }}{% if (_item_data.get('reviews_today') or 0) > 0 %} · повторено сегодня: {{ _item_data.get('reviews_today') }}{% endif %}</span>
                 {% endif %}
                 {% if _item_data.get('minimum_filler') %}
@@ -435,6 +455,7 @@
                       <a class="plan-item__hint-link" href="{{ url_for('study.settings') }}">{{ _('Лимиты') }}</a>
                     {% endif %}
                   </span>
+                {% endif %}
                 {% endif %}
                 {# Частичный прогресс SRS: «12 из 30» со стабильным знаменателем
                    (goal_total заморожен дневным снапшотом — живой total_show
@@ -456,7 +477,7 @@
               </div>
               <div class="plan-item__actions">
                 <a class="plan-item__cta plan-item__cta--button" href="{{ _url }}">
-                  Начать <span aria-hidden="true">→</span>
+                  {{ 'Продолжить' if dashboard_today and u_required_done else 'Начать' }} <span aria-hidden="true">→</span>
                 </a>
                 {% if _item_data.get('slot_skip_allowed') %}
                   <button type="button"
@@ -488,7 +509,9 @@
           </li>
         {% endfor %}
       </ol>
-      {% if not u_day_secured and u_required_left > 0 %}
+      {% if dashboard_today %}
+        {% if not u_day_secured %}<p class="today-plan-note">Этих шагов достаточно на сегодня. Можно заниматься в своём темпе.</p>{% endif %}
+      {% elif not u_day_secured and u_required_left > 0 %}
         <p class="daily-plan__close-hint">
           <span class="daily-plan__close-hint-icon" aria-hidden="true">⏱</span>
           {% if u_required_left == 1 %}
@@ -511,7 +534,7 @@
           </div>
         </div>
       {% endif %}
-    {% else %}
+    {% elif not dashboard_today or not u_day_secured %}
       <div class="daily-plan__empty-state" role="status" aria-live="polite">
         <span class="daily-plan__empty-icon" aria-hidden="true">&#128203;</span>
         {# A blocked spine also empties the required list, but for a reason the
@@ -618,12 +641,16 @@
       {% endif %}
     {% endfor %}
     {% set u_optional_current_idx = opt_ns.current_idx %}
+    {% if dashboard_today %}
+    <details class="today-extra"{% if u_day_secured or u_required_total == 0 %} open{% endif %}>
+      <summary>Хочешь ещё? <span>Задания сверх плана</span></summary>
+    {% endif %}
     <div class="daily-plan__section daily-plan__section--optional{% if u_optional_locked %} daily-plan__section--optional-locked{% endif %}"
          data-section="optional">
       <div class="daily-plan__section-header">
-        <h3 class="daily-plan__section-title">Дальше по курсу</h3>
+        <h3 class="daily-plan__section-title">{{ 'Можно продолжить' if dashboard_today else 'Дальше по курсу' }}</h3>
         {% if u_optional_locked %}
-          <p class="daily-plan__section-hint">Откроется после дневного минимума</p>
+          <p class="daily-plan__section-hint">{{ 'Будет доступно после сегодняшних шагов. Это необязательная часть.' if dashboard_today else 'Откроется после дневного минимума' }}</p>
         {% endif %}
       </div>
       <ol id="daily-plan-optional-list" class="daily-plan__list{% if u_optional_locked %} daily-plan__list--optional-preview{% endif %}">
@@ -664,6 +691,9 @@
               {% if _completed %}&#10003;{% elif _is_challenge and _bonus %}+{{ _bonus }} XP{% elif _kind == 'curriculum' %}<span class="plan-item__badge-icon" aria-hidden="true">📚</span>{% if _queue_pos %}<span class="plan-item__badge-step">{{ _queue_pos }}</span>{% endif %}{% else %}Бонус{% endif %}
             </span>
             <div class="plan-item__body">
+              {% if dashboard_today and _data.get('module_title') and _data.get('module_title') != u_module.get('module_title') %}
+                <span class="today-module-label">{% if _data.get('module_number') %}Модуль {{ _data.get('module_number') }} · {% endif %}{{ _data.get('module_title') }}</span>
+              {% endif %}
               {% if _label %}
                 <span class="plan-item__kind-label">{{ _label }}</span>
               {% endif %}
@@ -726,6 +756,7 @@
         <p class="daily-plan__section-hint daily-plan__section-hint--more">Следующие уроки появятся после выполнения текущих</p>
       {% endif %}
     </div>
+    {% if dashboard_today %}</details>{% endif %}
   {% endif %}
 
   {# ── SETUP (quiet footer; when prominent setup is on, only non-book items remain here). #}

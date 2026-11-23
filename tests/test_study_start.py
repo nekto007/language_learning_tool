@@ -172,9 +172,12 @@ class _DashboardParser(HTMLParser):
         self.details = []
         self.primary_ctas = []
         self.plan_details = []
+        self.daily_plans = []
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if attrs.get('data-daily-plan') == 'true':
+            self.daily_plans.append(attrs)
         if tag == 'details':
             self.details.append(attrs)
             if 'study-start-plan' in attrs.get('class', '').split():
@@ -253,13 +256,15 @@ class TestStudyStartDashboard:
         assert 'data-rank-code=' not in html
         assert 'class="dash-path__rail-wrap"' not in html
 
-    def test_regular_dashboard_retains_hero_rank_rail_and_expanded_plan(self):
+    def test_regular_dashboard_shows_one_today_queue_and_compact_progress(self):
         html = _dashboard_html(None)
         parser = _DashboardParser()
         parser.feed(html)
         assert parser.primary_ctas == []
         assert parser.plan_details == []
-        assert 'media/dashboard.png' in html
-        assert 'data-rank-code="novice"' in html
-        assert 'class="dash-path__rail-wrap"' in html
+        assert 'media/dashboard.png' not in html
+        assert 'data-rank-code=' not in html
+        assert 'class="today-sidebar"' in html
+        assert 'class="today-header"' in html
+        assert len(parser.daily_plans) == 1
         assert 'Full-plan lesson' in html

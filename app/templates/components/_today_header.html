@@ -1,0 +1,20 @@
+<header class="today-header">
+  <div class="today-header__top">
+    <div>
+      <p class="today-header__eyebrow">Маленькие шаги каждый день</p>
+      <h1>{{ 'На сегодня всё получилось!' if u_day_secured else 'План на сегодня' }}</h1>
+      <p class="today-header__description">
+        {% if u_day_secured %}Можно отдохнуть или продолжить по желанию.
+        {% elif u_required_total %}Выполнено {{ u_required_done }} из {{ u_required_total }}{% if u_eta_left %} · осталось примерно {{ u_eta_left }} мин{% endif %}
+        {% else %}Выбери доступное занятие ниже.{% endif %}
+      </p>
+    </div>
+    {% if not u_day_secured %}<img class="today-header__fox" src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" alt="" width="64" height="64">{% endif %}
+  </div>
+  {% if u_required_total %}
+    {% set today_percent = (u_required_done / u_required_total * 100)|round|int %}
+    <div class="today-header__progress" role="progressbar" aria-label="План на сегодня" aria-valuenow="{{ u_required_done }}" aria-valuemin="0" aria-valuemax="{{ u_required_total }}">
+      <span style="width: {{ today_percent }}%"></span>
+    </div>
+  {% endif %}
+</header>

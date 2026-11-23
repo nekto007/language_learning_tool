@@ -389,19 +389,21 @@ class TestContinuationQueueSection:
 
 
 class TestDashboardMobileOrder:
-    """Unified dashboard keeps the requested single-column order."""
+    """Today's queue precedes course exploration and secondary statistics."""
 
-    def test_unified_dashboard_sections_are_orderable_siblings(self):
+    def test_today_queue_precedes_collapsed_course_and_sidebar(self):
         with open(_DASHBOARD_UNIFIED_PATH, encoding='utf-8') as f:
             src = f.read()
-        assert src.index('class="dash-path__plan"') < src.index('class="dash-path__rail-wrap"')
-        assert src.index('class="dash-path__rail-wrap"') < src.index('class="dash-path__main"')
-        assert src.index('class="dash-path__main"') < src.index('class="dash-achievements dash-achievements--rail"')
+        assert src.index("partials/unified_daily_plan.html") < src.index("components/_learning_journey.html")
+        assert src.index("components/_learning_journey.html") < src.index("components/_today_sidebar.html")
+        assert "components/_dashboard_hero.html" not in src
+        assert 'dash-leaderboard__list' not in src
+        assert 'dash-achievements__categories' not in src
 
-    def test_today_plan_hero_renders_before_plan_tasks(self):
-        with open(_DASHBOARD_UNIFIED_PATH, encoding='utf-8') as f:
+    def test_today_header_renders_inside_plan_before_required_tasks(self):
+        with open(_UNIFIED_PLAN_PATH, encoding='utf-8') as f:
             src = f.read()
-        assert src.index("components/_dashboard_hero.html") < src.index("partials/unified_daily_plan.html")
+        assert src.index("components/_today_header.html") < src.index('data-section="required"')
 
 
 class TestBookSetupPlacement:

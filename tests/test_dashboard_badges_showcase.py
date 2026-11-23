@@ -319,7 +319,7 @@ class TestBadgeTooltipXSSSafety:
         import os
         template_path = os.path.join(
             os.path.dirname(__file__),
-            '../app/templates/words/dashboard_unified.html',
+            '../app/templates/components/_today_sidebar.html',
         )
         with open(template_path, encoding='utf-8') as f:
             source = f.read()

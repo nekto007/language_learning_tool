@@ -1,183 +1,43 @@
-{# Two-column dashboard for unified-plan users.
-
-Left column: hero + unified daily plan (required / optional / setup).
-Right column: focus targets, week rhythm, challenge — same rail used by the
-Path dashboard so visual context stays consistent across plan modes.
-
-Template inputs (set in app/words/routes.py:_render_unified_dashboard):
-  - unified_plan        → unified plan payload (mode='unified')
-  - plan_completion     → {item_id: bool}
-  - stats_card          → dict (streak/xp/goal)
-  - hero                → dict (title/subtitle/steps_done/steps_total/minutes_left)
-  - focus               → dict (targets list)
-  - week_rhythm         → dict (days list + summary)
-  - challenge_card      → dict or None
-#}
+{# One daily queue; course progress and personal statistics are secondary. #}
 {% extends "base.html" %}
-
-{% block body_class %}dashboard-path-wide{% endblock %}
-
+{% block body_class %}dashboard-path-wide dashboard-today{% endblock %}
 {% block extra_css %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/learning-journey.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning-journey.css', v='20261124-today') }}">
 {% if study_start %}<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/study-start.css') }}">{% endif %}
 {% endblock %}
-
 {% block content %}
 <div class="dash-unified-wrap{% if study_start %} dash-unified-wrap--study-start{% endif %}">
-
-  {% if study_start %}
-    {% include 'components/_study_start.html' %}
-  {% else %}
-
-  {# ── HERO BANNER (full width, top of dashboard) ── #}
-  {% if not unified_plan.get('learning_journey') %}
-  <a href="#daily-plan" class="dash-hero-banner" aria-label="Перейти к плану дня">
-    <img src="{{ url_for('static', filename='media/dashboard.png') }}"
-         alt="План дня в LLT English"
-         class="dash-hero-banner__img"
-         loading="eager"
-         decoding="async">
-  </a>
-  {% endif %}
-  {% endif %}
-
-  {# ── RANK BAND (full width, above the plan) ── #}
-  {% if rank_info and not study_start %}
-  <div class="dash-rank dash-rank--{{ rank_info.code }} dash-rank--band"
-       data-rank-code="{{ rank_info.code }}"
-       data-rank-plans="{{ rank_info.plans_completed }}"
-       title="Титул за выполненные дневные планы">
-    <div class="dash-rank__band-row">
-      <span class="dash-rank__badge" style="--rank-color: {{ rank_info.color }}">
-        <span class="dash-rank__icon" aria-hidden="true">{{ rank_info.icon }}</span>
-        <span class="dash-rank__name">{{ rank_info.display_name }}</span>
-      </span>
-      {% if rank_info.is_max %}
-        <span class="dash-rank__progress-text">Максимальный титул — {{ rank_info.plans_completed }} планов</span>
-      {% else %}
-        <div class="dash-rank__progress dash-rank__progress--band" data-rank-progress="true">
-          <span class="dash-rank__progress-text">{{ rank_info.plans_completed }}/{{ rank_info.next_threshold }} до «{{ rank_info.next_display_name }}»</span>
-          <span class="dash-rank__progress-track" aria-hidden="true">
-            <span class="dash-rank__progress-fill" style="width: {{ rank_info.progress_percent }}%; --rank-color: {{ rank_info.color }}"></span>
-          </span>
-        </div>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
-
-  <div class="dash-path" data-unified-plan="true">
-    <section class="dash-path__plan" aria-label="План на сегодня">
+  {% if study_start %}{% include 'components/_study_start.html' %}{% endif %}
+  <div class="today-layout" data-unified-plan="true">
+    <div class="today-layout__main">
       {% if study_start %}<details class="study-start-plan"><summary>Показать план на сегодня</summary>{% endif %}
-      {% include 'components/_dashboard_hero.html' %}
-      {% include 'components/_fox_day_complete.html' %}
+      {% with dashboard_today=true %}{% include 'partials/unified_daily_plan.html' %}{% endwith %}
       {% include 'components/_learning_journey.html' %}
-      {% include 'partials/unified_daily_plan.html' %}
       {% if study_start %}</details>{% endif %}
-    </section>
-
-    {% if not study_start %}
-    <div class="dash-path__rail-wrap">
-      {% include 'components/_dashboard_rail.html' %}
-    </div>
-
-    <main class="dash-path__main">
-      {% include 'partials/_weekly_report.html' %}
-      {# ── LEADERBOARD (below the plan in the left column) ── #}
-      {% if xp_leaderboard %}
-      <div class="dash-leaderboard dash-leaderboard--under-plan">
-        <h3 class="dash-leaderboard__heading">&#127942; Лидеры по XP</h3>
-        <div class="dash-leaderboard__list">
-          {% for entry in xp_leaderboard %}
-            <div class="dash-leaderboard__row{% if entry.id == current_user.id %} dash-leaderboard__highlight{% endif %}">
-              <span class="dash-leaderboard__rank">{{ loop.index }}</span>
-              <span class="dash-leaderboard__avatar">{{ entry.username[:1]|upper }}</span>
-              <span class="dash-leaderboard__name">{{ entry.username }}</span>
-              <span class="dash-leaderboard__xp">{{ entry.total_xp }} XP</span>
-              <span class="dash-leaderboard__level">Ур.&nbsp;{{ entry.level }}</span>
-            </div>
-          {% endfor %}
-        </div>
-        {% if user_xp_rank and user_xp_rank > 5 %}
-          <div class="dash-leaderboard__you">Вы на {{ user_xp_rank }}-м месте</div>
-        {% endif %}
-        <a href="{{ url_for('study.leaderboard') }}" class="dash-leaderboard__link">Полный рейтинг &rarr;</a>
-      </div>
-      {% endif %}
-    </main>
-    {% endif %}
-
-    {# ── ACHIEVEMENTS (right column on desktop, after module on mobile) ── #}
-    {% if not study_start and achievements_by_category and achievements_by_category.by_category %}
-    <div class="dash-achievements dash-achievements--rail">
-      <h3 class="dash-achievements__heading">&#127941; Достижения</h3>
-      <div class="dash-achievements__summary">
-        <span class="dash-achievements__count">{{ achievements_by_category.earned_count }} / {{ achievements_by_category.total_achievements }}</span>
-        <span class="dash-achievements__pct">{{ achievements_by_category.progress_percentage }}%</span>
-      </div>
-      <div class="dash-achievements__categories">
-        {% for category, items in achievements_by_category.by_category.items() %}
-          {% set earned_in_cat = items|selectattr('earned')|list|length %}
-          {% set total_in_cat = items|length %}
-          {% set pct = (earned_in_cat / total_in_cat * 100)|round|int if total_in_cat > 0 else 0 %}
-          <div class="dash-achievements__cat" title="{{ achievements_by_category.category_labels[category] or category }}: {{ earned_in_cat }} из {{ total_in_cat }} достижений">
-            <div class="dash-achievements__ring" style="--pct: {{ pct }}">
-              <svg viewBox="0 0 36 36" class="dash-achievements__svg">
-                <circle cx="18" cy="18" r="15.9" class="dash-achievements__track"></circle>
-                <circle cx="18" cy="18" r="15.9" class="dash-achievements__fill" stroke-dasharray="{{ pct }}, 100"></circle>
-              </svg>
-              <span class="dash-achievements__ring-text">{{ earned_in_cat }}/{{ total_in_cat }}</span>
-            </div>
-            <span class="dash-achievements__cat-name">{{ achievements_by_category.category_labels[category] or category }}</span>
-          </div>
-        {% endfor %}
-      </div>
-      {% if achievements_by_category.next_goals %}
-      <div class="dash-achievements__next">
-        <h4 class="dash-achievements__next-title">Следующие цели</h4>
-        {% for item in achievements_by_category.next_goals[:4] %}
-          {% set ach = item.achievement %}
-          {% set ach_desc = ach.description or 'Описание пока не добавлено' %}
-          <div class="dash-achievements__goal"
-               tabindex="0"
-               title="{{ ach.name }} — {{ ach_desc }}"
-               aria-label="{{ ach.name }}. {{ ach_desc }}">
-            <span class="dash-achievements__goal-icon" aria-hidden="true">{{ ach.icon or '🏆' }}</span>
-            <span class="dash-achievements__goal-copy">
-              <span class="dash-achievements__goal-name">{{ ach.name }}</span>
-              <span class="dash-achievements__goal-desc">{{ ach_desc }}</span>
-            </span>
-            {% if ach.xp_reward %}
-            <span class="dash-achievements__goal-xp">+{{ ach.xp_reward }} XP</span>
-            {% endif %}
-          </div>
-        {% endfor %}
-      </div>
+      {% if not study_start and weekly_report %}
+      <details class="today-history">
+        <summary>Итоги прошлой недели</summary>
+        {% include 'partials/_weekly_report.html' %}
+      </details>
       {% endif %}
     </div>
-    {% endif %}
+    {% if not study_start %}{% include 'components/_today_sidebar.html' %}{% endif %}
   </div>
-
 </div>
-
-{# Book-select modal: opened by the setup_book item when the URL resolves to
-   `#book-select-modal` (no UserReadingPreference yet). Reuses linear's modal
-   JS (data-linear-close hooks). #}
 <div id="book-select-modal" class="linear-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="book-select-modal-title">
-    <div class="linear-modal__backdrop" data-linear-close="book-select-modal"></div>
-    <div class="linear-modal__panel">
-        <div class="linear-modal__header">
-            <h2 class="linear-modal__title" id="book-select-modal-title">Выбрать книгу для чтения</h2>
-            <button type="button" class="linear-modal__close" data-linear-close="book-select-modal" aria-label="Закрыть">×</button>
-        </div>
-        <div class="linear-modal__body">
-            <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
-            <div id="book-select-modal-list" class="linear-modal__grid"></div>
-        </div>
+  <div class="linear-modal__backdrop" data-linear-close="book-select-modal"></div>
+  <div class="linear-modal__panel">
+    <div class="linear-modal__header">
+      <h2 class="linear-modal__title" id="book-select-modal-title">Выбрать книгу для чтения</h2>
+      <button type="button" class="linear-modal__close" data-linear-close="book-select-modal" aria-label="Закрыть">×</button>
     </div>
+    <div class="linear-modal__body">
+      <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
+      <div id="book-select-modal-list" class="linear-modal__grid"></div>
+    </div>
+  </div>
 </div>
-
 <script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fox-day-complete.js') }}"></script>
 {% if study_start %}<script src="{{ url_for('static', filename='js/onboarding/study-start.js') }}" defer></script>{% endif %}

@@ -1,24 +1,21 @@
 {% set journey = unified_plan.get('learning_journey') %}
 {% if journey %}
-<section class="learning-journey" aria-labelledby="journey-title">
-  <p class="learning-journey__eyebrow">{{ journey.level }} · Модуль {{ journey.module_number }}</p>
-  <h2 id="journey-title">{{ journey.title }}</h2>
+<details class="learning-journey" aria-labelledby="journey-title">
+  <summary class="learning-journey__summary">
+    <span><span class="learning-journey__eyebrow">Твой курс · {{ journey.level }} · Модуль {{ journey.module_number }}</span>
+    <span id="journey-title" class="learning-journey__title">{{ journey.title }}</span></span>
+    <span class="learning-journey__count">{{ journey.completed }} из {{ journey.total }}<span class="learning-journey__chevron" aria-hidden="true">⌄</span></span>
+  </summary>
+  <div class="learning-journey__content">
   <p class="learning-journey__goal">Цель модуля: {{ journey.goal }}</p>
-  {% set action = namespace(item=none) %}
-  {% for item in unified_plan.get('required', []) %}
-    {% if action.item is none and not item.get('completed') and not item.get('skipped') and not item.get('blocked') %}{% set action.item = item %}{% endif %}
-  {% endfor %}
-  {% if action.item %}
-  <a class="fox-complete__dismiss learning-journey__start" href="{{ action.item.url }}">Продолжить · {{ action.item.title }}</a>
-  {% endif %}
   <div class="learning-journey__skills" aria-label="Практика четырёх навыков в модуле">
     {% for skill in journey.skills %}
     <span><strong>{{ skill.title }}</strong><small>{{ skill.completed }}/{{ skill.total }} занятий</small></span>
     {% endfor %}
   </div>
-  <p class="learning-journey__hint">Практикуем четыре навыка по ходу модуля.</p>
-  <details class="learning-journey__route">
-    <summary>Маршрут модуля · {{ journey.completed }} из {{ journey.total }}</summary>
+  <p class="learning-journey__hint">Количество выполненных занятий по каждому навыку.</p>
+  <div class="learning-journey__route">
+    <h3>Маршрут модуля</h3>
     <ol>
       {% for node in journey.nodes %}
       <li class="learning-journey__node learning-journey__node--{{ node.state }}"{% if node.item_id %} aria-current="step"{% endif %}>
@@ -30,6 +27,23 @@
       </li>
       {% endfor %}
     </ol>
-  </details>
-</section>
+  </div>
+  </div>
+</details>
+{% endif %}
+{% if not journey and unified_plan.get('position') %}
+{% set position = unified_plan.position %}
+{% set course_module = unified_plan.get('module_progress') or {} %}
+<details class="learning-journey">
+  <summary class="learning-journey__summary">
+    <span><span class="learning-journey__eyebrow">Твой курс{% if position.get('level_code') %} · {{ position.get('level_code') }}{% endif %}{% if position.get('module_number') is not none %} · Модуль {{ position.get('module_number') }}{% endif %}</span>
+      <span class="learning-journey__title">{{ course_module.get('module_title') or 'Продолжение курса' }}</span></span>
+    <span class="learning-journey__count">{% if course_module.get('lessons_total') %}{{ course_module.get('lessons_completed', 0) }} из {{ course_module.get('lessons_total') }}{% endif %}<span class="learning-journey__chevron" aria-hidden="true">⌄</span></span>
+  </summary>
+  <div class="learning-journey__content">
+    {% if position.get('level_code') and position.get('module_number') is not none %}
+    <a class="today-course-link" href="{{ url_for('learn.learn_by_module', level_code=position.level_code|lower, module_number=position.module_number) }}">Открыть модуль</a>
+    {% endif %}
+  </div>
+</details>
 {% endif %}
