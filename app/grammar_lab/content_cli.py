@@ -12,7 +12,9 @@ def register_content_commands(app):
     @click.option("--level", type=click.Choice(["A1", "A2", "B1", "B2", "C1"]))
     @click.option("--apply", is_flag=True, help="Apply the validated content in one transaction.")
     @click.option("--backup-dir", type=click.Path(file_okay=False, path_type=Path))
-    def install(topics, level, apply, backup_dir):
+    @click.option("--content-dir", type=click.Path(exists=True, file_okay=False, path_type=Path),
+                  help="Private authored pack directory; defaults to the bundled catalogue.")
+    def install(topics, level, apply, backup_dir, content_dir):
         """Validate all 86 topics; show a plan unless --apply is passed."""
         from app.grammar_lab.content_catalog import expected_slugs
         from app.grammar_lab.content_install import install_catalog
@@ -21,7 +23,7 @@ def register_content_commands(app):
             raise click.UsageError("Use --topic or --level, not both")
         slugs = list(topics) or ([s for s in expected_slugs() if s.startswith(level.lower() + "-")] if level else None)
         try:
-            result = install_catalog(slugs=slugs, apply=apply, backup_dir=backup_dir)
+            result = install_catalog(slugs=slugs, apply=apply, backup_dir=backup_dir, root=content_dir)
         except ValueError as error:
             raise click.ClickException(str(error)) from error
         click.echo(json.dumps(result, ensure_ascii=False, indent=2))

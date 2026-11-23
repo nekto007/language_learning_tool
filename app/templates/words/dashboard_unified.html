@@ -19,6 +19,7 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 
 {% block extra_css %}
 {{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning-journey.css') }}">
 {% if study_start %}<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/study-start.css') }}">{% endif %}
 {% endblock %}
 
@@ -30,6 +31,7 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
   {% else %}
 
   {# ── HERO BANNER (full width, top of dashboard) ── #}
+  {% if not unified_plan.get('learning_journey') %}
   <a href="#daily-plan" class="dash-hero-banner" aria-label="Перейти к плану дня">
     <img src="{{ url_for('static', filename='media/dashboard.png') }}"
          alt="План дня в LLT English"
@@ -37,6 +39,7 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
          loading="eager"
          decoding="async">
   </a>
+  {% endif %}
   {% endif %}
 
   {# ── RANK BAND (full width, above the plan) ── #}
@@ -68,6 +71,8 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
     <section class="dash-path__plan" aria-label="План на сегодня">
       {% if study_start %}<details class="study-start-plan"><summary>Показать план на сегодня</summary>{% endif %}
       {% include 'components/_dashboard_hero.html' %}
+      {% include 'components/_fox_day_complete.html' %}
+      {% include 'components/_learning_journey.html' %}
       {% include 'partials/unified_daily_plan.html' %}
       {% if study_start %}</details>{% endif %}
     </section>
@@ -174,5 +179,6 @@ Template inputs (set in app/words/routes.py:_render_unified_dashboard):
 </div>
 
 <script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}"></script>
+<script src="{{ url_for('static', filename='js/fox-day-complete.js') }}"></script>
 {% if study_start %}<script src="{{ url_for('static', filename='js/onboarding/study-start.js') }}" defer></script>{% endif %}
 {% endblock %}

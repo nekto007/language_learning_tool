@@ -206,8 +206,8 @@ class TestNoFalseMilestones:
 class TestSetup:
 
     @pytest.mark.smoke
-    def test_setup_book_when_no_preference(self, db_session):
-        """User without UserReadingPreference sees setup_book."""
+    def test_a1_reading_stays_inside_course_without_book_setup(self, db_session):
+        """A1 needs no additional daily book or manual text selection."""
         level = _make_level(db_session, code='A1', order=1)
         module = _make_module(db_session, level)
         _make_lesson(db_session, module)
@@ -216,10 +216,11 @@ class TestSetup:
         plan = get_daily_plan(user.id, real_db)
 
         setup_kinds = [it['kind'] for it in plan['setup']]
-        assert 'setup_book' in setup_kinds
+        assert 'setup_book' not in setup_kinds
+        assert plan['learning_journey']['level'] == 'A1'
 
     def test_setup_book_url_opens_modal(self, db_session):
-        user = _make_user(db_session, onboarding_level='A1')
+        user = _make_user(db_session, onboarding_level='B1')
 
         plan = get_daily_plan(user.id, real_db)
 

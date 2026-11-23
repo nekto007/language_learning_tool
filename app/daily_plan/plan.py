@@ -484,7 +484,9 @@ def build_setup(user_id: int, db: Any) -> list[PlanItem]:
     """
     items: list[PlanItem] = []
 
-    if reading_preference_needs_setup(user_id, db):
+    from app.daily_plan.learning_journey import is_a1_learner
+
+    if not is_a1_learner(user_id, db) and reading_preference_needs_setup(user_id, db):
         items.append(build_setup_book_item())
 
     from app.daily_plan.linear.progression import find_next_lesson_linear
@@ -638,8 +640,16 @@ def get_daily_plan(
             'recommended': None, 'days_hit': 0, 'behind': False,
         }
 
+    from app.daily_plan.learning_journey import build_journey
+    from app.utils.time_utils import get_user_local_date
+
+    journey = build_journey(user_id, session, next_lesson, required_dicts, optional_dicts)
     return {
         'mode': 'unified',
+        'learning_journey': journey,
+        # Stable server study-day identity. Clients never deduplicate by their
+        # device calendar, nor claim completion from a cached plan.
+        'study_day': get_user_local_date(user_id, session).isoformat(),
         'pace': pace_info,
         'position': _position_from_lesson(next_lesson),
         'progress': _level_progress_to_dict(level_progress),

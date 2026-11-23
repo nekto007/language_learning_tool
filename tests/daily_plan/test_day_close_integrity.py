@@ -489,15 +489,18 @@ class TestQuizAndFinalTestRetakeXpGate:
             '/curriculum/lesson/{lesson_id}/final_test',
         ],
     )
-    def test_final_test_uses_its_content_passing_threshold(
+    @pytest.mark.parametrize(('score', 'passed'), [(74.99, False), (75, True), (80, True)])
+    def test_final_test_uses_product_passing_threshold_for_xp(
         self,
         db_session,
         authenticated_client,
         test_user,
         test_module,
         url_template,
+        score,
+        passed,
     ):
-        """80 must not pay when this final test requires 90."""
+        """The owner's 75% policy overrides stale authored 90%, including XP."""
         from unittest.mock import patch
 
         lesson = _graded_lesson(
@@ -517,8 +520,8 @@ class TestQuizAndFinalTestRetakeXpGate:
         ))
         db_session.commit()
 
-        below_custom_bar = {
-            'score': 80,
+        graded = {
+            'score': score,
             'feedback': {},
             'correct_answers': 4,
             'total_questions': 5,
@@ -527,7 +530,7 @@ class TestQuizAndFinalTestRetakeXpGate:
         }
         with patch(
             'app.curriculum.routes.grammar_quiz_lessons.process_quiz_submission',
-            return_value=below_custom_bar,
+            return_value=graded,
         ):
             response = authenticated_client.post(
                 url_template.format(lesson_id=lesson.id),
@@ -536,6 +539,7 @@ class TestQuizAndFinalTestRetakeXpGate:
             )
 
         assert response.status_code == 200
-        assert _linear_events(
+        events = _linear_events(
             db_session, test_user.id, 'linear_curriculum_final_test',
-        ) == []
+        )
+        assert len(events) == (1 if passed else 0)

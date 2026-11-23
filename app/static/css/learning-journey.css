@@ -1,0 +1,25 @@
+.learning-journey,.fox-complete{border:1px solid var(--border-light);border-radius:24px;padding:clamp(18px,4vw,28px);margin-block:18px;background:var(--bg-primary);color:var(--text-primary)}
+.learning-journey h2,.fox-complete h2{font-size:1.4rem;margin:8px 0 12px;line-height:1.3}
+.learning-journey__eyebrow{font-size:.85rem;font-weight:700;color:var(--primary-600);margin:0}
+.learning-journey__goal{font-size:1.05rem;line-height:1.6;max-width:60ch}
+.learning-journey__start{display:inline-block;box-sizing:border-box;max-width:100%;white-space:normal;overflow-wrap:anywhere;text-decoration:none;line-height:1.5;margin-block:4px 8px}
+.learning-journey__skills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}
+.learning-journey__skills>span{padding:12px;border-radius:14px;background:var(--bg-secondary)}
+.learning-journey small{display:block;color:var(--text-secondary);font-size:.85rem;margin-top:4px}
+.learning-journey__hint{color:var(--text-secondary);font-size:.85rem;line-height:1.5;margin:12px 0 18px}
+.learning-journey summary{cursor:pointer;font-weight:700;min-height:44px;padding-block:12px}
+.learning-journey ol{list-style:none;margin:12px 0 0;padding:0}
+.learning-journey__node{display:flex;gap:14px;align-items:center;position:relative;min-height:84px;padding:12px 0}
+.learning-journey__node:not(:last-child):before{content:"";position:absolute;width:3px;top:62px;bottom:-12px;left:25px;background:var(--border-light)}
+.learning-journey__circle{display:grid;place-items:center;flex-shrink:0;width:52px;height:52px;border:3px solid var(--border-medium);border-radius:50%;font-weight:700;background:var(--bg-secondary);color:var(--text-secondary)}
+.learning-journey__node--completed .learning-journey__circle{color:var(--text-link);border-color:var(--primary-400);background:rgba(var(--primary-500-rgb),.12)}
+.learning-journey__node[aria-current=step] .learning-journey__circle{background:var(--primary-600);color:white;border-color:var(--primary-600);box-shadow:0 0 0 5px var(--primary-100)}
+.learning-journey__node a{display:inline-block;min-height:44px;padding-block:10px;color:var(--text-link);font-weight:700}
+.fox-complete{display:flex;gap:24px;align-items:center;background:linear-gradient(135deg,rgba(var(--primary-500-rgb),.12),var(--bg-primary));border-color:var(--primary-200)}
+.fox-complete__fox{object-fit:cover;border-radius:28px;flex-shrink:0}
+.fox-complete__dismiss{padding:10px 22px;border:0;border-radius:14px;background:var(--primary-600);color:#fff;font-weight:700;min-height:44px}
+.fox-complete--animate .fox-complete__fox{animation:fox-day-hop .65s ease-in-out 2}
+@keyframes fox-day-hop{0%,100%{transform:translateY(0) rotate(0)}45%{transform:translateY(-10px) rotate(-5deg)}75%{transform:translateY(-3px) rotate(3deg)}}
+@media(min-width:700px){.learning-journey__skills{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:400px){.fox-complete{flex-direction:column;text-align:center}.fox-complete__fox{width:96px;height:96px}}
+@media(prefers-reduced-motion:reduce){.fox-complete--animate .fox-complete__fox{animation:none}}

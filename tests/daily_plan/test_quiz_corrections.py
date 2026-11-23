@@ -175,7 +175,7 @@ def course(native_app):
     db.session.add_all(lessons)
     db.session.flush()
     rows = [LessonProgress(user_id=user.id, lesson_id=unit.id, status='completed' if n < 3 else 'in_progress', score=40,
-                           data={'quiz_correction': marker()} if n == 3 else {})
+                           data={'quiz_correction': marker(created=datetime.now(UTC).isoformat())} if n == 3 else {})
             for n, unit in enumerate(lessons, 1)]
     db.session.add_all(rows)
     db.session.commit()

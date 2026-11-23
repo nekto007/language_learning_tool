@@ -1,0 +1,35 @@
+{% set journey = unified_plan.get('learning_journey') %}
+{% if journey %}
+<section class="learning-journey" aria-labelledby="journey-title">
+  <p class="learning-journey__eyebrow">{{ journey.level }} · Модуль {{ journey.module_number }}</p>
+  <h2 id="journey-title">{{ journey.title }}</h2>
+  <p class="learning-journey__goal">Цель модуля: {{ journey.goal }}</p>
+  {% set action = namespace(item=none) %}
+  {% for item in unified_plan.get('required', []) %}
+    {% if action.item is none and not item.get('completed') and not item.get('skipped') and not item.get('blocked') %}{% set action.item = item %}{% endif %}
+  {% endfor %}
+  {% if action.item %}
+  <a class="fox-complete__dismiss learning-journey__start" href="{{ action.item.url }}">Продолжить · {{ action.item.title }}</a>
+  {% endif %}
+  <div class="learning-journey__skills" aria-label="Практика четырёх навыков в модуле">
+    {% for skill in journey.skills %}
+    <span><strong>{{ skill.title }}</strong><small>{{ skill.completed }}/{{ skill.total }} занятий</small></span>
+    {% endfor %}
+  </div>
+  <p class="learning-journey__hint">Практикуем четыре навыка по ходу модуля.</p>
+  <details class="learning-journey__route">
+    <summary>Маршрут модуля · {{ journey.completed }} из {{ journey.total }}</summary>
+    <ol>
+      {% for node in journey.nodes %}
+      <li class="learning-journey__node learning-journey__node--{{ node.state }}"{% if node.item_id %} aria-current="step"{% endif %}>
+        <span class="learning-journey__circle" aria-hidden="true">{{ '✓' if node.state == 'completed' else node.number }}</span>
+        <div>
+          {% if node.url %}<a href="{{ node.url }}">{{ node.title }}</a>{% else %}<strong>{{ node.title }}</strong>{% endif %}
+          <small>{{ 'Выполнено' if node.state == 'completed' else 'Работа над ошибками' if node.state == 'correction' else 'Можно начать' if node.state == 'current' else 'Впереди' }}{% if node.today %} · В плане сегодня{% endif %}</small>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </details>
+</section>
+{% endif %}

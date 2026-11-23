@@ -113,7 +113,11 @@ def build_required_snapshot(
         else curriculum_lessons[1:]
     )
     srs_item = _srs_item_dict(user_id, db, as_deck_quiz=first_is_card)
-    reading_item = _reading_item_dict(user_id, db)
+    from app.daily_plan.learning_journey import is_a1_lesson
+
+    # A1 reading is already part of the module's curriculum, not another
+    # mandatory daily book/text. Existing frozen snapshots are left intact.
+    reading_item = None if is_a1_lesson(first_lesson) else _reading_item_dict(user_id, db)
 
     final_test_candidates = (
         remaining_curriculum_lessons
@@ -201,6 +205,10 @@ def _minimum_filler_item_dict(user_id: int, db: Any) -> dict[str, Any] | None:
 def _ensure_minimum_items(user_id: int, db: Any, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Append one short filler when the required section is thinner than the floor."""
     if len(items) >= REQUIRED_MIN_ITEMS or not items:
+        return items
+    from app.daily_plan.learning_journey import is_a1_learner
+
+    if is_a1_learner(user_id, db):
         return items
     filler = _minimum_filler_item_dict(user_id, db)
     if filler is None or any(it.get('id') == filler.get('id') for it in items):

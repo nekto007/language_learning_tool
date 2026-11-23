@@ -95,8 +95,8 @@ def test_reading_xp_checks_updated_goal_before_awarding(app, db_session):
     with patch('app.daily_plan.linear.xp.is_linear_user', return_value=True), \
          patch('app.daily_plan.linear.slots.reading_slot.get_user_reading_preference',
                return_value=SimpleNamespace(book_id=123)), \
-         patch('app.books.reading_session.has_min_reading_time_today',
-               side_effect=lambda *args, minimum_seconds: 300 >= minimum_seconds), \
+         patch('app.books.reading_session.get_book_reading_seconds_today', return_value=300), \
+         patch('app.books.reading_session.was_book_completed_today', return_value=False), \
          patch('app.daily_plan.linear.xp.award_linear_slot_xp_idempotent') as award:
         assert maybe_award_book_reading_xp(user.id, db_session=db) is None
         award.assert_not_called()

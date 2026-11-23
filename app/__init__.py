@@ -661,6 +661,8 @@ def _register_cli_commands(app):
     register_auth_mail_commands(app)
     from app.books.short_readings import register_short_reading_commands
     register_short_reading_commands(app)
+    from app.curriculum.journey_pack import register_journey_commands
+    register_journey_commands(app)
 
     @app.cli.command('seed')
     def seed_cmd():
