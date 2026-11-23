@@ -91,20 +91,26 @@ def add_security_headers(app: Flask):
         metrika_connect = ''
         metrika_frames = ''
         if analytics:
-            script_src_parts.extend((*METRIKA_COLLECTORS, 'https://yastatic.net'))
+            # Host sources inherit the HTTPS document scheme. Keep the full
+            # allowlist without repeatedly spelling "https://" in the header.
+            metrika_hosts = tuple(host.removeprefix('https://') for host in METRIKA_COLLECTORS)
+            script_src_parts.extend((*metrika_hosts, 'https://yastatic.net'))
             metrika_connect = ' ' + ' '.join(METRIKA_COLLECTORS)
+            # Regional cookie/matching frames are used with Webvisor off too.
+            # Scheme-less sources inherit HTTPS, which metrika_enabled requires.
+            metrika_frames = (
+                "frame-src 'self' blob: "
+                + ' '.join(metrika_hosts)
+                + '; '
+            )
             if analytics['options']['webvisor']:
                 metrika_connect += ' ' + ' '.join(
                     host.replace('https://', 'wss://') for host in METRIKA_COLLECTORS
                 )
-                metrika_frames = (
-                    # The replay frame uses the fixed tag host (or a blob).
-                    # Regional endpoints are collectors, not frame sources.
-                    # Repeating that list here overflows nginx's default 4K
-                    # upstream header buffer once a guest gets a session cookie.
-                    "child-src 'self' blob: https://mc.yandex.ru; "
-                    "frame-src 'self' blob: https://mc.yandex.ru; "
-                )
+                # child-src is the worker fallback; frames already have an
+                # explicit directive. Do not duplicate the regional list here:
+                # nginx must also fit the guest session cookie into 4K headers.
+                metrika_frames += "child-src 'self' blob:; "
                 frame_ancestors = "'self' " + ' '.join(METRIKA_VIEWERS)
                 # CSP frame-ancestors is the modern restriction. XFO DENY
                 # would prevent the public-page replay viewer in older clients.

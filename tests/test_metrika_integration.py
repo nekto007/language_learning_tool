@@ -1,5 +1,9 @@
 """The real layouts deliver goals with GA disabled and keep admins excluded."""
+from urllib.parse import urlsplit
+
 import pytest
+
+from app.utils.metrika import METRIKA_COLLECTORS
 
 
 @pytest.fixture
@@ -63,6 +67,10 @@ def test_guest_response_headers_fit_nginx_with_attribution_cookie(client, path):
     assert header_bytes < 3500, f'Upstream headers too close to nginx 4K limit: {header_bytes}'
     policy = response.headers['Content-Security-Policy']
     directives = dict(part.strip().split(' ', 1) for part in policy.split(';') if part.strip())
-    assert directives['frame-src'] == "'self' blob: https://mc.yandex.ru"
+    frame_sources = set(directives['frame-src'].split())
+    assert {urlsplit(host).hostname for host in METRIKA_COLLECTORS} <= frame_sources
+    assert 'mc.yandex.md' in frame_sources  # production's regional zc.html iframe
+    assert not frame_sources & {'*', 'https:', 'https://*.yandex.ru'}
+    assert directives['child-src'] == "'self' blob:"
     assert 'https://mc.yandex.com.tr' in directives['connect-src']
     assert 'wss://mc.webvisor.com' in directives['connect-src']

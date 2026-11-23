@@ -98,6 +98,12 @@ def test_private_routes_do_not_load_counter_or_relax_csp(metric_app, path):
 @pytest.mark.parametrize('path', ['/register', '/login', '/dashboard'])
 def test_forms_and_account_pages_never_enable_replay(metric_app, path):
     assert context(metric_app, path)['options']['webvisor'] is False
+    response = metric_app.test_client().get(path, base_url='https://llt-english.com')
+    policy = response.headers['Content-Security-Policy']
+    directives = dict(part.strip().split(' ', 1) for part in policy.split(';') if part.strip())
+    assert 'mc.yandex.md' in directives['frame-src'].split()
+    assert directives['frame-ancestors'] == "'none'"
+    assert 'child-src' not in directives
 
 
 def test_authenticated_person_never_gets_replay_and_admin_is_excluded(metric_app):
