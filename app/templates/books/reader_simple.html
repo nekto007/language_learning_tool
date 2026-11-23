@@ -120,7 +120,8 @@
       {% endif %}
 
       {% if book.is_short_reading %}
-      <section id="short-reading-practice" class="short-reading-practice" aria-label="Проверка понимания"></section>
+      <section id="short-reading-practice" class="short-reading-practice" aria-label="Проверка понимания"
+               data-account="{{ current_user.id }}" data-book="{{ book.id }}" data-chapter="{{ current_chapter.id }}"></section>
       <button id="short-reading-finish" type="button" class="rdr-bottom-btn rdr-bottom-btn--primary" disabled>Завершить чтение текста</button>
       <p id="short-reading-save-status" role="status" aria-live="polite"></p>
       <script id="short-reading-data" type="application/json" nonce="{{ csp_nonce }}">{{ book.reading | tojson }}</script>
@@ -289,7 +290,9 @@
 const chapterContent = document.getElementById('chapterContent');
 const fontSizeValue = document.getElementById('fontSizeValue');
 const sidebarFontSize = document.getElementById('sidebarFontSize');
-let currentFontSize = parseInt(localStorage.getItem('readerFontSize') || '18');
+function readerPreference(key, fallback) { try { return localStorage.getItem(key) ?? fallback; } catch (_) { return fallback; } }
+function saveReaderPreference(key, value) { try { localStorage.setItem(key, value); } catch (_) {} }
+let currentFontSize = parseInt(readerPreference('readerFontSize', '18'));
 
 chapterContent.className = 'text-size-' + currentFontSize;
 if (fontSizeValue) fontSizeValue.textContent = currentFontSize + 'px';
@@ -300,7 +303,7 @@ function changeFontSize(delta) {
     chapterContent.className = 'text-size-' + currentFontSize;
     if (fontSizeValue) fontSizeValue.textContent = currentFontSize + 'px';
     if (sidebarFontSize) sidebarFontSize.textContent = currentFontSize + 'px';
-    localStorage.setItem('readerFontSize', currentFontSize);
+    saveReaderPreference('readerFontSize', currentFontSize);
 }
 
 // Progress tracking
@@ -310,8 +313,8 @@ const progressText = document.getElementById('readingProgress');
 let saveTimeout = null;
 const isShortReading = {{ book.is_short_reading | tojson }};
 let shortPracticeComplete = false;
-function guardedReadingOffset(value) {
-    return isShortReading && !shortPracticeComplete ? Math.min(0.89, value) : value;
+function guardedReadingOffset(value, explicitFinish = false) {
+    return isShortReading && !(explicitFinish && shortPracticeComplete) ? Math.min(0.89, value) : value;
 }
 document.addEventListener('shortReadingPracticeComplete', () => {
     shortPracticeComplete = true;
@@ -324,10 +327,11 @@ if (shortFinish) shortFinish.addEventListener('click', async () => {
     shortFinish.disabled = true;
     const status = document.getElementById('short-reading-save-status');
     status.textContent = 'Сохраняем завершение текста…';
-    const result = await saveProgress(1);
-    if (result && result.book_completed) {
+    const result = await saveProgress(1, true);
+    if (result && result.success === true) {
         status.textContent = 'Текст прочитан. Результат сохранён в аккаунте.';
         shortFinish.textContent = 'Текст прочитан';
+        document.dispatchEvent(new CustomEvent('shortReadingFinishSaved'));
     } else {
         status.textContent = 'Не удалось сохранить результат. Попробуй ещё раз.';
         shortFinish.disabled = false;
@@ -388,8 +392,8 @@ function updateSidebarProgress(progress) {
 
 var _readingStepCompleteDispatched = false;
 
-function saveProgress(offsetPct) {
-    offsetPct = guardedReadingOffset(offsetPct);
+function saveProgress(offsetPct, explicitFinish = false) {
+    offsetPct = guardedReadingOffset(offsetPct, explicitFinish);
     return fetch('/api/progress', {
         method: 'PATCH',
         headers: {
@@ -1152,7 +1156,7 @@ function closeSidebar() {
 }
 
 // Theme
-let isDarkTheme = localStorage.getItem('readerDarkTheme') === 'true';
+let isDarkTheme = readerPreference('readerDarkTheme', 'false') === 'true';
 
 function initializeTheme() {
     const themeToggle = document.getElementById('themeToggle');
@@ -1167,7 +1171,7 @@ function toggleTheme() {
     const themeToggle = document.getElementById('themeToggle');
     const body = document.body;
     isDarkTheme = !isDarkTheme;
-    localStorage.setItem('readerDarkTheme', isDarkTheme);
+    saveReaderPreference('readerDarkTheme', isDarkTheme);
     if (isDarkTheme) {
         themeToggle.classList.add('dark');
         body.classList.add('dark-theme');
@@ -1205,7 +1209,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 </script>
-{% if book.is_short_reading %}<script src="{{ url_for('static', filename='js/books/short_reading.js') }}"></script>{% endif %}
+{% if book.is_short_reading %}<script src="{{ url_for('static', filename='js/books/short_reading.js') }}?v=20261123-draft2"></script>{% endif %}
 <script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
 {% if current_chapter.audio_url %}
 <script nonce="{{ csp_nonce }}">
@@ -1219,7 +1223,7 @@ document.addEventListener('keydown', (e) => {
   var timeEl = document.getElementById('audioTime');
 
   // Restore preference from localStorage
-  var pref = localStorage.getItem('rdr_audio_visible');
+  var pref = readerPreference('rdr_audio_visible', null);
   if (pref !== 'hidden') {
     bar.style.display = 'flex';
     showBtn.style.display = 'none';
@@ -1253,13 +1257,13 @@ document.addEventListener('keydown', (e) => {
     pauseIcon.style.display = 'none';
     bar.style.display = 'none';
     showBtn.style.display = 'flex';
-    localStorage.setItem('rdr_audio_visible', 'hidden');
+    saveReaderPreference('rdr_audio_visible', 'hidden');
   };
 
   window.showAudioBar = function() {
     bar.style.display = 'flex';
     showBtn.style.display = 'none';
-    localStorage.setItem('rdr_audio_visible', 'visible');
+    saveReaderPreference('rdr_audio_visible', 'visible');
   };
 
   function formatTime(s) {
