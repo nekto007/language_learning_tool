@@ -380,3 +380,8 @@ class TestSentenceCorrectionOptionTaxonomy:
         assert 'role="radiogroup"' in html
         assert 'role="radio"' in html
         assert 'aria-checked="false"' in html
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

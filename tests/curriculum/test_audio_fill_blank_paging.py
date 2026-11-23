@@ -231,3 +231,8 @@ class TestItemsArePaged:
             result['correct'] is (idx != 8)
             for idx, result in enumerate(retried['item_results'])
         )
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

@@ -173,6 +173,13 @@ def _guard_plan(lesson_id):
             allowed = item in (next_required, next_optional) or (item in required and item.get('skipped'))
             if not item.get('blocked') and allowed:
                 return item.get('kind')
+    # Voluntary review may repeat an already completed lesson without reopening
+    # it or allowing access to future, unstudied curriculum steps.
+    from app.curriculum.models import LessonProgress
+    reviewed = LessonProgress.query.filter_by(user_id=current_user.id, lesson_id=lesson_id,
+                                              status='completed').first()
+    if getattr(reviewed, 'status', None) == 'completed':
+        return 'review'
     raise NativeLessonError('lesson_locked', 403)
 
 
@@ -191,6 +198,10 @@ def native_error(error):
 @api_bearer_required
 @limiter.limit('60 per minute', key_func=get_authenticated_user_key)
 def get_native_lesson(lesson_id):
+    return course_document(lesson_id)
+
+
+def course_document(lesson_id, *, deferred=False):
     from app.api.native_content import NATIVE_PROJECTION_VERSION
     from app.curriculum.constants import get_lesson_passing_score
     from app.curriculum.language_support import language_support_mode
@@ -203,6 +214,7 @@ def get_native_lesson(lesson_id):
               'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()}
     from app.api.native_content import is_extended, extras
     payload = {'id': lesson.id, 'title': plain(lesson.title), 'type': lesson.type,
+               'content_revision': _digest(content),
                'passing_score': get_lesson_passing_score(lesson), 'theory': _theory(content),
                'questions': questions, 'support_mode': language_support_mode(lesson)}
     if is_extended(lesson): payload.update(extras(lesson))
@@ -211,18 +223,19 @@ def get_native_lesson(lesson_id):
     from app.grammar_lab.guided_learning import learning_steps, question_help, lesson_reference
     if lesson.type == 'grammar':
         payload['learning_steps'] = learning_steps(content, len(questions))
-    from app.api.native_content import QUIZZES, rows_for
-    if lesson.type in ({'grammar'} | (QUIZZES - {'final_test'})) and language_support_mode(lesson) in ('inline', 'toggle'):
+    from app.api.native_content import rows_for
+    from app.curriculum.constants import is_objective_practice
+    if is_objective_practice(lesson) and language_support_mode(lesson) in ('inline', 'toggle'):
         for i, (row, question) in enumerate(zip(rows_for(lesson), questions, strict=True)):
             help_blocks = question_help(content, row, i, len(questions))
             if help_blocks:
                 question['theory_help'] = help_blocks
         if not payload['theory']:
             payload['theory'] = lesson_reference(lesson)
-    payload['immediate_feedback'] = bool(questions) and lesson.type in ({'grammar'} | (QUIZZES - {'final_test'}))
+    payload['immediate_feedback'] = bool(questions) and is_objective_practice(lesson)
     from app.api.quiz_corrections import FLOW, eligible, pending_state, project_correction
 
-    if questions and eligible(lesson) and (request.args.get('quiz_flow') == FLOW or pending_state(progress)):
+    if questions and eligible(lesson) and (deferred or request.args.get('quiz_flow') == FLOW or pending_state(progress)):
         sealed['quiz_flow'] = FLOW
         sealed['quiz_phase'] = 'first'
         payload['quiz_phase'] = 'first'
@@ -253,8 +266,11 @@ def get_native_lesson(lesson_id):
 @api_bearer_required
 @limiter.limit('90 per minute', key_func=get_authenticated_user_key)
 def check_native_learning_answer(lesson_id):
+    return course_answer_check(lesson_id)
+
+
+def course_answer_check(lesson_id):
     from app.api.native_content import NATIVE_PROJECTION_VERSION, rows_for
-    from app.grammar_lab.guided_learning import check_answer
 
     body = request.get_json(silent=True)
     if (not isinstance(body, dict) or set(body) - {'session_token', 'question_id', 'answer', 'help_level'}
@@ -274,8 +290,8 @@ def check_native_learning_answer(lesson_id):
             or sealed.get('projection_version') != NATIVE_PROJECTION_VERSION):
         raise NativeLessonError('lesson_changed', 409)
     questions = project_questions(lesson)
-    from app.api.native_content import QUIZZES
-    if lesson.type not in ({'grammar'} | (QUIZZES - {'final_test'})):
+    from app.curriculum.constants import is_objective_practice
+    if not is_objective_practice(lesson):
         raise NativeLessonError('not_found', 404)
     correction = None
     if sealed.get('quiz_phase') == 'correction':
@@ -291,7 +307,8 @@ def check_native_learning_answer(lesson_id):
     if index is None:
         raise NativeLessonError('invalid_input')
     row, question = rows_for(lesson)[index], questions[index]
-    feedback = check_answer(row, question, body['answer'], grammar=lesson.type == 'grammar')
+    from app.api.native_content import check_course_answer
+    feedback = check_course_answer(lesson, question, body['answer'])
     if correction:
         from app.api.quiz_corrections import correction_help
         feedback['correction_help'] = correction_help(row, question, body['answer'], feedback, level)
@@ -320,6 +337,10 @@ def _award_theory_xp(lesson):
 @api_bearer_required
 @limiter.limit('30 per minute', key_func=get_authenticated_user_key)
 def submit_native_lesson(lesson_id):
+    return course_submission(lesson_id)
+
+
+def course_submission(lesson_id):
     from app.api.native_content import NATIVE_PROJECTION_VERSION
     from app.auth.models import User
     from app.curriculum.constants import get_lesson_passing_score

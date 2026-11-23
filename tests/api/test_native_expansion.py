@@ -480,7 +480,7 @@ def test_failed_storage_rolls_back_progress_attempt_and_xp(c, monkeypatch):
     assert submit(c, doc, {"0": "am here."}).json["completed"]
 
 
-def test_failed_reading_comprehension_records_real_accuracy_but_completes_practice(c):
+def test_failed_reading_comprehension_records_accuracy_without_false_completion(c):
     c.lesson.type = "reading"
     c.lesson.content = {
         "text": "I am here.",
@@ -495,7 +495,7 @@ def test_failed_reading_comprehension_records_real_accuracy_but_completes_practi
     }
     r = submit(c, fetch(c), {"0": "1"})
     assert r.status_code == 200, r.data
-    assert r.json["score"] == 0 and r.json["completed"] and not r.json["passed"]
+    assert r.json["score"] == 0 and not r.json["completed"] and not r.json["passed"]
     assert c.db.query(Attempt).one().score == 0
 
 

@@ -1295,6 +1295,9 @@ def _process_reading_submission(lesson: 'Lessons', user_id: int, data: dict) -> 
         result = {'score': 100.0, 'status': 'completed', 'reading_time': reading_time}
         xp_score = None
 
+    reading_completed = not questions or score >= get_lesson_passing_score(lesson)
+    result['status'] = 'completed' if reading_completed else 'in_progress'
+    result['passed'] = reading_completed
     ProgressService.update_progress_with_grading(
         user_id=user_id,
         lesson=lesson,
@@ -1313,15 +1316,15 @@ def _process_reading_submission(lesson: 'Lessons', user_id: int, data: dict) -> 
             logger.warning(f"Listening XP award failed for lesson {lesson.id}: {xp_err}")
     out: dict = {
         'success': True,
-        'completed': True,
-        'status': 'completed',
+        'completed': reading_completed,
+        'status': result['status'],
         'score': score,
         'correct_answers': correct,
         'total_questions': total,
         'feedback': feedback,
     }
     next_lesson = _get_next_lesson_for_completion(lesson)
-    if next_lesson:
+    if next_lesson and out['completed']:
         out['next_lesson_url'] = _lesson_completion_url(next_lesson)
     return out
 
@@ -2719,7 +2722,7 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     grade = {
         **grade,
         'score': first_try_score,
-        'passed': True,
+        'passed': first_try_score >= get_lesson_passing_score(lesson),
         'matched_items': int(grade.get('correct_items') or 0),
         'first_try_items': first_try,
         'mistakes': mistakes,
@@ -2741,7 +2744,7 @@ def _process_collocation_matching_submission(lesson: 'Lessons', user_id: int, da
     # testing; a guess-and-retry loop without feedback teaches nothing.
     result = {**grade}
     next_lesson = _get_next_lesson_for_completion(lesson)
-    if next_lesson:
+    if next_lesson and result['passed']:
         result['next_lesson_url'] = _lesson_completion_url(next_lesson)
 
     return result

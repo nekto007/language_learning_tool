@@ -18,6 +18,32 @@ werkzeug.security.generate_password_hash = _fast_generate_password_hash
 
 import itertools
 import pytest
+from urllib.parse import parse_qsl
+
+
+@pytest.fixture(autouse=True)
+def legacy_lesson_renderer(request, monkeypatch):
+    """Explicitly exercise retained legacy forms, not the new default UI.
+
+    Their render/paging/old-draft tests remain useful compatibility coverage.
+    Default routing and the shared engine are tested in test_web_objective_practice.
+    """
+    if request.node.get_closest_marker('legacy_lesson_ui') is None:
+        return
+    client = request.getfixturevalue('client')
+    original = client.get
+
+    def get(path, *args, **kwargs):
+        import re
+        if re.match(r'^/(?:curriculum/lesson/\d+|learn/\d+)(?:/|\?|$)', str(path)):
+            if 'query_string' in kwargs:
+                query = kwargs['query_string']
+                pairs = list(query.items()) if isinstance(query, dict) else parse_qsl(query)
+                kwargs['query_string'] = [*pairs, ('ui', 'legacy')]
+            else:
+                path += ('&' if '?' in path else '?') + 'ui=legacy'
+        return original(path, *args, **kwargs)
+    monkeypatch.setattr(client, 'get', get)
 import json
 import os
 import uuid

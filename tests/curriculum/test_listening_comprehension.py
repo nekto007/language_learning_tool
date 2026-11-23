@@ -99,24 +99,27 @@ def test_actual_answers_determine_score_and_attempts_not_client_claim(
                        {'self_assessed': True, 'score': 100, 'correct_answers': 999, 'answers': answers})
     assert response.status_code == 200
     result = response.get_json()
-    assert result['completed'] is True  # Learning policy: attempt all questions, then review mistakes.
+    assert result['completed'] is (expected_score >= 50)
     assert result['score'] == expected_score
     assert result['correct_answers'] == expected_correct
     assert result['total_questions'] == 2
     assert result['feedback']['0']['evidence'] == 'PRIVATE_EVIDENCE_NOT_FOR_INITIAL_DOM'
     assert result['feedback']['0']['explanation'] == 'PRIVATE_EXPLANATION_NOT_FOR_INITIAL_DOM'
     progress = db_session.query(LessonProgress).filter_by(user_id=test_user.id, lesson_id=listening_lesson.id).one()
-    assert progress.status == 'completed'
+    assert progress.status == ('completed' if expected_score >= 50 else 'in_progress')
     assert progress.last_score == expected_score
     attempt = db_session.query(LessonAttempt).filter_by(user_id=test_user.id, lesson_id=listening_lesson.id).one()
     assert attempt.score == expected_score
-    assert attempt.passed is (expected_score >= 70)
+    assert attempt.passed is (expected_score >= 50)
     assert attempt.correct_answers == expected_correct
     assert attempt.total_questions == 2
     listening_attempt = db_session.query(ListeningAttempt).filter_by(
         user_id=test_user.id, lesson_id=listening_lesson.id).one()
     assert listening_attempt.score == expected_score
-    assert quiet_rewards[0].call_args.kwargs['score'] == expected_score
+    if expected_score >= 50:
+        assert quiet_rewards[0].call_args.kwargs['score'] == expected_score
+    else:
+        quiet_rewards[0].assert_not_called()
     assert quiet_rewards[1].call_args.kwargs['score'] == expected_score
 
 
@@ -157,7 +160,7 @@ def test_saved_result_restores_explanations_and_retry_clears_only_display(
     assert 'PRIVATE_EXPLANATION_NOT_FOR_INITIAL_DOM' not in retry_html
     assert 'PRIVATE_EVIDENCE_NOT_FOR_INITIAL_DOM' not in retry_html
     progress = db_session.query(LessonProgress).filter_by(user_id=test_user.id, lesson_id=listening_lesson.id).one()
-    assert progress.status == 'completed' and progress.last_score == 0
+    assert progress.status == 'in_progress' and progress.last_score == 0
     assert db_session.query(LessonAttempt).filter_by(lesson_id=listening_lesson.id).count() == 1
 
 
@@ -177,7 +180,7 @@ def test_listening_quiz_type_link_redirects_to_canonical_quiz_preserving_query(
     assert response.status_code == 302
     location = urlparse(response.location)
     assert location.path == f'/curriculum/lesson/{listening_lesson.id}/quiz'
-    assert parse_qs(location.query) == {'retry': ['true'], 'from': ['linear_plan'], 'tag': ['a', 'b']}
+    assert parse_qs(location.query) == {'retry': ['true'], 'from': ['linear_plan'], 'tag': ['a', 'b'], 'ui':['legacy']}
     assert learner_client.get(location.path).status_code == 200
 
 
@@ -311,3 +314,8 @@ def test_listening_question_translation_never_uses_answer_or_audio_translation(
     assert 'PRIVATE_AUDIO_TRANSLATION_NOT_A_QUESTION' not in html
     assert 'PRIVATE_AUDIO_TRANSCRIPT_NOT_A_QUESTION' not in html
     assert 'class="li-question-translation"' not in html
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

@@ -14,9 +14,9 @@ FLOW = "deferred_v1"
 
 
 def eligible(lesson):
-    from app.curriculum.constants import QUIZ_LESSON_TYPES
+    from app.curriculum.constants import is_objective_practice
 
-    return lesson.type in QUIZ_LESSON_TYPES and not getattr(lesson, "_native_challenge", False)
+    return is_objective_practice(lesson) and not getattr(lesson, "_native_challenge", False)
 
 
 def pending_state(progress):
@@ -42,6 +42,11 @@ def first_round_state(lesson, progress, grade, feedback, answers, sealed):
         "first_score": grade["score"], "first_passed": bool(grade["passed"]),
         "first_correct_count": sum(f["correct"] for f in feedback),
         "first_total_count": len(feedback), "pending_ids": wrong,
+        **({"first_units_correct": grade['correct_items'],
+            "first_units_total": grade['total_items'],
+            "first_unit_label": 'Слов' if lesson.type == 'dictation' else 'Пар'}
+           if lesson.type in ('dictation', 'matching', 'collocation_matching')
+           and grade.get('total_items') is not None else {}),
         "first_answers": deepcopy(answers), "feedback": deepcopy(feedback),
         "created_at": datetime.now(UTC).isoformat(),
     }
@@ -147,7 +152,8 @@ def correction_help(row, question, answer, feedback, level=0):
 def project_correction(lesson, progress, questions, content):
     from app.api.native_content import rows_for
     from app.api.native_lessons import _digest, NativeLessonError
-    from app.grammar_lab.guided_learning import check_answer, question_help
+    from app.grammar_lab.guided_learning import question_help
+    from app.api.native_content import check_course_answer
 
     state = pending_state(progress)
     if not state or state["revision"] != _digest(content):
@@ -162,7 +168,7 @@ def project_correction(lesson, progress, questions, content):
             if blocks:
                 q["theory_help"] = blocks
         answer = state["first_answers"][q["id"]]
-        feedback = check_answer(rows[q["id"]], q, answer, grammar=lesson.type == "grammar")
+        feedback = check_course_answer(lesson, q, answer)
         q["correction_help"] = correction_help(rows[q["id"]], q, answer, feedback)
         gaps = sum(s["editable"] for s in q["correction_help"]["segments"])
         if gaps:
@@ -171,6 +177,8 @@ def project_correction(lesson, progress, questions, content):
             "correction": {"attempt_id": state["attempt_id"],
                            **{key: state[key] for key in (
                                "first_score", "first_passed", "first_correct_count", "first_total_count")},
+                           **{key: state[key] for key in ('first_units_correct', 'first_units_total', 'first_unit_label')
+                              if key in state},
                            "previous_answers": {key: state["first_answers"][key] for key in state["pending_ids"]},
                            "theory_required": not state["first_passed"] or len(state["pending_ids"]) >= 4}}
 
@@ -185,17 +193,15 @@ def check_correction(lesson, progress, sealed):
 
 
 def submit_correction(lesson, progress, sealed, questions, answers):
-    from app.api.native_content import rows_for
-    from app.api.native_lessons import NativeLessonError, project_questions
+    from app.api.native_lessons import NativeLessonError
     from app.curriculum.services.progress_service import _invalidate_user_progress_cache
-    from app.grammar_lab.guided_learning import check_answer
+    from app.api.native_content import check_course_answer
     from app.utils.db import db
 
     state = check_correction(lesson, progress, sealed)
     if set(answers) != set(state["pending_ids"]):
         raise NativeLessonError("invalid_input")
-    row_map = dict(zip((q["id"] for q in project_questions(lesson)), rows_for(lesson), strict=True))
-    feedback = [check_answer(row_map[q["id"]], q, answers[q["id"]], grammar=lesson.type == "grammar")
+    feedback = [check_course_answer(lesson, q, answers[q["id"]])
                 for q in questions]
     completed = all(f["correct"] for f in feedback)
     response = {"success": True, "lesson_id": lesson.id, "score": state["first_score"],

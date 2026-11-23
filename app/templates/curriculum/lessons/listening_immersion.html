@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initTranscriptToggle();
   initListeningGate();
   onSelfAssessChange();
-  {% if is_completed and listening_questions and listening_result %}
+  {% if listening_questions and listening_result %}
   showListeningResult({{ listening_result|tojson }}, true);
   {% elif is_completed and not listening_questions %}
   // Если урок открыт повторно после завершения — сразу разворачиваем

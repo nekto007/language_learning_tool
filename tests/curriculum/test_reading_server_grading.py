@@ -86,8 +86,8 @@ class TestSubmitIsGradedServerSide:
         assert progress.data['reading_time'] == 120
         assert progress.data['reading_answers']['4']['correct'] is True
 
-    def test_client_score_is_ignored_and_a_low_score_still_completes(self, app, db_session, _module, test_user, client):
-        """Owner: the score never gates completion — it only scales XP."""
+    def test_client_score_is_ignored_and_low_legacy_score_does_not_complete(self, app, db_session, _module, test_user, client):
+        """A legacy response must agree with the ordinary 50% progress policy."""
         lesson = _make_lesson(db_session, _module, QUESTIONS)
         _login(client, test_user)
         answers = dict(ALL_CORRECT, **{'0': 'Peru', '1': 'true', '2': 'Spain', '3': 'tea like I .'})
@@ -99,9 +99,9 @@ class TestSubmitIsGradedServerSide:
         data = resp.get_json()
         assert data['score'] == 20 and data['correct_answers'] == 1
         progress = _progress(db_session, test_user.id, lesson.id)
-        assert progress.status == 'completed'
+        assert progress.status == 'in_progress'
         assert progress.score == 20
-        assert xp.call_args.kwargs['score'] == 20  # XP scaled by the SERVER score
+        xp.assert_not_called()
 
     def test_missing_answers_are_rejected(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(db_session, _module, QUESTIONS)
@@ -349,3 +349,8 @@ class TestLegacyListeningImmersionQuizSharesTheGrader:
         _login(client, test_user)
         resp = client.post(f'/curriculum/api/lesson/{lesson.id}/check-item', json={'index': 0, 'answer': 'Peru'})
         assert resp.status_code == 200 and resp.get_json()['correct'] is False
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

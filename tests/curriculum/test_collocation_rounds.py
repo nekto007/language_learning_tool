@@ -187,8 +187,8 @@ class TestFirstTryScore:
         progress = _progress(db_session, test_user.id, lesson.id)
         assert progress.status == 'completed' and progress.score == 100
 
-    def test_a_terrible_first_try_score_still_completes(self, app, db_session, _module, test_user, client):
-        """Owner: the score scales XP, it never blocks completion."""
+    def test_low_legacy_first_try_score_does_not_claim_completion(self, app, db_session, _module, test_user, client):
+        """Legacy receipts agree with the ordinary 50% progress threshold."""
         lesson = _make_lesson(db_session, _module, 6)
         _login(client, test_user)
         client.get(f'/curriculum/lesson/{lesson.id}/collocation-matching')
@@ -196,9 +196,9 @@ class TestFirstTryScore:
             client.post(f'/curriculum/api/lesson/{lesson.id}/check-item', json={'index': idx, 'answer': 'перевод 5'})
         with patch('app.daily_plan.linear.xp.maybe_award_curriculum_xp', return_value=None) as xp:
             data = self._submit(client, lesson, _pairs(6)).get_json()
-        assert data['score'] == 17 and data['passed'] is True
-        assert _progress(db_session, test_user.id, lesson.id).status == 'completed'
-        assert xp.call_args.kwargs['score'] == 17
+        assert data['score'] == 17 and data['passed'] is False
+        assert _progress(db_session, test_user.id, lesson.id).status == 'in_progress'
+        xp.assert_not_called()
 
     def test_partial_submit_does_not_complete(self, app, db_session, _module, test_user, client):
         """A crafted POST with two pairs of six is still not a finished lesson."""
@@ -281,3 +281,8 @@ class TestCraftedPartialSubmitCannotScoreFull:
                            json={'user_pairs': pairs, 'lesson_type': 'collocation_matching'}).get_json()
         assert data['passed'] is True
         assert data['first_try_items'] == 5 and data['score'] == 83
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

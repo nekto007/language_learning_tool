@@ -380,3 +380,8 @@ class TestSource:
         assert "closest('.sc-hint-btn')" in src
         assert 'if (_pageOf(i) !== currentPage) showPage(_pageOf(i), false);' in src
         assert 'item.context' in src  # existing conditional block kept
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

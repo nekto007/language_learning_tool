@@ -66,6 +66,8 @@ def test_recovery_uses_policy_and_keeps_custom_nonquiz_thresholds(native_app, ma
 
     material.lesson.type = kind
     material.lesson.content = {'passing_score_percent': override}
+    if kind == 'translation':
+        material.lesson.content = {**material.lesson.content, 'mode':'open'}
     progress = progress_for(material, score=score)
     reconcile_stuck_lesson_progress(db.session)
     db.session.refresh(progress)

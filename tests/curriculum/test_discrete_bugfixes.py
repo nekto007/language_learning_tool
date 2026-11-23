@@ -830,7 +830,13 @@ class TestP3FunctionalFixes:
         # A9: the reorder in-session preview normalizer must not strip Cyrillic
         # (bare \w is ASCII). Both reorder (757) + matching (910) now Cyrillic-aware.
         s = self._src('quiz.html')
-        assert s.count('а-яёА-ЯЁ') >= 2
+        import json
+        fn = re.search(r'function normalizeQuizText\(value\) \{.*?\n\}', s, re.S)
+        assert fn is not None
+        result = subprocess.run(['node', '-e', fn.group(0) +
+            ';console.log(JSON.stringify([normalizeQuizText("ПРИВЕТ, мир!"), normalizeQuizText("Hello!")]));'],
+            capture_output=True, text=True, check=True)
+        assert json.loads(result.stdout) == ['привет мир', 'hello']
 
     def test_final_test_word_button_apostrophe_safe(self):
         # A11: read the Jinja-escaped data-word, not an apostrophe-breaking arg.
@@ -969,3 +975,8 @@ class TestP3Batch2:
         script. Nothing could reach it, so it is gone.
         """
         assert not (REPO / 'app' / 'static' / 'js' / 'daily-plan-next.js').exists()
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = [pytestmark, _legacy_pytest.mark.legacy_lesson_ui]

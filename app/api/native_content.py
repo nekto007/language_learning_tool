@@ -390,6 +390,15 @@ def _question(lesson, row, index):
         _error()
     if not question["instruction"]:
         question["instruction"] = {
+            'audio_fill_blank': ('Прослушай фразу и выбери слово для пропуска.' if question['input']=='choice'
+                                 else 'Прослушай фразу и впиши пропущенное слово.'),
+            'dictation': ('Прослушай запись и запиши весь текст.' if question['input']=='long_text'
+                          else 'Прослушай запись и заполни этот пропуск.'),
+            'sentence_completion': 'Дополни фразу: впиши пропущенное слово или часть предложения.',
+            'sentence_correction': 'Найди ошибку и перепиши предложение правильно.',
+            'translation': 'Переведи фразу на английский язык.',
+            'collocation_matching': 'Подбери перевод к каждой фразе. Каждый вариант используй один раз.',
+        }.get(lesson.type) or {
             "match": "Подбери пары",
             "order": "Расположи слова по порядку",
             "choice": "Выбери ответ",
@@ -571,7 +580,7 @@ def extras(lesson):
     c = content_for(lesson)
     assessment = "graded"
     if lesson.type in READINGS:
-        assessment = "practice" if rows_for(lesson, c) else "self_assessed"
+        assessment = "graded" if rows_for(lesson, c) else "self_assessed"
     if lesson.type in ACTIVITIES:
         assessment = {"writing_prompt": "writing", "pronunciation": "pronunciation"}.get(
             lesson.type, "self_assessed"
@@ -650,7 +659,7 @@ def display_answer(question, value):
     if question.get("input") == "match":
         left = {option["value"]: option["label"] for option in question.get("left_options", [])}
         indexes = _json_answer(value)
-        return "\n".join(f"{left[i]} → {options[j]}" for i, j in indexes.items())
+        return "\n".join(f"{left[i]} → {options[indexes[i]]}" for i in left if i in indexes)
     if question.get("input") == "order":
         return " ".join(options[index] for index in _json_answer(value))
     # This is learner input in a JSON document, displayed as native Text.
@@ -663,16 +672,45 @@ def matching_answer(row):
     return "\n".join(f"{_plain(a)} → {_plain(b)}" for a, b in map(_pair, row.get("pairs") or []))
 
 
-def grade(lesson, questions, answers, passing):
+def check_course_answer(lesson, question, answer):
+    """Use the submit grader for feedback without writing learner state."""
+    from app.curriculum.constants import is_objective_practice
+    from app.api.native_lessons import NativeLessonError
+
+    if not is_objective_practice(lesson):
+        raise NativeLessonError("not_found", 404)
+    limit = 50000 if question.get("input") == "long_text" else 20000
+    if (not isinstance(answer, str) or not answer.strip() or len(answer) > limit
+            or (question.get("input") == "choice"
+                and answer not in {o['value'] for o in question.get('options', [])})):
+        raise NativeLessonError("invalid_input")
+    rows = rows_for(lesson)
+    try:
+        row = rows[int(question['id'])]
+    except (ValueError, IndexError, KeyError):
+        raise NativeLessonError("invalid_input") from None
+    if lesson.type == 'grammar' or lesson.type in QUIZZES:
+        from app.grammar_lab.guided_learning import check_answer
+        return check_answer(row, question, answer, grammar=lesson.type == 'grammar')
+    _, feedback, _, _ = grade(lesson, [question], {question['id']: answer}, 50,
+                             selected_rows=[row])
+    result = feedback[0]
+    if not result['correct'] and not result.get('explanation'):
+        result['explanation'] = "\n".join(b['body'] for b in question.get('theory_help', []))
+        if not result['explanation']:
+            result['explanation'] = 'Сравни свой ответ с образцом: ' + result.get('expected', '')
+    return result
+
+
+def grade(lesson, questions, answers, passing, *, selected_rows=None):
     """Return (grade fields, per-question feedback, assessment, completion)."""
     from app.curriculum import grading as graders
 
     c = content_for(lesson)
     t = lesson.type
     assessment = extras(lesson)["assessment"]
-    rows = rows_for(lesson, c)
+    rows = rows_for(lesson, c) if selected_rows is None else selected_rows
     feedback = []
-    payload = {}
     telemetry = {}
 
     def fb(q, correct, answer, expected="", explanation=""):
@@ -687,8 +725,8 @@ def grade(lesson, questions, answers, passing):
 
     if t in QUIZZES or t == "grammar" or (t in READINGS and rows):
         converted = {
-            q["id"]: _converted(row, q, answers[q["id"]], t == "grammar")
-            for row, q in zip(rows, questions, strict=True)
+            str(index): _converted(row, q, answers[q["id"]], t == "grammar")
+            for index, (row, q) in enumerate(zip(rows, questions, strict=True))
         }
         result = (
             graders.process_grammar_submission
@@ -699,8 +737,8 @@ def grade(lesson, questions, answers, passing):
             from app.grammar_lab.guided_learning import grade_guided_answers
 
             result = grade_guided_answers(rows, converted)
-        for row, q in zip(rows, questions, strict=True):
-            checked = result["feedback"].get(q["id"], {})
+        for index, (row, q) in enumerate(zip(rows, questions, strict=True)):
+            checked = result["feedback"].get(str(index), {})
             expected = (
                 checked.get("correct_matches")
                 or checked.get("correct_answer")
@@ -791,14 +829,14 @@ def grade(lesson, questions, answers, passing):
                         values[index], rows[index]["answer"], passing_score=passing
                     )
                     checked = {
-                        "correct": single["passed"],
+                        "correct": single["total_words"] > 0 and single["correct_words"] == single["total_words"],
                         "answer": rows[index]["answer"],
                         "user_answer": values[index],
                     }
                 else:
                     checked = {
-                        "correct": result["passed"],
-                        "answer": reference if result["passed"] else "",
+                        "correct": result["total_words"] > 0 and result["correct_words"] == result["total_words"],
+                        "answer": reference,
                         "user_answer": values[index],
                     }
             feedback.append(
@@ -807,9 +845,7 @@ def grade(lesson, questions, answers, passing):
                     checked.get("correct") is True or checked.get("status") == "matched",
                     checked.get("user_answer") or checked.get("answer") or values[index],
                     (
-                        checked.get("answer") or checked.get("reference_answer")
-                        if result.get("passed")
-                        else ""
+                        checked.get("answer") or checked.get("reference_answer") or ""
                     ),
                     rows[index].get("explanation", ""),
                 )
@@ -834,9 +870,9 @@ def grade(lesson, questions, answers, passing):
         feedback = [
             fb(
                 q,
-                result["score"] >= passing,
-                "\n".join(f"{a} → {b}" for a, b in matches.items()),
-                "",
+                total > 0 and correct == total,
+                display_answer(q, answers[q['id']]),
+                matching_answer(row),
                 "Подбор пар проверен сервером.",
             )
         ]

@@ -252,3 +252,8 @@ class TestRender:
             src = f.read()
         assert 'function showPage(' in src and 'function _showFirstPendingPage(' in src
         assert "_softRetryGivenUp(); _showFirstPendingPage();" in src
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

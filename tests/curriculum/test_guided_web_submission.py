@@ -84,7 +84,7 @@ def answers():
 
 
 def url(lesson, route):
-    return {'learn': f'/learn/{lesson.id}/', 'form': f'/curriculum/lesson/{lesson.id}/grammar',
+    return {'learn': f'/learn/{lesson.id}/?ui=legacy', 'form': f'/curriculum/lesson/{lesson.id}/grammar?ui=legacy',
             'json': f'/curriculum/api/lesson/{lesson.id}/submit'}[route]
 
 
@@ -248,3 +248,8 @@ def test_wrong_answer_keeps_guided_identity_in_error_history(web_app, route):
     error = QuizErrorLog.query.filter_by(user_id=user.id, lesson_id=lesson.id).one()
     assert error.question_payload['guided_revision'] == payload['guided_revision']
     assert error.question_payload['guided_key'] == lesson.content['exercises'][0]['guided_key']
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

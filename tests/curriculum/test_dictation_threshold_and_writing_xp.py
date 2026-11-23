@@ -1,4 +1,4 @@
-"""Item 7 of the lesson audit (2026-09-05): dictation passes at 75 with
+"""Ordinary dictation passes at 50 with
 per-word mistakes on the attempt row; writing prompts pay the full base XP.
 """
 from __future__ import annotations
@@ -16,13 +16,14 @@ from tests.curriculum.test_writing_prompt import _make_writing_lesson
 
 class TestDictationThreshold:
 
-    def test_threshold_is_75(self):
-        assert PASSING_SCORE_DICTATION == 75
-        assert get_lesson_passing_score(type('L', (), {'type': 'dictation', 'content': {}})()) == 75
+    def test_threshold_is_50(self):
+        assert PASSING_SCORE_DICTATION == 50
+        assert get_lesson_passing_score(type('L', (), {'type': 'dictation', 'content': {}})()) == 50
 
-    def test_one_miss_in_four_passes_two_do_not(self):
+    def test_half_correct_passes_less_than_half_does_not(self):
         assert grade_dictation('the cat sat here', 'the cat sat on')['passed'] is True   # 3/4 = 75
-        assert grade_dictation('the cat ran here', 'the cat sat on')['passed'] is False  # 2/4 = 50
+        assert grade_dictation('the cat ran here', 'the cat sat on')['passed'] is True  # 2/4 = 50
+        assert grade_dictation('the dog ran here', 'the cat sat on')['passed'] is False  # 1/4 = 25
         assert grade_dictation('the cat sat on a', 'the cat sat on the')['passed'] is True  # 4/5 = 80
 
     def test_submit_with_one_miss_completes_and_records_mistakes(self, app, db_session, test_user, client):
@@ -41,7 +42,7 @@ class TestDictationThreshold:
         assert attempt.correct_answers == 3 and attempt.total_questions == 4
 
     def test_attempt_limit_cap_stays_below_the_threshold(self, app, db_session, test_user, client):
-        """A revealed word must not complete the lesson at 75 either."""
+        """A revealed word must not complete the lesson through the ordinary score alone."""
         lesson = _make_dictation_lesson(db_session, transcript='Hello world')
         _login(client, test_user)
         for _ in range(3):
@@ -80,12 +81,12 @@ class TestDictationThreshold:
         ).get_json()
 
         assert data['failed_by_attempt_limit'] is True
-        assert data['passed'] is False and data['score'] == 89
+        assert data['passed'] is False and data['score'] == 49
 
     def test_recovery_does_not_reinterpret_historical_cap_79_as_a_pass(
         self, app, db_session, test_user
     ):
-        """Old score=79 meant forced failure, not achievement of today's 75."""
+        """Historical score=79 with an explicit forced-failure marker remains incomplete."""
         lesson = _make_dictation_lesson(db_session, transcript='one two three four')
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         progress = LessonProgress(
@@ -107,7 +108,7 @@ class TestDictationThreshold:
         db_session.add(progress)
         db_session.commit()
         assert progress.score == 79
-        assert get_lesson_passing_score(lesson) == 75
+        assert get_lesson_passing_score(lesson) == 50
 
         report = reconcile_stuck_lesson_progress(db_session, dry_run=False)
         db_session.refresh(progress)

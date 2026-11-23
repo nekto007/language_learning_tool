@@ -822,7 +822,7 @@ def listening_immersion_lesson(lesson_id):
 
     listening_result = None
     saved = display_progress.data if display_progress and isinstance(display_progress.data, dict) else {}
-    if is_completed and saved.get('total_questions'):
+    if saved.get('total_questions'):
         questions = (lesson.content or {}).get('comprehension_questions') or []
         feedback = {}
         for index, item in (saved.get('feedback') or {}).items():

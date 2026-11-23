@@ -304,3 +304,8 @@ class TestSubmissionRoundTrips:
             user_id=test_user.id, lesson_id=lesson.id
         ).all()
         assert len(attempts) >= 1
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

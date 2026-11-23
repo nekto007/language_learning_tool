@@ -487,3 +487,8 @@ class TestAudioFillBlankCSS:
     def test_afb_option_btn_defined(self):
         css = _read_css()
         assert '.afb-option-btn' in css
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

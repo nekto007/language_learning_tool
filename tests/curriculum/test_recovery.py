@@ -91,18 +91,16 @@ def _make_attempt(db_session, user, lesson, *, score=85.0, passed=True) -> Lesso
 
 
 class TestEffectivePassingScore:
-    def test_dictation_default_is_75(self, db_session):
-        """Lesson audit 2026-09-05 (B11): 75, so one miss in a 4-gap cloze passes."""
+    def test_dictation_default_is_50(self, db_session):
+        """Ordinary dictation uses the shared 50% threshold."""
         lesson = _make_lesson(db_session, lesson_type='dictation', content={})
-        assert _effective_passing_score(lesson) == 75
+        assert _effective_passing_score(lesson) == 50
 
-    def test_audio_fill_blank_default_is_70(self, db_session):
-        """audio_fill_blank uses PASSING_SCORE_DEFAULT in both grader and
-        route (see grade_audio_fill_blank). Only ``dictation`` is the 80
-        special case, despite the two often being grouped colloquially.
+    def test_audio_fill_blank_default_is_50(self, db_session):
+        """Audio gaps and dictation both use the ordinary 50% threshold.
         """
         lesson = _make_lesson(db_session, lesson_type='audio_fill_blank', content={})
-        assert _effective_passing_score(lesson) == 70
+        assert _effective_passing_score(lesson) == 50
 
     def test_final_default_is_75(self, db_session):
         lesson = _make_lesson(db_session, lesson_type='final_test', content={})
@@ -220,8 +218,8 @@ class TestReconcile:
         """
         user = _make_user(db_session)
         lesson = _make_lesson(db_session, lesson_type='dictation', content={})
-        # 74 = one below today's threshold (75): the row must flip through
-        # the data-perfect path, not merely because the score now passes.
+        # Historical capped failures recover through the data-perfect path,
+        # even when their old score exceeds the current threshold.
         progress = _make_progress(db_session, user, lesson, score=74.0)
         progress.data = {
             'score': 74,
@@ -245,9 +243,9 @@ class TestReconcile:
         """If correct_words < total_words, no by_data_perfect flip."""
         user = _make_user(db_session)
         lesson = _make_lesson(db_session, lesson_type='dictation', content={})
-        progress = _make_progress(db_session, user, lesson, score=50.0)
+        progress = _make_progress(db_session, user, lesson, score=25.0)
         progress.data = {
-            'score': 50, 'correct_words': 2, 'total_words': 4,
+            'score': 25, 'correct_words': 1, 'total_words': 4,
         }
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(progress, 'data')

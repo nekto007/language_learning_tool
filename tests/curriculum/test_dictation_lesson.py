@@ -608,3 +608,8 @@ class TestDictationSubmitRoute:
         )
         # Redirect to login
         assert resp.status_code in (302, 401, 403)
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

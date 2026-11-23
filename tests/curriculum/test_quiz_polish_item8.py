@@ -261,3 +261,8 @@ class TestShadowAssessmentPersisted:
         assert 'listen_coverage: _coverageOf(_phase1Ctrl)' in src
         assert 'shadow_coverage: _coverageOf(_phase2Ctrl)' in src
         assert 'coverage: function() { return coveredRatio; }' in src
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

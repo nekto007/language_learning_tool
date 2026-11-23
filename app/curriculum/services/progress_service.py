@@ -273,7 +273,8 @@ class ProgressService:
         """
         from sqlalchemy.orm.attributes import flag_modified
 
-        if getattr(lesson, 'type', '') in QUIZ_LESSON_TYPES | {'final_test'}:
+        from app.curriculum.constants import is_objective_practice
+        if is_objective_practice(lesson) or getattr(lesson, 'type', '') == 'final_test':
             passing_score = get_lesson_passing_score(lesson)
         score = result.get('score', 0)
         score = round(score, 2)

@@ -120,3 +120,8 @@ def test_final_test_preserves_authored_question_support_without_translating_the_
     assert 'Какое слово обозначает профессию?' in html
     assert ('<details class="final-test-question-translation">' in html) is (code == 'A2')
     assert '>teacher<' in html
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

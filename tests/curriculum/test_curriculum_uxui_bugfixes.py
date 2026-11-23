@@ -1,9 +1,9 @@
 """Regression tests for UX/UI bug fixes from the 2026-06-02 curriculum audit.
 
 Covers:
-- PASSING_SCORE_DEFAULT is 70, not 100, for sentence_correction
+- PASSING_SCORE_DEFAULT stays 70; ordinary objective lessons use 50
 - pronunciation finish=True without attempts returns 400
-- _curriculum_done_today excludes score-based lessons with score < 70
+- _curriculum_done_today excludes ordinary practice with score < 50
 - XP savepoint rollback: lesson stays completed when XP award raises
 """
 from __future__ import annotations
@@ -71,7 +71,7 @@ class TestPassingScoreDefault:
         assert PASSING_SCORE_DEFAULT == 70
 
     def test_multi_item_75_percent_passes(self, app, db_session, test_user, client):
-        """Multi-item sentence_correction: 3/4 correct (75%) passes the 70% threshold."""
+        """Multi-item sentence_correction: 3/4 correct (75%) passes the ordinary 50% threshold."""
         content = {
             'items': [
                 {'incorrect_sentence': 'A', 'correct_sentence': 'A_correct'},
@@ -188,7 +188,7 @@ class TestCurriculumDoneTodayScoreCheck:
     def test_score_based_lesson_below_threshold_not_counted(
         self, app, db_session, test_user
     ):
-        """A score-based lesson completed with score < 70 must NOT count as done today."""
+        """A score-based lesson completed with score < 50 must NOT count as done today."""
         from app.daily_plan.items.curriculum import _curriculum_done_today
         from app.utils.db import db as flask_db
 
@@ -197,7 +197,7 @@ class TestCurriculumDoneTodayScoreCheck:
             user_id=test_user.id,
             lesson_id=lesson.id,
             status='completed',
-            score=50.0,
+            score=49.0,
             started_at=datetime.now(timezone.utc),
             completed_at=datetime.now(timezone.utc),
         )
@@ -210,7 +210,7 @@ class TestCurriculumDoneTodayScoreCheck:
     def test_score_based_lesson_at_threshold_is_counted(
         self, app, db_session, test_user
     ):
-        """A score-based lesson completed with score >= 70 counts as done today."""
+        """A score-based lesson completed with score >= 50 counts as done today."""
         from app.daily_plan.items.curriculum import _curriculum_done_today
         from app.utils.db import db as flask_db
 
@@ -232,8 +232,7 @@ class TestCurriculumDoneTodayScoreCheck:
     def test_dictation_below_dictation_threshold_not_counted(
         self, app, db_session, test_user
     ):
-        """Dictation passed at 72% (>= default 70 but < dictation 80) must NOT
-        count as done — regression for the hardcoded-70 bug."""
+        """Dictation below 50% must not count as done."""
         from app.daily_plan.items.curriculum import _curriculum_done_today
         from app.utils.db import db as flask_db
 
@@ -242,7 +241,7 @@ class TestCurriculumDoneTodayScoreCheck:
             user_id=test_user.id,
             lesson_id=lesson.id,
             status='completed',
-            score=72.0,
+            score=49.0,
             started_at=datetime.now(timezone.utc),
             completed_at=datetime.now(timezone.utc),
         )
@@ -255,7 +254,7 @@ class TestCurriculumDoneTodayScoreCheck:
     def test_dictation_at_dictation_threshold_is_counted(
         self, app, db_session, test_user
     ):
-        """Dictation at 80% (its real bar) counts as done."""
+        """Dictation above the shared 50% threshold counts as done."""
         from app.daily_plan.items.curriculum import _curriculum_done_today
         from app.utils.db import db as flask_db
 
@@ -277,7 +276,7 @@ class TestCurriculumDoneTodayScoreCheck:
     def test_non_dictation_score_based_still_uses_default(
         self, app, db_session, test_user
     ):
-        """Non-dictation score-based lesson at 72% still counts (default bar 70)."""
+        """Ordinary translation at 72% counts above its shared 50% threshold."""
         from app.daily_plan.items.curriculum import _curriculum_done_today
         from app.utils.db import db as flask_db
 

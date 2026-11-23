@@ -522,6 +522,12 @@ def lesson_by_id(lesson_id):
     )
 
     lesson = Lessons.query.get_or_404(lesson_id)
+    if request.method == 'GET' and request.args.get('ui') != 'legacy':
+        from app.curriculum.constants import is_objective_practice
+        if is_objective_practice(lesson):
+            from app.curriculum.routes.guided_practice import render_practice, uses_legacy_practice
+            if not uses_legacy_practice(lesson):
+                return render_practice(lesson)
     if request.method == 'POST' and lesson.type == 'grammar':
         from app.curriculum.routes.lessons import (
             _guided_grammar_revision_error, _locked_grammar_submission_lesson,

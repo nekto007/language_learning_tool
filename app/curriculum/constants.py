@@ -22,25 +22,41 @@ PASSING_SCORE_FINAL_TEST = 75
 QUIZ_LESSON_TYPES = frozenset({
     'grammar', 'quiz', 'ordering_quiz', 'translation_quiz',
     'listening_quiz', 'dialogue_completion_quiz',
+    'audio_fill_blank', 'dictation', 'sentence_completion', 'sentence_correction',
+    'collocation_matching',
 })
-# 75, not 80 (lesson audit 2026-09-05, B11): 52 of 86 dictations are a
-# 4-gap cloze, and at 80 % the only passing outcome was 4/4 — the threshold
-# shown to the learner was a lie. At 75 one miss passes (3/4, 4/5) while the
-# bar stays above the quizzes' 50. The owner's call: «не надо быть слишком
-# строгими, иначе будут убегать и не завершать».
-PASSING_SCORE_DICTATION = 75
+# Compatibility name for older dictation renderers; all ordinary practice now
+# follows the same 50% policy. Only the final module test keeps 75%.
+PASSING_SCORE_DICTATION = PASSING_SCORE_QUIZ
+
+
+def is_objective_practice(lesson: Any) -> bool:
+    """Practice with an authored answer key; never self-assessment or a final."""
+    kind = getattr(lesson, 'type', '') or ''
+    if kind in QUIZ_LESSON_TYPES:
+        return True
+    content = getattr(lesson, 'content', None)
+    if not isinstance(content, dict):
+        return False
+    if kind == 'translation':
+        return content.get('mode') not in ('open', 'rubric')
+    # The memory matching game has its own complete-all-pairs scoring. Authored
+    # phrase quizzes use collocation_matching instead.
+    if kind in ('reading', 'text', 'listening_immersion', 'listening_immersion_quiz'):
+        return bool(content.get('comprehension_questions') or content.get('exercises') or content.get('questions'))
+    return False
 
 
 def get_lesson_passing_score(lesson: Any) -> int:
     """Return the effective passing-score threshold for ``lesson``.
 
-    Ordinary quiz/grammar lessons always use 50%; ``final_test`` always 75%.
+    Objective practice always uses 50%; ``final_test`` always 75%.
     These owner-level policies override stale authored 70/80% settings.
 
     Other lesson types retain their previous resolution order:
       1. ``lesson.content['passing_score_percent']`` (preferred).
       2. ``lesson.content['passing_score']`` (legacy alias).
-      3. Type default: ``dictation`` → 75, other non-quiz types → 70.
+      3. Other non-quiz types → 70.
 
     Non-numeric / out-of-range overrides are ignored (fall through to the
     type default) so malformed content can't disable the threshold.
@@ -48,7 +64,7 @@ def get_lesson_passing_score(lesson: Any) -> int:
     kind = getattr(lesson, 'type', '') or ''
     if kind == 'final_test':
         return PASSING_SCORE_FINAL_TEST
-    if kind in QUIZ_LESSON_TYPES:
+    if is_objective_practice(lesson):
         return PASSING_SCORE_QUIZ
     content = getattr(lesson, 'content', None)
     if not isinstance(content, dict):

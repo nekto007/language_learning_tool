@@ -586,3 +586,8 @@ class TestSentenceCompletionEmptyPromptForTransformation:
         from marshmallow import ValidationError
         with pytest.raises((ValidationError, Exception)):
             LessonContentValidator.validate('sentence_completion', {'items': [{'answer': 'x'}]})
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

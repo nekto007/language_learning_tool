@@ -857,3 +857,8 @@ class TestIdiomSmoke:
         )
         data = resp.get_json()
         assert "next_lesson_url" in data and data["next_lesson_url"]
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui

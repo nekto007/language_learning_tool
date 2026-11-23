@@ -341,3 +341,8 @@ class TestDoubleSubmitPrevention:
         assert r2.status_code in (200, 201)
         count = LessonProgress.query.filter_by(lesson_id=lesson.id).count()
         assert count == 1, f"Expected 1 LessonProgress row, got {count}"
+
+
+# These assertions cover the versioned legacy renderer and saved legacy drafts.
+import pytest as _legacy_pytest
+pytestmark = _legacy_pytest.mark.legacy_lesson_ui
