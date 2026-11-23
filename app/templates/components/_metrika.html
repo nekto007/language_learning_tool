@@ -1,0 +1,9 @@
+{% if metrika %}
+<script id="llt-metrika-config" type="application/json" nonce="{{ csp_nonce }}">{{ metrika|tojson }}</script>
+<script src="{{ url_for('static', filename='js/metrika.js') }}?v=20261123a" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}">
+  ({{ pending_gtag_events|default([], true)|map(attribute='name')|list|tojson }}).forEach(function (name) {
+    window.lltMetrikaGoal(name);
+  });
+</script>
+{% endif %}

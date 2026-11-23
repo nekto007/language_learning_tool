@@ -247,6 +247,9 @@ class Config:
 
     GOOGLE_SITE_VERIFICATION = os.environ.get("GOOGLE_SITE_VERIFICATION", "")
     GOOGLE_ANALYTICS_ID = os.environ.get("GOOGLE_ANALYTICS_ID", "")
+    # Public identifier; restricted to the production LLT host in metrika.py.
+    # An empty environment value disables the integration.
+    YANDEX_METRIKA_ID = os.environ.get("YANDEX_METRIKA_ID", "114597985")
     # Dedicated mobile sign-in clients; Search Console credentials remain separate.
     MOBILE_GOOGLE_CLIENT_ID = os.environ.get("MOBILE_GOOGLE_CLIENT_ID", "")
     MOBILE_GOOGLE_CLIENT_SECRET = os.environ.get("MOBILE_GOOGLE_CLIENT_SECRET", "")

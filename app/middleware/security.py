@@ -84,6 +84,27 @@ def add_security_headers(app: Flask):
             'https://cdn.jsdelivr.net',
             'https://www.googletagmanager.com',
         ]
+        from app.utils.metrika import METRIKA_COLLECTORS, METRIKA_VIEWERS, metrika_context
+        analytics = metrika_context().get('metrika') if (
+            response.mimetype == 'text/html' and response.status_code == 200
+        ) else None
+        metrika_connect = ''
+        metrika_frames = ''
+        if analytics:
+            script_src_parts.extend((*METRIKA_COLLECTORS, 'https://yastatic.net'))
+            metrika_connect = ' ' + ' '.join(METRIKA_COLLECTORS)
+            if analytics['options']['webvisor']:
+                metrika_connect += ' ' + ' '.join(
+                    host.replace('https://', 'wss://') for host in METRIKA_COLLECTORS
+                )
+                metrika_frames = (
+                    "child-src 'self' blob: " + ' '.join(METRIKA_COLLECTORS) + '; '
+                    "frame-src 'self' blob: " + ' '.join(METRIKA_COLLECTORS) + '; '
+                )
+                frame_ancestors = "'self' " + ' '.join(METRIKA_VIEWERS)
+                # CSP frame-ancestors is the modern restriction. XFO DENY
+                # would prevent the public-page replay viewer in older clients.
+                response.headers.pop('X-Frame-Options', None)
         script_src = ' '.join(script_src_parts)
 
         # script-src-attr explicitly allows inline event handlers (onclick=,
@@ -101,7 +122,8 @@ def add_security_headers(app: Flask):
             "img-src 'self' data: https:; "
             "connect-src 'self' https://www.google-analytics.com "
             "https://*.google-analytics.com https://*.analytics.google.com "
-            "https://*.googletagmanager.com; "
+            f"https://*.googletagmanager.com{metrika_connect}; "
+            f"{metrika_frames}"
             "form-action 'self'; "
             f"frame-ancestors {frame_ancestors}; "
             "base-uri 'self'"

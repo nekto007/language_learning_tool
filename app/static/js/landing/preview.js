@@ -18,6 +18,7 @@
             sent.add(event);
             const payload = {event: event, preview_id: preview.dataset.previewId};
             if (event === 'preview_answered') payload.correct = correct;
+            if (typeof window.lltMetrikaGoal === 'function') window.lltMetrikaGoal(gaNames[event]);
             if (typeof window.gtag === 'function') {
                 try {
                     const params = {preview_id: payload.preview_id, level: 'A1'};

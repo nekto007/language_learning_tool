@@ -92,6 +92,9 @@ def init_template_utils(app):
         app: Flask application instance
     """
 
+    from app.utils.metrika import init_metrika
+    init_metrika(app)
+
     @app.context_processor
     def utility_processor():
         from datetime import datetime
