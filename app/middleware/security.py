@@ -98,8 +98,12 @@ def add_security_headers(app: Flask):
                     host.replace('https://', 'wss://') for host in METRIKA_COLLECTORS
                 )
                 metrika_frames = (
-                    "child-src 'self' blob: " + ' '.join(METRIKA_COLLECTORS) + '; '
-                    "frame-src 'self' blob: " + ' '.join(METRIKA_COLLECTORS) + '; '
+                    # The replay frame uses the fixed tag host (or a blob).
+                    # Regional endpoints are collectors, not frame sources.
+                    # Repeating that list here overflows nginx's default 4K
+                    # upstream header buffer once a guest gets a session cookie.
+                    "child-src 'self' blob: https://mc.yandex.ru; "
+                    "frame-src 'self' blob: https://mc.yandex.ru; "
                 )
                 frame_ancestors = "'self' " + ' '.join(METRIKA_VIEWERS)
                 # CSP frame-ancestors is the modern restriction. XFO DENY
