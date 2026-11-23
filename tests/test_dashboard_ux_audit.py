@@ -389,13 +389,13 @@ class TestContinuationQueueSection:
 
 
 class TestDashboardMobileOrder:
-    """Today's queue precedes course exploration and secondary statistics."""
+    """Compact progress strip precedes the full-width daily queue."""
 
-    def test_today_queue_precedes_collapsed_course_and_sidebar(self):
+    def test_progress_strip_precedes_today_queue_and_collapsed_course(self):
         with open(_DASHBOARD_UNIFIED_PATH, encoding='utf-8') as f:
             src = f.read()
         assert src.index("partials/unified_daily_plan.html") < src.index("components/_learning_journey.html")
-        assert src.index("components/_learning_journey.html") < src.index("components/_today_sidebar.html")
+        assert src.index("components/_today_sidebar.html") < src.index("partials/unified_daily_plan.html")
         assert "components/_dashboard_hero.html" not in src
         assert 'dash-leaderboard__list' not in src
         assert 'dash-achievements__categories' not in src

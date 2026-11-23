@@ -1,7 +1,8 @@
 {% set _week = week_rhythm or {} %}
 {% set _stats = stats_card or {} %}
 <aside class="today-sidebar" aria-label="Твой прогресс">
-  <section class="today-sidebar__card">
+  <section class="today-sidebar__card today-sidebar__activity">
+    <div class="today-sidebar__series">
     <div class="today-sidebar__streak">
       <span class="today-sidebar__streak-icon" aria-hidden="true">✦</span>
       <div><h2>Твоя серия</h2>
@@ -10,7 +11,9 @@
       </div>
     </div>
     {% if _stats.get('streak_shield') %}<p class="today-sidebar__note">Серия защищена на один день.</p>{% endif %}
+    </div>
     {% if _week.get('days') %}
+    <div class="today-sidebar__week">
     <ol class="dash-rail__week" aria-label="Учебные дни недели">
       {% for d in _week.days %}
       <li class="dash-rail__week-day{% if d.active %} dash-rail__week-day--active{% endif %}{% if d.today %} dash-rail__week-day--today{% endif %}" aria-label="{{ d.label }}: {{ 'занимались' if d.active else 'пока без занятия' }}{% if d.today %}, сегодня{% endif %}" title="{{ d.date }}">
@@ -19,13 +22,16 @@
       {% endfor %}
     </ol>
     {% if _week.summary %}<p class="today-sidebar__note">{{ _week.summary }}</p>{% endif %}
+    </div>
     {% endif %}
   </section>
   <nav class="today-sidebar__card today-sidebar__links" aria-label="Статистика и достижения">
     <h2>Мои результаты</h2>
-    <a href="{{ url_for('study.stats') }}"><span>Статистика обучения</span><span aria-hidden="true">↗</span></a>
+    <div class="today-sidebar__destinations">
+    <a href="{{ url_for('study.stats') }}" aria-label="Статистика обучения"><span>Статистика</span><span aria-hidden="true">↗</span></a>
     <a href="{{ url_for('study.achievements') }}"><span>Достижения{% if achievements_by_category and achievements_by_category.total_achievements %}<small>{{ achievements_by_category.earned_count }} из {{ achievements_by_category.total_achievements }} открыто</small>{% endif %}</span><span aria-hidden="true">↗</span></a>
-    <a href="{{ url_for('study.leaderboard') }}"><span>Рейтинг по XP</span><span aria-hidden="true">↗</span></a>
-    {% if rank_info %}<p class="today-sidebar__note">{{ rank_info.icon }} {{ rank_info.display_name }} · {{ rank_info.plans_completed }} планов выполнено</p>{% endif %}
+    <a href="{{ url_for('study.leaderboard') }}"><span>Рейтинг XP</span><span aria-hidden="true">↗</span></a>
+    </div>
+    {% if rank_info %}<p class="today-sidebar__note">{{ rank_info.icon }} {{ rank_info.display_name }} · Планов выполнено: {{ rank_info.plans_completed }}</p>{% endif %}
   </nav>
 </aside>

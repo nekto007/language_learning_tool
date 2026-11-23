@@ -3,13 +3,14 @@
 {% block body_class %}dashboard-path-wide dashboard-today{% endblock %}
 {% block extra_css %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/learning-journey.css', v='20261124-today') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning-journey.css', v='20261124-topbar') }}">
 {% if study_start %}<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/study-start.css') }}">{% endif %}
 {% endblock %}
 {% block content %}
 <div class="dash-unified-wrap{% if study_start %} dash-unified-wrap--study-start{% endif %}">
   {% if study_start %}{% include 'components/_study_start.html' %}{% endif %}
   <div class="today-layout" data-unified-plan="true">
+    {% if not study_start %}{% include 'components/_today_sidebar.html' %}{% endif %}
     <div class="today-layout__main">
       {% if study_start %}<details class="study-start-plan"><summary>Показать план на сегодня</summary>{% endif %}
       {% with dashboard_today=true %}{% include 'partials/unified_daily_plan.html' %}{% endwith %}
@@ -22,7 +23,6 @@
       </details>
       {% endif %}
     </div>
-    {% if not study_start %}{% include 'components/_today_sidebar.html' %}{% endif %}
   </div>
 </div>
 <div id="book-select-modal" class="linear-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="book-select-modal-title">
