@@ -1,12 +1,50 @@
 """Install private module outcomes without replacing lessons or learner progress."""
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
+from datetime import UTC, datetime
+from uuid import uuid4
 
 import click
+from flask import current_app
 
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.utils.db import db
+
+
+def lesson_guidance(lesson: Lessons) -> dict[str, str]:
+    """Reviewed presentation overrides never change exercise revisions/answers."""
+    content = getattr(lesson, 'content', None)
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except ValueError:
+            return {}
+    module = getattr(lesson, 'module', None)
+    raw = getattr(module, 'raw_content', None)
+    if not isinstance(content, dict) or not isinstance(raw, dict) or lesson.type == 'final_test':
+        return {}
+    target = raw.get('module', raw)
+    if not isinstance(target, dict):
+        return {}
+    overrides = target.get('lesson_guidance')
+    if not isinstance(overrides, dict):
+        return {}
+    entry = overrides.get(lesson.type)
+    if (not isinstance(entry, dict) or entry.get('version') != 1
+            or entry.get('lesson_id') != lesson.id
+            or not isinstance(entry.get('expected_instruction'), str)
+            or content.get('instruction') != entry.get('expected_instruction')):
+        return {}
+    result = {}
+    for key in ('instruction', 'learning_goal'):
+        value = entry.get(key)
+        if (isinstance(value, str) and 1 <= len(value.strip()) <= 600
+                and '<' not in value and '>' not in value):
+            if key != 'learning_goal' or not content.get('learning_goal'):
+                result[key] = value.strip()
+    return result
 
 
 def install_journey_pack(path, *, apply=False):
@@ -20,7 +58,9 @@ def install_journey_pack(path, *, apply=False):
     changes = []
     labels = []
     links = []
-    report = {'applied': apply, 'updated': [], 'unchanged': [], 'lesson_labels_updated': [], 'grammar_links_updated': []}
+    guidance_backups = []
+    report = {'applied': apply, 'updated': [], 'unchanged': [], 'lesson_labels_updated': [],
+              'grammar_links_updated': [], 'lesson_guidance_updated': [], 'backup': None}
     for row in rows:
         number, goal = row.get('number'), row.get('goal')
         if (type(number) is not int or number <= 0 or number in numbers
@@ -36,6 +76,7 @@ def install_journey_pack(path, *, apply=False):
         if not isinstance(raw, dict) or ('module' in raw and not isinstance(raw['module'], dict)):
             raise ValueError(f'Module {number}: invalid existing metadata; review before replacing')
         target = raw.get('module', raw)
+        module_changed = False
         authored = {'version': 1, 'goal': goal.strip()}
         if target.get('learning_journey') == authored:
             report['unchanged'].append(number)
@@ -43,7 +84,7 @@ def install_journey_pack(path, *, apply=False):
             raise ValueError(f'Module {number} already has a different journey; review before replacing')
         else:
             target['learning_journey'] = authored
-            changes.append((module, raw))
+            module_changed = True
             report['updated'].append(number)
         slug = row.get('grammar_topic')
         if slug is not None:
@@ -77,8 +118,56 @@ def install_journey_pack(path, *, apply=False):
             if matches[0].title != title:
                 labels.append((matches[0], title))
                 report['lesson_labels_updated'].append(matches[0].id)
+        guidance_rows = row.get('lesson_guidance', [])
+        if not isinstance(guidance_rows, list) or any(not isinstance(item, dict) for item in guidance_rows):
+            raise ValueError(f'Module {number}: expected lesson guidance list')
+        guidance_kinds = set()
+        for item in guidance_rows:
+            kind, expected, instruction = (item.get(key) for key in ('type', 'expected_instruction', 'instruction'))
+            goal_override = item.get('learning_goal')
+            if (not isinstance(kind, str) or not kind or kind in guidance_kinds or kind == 'final_test'
+                    or set(item) - {'type', 'expected_instruction', 'instruction', 'learning_goal'}
+                    or not isinstance(expected, str) or len(expected) > 600
+                    or any(not isinstance(value, str) or not 1 <= len(value.strip()) <= 600
+                           or '<' in value or '>' in value
+                           for value in ([instruction] + ([goal_override] if goal_override is not None else [])))):
+                raise ValueError(f'Module {number}: invalid lesson guidance')
+            guidance_kinds.add(kind)
+            matches = Lessons.query.filter_by(module_id=module.id, type=kind).all()
+            if len(matches) != 1 or not isinstance(matches[0].content, dict):
+                raise ValueError(f'Module {number}: guidance lesson missing or ambiguous')
+            lesson = matches[0]
+            if lesson.content.get('instruction') != expected:
+                raise ValueError(f'Module {number}: authored instruction differs; review the pack')
+            existing = target.get('lesson_guidance', {})
+            if not isinstance(existing, dict):
+                raise ValueError(f'Module {number}: invalid existing lesson guidance')
+            authored = {'version': 1, 'lesson_id': lesson.id, 'expected_instruction': expected,
+                        'instruction': instruction.strip()}
+            if goal_override is not None:
+                authored['learning_goal'] = goal_override.strip()
+            if existing.get(kind) == authored:
+                continue
+            if kind in existing:
+                raise ValueError(f'Module {number}: guidance already differs; review before replacing')
+            if not any(saved['module_id'] == module.id for saved in guidance_backups):
+                guidance_backups.append({'module_id': module.id, 'raw_content': deepcopy(module.raw_content)})
+            target['lesson_guidance'] = {**existing, kind: authored}
+            report['lesson_guidance_updated'].append(lesson.id)
+            module_changed = True
+        if module_changed:
+            changes.append((module, raw))
     if apply:
         try:
+            if guidance_backups:
+                folder = Path(current_app.instance_path) / 'content-backups'
+                folder.mkdir(parents=True, exist_ok=True)
+                backup = folder / (datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ') + '-guidance-' + uuid4().hex[:8] + '.json')
+                descriptor = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
+                    json.dump({'version': 1, 'kind': 'lesson-guidance', 'modules': guidance_backups},
+                              stream, ensure_ascii=False, indent=2)
+                report['backup'] = str(backup)
             for module, raw in changes:
                 module.raw_content = raw
             for lesson, title in labels:

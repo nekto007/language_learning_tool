@@ -374,7 +374,7 @@ class TestProcessCardGrade:
 
         assert result['success'] is True
         assert result['card_id'] == 1
-        mock_card.update_after_review.assert_called_once_with(4)
+        mock_card.update_after_review.assert_called_once_with(4, context='book')
         # Per Task 9 (remove internal commits, callers commit) the
         # helper flushes only — caller is responsible for committing.
         mock_session.flush.assert_called()

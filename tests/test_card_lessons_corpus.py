@@ -52,6 +52,10 @@ def test_two_card_lessons_named_part_one_and_two():
     for name, m in _modules():
         cards = _card_lessons(m)
         assert len(cards) == 2, name
+        if m['level'] == 'A1' and m['order'] == 1:
+            assert [lesson['title'] for lesson in cards] == [
+                'Карточки: первые 6 фраз для знакомства', 'Карточки: ещё 14 слов и вежливых фраз']
+            continue
         matches = [PART_RE.match(lesson["title"]) for lesson in cards]
         assert all(matches), (name, [lesson["title"] for lesson in cards])
         assert [mt.group("part") for mt in matches] == ["1", "2"], name
@@ -64,6 +68,9 @@ def test_decks_are_split_evenly():
     for name, m in _modules():
         first, second = _card_lessons(m)
         n1, n2 = len(first["content"]["cards"]), len(second["content"]["cards"])
+        if m['level'] == 'A1' and m['order'] == 1:
+            assert (n1, n2) == (6, 14), name
+            continue
         if abs(n1 - n2) > 1 or n1 > n2:
             uneven.append((name, n1, n2))
     assert uneven == []

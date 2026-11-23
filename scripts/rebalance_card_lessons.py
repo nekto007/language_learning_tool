@@ -75,6 +75,13 @@ def plan_module(path: Path, data: dict) -> tuple[dict, Change, list[str]]:
     patched = copy.deepcopy(data)
     module = patched['module']
     change = Change(path, module)
+    by_number = {lesson['number']: lesson for lesson in module['lessons']}
+    if (module.get('level') == 'A1' and module.get('order') == 1
+            and by_number.get(3, {}).get('type') == 'writing_prompt'
+            and by_number.get(2, {}).get('type') in CARD_TYPES
+            and by_number.get(10, {}).get('type') in CARD_TYPES):
+        change.module_title_new = change.module_title_old
+        return patched, change, warnings  # Preserve the reviewed introductory journey.
     old_title, new_title = change.module_title_old, change.module_title_new
     module['title'] = new_title
 

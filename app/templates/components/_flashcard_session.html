@@ -33,6 +33,11 @@
 
 <!-- Flashcard Session CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcard-session.css') }}">
+<style nonce="{{ csp_nonce }}">
+.cards-page { overflow-wrap: anywhere; }
+.cards-page button, .cards-page h1 { max-width: 100%; min-width: 0; white-space: normal; }
+.cards-header { flex-wrap: wrap; }
+</style>
 
 <div class="cards-page" id="flashcard-app">
     <!-- Header strip -->

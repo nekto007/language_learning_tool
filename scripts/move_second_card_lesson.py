@@ -52,6 +52,11 @@ def plan_module(path: Path, data: dict) -> tuple[dict, bool, list[str]]:
     patched = copy.deepcopy(data)
     module = patched['module']
     by_number = {lesson['number']: lesson for lesson in module['lessons']}
+    if (module.get('level') == 'A1' and module.get('order') == 1
+            and by_number.get(3, {}).get('type') == 'writing_prompt'
+            and by_number.get(2, {}).get('type') in CARD_TYPES
+            and by_number.get(10, {}).get('type') in CARD_TYPES):
+        return patched, False, warnings  # Reviewed introductory 6/14-word journey.
     deck = by_number.get(OLD_DECK_POSITION)
     ninth = by_number.get(NEW_DECK_POSITION)
     if ninth is not None and ninth['type'] in CARD_TYPES:

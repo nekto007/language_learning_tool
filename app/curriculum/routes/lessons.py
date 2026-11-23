@@ -23,7 +23,7 @@ from app.curriculum.constants import (
     get_lesson_passing_score,
 )
 from app.curriculum.models import LessonProgress, Lessons
-from app.curriculum.security import require_lesson_access, sanitize_json_content
+from app.curriculum.security import require_lesson_access
 from app.curriculum.grading import check_final_test_attempts_exhausted
 from app.curriculum.service import (
     process_final_test_submission,
@@ -292,6 +292,13 @@ def update_lesson_progress(lesson_id):
         if not is_valid:
             return jsonify({'success': False, 'error': error_msg}), 400
 
+        if 'data' in cleaned_data:
+            from app.curriculum.progress_drafts import merge_client_draft, validate_client_draft
+            try:
+                validate_client_draft(cleaned_data['data'])
+            except ValueError:
+                return jsonify({'success': False, 'error': 'invalid_draft_fields'}), 400
+
         # Server-graded lesson types must be submitted via /api/lesson/<id>/submit
         # where the score is computed server-side. Reject score and completed status
         # from this endpoint to prevent challenge score forgery.
@@ -327,6 +334,8 @@ def update_lesson_progress(lesson_id):
         # data); such a snapshot must never reopen a completed lesson.
         _SNAPSHOT_NO_DOWNGRADE_TYPES = frozenset(('vocabulary', 'flashcards'))
         lesson_for_check = Lessons.query.get(lesson_id)
+        from app.curriculum.services.progress_service import _lock_progress_writer
+        _lock_progress_writer(current_user.id)
         # Exercise-backed grammar lessons are server-graded; treat them as such.
         # Theory-only grammar lessons (no exercises) still need to auto-complete
         # via this endpoint, so we strip only score for those.
@@ -355,7 +364,7 @@ def update_lesson_progress(lesson_id):
         progress = LessonProgress.query.filter_by(
             user_id=current_user.id,
             lesson_id=lesson_id
-        ).first()
+        ).populate_existing().first()
 
         from app.daily_plan.quiz_corrections import is_pending_correction
         if (lesson_for_check and lesson_for_check.type != 'final_test'
@@ -378,13 +387,20 @@ def update_lesson_progress(lesson_id):
         # an explicit re-completion is ignored on a completed deck.
         if (
             lesson_for_check
-            and lesson_for_check.type in _SNAPSHOT_NO_DOWNGRADE_TYPES
+            and (lesson_for_check.type in _SNAPSHOT_NO_DOWNGRADE_TYPES
+                 or lesson_for_check.type in _SERVER_GRADED_TYPES or _is_grammar_with_exercises)
             and progress.status == 'completed'
             and cleaned_data.get('status') != 'completed'
         ):
-            cleaned_data.pop('status', None)
-            cleaned_data.pop('data', None)
-            cleaned_data.pop('score', None)
+            # A discarded snapshot must not invalidate an already opened signed
+            # repeat or trigger completion/XP effects again.
+            response_data = {'success': True, 'progress': {
+                'status': progress.status,
+                'score': progress.score,
+                'completed_at': progress.completed_at.isoformat() if progress.completed_at else None,
+            }}
+            db.session.rollback()  # Release the account lock without a write.
+            return jsonify(response_data)
 
         if 'status' in cleaned_data:
             progress.status = cleaned_data['status']
@@ -393,7 +409,7 @@ def update_lesson_progress(lesson_id):
             progress.record_score(cleaned_data['score'])
 
         if 'data' in cleaned_data:
-            progress.data = sanitize_json_content(cleaned_data['data'])
+            progress.data = merge_client_draft(progress.data, cleaned_data['data'])
 
         if 'reading_time' in cleaned_data:
             if not progress.data:
@@ -598,8 +614,23 @@ def check_sentence_completion_item(lesson_id):
 
 def _locked_grammar_submission_lesson(lesson):
     """Serialize a grammar submission with content replacement by the importer."""
+    from app.curriculum.services.progress_service import _lock_progress_writer
+
+    # Consistent User -> Lesson lock order also matches native course writes.
+    _lock_progress_writer(current_user.id)
     return (Lessons.query.filter_by(id=lesson.id, type='grammar')
             .with_for_update().populate_existing().first_or_404())
+
+
+def _lock_final_test_submission() -> None:
+    """Use the same account lock as native/shared course submissions.
+
+    The failed-attempt cap and the persisted attempt must share this lock;
+    otherwise two transports can both claim the final remaining attempt.
+    """
+    from app.auth.models import User
+
+    db.session.query(User.id).filter(User.id == current_user.id).with_for_update().one()
 
 
 def _guided_grammar_revision_error(lesson, payload):
@@ -646,6 +677,17 @@ def submit_lesson(lesson_id):
     try:
         lesson = Lessons.query.get_or_404(lesson_id)
         data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify(success=False, error='invalid_input'), 400
+        from app.curriculum.constants import is_objective_practice
+        if is_objective_practice(lesson):
+            from app.curriculum.services.progress_service import _lock_progress_writer, _require_versioned_objective_write
+            from app.daily_plan.quiz_corrections import is_pending_correction
+            _lock_progress_writer(current_user.id)
+            stored = LessonProgress.query.filter_by(user_id=current_user.id, lesson_id=lesson.id).populate_existing().first()
+            if is_pending_correction(stored):
+                raise ValueError('correction_required')
+            _require_versioned_objective_write(lesson, stored)
         if lesson.type == 'grammar':
             lesson = _locked_grammar_submission_lesson(lesson)
             revision_error = _guided_grammar_revision_error(lesson, data)
@@ -692,6 +734,10 @@ def submit_lesson(lesson_id):
             if result.get('success') is False:
                 return jsonify(result), 400
         elif lesson.type == 'final_test':
+            _lock_final_test_submission()
+            from app.curriculum.services.progress_service import _require_versioned_objective_write
+            stored = LessonProgress.query.filter_by(user_id=current_user.id, lesson_id=lesson.id).populate_existing().first()
+            _require_versioned_objective_write(lesson, stored)
             rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
             if rate_limit is not None:
                 return jsonify({'success': False, **rate_limit}), 429
@@ -809,6 +855,9 @@ def submit_lesson(lesson_id):
         return jsonify(result)
 
     except Exception as e:
+        if isinstance(e, ValueError) and str(e) in ('correction_required', 'versioned_submission_required'):
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 409
         logger.error(f"Error submitting lesson: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Server error'}), 500

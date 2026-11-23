@@ -46,6 +46,39 @@ def _set_attempt_scores(progress: 'LessonProgress', score: float | None) -> None
     progress.record_score(round(float(score), 2))
 
 
+def _lock_progress_writer(user_id: int) -> None:
+    """Keep retained writers behind the native independent-round transaction."""
+    from app.auth.models import User
+
+    with db.session.no_autoflush:
+        db.session.query(User.id).filter(User.id == user_id).with_for_update().one()
+
+
+def _require_versioned_objective_write(lesson: Lessons, progress: LessonProgress | None,
+                                       incoming: dict | None = None) -> None:
+    """A stale form cannot replace a committed native exam/correction ledger.
+
+    Writing and other self-assessed web practices keep their existing repeat
+    flow. Native/shared graders already validate the new document's nonce and
+    version before supplying their own submission receipt here.
+    """
+    from app.curriculum.constants import is_objective_practice
+
+    stored = getattr(progress, 'data', None)
+    if not isinstance(stored, dict):
+        return
+    correction = stored.get('quiz_correction')
+    if not (is_objective_practice(lesson) or getattr(lesson, 'type', None) == 'final_test'
+            or isinstance(correction, dict)):
+        return
+    owned = isinstance(stored.get('_native_submission'), dict) or isinstance(correction, dict)
+    receipt = incoming.get('_native_submission') if isinstance(incoming, dict) else None
+    fresh = (isinstance(receipt, dict) and isinstance(receipt.get('nonce'), str)
+             and bool(receipt['nonce']) and isinstance(receipt.get('response'), dict))
+    if owned and not fresh:
+        raise ValueError('versioned_submission_required')
+
+
 class ProgressService:
     """Service for managing user progress through curriculum"""
 
@@ -208,10 +241,17 @@ class ProgressService:
             LessonProgress instance
         """
         try:
+            _lock_progress_writer(user_id)
             progress = LessonProgress.query.filter_by(
                 user_id=user_id,
                 lesson_id=lesson_id
-            ).first()
+            ).populate_existing().first()
+
+            from app.daily_plan.quiz_corrections import is_pending_correction
+            lesson = db.session.get(Lessons, lesson_id)
+            if getattr(lesson, 'type', None) != 'final_test' and is_pending_correction(progress):
+                raise ValueError('correction_required')
+            _require_versioned_objective_write(lesson, progress, data)
 
             if not progress:
                 progress = LessonProgress(
@@ -274,8 +314,12 @@ class ProgressService:
         from sqlalchemy.orm.attributes import flag_modified
 
         from app.curriculum.constants import is_objective_practice
-        if is_objective_practice(lesson) or getattr(lesson, 'type', '') == 'final_test':
+        atomic_final = getattr(lesson, 'type', '') == 'final_test'
+        objective = is_objective_practice(lesson)
+        if objective or atomic_final:
             passing_score = get_lesson_passing_score(lesson)
+        if objective:
+            _lock_progress_writer(user_id)
         score = result.get('score', 0)
         score = round(score, 2)
         is_completed = score >= passing_score
@@ -285,14 +329,24 @@ class ProgressService:
         xp_score_value = score if xp_score is _XP_SCORE_FROM_RESULT else xp_score
 
         # Find existing progress
-        progress = LessonProgress.query.filter_by(
+        progress_query = LessonProgress.query.filter_by(
             user_id=user_id,
             lesson_id=lesson.id
-        ).first()
+        )
+        progress = (progress_query.populate_existing() if atomic_final or objective else progress_query).first()
 
         from app.daily_plan.quiz_corrections import is_pending_correction
         if getattr(lesson, 'type', None) != 'final_test' and is_pending_correction(progress):
             raise ValueError('correction_required')
+        _require_versioned_objective_write(lesson, progress, result)
+        stored_result = result
+        if atomic_final:
+            from app.curriculum.progress_drafts import legacy_final_input_archive
+
+            legacy_archive = legacy_final_input_archive(progress)
+            if legacy_archive:
+                # Keep recovery input out of the caller's public grade dict.
+                stored_result = {**result, '_native_legacy_draft': legacy_archive}
 
         now = datetime.now(UTC)
 
@@ -306,7 +360,7 @@ class ProgressService:
             # an already-completed lesson. The daily-challenge accuracy_focus
             # check no longer relies on these fields — it reads today's
             # LessonAttempt rows recorded below.
-            progress.data = result
+            progress.data = stored_result
             flag_modified(progress, 'data')
             progress.last_activity = now
             if progress.status == 'completed' and not progress.completed_at:
@@ -319,7 +373,7 @@ class ProgressService:
                 best_score=score,
                 last_score=score,
                 status='completed' if is_completed else 'in_progress',
-                data=result,
+                data=stored_result,
                 started_at=now,
                 last_activity=now
             )
@@ -327,8 +381,13 @@ class ProgressService:
                 progress.completed_at = now
             db.session.add(progress)
 
-        db.session.commit()
-        _invalidate_user_progress_cache(user_id)
+        if atomic_final:
+            # Retain the caller's account lock until the attempt is durable.
+            # The rolling final cap counts LessonAttempt, not progress rows.
+            db.session.flush()
+        else:
+            db.session.commit()
+            _invalidate_user_progress_cache(user_id)
 
         try:
             from app.curriculum.routes.lessons import clear_lesson_retry
@@ -372,11 +431,17 @@ class ProgressService:
                     attempt.mistakes = result['mistakes']
                 db.session.commit()
             except Exception:
+                if atomic_final:
+                    db.session.rollback()
+                    raise
                 logger.warning(
                     "Failed to record LessonAttempt for user=%s lesson=%s",
                     user_id, lesson.id, exc_info=True,
                 )
                 db.session.rollback()
+
+        if atomic_final:
+            _invalidate_user_progress_cache(user_id)
 
         # Process grading and achievements if lesson completed
         completion_result = None

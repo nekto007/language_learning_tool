@@ -105,6 +105,8 @@
     {% endif %}
 
     <div class="lesson-shell__card writing-prompt-input-section">
+      <p id="writing-draft-status" role="status" hidden></p>
+      <p id="writing-storage-warning" class="alert alert-warning" role="status" hidden></p>
       <label class="writing-prompt-input-label" for="writing-response">
         <i class="fas fa-keyboard"></i>
         {{ _('Ваш ответ:') }}
@@ -138,7 +140,7 @@
             type="checkbox"
             value="{{ item | e }}"
             data-index="{{ loop.index0 }}"
-            onchange="updateWritingProgress()"
+            onchange="this.dataset.manual = 'true'; updateWritingProgress()"
           >
           <span class="writing-prompt-checklist-text">{{ item }}</span>
           <span class="writing-prompt-checklist-auto" data-auto-for="{{ loop.index0 }}" hidden>
@@ -203,6 +205,92 @@ const targetTotal = useSentences ? minSentences : minWords;
 const MIN_CHECKLIST = {{ min_checklist | default(2) | int }};
 const TARGET_PHRASES = {{ target_phrases | tojson }};
 const MODE_IS_GUIDED = {{ (mode == 'guided') | tojson }};
+const WRITING_DRAFT_KEY = 'llt:writing:{{ current_user.id }}:{{ lesson.id }}';
+const WRITING_DRAFT_REVISION = JSON.stringify({version: {{ lesson.content_version | default(0, true) | tojson }}, content: {{ lesson.content | tojson }}});
+// The lesson shell removes the one-shot retry query before DOMContentLoaded.
+const WRITING_RETRY_REQUESTED = new URLSearchParams(location.search).get('retry') === 'true';
+let writingDraftReady = false;
+let writingFinished = {{ is_completed | default(false) | tojson }};
+let writingStorageAvailable = true;
+let writingStorageReadable = true;
+let writingUnloadGuarded = false;
+let writingPreviousDraft = null;
+
+function writingBeforeUnload(event) { event.preventDefault(); event.returnValue = ''; }
+function updateWritingStorageWarning() {
+  const warning = document.getElementById('writing-storage-warning');
+  const warn = writingDraftReady && !writingFinished && !writingStorageAvailable;
+  warning.hidden = !warn;
+  warning.textContent = '{{ _("Не удалось записать черновик в браузере. Текст остаётся в этой вкладке; при её закрытии или перезагрузке ввод может потеряться.") }}';
+  const dirty = warn && (document.getElementById('writing-response').value.trim()
+    || writingPreviousDraft?.text?.trim() || document.querySelector('.writing-prompt-checkbox:checked'));
+  if (dirty && !writingUnloadGuarded) { window.addEventListener('beforeunload', writingBeforeUnload); writingUnloadGuarded = true; }
+  else if (!dirty && writingUnloadGuarded) { window.removeEventListener('beforeunload', writingBeforeUnload); writingUnloadGuarded = false; }
+}
+
+function showPreviousWritingDraft(draft) {
+  if (!draft || typeof draft.text !== 'string' || !draft.text) return;
+  writingPreviousDraft = {text: draft.text, revision: draft.revision};
+  const previous = document.createElement('details'); previous.id = 'writing-previous-draft';
+  const summary = document.createElement('summary'); summary.textContent = '{{ _("Предыдущий черновик") }}';
+  const text = document.createElement('pre'); text.textContent = draft.text;
+  text.style.whiteSpace = 'pre-wrap'; text.style.overflowWrap = 'anywhere';
+  previous.append(summary, text); document.getElementById('writing-draft-status').after(previous);
+}
+
+function saveWritingDraft() {
+  if (!writingDraftReady || writingFinished) return;
+  try {
+    sessionStorage.setItem(WRITING_DRAFT_KEY, JSON.stringify({
+      revision: WRITING_DRAFT_REVISION,
+      text: document.getElementById('writing-response').value,
+      checked: Array.from(document.querySelectorAll('.writing-prompt-checkbox:checked')).map(cb => cb.value),
+      manual: Array.from(document.querySelectorAll('.writing-prompt-checkbox[data-manual="true"]')).map(cb => cb.value),
+      previous: writingPreviousDraft,
+    }));
+    writingStorageAvailable = writingStorageReadable;
+  } catch (_) { writingStorageAvailable = false; }
+  updateWritingStorageWarning();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const status = document.getElementById('writing-draft-status');
+  let draft;
+  try {
+    const saved = sessionStorage.getItem(WRITING_DRAFT_KEY);
+    try { draft = JSON.parse(saved); } catch (_) {}
+  } catch (_) { writingStorageReadable = false; writingStorageAvailable = false; }
+  try {
+    const retryRequested = WRITING_RETRY_REQUESTED;
+    if (writingFinished || retryRequested) {
+      if (retryRequested && !writingFinished) {
+        document.getElementById('writing-response').value = '';
+        document.querySelectorAll('.writing-prompt-checkbox').forEach(cb => { cb.checked = false; });
+      }
+      sessionStorage.removeItem(WRITING_DRAFT_KEY);
+    } else if (draft && draft.revision === WRITING_DRAFT_REVISION) {
+      document.getElementById('writing-response').value = typeof draft.text === 'string' ? draft.text : '';
+      const checked = new Set(Array.isArray(draft.checked) ? draft.checked : []);
+      const manual = new Set(Array.isArray(draft.manual) ? draft.manual : []);
+      document.querySelectorAll('.writing-prompt-checkbox').forEach(cb => {
+        cb.checked = checked.has(cb.value);
+        if (manual.has(cb.value)) cb.dataset.manual = 'true';
+      });
+      showPreviousWritingDraft(draft.previous);
+      status.textContent = '{{ _("Черновик восстановлен в этой вкладке.") }}'; status.hidden = false;
+    } else if (draft) {
+      // Keep the old work available without applying it to a changed task.
+      try {
+        sessionStorage.setItem(WRITING_DRAFT_KEY + ':expired:' + Date.now(), JSON.stringify(draft));
+        sessionStorage.removeItem(WRITING_DRAFT_KEY);
+      } catch (_) { writingStorageAvailable = false; }
+      status.textContent = '{{ _("Задание обновилось. Начат новый черновик; предыдущий текст доступен ниже.") }}'; status.hidden = false;
+      showPreviousWritingDraft(draft.text ? draft : draft.previous);
+    }
+  } catch (_) { writingStorageAvailable = false; }
+  writingDraftReady = true;
+  updateWritingProgress();
+});
 
 function countWords(text) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -228,6 +316,7 @@ function _hasTargetPhrase(text) {
 }
 
 function insertWritingChip(word) {
+  if (writingFinished) return;
   const ta = document.getElementById('writing-response');
   if (!ta) return;
   const start = ta.selectionStart, end = ta.selectionEnd;
@@ -244,6 +333,7 @@ function insertWritingChip(word) {
 }
 
 function insertTemplate(tpl) {
+  if (writingFinished) return;
   const ta = document.getElementById('writing-response');
   if (!ta) return;
   if (ta.value.trim() && !confirm('{{ _("Заменить текущий текст шаблоном?") }}')) return;
@@ -270,6 +360,11 @@ function _autoCheckChecklist(text) {
   ];
   const checkboxes = Array.from(document.querySelectorAll('.writing-prompt-checkbox'));
   checkboxes.forEach((cb) => {
+    if (cb.dataset.manual === 'true') {
+      const badge = document.querySelector('[data-auto-for="' + cb.getAttribute('data-index') + '"]');
+      if (badge) badge.hidden = true;
+      return;
+    }
     const item = String(cb.value || '').toLowerCase();
     let rule = null;
     for (const r of rules) {
@@ -310,6 +405,7 @@ function updateWritingProgress() {
   if (bar) bar.setAttribute('aria-valuenow', String(Math.min(targetTotal, count)));
   _autoCheckChecklist(text);
   _renderReadiness(text, count);
+  saveWritingDraft();
 }
 
 // Считает, чего не хватает для завершения. Возвращает массив сообщений;
@@ -447,6 +543,11 @@ async function submitWriting() {
 
     submitBtn.classList.remove('btn--loading');
     if (data.completed) {
+      writingFinished = true;
+      document.getElementById('writing-response').readOnly = true;
+      document.querySelectorAll('.writing-prompt-checkbox, .wp-hint-chip, .writing-prompt-helper__insert').forEach(control => { control.disabled = true; });
+      try { sessionStorage.removeItem(WRITING_DRAFT_KEY); } catch (_) {}
+      updateWritingStorageWarning();
       submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> {{ _("Завершено") }}';
       if (typeof showSaveToast === 'function') showSaveToast();
     } else {
@@ -558,7 +659,7 @@ function showResult(data) {
     // «К списку уроков» / «Следующий урок», как у всех остальных уроков.
     if (typeof window.showLessonCompletion === 'function') {
       const dpCtx = data.daily_plan_ctx || {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
-      window.showLessonCompletion({ score: 100, daily_plan_ctx: dpCtx });
+      window.showLessonCompletion({ grade_name: '{{ _("Практика выполнена") }}', daily_plan_ctx: dpCtx });
     }
   } else {
     let hint = '';
@@ -612,11 +713,12 @@ document.addEventListener('DOMContentLoaded', function _restoreCompleted() {
   const submitBtn = document.getElementById('submit-btn');
   const actions = submitBtn ? submitBtn.closest('.lesson-shell__actions') : null;
   if (actions) actions.hidden = true;
+  document.querySelectorAll('.wp-hint-chip, .writing-prompt-helper__insert').forEach(control => { control.disabled = true; });
   const readiness = document.getElementById('wp-readiness');
   if (readiness) readiness.hidden = true;
   if (typeof window.showLessonCompletion === 'function') {
     const dpCtx = {{ (daily_plan_ctx.to_dict() if daily_plan_ctx else {'is_daily_plan': False}) | tojson }};
-    window.showLessonCompletion({ score: 100, silent: true, daily_plan_ctx: dpCtx });
+    window.showLessonCompletion({ grade_name: '{{ _("Практика выполнена") }}', silent: true, daily_plan_ctx: dpCtx });
   }
 });
 {% endif %}

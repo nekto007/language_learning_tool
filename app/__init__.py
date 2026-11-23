@@ -102,6 +102,8 @@ def create_app(config_class=Config):
     app.config['JWT_HEADER_NAME'] = 'Authorization'
     app.config['JWT_HEADER_TYPE'] = 'Bearer'
 
+    from app.auth.browser_actor import browser_actor_guard
+    app.before_request(browser_actor_guard)
     csrf.init_app(app)
     # Initialize extensions
     db.init_app(app)
@@ -340,7 +342,10 @@ def create_app(config_class=Config):
     @_login_required
     def refresh_csrf_token():
         from flask_wtf.csrf import generate_csrf
-        return _jsonify({'csrf_token': generate_csrf()})
+        from flask_login import current_user
+        response = _jsonify({'csrf_token': generate_csrf(), 'account_id': str(current_user.id)})
+        response.headers['Cache-Control'] = 'private, no-store'
+        return response
 
     # Health check blueprint (no auth, no CSRF)
     from app.health import health_bp
@@ -459,6 +464,9 @@ def create_app(config_class=Config):
 
         from flask import redirect, request, url_for
         from flask_login import current_user
+
+        if request.endpoint == 'refresh_csrf_token':
+            return None
 
         try:
             is_auth = current_user.is_authenticated

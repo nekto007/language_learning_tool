@@ -31,6 +31,10 @@ def learning_guidance(lesson):
     goal = _text(content.get("learning_goal")) or _text(starter.get("goal"))
     if goal:
         result["learning_goal"] = goal
+    # Examples are teaching help. A final module test stays independent until
+    # submission, even if old authored content contains a starter block.
+    if getattr(lesson, "type", None) == "final_test":
+        return result
     rows = starter.get("lines")
     if not isinstance(rows, list) or not 1 <= len(rows) <= 8:
         return result

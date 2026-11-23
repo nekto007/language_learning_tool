@@ -186,16 +186,27 @@ def complete_lesson(user_id: int, lesson_id: int, score: float = 100.0) -> Optio
     Returns:
         LessonProgress: Объект прогресса урока или None при ошибке
     """
+    from app.curriculum.services.progress_service import _lock_progress_writer, _require_versioned_objective_write
+
+    lesson = Lessons.query.get(lesson_id)
+    if lesson is None:
+        return None
+    try:
+        _lock_progress_writer(user_id)
+    except SQLAlchemyError:
+        db.session.rollback()
+        logger.exception('Lesson completion account lock failed user=%s lesson=%s', user_id, lesson_id)
+        return None
     progress = LessonProgress.query.filter_by(
         user_id=user_id,
         lesson_id=lesson_id
-    ).first()
+    ).populate_existing().first()
 
     from app.daily_plan.quiz_corrections import is_pending_correction
 
-    lesson = Lessons.query.get(lesson_id)
     if getattr(lesson, 'type', None) != 'final_test' and is_pending_correction(progress):
         raise ValueError('correction_required')
+    _require_versioned_objective_write(lesson, progress)
     passing_score = get_lesson_passing_score(lesson)
 
     # Track if this is an existing progress (for legacy attempt detection)

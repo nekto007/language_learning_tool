@@ -11,6 +11,10 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/listening_immersion.css') }}?v=1">
+<style nonce="{{ csp_nonce }}">
+.li-self-assess span { min-width: 0; }
+.li-self-assess input[type="checkbox"] { flex-shrink: 0; }
+</style>
 {% endblock %}
 
 {% block lesson_content %}

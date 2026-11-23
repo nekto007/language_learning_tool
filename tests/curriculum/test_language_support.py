@@ -105,8 +105,8 @@ def test_reading_question_support_and_existing_line_translation_toggle(db_sessio
 
 
 @pytest.mark.parametrize('code', ['A1', 'A2'])
-def test_final_test_preserves_authored_question_support_without_translating_the_answer(
-    db_session, client, test_user, code,
+def test_final_test_suppresses_authored_translation_during_independent_attempt(
+    db_session, client, test_user, code, monkeypatch,
 ):
     lesson = _lesson(db_session, code, 'final_test', {'exercises': [
         {'type': 'multiple_choice', 'question': 'Which word means a job?',
@@ -114,12 +114,15 @@ def test_final_test_preserves_authored_question_support_without_translating_the_
          'options': ['teacher', 'table', 'window'], 'correct': 'teacher'},
     ]})
     _login(client, test_user)
-    response = client.get(f'/curriculum/lesson/{lesson.id}/final_test')
+    monkeypatch.setattr('app.api.native_lessons._guard_plan', lambda *args: 'curriculum')
+    response = client.get(f'/curriculum/lesson/{lesson.id}/final_test', follow_redirects=True)
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert 'Какое слово обозначает профессию?' in html
-    assert ('<details class="final-test-question-translation">' in html) is (code == 'A2')
-    assert '>teacher<' in html
+    assert 'guided-practice.js' in html and 'finalTestData' not in html
+    lesson_document = client.get(f'/curriculum/api/lesson/{lesson.id}/practice').json['lesson']
+    assert lesson_document['questions'][0]['translation'] is None
+    assert 'teacher' in [o['label'] for o in lesson_document['questions'][0]['options']]
+    assert not lesson_document['immediate_feedback']
 
 
 # These assertions cover the versioned legacy renderer and saved legacy drafts.

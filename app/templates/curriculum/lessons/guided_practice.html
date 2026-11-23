@@ -1,17 +1,26 @@
 {% extends 'base.html' %}
 {% block title %}{{ lesson.title }} · LLT English{% endblock %}
+{% block styles %}
+{{ super() }}
+<style nonce="{{ csp_nonce }}">
+#guided-practice button { max-width: 100%; min-height: 44px; white-space: normal; }
+#guided-practice { overflow-wrap: anywhere; }
+</style>
+{% endblock %}
 {% block content %}
 <main id="guided-practice" class="container py-4" style="max-width:800px"
       data-endpoint="{{ url_for('curriculum_lessons.practice_document', lesson_id=lesson.id) }}"
       data-account="{{ current_user.id }}" data-lesson="{{ lesson.id }}">
   <a href="{{ url_for('words.dashboard') }}" class="btn btn-outline-secondary mb-3">К плану дня</a>
   <h1 class="h3">{{ lesson.title }}</h1>
+  <p id="practice-goal" class="text-secondary" hidden></p>
   <p id="practice-error" role="alert" class="text-danger" hidden></p>
+  <p id="practice-storage-warning" role="status" class="alert alert-warning" hidden></p>
   <section id="practice-screen" aria-live="polite" aria-atomic="false"><p>Открываем занятие…</p></section>
   <noscript>Для пошаговой практики включи JavaScript.</noscript>
 </main>
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/guided-practice.js') }}?v=20261123-2" defer></script>
+<script src="{{ url_for('static', filename='js/guided-practice.js') }}?v=20261123-3" defer></script>
 {% endblock %}

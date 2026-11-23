@@ -6,6 +6,10 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/shadow_reading.css') }}?v=1">
+<style nonce="{{ csp_nonce }}">
+.shadow-phase__header { flex-wrap: wrap; }
+.shadow-phase__label { min-width: 0; }
+</style>
 {% endblock %}
 
 {% block lesson_content %}
@@ -75,7 +79,7 @@
     {# === Шаг 2 — Читайте вслух вместе с записью. Кнопка перехода к
        самооценке открывается после ≥50% совместного проигрывания. === #}
     <article class="lesson-shell__card shadow-phase" id="phase-2" data-phase="2"
-             data-state="locked" data-audio-state="loading" aria-disabled="true">
+             data-state="locked" data-audio-state="loading" aria-disabled="true" inert>
       <header class="shadow-phase__header">
         <span class="shadow-phase__num" id="phase-2-num">2</span>
         <span class="shadow-phase__label">
@@ -128,7 +132,7 @@
        «Легко», «Нормально», «Сложно». Без записи голоса это
        самостоятельная практика, не «проверка произношения». === #}
     <article class="lesson-shell__card shadow-phase" id="phase-3" data-phase="3"
-             data-state="locked" aria-disabled="true">
+             data-state="locked" aria-disabled="true" inert>
       <header class="shadow-phase__header">
         <span class="shadow-phase__num" id="phase-3-num">3</span>
         <span class="shadow-phase__label">
@@ -140,15 +144,15 @@
         {{ _('Я прочитал(а) вслух вместе с записью. Как получилось?') }}
       </p>
       <div class="sr-assess-row" role="radiogroup" aria-label="{{ _('Самооценка') }}">
-        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false"
+        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false" tabindex="0"
                 data-rating="easy" onclick="selectAssess(this)">
           {{ _('Легко') }}
         </button>
-        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false"
+        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false" tabindex="-1"
                 data-rating="ok" onclick="selectAssess(this)">
           {{ _('Нормально') }}
         </button>
-        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false"
+        <button class="sr-assess-btn" type="button" role="radio" aria-checked="false" tabindex="-1"
                 data-rating="hard" onclick="selectAssess(this)">
           {{ _('Сложно') }}
         </button>
@@ -216,12 +220,15 @@ function _setPhaseState(id, state) {
   if (!el) return;
   el.dataset.state = state;
   if (state === 'locked') {
+    el.inert = true;
     el.setAttribute('aria-disabled', 'true');
     el.removeAttribute('aria-current');
   } else if (state === 'active') {
+    el.inert = false;
     el.removeAttribute('aria-disabled');
     el.setAttribute('aria-current', 'step');
   } else if (state === 'done') {
+    el.inert = false;
     el.removeAttribute('aria-disabled');
     el.removeAttribute('aria-current');
   }
@@ -240,35 +247,53 @@ function _initPhaseAudio(phaseId, audioId, loadingId, errorId) {
   if (!audio) return {wireGate: function() {}, coverage: function() { return 0; }};
   // Доля реально прослушанного аудио (0..1) — уходит в отчёт при самооценке.
   let coveredRatio = 0;
+  let loadTimeout;
 
   function _showReady() {
     if (card) card.dataset.audioState = 'ready';
     if (loading) loading.hidden = true;
+    if (errorEl) errorEl.hidden = true;
+    if (audio.parentElement) audio.parentElement.hidden = false;
+    clearTimeout(loadTimeout);
   }
   function _showError() {
-    if (!card || card.dataset.audioState === 'ready') return;
+    if (!card) return;
     card.dataset.audioState = 'error';
     if (loading) loading.hidden = true;
     const wrap = audio.parentElement;
     if (wrap) wrap.hidden = true;
     if (errorEl) errorEl.hidden = false;
+    clearTimeout(loadTimeout);
   }
   function _check() {
-    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+    if (!audio.error && Number.isFinite(audio.duration) && audio.duration > 0) {
       _showReady();
       return true;
     }
     return false;
   }
-  if (audio.readyState >= 1 && _check()) {
-    // уже готово
-  } else {
-    audio.addEventListener('loadedmetadata', _check);
-    audio.addEventListener('canplay', _check);
-    audio.addEventListener('error', _showError);
-    setTimeout(function() {
+  function armLoadTimeout() {
+    clearTimeout(loadTimeout);
+    loadTimeout = setTimeout(function() {
       if (card && card.dataset.audioState === 'loading') _showError();
     }, 15000);
+  }
+  // Playback can fail after metadata has already loaded too.
+  audio.addEventListener('loadedmetadata', _check);
+  audio.addEventListener('canplay', _check);
+  audio.addEventListener('error', _showError);
+  if (!(audio.readyState >= 1 && _check())) armLoadTimeout();
+  if (errorEl) {
+    errorEl.setAttribute('role', 'alert');
+    const retry = document.createElement('button'); retry.type = 'button';
+    retry.className = 'btn btn-outline-secondary btn-sm'; retry.textContent = '{{ _("Загрузить аудио снова") }}';
+    retry.addEventListener('click', function() {
+      if (card) card.dataset.audioState = 'loading';
+      errorEl.hidden = true; if (loading) loading.hidden = false;
+      if (audio.parentElement) audio.parentElement.hidden = false;
+      armLoadTimeout(); audio.load();
+    });
+    errorEl.append(retry);
   }
 
   // Loop: вместо нативного `loop` attribute (который умолкает между
@@ -286,7 +311,7 @@ function _initPhaseAudio(phaseId, audioId, loadingId, errorId) {
     let lastTime = 0;
     let fired = false;
     audio.addEventListener('seeking', () => { lastTime = audio.currentTime; });
-    audio.addEventListener('timeupdate', () => {
+    function recordPlayback() {
       const dur = audio.duration;
       if (!Number.isFinite(dur) || dur <= 0) return;
       const t = audio.currentTime;
@@ -298,10 +323,10 @@ function _initPhaseAudio(phaseId, audioId, loadingId, errorId) {
         fired = true;
         onThreshold();
       }
-    });
-    audio.addEventListener('ended', () => {
-      if (!fired) { fired = true; onThreshold(); }
-    });
+    }
+    audio.addEventListener('timeupdate', recordPlayback);
+    // Reaching the end via seeking is not the same as listening to half.
+    audio.addEventListener('ended', recordPlayback);
   }
   return {wireGate: wireGate, audio: audio, coverage: function() { return coveredRatio; }};
 }
@@ -330,7 +355,8 @@ function _unlockPhase3Button() {
 
 let _phase2GateBound = false;
 function goToPhase2() {
-  if (phase2Unlocked) return;
+  if (phase2Unlocked || document.getElementById('btn-skip-phase1').disabled) return;
+  if (_phase1Ctrl.audio) _phase1Ctrl.audio.pause();
   phase2Unlocked = true;
   _setPhaseState('phase-1', 'done');
   _setPhaseState('phase-2', 'active');
@@ -349,7 +375,8 @@ function goToPhase2() {
 }
 
 function goToPhase3() {
-  if (phase3Unlocked) return;
+  if (phase3Unlocked || document.getElementById('btn-skip-phase2').disabled) return;
+  if (_phase2Ctrl.audio) _phase2Ctrl.audio.pause();
   phase3Unlocked = true;
   _setPhaseState('phase-2', 'done');
   _setPhaseState('phase-3', 'active');
@@ -360,16 +387,19 @@ function goToPhase3() {
 }
 
 function selectAssess(btn) {
+  if (!phase3Unlocked) return;
   assessRating = btn.dataset.rating || '';
   const row = btn.parentElement;
   if (row) {
     row.querySelectorAll('.sr-assess-btn').forEach(b => {
       b.classList.remove('sr-assess-btn--selected');
       b.setAttribute('aria-checked', 'false');
+      b.tabIndex = -1;
     });
   }
   btn.classList.add('sr-assess-btn--selected');
   btn.setAttribute('aria-checked', 'true');
+  btn.tabIndex = 0;
   const hidden = document.getElementById('self-assess-rating');
   if (hidden) hidden.value = assessRating;
   const submitBtn = document.getElementById('submit-btn');
@@ -381,6 +411,7 @@ function retryAssess() {
   document.querySelectorAll('.sr-assess-btn').forEach(b => {
     b.classList.remove('sr-assess-btn--selected');
     b.setAttribute('aria-checked', 'false');
+    b.tabIndex = b.dataset.rating === 'easy' ? 0 : -1;
   });
   const hidden = document.getElementById('self-assess-rating');
   if (hidden) hidden.value = '';
@@ -426,6 +457,17 @@ document.addEventListener('DOMContentLoaded', function() {
   _phase2Ctrl = _initPhaseAudio('phase-2', 'audio-phase2', 'audio-loading-2', 'audio-error-2');
   // Шаг 1 → 2: открывает кнопку перехода, когда прослушано ≥50%.
   _phase1Ctrl.wireGate(_unlockPhase2Button);
+  // Arrow keys are expected within a radiogroup; Space/Enter work natively.
+  document.querySelector('.sr-assess-row').addEventListener('keydown', function(event) {
+    if (!phase3Unlocked || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
+    const buttons = Array.from(this.querySelectorAll('[role="radio"]'));
+    const current = buttons.indexOf(document.activeElement);
+    if (current < 0) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+      : (current + (['ArrowLeft','ArrowUp'].includes(event.key) ? -1 : 1) + buttons.length) % buttons.length;
+    buttons[next].focus(); selectAssess(buttons[next]);
+  });
 });
 
 function _coverageOf(ctrl) {
@@ -438,7 +480,7 @@ function _coverageOf(ctrl) {
 }
 
 async function submitShadowReading() {
-  if (!assessRating) return;
+  if (!phase3Unlocked || !assessRating) return;
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
@@ -472,7 +514,7 @@ async function submitShadowReading() {
     if (actions) actions.hidden = true;
 
     if (typeof window.showLessonCompletion === 'function') {
-      window.showLessonCompletion({ score: 100, daily_plan_ctx: data.daily_plan_ctx });
+      window.showLessonCompletion({ grade_name: '{{ _("Практика выполнена") }}', daily_plan_ctx: data.daily_plan_ctx });
     }
     if (typeof showSaveToast === 'function') showSaveToast();
   } catch (err) {
@@ -504,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function _restoreCompleted() {
   const actions = document.querySelector('.lesson-shell__actions');
   if (actions) actions.hidden = true;
   if (typeof window.showLessonCompletion === 'function') {
-    window.showLessonCompletion({ score: 100, silent: true });
+    window.showLessonCompletion({ grade_name: '{{ _("Практика выполнена") }}', silent: true });
   }
 });
 {% endif %}

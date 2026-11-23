@@ -22,6 +22,14 @@
     <!-- Design System (unified CSS) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20261112b">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% if current_user.is_authenticated %}
+    <meta name="llt-account-id" content="{{ current_user.id }}">
+    <style nonce="{{ csp_nonce }}">
+      body.llt-account-invalid > :not(#llt-account-notice) { display: none !important; }
+      .cabinet-footer__link { overflow-wrap: anywhere; }
+    </style>
+    <script src="{{ url_for('static', filename='js/account-bound-requests.js') }}?v=20261123-1"></script>
+    {% endif %}
     <script nonce="{{ csp_nonce }}">
     // UI-017: 31 call sites pass {behavior:'smooth'} explicitly. The global
     // `scroll-behavior: auto !important` rule in design-system.css does not

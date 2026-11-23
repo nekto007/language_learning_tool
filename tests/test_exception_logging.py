@@ -105,29 +105,35 @@ class TestEmailExceptionLogging:
     """Verify email_utils.send_email logs SMTP failures (not silent swallow)."""
 
     def test_send_email_logs_smtp_failure(self, app):
-        """When SMTP fails, send_email should log the exception, not silently return False."""
+        """SMTP failure is logged safely without copying raw replies or message data."""
         with app.app_context():
             with patch('app.utils.email_utils.logger') as mock_logger:
-                with patch('app.utils.email_utils.smtplib.SMTP', side_effect=Exception("SMTP down")):
-                    from app.utils.email_utils import email_sender
-                    # Force email_host to trigger SMTP attempt
-                    email_sender.email_host = 'localhost'
-                    email_sender.default_from_email = 'test@test.com'
-                    result = email_sender.send_email('Test', 'to@test.com', 'password_reset', {'reset_url': '#'})
+                with patch('app.utils.email_utils.smtplib.SMTP', side_effect=OSError("PRIVATE SMTP diagnostics")), \
+                     patch('app.utils.email_utils.render_template', return_value='PRIVATE MESSAGE BODY'):
+                    from app.utils.email_utils import EmailSender
+                    sender = EmailSender()
+                    sender.email_host = 'localhost'
+                    sender.default_from_email = 'test@example.invalid'
+                    sender.email_user = sender.email_password = None
+                    sender.use_ssl = sender.use_tls = False
+                    result = sender.send_email('Test', 'to@example.invalid', 'password_reset', {'reset_url': '#'})
                     assert result is False
-                    assert mock_logger.exception.called, "send_email must log the exception, not silently swallow"
+                    assert mock_logger.warning.called
+                    assert mock_logger.warning.call_args.args[1] == 'network'
+                    assert 'PRIVATE' not in str(mock_logger.mock_calls)
 
 
 class TestEmailUtilsHasLogging:
     """Verify email_utils exception handler includes logging, not bare return False."""
 
     def test_email_utils_except_block_has_logger(self):
-        """The except block in send_email must call logger, not just return False."""
+        """The compatibility wrapper delegates to the safe, categorized logger."""
         import inspect
         from app.utils import email_utils
-        source = inspect.getsource(email_utils.EmailSender.send_email)
-        # The except block must contain logger call
-        assert 'logger.exception' in source, "send_email except block must call logger.exception"
+        wrapper = inspect.getsource(email_utils.EmailSender.send_email)
+        assert 'submit_email' in wrapper and '.accepted' in wrapper
+        source = inspect.getsource(email_utils.EmailSender.submit_email)
+        assert 'logger.warning' in source
         # Must NOT have bare "return False" without logging
         lines = source.split('\n')
         for i, line in enumerate(lines):

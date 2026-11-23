@@ -522,6 +522,15 @@ def lesson_by_id(lesson_id):
     )
 
     lesson = Lessons.query.get_or_404(lesson_id)
+    if request.method == 'GET' and not lesson.content:
+        from app.curriculum.constants import is_objective_practice
+        if lesson.type == 'final_test' or is_objective_practice(lesson):
+            return render_template('curriculum/lessons/empty_content.html', lesson=lesson)
+    if request.method == 'GET' and lesson.type == 'final_test':
+        # Final keys must never return through the old browser renderer, even
+        # for a bookmarked ?ui=legacy URL or a pre-rollout draft.
+        from app.curriculum.routes.guided_practice import render_practice
+        return render_practice(lesson)
     if request.method == 'GET' and request.args.get('ui') != 'legacy':
         from app.curriculum.constants import is_objective_practice
         if is_objective_practice(lesson):

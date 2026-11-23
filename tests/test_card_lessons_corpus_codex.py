@@ -94,6 +94,36 @@ def test_apply_and_rollback_require_the_exact_expected_deck(tmp_path: Path):
         assert f"l.content::jsonb->'cards' = {_dollar(new_json)}::jsonb" in statement
 
 
+@pytest.mark.parametrize('title', ['Знакомство', 'Знакомство.'])
+def test_reviewed_introductory_a1_is_not_rebalanced_or_moved(title):
+    from scripts.move_second_card_lesson import plan_module as move
+
+    source = _module([_card(i, f'word-{i}') for i in range(6)],
+                     [_card(i, f'word-{i}') for i in range(6, 20)])
+    module = source['module']
+    module.update(level='A1', order=1, title=title)
+    module['lessons'][0]['title'] = 'Карточки: первые 6 фраз для знакомства'
+    module['lessons'][1].update(number=10, title='Карточки: ещё 14 слов и вежливых фраз')
+    module['lessons'].insert(1, {'number': 3, 'type': 'writing_prompt', 'title': 'Письмо', 'content': {}})
+    pristine = copy.deepcopy(source)
+    patched, change, warnings = plan_module(Path('module_A1_1.json'), source)
+    assert patched == pristine == source and not change.touched and warnings == []
+    patched, changed, warnings = move(Path('module_A1_1.json'), source)
+    assert patched == pristine and changed is False and warnings == []
+
+
+def test_similar_card_layout_in_another_module_still_uses_standard_rebalance():
+    source = _module([_card(i, f'word-{i}') for i in range(6)],
+                     [_card(i, f'word-{i}') for i in range(6, 20)])
+    source['module'].update(level='A1', order=2)
+    source['module']['lessons'][1]['number'] = 10
+    source['module']['lessons'].insert(1, {'number': 3, 'type': 'writing_prompt', 'title': 'Письмо', 'content': {}})
+    patched, change, _ = plan_module(Path('module_A1_2.json'), source)
+    assert change.touched
+    assert [len(lesson['content']['cards']) for lesson in patched['module']['lessons']
+            if lesson['type'] in {'card', 'flashcards'}] == [10, 10]
+
+
 @pytest.mark.skipif(not CORPUS.exists(), reason="module corpus not present in this checkout")
 def test_known_corpus_exceptions_remain_intentional():
     modules = {}

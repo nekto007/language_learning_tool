@@ -119,6 +119,8 @@ def test_module_lesson_structure_is_stable():
         n = len(module["lessons"])
         if n == 18:
             expected_types = EXPECTED_LESSON_TYPES_18
+            if (module['level'], module['order']) == ('A1', 1):
+                expected_types = [*expected_types[:2], 'writing_prompt', *expected_types[2:16], 'final_test']
         else:
             assert n == 12, path
             expected_types = EXPECTED_LESSON_TYPES_12

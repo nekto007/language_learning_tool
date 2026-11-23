@@ -26,7 +26,11 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 0 1rem 2rem;
+  overflow-wrap: anywhere;
 }
+
+.lsn-page button { max-width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.lsn-page input { min-width: 0; }
 
 /* ── Animations ── */
 @keyframes lsnSlideUp {
@@ -99,6 +103,7 @@
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .lsn-badge {
@@ -111,7 +116,8 @@
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 100%;
   backdrop-filter: blur(5px);
 }
 
@@ -126,7 +132,8 @@
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.01em;
-  white-space: nowrap;
+  white-space: normal;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -407,11 +414,15 @@
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .lsn-page {
-    padding: 0 0.75rem 1.5rem;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    padding: 0 12px 1.5rem;
   }
 
   .lsn-header {
-    padding: 1rem 1.125rem;
+    padding: 16px 18px;
     border-radius: 12px;
   }
 
@@ -429,6 +440,13 @@
     padding: 0.5rem 1rem;
     font-size: 0.8125rem;
   }
+}
+@media (max-width: 480px) {
+  /* The cabinet main already supplies horizontal gutters. Avoid stacking
+     another page gutter and shell margin around enlarged lesson text. */
+  .lsn-page { padding-left: 0; padding-right: 0; }
+  .lsn-page .lesson-shell { margin-left: 0; margin-right: 0; }
+  .lsn-page .vocab-starter { padding: 16px; }
 }
 </style>
 {% endblock %}

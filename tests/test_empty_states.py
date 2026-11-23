@@ -131,7 +131,10 @@ class TestBooksEmptyState:
         """Verify books selection has level filter suggestion."""
         env = app.jinja_env
         source = env.loader.get_source(env, 'books/read_selection.html')[0]
-        assert 'Нет доступных книг для вашего уровня' in source
+        # A1 catalog now includes short texts and dialogues alongside books.
+        assert 'rs-empty__title' in source
+        assert 'Нет доступных материалов для вашего уровня' in source
+        assert 'Тексты и книги' in source
         assert 'фильтр' in source.lower() or 'поиск' in source.lower()
 
 

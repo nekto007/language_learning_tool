@@ -963,7 +963,10 @@ class TestP3Batch2:
         ]})
         resp = authenticated_client.get(f'/learn/{lesson.id}/', follow_redirects=True)
         assert resp.status_code == 200
-        _assert_inline_js_valid(resp.data.decode(), 'submitResults')
+        # Final questions/keys are now fetched through the secure course DTO,
+        # never embedded in the retained legacy inline grader.
+        assert b'guided-practice.js' in resp.data
+        assert b'finalTestData' not in resp.data
 
     # --- daily-plan-next.js: deleted outright (UI-031) ---
     def test_daily_plan_next_script_is_deleted(self):

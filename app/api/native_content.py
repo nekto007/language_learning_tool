@@ -302,7 +302,7 @@ def _question(lesson, row, index):
         "input": "text",
         "translation": (
             _plain(question_translation(row))
-            if language_support_mode(lesson) in ("inline", "toggle")
+            if lesson.type != "final_test" and language_support_mode(lesson) in ("inline", "toggle")
             else None
         ),
         "audio_url": media_url(
@@ -420,7 +420,7 @@ def theory_for(lesson):
     from app.api.native_lessons import _theory
 
     c = content_for(lesson)
-    if lesson.type in ("audio_fill_blank", "listening_quiz"):
+    if lesson.type in ("final_test", "audio_fill_blank", "listening_quiz"):
         return []
     if lesson.type == "dictation" and not c.get("gap_text"):
         return []
@@ -577,7 +577,10 @@ def project(lesson):
 
 
 def extras(lesson):
+    from app.curriculum.journey_pack import lesson_guidance as presentation_guidance
+
     c = content_for(lesson)
+    guidance = presentation_guidance(lesson)
     assessment = "graded"
     if lesson.type in READINGS:
         assessment = "graded" if rows_for(lesson, c) else "self_assessed"
@@ -588,11 +591,13 @@ def extras(lesson):
     if lesson.type == "translation" and c.get("mode") in ("open", "rubric"):
         assessment = "self_review"
     return {
+        **({'learning_goal': guidance['learning_goal']} if guidance.get('learning_goal') else {}),
         "assessment": assessment,
         "audio_url": media_url(c.get("audio_url") or c.get("audio")),
         "video_url": media_url(c.get("video_url") or c.get("video"), "video"),
         "theory": theory_for(lesson),
-        "instruction": _plain(c.get("instruction") or c.get("description")) or (
+        "instruction": _plain(guidance.get('instruction') or c.get("instruction") or (
+            c.get("description") if lesson.type != "final_test" else "")) or (
             "Сначала послушай запись. Затем повторяй текст вслух вместе с записью, "
             "при необходимости на скорости 0,75×. После этого прочитай текст самостоятельно "
             "и подтверди выполненную практику. Это самостоятельная тренировка без автоматической оценки речи."
@@ -1061,6 +1066,7 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
     )
     from app.curriculum.listening_service import log_listening_attempt, log_pronunciation_attempt
     from app.curriculum.grading import check_final_test_attempts_exhausted
+    from app.curriculum.progress_drafts import legacy_final_input_archive
     from app.curriculum.routes.lessons import (
         _count_writing_attempts_today,
         _count_pronunciation_attempts_today,
@@ -1141,10 +1147,13 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
             units_total=grade["total_items"],
             unit_label="Слов" if lesson.type == "dictation" else "Пар",
         )
+    legacy_archive = legacy_final_input_archive(progress) if lesson.type == 'final_test' else None
     progress.data = {
         **grade,
         "_native_submission": {"nonce": sealed["nonce"], "response": response},
     }
+    if legacy_archive:
+        progress.data['_native_legacy_draft'] = legacy_archive
     if telemetry.get("writing_checklist"):
         progress.data.update(telemetry["writing_checklist"])
     db.session.flush()

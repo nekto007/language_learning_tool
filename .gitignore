@@ -356,6 +356,11 @@ coverage*.json
 # Claude local tooling
 .claude/
 
+# Local workspace tooling and private project instructions
+/.agents/
+/.codex/
+/AGENTS.md
+
 # Local backups and exports
 backups/
 *.dump

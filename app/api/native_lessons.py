@@ -6,6 +6,10 @@ import re
 from datetime import datetime, UTC
 from html.parser import HTMLParser
 from uuid import uuid4
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.curriculum.models import Lessons
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user
@@ -84,6 +88,13 @@ def _version(progress):
 
 def _signer():
     return URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='native-course-v1')
+
+
+def _session_type_matches(sealed: dict[str, object], lesson: 'Lessons') -> bool:
+    # Keep pre-upgrade ordinary/correction sessions usable. A legacy untyped
+    # document cannot prove it was opened as an independent, no-hints final.
+    fallback = lesson.type if lesson.type != 'final_test' else None
+    return sealed.get('lesson_type', fallback) == lesson.type
 
 
 def project_questions(lesson):
@@ -209,7 +220,7 @@ def course_document(lesson_id, *, deferred=False):
     lesson._native_challenge = _guard_plan(lesson_id) == "challenge"
     questions = project_questions(lesson)
     content = _content(lesson)
-    sealed = {'user': current_user.id, 'lesson': lesson_id, 'revision': _digest(content),
+    sealed = {'user': current_user.id, 'lesson': lesson_id, 'lesson_type': lesson.type, 'revision': _digest(content),
               'version': _version(progress), 'projection_version': NATIVE_PROJECTION_VERSION,
               'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()}
     from app.api.native_content import is_extended, extras
@@ -286,7 +297,8 @@ def course_answer_check(lesson_id):
     lesson, progress = _lesson_and_progress(lesson_id)
     _guard_plan(lesson_id)
     content = _content(lesson)
-    if (sealed.get('revision') != _digest(content) or sealed.get('version') != _version(progress)
+    if (not _session_type_matches(sealed, lesson)
+            or sealed.get('revision') != _digest(content) or sealed.get('version') != _version(progress)
             or sealed.get('projection_version') != NATIVE_PROJECTION_VERSION):
         raise NativeLessonError('lesson_changed', 409)
     questions = project_questions(lesson)
@@ -378,7 +390,8 @@ def course_submission(lesson_id):
             return jsonify(receipt['response'])
         if sealed.get('projection_version') != NATIVE_PROJECTION_VERSION:
             raise NativeLessonError('lesson_changed', 409)
-        if sealed.get('revision') != _digest(_content(lesson)) or sealed.get('version') != _version(progress):
+        if (not _session_type_matches(sealed, lesson)
+                or sealed.get('revision') != _digest(_content(lesson)) or sealed.get('version') != _version(progress)):
             raise NativeLessonError('lesson_changed', 409)
         if plan_error is not None:
             raise plan_error
@@ -457,7 +470,7 @@ def review_native_translation(lesson_id):
     if sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:raise NativeLessonError('access_denied',403)
     lesson, _ = _lesson_and_progress(lesson_id)
     _guard_plan(lesson_id)
-    if sealed.get('revision') != _digest(_content(lesson)):raise NativeLessonError('lesson_changed',409)
+    if not _session_type_matches(sealed, lesson) or sealed.get('revision') != _digest(_content(lesson)):raise NativeLessonError('lesson_changed',409)
     from app.curriculum.translation_review import review_item
     result = review_item(lesson,current_user.id,data['index'],data['answer'],data.get('review_token'),data.get('confirm') is True)
     return jsonify(result), 200 if result.get('success') else 400

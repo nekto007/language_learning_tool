@@ -360,6 +360,14 @@ def _stub_locked_card(mock_model, card):
 
 
 class TestGradeCard:
+    @pytest.fixture(autouse=True)
+    def isolated_grade_event(self):
+        # This class tests the state machine with a mocked direction. Its
+        # synthetic ID must not enter the real FK-enforced grade-event table.
+        # Actual event persistence is covered by the integration tests.
+        with patch('app.srs.service.record_grade_event') as record:
+            yield record
+
     """Test card grading with database interaction."""
 
     @pytest.fixture
@@ -407,7 +415,7 @@ class TestGradeCard:
 
     @patch('app.srs.service.UserCardDirection')
     @patch('app.srs.service.db')
-    def test_grade_card_success(self, mock_db, mock_model, service, mock_card, app, test_user):
+    def test_grade_card_success(self, mock_db, mock_model, service, mock_card, app, test_user, isolated_grade_event):
         """Test successful card grading - NEW card with RATING_KNOW skips to REVIEW."""
         _stub_locked_card(mock_model, mock_card)
 
@@ -428,6 +436,9 @@ class TestGradeCard:
         # grade_card flushes (caller commits) — verify flush was called, not commit
         mock_db.session.flush.assert_called()
         mock_db.session.commit.assert_not_called()
+        isolated_grade_event.assert_called_once()
+        assert isolated_grade_event.call_args.kwargs['context'] == 'srs_api'
+        assert isolated_grade_event.call_args.kwargs['user_id'] == test_user.id
 
     @patch('app.srs.service.UserCardDirection')
     def test_grade_card_not_found(self, mock_model, service):

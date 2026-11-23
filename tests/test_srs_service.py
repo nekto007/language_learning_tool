@@ -302,7 +302,7 @@ class TestProcessCardReview:
         assert result['new_interval'] == 14
         assert result['lesson_complete'] is False
         assert result['remaining_cards'] == 5
-        mock_card_direction.update_after_review.assert_called_once_with(4)
+        mock_card_direction.update_after_review.assert_called_once_with(4, context='curriculum_srs')
 
     @patch('app.curriculum.services.progress_service.ProgressService')
     @patch('app.curriculum.services.srs_service.db.session')

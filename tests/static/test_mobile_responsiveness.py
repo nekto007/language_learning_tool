@@ -185,10 +185,19 @@ def test_collocation_uses_click_not_drag(collocation_tpl: str) -> None:
 
 def test_dashboard_rank_band_min_width_reset(css: str) -> None:
     """On mobile, dash-rank__progress--band must allow shrinking below 240px."""
-    # The min-width:240px exists for desktop; a mobile override must set min-width:0
-    assert 'min-width: 240px' in css, 'desktop min-width:240px must be present'
-    # Mobile override must reset it
-    mobile_section = css[css.rfind('@media (max-width: 480px)'):]
-    assert 'dash-rank' in mobile_section, (
-        'A ≤480px media query must reset .dash-rank__progress--band constraints'
-    )
+    selector = r'\.dash-rank--band\s+\.dash-rank__progress--band\s*\{([^}]*)\}'
+    desktop = re.search(selector, css)
+    assert desktop and re.search(r'min-width:\s*(?:240px|min\(240px,\s*100%\))', desktop.group(1))
+    # Stylesheets may have many unrelated 480px blocks after this component.
+    # Examine complete balanced media blocks, not just the final one in the file.
+    for media in re.finditer(r'@media\s*\(max-width:\s*(\d+)px\)\s*\{', css):
+        if int(media.group(1)) > 480:
+            continue
+        depth, end = 1, media.end()
+        while depth and end < len(css):
+            depth += (css[end] == '{') - (css[end] == '}')
+            end += 1
+        rule = re.search(selector, css[media.end():end - 1])
+        if rule and re.search(r'min-width:\s*0\s*;', rule.group(1)) and re.search(r'width:\s*100%\s*;', rule.group(1)):
+            return
+    pytest.fail('A ≤480px rank-band rule must set min-width:0 and width:100%')

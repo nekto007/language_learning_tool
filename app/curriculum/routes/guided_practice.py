@@ -1,6 +1,7 @@
 """Cookie/CSRF transport for the same course engine used by native clients."""
 
 from functools import wraps
+from typing import Any
 from flask import jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
@@ -17,6 +18,8 @@ def render_practice(lesson):
 
 def uses_legacy_practice(lesson):
     """Do not strand a pre-rollout browser draft in a different editor."""
+    if lesson.type == "final_test":
+        return False
     if request.args.get("ui") == "legacy":
         return True
     progress = LessonProgress.query.filter_by(
@@ -55,7 +58,92 @@ def practice_document(lesson_id):
 
     value = course_document(lesson_id, deferred=True).get_json()
     value["account_id"] = str(current_user.id)
+    if value["lesson"]["type"] == "final_test":
+        progress = LessonProgress.query.filter_by(user_id=current_user.id, lesson_id=lesson_id).first()
+        lesson = Lessons.query.get(lesson_id)
+        answers = _legacy_final_answers(value["lesson"]["questions"], progress, lesson=lesson)
+        if answers:
+            value["lesson"]["resume_answers"] = answers
     return jsonify(value)
+
+
+def _legacy_final_answers(questions: list[dict[str, Any]], progress: LessonProgress | None,
+                          *, lesson: Lessons) -> dict[str, str]:
+    """Migrate only learner input; never expose old client verdicts or keys.
+
+    Legacy option values were visible labels rather than stable source IDs.
+    Matching stored pairs alongside a display string. Reconstruct only values
+    that fit the new editor exactly; ambiguous/stale input is left unanswered.
+    """
+    import json
+    from app.api.native_content import _converted
+    from app.api.native_lessons import NativeLessonError
+    from app.curriculum.progress_drafts import final_draft_origin_matches
+
+    if not progress or progress.status != "in_progress" or not isinstance(progress.data, dict):
+        return {}
+    if not final_draft_origin_matches(lesson, progress):
+        return {}
+    saved = progress.data.get("answers") or progress.data.get("user_answers")
+    if not isinstance(saved, (dict, list)):
+        return {}
+    result = {}
+    for q in questions:
+        index = int(q["id"])
+        entry = saved[index] if isinstance(saved, list) and index < len(saved) else (
+            saved.get(q["id"], saved.get(index)) if isinstance(saved, dict) else None)
+        value = entry.get("value") if isinstance(entry, dict) else entry
+        if not isinstance(value, str) or not value.strip() or len(value) > 20000:
+            continue
+        kind = q.get("input")
+        if kind == "choice":
+            options = q.get("options", [])
+            value = next((o["value"] for o in options if o["label"] == value), value)
+            if value not in {o["value"] for o in options}:
+                continue
+        elif kind == "order":
+            options = q.get("options", [])
+            remaining = value.split()
+            indexes, unused = [], list(options)
+            while remaining:
+                option = next((o for o in unused if o["label"].split() == remaining[:len(o["label"].split())]), None)
+                if not option:
+                    break
+                indexes.append(option["value"])
+                remaining = remaining[len(option["label"].split()):]
+                unused.remove(option)
+            if remaining or unused:
+                continue
+            value = json.dumps(indexes)
+        elif kind == "match":
+            pairs = entry.get("pairs") if isinstance(entry, dict) else None
+            if not isinstance(pairs, list):
+                continue
+            left, right = q.get("left_options", []), q.get("options", [])
+            mapping = {}
+            for pair in pairs:
+                if not isinstance(pair, dict):
+                    break
+                ls = [o["value"] for o in left if o["label"] == pair.get("left")]
+                rs = [o["value"] for o in right if o["label"] == pair.get("right")]
+                if len(ls) != 1 or len(rs) != 1 or ls[0] in mapping:
+                    break
+                mapping[ls[0]] = rs[0]
+            if len(mapping) != len(left) or len(set(mapping.values())) != len(right):
+                continue
+            value = json.dumps(mapping)
+        elif len(value) > 2000:
+            continue
+        # Check structural transport constraints without grading any answer.
+        # Source word/pair labels are sufficient for order/match validation.
+        row = ({"words": [o["label"] for o in q["options"]]} if kind == "order"
+               else {"pairs": [{} for _ in q.get("left_options", [])]})
+        try:
+            _converted(row, q, value, grammar=True)
+        except NativeLessonError:
+            continue
+        result[q["id"]] = value
+    return result
 
 
 @lessons_bp.post("/api/lesson/<int:lesson_id>/practice/check")
@@ -93,17 +181,17 @@ def canonical_practice_entry():
         "sentence_completion_lesson",
         "collocation_matching_lesson",
         "listening_immersion_lesson",
+        "final_test_lesson",
     }
     if (
         request.method != "GET"
-        or request.args.get("ui") == "legacy"
         or not current_user.is_authenticated
         or (request.endpoint or "").split(".")[-1] not in endpoints
     ):
         return None
     lesson_id = (request.view_args or {}).get("lesson_id")
     lesson = Lessons.query.get(lesson_id) if lesson_id else None
-    if lesson and is_objective_practice(lesson) and not uses_legacy_practice(lesson):
+    if lesson and (lesson.type == "final_test" or is_objective_practice(lesson)) and not uses_legacy_practice(lesson):
         target = url_for("learn.lesson_by_id", lesson_id=lesson_id)
         if request.query_string:
             target += "?" + request.query_string.decode("utf-8")

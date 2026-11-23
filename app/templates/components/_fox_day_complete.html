@@ -3,7 +3,8 @@
   <img class="fox-complete__fox" src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" alt="" width="112" height="112">
   <div>
     <p class="learning-journey__eyebrow">Сегодня получилось!</p>
-    <h2 id="fox-complete-title">{{ 'Серия продлена!' if (stats_card or {}).get('streak_days', 0) > 1 else 'Первый день серии!' }}</h2>
+    {% set streak_days = (stats_card or {}).get('streak_days', 0) or 0 %}
+    <h2 id="fox-complete-title">{{ 'Серия продлена!' if streak_days > 1 else 'Первый день серии!' if streak_days == 1 else 'День выполнен!' }}</h2>
     <p>Основной план выполнен. Можно отдохнуть — продолжим завтра.</p>
     <button type="button" class="fox-complete__dismiss">Здорово!</button>
   </div>

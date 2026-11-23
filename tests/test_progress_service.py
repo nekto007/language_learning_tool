@@ -169,6 +169,7 @@ class TestCreateOrUpdateProgress:
     @patch('app.curriculum.services.progress_service.LessonProgress')
     def test_creates_new_progress(self, mock_progress_model, mock_session):
         """Test creating new progress record"""
+        mock_progress_model.query.filter_by.return_value.populate_existing.return_value = mock_progress_model.query.filter_by.return_value
         mock_progress_model.query.filter_by.return_value.first.return_value = None
 
         new_progress = Mock()
@@ -191,6 +192,7 @@ class TestCreateOrUpdateProgress:
         """Test updating existing progress"""
         existing_progress = Mock()
         existing_progress.completed_at = None
+        mock_progress_model.query.filter_by.return_value.populate_existing.return_value = mock_progress_model.query.filter_by.return_value
         mock_progress_model.query.filter_by.return_value.first.return_value = existing_progress
 
         result = ProgressService.create_or_update_progress(
@@ -209,6 +211,7 @@ class TestCreateOrUpdateProgress:
     def test_handles_data_parameter(self, mock_progress_model, mock_session):
         """Test storing additional data"""
         existing_progress = Mock()
+        mock_progress_model.query.filter_by.return_value.populate_existing.return_value = mock_progress_model.query.filter_by.return_value
         mock_progress_model.query.filter_by.return_value.first.return_value = existing_progress
 
         data = {'answers': {0: 1, 1: 2}, 'time_spent': 120}
@@ -225,6 +228,7 @@ class TestCreateOrUpdateProgress:
     @patch('app.curriculum.services.progress_service.LessonProgress')
     def test_rolls_back_on_error(self, mock_progress_model, mock_session):
         """Test rollback on database error"""
+        mock_progress_model.query.filter_by.return_value.populate_existing.return_value = mock_progress_model.query.filter_by.return_value
         mock_progress_model.query.filter_by.return_value.first.return_value = None
         mock_session.commit.side_effect = Exception('Database error')
 

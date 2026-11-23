@@ -5,9 +5,11 @@
   if (!root) return;
   const screen = root.querySelector('#practice-screen');
   const errorBox = root.querySelector('#practice-error');
+  const storageWarning = root.querySelector('#practice-storage-warning');
   const endpoint = root.dataset.endpoint;
   const activeKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:active`;
-  let lesson, state, busy = false, accountInvalid = false, storageKey, refreshButton;
+  let lesson, state, busy = false, accountInvalid = false, storageKey, refreshButton, focusAfterDraw = false;
+  let browserDraftAvailable = true, storageReadable = true, unloadGuarded = false;
   const node = (tag, text, css = '') => {
     const el = document.createElement(tag);
     if (text != null) el.textContent = text;
@@ -25,15 +27,39 @@
     const body = node('p', row.body || '', 'mb-0'); body.style.whiteSpace = 'pre-wrap';
     box.append(body); parent.append(box);
   });
+  const warnBeforeUnload = event => { event.preventDefault(); event.returnValue = ''; };
+  const updateStorageWarning = () => {
+    const warn = !browserDraftAvailable && state && !state.result && !accountInvalid;
+    if (storageWarning) {
+      storageWarning.hidden = !warn;
+      storageWarning.textContent = state?.pendingSubmission
+        ? 'Результат мог сохраниться на сервере. Черновик не записан в браузере. Не закрывай вкладку; повтори отправку здесь — будет использована та же попытка.'
+        : 'Не удалось записать черновик в браузере. Ответы остаются в этой вкладке; не закрывай и не обновляй её до завершения.';
+    }
+    const dirty = warn && (state.pendingSubmission || Object.values(state.answers || {}).some(value => String(value).trim())
+      || Object.values(state.previousRevision?.answers || {}).some(value => String(value).trim()));
+    if (dirty && !unloadGuarded) { window.addEventListener('beforeunload', warnBeforeUnload); unloadGuarded = true; }
+    else if (!dirty && unloadGuarded) { window.removeEventListener('beforeunload', warnBeforeUnload); unloadGuarded = false; }
+  };
+  const stored = key => {
+    try { const value = sessionStorage.getItem(key); storageReadable = true; return value; }
+    catch (_) { storageReadable = false; browserDraftAvailable = false; updateStorageWarning(); return null; }
+  };
   const save = () => {
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(state));
       sessionStorage.setItem(activeKey, storageKey);
-    } catch (_) { /* Practice remains usable without storage. */ }
+      browserDraftAvailable = storageReadable;
+    } catch (_) { browserDraftAvailable = false; }
+    updateStorageWarning();
   };
+  const retryNotice = () => !state || !Object.keys(state.answers || {}).length ? 'Попробуй ещё раз.'
+    : browserDraftAvailable ? 'Ответы сохранены — попробуй ещё раз.' : 'Ответы остались в этой вкладке. Не закрывай её и попробуй ещё раз.';
   const perform = async action => {
     if (busy) return;
+    focusAfterDraw = screen.contains(document.activeElement);
     busy = true; errorBox.hidden = true;
+    screen.setAttribute('aria-busy', 'true');
     root.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try { await action(); } catch (error) {
       if (['access_denied','authentication_required','csrf_error'].includes(error.code)) {
@@ -41,7 +67,11 @@
       }
       errorBox.textContent = error.message; errorBox.hidden = false;
       errorBox.scrollIntoView({block: 'nearest'});
-    } finally { busy = false; draw(); if (refreshButton) refreshButton.disabled = accountInvalid; }
+    } finally {
+      busy = false; screen.setAttribute('aria-busy', 'false'); draw();
+      if (state?.result) screen.scrollIntoView({block: 'start', behavior: 'instant'});
+      if (refreshButton) refreshButton.disabled = accountInvalid;
+    }
   };
   const request = async (suffix = '', body) => {
     let response;
@@ -49,7 +79,7 @@
       method: body ? 'POST' : 'GET', credentials: 'same-origin',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
       body: body ? JSON.stringify(body) : undefined
-    }); } catch (_) { throw new Error('Связь прервалась. Ответы сохранены — попробуй ещё раз.'); }
+    }); } catch (_) { throw new Error('Связь прервалась. ' + retryNotice()); }
     if (response.redirected || response.status === 401) {
       const error = new Error('Сессия завершилась. Войди в аккаунт заново.');
       error.code = 'authentication_required'; throw error;
@@ -57,13 +87,16 @@
     let value;
     try { value = await response.json(); } catch (_) {
       const error = new Error(response.status === 400 ? 'Сессия изменилась. Открой план заново.'
-        : 'Сервер временно недоступен. Ответы сохранены — попробуй ещё раз.');
+        : 'Сервер временно недоступен. ' + retryNotice());
       if (response.status === 400) error.code = 'authentication_required';
       throw error;
     }
     if (!response.ok || value.success === false) {
       const messages = {lesson_changed: 'Материал или попытка изменились. Открой актуальное задание.',
         lesson_locked: 'Сначала заверши предыдущий шаг плана.', invalid_input: 'Проверь, что ответ заполнен полностью.',
+        plan_paused: 'План на паузе. Вернись к плану дня, чтобы продолжить.',
+        authentication_required: 'Сессия завершилась. Войди в аккаунт заново.',
+        unsupported_lesson: 'Материал пока недоступен. Вернись к плану дня или попробуй открыть задание позже.',
         access_denied: 'Аккаунт изменился. Открой план заново.', rate_limit_exceeded: 'Слишком много запросов. Попробуй немного позже.'};
       const error = new Error(messages[value.error] || 'Не удалось сохранить ответ. Попробуй ещё раз.');
       error.code = value.error; throw error;
@@ -71,6 +104,7 @@
     return value;
   };
   const isCorrection = () => lesson.quiz_phase === 'correction';
+  const isFinal = () => lesson.type === 'final_test';
   const display = (q, answer) => {
     if (q.input === 'choice') return q.options.find(o => o.value === answer)?.label || answer || '';
     if (q.input === 'order') {
@@ -151,13 +185,13 @@
     }
     screen.append(box);
   };
-  const draw = () => {
+  const drawContent = () => {
     if (!lesson || !state) return;
     screen.replaceChildren();
     if (state.result) {
       const r = state.result, first = lesson.correction;
       screen.append(node('h2', r.correction_pending ? 'Первая попытка сохранена' : r.completed ? 'Занятие завершено' : 'Есть что повторить', 'h4'));
-      if (r.score != null) screen.append(node('p', 'Результат первой попытки: ' + r.score + '%', 'fs-4 fw-bold'));
+      if (r.score != null) screen.append(node('p', (isFinal() ? 'Результат теста: ' : 'Результат первой попытки: ') + r.score + '%', 'fs-4 fw-bold'));
       const units = isCorrection() ? {correct: first.first_units_correct, total: first.first_units_total, label: first.first_unit_label}
         : {correct: r.units_correct, total: r.units_total, label: r.unit_label};
       if (units.total != null) screen.append(node('p', `${units.label}: ${units.correct} из ${units.total}`));
@@ -165,7 +199,16 @@
       if (r.correction_pending) screen.append(node('p', 'Продолжи план дня. Работа над ошибками появится отдельным шагом перед следующим связанным заданием.'));
       const link = node('a', 'К плану дня', 'btn btn-primary my-3'); link.href = root.querySelector('a').href; screen.append(link);
       if (!r.correction_pending && !isCorrection()) screen.append(button('Повторить урок', () => perform(async () => { try { sessionStorage.removeItem(storageKey); } catch (_) {} await load(true); })));
-      (r.feedback || []).forEach(f => { const card = node('article', null, 'card card-body my-3'); card.append(node('h3', f.correct ? 'Верно' : 'Разберём ответ', 'h5'), node('p', f.prompt), node('p', 'Твой ответ: ' + f.answer)); if (!f.correct) card.append(node('p', 'Образец: ' + f.expected), node('p', f.explanation)); screen.append(card); });
+      (r.feedback || []).forEach(f => {
+        const card = node('article', null, 'card card-body my-3');
+        const answer = node('p', 'Твой ответ: ' + f.answer); answer.style.whiteSpace = 'pre-wrap';
+        card.append(node('h3', f.correct ? 'Верно' : 'Разберём ответ', 'h5'), node('p', f.prompt), answer);
+        if (!f.correct) {
+          const expected = node('p', 'Образец: ' + f.expected); expected.style.whiteSpace = 'pre-wrap';
+          card.append(expected, node('p', f.explanation));
+        }
+        screen.append(card);
+      });
       return;
     }
     if (isCorrection() && lesson.correction.theory_required && !state.theoryRead) {
@@ -173,17 +216,27 @@
       screen.append(button('Правило повторил — к исправлениям', () => { state.theoryRead = true; save(); draw(); }, true)); return;
     }
     if (state.intro) {
-      screen.append(node('p', `Для зачёта — ${lesson.passing_score}%. Ответь на все вопросы. После проверки каждого ответа можно идти дальше. Результат — по первым ответам.`));
-      if (lesson.instruction) screen.append(node('p', lesson.instruction)); audio(lesson.audio_url); blocks(screen, lesson.theory);
-      screen.append(button('К заданиям', () => { state.intro = false; save(); draw(); }, true)); return;
+      screen.append(node('p', isFinal()
+        ? `Для зачёта — ${lesson.passing_score}%. Ответь на все вопросы. Ответы можно изменить до отправки. Результат и разбор появятся после завершения теста.`
+        : `Для зачёта — ${lesson.passing_score}%. Ответь на все вопросы. После проверки каждого ответа можно идти дальше. Результат — по первым ответам.`));
+      if (lesson.instruction) screen.append(node('p', lesson.instruction)); audio(lesson.audio_url);
+      if (!isFinal()) blocks(screen, lesson.theory);
+      screen.append(button(isFinal() ? 'Начать тест' : 'К заданиям', () => { state.intro = false; save(); draw(); }, true)); return;
     }
     if (state.index >= lesson.questions.length) {
-      screen.append(node('h2', isCorrection() ? 'Сохраним исправления' : 'Первый круг завершён', 'h4'));
-      lesson.questions.forEach(q => screen.append(node('p', q.prompt + '\n' + display(q, state.first[q.id] || state.answers[q.id]))));
+      screen.append(node('h2', isFinal() ? 'Проверь ответы перед отправкой' : isCorrection() ? 'Сохраним исправления' : 'Первый круг завершён', 'h4'));
+      if (state.pendingSubmission) screen.append(node('p', 'Отправка начата. Пока результат не подтверждён, повторяем ту же попытку без изменения ответов.'));
+      lesson.questions.forEach((q, index) => {
+        const row = node('article', null, 'card card-body my-3');
+        const answer = node('p', q.prompt + '\n' + display(q, isFinal() ? state.answers[q.id] : state.first[q.id] || state.answers[q.id]));
+        answer.style.whiteSpace = 'pre-wrap'; row.append(answer);
+        if (isFinal() && !state.pendingSubmission) row.append(button('Изменить ответ ' + (index + 1), () => { state.index = index; save(); draw(); }));
+        screen.append(row);
+      });
       screen.append(button('Сохранить результат', () => perform(async () => {
-        const answers = isCorrection() ? state.answers : state.first;
+        const answers = isCorrection() || isFinal() ? state.answers : state.first;
         // Keep the original nonce across timeouts and a full page reload.
-        state.pendingSubmission ||= {session_token: lesson.session_token, answers};
+        state.pendingSubmission ||= {session_token: lesson.session_token, answers: {...answers}};
         state.pendingLesson ||= lesson;
         save();
         try { state.result = await request('/submit', state.pendingSubmission); }
@@ -199,7 +252,7 @@
       }), true)); return;
     }
     const q = lesson.questions[state.index];
-    const step = (lesson.learning_steps || []).find(s => s.question_ids.includes(q.id));
+    const step = !isFinal() && (lesson.learning_steps || []).find(s => s.question_ids.includes(q.id));
     if (step && !state.readSteps.includes(step.id)) {
       screen.append(node('h2', step.title, 'h4')); blocks(screen, step.theory);
       screen.append(button('Правило понятно — к практике', () => { state.readSteps.push(step.id); save(); draw(); }, true)); return;
@@ -209,23 +262,32 @@
     if (q.context) screen.append(node('p', q.context)); audio(q.audio_url || lesson.audio_url);
     if (q.image_url) { const img = node('img'); img.src = q.image_url; img.alt = 'Иллюстрация к заданию'; img.className = 'img-fluid my-3'; screen.append(img); }
     if (q.video_url || lesson.video_url) { const video = node('video'); video.controls = true; video.src = q.video_url || lesson.video_url; video.className = 'w-100 my-3'; screen.append(video); }
-    if (q.translation && lesson.support_mode === 'inline') screen.append(node('p', q.translation, 'text-secondary'));
-    if (q.translation && lesson.support_mode === 'toggle') {
+    if (!isFinal() && q.translation && lesson.support_mode === 'inline') screen.append(node('p', q.translation, 'text-secondary'));
+    if (!isFinal() && q.translation && lesson.support_mode === 'toggle') {
       const translation = node('details', null, 'my-2'); translation.append(node('summary', 'Показать перевод'), node('p', q.translation)); screen.append(translation);
     }
     if (['reading','text','listening_immersion_quiz'].includes(lesson.type) && lesson.theory?.length) {
       const reference = node('details', null, 'my-3'); reference.append(node('summary', 'Текст урока')); blocks(reference, lesson.theory); screen.append(reference);
     }
     const helpBlocks = q.theory_help?.length ? q.theory_help : lesson.theory;
-    if (['inline', 'toggle'].includes(lesson.support_mode) && helpBlocks?.length) {
+    if (!isFinal() && ['inline', 'toggle'].includes(lesson.support_mode) && helpBlocks?.length) {
       const details = node('details', null, 'my-3'); details.append(node('summary', 'Правило к заданию')); blocks(details, helpBlocks); screen.append(details);
     }
     const help = state.help[q.id] || q.correction_help;
-    if (help?.hint) screen.append(node('p', help.hint, 'text-secondary'));
+    if (!isFinal() && help?.hint) screen.append(node('p', help.hint, 'text-secondary'));
     input(q);
+    if (isFinal()) {
+      const next = button(state.index === lesson.questions.length - 1 ? 'К проверке ответов' : 'Дальше', () => {
+        state.index += 1; save(); draw(); screen.scrollIntoView({block: 'start'});
+      }, true);
+      next.dataset.check = 'true'; next.disabled = busy || !accepted(q); screen.append(next);
+      if (state.index > 0) screen.append(button('Предыдущий вопрос', () => { state.index -= 1; save(); draw(); }));
+      return;
+    }
     const feedback = state.checks[q.id];
     if (feedback) {
       const box = node('div', null, feedback.correct ? 'alert alert-success' : 'alert alert-warning');
+      box.setAttribute('role', 'status');
       box.append(node('h3', feedback.correct ? 'Верно' : 'Разберём ответ', 'h5'));
       if (!feedback.correct) { if (!isCorrection()) box.append(node('p', 'Образец: ' + feedback.expected)); box.append(node('p', feedback.explanation)); }
       screen.append(box);
@@ -250,10 +312,35 @@
       check.dataset.check = 'true'; check.disabled = busy || !accepted(q); screen.append(check);
     }
   };
+  const draw = () => {
+    const restoreFocus = focusAfterDraw || screen.contains(document.activeElement);
+    drawContent(); focusAfterDraw = false;
+    updateStorageWarning();
+    if (lesson && state?.previousRevision && !accountInvalid) {
+      const previous = state.previousRevision;
+      const details = node('details', null, 'card card-body my-3');
+      details.append(node('summary', 'Предыдущие ответы к обновлённому материалу'));
+      details.append(node('p', 'Материал изменился. Эти ответы сохранены отдельно и не отправляются в новой попытке.'));
+      Object.entries(previous.answers || {}).forEach(([id, answer]) => {
+        const question = (previous.questions || []).find(q => q.id === id);
+        const text = node('p', (question?.prompt || 'Ответ ' + id) + '\n' + (question ? display(question, answer) : answer));
+        text.style.whiteSpace = 'pre-wrap'; details.append(text);
+      });
+      screen.append(details);
+    }
+    if (restoreFocus) {
+      const target = !errorBox.hidden ? errorBox : screen.querySelector('[role="status"] h3') || screen.querySelector('h2') || screen.firstElementChild;
+      if (target) { target.tabIndex = -1; target.focus({preventScroll: true}); }
+    }
+  };
   const load = async (fresh = false) => {
+    let expiredDraft;
+    const memoryDraft = state;
     if (!fresh) {
-      let key, pending;
-      try { key = sessionStorage.getItem(activeKey); pending = JSON.parse(sessionStorage.getItem(key)); } catch (_) {}
+      // If storage is blocked, the in-memory outbox still owns the original
+      // nonce. Refresh must retry it before asking for another document.
+      let key = storageKey, pending = state?.pendingSubmission ? state : null;
+      if (!pending) { key = stored(activeKey); try { pending = JSON.parse(stored(key)); } catch (_) {} }
       if (pending?.pendingSubmission && pending.pendingLesson) {
         lesson = pending.pendingLesson; state = pending; storageKey = key;
         try {
@@ -263,6 +350,7 @@
           draw(); return;
         } catch (error) {
           if (error.code === 'lesson_changed') {
+            expiredDraft = pending;
             // A changed authored revision cannot reuse checked answers. Keep
             // the old draft separately and let Refresh open the current copy.
             try {
@@ -284,14 +372,33 @@
       error.code = 'access_denied'; throw error;
     }
     lesson = document.lesson;
+    const goal = root.querySelector('#practice-goal');
+    if (goal) { goal.textContent = lesson.learning_goal ? 'Цель: ' + lesson.learning_goal : ''; goal.hidden = !lesson.learning_goal; }
     storageKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:${lesson.correction?.attempt_id || 'first'}`;
     const revision = lesson.content_revision || JSON.stringify(lesson.questions);
-    let draft; try { draft = JSON.parse(sessionStorage.getItem(storageKey)); } catch (_) {}
-    state = !fresh && draft?.revision === revision && !draft.result ? draft : {
-      revision, index: 0, answers: {...(lesson.correction?.previous_answers || {})}, first: {}, checks: {},
+    let draft; try { draft = JSON.parse(stored(storageKey)); } catch (_) {}
+    if (!draft && !fresh && !browserDraftAvailable && !expiredDraft) draft = memoryDraft;
+    const compatibleDraft = draft?.revision === revision && (!draft.lessonType || draft.lessonType === lesson.type)
+      // This editor did not previously support finals. An untyped legacy
+      // draft cannot be carried into an assessment without feedback.
+      && (!isFinal() || draft.lessonType === 'final_test');
+    const previous = expiredDraft || (!fresh && draft && !compatibleDraft ? draft : null);
+    if (previous && !expiredDraft) {
+      try { sessionStorage.setItem(storageKey + ':expired:' + Date.now(), JSON.stringify(previous)); } catch (_) { browserDraftAvailable = false; }
+    }
+    state = !fresh && !expiredDraft && compatibleDraft && !draft.result ? draft : {
+      revision, lessonType: lesson.type, index: 0, answers: {...(isFinal() && !fresh ? lesson.resume_answers : lesson.correction?.previous_answers || {})}, first: {}, checks: {},
       help: {}, fragments: {}, levels: {}, readSteps: [], theoryRead: false,
-      intro: !isCorrection() && !(lesson.learning_steps || []).length
+      intro: !isCorrection() && (isFinal() || !(lesson.learning_steps || []).length),
+      previousRevision: previous ? {questions: previous.draftQuestions || [], answers: {...previous.answers}}
+        : !fresh ? draft?.previousRevision : undefined
     };
+    state.lessonType = lesson.type;
+    state.draftQuestions ||= lesson.questions.map(q => ({id: q.id, input: q.input, prompt: q.prompt, options: q.options, left_options: q.left_options}));
+    if (isFinal() && !draft && !fresh && lesson.resume_answers && Object.keys(lesson.resume_answers).length) {
+      const firstOpen = lesson.questions.findIndex(q => !state.answers[q.id]);
+      state.index = firstOpen < 0 ? lesson.questions.length : firstOpen; state.intro = false;
+    }
     save(); draw();
   };
   refreshButton = button('Обновить задание', () => perform(() => load()));

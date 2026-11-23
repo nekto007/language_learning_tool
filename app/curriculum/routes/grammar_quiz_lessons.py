@@ -20,6 +20,7 @@ from app.curriculum.routes.lessons import (
     _grade_web_guided_grammar,
     _guided_grammar_revision_error,
     _locked_grammar_submission_lesson,
+    _lock_final_test_submission,
     is_lesson_retry_requested,
     lessons_bp,
     retry_display_progress,
@@ -323,12 +324,21 @@ def _submission_passed(
 def _pending_correction_response(lesson, progress):
     """A legacy browser form cannot overwrite a durable native correction."""
     from app.daily_plan.quiz_corrections import is_pending_correction
+    from app.curriculum.services.progress_service import _require_versioned_objective_write
 
-    if lesson.type == 'final_test' or not is_pending_correction(progress):
+    if lesson.type == 'final_test':
         return None
-    message = 'Продолжите работу над ошибками в приложении.'
+    if is_pending_correction(progress):
+        code, message = 'correction_required', 'Продолжите работу над ошибками в приложении.'
+    else:
+        try:
+            _require_versioned_objective_write(lesson, progress)
+        except ValueError:
+            code, message = 'versioned_submission_required', 'Откройте актуальную версию задания перед повтором.'
+        else:
+            return None
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': False, 'error': 'correction_required', 'message': message}), 409
+        return jsonify({'success': False, 'error': code, 'message': message}), 409
     flash(message, 'info')
     return redirect(request.path)
 
@@ -874,6 +884,15 @@ def render_final_test_lesson(lesson):
     ).first()
 
     if request.method == 'POST':
+        _lock_final_test_submission()
+        from app.curriculum.services.progress_service import _require_versioned_objective_write
+        progress = LessonProgress.query.filter_by(user_id=current_user.id, lesson_id=lesson.id).populate_existing().first()
+        try:
+            _require_versioned_objective_write(lesson, progress)
+        except ValueError:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify(success=False, error='versioned_submission_required'), 409
+            return redirect(url_for('learn.lesson_by_id', lesson_id=lesson.id))
         rate_limit = check_final_test_attempts_exhausted(current_user.id, lesson.id, db_session=db)
         if rate_limit is not None:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

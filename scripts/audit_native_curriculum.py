@@ -208,7 +208,7 @@ def projection_audit(lessons):
             # Only a real objective listening assessment with authored questions
             # may hide this reference before answers. Confirmation practice must
             # show the text it asks the learner to study/repeat.
-            if proxy.type == 'listening_immersion' and raw and assessment == 'practice':
+            if proxy.type == 'listening_immersion' and raw and assessment in ('graded', 'practice'):
                 if text and text not in visible:
                     info['listening_comprehension_transcript_intentionally_hidden'].append(_identity(lesson))
             elif text and text not in visible:

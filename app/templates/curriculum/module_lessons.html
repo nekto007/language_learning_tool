@@ -120,9 +120,10 @@
 
     {% if lessons %}
       <div class="ml-lessons__list">
-        {% set current_lesson_found = false %}
+        {% set current_lesson = namespace(found=false) %}
         {% for lesson in lessons %}
           {% set is_completed = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'completed' %}
+          {% set self_practice = lesson.type in ('writing_prompt', 'shadow_reading') %}
           {% set is_in_progress = lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].status == 'in_progress' %}
 
           {# Урок доступен если: 1) админский предпросмотр, 2) это первый урок, 3) урок завершён, 4) предыдущий урок в списке завершён #}
@@ -143,10 +144,10 @@
           {% endif %}
 
           {# Текущий урок - первый доступный незавершённый #}
-          {% set is_current = is_available and not is_completed and not current_lesson_found %}
+          {% set is_current = is_available and not is_completed and not current_lesson.found %}
 
           {% if is_current %}
-            {% set current_lesson_found = true %}
+            {% set current_lesson.found = true %}
           {% endif %}
 
           <div class="ml-lesson {% if is_completed %}ml-lesson--completed{% elif is_current %}ml-lesson--current{% elif not is_available %}ml-lesson--locked{% else %}ml-lesson--available{% endif %}">
@@ -218,12 +219,15 @@
                 {% endif %}
               </div>
               <h3 class="ml-lesson__title">{{ lesson.title }}</h3>
-              {% if lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].score %}
+              {% if is_completed and self_practice %}
+                <div class="ml-lesson__score">{{ _('Практика выполнена') }}</div>
+              {% elif not self_practice and lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].score is not none and (is_completed or user_lesson_progress[lesson.id].score or user_lesson_progress[lesson.id].last_score is not none) %}
                 <div class="ml-lesson__score">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                   </svg>
-                  {{ user_lesson_progress[lesson.id].score|round }}%
+                  {% set score = user_lesson_progress[lesson.id].score %}
+                  {{ score|int if score == score|int else score }}%
                 </div>
               {% elif is_in_progress and lesson.id in user_lesson_progress and user_lesson_progress[lesson.id].data %}
                 {% set pdata = user_lesson_progress[lesson.id].data %}
@@ -244,7 +248,7 @@
             <div class="ml-lesson__action">
               {% if is_available %}
                 <a href="/learn/{{ lesson.id }}/{% if is_completed %}?retry=true{% endif %}"
-                   {% if is_completed %}onclick="return confirm('{{ _('Пройти урок заново? Лучший результат сохранится.') }}');"{% endif %}
+                   {% if is_completed %}onclick="return confirm('{{ _('Пройти практику ещё раз?') if self_practice else _('Пройти урок заново? Лучший результат сохранится.') }}');"{% endif %}
                    class="ml-lesson__btn {% if is_completed %}ml-lesson__btn--completed{% elif is_current %}ml-lesson__btn--current{% endif %}">
                   {% if is_completed %}
                     <span>{{ _('Повторить') }}</span>

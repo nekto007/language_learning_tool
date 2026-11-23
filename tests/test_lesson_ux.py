@@ -178,6 +178,32 @@ class TestEmptyContentValidation:
         assert data['level'] >= 1
 
 
+class TestBrowserActorPageIdentity:
+    @patch('app.curriculum.security.check_lesson_access', return_value=True)
+    @patch('app.curriculum.security.check_module_access', return_value=True)
+    def test_page_actor_is_numeric_user_id_not_versioned_cookie_identity(
+        self, mock_sec_module, mock_sec_lesson,
+        authenticated_client, vocabulary_lesson, db_session,
+    ):
+        from html.parser import HTMLParser
+
+        class ActorMeta(HTMLParser):
+            value = None
+
+            def handle_starttag(self, tag, attrs):
+                values = dict(attrs)
+                if tag == 'meta' and values.get('name') == 'llt-account-id':
+                    self.value = values.get('content')
+
+        response = authenticated_client.get(f'/learn/{vocabulary_lesson.id}/')
+        assert response.status_code == 200
+        marker = ActorMeta()
+        marker.feed(response.text)
+        user = authenticated_client.application.test_user
+        assert marker.value == str(user.id)
+        assert marker.value != user.get_id()
+
+
 class TestProgressSaveIndicator:
     """Test that the auto-save toast element is present in lesson templates."""
 
@@ -374,8 +400,15 @@ class TestPlanContextHidesCurriculumNext:
         assert '#lesson-completion[style*="display: block"] ~ #lesson-footer' in html
 
 
+@pytest.mark.legacy_lesson_ui
 class TestQuizPlanAwareCompletion:
-    """Task 5: quiz.html previously never called ``showLessonCompletion``;
+    """Retained legacy renderer compatibility (explicit ``ui=legacy``).
+
+    The default objective route uses the shared server-owned practice engine;
+    test_web_objective_practice covers that route. Existing saved browser drafts
+    still use these legacy completion hooks.
+
+    Task 5: quiz.html previously never called ``showLessonCompletion``;
     when the user reloaded an already-completed quiz the only navigation
     surface was the footer's curriculum-next button. In plan mode that bypass
     defeats the whole point of the plan-aware flow, so quiz.html must now call

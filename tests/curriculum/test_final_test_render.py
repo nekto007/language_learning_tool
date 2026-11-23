@@ -30,6 +30,18 @@ from tests.conftest import unique_level_code
 TEMPLATE = 'app/templates/curriculum/lessons/final_test.html'
 
 
+@pytest.fixture(autouse=True)
+def isolated_final_projection(monkeypatch):
+    # Renderer/projection coverage; actual plan ordering is tested separately.
+    monkeypatch.setattr('app.api.native_lessons._guard_plan', lambda *args: 'curriculum')
+
+
+def _practice_document(client, lesson):
+    response = client.get(f'/curriculum/api/lesson/{lesson.id}/practice')
+    assert response.status_code == 200, response.json
+    return response.json['lesson']
+
+
 @pytest.fixture()
 def _module(db_session):
     level = CEFRLevel(code=unique_level_code(), name='Level', description='d', order=1)
@@ -208,23 +220,25 @@ class TestOptionsShuffled:
     def test_answer_is_not_always_first_and_text_is_kept(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(db_session, _module)
         _login(client, test_user)
-        html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
-        questions = _questions_json(html)
-        option_qs = [q for q in questions if q.get('options')]
+        page = client.get(f'/curriculum/lesson/{lesson.id}/final_test', follow_redirects=True)
+        assert 'guided-practice.js' in page.text and 'finalTestData' not in page.text
+        questions = _practice_document(client, lesson)['questions']
+        option_qs = [q for q in questions if q.get('input') == 'choice']
         assert len(option_qs) == 10
-        # correct stays TEXT (grading compares text) and is still one of the options
-        for q in option_qs:
-            assert q['correct'] in q['options']
-        assert not all(q['options'][0] == q['correct'] for q in option_qs), 'options rendered in source order'
+        for index, q in enumerate(option_qs):
+            expected = f'ans{index}' if index < 6 else f'heard{index - 6}'
+            assert expected in [option['label'] for option in q['options']]
+            assert not {'correct', 'correct_answer', 'answer', 'explanation'} & q.keys()
+        assert any(q['options'][0]['value'] != '0' for q in option_qs), 'options rendered in source order'
 
-    def test_order_changes_between_renders(self, app, db_session, _module, test_user, client):
+    def test_source_ids_and_shuffled_order_survive_reloading(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(db_session, _module)
         _login(client, test_user)
         seen = set()
         for _ in range(6):
-            html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
-            seen.add(tuple(tuple(q['options']) for q in _questions_json(html) if q.get('options')))
-        assert len(seen) > 1
+            questions = _practice_document(client, lesson)['questions']
+            seen.add(tuple(tuple((o['value'], o['label']) for o in q['options']) for q in questions))
+        assert len(seen) == 1  # A restored draft retains stable transport IDs.
 
     def test_lesson_content_is_not_mutated(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(db_session, _module)
@@ -259,16 +273,17 @@ class TestShuffleHelper:
 
 class TestMatchingColumnShuffled:
 
-    def test_right_column_is_a_permutation_not_a_reverse(self, app, db_session, _module, test_user, client):
+    def test_right_column_preserves_a_stable_permutation_and_pair_labels(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(db_session, _module)
         _login(client, test_user)
         orders = set()
         for _ in range(8):
-            html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
-            ids = _right_column_ids(html, 10)
+            question = _practice_document(client, lesson)['questions'][10]
+            ids = [int(option['value']) for option in question['options']]
             assert sorted(ids) == [0, 1, 2, 3]
+            assert {o['value']: o['label'] for o in question['options']} == {'0': 'кот', '1': 'пёс', '2': 'корова', '3': 'курица'}
             orders.add(tuple(ids))
-        assert orders != {(3, 2, 1, 0)}, 'right column still just reversed'
+        assert len(orders) == 1
 
 
 class TestSectionDividers:
@@ -276,13 +291,8 @@ class TestSectionDividers:
     def test_dividers_and_labels(self, app, db_session, _module, test_user, client):
         lesson = _make_lesson(db_session, _module)
         _login(client, test_user)
-        html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
-        assert html.count('class="final-test-section-divider"') == 3
-        assert 'Раздел 1: Vocabulary' in html
-        assert 'Раздел 2: Listening' in html  # auto-prefixed
-        assert 'Раздел 3: Matching' in html
-        assert html.count('data-section-position="2"') == 4
-        assert 'id="current-section"' in html
+        sections = [q['section'] for q in _practice_document(client, lesson)['questions']]
+        assert sections == ['Раздел 1: Vocabulary'] * 6 + ['Listening'] * 4 + ['Раздел 3: Matching']
 
     def test_flat_content_has_no_dividers(self):
         questions, sections = _final_test_display_questions(
@@ -328,10 +338,20 @@ class TestVerdictOnlyFeedbackSource:
 
 class TestResumeAdversarial:
 
-    def test_lies_in_snapshot_and_all_answered_last_question_is_locked(
+    def test_resume_drops_snapshot_verdicts_and_retains_editable_learner_input(
         self, app, db_session, _module, test_user, client
     ):
+        from app.api.native_lessons import _digest, _signer
+
         lesson = _make_lesson(db_session, _module)
+
+        def sign_origin(saved_answers: list[dict]) -> str:
+            return _signer().dumps({
+                'purpose': 'legacy_final_draft', 'user': test_user.id, 'lesson': lesson.id,
+                'lesson_type': 'final_test', 'revision': _digest(lesson.content),
+                'answers_digest': _digest(saved_answers),
+            })
+
         answers = [
             {'value': 'ans0', 'text': 'ans0', 'correct': True},
             {'value': 'wrong', 'text': 'wrong', 'correct': False},
@@ -352,33 +372,35 @@ class TestResumeAdversarial:
         db_session.commit()
         _login(client, test_user)
 
-        html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
-        resumed = _run_resume_js(html, total=11)
-        assert resumed['started'] and resumed['startHidden'] and resumed['testVisible']
-        assert resumed['currentQuestion'] == 3
-        assert resumed['correctCount'] == 2
-        assert resumed['answerLocked'] is False
+        assert 'resume_answers' not in _practice_document(client, lesson)
+        progress.data = {**progress.data, '_native_legacy_draft_origin': sign_origin(answers)}
+        db_session.commit()
 
-        all_answers = [
-            {'value': f'ans{i}', 'text': f'ans{i}', 'correct': i % 3 != 0}
-            for i in range(11)
-        ]
+        document = _practice_document(client, lesson)
+        assert document['resume_answers'] == {'0': '0', '2': '0'}
+        assert 'correct_answers' not in document and 'feedback' not in document
+        all_answers = [{'value': q['options'][0]['label'], 'correct': True}
+                       for q in document['questions'][:10]]
+        all_answers.append({'value': 'display', 'correct': True, 'pairs': [
+            {'left': 'cat', 'right': 'пёс', 'correct': True}, {'left': 'dog', 'right': 'кот', 'correct': True},
+            {'left': 'cow', 'right': 'курица', 'correct': True}, {'left': 'hen', 'right': 'корова', 'correct': True}]})
         progress.data = {
             'current_question': 0,
             'answers': all_answers,
             'correct_answers': -50,
             'total_questions': 11,
+            '_native_legacy_draft_origin': progress.data['_native_legacy_draft_origin'],
         }
         db_session.commit()
 
-        html = client.get(f'/curriculum/lesson/{lesson.id}/final_test').get_data(as_text=True)
-        completed_answers = _run_resume_js(html, total=11)
-        assert completed_answers['started']
-        assert completed_answers['currentQuestion'] == 10
-        assert completed_answers['correctCount'] == 7
-        assert completed_answers['answerLocked'] is True
-        assert completed_answers['nextEnabled'] is True
-        assert completed_answers['nextText'] == 'Показать результаты'
+        assert 'resume_answers' not in _practice_document(client, lesson)
+        progress.data = {**progress.data, '_native_legacy_draft_origin': sign_origin(all_answers)}
+        db_session.commit()
+
+        restored = _practice_document(client, lesson)
+        assert len(restored['resume_answers']) == 11
+        assert json.loads(restored['resume_answers']['10']) == {'0': '1', '1': '0', '2': '3', '3': '2'}
+        assert 'correct_answers' not in restored and not restored['immediate_feedback']
 
 
 class TestProgressEndpointCannotCompleteAFinalTest:

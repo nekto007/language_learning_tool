@@ -19,6 +19,7 @@ EXPECTED = [
     "listening_immersion", "listening_quiz", "flashcards", "audio_fill_blank", "shadow_reading", "dictation",
     "dialogue_completion_quiz", "ordering_quiz", "translation", "translation_quiz", "writing_prompt", "final_test",
 ]
+INTRODUCTORY_A1 = [*EXPECTED[:2], 'writing_prompt', *EXPECTED[2:16], 'final_test']
 
 
 def _modules():
@@ -26,9 +27,9 @@ def _modules():
 
 
 def test_second_deck_is_ninth_everywhere():
-    off = [(name, [lesson["type"] for lesson in sorted(m["lessons"], key=lambda lesson: lesson["number"])])
-           for name, m in _modules()]
-    bad = [name for name, types in off if types != EXPECTED]
+    bad = [name for name, m in _modules()
+           if [lesson['type'] for lesson in sorted(m['lessons'], key=lambda lesson: lesson['number'])]
+           != (INTRODUCTORY_A1 if (m['level'], m['order']) == ('A1', 1) else EXPECTED)]
     assert bad == []
 
 
@@ -43,7 +44,7 @@ def test_position_fields_stay_in_step():
 def test_six_lessons_separate_the_two_decks():
     for name, m in _modules():
         decks = sorted(lesson["number"] for lesson in m["lessons"] if lesson["type"] == "flashcards")
-        assert decks == [2, 9], name
+        assert decks == ([2, 10] if (m['level'], m['order']) == ('A1', 1) else [2, 9]), name
 
 
 def test_script_is_idempotent_on_the_moved_layout():

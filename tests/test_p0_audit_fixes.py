@@ -111,11 +111,12 @@ def test_api_auth_required_logs_jwt_failure(app, caplog):
     with app.test_request_context(
         '/api/test', headers={'Authorization': 'Bearer not-a-real-jwt'}
     ):
-        with caplog.at_level(logging.WARNING, logger='app.api.decorators'):
+        with caplog.at_level(logging.INFO, logger='app.api.decorators'):
             response = _endpoint()
     # Flask helper returns (response, status) tuple here.
     assert response[1] == 401
-    assert any('JWT verification failed' in r.message for r in caplog.records)
+    assert any('JWT rejected' in r.message for r in caplog.records)
+    assert 'not-a-real-jwt' not in ' '.join(r.message for r in caplog.records)
 
 
 # ── C-004: onboarding wizard sanitizes ?next= on intake ──
