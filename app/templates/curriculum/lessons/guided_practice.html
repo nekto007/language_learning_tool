@@ -5,6 +5,9 @@
 <style nonce="{{ csp_nonce }}">
 #guided-practice button { max-width: 100%; min-height: 44px; white-space: normal; }
 #guided-practice { overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  #guided-practice .btn { padding-inline: 16px; }
+}
 </style>
 {% endblock %}
 {% block content %}
