@@ -173,7 +173,7 @@
       screen.append(button('Правило повторил — к исправлениям', () => { state.theoryRead = true; save(); draw(); }, true)); return;
     }
     if (state.intro) {
-      screen.append(node('p', `Для зачёта — ${lesson.passing_score}%. Сначала ответь на все вопросы, затем отдельно разберём ошибки.`));
+      screen.append(node('p', `Для зачёта — ${lesson.passing_score}%. Ответь на все вопросы. После проверки каждого ответа можно идти дальше. Результат — по первым ответам.`));
       if (lesson.instruction) screen.append(node('p', lesson.instruction)); audio(lesson.audio_url); blocks(screen, lesson.theory);
       screen.append(button('К заданиям', () => { state.intro = false; save(); draw(); }, true)); return;
     }

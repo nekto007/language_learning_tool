@@ -19,8 +19,8 @@ def normalize_quiz_answer(text: str) -> str:
     Ignore every Unicode punctuation category, including apostrophes,
     underscores, quotation marks and sentence punctuation. Retain letters,
     accents, digits, symbols, word order and whitespace-delimited word
-    boundaries. This is NOT a dictation normalizer or a comparison of option
-    indexes: structured/choice transport values must remain exact.
+    boundaries. Dictation uses the same punctuation policy before comparing
+    words. Structured/choice transport values must remain exact.
     """
     if text is None:
         return ''

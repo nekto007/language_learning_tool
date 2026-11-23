@@ -443,15 +443,19 @@ def _coerce_bool(value) -> bool:
 
 
 def _normalize_for_dictation(text: str) -> str:
-    """Normalize dictation text: strip, lower, collapse whitespace, remove punctuation except apostrophes."""
-    if not text:
-        return ""
-    s = str(text).lower().strip()
-    # Remove all punctuation except apostrophes (to preserve contractions like don't, it's)
-    s = re.sub(r"[^\w\s']", "", s)
-    # Collapse multiple spaces
-    s = re.sub(r'\s+', ' ', s).strip()
-    return s
+    """Ignore case and punctuation, including straight/smart apostrophes."""
+    return normalize_quiz_answer(text)
+
+
+def _dictation_accuracy(correct_words: int, total_words: int, passing_score: int) -> dict:
+    if not total_words:
+        return {"score": 0, "passed": False}
+    score = round(correct_words / total_words * 100, 2)
+    passed = correct_words * 100 >= passing_score * total_words
+    # Display/storage precision must never round a failing attempt onto the bar.
+    if not passed and score >= passing_score:
+        score = max(0, passing_score - 0.01)
+    return {"score": score, "passed": passed}
 
 
 def grade_dictation(
@@ -478,8 +482,7 @@ def grade_dictation(
     transcript_words = transcript_normalized.split() if transcript_normalized else []
     user_words = user_normalized.split() if user_normalized else []
 
-    total_words = len(transcript_words)
-    if total_words == 0:
+    if not transcript_words:
         return {
             "score": 0,
             "passed": False,
@@ -491,25 +494,36 @@ def grade_dictation(
     # Positional word-by-word comparison (audit E-045): intentionally strict —
     # an inserted/deleted word shifts subsequent positions and lowers the score.
     # This rewards accurate transcription; LCS/alignment is deliberately not used.
+    # Trailing additions are mistakes too, rather than an ignored suffix.
+    total_words = max(len(transcript_words), len(user_words))
     correct_words = 0
     word_results = []
-    for i, correct_word in enumerate(transcript_words):
+    for i in range(total_words):
+        correct_word = transcript_words[i] if i < len(transcript_words) else ""
         user_word = user_words[i] if i < len(user_words) else ""
         is_correct = user_word == correct_word
         if is_correct:
             correct_words += 1
         word_results.append({"word": correct_word, "user_word": user_word, "correct": is_correct})
 
-    score = round(correct_words / total_words * 100)
-    passed = score >= passing_score
-
     return {
-        "score": score,
-        "passed": passed,
+        **_dictation_accuracy(correct_words, total_words, passing_score),
         "correct_words": correct_words,
         "total_words": total_words,
         "word_results": word_results,
     }
+
+
+def grade_dictation_gaps(user_answers: list, items: list, passing_score: int = PASSING_SCORE_DICTATION) -> dict:
+    """Keep each separate gap's comparison independent from its neighbours."""
+    checked = [grade_dictation(user_answers[i] if i < len(user_answers) else "", item["answer"],
+                               passing_score=passing_score)
+               for i, item in enumerate(items)]
+    correct = sum(row["correct_words"] for row in checked)
+    total = sum(row["total_words"] for row in checked)
+    return {**_dictation_accuracy(correct, total, passing_score),
+            "correct_words": correct, "total_words": total,
+            "word_results": [word for row in checked for word in row["word_results"]]}
 
 
 def grade_audio_fill_blank(

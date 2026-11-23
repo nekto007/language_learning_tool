@@ -592,7 +592,12 @@ def extras(lesson):
         "audio_url": media_url(c.get("audio_url") or c.get("audio")),
         "video_url": media_url(c.get("video_url") or c.get("video"), "video"),
         "theory": theory_for(lesson),
-        "instruction": _plain(c.get("instruction") or c.get("description")),
+        "instruction": _plain(c.get("instruction") or c.get("description")) or (
+            "Сначала послушай запись. Затем повторяй текст вслух вместе с записью, "
+            "при необходимости на скорости 0,75×. После этого прочитай текст самостоятельно "
+            "и подтверди выполненную практику. Это самостоятельная тренировка без автоматической оценки речи."
+            if lesson.type == "shadow_reading" else ""
+        ),
     }
 
 
@@ -816,7 +821,11 @@ def grade(lesson, questions, answers, passing, *, selected_rows=None):
                 if c.get("gaps")
                 else c.get("transcript", "")
             )
-            result = graders.grade_dictation(" ".join(values), reference, passing_score=passing)
+            result = (
+                graders.grade_dictation_gaps(values, rows, passing_score=passing)
+                if c.get("gaps") else
+                graders.grade_dictation(" ".join(values), reference, passing_score=passing)
+            )
             telemetry["listening"] = True
             result["correct_items"] = result["correct_words"]
             result["total_items"] = result["total_words"]

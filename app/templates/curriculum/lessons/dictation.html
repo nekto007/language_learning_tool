@@ -400,7 +400,8 @@ function showResults(data) {
     const span = document.createElement('span');
     span.className = 'dictation-word-result ' +
       (wr.correct ? 'dictation-word-result--correct' : 'dictation-word-result--wrong');
-    span.title = wr.correct ? wr.word : `{{ _("Правильно:") }} ${wr.word}`;
+    span.title = wr.correct ? wr.word : wr.word
+      ? `{{ _("Правильно:") }} ${wr.word}` : '{{ _("Лишнее слово") }}';
     span.textContent = wr.user_word || wr.word;
     wordArea.appendChild(span);
   });
