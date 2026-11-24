@@ -49,7 +49,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/landing/index.css') }}?v=20261122a">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing/index.css') }}?v=20261124-g1">
 {% endblock %}
 
 {% block body_class %}landing-page{% endblock %}
@@ -67,30 +67,20 @@
             Английский с первых фраз.<br>С объяснениями на русском.
         </h1>
         <p class="land-hero__desc land-anim land-anim--d2">
-            LLT English — сайт и приложение для изучения английского языка:
-            уроки A1–C1, грамматика, карточки слов, чтение книг и сохранение прогресса.
-            Начинаете или возвращаетесь после перерыва? На уровне A1 начните
-            с приветствий и знакомства. Практикуйте слова, слушайте записи
-            и разбирайте ответы в своём темпе. Обучение бесплатное.
+            Подберём бесплатный урок под ваш уровень.
         </p>
+        <p class="land-hero__facts land-anim land-anim--d2" id="placement-conditions">10 вопросов · около 2 минут · результат сразу · без регистрации</p>
         <div class="land-hero__actions land-anim land-anim--d3">
-            {% if current_user.is_authenticated %}
-            <a href="{{ url_for('words.dashboard') }}" class="land-btn land-btn--primary">
-                <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-                Начать обучение
-            </a>
-            {% else %}
-            <a href="{{ url_for('auth.register') }}" class="land-btn land-btn--primary">
-                <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-                Начать обучение
-            </a>
-            {% endif %}
-            <a href="{{ url_for('onboarding.placement_page', start=1) }}" class="land-btn land-btn--secondary">Проверить уровень языка</a>
+            <a href="{{ url_for('onboarding.placement_page', start=1) }}" class="land-btn land-btn--primary" aria-describedby="placement-conditions">Проверить уровень</a>
+            <a href="#try-english" class="land-btn land-btn--secondary">Попробовать одно задание</a>
         </div>
+        <p class="land-hero__direct land-anim land-anim--d3">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('words.dashboard') }}">Перейти к своему плану</a>
+            {% else %}
+            Уже знаете свой уровень? <a href="{{ url_for('auth.register') }}">Зарегистрироваться</a>
+            {% endif %}
+        </p>
     </section>
 
     <section id="try-english" class="land-preview" aria-labelledby="preview-title">
@@ -112,7 +102,7 @@
             <button id="preview-reset" class="land-preview__reset" type="button" hidden>Попробовать ещё раз</button>
             <noscript><p>Ответ: <strong lang="en">{{ preview.correct }}</strong>. {{ preview.explanation }}</p></noscript>
             <p class="land-preview__next">В курсе A1 начнёте с приветствий и знакомства. После регистрации предложим сразу перейти к первому занятию. Уровень можно изменить.</p>
-            <a class="land-btn land-btn--accent" id="preview-register" href="{{ url_for('auth.register', level='A1', entry='preview') }}">Перейти к бесплатным урокам</a>
+            <a class="land-btn land-btn--accent" id="preview-register" href="{{ url_for('auth.register', level='A1', entry='preview') }}">Начать курс A1</a>
             <p class="land-preview__note">Пример на этой странице не сохраняется в учебный прогресс.</p>
         </div>
     </section>
@@ -201,7 +191,7 @@
     <!-- How it works -->
     <section class="land-how land-anim land-anim--d5">
         <h2 class="land-section__title">Как это работает</h2>
-        <p class="land-section__subtitle">Начните с уровня A1 или выберите программу под свои знания</p>
+        <p class="land-section__subtitle">Программа под ваши знания, от A1 до C1</p>
 
         <div class="land-how__grid">
             <div class="land-step">
@@ -248,8 +238,8 @@
         <h2 id="start-title" class="land-section__title">Как провести первую неделю</h2>
         <p class="land-section__subtitle">Выберите удобный темп. Задача на старте — освоиться и вернуться к следующему занятию.</p>
         <div class="land-start__grid">
-            <div class="land-step"><span class="land-step__num">1</span><h3 class="land-step__title">Первое занятие</h3><p class="land-step__desc">Зарегистрируйтесь, выберите A1 и откройте модуль «Знакомство и приветствия». Начните с первого урока.</p></div>
-            <div class="land-step"><span class="land-step__num">2</span><h3 class="land-step__title">Следующий день</h3><p class="land-step__desc">Вернитесь к словам и продолжите уроки. В заданиях для начинающих есть поддержка на русском.</p></div>
+            <div class="land-step"><span class="land-step__num">1</span><h3 class="land-step__title">Первое занятие</h3><p class="land-step__desc">После проверки начните с рекомендованного уровня. Если знаете свой уровень, выберите его при регистрации и откройте первый урок.</p></div>
+            <div class="land-step"><span class="land-step__num">2</span><h3 class="land-step__title">Следующий день</h3><p class="land-step__desc">Повторите слова предыдущего занятия и откройте следующий урок. Продолжайте в удобном темпе.</p></div>
             <div class="land-step"><span class="land-step__num">3</span><h3 class="land-step__title">Дальше — в своём темпе</h3><p class="land-step__desc">Слушайте, читайте и практикуйтесь. Смотрите объяснения ошибок и пробуйте снова. Прогресс сохранится в аккаунте.</p></div>
         </div>
     </section>

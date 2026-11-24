@@ -43,7 +43,7 @@
     </script>
     {% endif %}
     {% include 'components/_metrika.html' %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20261124-placement">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20261124-nav">
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -83,26 +83,15 @@
                 <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" class="public-brand__logo" alt="" width="44" height="44" aria-hidden="true">
                 <span>LLT English</span>
             </a>
+            <div class="public-nav-desktop">
+                {% include 'components/_public_nav_panel.html' %}
+            </div>
             <details class="public-nav-collapse">
                 <summary class="public-nav-toggle" aria-label="Открыть меню навигации">
                     <span class="public-nav-toggle__icon" aria-hidden="true"></span>
                     <span class="public-nav-toggle__label">Меню</span>
                 </summary>
-                <div class="public-nav__panel">
-                    <div class="public-nav__links" role="list">
-                        <a class="public-nav__link{% if _is_courses %} public-nav__link--active{% endif %}" href="{{ url_for('courses.catalog') }}"{% if _is_courses %} aria-current="page"{% endif %}>Курсы</a>
-                        <a class="public-nav__link{% if _is_grammar %} public-nav__link--active{% endif %}" href="{{ url_for('grammar_lab.index') }}"{% if _is_grammar %} aria-current="page"{% endif %}>Грамматика</a>
-                        <a class="public-nav__link{% if _is_words %} public-nav__link--active{% endif %}" href="{{ url_for('words.public_dictionary') }}"{% if _is_words %} aria-current="page"{% endif %}>Словарь</a>
-                    </div>
-                    <div class="public-nav__cta">
-                        {% if current_user.is_authenticated %}
-                        <a class="public-nav__link public-nav__link--primary" href="{{ url_for('words.dashboard') if has_module('words') else url_for('auth.profile') }}">Открыть кабинет</a>
-                        {% else %}
-                        <a class="public-nav__link" href="{{ url_for('auth.login') }}">Вход</a>
-                        <a class="public-nav__link public-nav__link--primary" href="{{ url_for('auth.register') }}">Регистрация</a>
-                        {% endif %}
-                    </div>
-                </div>
+                {% include 'components/_public_nav_panel.html' %}
             </details>
         </nav>
     </header>

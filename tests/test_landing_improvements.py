@@ -24,8 +24,8 @@ class TestLandingPage:
         page = BeautifulSoup(response.data, 'html.parser')
         assert page.select_one('#try-english')  # Demo stays below the two main actions.
         actions = page.select('.land-hero__actions a')
-        assert [a.get_text(' ', strip=True) for a in actions] == ['Начать обучение', 'Проверить уровень языка']
-        entry = urlparse(actions[1]['href'])
+        assert [a.get_text(' ', strip=True) for a in actions] == ['Проверить уровень', 'Попробовать одно задание']
+        entry = urlparse(actions[0]['href'])
         assert entry.path == '/placement' and parse_qs(entry.query)['start'] == ['1']
         preview = page.select_one('#landing-preview')
         assert len(preview.select('input[type="radio"]')) == 3
