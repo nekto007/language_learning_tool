@@ -32,6 +32,11 @@ class GrammarExerciseGrader:
         Returns:
             Dict with is_correct, correct_answer, explanation, user_answer
         """
+        if isinstance(exercise, GrammarExercise) and getattr(exercise, 'answer_review_override', None):
+            from app.grammar_lab.answer_review import effective_content
+            from types import SimpleNamespace
+            exercise = SimpleNamespace(id=exercise.id, exercise_type=exercise.exercise_type,
+                                       content=effective_content(exercise))
         grader_method = getattr(self, f'_grade_{exercise.exercise_type}', None)
         if not grader_method:
             logger.error(f"Unknown exercise type: {exercise.exercise_type}")

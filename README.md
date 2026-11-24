@@ -79,7 +79,7 @@ POSTGRES_HOST=127.0.0.1 flask run --port 5000
 
 ### Reviewing disputed answers
 
-In web quizzes and grammar practice, a learner can flag an answer immediately after it is marked incorrect. The queue groups equivalent submissions for the same question and grader revision across learners. The scheduler sends a proposed correction to the designated Telegram owner. Approval rechecks the question and applies the change to the live lesson. Suspected grader defects go to the manual queue.
+In course quizzes, course grammar lessons and standalone Grammar Lab web practice, a learner can flag an answer immediately after it is marked incorrect. The queue groups equivalent submissions for the same question and grader revision across learners. The scheduler sends a proposed correction to the designated Telegram owner. Approval rechecks the question before applying a correction. In Grammar Lab the correction is bound to the authored exercise version, so importing the same catalog preserves the decision and editing the question invalidates it. Suspected grader defects go to the manual queue.
 
 Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and `ANSWER_REVIEW_OWNER_TELEGRAM_ID` (the owner's numeric private Telegram ID) in the production `.env`. The existing Telegram bot must be able to message the owner and receive callbacks. Rebuild and recreate both services with `docker compose up -d --build web scheduler`. The web container runs the migration on startup. Run `docker compose exec web flask answer-review-check` to verify model access using the synthetic translation, then check the queue with `docker compose exec web flask answer-review-status`.
 

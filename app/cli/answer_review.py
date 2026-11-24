@@ -79,6 +79,7 @@ def _status(case_id: int | None) -> dict[str, Any]:
             raise click.ClickException('Дело не найдено.')
         return {
             'id': case.id, 'lesson_id': case.lesson_id, 'question_id': case.question_id,
+            **({'grammar_exercise_id': case.grammar_exercise_id} if case.grammar_exercise_id is not None else {}),
             'status': case.status, 'question_revision': case.question_revision,
             'grader_version': case.grader_version, 'evidence': case.evidence, 'review': case.review,
         }

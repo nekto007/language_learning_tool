@@ -16,6 +16,7 @@ from app.utils.normalization import normalize_quiz_answer
 
 if TYPE_CHECKING:
     from app.curriculum.models import Lessons
+    from app.grammar_lab.models import GrammarExercise
 
 
 DISPUTABLE_LESSON_TYPES = frozenset(("grammar", "quiz"))
@@ -24,14 +25,28 @@ GRADER_VERSION = 1
 DISPUTE_IDENTITY = (
     "lesson_id", "question_id", "question_revision", "grader_version", "normalized_answer_hash",
 )
+LAB_DISPUTE_IDENTITY = (
+    "grammar_exercise_id", "question_revision", "grader_version", "normalized_answer_hash",
+)
 
 
 class AnswerDispute(db.Model):
     __tablename__ = "answer_disputes"
-    __table_args__ = (db.UniqueConstraint(*DISPUTE_IDENTITY, name="uq_answer_dispute_identity"),)
+    __table_args__ = (
+        db.UniqueConstraint(*DISPUTE_IDENTITY, name="uq_answer_dispute_identity"),
+        db.UniqueConstraint(*LAB_DISPUTE_IDENTITY, name="uq_answer_dispute_lab_identity"),
+        db.CheckConstraint(
+            "(lesson_id IS NULL) <> (grammar_exercise_id IS NULL)", name="ck_answer_dispute_source",
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    lesson_id = db.Column(db.Integer, db.ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lessons.id", ondelete="CASCADE"), nullable=True)
+    grammar_exercise_id = db.Column(
+        db.Integer, db.ForeignKey(
+            "grammar_exercises.id", name="fk_answer_dispute_lab_exercise", ondelete="CASCADE",
+        ), nullable=True,
+    )
     question_id = db.Column(db.String(16), nullable=False)
     question_revision = db.Column(db.String(64), nullable=False)
     grader_version = db.Column(db.Integer, nullable=False)
@@ -46,6 +61,12 @@ class AnswerDispute(db.Model):
 def _hash(value: object) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("ascii")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _insert_once(session: Session, identity: tuple[str, ...], values: dict) -> None:
+    dialect = session.get_bind().dialect.name
+    insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[dialect]
+    session.execute(insert(AnswerDispute).values(**values).on_conflict_do_nothing(index_elements=identity))
 
 
 def _source_rows_field(lesson: "Lessons", content: dict) -> str:
@@ -107,17 +128,35 @@ def record_rejected_answer(session: Session, lesson: "Lessons", question: dict, 
         normalized = answer
     else:
         normalized = normalize_quiz_answer(answer)
-    dialect = session.get_bind().dialect.name
-    insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[dialect]
-    statement = insert(AnswerDispute).values(
-        lesson_id=lesson.id,
-        question_id=question["id"],
-        question_revision=_question_revision(lesson, row, context),
-        grader_version=GRADER_VERSION,
-        normalized_answer_hash=_hash(normalized),
-        evidence={"row": row, "answer": answer, "question": context},
-    ).on_conflict_do_nothing(index_elements=DISPUTE_IDENTITY)
-    session.execute(statement)
+    _insert_once(session, DISPUTE_IDENTITY, {
+        "lesson_id": lesson.id,
+        "question_id": question["id"],
+        "question_revision": _question_revision(lesson, row, context),
+        "grader_version": GRADER_VERSION,
+        "normalized_answer_hash": _hash(normalized),
+        "evidence": {"row": row, "answer": answer, "question": context},
+    })
+
+
+def record_lab_rejected_answer(
+    session: Session, exercise: "GrammarExercise", answer: object, normalized: object,
+) -> None:
+    from app.api.native_lessons import plain
+    from app.grammar_lab.answer_review import LAB_GRADER_VERSION, effective_content, lab_revision
+
+    row = effective_content(exercise)
+    question = {
+        "prompt": plain(row.get("question") or row.get("sentence") or row.get("prompt")),
+        "instruction": plain(row.get("instruction")),
+    }
+    _insert_once(session, LAB_DISPUTE_IDENTITY, {
+        "grammar_exercise_id": exercise.id,
+        "question_id": "0",
+        "question_revision": lab_revision(exercise),
+        "grader_version": LAB_GRADER_VERSION,
+        "normalized_answer_hash": _hash(normalized),
+        "evidence": {"row": row, "answer": answer, "question": question},
+    })
 
 
 def preserve_approved_answers(session: Session, lesson: "Lessons") -> None:

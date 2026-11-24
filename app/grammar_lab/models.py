@@ -146,6 +146,7 @@ class GrammarExercise(db.Model):
 
     # Content (JSONB)
     content = Column(JSONBCompat, nullable=False)
+    answer_review_override = Column(db.JSON(none_as_null=True), nullable=True)
     # {
     #   "question": "I ___ (to be) a student.",
     #   "correct_answer": "am",
@@ -219,8 +220,11 @@ class GrammarExercise(db.Model):
             data['statement'] = self.content.get('statement') or self.content.get('question', '')
 
         if not hide_answer:
-            data['correct_answer'] = self.content.get('correct_answer')
-            data['alternatives'] = self.content.get('alternatives', [])
+            from app.grammar_lab.answer_review import effective_content
+
+            graded = effective_content(self)
+            data['correct_answer'] = graded.get('correct_answer')
+            data['alternatives'] = graded.get('alternatives', [])
             data['explanation'] = self.content.get('explanation', '')
 
         return data

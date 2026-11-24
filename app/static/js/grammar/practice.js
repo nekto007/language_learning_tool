@@ -5,6 +5,69 @@ let totalXP = 0;
 
 // Abort a hung /submit so the button never stays disabled forever.
 const SUBMIT_TIMEOUT_MS = 15000;
+let exerciseGeneration = 0;
+let activeDispute = null;
+
+function isCurrentExercise(generation, exerciseId, practiceSession) {
+  return generation === exerciseGeneration && String(sessionId) === practiceSession
+    && String(exercises[currentIndex]?.id) === exerciseId;
+}
+
+function clearDispute() {
+  exerciseGeneration++;
+  if (activeDispute?.controller) activeDispute.controller.abort();
+  activeDispute = null;
+  const btn = document.getElementById('dispute-btn');
+  const status = document.getElementById('dispute-status');
+  if (btn) { btn.style.display = 'none'; btn.disabled = false; btn.textContent = 'Мой ответ тоже верный'; }
+  if (status) { status.style.display = 'none'; status.textContent = ''; }
+}
+
+function renderDispute(record) {
+  if (record !== activeDispute) return;
+  if (!isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) { clearDispute(); return; }
+  const btn = document.getElementById('dispute-btn');
+  const status = document.getElementById('dispute-status');
+  if (!btn || !status) return;
+  status.textContent = record.status === 'sent' ? 'Ответ передан на проверку'
+    : record.status === 'pending' ? 'Передаём ответ на проверку…'
+    : record.status === 'unavailable' ? 'Задание или сессия изменились. Обновите страницу для проверки ответа.'
+    : record.status === 'failed' ? 'Не удалось подтвердить отправку. Можно повторить запрос.' : '';
+  status.style.display = status.textContent ? 'block' : 'none';
+  btn.style.display = ['sent', 'unavailable'].includes(record.status) ? 'none' : 'inline-flex';
+  btn.disabled = record.status === 'pending';
+  btn.textContent = record.status === 'failed' ? 'Повторить запрос' : 'Мой ответ тоже верный';
+}
+
+const disputeButton = document.getElementById('dispute-btn');
+if (disputeButton) disputeButton.addEventListener('click', async function() {
+  const record = activeDispute;
+  if (!record) return;
+  if (!isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) { clearDispute(); return; }
+  if (['pending', 'sent', 'unavailable'].includes(record.status)) return;
+  record.status = 'pending';
+  const controller = new AbortController(); record.controller = controller;
+  const timeout = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+  renderDispute(record);
+  try {
+    const response = await fetch(`/grammar-lab/api/exercise/${record.exerciseId}/dispute`, {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken()},
+      body: JSON.stringify({dispute_token: record.token, answer: record.answer}), signal: controller.signal
+    });
+    if (record !== activeDispute || !isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) return;
+    if (response.redirected || [401, 403, 409].includes(response.status)) { record.status = 'unavailable'; return; }
+    if (!response.ok || (await response.json()).success !== true) throw new Error('Unconfirmed dispute');
+    if (record === activeDispute && isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) record.status = 'sent';
+  } catch (_) {
+    if (record === activeDispute && isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) record.status = 'failed';
+  } finally {
+    clearTimeout(timeout); record.controller = null; renderDispute(record);
+  }
+});
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('pagehide', clearDispute);
+}
 
 // Pristine «Проверить» button markup, captured before any submit mutates it.
 // showExercise() restores this for every exercise so a previous submit's
@@ -170,6 +233,7 @@ document.getElementById('start-btn').addEventListener('click', function() {
 function showExercise(index) {
   const exercise = exercises[index];
   if (!exercise) return;
+  clearDispute();
 
   // Update progress
   document.getElementById('progress-text').textContent = `${index} / ${exercises.length}`;
@@ -617,6 +681,8 @@ document.getElementById('check-btn').addEventListener('click', async function() 
   // Abort a hung request so the button can never stay stuck on «Проверка…».
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+  const generation = exerciseGeneration, exerciseId = String(exercise.id), practiceSession = String(sessionId);
+  const submittedAnswer = JSON.parse(JSON.stringify(answer));
   let answered = false;  // true only when the answer was graded & shown
 
   try {
@@ -638,6 +704,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     }
 
     const data = await response.json();
+    if (!isCurrentExercise(generation, exerciseId, practiceSession)) return;
 
     const feedback = document.getElementById('feedback-area');
     if (data.is_correct) {
@@ -674,6 +741,11 @@ document.getElementById('check-btn').addEventListener('click', async function() 
         correctLabel = (key === 'true' || key === '1' || key === 'yes') ? 'Верно' : 'Неверно';
       }
       feedback.querySelector('.practice-exercise__feedback-answer').textContent = correctLabel;
+      if (data.is_correct === false && typeof data.dispute_token === 'string' && data.dispute_token.trim()) {
+        activeDispute = {generation, exerciseId, practiceSession, token: data.dispute_token,
+                         answer: submittedAnswer, status: 'idle'};
+        renderDispute(activeDispute);
+      }
     }
     feedback.style.display = 'block';
 
@@ -688,6 +760,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     answered = true;
 
   } catch (error) {
+    if (!isCurrentExercise(generation, exerciseId, practiceSession)) return;
     console.error('grammar submit failed:', error);
     const feedback = document.getElementById('feedback-area');
     if (feedback) {
@@ -701,7 +774,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     clearTimeout(timeoutId);
     // On any failure the button must return to a usable state — never leave it
     // disabled on «Проверка…» forever. On success it is hidden above instead.
-    if (!answered) {
+    if (!answered && isCurrentExercise(generation, exerciseId, practiceSession)) {
       checkBtn.disabled = false;
       checkBtn.innerHTML = originalHTML;
       checkBtn.style.opacity = '';
@@ -711,6 +784,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
 
 // Next exercise
 document.getElementById('next-btn').addEventListener('click', function() {
+  clearDispute();
   currentIndex++;
   saveSessionState();
   if (currentIndex < exercises.length) {

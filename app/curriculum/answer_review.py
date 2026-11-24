@@ -13,7 +13,9 @@ from app.api.native_lessons import NativeLessonError, project_questions
 from app.curriculum import answer_review_ai as ai
 from app.curriculum.answer_disputes import AnswerDispute, current_dispute_row
 from app.curriculum.models import Lessons
+from app.grammar_lab import answer_review as lab
 from app.grammar_lab.guided_learning import check_answer
+from app.grammar_lab.models import GrammarExercise
 from app.utils.db import db
 
 log = logging.getLogger(__name__)
@@ -23,6 +25,8 @@ ROW_FIELDS = {'instruction', 'question', 'prompt', 'text', 'sentence', 'question
               'type', 'context', 'constraints', 'required_words', 'options', 'pairs', 'words', 'tokens',
               'explanation', 'acceptable_answers', 'alternatives',
               'alternative_answers', 'correct_index', 'answers', *KEYS}
+LAB_ROW_FIELDS = ROW_FIELDS | {'original', 'statement', 'key_grammar', 'full_correct', 'theory_help',
+                               'source_lang', 'target_lang'}
 
 
 def owner_id() -> int | None:
@@ -100,30 +104,62 @@ def proposed_edit(lesson: Lessons, row: dict, question: dict, answer: str, label
     return patch
 
 
+def _current_lab_exercise(case: AnswerDispute, *, lock: bool = False) -> GrammarExercise | None:
+    query = GrammarExercise.query.filter_by(id=case.grammar_exercise_id)
+    if lock:
+        query = query.populate_existing().with_for_update()
+    exercise = query.first()
+    if (not exercise or not isinstance(exercise.content, dict) or exercise.content.get('guided_retired')
+            or case.grader_version != lab.LAB_GRADER_VERSION or lab.lab_revision(exercise) != case.question_revision):
+        return None
+    return exercise
+
+
 def review_case(case: AnswerDispute, *, key: str, model: str) -> None:
-    lesson = db.session.get(Lessons, case.lesson_id)
-    row = current_dispute_row(case, lesson) if lesson else None
-    if row is None:
-        case.status = 'stale'
-        return
-    question = _question(lesson, case)
     answer = case.evidence['answer']
-    feedback = check_answer(row, question, answer, grammar=lesson.type == 'grammar')
-    if feedback['correct']:
+    exercise = None
+    if case.grammar_exercise_id is not None:
+        exercise = _current_lab_exercise(case)
+        if exercise is None:
+            case.status = 'stale'
+            return
+        row = lab.effective_content(exercise)
+        result = lab.grade_row(exercise, row, answer)
+        if result.get('error'):
+            case.status = 'manual'
+            return
+        correct = result['is_correct']
+        shown, expected = lab.display_review_answers(exercise, row, result)
+        model_row = {k: v for k, v in row.items() if k in LAB_ROW_FIELDS}
+        model_row['type'] = exercise.exercise_type
+    else:
+        lesson = db.session.get(Lessons, case.lesson_id)
+        row = current_dispute_row(case, lesson) if lesson else None
+        if row is None:
+            case.status = 'stale'
+            return
+        question = _question(lesson, case)
+        feedback = check_answer(row, question, answer, grammar=lesson.type == 'grammar')
+        correct, shown, expected = feedback['correct'], feedback['answer'], feedback['expected']
+        model_row = {k: v for k, v in row.items() if k in ROW_FIELDS}
+    if correct:
         case.status = 'stale'
         return
-    shown = feedback['answer']
-    evidence = {'row': {k: v for k, v in row.items() if k in ROW_FIELDS},
-                'question': case.evidence['question'], 'expected': feedback['expected'], 'submitted_answer': shown}
+    evidence = {'row': model_row,
+                'question': case.evidence['question'], 'expected': expected, 'submitted_answer': shown}
     encoded = json.dumps(evidence, ensure_ascii=False)
-    if len(encoded) > 10000 or len(shown) > 500 or ai.CONTACT.search(encoded):
+    if len(encoded) > 10000 or len(str(shown)) > 500 or ai.CONTACT.search(encoded):
         case.review = {'label': 'manual', 'reason': 'Требуется локальный разбор содержимого.'}
         case.status = 'manual'
         return
     review = ai.classify(evidence, key=key, model=model)
-    review['patch'] = proposed_edit(lesson, row, question, answer, review['label'])
+    if exercise is not None:
+        review['topic_id'] = exercise.topic_id
+        review['patch'] = lab.proposed_lab_edit(exercise, row, answer, review['label'])
+    else:
+        review['patch'] = proposed_edit(lesson, row, question, answer, review['label'])
     review['shown_answer'] = shown
-    review['shown_key'] = feedback['expected']
+    review['shown_key'] = expected
     case.review = review
     case.status = 'closed' if review['label'] in ('learner_error', 'insufficient_context') else 'ready'
 
@@ -146,7 +182,7 @@ def notify_owner(case: AnswerDispute, recipient: int) -> bool:
     patch = review.get('patch')
     if patch:
         field, value = next(iter(patch.items()))
-        if field == 'alternative_answers':
+        if field in ('alternative_answers', 'alternatives'):
             change = 'Добавить допустимый ответ: ' + value[-1]
         else:
             change = f'Заменить ключ «{row.get(field)}» на «{value}»'
@@ -158,12 +194,16 @@ def notify_owner(case: AnswerDispute, recipient: int) -> bool:
     title = {'valid_variant': 'Возможен второй верный ответ', 'wrong_key': 'Возможная ошибка в ключе',
              'grader_issue': 'Возможная ошибка в проверке'}[review['label']]
     # Keep the complete instruction and proposed change visible when asking for approval.
-    text = (f'{title} · спор {case.id}\nУрок {case.lesson_id}, вопрос {int(case.question_id) + 1}\n'
+    if case.grammar_exercise_id is not None:
+        source = f'Grammar Lab · тема {review["topic_id"]}, упражнение {case.grammar_exercise_id}'
+    else:
+        source = f'Урок {case.lesson_id}, вопрос {int(case.question_id) + 1}'
+    text = (f'{title} · спор {case.id}\n{source}\n'
             f'{question}\nОтвет ученика: {review["shown_answer"]}\n'
             f'Текущий ключ: {review["shown_key"]}\n{review["reason"]}\n\n{change}')
     if len(text.encode('utf-16-le')) // 2 > 4096:
         case.status = 'manual'
-        return send_message(recipient, f'Спор {case.id} по уроку {case.lesson_id} требует ручного разбора. '
+        return send_message(recipient, f'Спор {case.id} ({source}) требует ручного разбора. '
                             'Полное условие превышает размер сообщения.', parse_mode=None)
     return send_message(recipient, text, parse_mode=None, reply_markup={'inline_keyboard': keyboard})
 
@@ -177,6 +217,18 @@ def decide(case_id: int, tag: str, action: str, sender: int, chat: int) -> str:
         return 'Карточка уже обработана или устарела'
     if action in ('reject', 'revise'):
         case.status = 'dismissed' if action == 'reject' else 'revise'
+    elif action == 'approve' and case.grammar_exercise_id is not None:
+        exercise = _current_lab_exercise(case, lock=True)
+        patch = case.review.get('patch')
+        if exercise is None:
+            case.status = 'stale'
+        elif not patch:
+            case.status = 'manual'
+        elif lab.proposed_lab_edit(exercise, lab.effective_content(exercise), case.evidence['answer'], case.review['label']) != patch:
+            case.status = 'stale'
+        else:
+            lab.apply_lab_patch(exercise, patch)
+            case.status = 'applied'
     elif action == 'approve':
         lesson = Lessons.query.filter_by(id=case.lesson_id).populate_existing().with_for_update().first()
         row = current_dispute_row(case, lesson) if lesson else None

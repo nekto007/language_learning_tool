@@ -11,6 +11,7 @@ from flask_login import current_user
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app import csrf, limiter
 from app.api.decorators import api_bearer_required
+from app.grammar_lab.answer_review import effective_content
 from app.curriculum.constants import PASSING_SCORE_QUIZ
 from app.api.native_lessons import (
     NativeLessonError,
@@ -153,14 +154,14 @@ def _prepare(kind, item_id):
                 raise NativeLessonError("unsupported_lesson", 422)
             rows.append(
                 {
-                    **deepcopy(e.content),
+                    **deepcopy(effective_content(e)),
                     "type": "match" if e.exercise_type == "matching" else e.exercise_type,
                 }
             )
         source = {
             "exercise_ids": ids,
             "topic_id": topic_id,
-            "revision": {str(k): _digest(all_ex[k].content) for k in ids},
+            "revision": {str(k): _digest(effective_content(all_ex[k])) for k in ids},
             "session_key": selected["session_id"],
         }
         if item_id.startswith('grammar_review:placement:'):
@@ -590,7 +591,7 @@ def _grade_activity(run, answers):
                 raise NativeLessonError("access_denied", 403)
             if (
                 exercise is None
-                or _digest(exercise.content) != p["source"]["revision"][str(exercise.id)]
+                or _digest(effective_content(exercise)) != p["source"]["revision"][str(exercise.id)]
             ):
                 raise NativeLessonError("lesson_changed", 409)
             grade = GrammarExerciseGrader().grade(exercise, converted)
@@ -842,7 +843,7 @@ def check_activity_document(kind: str, body: Any) -> Any:
     exercise = None
     if kind in ("grammar_topic", "grammar_review"):
         exercise = GrammarExercise.query.get(run.payload["source"]["exercise_ids"][index])
-        if exercise is None or _digest(exercise.content) != run.payload["source"]["revision"][str(exercise.id)]:
+        if exercise is None or _digest(effective_content(exercise)) != run.payload["source"]["revision"][str(exercise.id)]:
             raise NativeLessonError("lesson_changed", 409)
         if not _public_topic(exercise.topic):
             raise NativeLessonError("access_denied", 403)

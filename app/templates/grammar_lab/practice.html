@@ -124,6 +124,7 @@
           <a href="#" class="practice-exercise__topic" id="topic-badge"></a>
           <div class="practice-exercise__question" id="question-area"></div>
           <div class="practice-exercise__feedback" id="feedback-area" style="display: none;"></div>
+          <p id="dispute-status" role="status" aria-live="polite" style="display: none;"></p>
           <div class="practice-exercise__actions">
             <button type="button" class="practice-btn practice-btn--primary" id="check-btn">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -137,6 +138,7 @@
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
             </button>
+            <button type="button" class="practice-btn practice-btn--secondary" id="dispute-btn" style="display: none;">Мой ответ тоже верный</button>
           </div>
         </div>
       </div>
@@ -274,6 +276,6 @@ const topicExerciseIds = {{ session.all_exercise_ids|tojson|safe }};
 const topicExerciseIds = null;
 {% endif %}
 </script>
-<script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=20261124-dispute"></script>
 {% endif %}
 {% endblock %}

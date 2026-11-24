@@ -8,16 +8,18 @@ Uses UnifiedSRSService for Anki-like spaced repetition.
 
 import logging
 
-from flask import abort, jsonify, redirect, render_template, request, url_for
+from flask import Response, abort, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
+from app import limiter
 from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 from app.grammar_lab import grammar_lab_bp
 from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 from app.grammar_lab.services import GrammarLabService
 from app.grammar_lab.theory_schema import THEORY_CELL_ORDER as _THEORY_CELL_ORDER
 from app.utils.db import db
+from app.utils.rate_limit_helpers import get_authenticated_user_key
 
 logger = logging.getLogger(__name__)
 
@@ -309,9 +311,12 @@ def api_start_practice(topic_id):
 @login_required
 def api_submit_answer(exercise_id):
     """POST: Submit exercise answer"""
+    from app.grammar_lab.answer_review import lab_revision
+    from app.grammar_lab.dispute_receipts import issue_rejection_receipt, normalized_lab_answer
+
     data = request.get_json()
 
-    if not data or 'answer' not in data:
+    if not isinstance(data, dict) or 'answer' not in data:
         return jsonify({'error': 'Answer required'}), 400
 
     exercise = GrammarExercise.query.get(exercise_id)
@@ -321,16 +326,57 @@ def api_submit_answer(exercise_id):
         return jsonify({'error': 'Упражнение обновлено. Открой актуальную практику.',
                         'code': 'lesson_changed'}), 409
 
+    answer = data['answer']
+    # Capture the revision on the ORM instance used by the grader, before its
+    # commit expires that instance and a subsequent lookup could see edits.
+    revision = lab_revision(exercise)
+    disputable = normalized_lab_answer(exercise, answer) is not None
     result = grammar_service.submit_answer(
         exercise_id=exercise_id,
         user_id=current_user.id,
-        answer=data['answer'],
+        answer=answer,
         session_id=data.get('session_id'),
         source=data.get('source', 'topic_practice'),
         time_spent=data.get('time_spent')
     )
 
-    return jsonify(result)
+    if disputable and result.get('is_correct') is False and not result.get('error'):
+        result['dispute_token'] = issue_rejection_receipt(current_user.id, exercise_id, revision, answer)
+    response = jsonify(result)
+    if 'dispute_token' in result:
+        response.headers['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@grammar_lab_bp.post('/api/exercise/<int:exercise_id>/dispute')
+@login_required
+@limiter.limit('10 per minute', key_func=get_authenticated_user_key)
+def api_answer_dispute(exercise_id: int) -> Response:
+    from app.api.native_lessons import NativeLessonError, native_error
+    from app.curriculum.answer_disputes import record_lab_rejected_answer
+    from app.grammar_lab.dispute_receipts import read_rejection_receipt, verify_rejected_answer
+
+    try:
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or set(data) != {'dispute_token', 'answer'}:
+            raise NativeLessonError('invalid_input')
+        claims = read_rejection_receipt(data['dispute_token'], current_user.id, exercise_id)
+        exercise = GrammarExercise.query.filter_by(id=exercise_id).populate_existing().one_or_none()
+        if exercise is None:
+            raise NativeLessonError('not_found', 404)
+        if (exercise.content or {}).get('guided_retired'):
+            raise NativeLessonError('lesson_changed', 409)
+        answer = data['answer']
+        normalized = verify_rejected_answer(claims, exercise, answer)
+        record_lab_rejected_answer(db.session, exercise, answer, normalized)
+        db.session.commit()
+        response = jsonify(success=True)
+    except NativeLessonError as error:
+        body, status = native_error(error)
+        response = body
+        response.status_code = status
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @grammar_lab_bp.route('/api/topic/<int:topic_id>/complete-theory', methods=['POST'])

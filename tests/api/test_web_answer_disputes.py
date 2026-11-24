@@ -15,10 +15,13 @@ from flask.testing import FlaskClient
 import pytest
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
-from app.curriculum.answer_disputes import AnswerDispute, current_dispute_row, record_rejected_answer
+from app.curriculum.answer_disputes import (
+    AnswerDispute, current_dispute_row, record_lab_rejected_answer, record_rejected_answer,
+)
 from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
 from app.utils.db import db
 from tests.api.test_native_full_integration import learner
@@ -188,32 +191,61 @@ def test_postgresql_migration_and_concurrent_browsers() -> None:
     admin = create_engine(url)
     engine = create_engine(url, connect_args={"options": f"-c search_path={schema}"})
     migration = import_module("migrations.versions.20261124_answer_disputes")
+    lab_migration = import_module("migrations.versions.20261124_lab_disputes")
     try:
         with admin.begin() as conn:
             conn.execute(text(f"CREATE SCHEMA {schema}"))
         with engine.begin() as conn:
             conn.execute(text("CREATE TABLE lessons (id INTEGER PRIMARY KEY)"))
             conn.execute(text("INSERT INTO lessons (id) VALUES (1)"))
+            conn.execute(text("CREATE TABLE grammar_exercises (id INTEGER PRIMARY KEY)"))
+            conn.execute(text("INSERT INTO grammar_exercises (id) VALUES (1)"))
             with Operations.context(MigrationContext.configure(conn)):
                 migration.upgrade()
         lesson = SimpleNamespace(id=1, type="grammar", content={"exercises": [
             {"type": "transformation", "question": "She ___ ready.", "correct_answer": "is"},
         ]})
         question = {"id": "0", "prompt": "She ___ ready.", "input": "text"}
+        with Session(engine) as session:
+            record_rejected_answer(session, lesson, question, "are")
+            session.commit()
+        with engine.begin() as conn:
+            with Operations.context(MigrationContext.configure(conn)):
+                lab_migration.upgrade()
+
         barrier = Barrier(6)
+        exercise = SimpleNamespace(id=1, topic_id=3, exercise_type="fill_blank", content={
+            "question": "She ___ ready.", "correct_answer": "is",
+        }, answer_review_override=None)
 
         def record(answer: str) -> None:
             with Session(engine) as session:
                 barrier.wait(timeout=10)
                 record_rejected_answer(session, lesson, question, answer)
+                record_lab_rejected_answer(session, exercise, answer, "are")
                 session.commit()
 
         with ThreadPoolExecutor(max_workers=6) as pool:
             list(pool.map(record, ["are", "ARE!"] * 3))
         with Session(engine) as session:
-            dispute = session.scalars(select(AnswerDispute)).one()
+            dispute = session.scalars(select(AnswerDispute).where(AnswerDispute.lesson_id == 1)).one()
             assert dispute.status == "pending" and dispute.review is None
-            assert dispute.evidence["answer"] in ("are", "ARE!")
+            assert dispute.grammar_exercise_id is None and dispute.evidence["answer"] == "are"
+            lab = session.scalars(select(AnswerDispute).where(AnswerDispute.grammar_exercise_id == 1)).one()
+            assert lab.lesson_id is None and lab.evidence["answer"] in ("are", "ARE!")
+        for mutation in ("grammar_exercise_id = 1", "lesson_id = NULL"):
+            with pytest.raises(IntegrityError), engine.begin() as conn:
+                conn.execute(text(f"UPDATE answer_disputes SET {mutation} WHERE lesson_id = 1"))
+        with pytest.raises(RuntimeError, match="Archive Grammar Lab"), engine.begin() as conn:
+            with Operations.context(MigrationContext.configure(conn)):
+                lab_migration.downgrade()
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM grammar_exercises WHERE id = 1"))
+            assert conn.execute(text("SELECT COUNT(*) FROM answer_disputes")).scalar() == 1
+            with Operations.context(MigrationContext.configure(conn)):
+                lab_migration.downgrade()
+            remaining = conn.execute(text("SELECT lesson_id, evidence FROM answer_disputes")).one()
+            assert remaining.lesson_id == 1 and remaining.evidence["answer"] == "are"
         with engine.begin() as conn:
             with Operations.context(MigrationContext.configure(conn)):
                 migration.downgrade()
