@@ -50,10 +50,7 @@ def _telegram(admin_ids, title, body, link):
     from app.telegram.models import TelegramUser
 
     # Recheck current roles and linking after committing/releasing the request.
-    links = TelegramUser.query.join(User, User.id == TelegramUser.user_id).filter(
-        User.id.in_(admin_ids), User.is_admin.is_(True), User.active.is_(True),
-        TelegramUser.is_active.is_(True),
-    ).all()
+    links = TelegramUser.active_admin_links().filter(User.id.in_(admin_ids)).all()
     origin = (current_app.config.get("SITE_URL") or "https://llt-english.com").rstrip("/")
     text = f"<b>{escape(title)}</b>\n\n{escape(body)}\n\n<a href=\"{escape(origin + link, quote=True)}\">Открыть заявку в админке →</a>"
     for account in links:

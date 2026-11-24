@@ -1,4 +1,5 @@
 """Exercise owner decisions with the independent Grammar Lab grader and its authored catalog."""
+from collections.abc import Iterator
 from copy import deepcopy
 from unittest.mock import Mock
 from uuid import uuid4
@@ -17,9 +18,10 @@ from app.grammar_lab.models import GrammarAttempt, GrammarExercise, GrammarTopic
 from app.grammar_lab.services.grader import GrammarExerciseGrader
 from app.telegram import bot
 from app.utils.db import db
+from tests.answer_review_fixtures import telegram_admin
 from tests.api.test_grammar_lab_disputes import browser, dispute, submit
 from tests.api.test_native_full_integration import learner
-from tests.api.test_quiz_corrections import native_app  # noqa: F401
+from tests.api.test_quiz_corrections import native_app
 
 
 def exercise_for(row: dict) -> GrammarExercise:
@@ -39,19 +41,22 @@ def report(exercise: GrammarExercise, answer: object) -> AnswerDispute:
 
 
 @pytest.fixture
-def services(native_app: Flask, monkeypatch: pytest.MonkeyPatch) -> tuple[Flask, Mock, Mock]:
+def services(
+    native_app: Flask, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
+) -> Iterator[tuple[Flask, Mock, Mock, int]]:
     for key, val in {'OPENAI_MODEL': 'test-model', 'OPENAI_API_KEY': 'test-key',
-                     'TELEGRAM_BOT_TOKEN': 'test-bot', 'ANSWER_REVIEW_OWNER_TELEGRAM_ID': '23'}.items():
+                     'TELEGRAM_BOT_TOKEN': 'test-bot'}.items():
         monkeypatch.setitem(native_app.config, key, val)
     classify = Mock(side_effect=lambda *a, **kw: {'label': 'valid_variant', 'reason': 'Смысл сохранён.'})
     send = Mock(return_value=True)
     monkeypatch.setattr(ai, 'classify', classify)
     monkeypatch.setattr(bot, 'send_message', send)
-    return native_app, classify, send
+    with telegram_admin() as binding:
+        yield native_app, classify, send, binding.telegram_id
 
 
 def test_topic_four_bus_and_duplicate_lab_report(services: tuple) -> None:
-    _, classify, send = services
+    _, classify, send, _ = services
     rows = compile_topic(load_catalog(['a1-4'])['a1-4'])['exercises']
     raw = next(row for row in rows if row['question'] == 'one bus → two ___')
     exercise = exercise_for(raw)
@@ -70,7 +75,7 @@ def test_topic_four_bus_and_duplicate_lab_report(services: tuple) -> None:
 
 
 def test_owner_approval_survives_identical_reimport_and_stales_old_native_attempt(services: tuple) -> None:
-    app, classify, send = services
+    app, classify, send, telegram_id = services
     raw = {'type': 'translation', 'question': 'Я хожу на работу пешком.', 'instruction': 'Переведи свободно.',
            'correct_answer': 'I walk to work.', 'answer': 'I walk to work.', 'guided_key': 'walk-to-work',
            'guided_revision': 'catalog-v1'}
@@ -93,11 +98,11 @@ def test_owner_approval_survives_identical_reimport_and_stales_old_native_attemp
     assert 'Grammar Lab' in send.call_args.args[1] and 'Добавить допустимый ответ' in send.call_args.args[1]
     assert classify.call_args.args[0]['expected'] == raw['correct_answer']
     tag = worker.decision_tag(case)
-    worker.decide(case.id, tag, 'approve', 99, 99)
+    assert worker.decide(case.id, tag, 'approve', 99, 99) == 'Решение доступно администратору'
     assert case.status == 'notified'
     assert not GrammarExerciseGrader().grade(exercise, new_answer)['is_correct']
-    assert worker.decide(case.id, tag, 'approve', 23, 23) == 'Правка применена'
-    assert 'уже обработана' in worker.decide(case.id, tag, 'approve', 23, 23)
+    assert worker.decide(case.id, tag, 'approve', telegram_id, telegram_id) == 'Правка применена'
+    assert 'уже обработана' in worker.decide(case.id, tag, 'approve', telegram_id, telegram_id)
     db.session.refresh(exercise)
     assert exercise.content == raw and lab_revision(exercise) != initial
     assert all(GrammarExerciseGrader().grade(exercise, value)['is_correct'] for value in (new_answer, raw['correct_answer']))
@@ -118,7 +123,7 @@ def test_owner_approval_survives_identical_reimport_and_stales_old_native_attemp
 
 @pytest.mark.parametrize('change_before_approval', [True, False])
 def test_wrong_choice_key_and_concurrent_editorial_change(services: tuple, change_before_approval: bool) -> None:
-    _, classify, _ = services
+    _, classify, _, telegram_id = services
     raw = {'type': 'multiple_choice', 'question': 'Выбери перевод слова «магазин».',
            'options': ['magazine', 'shop', 'newspaper'], 'correct_answer': 'magazine', 'answer': 'magazine'}
     exercise = exercise_for(raw)
@@ -130,7 +135,7 @@ def test_wrong_choice_key_and_concurrent_editorial_change(services: tuple, chang
     if change_before_approval:
         exercise.content = {**raw, 'question': 'Выбери перевод слова «журнал».'}
         db.session.commit()
-    worker.decide(case.id, worker.decision_tag(case), 'approve', 23, 23)
+    worker.decide(case.id, worker.decision_tag(case), 'approve', telegram_id, telegram_id)
     if change_before_approval:
         assert case.status == 'stale' and exercise.answer_review_override is None
     else:
@@ -141,7 +146,7 @@ def test_wrong_choice_key_and_concurrent_editorial_change(services: tuple, chang
 
 
 def test_web_receipt_to_approved_answer_on_next_web_submission(services: tuple) -> None:
-    app, _, _ = services
+    app, _, _, telegram_id = services
     user, _ = learner(app)
     client, headers = browser(app, user)
     exercise = exercise_for({'type': 'translation', 'question': 'Сейчас холодно.', 'instruction': 'Переведи свободно.',
@@ -153,7 +158,7 @@ def test_web_receipt_to_approved_answer_on_next_web_submission(services: tuple) 
         assert dispute(client, headers, exercise, receipt['dispute_token'], alternate).json == {'success': True}
     case = AnswerDispute.query.filter_by(grammar_exercise_id=exercise.id).one()
     assert worker.process_one() and worker.process_one()
-    assert worker.decide(case.id, worker.decision_tag(case), 'approve', 23, 23) == 'Правка применена'
+    assert worker.decide(case.id, worker.decision_tag(case), 'approve', telegram_id, telegram_id) == 'Правка применена'
     assert GrammarAttempt.query.filter_by(exercise_id=exercise.id).count() == 1
     result = submit(client, headers, exercise, alternate)
     assert result['is_correct'] and 'dispute_token' not in result
@@ -161,7 +166,7 @@ def test_web_receipt_to_approved_answer_on_next_web_submission(services: tuple) 
 
 
 def test_matching_displays_selected_pairs_and_grader_issue_uses_manual_review(services: tuple) -> None:
-    _, classify, send = services
+    _, classify, send, telegram_id = services
     exercise = exercise_for({'type': 'matching', 'instruction': 'Соедини пары.',
                              'pairs': [{'english': 'one', 'russian': 'один'}, {'english': 'two', 'russian': 'два'}]})
     case = report(exercise, {'0': '1', '1': '0'})
@@ -169,5 +174,5 @@ def test_matching_displays_selected_pairs_and_grader_issue_uses_manual_review(se
     classify.return_value = {'label': 'grader_issue', 'reason': 'Разобрать сравнение.'}
     assert worker.process_one() and worker.process_one()
     assert 'one → два' in send.call_args.args[1] and 'two → два' in send.call_args.args[1]
-    assert worker.decide(case.id, worker.decision_tag(case), 'approve', 23, 23) == 'Передано на ручной разбор'
+    assert worker.decide(case.id, worker.decision_tag(case), 'approve', telegram_id, telegram_id) == 'Передано на ручной разбор'
     assert exercise.answer_review_override is None

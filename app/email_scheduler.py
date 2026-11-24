@@ -287,7 +287,7 @@ def init_email_scheduler(app, *, blocking: bool = False) -> None:
     )
 
     if ((app.config.get('OPENAI_API_KEY') and app.config.get('OPENAI_MODEL')) or
-            (app.config.get('ANSWER_REVIEW_OWNER_TELEGRAM_ID') and app.config.get('TELEGRAM_BOT_TOKEN'))):
+            app.config.get('TELEGRAM_BOT_TOKEN')):
         from app.curriculum.answer_review import process_answer_disputes
 
         _scheduler.add_job(process_answer_disputes, 'interval', minutes=1, args=[app],

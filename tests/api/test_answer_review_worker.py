@@ -6,12 +6,15 @@ from unittest.mock import Mock
 
 import pytest
 
+from app.auth.models import User
 from app.curriculum import answer_review as worker
 from app.curriculum import answer_review_ai as ai
 from app.curriculum.answer_disputes import AnswerDispute
 from app.telegram import bot
+from app.telegram.models import TelegramUser
 from app.utils.db import db
-from tests.api.test_quiz_corrections import course, native_app  # noqa: F401
+from tests.answer_review_fixtures import telegram_admin
+from tests.api.test_quiz_corrections import course, native_app
 from tests.api.test_web_answer_disputes import browser
 
 
@@ -20,7 +23,7 @@ def flow(course: tuple, monkeypatch: pytest.MonkeyPatch) -> Iterator[SimpleNames
     user, _, lesson, client, awards = course
     app = client.application
     for key, value in {'OPENAI_API_KEY': 'test-key', 'OPENAI_MODEL': 'configured-model',
-                       'TELEGRAM_BOT_TOKEN': 'test-token', 'ANSWER_REVIEW_OWNER_TELEGRAM_ID': '123'}.items():
+                       'TELEGRAM_BOT_TOKEN': 'test-token'}.items():
         monkeypatch.setitem(app.config, key, value)
     row = {'type': 'translation', 'question': 'Переведи свободно: Я хожу на работу пешком.',
            'correct_answer': 'I walk to work.', 'alternative_answers': ['I walk to my job.']}
@@ -33,10 +36,15 @@ def flow(course: tuple, monkeypatch: pytest.MonkeyPatch) -> Iterator[SimpleNames
     send = Mock(return_value=True)
     monkeypatch.setattr(ai, 'classify', classify)
     monkeypatch.setattr(bot, 'send_message', send)
-    yield SimpleNamespace(client=client, endpoint=endpoint, headers=headers, body=body, lesson=lesson,
-                          classify=classify, send=send, app=app, awards=awards)
-    AnswerDispute.query.filter_by(lesson_id=lesson.id).delete()
-    db.session.commit()
+    with telegram_admin() as binding:
+        try:
+            yield SimpleNamespace(client=client, endpoint=endpoint, headers=headers, body=body, lesson=lesson,
+                                  classify=classify, send=send, app=app, awards=awards,
+                                  telegram_id=binding.telegram_id, admin_user_id=binding.user_id)
+        finally:
+            db.session.rollback()
+            AnswerDispute.query.filter_by(lesson_id=lesson.id).delete()
+            db.session.commit()
 
 
 def open_case(f: SimpleNamespace) -> AnswerDispute:
@@ -44,7 +52,7 @@ def open_case(f: SimpleNamespace) -> AnswerDispute:
     return AnswerDispute.query.filter_by(lesson_id=f.lesson.id).one()
 
 
-def test_variant_survives_telegram_failure_and_requires_owner_click(flow: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_variant_survives_telegram_failure_and_requires_admin_click(flow: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
     f = flow
     case = open_case(f)
     open_case(f)
@@ -60,26 +68,26 @@ def test_variant_survives_telegram_failure_and_requires_owner_click(flow: Simple
     assert f.classify.call_args.kwargs == {'key': 'test-key', 'model': 'configured-model'}
     assert f.client.post(f.endpoint + '/check', json=f.body, headers=f.headers).json['feedback']['correct'] is False
     recipient, text = f.send.call_args.args
-    assert recipient == 123 and f.body['answer'] in text and 'I walk to work.' in text
+    assert recipient == f.telegram_id and f.body['answer'] in text and 'I walk to work.' in text
     data = f.send.call_args.kwargs['reply_markup']['inline_keyboard'][0][0]['callback_data']
     assert len(data.encode()) <= 64
     tag = worker.decision_tag(case)
-    assert worker.decide(case.id, tag, 'approve', 456, 456) == 'Решение доступно владельцу'
-    assert worker.decide(case.id, tag, 'approve', 123, -123) == 'Решение доступно владельцу'
-    assert worker.decide(case.id, 'older', 'approve', 123, 123) == 'Карточка уже обработана или устарела'
+    assert worker.decide(case.id, tag, 'approve', 456, 456) == 'Решение доступно администратору'
+    assert worker.decide(case.id, tag, 'approve', f.telegram_id, -f.telegram_id) == 'Решение доступно администратору'
+    assert worker.decide(case.id, 'older', 'approve', f.telegram_id, f.telegram_id) == 'Карточка уже обработана или устарела'
     assert case.status == 'notified'
     ack = Mock()
     monkeypatch.setattr(bot, '_answer_callback', ack)
-    event = {'callback_query': {'id': 'cb', 'data': data, 'from': {'id': 123}, 'message': {'chat': {'id': 123}}}}
+    event = {'callback_query': {'id': 'cb', 'data': data, 'from': {'id': f.telegram_id}, 'message': {'chat': {'id': f.telegram_id}}}}
     from sqlalchemy.exc import SQLAlchemyError
     with monkeypatch.context() as patch:
         patch.setattr(db.session, 'commit', Mock(side_effect=SQLAlchemyError('test failure')))
         bot.handle_update(event)
     assert case.status == 'notified' and f.body['answer'] not in f.lesson.content['questions'][0]['alternative_answers']
-    ack.assert_called_once_with('cb', 'Не удалось сохранить решение. Нажмите ещё раз.')
+    ack.assert_called_once_with('cb', 'Не удалось сохранить решение. Нажмите ещё раз.')  # noqa: RUF001
     ack.reset_mock()
     bot.handle_update(event)
-    assert case.status == 'applied' and case.review['decided_by'] == 123
+    assert case.status == 'applied' and case.review['decided_by'] == f.telegram_id
     ack.assert_called_once_with('cb', 'Правка применена')
     bot.handle_update(event)
     assert 'уже обработана' in ack.call_args.args[1]
@@ -100,7 +108,7 @@ def test_decisions(flow: SimpleNamespace, label: str, action: str, state: str) -
     before = deepcopy(f.lesson.content)
     f.classify.return_value['label'] = label
     assert worker.process_one() and worker.process_one()
-    worker.decide(case.id, worker.decision_tag(case), action, 123, 123)
+    worker.decide(case.id, worker.decision_tag(case), action, f.telegram_id, f.telegram_id)
     db.session.refresh(f.lesson)
     assert case.status == state
     if state == 'applied':
@@ -116,7 +124,7 @@ def test_decisions(flow: SimpleNamespace, label: str, action: str, state: str) -
     ('correct', '0', ['magazine', 'shop'], '1'),
     ('correct_answer', '2018', ['2018', '2019'], '2019'),
 ])
-def test_owner_can_replace_wrong_choice_key(flow: SimpleNamespace, field: str, original: str | int,
+def test_admin_can_replace_wrong_choice_key(flow: SimpleNamespace, field: str, original: str | int,
                                            options: list[str], replacement: str | int) -> None:
     f = flow
     f.lesson.content = {'questions': [{'type': 'multiple_choice', 'question': 'Выбери ответ.',
@@ -127,7 +135,7 @@ def test_owner_can_replace_wrong_choice_key(flow: SimpleNamespace, field: str, o
     f.classify.return_value['label'] = 'wrong_key'
     assert worker.process_one() and case.review['patch'] == {field: replacement}
     assert worker.process_one() and case.status == 'notified'
-    assert worker.decide(case.id, worker.decision_tag(case), 'approve', 123, 123) == 'Правка применена'
+    assert worker.decide(case.id, worker.decision_tag(case), 'approve', f.telegram_id, f.telegram_id) == 'Правка применена'
     token = f.client.get(f.endpoint).json['lesson']['session_token']
     for i in range(len(options)):
         feedback = f.client.post(f.endpoint + '/check', headers=f.headers,
@@ -141,7 +149,7 @@ def test_edited_question_invalidates_a_card(flow: SimpleNamespace) -> None:
     assert worker.process_one() and worker.process_one()
     f.lesson.content = {'questions': [f.lesson.content['questions'][0] | {'instruction': 'Use walk.'}]}
     db.session.commit()
-    assert worker.decide(case.id, worker.decision_tag(case), 'approve', 123, 123) == 'Задание изменилось'
+    assert worker.decide(case.id, worker.decision_tag(case), 'approve', f.telegram_id, f.telegram_id) == 'Задание изменилось'
     assert case.status == 'stale' and f.body['answer'] not in f.lesson.content['questions'][0]['alternative_answers']
 
 
@@ -159,18 +167,80 @@ def test_service_failure_and_missing_config_preserve_dispute(flow: SimpleNamespa
     f.send.assert_not_called()
 
 
-def test_model_review_can_wait_for_telegram_configuration(flow: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ready_review_waits_until_an_admin_links_telegram(
+    flow: SimpleNamespace, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     f = flow
+    TelegramUser.query.filter_by(user_id=f.admin_user_id).delete()
+    db.session.commit()
     case = open_case(f)
-    with monkeypatch.context() as patch:
-        patch.setitem(f.app.config, 'ANSWER_REVIEW_OWNER_TELEGRAM_ID', '')
-        assert worker.process_one() and case.status == 'ready'
-        assert not worker.process_one()
+    assert worker.process_one() and case.status == 'ready'
+    assert not worker.process_one()
     f.send.assert_not_called()
+
+    db.session.add(TelegramUser(user_id=f.admin_user_id, telegram_id=f.telegram_id, is_active=True))
+    db.session.commit()
     monkeypatch.setitem(f.app.config, 'OPENAI_API_KEY', '')
     assert worker.process_one() and case.status == 'notified'
     f.classify.assert_called_once()
     f.send.assert_called_once()
+    assert f.send.call_args.args[0] == f.telegram_id
+
+
+def test_partial_telegram_delivery_retries_only_failed_admin(flow: SimpleNamespace) -> None:
+    f = flow
+    case = open_case(f)
+    with telegram_admin() as other:
+        failed_id = other.telegram_id
+        failed_attempts = 0
+
+        def deliver(recipient: int, *args: object, **kwargs: object) -> bool:
+            nonlocal failed_attempts
+            if recipient == failed_id:
+                failed_attempts += 1
+                return failed_attempts > 1
+            return True
+
+        f.send.side_effect = deliver
+        assert worker.process_one() and case.status == 'ready'
+        assert worker.process_one() and case.next_attempt_at
+        assert sorted(call.args[0] for call in f.send.call_args_list) == sorted((f.telegram_id, failed_id))
+        assert not worker.process_one()
+        case.next_attempt_at = None
+        db.session.commit()
+        assert worker.process_one() and case.status == 'notified'
+        assert f.send.call_count == 3 and f.send.call_args.args[0] == failed_id
+        assert not worker.process_one()
+        f.classify.assert_called_once()
+        tag = worker.decision_tag(case)
+        assert worker.decide(case.id, tag, 'approve', f.telegram_id, f.telegram_id) == 'Правка применена'
+        assert worker.decide(case.id, tag, 'reject', failed_id, failed_id) == 'Карточка уже обработана или устарела'
+        assert case.status == 'applied' and case.review['decided_by'] == f.telegram_id
+
+
+@pytest.mark.parametrize('revocation', ['role', 'unlink', 'account_inactive', 'telegram_inactive'])
+def test_previously_notified_admin_loses_right_to_decide(flow: SimpleNamespace, revocation: str) -> None:
+    f = flow
+    case = open_case(f)
+    before = deepcopy(f.lesson.content)
+    assert worker.process_one() and worker.process_one()
+    assert case.status == 'notified'
+    user = db.session.get(User, f.admin_user_id)
+    link = TelegramUser.query.filter_by(user_id=f.admin_user_id).one()
+    if revocation == 'role':
+        user.is_admin = False
+    elif revocation == 'unlink':
+        db.session.delete(link)
+    elif revocation == 'account_inactive':
+        user.active = False
+    else:
+        link.is_active = False
+    db.session.commit()
+    assert worker.decide(case.id, worker.decision_tag(case), 'approve', f.telegram_id, f.telegram_id) == (
+        'Решение доступно администратору'
+    )
+    assert case.status == 'notified' and f.lesson.content == before
+    assert 'decided_by' not in case.review
 
 
 @pytest.mark.parametrize('label', ['learner_error', 'insufficient_context'])

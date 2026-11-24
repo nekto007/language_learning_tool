@@ -1,4 +1,4 @@
-"""Process distinct answer disputes and apply only owner-approved, revalidated edits."""
+"""Process distinct answer disputes and apply edits approved by a linked administrator."""
 from __future__ import annotations
 
 import hashlib
@@ -16,6 +16,7 @@ from app.curriculum.models import Lessons
 from app.grammar_lab import answer_review as lab
 from app.grammar_lab.guided_learning import check_answer
 from app.grammar_lab.models import GrammarExercise
+from app.telegram.models import TelegramUser
 from app.utils.db import db
 
 log = logging.getLogger(__name__)
@@ -27,14 +28,6 @@ ROW_FIELDS = {'instruction', 'question', 'prompt', 'text', 'sentence', 'question
               'alternative_answers', 'correct_index', 'answers', *KEYS}
 LAB_ROW_FIELDS = ROW_FIELDS | {'original', 'statement', 'key_grammar', 'full_correct', 'theory_help',
                                'source_lang', 'target_lang'}
-
-
-def owner_id() -> int | None:
-    raw = current_app.config.get('ANSWER_REVIEW_OWNER_TELEGRAM_ID')
-    value = str(raw or '')
-    if value.isascii() and value.isdigit() and len(value) <= 19 and int(value) > 0:
-        return int(value)
-    return None
 
 
 def _question(lesson: Lessons, case: AnswerDispute) -> dict:
@@ -169,9 +162,7 @@ def decision_tag(case: AnswerDispute) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:14]
 
 
-def notify_owner(case: AnswerDispute, recipient: int) -> bool:
-    from app.telegram.bot import send_message
-
+def _telegram_card(case: AnswerDispute) -> tuple[str, dict | None]:
     review = case.review
     row = case.evidence['row']
     instructions = [case.evidence['question'].get('lesson_instruction'), row.get('instruction'),
@@ -202,15 +193,33 @@ def notify_owner(case: AnswerDispute, recipient: int) -> bool:
             f'{question}\nОтвет ученика: {review["shown_answer"]}\n'
             f'Текущий ключ: {review["shown_key"]}\n{review["reason"]}\n\n{change}')
     if len(text.encode('utf-16-le')) // 2 > 4096:
-        case.status = 'manual'
-        return send_message(recipient, f'Спор {case.id} ({source}) требует ручного разбора. '
-                            'Полное условие превышает размер сообщения.', parse_mode=None)
-    return send_message(recipient, text, parse_mode=None, reply_markup={'inline_keyboard': keyboard})
+        return (f'Спор {case.id} ({source}) требует ручного разбора. '
+                'Полное условие превышает размер сообщения.'), None
+    return text, {'inline_keyboard': keyboard}
+
+
+def _notify_admins(case: AnswerDispute, recipients: list[int], now: datetime) -> None:
+    from app.telegram.bot import send_message
+
+    text, keyboard = _telegram_card(case)
+    delivered = set(case.review.get('notified_telegram_ids', []))
+    for recipient in recipients:
+        if recipient not in delivered and send_message(recipient, text, parse_mode=None, reply_markup=keyboard):
+            delivered.add(recipient)
+    case.review = {**case.review, 'notified_telegram_ids': sorted(delivered)}
+    if delivered.issuperset(recipients):
+        case.status = 'notified' if keyboard else 'manual'
+    else:
+        case.next_attempt_at = now + timedelta(minutes=10)
 
 
 def decide(case_id: int, tag: str, action: str, sender: int, chat: int) -> str:
-    if type(sender) is not int or owner_id() != sender or sender != chat:
-        return 'Решение доступно владельцу'
+    if type(sender) is not int or sender <= 0 or sender != chat:
+        return 'Решение доступно администратору'
+    # Keep both the link and the administrator's role valid until the decision commits.
+    if not TelegramUser.active_admin_links().filter(TelegramUser.telegram_id == sender).with_for_update(read=True).first():
+        db.session.rollback()
+        return 'Решение доступно администратору'
     case = AnswerDispute.query.filter_by(id=case_id).populate_existing().with_for_update().first()
     if not case or case.status not in ('ready', 'notified') or tag != decision_tag(case):
         db.session.rollback()
@@ -258,13 +267,16 @@ def decide(case_id: int, tag: str, action: str, sender: int, chat: int) -> str:
 
 def process_one() -> bool:
     from sqlalchemy import or_
-    recipient = owner_id()
     key, model = current_app.config.get('OPENAI_API_KEY'), current_app.config.get('OPENAI_MODEL')
     states = []
+    recipients = []
     if key and model:
         states.append('pending')
-    if recipient and current_app.config.get('TELEGRAM_BOT_TOKEN'):
-        states.append('ready')
+    if current_app.config.get('TELEGRAM_BOT_TOKEN'):
+        links = TelegramUser.active_admin_links().with_entities(TelegramUser.telegram_id)
+        recipients = [link.telegram_id for link in links.order_by(TelegramUser.telegram_id)]
+        if recipients:
+            states.append('ready')
     if not states:
         return False
     now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -279,12 +291,7 @@ def process_one() -> bool:
         if case.status == 'pending':
             review_case(case, key=key, model=model)
         else:
-            delivered = notify_owner(case, recipient)
-            if delivered and case.status == 'ready':
-                case.status = 'notified'
-            if not delivered:
-                case.status = 'ready'
-                case.next_attempt_at = now + timedelta(minutes=10)
+            _notify_admins(case, recipients, now)
     except ai.ReviewServiceError as exc:
         log.warning('Answer review %s deferred: %s', case.id, exc)
         case.next_attempt_at = now + timedelta(hours=1)

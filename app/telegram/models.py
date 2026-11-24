@@ -18,7 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Query, relationship
 
 from app.utils.db import db
 
@@ -64,6 +64,15 @@ class TelegramUser(db.Model):
 
     def __repr__(self):
         return f"<TelegramUser {self.telegram_id} -> user={self.user_id}>"
+
+    @classmethod
+    def active_admin_links(cls) -> 'Query[TelegramUser]':
+        """Query active links belonging to active site administrators."""
+        from app.auth.models import User
+
+        return cls.query.join(User, User.id == cls.user_id).filter(
+            cls.is_active.is_(True), User.active.is_(True), User.is_admin.is_(True),
+        )
 
     def to_dict(self) -> dict:
         return {
