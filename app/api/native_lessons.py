@@ -373,18 +373,30 @@ def course_submission(lesson_id):
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or set(data) != {'session_token', 'answers'} or not isinstance(data['session_token'], str):
         raise NativeLessonError('invalid_input')
+    expired = False
     try:
         sealed = _signer().loads(data['session_token'], max_age=21600)
-    except (BadSignature, SignatureExpired):
+    except SignatureExpired:
+        # Expiry still forbids grading. A verified old nonce may only read its
+        # committed receipt, after the same account and lesson access checks.
+        try:
+            sealed = _signer().loads(data['session_token'])
+        except BadSignature:
+            raise NativeLessonError('lesson_changed', 409) from None
+        expired = True
+    except BadSignature:
         raise NativeLessonError('lesson_changed', 409)
     if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
         raise NativeLessonError('access_denied', 403)
+    if expired and (not isinstance(sealed.get('nonce'), str) or not sealed['nonce'].strip()):
+        raise NativeLessonError('lesson_changed', 409)
     plan_error = None
     plan_kind = None
-    try:
-        plan_kind = _guard_plan(lesson_id)
-    except NativeLessonError as error:
-        plan_error = error
+    if not expired:
+        try:
+            plan_kind = _guard_plan(lesson_id)
+        except NativeLessonError as error:
+            plan_error = error
     # Serialize native submissions for this account. ProgressService commits the
     # response marker with the actual progress, before releasing this row lock.
     # A waiting duplicate then reads that marker instead of grading again.
@@ -399,6 +411,8 @@ def course_submission(lesson_id):
         receipt = correction_saved.get('receipt') if isinstance(correction_saved, dict) else None
         if isinstance(receipt, dict) and receipt.get('nonce') == sealed.get('nonce'):
             return jsonify(receipt['response'])
+        if expired:
+            raise NativeLessonError('lesson_changed', 409)
         if sealed.get('projection_version') != NATIVE_PROJECTION_VERSION:
             raise NativeLessonError('lesson_changed', 409)
         if (not _session_type_matches(sealed, lesson)
