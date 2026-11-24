@@ -34,6 +34,7 @@ def test_web_page_uses_shared_document_and_csrf_protected_feedback(course):
     doc = response.json["lesson"]
     assert response.json["account_id"] == str(course[0].id)
     assert doc["quiz_phase"] == "first"
+    assert [question["input"] for question in doc["questions"]] == ["text", "choice"]
     body = {"session_token": doc["session_token"], "question_id": "0", "answer": "wrong"}
     assert client.post(endpoint + "/check", json=body).status_code == 400
     checked = client.post(endpoint + "/check", json=body, headers={"X-CSRFToken": csrf})
@@ -44,6 +45,7 @@ def test_web_page_uses_shared_document_and_csrf_protected_feedback(course):
         headers={"X-CSRFToken": csrf},
     )
     assert result.status_code == 200 and result.json["correction_pending"], result.json
+    assert result.json["feedback"][1]["answer"] == "are"
     correction = client.get(endpoint).json["lesson"]
     assert correction["quiz_phase"] == "correction"
     assert client.get(f"/api/native/lessons/{lesson.id}").status_code == 401

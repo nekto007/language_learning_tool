@@ -105,8 +105,11 @@
   };
   const isCorrection = () => lesson.quiz_phase === 'correction';
   const isFinal = () => lesson.type === 'final_test';
+  // Basic grammar and quiz documents can supply options without an input type.
+  const isChoiceQuestion = q => q.input === 'choice' ||
+    (q.input == null && Array.isArray(q.options) && q.options.length > 0);
   const display = (q, answer) => {
-    if (q.input === 'choice') return q.options.find(o => o.value === answer)?.label || answer || '';
+    if (isChoiceQuestion(q)) return q.options.find(o => o.value === answer)?.label || answer || '';
     if (q.input === 'order') {
       try { return JSON.parse(answer || '[]').map(v => q.options.find(o => o.value === v)?.label || '').join(' '); } catch (_) { return ''; }
     }
@@ -150,7 +153,7 @@
         box.append(field);
       });
       if (help.choices?.length) box.append(node('p', 'Варианты: ' + help.choices.join(' · '), 'text-secondary mt-2'));
-    } else if (q.input === 'choice') {
+    } else if (isChoiceQuestion(q)) {
       q.options.forEach(option => {
         const label = node('label', null, 'card card-body mb-2');
         const field = node('input'); field.type = 'radio'; field.name = 'answer'; field.value = option.value;

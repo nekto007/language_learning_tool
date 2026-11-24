@@ -139,6 +139,7 @@ def project_questions(lesson):
             options = [{'value': str(i), 'label': plain(o)} for i, o in enumerate(choices)]
         instruction = plain(item.get('instruction')) or ('Выбери ответ' if options else 'Введи ответ')
         result.append({'id': str(index), 'prompt': prompt, 'instruction': instruction, 'options': options,
+                       'input': 'choice' if options else 'text',
                        'translation': plain(question_translation(item)) if support in ('inline', 'toggle') else None})
     return result
 
