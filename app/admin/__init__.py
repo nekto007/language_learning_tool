@@ -39,6 +39,9 @@ def register_admin_routes(flask_app):
     from app.admin.routes.answer_disputes import answer_disputes_bp
     flask_app.register_blueprint(answer_disputes_bp, url_prefix='/admin')
 
+    from app.admin.routes.materials import materials_bp
+    flask_app.register_blueprint(materials_bp, url_prefix='/admin')
+
     # Import and register word routes blueprint
     from app.admin.routes.word_routes import word_bp
     flask_app.register_blueprint(word_bp, url_prefix='/admin')

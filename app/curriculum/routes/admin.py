@@ -315,6 +315,8 @@ def edit_module(module_id):
 @admin_required
 def edit_lesson(lesson_id):
     """Edit lesson with content validation"""
+    from app.admin.routes.materials import materials_return_url
+
     lesson = Lessons.query.get_or_404(lesson_id)
 
     if request.method == 'POST':
@@ -346,7 +348,7 @@ def edit_lesson(lesson_id):
                 )
                 db.session.commit()
                 flash('Содержимое урока успешно обновлено', 'success')
-                return redirect(url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
+                return redirect(materials_return_url() or url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
 
             except Exception as e:
                 db.session.rollback()
@@ -387,7 +389,7 @@ def edit_lesson(lesson_id):
                 )
                 db.session.commit()
                 flash('Урок успешно обновлен', 'success')
-                return redirect(url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
+                return redirect(materials_return_url() or url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
 
             except Exception as e:
                 db.session.rollback()

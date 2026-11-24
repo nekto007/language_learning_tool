@@ -554,6 +554,8 @@ def create_exercise(topic_id):
 @admin_required
 def edit_exercise(exercise_id):
     """Edit an exercise"""
+    from app.admin.routes.materials import materials_return_url
+
     exercise = GrammarExercise.query.get_or_404(exercise_id)
     topic = exercise.topic
 
@@ -593,7 +595,7 @@ def edit_exercise(exercise_id):
             )
             db.session.commit()
             flash('Exercise updated successfully!', 'success')
-            return redirect(url_for('grammar_lab_admin.edit_topic', topic_id=topic.id))
+            return redirect(materials_return_url() or url_for('grammar_lab_admin.edit_topic', topic_id=topic.id))
 
         except Exception as e:
             db.session.rollback()

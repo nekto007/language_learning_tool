@@ -1,0 +1,100 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Материалы{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/materials.css') }}">{% endblock %}
+
+{% block content %}
+<div class="materials">
+    <header class="materials-heading">
+        <h1>Материалы</h1>
+        <p>Поиск по урокам курса и упражнениям Grammar Lab.</p>
+    </header>
+
+    <form class="materials-filters" method="get" action="{{ url_for('.index') }}" role="search" aria-label="Поиск материалов">
+        <div class="materials-search">
+            <label for="materials-q">Название, текст задания или ID</label>
+            <input class="form-control" type="search" id="materials-q" name="q" value="{{ filters.q }}" maxlength="160" placeholder="Например, Present Simple или #42">
+        </div>
+        <div>
+            <label for="materials-kind">Тип материала</label>
+            <select class="form-select" id="materials-kind" name="kind">
+                <option value="">Все типы</option>
+                {% for value, title in kinds.items() %}
+                <option value="{{ value }}"{% if filters.kind == value %} selected{% endif %}>{{ 'Grammar Lab' if value == 'exercise' else title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="materials-level">Уровень</label>
+            <select class="form-select" id="materials-level" name="level">
+                <option value="">Все уровни</option>
+                {% for level in levels %}
+                <option value="{{ level }}"{% if filters.level == level %} selected{% endif %}>{{ level }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="materials-submit">
+            <button class="btn btn-primary" type="submit">Найти</button>
+            {% if filters.q or filters.kind or filters.level %}
+            <a href="{{ url_for('.index') }}" class="btn btn-outline-secondary">Сбросить</a>
+            {% endif %}
+        </div>
+    </form>
+
+    <section aria-labelledby="materials-results">
+        <h2 id="materials-results">Результаты <span>{{ total }}</span></h2>
+        {% if rows %}
+        <ul class="materials-list">
+            {% for row in rows %}
+            <li class="materials-result" data-kind="{{ row.kind }}" data-material-id="{{ row.id }}">
+                <div>
+                    <div class="materials-meta"><span class="materials-level">{{ row.level }}</span> {{ kinds[row.kind] }} · ID {{ row.id }}</div>
+                    <h3>{{ row.title | truncate(150) if row.title else 'Упражнение без текста' }}</h3>
+                    <p class="materials-meta">
+                        {% if row.kind == 'lesson' %}Модуль {{ row.module_number }} · {{ row.parent_title }} · Урок {{ row.lesson_number }}
+                        {% else %}{{ row.parent_title }}{% if row.retired %} · Снято с практики{% endif %}{% endif %}
+                    </p>
+                </div>
+                <div class="materials-actions">
+                    {% if row.kind == 'lesson' %}
+                    <a class="materials-secondary" href="{{ url_for('curriculum_admin.view_lesson', lesson_id=row.id, materials_query=materials_query) }}">Просмотр</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=row.id, materials_query=materials_query) }}">Редактировать</a>
+                    {% else %}
+                    <a class="materials-secondary" href="{{ url_for('grammar_lab_admin.edit_topic', topic_id=row.parent_id, materials_query=materials_query) }}">Тема</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('grammar_lab_admin.edit_exercise', exercise_id=row.id, materials_query=materials_query) }}">Редактировать</a>
+                    {% endif %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="materials-empty">По этому запросу материалов нет.</p>
+        {% endif %}
+        {% if pages > 1 %}
+        <nav class="materials-pagination" aria-label="Страницы материалов">
+            {% if page > 1 %}<a href="{{ page_url(page - 1) }}">Назад</a>{% endif %}
+            <span>Страница {{ page }} из {{ pages }}</span>
+            {% if page < pages %}<a href="{{ page_url(page + 1) }}">Дальше</a>{% endif %}
+        </nav>
+        {% endif %}
+    </section>
+
+    <section aria-labelledby="materials-directories">
+        <h2 id="materials-directories">Другие разделы контента</h2>
+        <ul class="materials-directories">
+            {% for title, endpoint, description in directories %}
+            <li><a href="{{ url_for(endpoint) }}">{{ title }}</a><p>{{ description }}</p></li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section aria-labelledby="materials-import">
+        <h2 id="materials-import">Импорт и публикация</h2>
+        <ul class="materials-directories">
+            {% for title, endpoint, description in import_tools %}
+            <li><a href="{{ url_for(endpoint) }}">{{ title }}</a><p>{{ description }}</p></li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}
