@@ -18962,19 +18962,23 @@ body.feedback-modal-open { overflow: hidden; }
     color: var(--public-primary-dark);
 }
 .public-body .skip-to-content {
-    position: absolute;
+    position: fixed;
     left: 1rem;
-    top: -48px;
+    top: 1rem;
+    width: max-content;
+    max-width: calc(100% - 2rem);
+    /* Keep the entire wrapped link offscreen until it receives focus. */
+    transform: translateY(calc(-100% - 1rem - 4px));
     z-index: 1000;
     padding: 0.6rem 0.9rem;
     background: var(--public-text);
     color: #fff;
     border-radius: 8px;
     text-decoration: none;
-    transition: top 0.15s ease;
+    transition: none;
 }
 .public-body .skip-to-content:focus {
-    top: 1rem;
+    transform: none;
     color: #fff;
 }
 .public-header {
@@ -19005,6 +19009,7 @@ body.feedback-modal-open { overflow: hidden; }
     flex: 1 1 auto;
     min-width: 0;
 }
+.public-nav-mobile { display: none; }
 .public-nav-collapse {
     display: none;
     flex: 1 1 auto;
@@ -19290,17 +19295,28 @@ body.feedback-modal-open { overflow: hidden; }
 @media (max-width: 1023px) {
     .public-nav {
         position: relative;
+        width: calc(100% - min(2rem, 24px));
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: min(0.5rem, 6px);
     }
     .public-nav-desktop { display: none; }
+    .public-nav-mobile {
+        display: flex;
+        align-items: center;
+        gap: min(0.25rem, 4px);
+        margin-left: auto;
+    }
     .public-nav-collapse {
         display: block;
         flex: 0 0 auto;
-        margin-left: auto;
     }
+    .public-nav-mobile > .public-nav__link,
     .public-nav-toggle {
         display: inline-flex;
+        min-width: 44px;
+        min-height: 44px;
+        align-items: center;
+        padding-inline: min(0.4rem, 7px);
     }
     .public-nav-collapse:not([open]) > .public-nav__panel {
         display: none;

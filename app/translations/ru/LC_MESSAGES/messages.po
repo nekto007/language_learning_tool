@@ -198,6 +198,15 @@ msgstr "Просмотреть полную таблицу лидеров"
 msgid "Username"
 msgstr "Имя пользователя"
 
+msgid "Username or Email"
+msgstr "Имя пользователя или электронная почта"
+
+msgid "Email already registered."
+msgstr "Эта почта уже зарегистрирована."
+
+msgid "Username already in use."
+msgstr "Это имя пользователя уже занято."
+
 msgid "Password"
 msgstr "Пароль"
 

@@ -8,7 +8,9 @@
         {% if current_user.is_authenticated %}
         <a class="public-nav__link public-nav__link--primary" href="{{ url_for('words.dashboard') if has_module('words') else url_for('auth.profile') }}">Открыть кабинет</a>
         {% else %}
-        <a class="public-nav__link" href="{{ url_for('auth.login', **(public_auth_args or {})) }}">Вход</a>
+        {% if not compact_nav|default(false) %}
+        <a class="public-nav__link" href="{{ _public_login_url }}">Вход</a>
+        {% endif %}
         <a class="public-nav__link public-nav__link--primary" href="{{ url_for('auth.register', **(public_auth_args or {})) }}">Регистрация</a>
         {% endif %}
     </div>

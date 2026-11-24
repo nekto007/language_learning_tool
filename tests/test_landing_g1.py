@@ -54,13 +54,15 @@ def test_first_week_is_suitable_for_a_recommended_or_self_selected_level(client:
     assert 'выберите A1' not in week and 'Знакомство и приветствия' not in week
 
 
-def test_desktop_login_is_outside_the_closed_mobile_details(client: Any) -> None:
+def test_login_is_reachable_outside_the_mobile_menu(client: Any) -> None:
     page = BeautifulSoup(client.get('/').data, 'html.parser')
     desktop_login = page.select_one('.public-nav-desktop a[href="/login"]')
     assert desktop_login and desktop_login.find_parent('details') is None
     mobile = page.select_one('details.public-nav-collapse')
     assert mobile and not mobile.has_attr('open')
     assert mobile.select_one('summary').get_text(' ', strip=True) == 'Меню'
-    assert mobile.select_one('a[href="/login"]')
-    assert [(a['href'], a.get_text(strip=True)) for a in page.select('.public-nav-desktop a')] == [
-        (a['href'], a.get_text(strip=True)) for a in mobile.select('a')]
+    mobile_login = page.select_one('.public-nav-mobile > a[href="/login"]')
+    assert mobile_login and mobile_login.get_text(strip=True) == 'Вход'
+    assert mobile.select_one('a[href="/login"]') is None
+    assert {a['href'] for a in page.select('.public-nav-desktop a')} == {
+        a['href'] for a in page.select('.public-nav-mobile a')}

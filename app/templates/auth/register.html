@@ -45,6 +45,7 @@
     <div class="auth-card__body">
       <form method="POST" action="{{ url_for('auth.register', level=level_param or '', ref=ref_param or '', entry=entry_param or '', **({'next': next_url} if next_url else {})) }}">
         {{ form.hidden_tag() }}
+        {% set first_invalid = form.errors|first %}
         {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
         {% if ref_param %}<input type="hidden" name="ref" value="{{ ref_param }}">{% endif %}
 
@@ -52,6 +53,7 @@
           <label class="auth-field__label" for="{{ form.username.id }}">{{ form.username.label.text }}</label>
           <input type="text" class="auth-field__input" id="{{ form.username.id }}" name="{{ form.username.name }}"
                  autocomplete="username"
+                 {% if first_invalid == form.username.name %}autofocus{% endif %}
                  {% if form.username.errors %}aria-invalid="true" aria-describedby="username-errors"{% endif %} value="{{ form.username.data or '' }}">
           {% if form.username.errors %}
             <div id="username-errors">
@@ -64,6 +66,7 @@
           <label class="auth-field__label" for="{{ form.email.id }}">{{ form.email.label.text }}</label>
           <input type="email" class="auth-field__input" id="{{ form.email.id }}" name="{{ form.email.name }}"
                  autocomplete="email"
+                 {% if first_invalid == form.email.name %}autofocus{% endif %}
                  {% if form.email.errors %}aria-invalid="true" aria-describedby="email-errors"{% endif %} value="{{ form.email.data or '' }}">
           {% if form.email.errors %}
             <div id="email-errors">
@@ -77,6 +80,7 @@
           <div class="auth-password-wrapper">
             <input type="password" class="auth-field__input" id="{{ form.password.id }}" name="{{ form.password.name }}"
                  autocomplete="new-password" aria-describedby="password-hint{% if form.password.errors %} password-errors{% endif %}"
+                 {% if first_invalid == form.password.name %}autofocus{% endif %}
                  {% if form.password.errors %}aria-invalid="true"{% endif %}>
             <button type="button" class="auth-password-toggle" aria-label="Показать пароль" data-toggle-password>
               <svg class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -96,6 +100,7 @@
           <div class="auth-password-wrapper">
             <input type="password" class="auth-field__input" id="{{ form.password2.id }}" name="{{ form.password2.name }}"
                  autocomplete="new-password"
+                 {% if first_invalid == form.password2.name %}autofocus{% endif %}
                  {% if form.password2.errors %}aria-invalid="true" aria-describedby="password2-errors"{% endif %}>
             <button type="button" class="auth-password-toggle" aria-label="Показать пароль" data-toggle-password>
               <svg class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -265,14 +270,6 @@ document.querySelectorAll('[data-toggle-password]').forEach(function(btn) {
   });
 })();
 
-document.addEventListener('DOMContentLoaded', function() {
-  const firstError = document.querySelector('.auth-field__error');
-  if (firstError) {
-    const field = firstError.closest('.auth-field');
-    const input = field ? field.querySelector('.auth-field__input') : null;
-    if (input) input.focus();
-  }
-});
 </script>
 {% endblock %}
 

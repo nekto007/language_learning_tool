@@ -321,7 +321,8 @@ def login():
                 request.remote_addr,
             )
             flash(_l('Invalid email or password'), 'danger')
-            return render_template('auth/login.html', form=form, auth_context=auth_context, next_url=next_url), 401
+            return render_template('auth/login.html', form=form, auth_context=auth_context, next_url=next_url,
+                                   credentials_rejected=True), 401
 
     return render_template('auth/login.html', form=form, auth_context=auth_context, next_url=next_url)
 
