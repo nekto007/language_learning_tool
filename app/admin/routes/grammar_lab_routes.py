@@ -18,13 +18,22 @@ Cascade-deletion упражнений (lapses/attempts/SRS-rows) обеспеч�
 """
 import json
 import logging
-import re
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy.exc import IntegrityError
 
 from app.admin.audit import log_admin_action
+from app.admin.services.grammar_exercise_import import (
+    JSON_SOURCE,
+    MODULE_SOURCE,
+    apply_replacement,
+    guided_topic,
+    lock_topics,
+    plan_replacement,
+    prepare_exercise,
+    prepare_json_batch,
+)
 from app.admin.utils.decorators import admin_required
 from app.grammar_lab.models import GrammarExercise, GrammarTopic
 from app.utils.db import db
@@ -84,19 +93,6 @@ def _grammar_topic_payload(content: dict | None, lesson_title: str = '') -> tupl
     return title.strip(), payload
 
 
-def _delete_module_imported_exercises(topic_id: int) -> int:
-    """Delete exercises created by module import while preserving JSON extras."""
-    deleted = 0
-    exercises = GrammarExercise.query.filter_by(topic_id=topic_id).all()
-    for exercise in exercises:
-        content = exercise.content if isinstance(exercise.content, dict) else {}
-        if content.get('source') == 'json_import':
-            continue
-        db.session.delete(exercise)
-        deleted += 1
-    return deleted
-
-
 def _first_present(*values):
     for value in values:
         if value is None:
@@ -115,7 +111,7 @@ def _coerce_answer(value):
     return value
 
 
-def _module_exercise_content(ex: dict) -> tuple[str, dict] | tuple[None, None]:
+def _module_exercise_content(ex: dict, *, strict: bool = False) -> tuple[str, dict] | tuple[None, None]:
     if not isinstance(ex, dict):
         return None, None
 
@@ -181,8 +177,10 @@ def _module_exercise_content(ex: dict) -> tuple[str, dict] | tuple[None, None]:
         )
         if isinstance(correct_value, str) and correct_value in options:
             exercise_content['correct_answer'] = options.index(correct_value)
-        elif isinstance(correct_value, int):
+        elif type(correct_value) is int and 0 <= correct_value < len(options):
             exercise_content['correct_answer'] = correct_value
+        elif strict:
+            raise ValueError('Нужен действующий ключ для вопроса на выбор ответа.')
         else:
             exercise_content['correct_answer'] = 0
     elif mapped_type == 'matching':
@@ -228,9 +226,10 @@ def _module_exercise_content(ex: dict) -> tuple[str, dict] | tuple[None, None]:
     # module types (e.g. dialogue_completion) fall through to ``fill_blank``
     # above but carry no blank / source phrase, producing an empty input with
     # nothing to do. Mirrors the client-side ``isRenderable`` guard so the two
-    # stay in sync; combined with the re-import delete+reinsert this also purges
-    # already-imported broken items.
+    # stay in sync. A complete import retires excluded source-owned rows.
     if not _module_content_is_renderable(mapped_type, exercise_content):
+        if strict and raw_type in type_mapping:
+            raise ValueError('Для упражнения не хватает текста или вариантов.')
         return None, None
 
     return mapped_type, exercise_content
@@ -258,40 +257,56 @@ def _module_content_is_renderable(mapped_type: str, content: dict) -> bool:
     return bool(_txt(content.get('question')) or _txt(content.get('sentence')))
 
 
-def _lesson_exercises(content: dict | None) -> list[dict]:
+def _exercise_list(value: object, *, strict: bool) -> list[dict]:
+    if not isinstance(value, list):
+        if strict:
+            raise ValueError('Упражнения урока должны быть списком.')
+        return []
+    if strict and any(not isinstance(item, dict) for item in value):
+        raise ValueError('Список упражнений содержит строку, которая не является объектом.')
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _lesson_exercises(content: dict | None, *, strict: bool = False) -> list[dict]:
     if not isinstance(content, dict):
+        if strict and content is not None:
+            raise ValueError('Содержимое урока должно быть объектом.')
         return []
 
     for key in ('exercises', 'questions', 'items', 'tasks'):
         value = content.get(key)
-        if isinstance(value, list):
-            return [item for item in value if isinstance(item, dict)]
+        if isinstance(value, list) or (strict and value is not None):
+            return _exercise_list(value, strict=strict)
 
     sections = content.get('test_sections')
+    if strict and sections is not None and not isinstance(sections, list):
+        raise ValueError('Разделы теста должны быть списком.')
     if isinstance(sections, list):
         exercises = []
         for section in sections:
             if not isinstance(section, dict):
+                if strict:
+                    raise ValueError('Раздел теста должен быть объектом.')
                 continue
             for key in ('exercises', 'questions', 'items', 'tasks'):
                 value = section.get(key)
-                if isinstance(value, list):
-                    exercises.extend(item for item in value if isinstance(item, dict))
+                if isinstance(value, list) or (strict and value is not None):
+                    exercises.extend(_exercise_list(value, strict=strict))
         return exercises
 
     return []
 
 
-def _module_grammar_exercises(module_id: int, grammar_content: dict | None) -> list[dict]:
+def _module_grammar_exercises(module_id: int, grammar_content: dict | None, *, strict: bool = False) -> list[dict]:
     from app.curriculum.models import Lessons
 
-    exercises = list(_lesson_exercises(grammar_content))
+    exercises = list(_lesson_exercises(grammar_content, strict=strict))
     quiz_lessons = Lessons.query.filter(
         Lessons.module_id == module_id,
         Lessons.type.in_(GRAMMAR_IMPORT_QUIZ_TYPES),
-    ).all()
+    ).order_by(Lessons.number, Lessons.id).all()
     for quiz_lesson in quiz_lessons:
-        exercises.extend(_lesson_exercises(quiz_lesson.content))
+        exercises.extend(_lesson_exercises(quiz_lesson.content, strict=strict))
     return exercises
 
 
@@ -645,161 +660,95 @@ def import_from_modules():
     from app.curriculum.models import CEFRLevel, Lessons, Module
 
     if request.method == 'POST':
-        imported = 0
-        skipped = 0
-        exercises_imported = 0
-        total_synced = 0
+        from app.curriculum.models import LessonProgress
+        from app.grammar_lab.models import UserGrammarTopicStatus
 
         try:
-            # Get all modules with their levels
-            modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
-
+            # Serialize imports even for modules whose topics do not exist yet.
+            modules = Module.query.order_by(Module.id).with_for_update().all()
+            targets = []
+            topic_ids: set[int] = set()
             for module in modules:
-                level_code = module.level.code if module.level else 'A1'
-
-                # Find grammar lesson
-                grammar_lesson = Lessons.query.filter_by(
-                    module_id=module.id,
-                    type='grammar'
+                grammar_lesson = Lessons.query.filter_by(module_id=module.id, type='grammar').order_by(
+                    Lessons.number, Lessons.id,
                 ).first()
-
                 if not grammar_lesson:
                     continue
+                level_code = module.level.code
+                slug = f'{level_code.lower()}-{module.number}'
+                topic = (db.session.get(GrammarTopic, grammar_lesson.grammar_topic_id)
+                         if grammar_lesson.grammar_topic_id else None)
+                if topic is None:
+                    topic = GrammarTopic.query.filter_by(slug=slug).one_or_none()
+                if topic is not None:
+                    if topic.id in topic_ids:
+                        raise ValueError(f'Несколько модулей ссылаются на тему «{topic.title}».')
+                    topic_ids.add(topic.id)
+                targets.append((module, grammar_lesson, slug, topic.id if topic else None))
 
-                content = grammar_lesson.content or {}
-                title, topic_content = _grammar_topic_payload(content, grammar_lesson.title)
-
+            topics = lock_topics(topic_ids)
+            plans = []
+            for module, lesson, slug, topic_id in targets:
+                topic = topics.get(topic_id)
+                if topic is not None and guided_topic(topic):
+                    continue
+                if lesson.content is not None and not isinstance(lesson.content, dict):
+                    raise ValueError(f'Модуль {slug}: содержимое урока должно быть объектом.')
+                title, topic_content = _grammar_topic_payload(lesson.content, lesson.title)
                 if not title:
                     continue
-
-                # Generate slug: {level}-{number}
-                slug = f"{level_code.lower()}-{module.number}"
-
-                # Check if already exists: first by grammar_topic_id, then by slug
-                existing = None
-                if grammar_lesson.grammar_topic_id:
-                    existing = GrammarTopic.query.get(grammar_lesson.grammar_topic_id)
-                if not existing:
-                    existing = GrammarTopic.query.filter_by(slug=slug).first()
-                exercises = _module_grammar_exercises(module.id, content)
-
-                if existing:
-                    # Update existing topic
-                    topic = existing
-                    topic.slug = slug
-                    topic.title = title
-                    topic.title_ru = title
-                    topic.level = level_code
-                    topic.order = module.number
-                    topic_content['source_module'] = module.number
-                    topic.content = topic_content
-                    # Delete old module exercises only when we have a source to
-                    # reimport from. Otherwise one broken curriculum payload can
-                    # wipe the whole Grammar Lab exercise set.
-                    if exercises:
-                        _delete_module_imported_exercises(topic.id)
-                    skipped += 1  # Count as updated (using skipped for "updated" count)
-                else:
-                    # Create new topic with id = module.id
-                    topic_content['source_module'] = module.number
-                    topic = GrammarTopic(
-                        id=module.id,
-                        slug=slug,
-                        title=title,
-                        title_ru=title,
-                        level=level_code,
-                        order=module.number,
-                        content=topic_content,
-                        estimated_time=15,
-                        difficulty=1
-                    )
-                    db.session.add(topic)
-                    db.session.flush()
-                    imported += 1
-
-                # Link source grammar lesson back to the topic
-                grammar_lesson.grammar_topic_id = topic.id
-
-                # Retroactive sync: if users already completed this lesson, update Grammar Lab status
-                from app.curriculum.models import LessonProgress
-                from app.grammar_lab.models import UserGrammarTopicStatus
-                synced_count = 0
-                completed_progresses = LessonProgress.query.filter_by(
-                    lesson_id=grammar_lesson.id,
-                    status='completed'
-                ).all()
-                if not completed_progresses:
-                    # Try broader search - maybe status differs
-                    all_progresses = LessonProgress.query.filter_by(
-                        lesson_id=grammar_lesson.id
-                    ).all()
-                    logger.info(
-                        f"Module {module.number}: lesson {grammar_lesson.id} has "
-                        f"{len(all_progresses)} progress records, "
-                        f"statuses: {[p.status for p in all_progresses]}"
-                    )
-                for progress in completed_progresses:
+                topic_content['source_module'] = module.number
+                desired = []
+                for index, row in enumerate(_module_grammar_exercises(module.id, lesson.content, strict=True)):
                     try:
-                        topic_st = UserGrammarTopicStatus.get_or_create(progress.user_id, topic.id)
-                        if topic_st.transition_to('theory_completed'):
-                            synced_count += 1
-                            logger.info(f"Synced user {progress.user_id} for topic {topic.id}")
-                        else:
-                            logger.info(
-                                f"User {progress.user_id} topic {topic.id}: "
-                                f"already status={topic_st.status}, skip"
-                            )
-                    except Exception as e:
-                        logger.warning(f"Retroactive sync failed for user {progress.user_id}: {e}")
-                total_synced += synced_count
-                if synced_count > 0:
-                    logger.info(f"Module {module.number}: synced {synced_count} users")
+                        mapped_type, content = _module_exercise_content(row, strict=True)
+                        if mapped_type:
+                            desired.append(prepare_exercise(mapped_type, content, source=MODULE_SOURCE, order=index))
+                    except (TypeError, ValueError) as error:
+                        raise ValueError(f'Модуль {slug}, упражнение {index + 1}: {error}') from error
+                plan = plan_replacement(topic, MODULE_SOURCE, desired)
+                plans.append((module, lesson, slug, topic, title, topic_content, plan))
 
-                if exercises:
+            created = updated = synced = added = kept = retired = 0
+            for module, lesson, slug, topic, title, content, plan in plans:
+                if topic is None:
+                    topic = GrammarTopic(id=module.id, estimated_time=15, difficulty=1)
+                    db.session.add(topic)
+                    created += 1
+                else:
+                    updated += 1
+                topic.slug = slug
+                topic.title = topic.title_ru = title
+                topic.level = module.level.code
+                topic.order = module.number
+                topic.content = content
+                db.session.flush()
+                lesson.grammar_topic_id = topic.id
+                apply_replacement(topic, plan)
+                added += len(plan.additions)
+                kept += plan.retained
+                retired += len(plan.retirements)
+                completed = LessonProgress.query.filter_by(lesson_id=lesson.id, status='completed').all()
+                for progress in completed:
+                    status = UserGrammarTopicStatus.get_or_create(progress.user_id, topic.id)
+                    synced += int(bool(status.transition_to('theory_completed')))
 
-                    for i, ex in enumerate(exercises):
-                        mapped_type, exercise_content = _module_exercise_content(ex)
-                        if not mapped_type:
-                            continue
-
-                        from app.grammar_lab.content_validator import validate_exercise_content
-                        try:
-                            validate_exercise_content(mapped_type, exercise_content)
-                        except ValueError as ve:
-                            logger.warning(
-                                'Skipping module grammar exercise: module_id=%s topic_id=%s type=%s error=%s',
-                                module.id, topic.id, mapped_type, ve,
-                            )
-                            continue
-
-                        exercise = GrammarExercise(
-                            topic_id=topic.id,
-                            exercise_type=mapped_type,
-                            content=exercise_content,
-                            difficulty=1,
-                            order=i
-                        )
-                        db.session.add(exercise)
-                        exercises_imported += 1
-
-            if imported or skipped or exercises_imported:
-                log_admin_action(
-                    current_user.id,
-                    'grammar_topic.import_from_modules',
-                    target_type='grammar_topic',
-                )
+            if plans:
+                log_admin_action(current_user.id, 'grammar_topic.import_from_modules', target_type='grammar_topic',
+                                 required=True)
             db.session.commit()
-            sync_msg = f', синхронизировано прогрессов: {total_synced}' if total_synced else ''
             flash(
-                f'Создано: {imported} тем, обновлено: {skipped} тем, '
-                f'упражнений: {exercises_imported}{sync_msg}',
+                f'Тем создано: {created}, обновлено: {updated}. Упражнений добавлено: {added}, '
+                f'сохранено: {kept}, снято: {retired}. Синхронизировано прогрессов: {synced}.',
                 'success',
             )
-
-        except Exception as e:
+        except ValueError as error:
             db.session.rollback()
-            logger.error(f"Error importing grammar: {e}")
-            flash(f'Ошибка импорта: {str(e)}', 'danger')
+            flash(f'Импорт отменён: {error}', 'danger')
+        except Exception:
+            db.session.rollback()
+            logger.exception('Grammar Lab module import failed')
+            flash('Импорт из модулей отменён. Изменения не сохранены.', 'danger')
 
         return redirect(url_for('grammar_lab_admin.grammar_lab_index'))
 
@@ -849,135 +798,6 @@ def import_from_modules():
     )
 
 
-def _candidate_topic_slugs(data: dict, filename: str) -> list[str]:
-    """Return possible GrammarTopic slugs for generated extra exercise files."""
-    candidates = []
-
-    level = str(data.get('level', '')).lower()
-    module_id = data.get('module_id')
-    if level and module_id:
-        candidates.append(f'{level}-{module_id}')
-
-    filename_match = re.search(
-        r'grammar_extra_([a-z0-9]+)_(\d+)\.json$',
-        filename,
-        flags=re.IGNORECASE,
-    )
-    if filename_match:
-        filename_level = filename_match.group(1).lower()
-        filename_module_number = filename_match.group(2)
-        candidates.append(f'{filename_level}-{filename_module_number}')
-
-    return list(dict.fromkeys(candidates))
-
-
-def _import_exercises_json_file(file, deleted_topic_ids: set[int]) -> tuple[bool, str]:
-    """Import one generated Grammar Lab exercises JSON file.
-
-    ``deleted_topic_ids`` is shared for one upload batch so multiple files for
-    the same topic append within the batch instead of deleting each other.
-    """
-    filename = file.filename or 'unknown'
-
-    if not filename.lower().endswith('.json'):
-        return False, f'{filename}: допустимы только .json файлы'
-
-    try:
-        data = json.load(file)
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        return False, f'{filename}: ошибка парсинга JSON: {e}'
-
-    module_id = data.get('module_id')
-    topic_slug_part = data.get('grammar_topic_slug', '')
-    sessions = data.get('sessions', [])
-
-    if not module_id or not topic_slug_part:
-        return False, f'{filename}: JSON не содержит module_id или grammar_topic_slug'
-
-    candidate_slugs = _candidate_topic_slugs(data, filename)
-    topic = None
-    matched_slug = None
-    for candidate_slug in candidate_slugs:
-        topic = GrammarTopic.query.filter_by(slug=candidate_slug).first()
-        if topic:
-            matched_slug = candidate_slug
-            break
-
-    if not topic:
-        checked = ', '.join(f'"{slug}"' for slug in candidate_slugs) or 'нет'
-        return (
-            False,
-            f'{filename}: тема не найдена. Проверены slug: {checked}. '
-            'Сначала импортируйте темы из модулей.',
-        )
-
-    exercises_imported = 0
-    deleted = 0
-    deleted_in_this_file = False
-    try:
-        if topic.id not in deleted_topic_ids:
-            deleted = GrammarExercise.query.filter(
-                GrammarExercise.topic_id == topic.id,
-                GrammarExercise.content['source'].astext == 'json_import'
-            ).delete(synchronize_session=False)
-            deleted_topic_ids.add(topic.id)
-            deleted_in_this_file = True
-
-        from app.grammar_lab.content_validator import validate_exercise_content
-        for session in sessions:
-            for ex in session.get('exercises', []):
-                ex_type = ex.get('exercise_type', 'fill_blank')
-                content = ex.get('content', {})
-                content['source'] = 'json_import'
-
-                try:
-                    validate_exercise_content(ex_type, content)
-                except ValueError as ve:
-                    logger.warning(
-                        'Skipping exercise in %s: invalid content (%s): %s',
-                        filename, ex_type, ve,
-                    )
-                    continue
-
-                raw_diff = ex.get('difficulty', 1)
-                try:
-                    diff_int = int(float(raw_diff))
-                except (TypeError, ValueError):
-                    diff_int = 1
-                difficulty = max(1, min(3, diff_int))
-
-                exercise = GrammarExercise(
-                    topic_id=topic.id,
-                    exercise_type=ex_type,
-                    content=content,
-                    difficulty=difficulty,
-                    order=ex.get('order', 0)
-                )
-                db.session.add(exercise)
-                exercises_imported += 1
-
-        if exercises_imported or deleted:
-            log_admin_action(
-                current_user.id,
-                'grammar_exercise.import_json',
-                target_type='grammar_topic',
-                target_id=topic.id,
-            )
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        if deleted_in_this_file:
-            deleted_topic_ids.discard(topic.id)
-        logger.error("Error importing exercises from JSON file %s: %s", filename, e)
-        return False, f'{filename}: ошибка импорта: {e}'
-
-    return (
-        True,
-        f'{filename}: импортировано {exercises_imported} упражнений '
-        f'для темы "{topic.title}" (slug {matched_slug}). '
-        f'Удалено {deleted} старых.',
-    )
-
 @grammar_lab_bp.route('/grammar-lab/import-exercises-json', methods=['GET', 'POST'])
 @admin_required
 def import_exercises_json():
@@ -993,19 +813,34 @@ def import_exercises_json():
             flash('Файл не выбран', 'danger')
             return redirect(request.url)
 
-        deleted_topic_ids: set[int] = set()
-        successes = 0
-        for file in files:
-            ok, message = _import_exercises_json_file(file, deleted_topic_ids)
-            if ok:
-                successes += 1
-                flash(message, 'success')
-            else:
-                flash(message, 'danger')
+        try:
+            batch = prepare_json_batch(files)
+            topics = lock_topics(batch)
+            plans = {}
+            for topic_id, (slug, desired) in sorted(batch.items()):
+                topic = topics[topic_id]
+                if topic.slug != slug or guided_topic(topic):
+                    raise ValueError(f'Тема «{slug}» изменилась. Повторите загрузку.')
+                plans[topic_id] = plan_replacement(topic, JSON_SOURCE, desired)
+            for topic_id, plan in plans.items():
+                apply_replacement(topics[topic_id], plan)
+                log_admin_action(current_user.id, 'grammar_exercise.import_json',
+                                 target_type='grammar_topic', target_id=topic_id, required=True)
+            db.session.commit()
+        except ValueError as error:
+            db.session.rollback()
+            flash(f'Импорт отменён: {error}', 'danger')
+            return redirect(request.url)
+        except Exception:
+            db.session.rollback()
+            logger.exception('Grammar Lab JSON import failed')
+            flash('Импорт JSON отменён. Изменения не сохранены.', 'danger')
+            return redirect(request.url)
 
-        if successes:
-            return redirect(url_for('grammar_lab_admin.grammar_lab_index'))
-        return redirect(request.url)
+        for topic_id, plan in plans.items():
+            flash(f'Тема «{topics[topic_id].title}»: добавлено {len(plan.additions)}, '
+                  f'сохранено {plan.retained}, снято {len(plan.retirements)}.', 'success')
+        return redirect(url_for('grammar_lab_admin.grammar_lab_index'))
 
     # GET — show upload form
     return render_template('admin/grammar_lab/import_exercises_json.html')

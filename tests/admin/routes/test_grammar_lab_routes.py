@@ -185,7 +185,7 @@ class TestImportExercisesJson:
         exercise = GrammarExercise.query.filter_by(topic_id=topic.id).one()
         assert exercise.content['question'] == 'Too enough'
 
-    def test_same_topic_multiple_files_delete_old_once_and_append_batch(
+    def test_same_topic_multiple_files_retire_old_once_and_merge_batch(
         self, admin_client, mock_admin_user, db_session,
     ):
         from app.grammar_lab.models import GrammarExercise
@@ -214,11 +214,14 @@ class TestImportExercisesJson:
         )
 
         assert response.status_code == 302
+        from app.grammar_lab.exercise_visibility import active_exercise_clause
+
         questions = {
             ex.content['question']
-            for ex in GrammarExercise.query.filter_by(topic_id=topic.id).all()
+            for ex in GrammarExercise.query.filter_by(topic_id=topic.id).filter(active_exercise_clause()).all()
         }
         assert questions == {'New 1', 'New 2'}
+        assert old_exercise.content['guided_retired'] is True
 
 
 class TestImportFromModules:
@@ -689,10 +692,10 @@ class TestImportExercisesJsonValidation:
         raw = json.dumps(payload).encode('utf-8')
         return (io.BytesIO(raw), filename)
 
-    def test_import_skips_exercises_with_invalid_content(
+    def test_import_rejects_batch_with_invalid_content(
         self, admin_client, mock_admin_user, db_session,
     ):
-        """Exercises missing required keys are skipped (not imported), no 500."""
+        """A malformed row cancels the entire replacement."""
         from app.grammar_lab.models import GrammarExercise
 
         # Slug must match _candidate_topic_slugs output: f"{level}-{module_id}"
@@ -727,9 +730,8 @@ class TestImportExercisesJsonValidation:
         )
 
         assert response.status_code == 302
-        exercises = GrammarExercise.query.filter_by(topic_id=topic.id).all()
-        assert len(exercises) == 1
-        assert exercises[0].content['correct_answer'] == 'ok'
+        assert response.location.endswith('/admin/grammar-lab/import-exercises-json')
+        assert GrammarExercise.query.filter_by(topic_id=topic.id).count() == 0
 
     def test_import_clamps_difficulty_out_of_range(
         self, admin_client, mock_admin_user, db_session,
@@ -775,13 +777,13 @@ class TestImportExercisesJsonValidation:
             assert 1 <= ex.difficulty <= 3
 
 
-class TestBulkDeleteCascade:
-    """Bulk-delete in import (synchronize_session=False) must cascade to UserGrammarExercise."""
+class TestImportRetirement:
+    """A full import hides previous exercises and keeps SRS history."""
 
-    def test_import_bulk_delete_cascades_to_user_grammar_exercise(
+    def test_import_retirement_preserves_user_grammar_exercise(
         self, admin_client, mock_admin_user, db_session, admin_user,
     ):
-        """When JSON import wipes old json_import exercises, UserGrammarExercise rows must disappear too."""
+        """The old row and its SRS entry remain after replacement."""
         from app.grammar_lab.models import (
             GrammarExercise,
             GrammarTopic,
@@ -839,6 +841,6 @@ class TestBulkDeleteCascade:
 
         assert response.status_code == 302
         db_session.expire_all()
-        assert GrammarExercise.query.filter_by(id=old_id).count() == 0
-        assert UserGrammarExercise.query.filter_by(exercise_id=old_id).count() == 0
-        assert GrammarExercise.query.filter_by(topic_id=topic.id).count() == 1
+        assert GrammarExercise.query.filter_by(id=old_id).one().content['guided_retired'] is True
+        assert UserGrammarExercise.query.filter_by(exercise_id=old_id).count() == 1
+        assert GrammarExercise.query.filter_by(topic_id=topic.id).count() == 2

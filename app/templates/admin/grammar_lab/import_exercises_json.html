@@ -32,14 +32,16 @@
                     <label for="json_files" class="form-label">JSON-файлы с упражнениями</label>
                     <input type="file" class="form-control" id="json_files" name="json_files" accept=".json" multiple required>
                     <div class="form-text">
-                        Можно выбрать сразу несколько файлов. Каждый файл должен содержать поля:
-                        module_id, grammar_topic_slug, grammar_topic, sessions.
+                        Загрузите полный набор JSON-упражнений для каждой выбранной темы. Файлы одной темы объединяются.
+                        Каждому совпавшему упражнению сохраняются ID и история. Прежние JSON-упражнения, которых нет
+                        в наборе, снимаются с показа с сохранением решений, споров и попыток. В пакет нельзя включать темы guided-каталога.
+                        При ошибке в любом файле вся загрузка отменяется.
                     </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-upload me-2"></i>
-                    Загрузить
+                    Заменить JSON-наборы
                 </button>
             </form>
         </div>

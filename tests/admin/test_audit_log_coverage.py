@@ -65,10 +65,6 @@ AUDIT_LOG_WHITELIST = frozenset({
     # Read-only metadata extractor: saves an upload to a temp dir, returns
     # parsed fields, and removes the file in `finally`. No DB mutation.
     'book_admin.extract_book_metadata',
-    # Per-file batch importer; the helper `_import_exercises_json_file`
-    # writes a `grammar_exercise.import_json` audit row for every imported
-    # file, so the view itself is just a fan-out shell.
-    'grammar_lab_admin.import_exercises_json',
 })
 
 ACTION_NAME_RE = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$')

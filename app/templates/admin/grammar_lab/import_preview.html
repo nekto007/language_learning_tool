@@ -26,6 +26,10 @@
     {% if modules_with_grammar %}
     <div class="card mb-4">
         <div class="card-body">
+            <p>Импорт обновит темы и заменит полный набор упражнений из модулей в каждой из них.
+                Совпавшие упражнения сохранят ID и историю. Отсутствующие в новом наборе упражнения этого источника
+                снимутся с показа, а решения, споры и попытки сохранятся. Темы guided-каталога пропускаются.
+                Для тем без пригодных упражнений текущий набор сохраняется. Ошибка отменяет весь импорт.</p>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="table-responsive">
@@ -75,7 +79,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary btn-lg">
                         <i class="fas fa-download me-2"></i>
-                        Импортировать новые темы
+                        Импортировать темы и заменить наборы из модулей
                     </button>
                 </div>
             </form>
