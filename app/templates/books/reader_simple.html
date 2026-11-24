@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/books/reader_simple.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/books/reader_simple.css', v='word-panel-20261125') }}">
 {% if book.is_short_reading %}<link rel="stylesheet" href="{{ url_for('static', filename='css/books/short_reading.css') }}">{% endif %}
 {% endblock %}
 
@@ -275,14 +275,18 @@
 </div>
 
 <!-- Translation popup -->
-<div id="translationPopup">
-  <div class="word-title" id="popupWord"></div>
+<div id="translationPopup" role="dialog" aria-labelledby="popupWord" aria-modal="false">
+  <div class="rdr-word-heading">
+    <div><span class="rdr-word-eyebrow">Слово из текста</span><div class="word-title" id="popupWord"></div></div>
+    <button type="button" class="rdr-word-close" data-action="close-word-panel" aria-label="Закрыть перевод">&times;</button>
+  </div>
   <div class="word-translation" id="popupTranslation">
     <div class="spinner-border spinner-border-sm" role="status">
       <span class="visually-hidden">Loading...</span>
     </div>
   </div>
   <div class="word-actions" id="popupActions"></div>
+  <p id="popupStatus" class="rdr-word-status" role="status" aria-live="polite"></p>
 </div>
 
 <script nonce="{{ csp_nonce }}">
@@ -1045,97 +1049,110 @@ function makeWordsClickable() {
     });
 
     document.querySelectorAll('.word-clickable').forEach(span => {
+        span.tabIndex = 0;
+        span.setAttribute('role', 'button');
+        span.setAttribute('aria-label', 'Перевести: ' + span.dataset.word);
         span.addEventListener('click', handleWordClick);
+        span.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); span.click(); }
+        });
     });
 }
 
+let wordPanelRevision = 0;
+let selectedReaderWord = null;
+let readerWordAudio = null;
+function hideTranslationPopup(restoreFocus = false) {
+    wordPanelRevision++;
+    document.getElementById('translationPopup').style.display = 'none';
+    if (readerWordAudio) { readerWordAudio.pause(); readerWordAudio = null; }
+    if (selectedReaderWord) {
+        selectedReaderWord.classList.remove('word-clickable--selected');
+        if (restoreFocus) selectedReaderWord.focus({preventScroll: true});
+    }
+    selectedReaderWord = null;
+}
 function handleWordClick(e) {
     e.stopPropagation();
-    const word = e.target.dataset.word;
-    const rect = e.target.getBoundingClientRect();
+    const element = e.currentTarget || e.target;
+    const word = element.dataset.word;
+    hideTranslationPopup();
+    selectedReaderWord = element;
+    element.classList.add('word-clickable--selected');
+    const revision = wordPanelRevision;
     const popup = document.getElementById('translationPopup');
-
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-
-    popup.style.left = Math.min(rect.left + scrollLeft, window.innerWidth - 320) + 'px';
-    popup.style.top = (rect.bottom + scrollTop + 5) + 'px';
     popup.style.display = 'block';
-
     document.getElementById('popupWord').textContent = word;
-    document.getElementById('popupTranslation').innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>';
-    document.getElementById('popupActions').innerHTML = '';
-
-    fetch(`/api/word-translation/${word}`)
-        .then(response => response.json())
+    document.getElementById('popupTranslation').textContent = 'Подбираем перевод…';
+    document.getElementById('popupActions').replaceChildren();
+    document.getElementById('popupStatus').textContent = '';
+    fetch(`/api/word-translation/${encodeURIComponent(word)}`)
+        .then(response => { if (!response.ok) throw new Error('lookup'); return response.json(); })
         .then(data => {
-            const translationDiv = document.getElementById('popupTranslation');
-            const actionsDiv = document.getElementById('popupActions');
-
-            if (data.translation) {
-                translationDiv.textContent = data.translation;
-
-                let actionsHTML = '';
-                const safeWord = word.replace(/'/g, "\\'");
-
-                if (data.has_audio) {
-                    const safeUrl = data.audio_url.replace(/"/g, "&quot;");
-                    actionsHTML += `<button class="rdr-popup-btn--audio" data-action="play-word-audio" data-audio-url="${safeUrl}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg></button>`;
-                }
-
-                if (!data.in_reading_deck) {
-                    actionsHTML += `<button class="rdr-popup-btn--add" data-action="add-to-learning" data-word-id="${data.id}" data-word="${safeWord}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Добавить</button>`;
-                } else {
-                    actionsHTML += `<span class="rdr-popup-badge">В колоде для чтения</span>`;
-                }
-
-                actionsDiv.innerHTML = actionsHTML;
-            } else {
-                translationDiv.innerHTML = '<em style="color: var(--rdr-text-light);">Перевод не найден</em>';
+            if (revision !== wordPanelRevision || selectedReaderWord !== element) return;
+            document.getElementById('popupTranslation').textContent = data.translation || 'Перевод не найден';
+            if (!data.translation) return;
+            const actions = document.getElementById('popupActions');
+            function action(label, name, className) {
+                const button = document.createElement('button');
+                button.type = 'button'; button.className = className;
+                button.textContent = label; button.dataset.action = name;
+                actions.appendChild(button); return button;
+            }
+            if (data.has_audio && data.audio_url) {
+                try {
+                    const url = new URL(data.audio_url, window.location.href);
+                    if (['https:', 'http:'].includes(url.protocol) && !url.username && !url.password) {
+                        action('Послушать', 'play-word-audio', 'rdr-popup-btn--audio').dataset.audioUrl = url.href;
+                    }
+                } catch (_) { /* A missing recording leaves the translation usable. */ }
+            }
+            if (data.in_reading_deck) {
+                document.getElementById('popupStatus').textContent = 'Уже в колоде для чтения';
+            } else if (Number.isInteger(data.id) && data.id > 0) {
+                const button = action('+ Учить', 'add-to-learning', 'rdr-popup-btn--add');
+                button.dataset.wordId = String(data.id); button.dataset.word = word;
             }
         })
-        .catch(error => {
-            console.error('Error fetching translation:', error);
-            document.getElementById('popupTranslation').innerHTML = '<em style="color: #ef4444;">Ошибка загрузки перевода</em>';
+        .catch(() => {
+            if (revision === wordPanelRevision) document.getElementById('popupTranslation').textContent = 'Не удалось получить перевод. Нажми на слово, чтобы попробовать снова.';
         });
 }
-
 function playWordAudio(url) {
-    const audio = new Audio(url);
-    audio.play();
-}
-
-function addToLearning(wordId, word) {
-    fetch('/api/add-to-learning', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ word_id: wordId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const actionsDiv = document.getElementById('popupActions');
-            actionsDiv.innerHTML = '<span class="rdr-popup-badge" style="background: #d1fae5; color: #059669;">Добавлено в изучение</span>';
-            setTimeout(() => {
-                document.getElementById('translationPopup').style.display = 'none';
-            }, 2000);
-        }
-    })
-    .catch(error => {
-        console.error('Error adding word to learning:', error);
+    if (readerWordAudio) readerWordAudio.pause();
+    readerWordAudio = new Audio(url);
+    const revision = wordPanelRevision;
+    readerWordAudio.play().catch(() => {
+        if (revision === wordPanelRevision) document.getElementById('popupStatus').textContent = 'Запись сейчас недоступна. Можно попробовать ещё раз.';
     });
 }
-
-// Hide popup on outside click
-document.addEventListener('click', (e) => {
+function addToLearning(wordId, word) {
+    const revision = wordPanelRevision;
+    const button = document.querySelector('#popupActions [data-action="add-to-learning"]');
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    button.textContent = 'Сохраняем…';
+    fetch('/api/add-to-learning', {
+        method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+        body: JSON.stringify({word_id: wordId})
+    }).then(response => { if (!response.ok) throw new Error('save'); return response.json(); })
+      .then(data => {
+          if (revision !== wordPanelRevision) return;
+          if (!data.success) throw new Error('save');
+          button.textContent = '✓ В изучении';
+          document.getElementById('popupStatus').textContent = 'Слово добавлено. Можно продолжить чтение.';
+      }).catch(() => {
+          if (revision !== wordPanelRevision) return;
+          button.disabled = false; button.textContent = '+ Учить';
+          document.getElementById('popupStatus').textContent = 'Не удалось сохранить. Попробуй ещё раз.';
+      });
+}
+document.addEventListener('click', e => {
     const popup = document.getElementById('translationPopup');
-    if (!popup.contains(e.target) && !e.target.classList.contains('word-clickable')) {
-        popup.style.display = 'none';
-    }
+    if (!popup.contains(e.target) && !e.target.classList.contains('word-clickable')) hideTranslationPopup();
 });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTranslationPopup(true); });
+window.addEventListener('pagehide', () => hideTranslationPopup());
 
 makeWordsClickable();
 
@@ -1302,6 +1319,7 @@ document.addEventListener('click', function(e) {
         case 'show-audio-bar':     showAudioBar(); break;
         case 'change-font-size':   changeFontSize(parseInt(target.dataset.delta, 10)); break;
         case 'toggle-theme':       toggleTheme(); break;
+        case 'close-word-panel': hideTranslationPopup(true); break;
         case 'play-word-audio':    playWordAudio(target.dataset.audioUrl); break;
         case 'add-to-learning':    addToLearning(parseInt(target.dataset.wordId, 10), target.dataset.word); break;
     }

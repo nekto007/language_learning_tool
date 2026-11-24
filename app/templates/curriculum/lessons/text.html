@@ -19,7 +19,7 @@
 
 {% block extra_css %}
 {% if is_advanced %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/word-translator.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/word-translator.css', v='word-panel-20261125') }}">
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lessons/text.css') }}?v=1">
 {% endblock %}
@@ -1907,7 +1907,7 @@ function handleMobileLayout() {
 
 
 {% if is_advanced %}
-<script src="{{ url_for('static', filename='js/word-translator.js') }}"></script>
+<script src="{{ url_for('static', filename='js/word-translator.js', v='word-panel-20261125') }}"></script>
 <script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     new WordTranslator({ container: '.text-container' });

@@ -8,12 +8,10 @@
    ======================================== */
 .cards-page {
     --cards-font: 'Onest', -apple-system, BlinkMacSystemFont, sans-serif;
-    --cards-primary: #10b981;
-    --cards-primary-dark: #059669;
-    /* Бренд-success-палитра: бирюза → синий, как у lesson_base_template.
-       Раньше тут была yellow→red (warning), которая на success-экране
-       завершения «давила» рядом с зелёной галочкой. */
-    --cards-gradient: linear-gradient(135deg, #10b981 0%, #0ea5e9 100%);
+    --cards-primary: #4f46e5;
+    --cards-primary-dark: #4338ca;
+    /* One indigo accent across the learning surfaces. */
+    --cards-gradient: linear-gradient(135deg, #4f46e5 0%, #4f46e5 100%);
     --cards-surface: #ffffff;
     --cards-surface-alt: #f8fafc;
     --cards-text: #0f172a;
@@ -1249,3 +1247,39 @@
     color: #64748b;
     font-size: 0.8125rem;
 }
+
+/* Quiet reading surfaces: shared word/deck/course cards, without changing SRS. */
+.cards-page { --cards-radius: 24px; --cards-surface-alt: #f8f7fb; }
+.cards-header { background: transparent; border-radius: 0; padding: .5rem 0 1rem; }
+.cards-header__title { color: var(--cards-text); font-size: 1.15rem; }
+.cards-header__back, .cards-header__end-btn { color: var(--cards-text-muted); background: var(--cards-surface); border: 1px solid var(--cards-border); min-height: 44px; }
+.cards-header__back { width: 44px; border-radius: 50%; }
+.cards-header__back:hover, .cards-header__end-btn:hover { color: var(--cards-primary); background: var(--cards-surface-alt); }
+.cards-page .cards-progress-section { border: 0; background: transparent; padding: 0 .25rem; }
+.cards-progress-bar { height: 5px; }
+.cards-page .flashcard { background: var(--cards-surface); border: 1px solid var(--cards-border); border-radius: 28px; box-shadow: 0 12px 36px rgba(38, 32, 80, .045) !important; overflow: hidden; }
+.cards-page .flashcard .card-body { padding: clamp(1.5rem, 5vw, 3rem); }
+.cards-page #card-front .card-body { min-height: min(460px, 65svh); gap: .4rem; }
+.cards-page #front-word, .cards-page #back-word { font-family: Georgia, 'Times New Roman', serif; font-weight: 600 !important; font-size: clamp(2.2rem, 7vw, 4.25rem); line-height: 1.12; letter-spacing: -.035em; overflow-wrap: anywhere; margin: 1rem 0 1.5rem !important; }
+.cards-page #front-audio-btn, .cards-page #back-audio-btn { border: 0; border-radius: 999px; background: var(--cards-surface-alt); color: var(--cards-primary); padding: .75rem 1.25rem; min-height: 48px; }
+.cards-page #show-answer-btn { width: min(100%, 360px); min-height: 50px; border: 0; border-radius: 16px; background: var(--cards-primary); }
+.cards-page .fc-translation { color: var(--cards-text); font-size: clamp(1.3rem, 3vw, 1.75rem) !important; line-height: 1.45; }
+.cards-page #examples-container { max-width: 38rem; margin: 1.5rem auto; padding: 1.25rem; border-radius: 18px; background: var(--cards-surface-alt); text-align: left; }
+.cards-page #example-text { font-family: Georgia, 'Times New Roman', serif; font-size: 1.2rem; line-height: 1.65; }
+.cards-page #example-translation { font-size: .95rem; line-height: 1.6; }
+.cards-page .fc-rating-actions { flex-wrap: wrap; }
+.cards-page .rating-btn-compact { min-height: 48px; border-radius: 14px; flex: 1 1 120px; }
+.cards-page button:focus-visible, .cards-page a:focus-visible { outline: 3px solid var(--cards-primary); outline-offset: 4px; }
+@media (max-width: 480px) { .cards-page { padding-inline: .5rem; } .cards-page .cards-progress__badges { gap: .25rem; } .cards-page .cards-badge { font-size: .7rem; } }
+body.dark-theme .cards-page { --cards-primary: #b9b2ff; --cards-primary-dark: #b9b2ff; --cards-gradient: linear-gradient(135deg,#b9b2ff,#b9b2ff); --cards-surface: #20202e; --cards-surface-alt: #292736; --cards-text: #eeeaf6; --cards-text-muted: #c0bacf; --cards-border: #403c50; }
+body.dark-theme .cards-page #show-answer-btn { color: #27205e; }
+@media (prefers-reduced-motion: reduce) { .cards-page *, .cards-page *::before, .cards-page *::after { animation: none !important; transition: none !important; } }
+
+.cards-page #front-word, .cards-page #back-word { color: var(--cards-text); }
+.cards-page .flashcard .text-secondary { color: var(--cards-text-muted) !important; }
+.cards-page .rating-btn-compact.btn-danger { color: #9b303f; background: #fbeaec; border: 0; }
+.cards-page .rating-btn-compact.btn-warning { color: #5c527b; background: #f0edf7; border: 0; }
+.cards-page .rating-btn-compact.btn-success { color: #22664a; background: #e4f3eb; border: 0; }
+body.dark-theme .cards-page .rating-btn-compact.btn-danger { color: #ffc5cd; background: #4b2933; }
+body.dark-theme .cards-page .rating-btn-compact.btn-warning { color: #dfd4fa; background: #383147; }
+body.dark-theme .cards-page .rating-btn-compact.btn-success { color: #b4ecd0; background: #243f35; }

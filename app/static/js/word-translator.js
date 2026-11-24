@@ -28,10 +28,10 @@ class WordTranslator {
             <div class="wt-popup__content">
                 <div class="wt-popup__header">
                     <span class="wt-popup__word" id="wtPopupWord"></span>
-                    <button class="wt-popup__audio-btn" id="wtPlayAudio" style="display:none">
+                    <button class="wt-popup__audio-btn" id="wtPlayAudio" aria-label="Послушать" style="display:none">
                         <i class="fas fa-volume-up"></i>
                     </button>
-                    <button class="wt-popup__close" id="wtClosePopup">&times;</button>
+                    <button class="wt-popup__close" id="wtClosePopup" aria-label="Закрыть перевод">&times;</button>
                 </div>
                 <div class="wt-popup__body">
                     <div class="wt-popup__translation" id="wtTranslation"></div>

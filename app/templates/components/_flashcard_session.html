@@ -32,7 +32,7 @@
 #}
 
 <!-- Flashcard Session CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcard-session.css', v='srs-result-1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcard-session.css', v='reading-cards-20261125') }}">
 <style nonce="{{ csp_nonce }}">
 .cards-page { overflow-wrap: anywhere; }
 .cards-page button, .cards-page h1 { max-width: 100%; min-width: 0; white-space: normal; }
@@ -146,7 +146,7 @@
                 <h1 id="front-word" class="display-3 mb-4 fw-medium"></h1>
 
                 <button id="front-audio-btn" type="button" hidden class="btn btn-outline-secondary mb-4">
-                    <i class="fas fa-volume-up me-2"></i>Произношение
+                    <i class="fas fa-volume-up me-2"></i>Послушать
                 </button>
 
                 <p id="hint-text" class="text-secondary my-4 hint-text hint-text-styles"></p>
@@ -173,7 +173,7 @@
                 <h1 id="back-word" class="display-3 mb-4 fw-medium"></h1>
 
                 <button id="back-audio-btn" type="button" hidden class="btn btn-outline-secondary mb-4">
-                    <i class="fas fa-volume-up me-2"></i>Произношение
+                    <i class="fas fa-volume-up me-2"></i>Послушать
                 </button>
 
                 <hr class="my-4 divider-centered">
@@ -211,15 +211,15 @@
                 </div>
 
                 <!-- Rating buttons -->
-                <div class="d-flex justify-content-center gap-2 mt-4">
+                <div class="d-flex justify-content-center gap-2 mt-4 fc-rating-actions">
                     <button type="button" class="rating-btn rating-btn-compact btn-danger" data-rating="1">
-                        <span class="rating-icon">😕</span> Не знаю
+                        <span class="rating-icon" aria-hidden="true">↻</span> Не знаю
                     </button>
                     <button type="button" class="rating-btn rating-btn-compact btn-warning" data-rating="2">
-                        <span class="rating-icon">🤔</span> Сомневаюсь
+                        <span class="rating-icon" aria-hidden="true">◐</span> Сомневаюсь
                     </button>
                     <button type="button" class="rating-btn rating-btn-compact btn-success" data-rating="3">
-                        <span class="rating-icon">😊</span> Знаю
+                        <span class="rating-icon" aria-hidden="true">✓</span> Знаю
                     </button>
                 </div>
             </div>
@@ -442,10 +442,10 @@
 <audio id="word-audio" style="display: none;"></audio>
 
 <!-- Linear plan context (plan-aware completion CTAs for SRS sessions) -->
-<script src="{{ url_for('static', filename='js/linear-plan-context.js', v='srs-result-1') }}"></script>
+<script src="{{ url_for('static', filename='js/linear-plan-context.js', v='reading-cards-20261125') }}"></script>
 
 <!-- Flashcard Session JS -->
-<script src="{{ url_for('static', filename='js/flashcard-session.js', v='srs-result-1') }}"></script>
+<script src="{{ url_for('static', filename='js/flashcard-session.js', v='reading-cards-20261125') }}"></script>
 <script nonce="{{ csp_nonce }}">
     (function() {
         var url = new URL(window.location.href);
@@ -460,7 +460,7 @@
             cards: {{ fc_cards | tojson }},
             fetchCardsUrl: {{ fc_fetch_cards_url | tojson if fc_fetch_cards_url is defined and fc_fetch_cards_url else 'null' }},
             fetchCardsParams: {{ fc_fetch_cards_params | tojson if fc_fetch_cards_params is defined and fc_fetch_cards_params else '{}' }},
-            gradeUrl: {{ fc_grade_url | tojson if fc_grade_url is defined else '"/study/api/update-study-item"' }},
+            gradeUrl: {{ fc_grade_url | default('/study/api/update-study-item') | tojson }},
             gradePayload: {{ fc_grade_payload | default('null') | safe }},
             completeUrl: {{ fc_complete_url | tojson if fc_complete_url is defined and fc_complete_url else 'null' }},
             completePayload: {{ fc_complete_payload | default('null') | safe }},
@@ -472,8 +472,8 @@
             showBookContext: {{ fc_show_book_context | tojson if fc_show_book_context is defined else 'false' }},
             showExamples: {{ fc_show_examples | tojson if fc_show_examples is defined else 'true' }},
             showAudio: {{ fc_show_audio | tojson if fc_show_audio is defined else 'true' }},
-            onCompleteUrl: {{ fc_on_complete_url | tojson if fc_on_complete_url is defined else '"/"' }},
-            onCompleteText: {{ fc_on_complete_text | tojson if fc_on_complete_text is defined else '"Продолжить"' }},
+            onCompleteUrl: {{ fc_on_complete_url | default('/') | tojson }},
+            onCompleteText: {{ fc_on_complete_text | default('Продолжить') | tojson }},
             nothingToStudy: {{ fc_nothing_to_study | tojson if fc_nothing_to_study is defined else 'false' }},
             limitReached: {{ fc_limit_reached | tojson if fc_limit_reached is defined else 'false' }},
             dailyLimit: {{ fc_daily_limit | tojson if fc_daily_limit is defined else '20' }},

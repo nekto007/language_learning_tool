@@ -11,11 +11,11 @@
 
 .wt-word:hover,
 .wt-word:active {
-    background-color: rgba(220, 38, 38, 0.12);
+    background-color: rgba(79, 70, 229, 0.12);
 }
 
 .wt-word.wt-selected {
-    background-color: rgba(220, 38, 38, 0.22);
+    background-color: rgba(79, 70, 229, 0.22);
 }
 
 /* Popup base */
@@ -65,7 +65,7 @@
 .wt-popup__word {
     font-size: 20px;
     font-weight: 600;
-    color: #dc2626;
+    color: #4f46e5;
     flex: 1;
 }
 
@@ -73,7 +73,7 @@
     width: 36px;
     height: 36px;
     border: none;
-    background: #dc2626;
+    background: #4f46e5;
     color: #fff;
     border-radius: 50%;
     cursor: pointer;
@@ -86,7 +86,7 @@
 }
 
 .wt-popup__audio-btn:hover {
-    background: #b91c1c;
+    background: #4338ca;
     transform: scale(1.08);
 }
 
@@ -133,7 +133,7 @@
 
 .wt-popup__learn-btn {
     width: 100%;
-    background: #dc2626;
+    background: #4f46e5;
     color: #fff;
     border: none;
     padding: 10px 16px;
@@ -149,7 +149,7 @@
 }
 
 .wt-popup__learn-btn:hover {
-    background: #b91c1c;
+    background: #4338ca;
 }
 
 .wt-popup__learn-btn--done {
@@ -160,3 +160,17 @@
 .wt-popup__learn-btn--done:hover {
     background: #16a34a !important;
 }
+
+/* The same single-recording word panel inside course reading. */
+.wt-popup { border: 1px solid #e6e3ee; border-radius: 24px; box-shadow: 0 16px 60px rgba(38,32,80,.14); }
+.wt-popup__content { padding: 22px; gap: 16px; }
+.wt-popup__header { border: 0; align-items: flex-start; }
+.wt-popup__word { color: #202035; font: 600 1.8rem/1.15 Georgia, serif; overflow-wrap: anywhere; }
+.wt-popup__audio-btn, .wt-popup__close { width: 44px; height: 44px; }
+.wt-popup__translation { font-size: 1.2rem; line-height: 1.5; }
+.wt-popup__learn-btn { min-height: 48px; border-radius: 999px; font-size: 1rem; }
+.wt-popup button:focus-visible { outline: 3px solid #4f46e5; outline-offset: 3px; }
+body.dark-theme .wt-popup { background: #20202e; border-color: #403c50; }
+body.dark-theme .wt-popup__word, body.dark-theme .wt-popup__translation { color: #eeeaf6; }
+@media (max-width:768px) { .wt-popup { border-radius: 24px 24px 0 0; padding-bottom: env(safe-area-inset-bottom); max-height: 65svh; overflow-y: auto; } }
+@media(prefers-reduced-motion:reduce) { .wt-popup *, .wt-word { transition: none; } }

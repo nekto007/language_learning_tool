@@ -1001,3 +1001,21 @@ button.rdr-sidebar-nav-btn {
   opacity: 0.8;
 }
 .linear-plan-book-toast__close:hover { opacity: 1; }
+
+/* Word panel: keep the selected passage visible above a calm, reachable sheet. */
+#translationPopup { position: fixed; z-index: 1500; inset: auto auto max(12px, env(safe-area-inset-bottom)) 50%; transform: translateX(-50%); width: calc(100% - 24px); min-width: 0; max-width: 520px; max-height: min(65svh, 480px); overflow-y: auto; padding: clamp(20px, 4vw, 28px); border-radius: 28px; box-shadow: 0 16px 64px rgba(30, 25, 60, .16); }
+.rdr-word-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.rdr-word-eyebrow { display: block; font-size: .72rem; font-weight: 600; letter-spacing: .04em; color: var(--rdr-text-muted); margin-bottom: 8px; }
+#translationPopup .word-title { font: 600 clamp(1.8rem, 5vw, 2.4rem)/1.15 Georgia, serif; overflow-wrap: anywhere; margin-bottom: 18px; }
+.rdr-word-close { flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--rdr-surface-alt); color: var(--rdr-text-muted); font-size: 28px; line-height: 1; cursor: pointer; }
+#translationPopup .word-translation { font-size: 1.3rem; line-height: 1.5; color: var(--rdr-text); margin-bottom: 22px; overflow-wrap: anywhere; }
+#translationPopup .word-actions { flex-wrap: wrap; gap: 10px; }
+#translationPopup .word-actions button { min-height: 48px; padding: 12px 20px; border-radius: 999px; font-size: 1rem; flex: 1 1 140px; }
+#translationPopup .rdr-popup-btn--audio { color: var(--rdr-primary); background: var(--rdr-surface-alt); }
+#translationPopup .rdr-popup-btn--add { color: #fff; background: var(--rdr-primary-dark); }
+#translationPopup .rdr-popup-btn--add:disabled { color: var(--rdr-primary); background: var(--rdr-surface-alt); cursor: default; }
+.rdr-word-status { margin: 12px 0 0; color: var(--rdr-text-muted); font-size: .85rem; line-height: 1.5; }
+.rdr-word-status:empty { display: none; }
+.word-clickable--selected { background: rgba(99, 102, 241, .18); box-shadow: 0 0 0 2px rgba(99, 102, 241, .18); color: var(--rdr-text); }
+.word-clickable:focus-visible, #translationPopup button:focus-visible { outline: 3px solid var(--rdr-primary); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .word-clickable { transition: none; } }
