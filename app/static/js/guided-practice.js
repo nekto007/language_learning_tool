@@ -12,6 +12,7 @@
   const activeKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:active`;
   let lesson, state, busy = false, accountInvalid = false, storageKey, refreshButton, focusAfterDraw = false;
   let browserDraftAvailable = true, storageReadable = true, unloadGuarded = false;
+  let resultPlan, resultActions;
   const node = (tag, text, css = '') => {
     const el = document.createElement(tag);
     if (text != null) el.textContent = text;
@@ -82,9 +83,9 @@
       if (refreshButton) refreshButton.disabled = accountInvalid;
     }
   };
-  const request = async (suffix = '', body, signal) => {
+  const fetchJson = async (url, body, signal) => {
     let response;
-    try { response = await fetch(endpoint + suffix, {
+    try { response = await fetch(url, {
       method: body ? 'POST' : 'GET', credentials: 'same-origin', signal,
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
       body: body ? JSON.stringify(body) : undefined
@@ -112,8 +113,123 @@
     }
     return value;
   };
+  const request = (suffix = '', body, signal) => fetchJson(endpoint + suffix, body, signal);
   const isCorrection = () => lesson.quiz_phase === 'correction';
   const isFinal = () => lesson.type === 'final_test';
+  const completedResult = result => result?.completed === true
+    || (result?.completed == null && result?.passed === true && result?.total_count === 0);
+  const canContinueFrom = result => Boolean(root.dataset.resultPlan && lesson?.study_day && root.dataset.reviewOnly !== 'true'
+    && (completedResult(result) || result?.correction_pending === true));
+  const historyResultKey = 'lltPracticeResult';
+  const readHistoryResult = () => window.history?.state?.[historyResultKey];
+  const replaceHistoryResult = result => {
+    try {
+      const entry = {...window.history.state};
+      if (result) entry[historyResultKey] = result;
+      else delete entry[historyResultKey];
+      window.history.replaceState(entry, '');
+    } catch (_) {} // A rejected history write leaves the live result intact.
+  };
+  const resultFields = (source, fields) => Object.fromEntries(
+    fields.filter(key => Object.hasOwn(source, key)).map(key => [key, source[key]])
+  );
+  const rememberResult = result => {
+    if (!canContinueFrom(result) || result.success !== true || String(result.lesson_id) !== root.dataset.lesson
+        || !lesson.content_revision || (isCorrection() && !completedResult(result))) return;
+    replaceHistoryResult({
+      account: root.dataset.account, lesson: root.dataset.lesson,
+      revision: lesson.content_revision, type: lesson.type,
+      studyDay: lesson.study_day, phase: lesson.quiz_phase,
+      correction: resultFields(lesson.correction || {}, ['first_score', 'first_units_correct', 'first_units_total', 'first_unit_label']),
+      result: resultFields(result, [
+        'score', 'passed', 'completed', 'correction_pending', 'correct_count', 'total_count',
+        'units_correct', 'units_total', 'unit_label'
+      ])
+    });
+  };
+  const restoreHistoryResult = async () => {
+    const saved = readHistoryResult();
+    if (!saved) return false;
+    if (saved.account !== root.dataset.account || saved.lesson !== root.dataset.lesson || !saved.revision
+        || !(completedResult(saved.result) || saved.result?.correction_pending === true)) {
+      replaceHistoryResult(null);
+      return false;
+    }
+    const identity = await request('?result_identity=1');
+    if (String(identity.account_id) !== root.dataset.account) {
+      const error = new Error('Аккаунт изменился. Открой план заново.');
+      error.code = 'access_denied'; throw error;
+    }
+    const current = identity.lesson;
+    if (String(current?.id) !== saved.lesson || current?.content_revision !== saved.revision || current?.type !== saved.type) {
+      replaceHistoryResult(null); lesson = null; state = null;
+      return false;
+    }
+    if (state?.result) await updateResultPlan(true);
+    else {
+      lesson = {...current, quiz_phase: saved.phase, correction: saved.correction, study_day: saved.studyDay};
+      state = {result: saved.result};
+    }
+    return true;
+  };
+  const renderResultActions = () => {
+    if (!resultActions || !state?.result) return;
+    const plan = resultPlan?.result === state.result ? resultPlan : {};
+    const showNext = plan.status === 'next' && typeof plan.title === 'string' && plan.title.trim()
+      && typeof plan.url === 'string' && plan.url.startsWith('/') && !plan.url.startsWith('//')
+      && !plan.url.includes('\\');
+    const focused = resultActions.contains(document.activeElement);
+    resultActions.replaceChildren();
+    const copy = {
+      loading: 'Уточняем следующий шаг плана…',
+      secured: 'План на сегодня выполнен. Можно отдохнуть.',
+      paused: 'План на паузе. Чтобы продолжить, открой план дня.',
+      day_changed: 'Начался новый учебный день. Открой актуальный план.',
+      unavailable: 'Не удалось обновить план. Следующий шаг можно посмотреть в плане дня.'
+    };
+    if (showNext) resultActions.append(node('p', 'Следующее задание по плану', 'mb-1'));
+    else if (copy[plan.status]) resultActions.append(node('p', copy[plan.status], 'mb-1'));
+    const controls = node('div', null, 'd-flex flex-wrap gap-2 my-3');
+    if (showNext) {
+      const next = node('a', plan.title, 'btn btn-primary');
+      next.href = plan.url; controls.append(next);
+    }
+    const exit = node('a', 'К плану дня', showNext ? 'btn btn-outline-secondary' : 'btn btn-primary');
+    exit.href = root.querySelector('a').href; controls.append(exit); resultActions.append(controls);
+    if (focused) exit.focus({preventScroll: true});
+  };
+  const updateResultPlan = async (force = false) => {
+    const result = state?.result;
+    if (!canContinueFrom(result) || (!force && resultPlan?.result === result)) return;
+    const lookup = {result, status: 'loading'};
+    resultPlan = lookup;
+    renderResultActions();
+    const isCurrent = () => resultPlan === lookup && state?.result === result;
+    try {
+      const plan = await fetchJson(root.dataset.resultPlan + '?result_day=' + encodeURIComponent(lesson.study_day));
+      if (!isCurrent()) return;
+      if (String(plan.account_id) !== root.dataset.account) {
+        const error = new Error('Аккаунт изменился. Открой план заново.');
+        error.code = 'access_denied'; throw error;
+      }
+      if (plan.status === 'next' && String(plan.lesson_id) === root.dataset.lesson
+          && (plan.quiz_phase !== 'correction' || result.correction_pending !== true)) {
+        plan.status = 'plan';
+      }
+      Object.assign(lookup, {status: plan.status, title: plan.title, url: plan.url});
+    } catch (error) {
+      if (!isCurrent()) return;
+      if (['access_denied', 'authentication_required'].includes(error.code)) {
+        lesson = null; state = null; accountInvalid = true;
+        screen.replaceChildren();
+        errorBox.textContent = error.message; errorBox.hidden = false;
+        if (refreshButton) refreshButton.disabled = true;
+        return;
+      }
+      lookup.status = 'unavailable';
+    }
+    renderResultActions();
+  };
   const dispute = (parent, q, feedback) => {
     if (feedback.correct || !['quiz', 'grammar'].includes(lesson.type) || root.dataset.reviewOnly === 'true') return;
     const answer = state.answers[q.id];
@@ -230,18 +346,30 @@
   };
   const drawContent = () => {
     if (!lesson || !state) return;
+    resultActions = null;
     screen.replaceChildren();
     if (state.result) {
       const r = state.result, first = lesson.correction;
-      screen.append(node('h2', r.correction_pending ? 'Первая попытка сохранена' : r.completed ? 'Занятие завершено' : 'Есть что повторить', 'h4'));
+      screen.append(node('h2', r.correction_pending ? 'Первая попытка сохранена'
+        : completedResult(r) ? 'Занятие завершено' : 'Есть что повторить', 'h4'));
       if (r.score != null) screen.append(node('p', (isFinal() ? 'Результат теста: ' : 'Результат первой попытки: ') + r.score + '%', 'fs-4 fw-bold'));
       const units = isCorrection() ? {correct: first.first_units_correct, total: first.first_units_total, label: first.first_unit_label}
         : {correct: r.units_correct, total: r.units_total, label: r.unit_label};
       if (units.total != null) screen.append(node('p', `${units.label}: ${units.correct} из ${units.total}`));
       if (isCorrection()) screen.append(node('p', `Исправлено: ${r.correct_count} из ${r.total_count}. Исходный результат ${first.first_score}% сохранён.`));
-      if (r.correction_pending) screen.append(node('p', 'Продолжи план дня. Работа над ошибками появится отдельным шагом перед следующим связанным заданием.'));
-      const link = node('a', 'К плану дня', 'btn btn-primary my-3'); link.href = root.querySelector('a').href; screen.append(link);
-      if (!r.correction_pending && !isCorrection() && root.dataset.reviewOnly !== 'true') screen.append(button('Повторить урок', () => perform(async () => { try { draftStorage().removeItem(storageKey); } catch (_) {} await load(true); })));
+      if (r.correction_pending) screen.append(node('p', 'Работа над ошибками назначена отдельным заданием.'));
+      resultActions = node('div', null, 'practice-result-actions');
+      screen.append(resultActions);
+      renderResultActions();
+      updateResultPlan();
+      if (!r.correction_pending && !isCorrection() && root.dataset.reviewOnly !== 'true') {
+        screen.append(button('Повторить урок', () => perform(async () => {
+          if (drafts && !await drafts.acquire()) throw new Error('Занятие открыто в другой вкладке.');
+          replaceHistoryResult(null);
+          try { draftStorage().removeItem(storageKey); } catch (_) {}
+          await load(true);
+        })));
+      }
       (r.feedback || []).forEach(f => {
         const card = node('article', null, 'card card-body my-3');
         const answer = node('p', 'Твой ответ: ' + f.answer); answer.style.whiteSpace = 'pre-wrap';
@@ -290,6 +418,7 @@
           throw error;
         }
         delete state.pendingSubmission; delete state.pendingLesson;
+        rememberResult(state.result);
         if (state.result.correction_pending || state.result.completed) { try { draftStorage().removeItem(storageKey); } catch (_) {} }
         else save();
       }), true)); return;
@@ -390,6 +519,7 @@
         try {
           state.result = await request('/submit', state.pendingSubmission);
           delete state.pendingSubmission; delete state.pendingLesson;
+          rememberResult(state.result);
           try { draftStorage().removeItem(storageKey); } catch (_) {}
           draw(); return;
         } catch (error) {
@@ -447,23 +577,37 @@
     }
     save(); draw();
   };
-  refreshButton = button('Обновить задание', () => perform(() => load()));
+  refreshButton = button('Обновить задание', () => openEditor());
   root.prepend(refreshButton);
   let opening = false;
-  const openEditor = async () => {
-    if (opening || accountInvalid) return;
-    opening = true; refreshButton.disabled = true;
-    if (drafts && !await drafts.acquire()) {
-      lesson = null; state = null; screen.replaceChildren();
-      screen.append(node('h2', 'Занятие открыто в другой вкладке', 'h4'));
-      screen.append(node('p', 'Продолжи там или закрой ту вкладку, затем нажми «Продолжить здесь». Это защищает ответы от перезаписи.'));
-      screen.append(button('Продолжить здесь', openEditor, true));
-      opening = false; return;
+  const openEditor = async (fromHistory = false) => {
+    if (opening || accountInvalid || busy) return;
+    if (fromHistory && state?.result && !readHistoryResult()) { await updateResultPlan(true); return; }
+    opening = true;
+    let keepEditorLocked = false;
+    try {
+      await perform(async () => {
+        if (await restoreHistoryResult()) return;
+        if (drafts && !await drafts.acquire()) {
+          lesson = null; state = null; screen.replaceChildren();
+          screen.append(node('h2', 'Занятие открыто в другой вкладке', 'h4'));
+          screen.append(node('p', 'Продолжи там или закрой ту вкладку, затем нажми «Продолжить здесь». Это защищает ответы от перезаписи.'));
+          screen.append(button('Продолжить здесь', () => openEditor(), true));
+          keepEditorLocked = true;
+          return;
+        }
+        await load();
+      });
+    } finally {
+      opening = false;
+      if (keepEditorLocked) {
+        refreshButton.disabled = true;
+        screen.querySelector('button').disabled = false;
+      }
     }
-    opening = false;
-    await perform(() => load());
   };
   window.addEventListener('pagehide', () => { if (drafts) drafts.close(); });
-  window.addEventListener('pageshow', event => { if (event.persisted) openEditor(); });
+  window.addEventListener('pageshow', event => { if (event.persisted) openEditor(true); });
+  window.addEventListener('focus', () => { if (state?.result) updateResultPlan(true); });
   openEditor();
 })();

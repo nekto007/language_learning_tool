@@ -1777,6 +1777,10 @@ def daily_plan_next_step() -> tuple:
     from app.daily_plan.service import get_daily_plan_unified
     from app.telegram.queries import get_daily_summary
 
+    result_day = request.args.get('result_day')
+    if result_day is not None:
+        return _course_result_next_step(current_user.id, result_day)
+
     tz = current_user.timezone or DEFAULT_TIMEZONE
     daily_plan = get_daily_plan_unified(current_user.id, tz=tz)
     daily_summary = get_daily_summary(current_user.id, tz=tz)
@@ -1785,6 +1789,44 @@ def daily_plan_next_step() -> tuple:
         return _next_step_from_unified(daily_plan, daily_summary)
 
     return _next_step_from_legacy(daily_plan, daily_summary)
+
+
+def _course_result_next_step(user_id: int, result_day: str) -> tuple:
+    """Resolve only required work for the study day shown on a course result."""
+    from app.achievements.streak_service import compute_plan_steps
+    from app.daily_plan.action_selection import next_unified_item
+    from app.daily_plan.service import compute_day_secured_from_activity, get_daily_plan_unified
+    from app.telegram.queries import get_daily_summary
+    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
+
+    def respond(status: str, **details: Any) -> tuple:
+        response = jsonify(success=True, account_id=str(user_id), status=status, **details)
+        response.headers['Cache-Control'] = 'private, no-store'
+        return response, 200
+
+    day = get_user_local_date(user_id).isoformat()
+    if result_day != day:
+        return respond('day_changed')
+    tz = get_user_timezone_name(user_id)
+    plan = get_daily_plan_unified(user_id, tz=tz)
+    if plan.get('mode') == 'paused':
+        return respond('paused')
+    if plan.get('mode') != 'unified' or plan.get('study_day') != day:
+        return respond('plan')
+
+    completion, *_ = compute_plan_steps(plan, get_daily_summary(user_id, tz=tz))
+    if compute_day_secured_from_activity(plan, completion):
+        return respond('secured')
+    item = next_unified_item({**plan, 'optional': []}, completion)
+    if item:
+        title, url = item.get('title'), item.get('url')
+        if (isinstance(title, str) and title.strip() and isinstance(url, str)
+                and url.startswith('/') and not url.startswith('//') and '\\' not in url
+                and not any(ord(ch) < 32 for ch in url)):
+            data = item.get('data') or {}
+            return respond('next', title=title, url=url, lesson_id=data.get('lesson_id'),
+                           quiz_phase=data.get('quiz_phase'))
+    return respond('plan')
 
 
 def _challenge_card_from_plan(unified_plan: dict) -> dict | None:

@@ -3,7 +3,7 @@
 {% block styles %}
 {{ super() }}
 <style nonce="{{ csp_nonce }}">
-#guided-practice button { max-width: 100%; min-height: 44px; white-space: normal; }
+#guided-practice button, #guided-practice .practice-result-actions .btn { max-width: 100%; min-height: 44px; white-space: normal; }
 #guided-practice { overflow-wrap: anywhere; }
 @media (max-width: 480px) {
   #guided-practice .btn { padding-inline: 16px; }
@@ -13,6 +13,7 @@
 {% block content %}
 <main id="guided-practice" class="container py-4" style="max-width:800px"
       data-endpoint="{{ url_for('curriculum_lessons.practice_document', lesson_id=lesson.id) }}"
+      data-result-plan="{{ url_for('words.daily_plan_next_step') }}"
       data-account="{{ current_user.id }}" data-lesson="{{ lesson.id }}">
   <a href="{{ url_for('words.dashboard') }}" class="btn btn-outline-secondary mb-3">К плану дня</a>
   <h1 class="h3">{{ lesson.title }}</h1>
@@ -27,5 +28,5 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/practice-drafts.js', v='20261124-resume') }}" defer></script>
-<script src="{{ url_for('static', filename='js/guided-practice.js') }}?v=20261124-dispute" defer></script>
+<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261124-result-history') }}" defer></script>
 {% endblock %}

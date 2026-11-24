@@ -55,9 +55,13 @@ def course_errors(view):
 @course_errors
 def practice_document(lesson_id):
     from app.api.native_lessons import course_document
+    from app.utils.time_utils import get_user_local_date
 
+    if request.args.get("result_identity") == "1":
+        return _practice_result_identity(lesson_id)
     value = course_document(lesson_id, deferred=True).get_json()
     value["account_id"] = str(current_user.id)
+    value["lesson"]["study_day"] = get_user_local_date(current_user.id).isoformat()
     if value["lesson"]["type"] == "final_test":
         progress = LessonProgress.query.filter_by(user_id=current_user.id, lesson_id=lesson_id).first()
         lesson = Lessons.query.get(lesson_id)
@@ -65,6 +69,17 @@ def practice_document(lesson_id):
         if answers:
             value["lesson"]["resume_answers"] = answers
     return jsonify(value)
+
+
+def _practice_result_identity(lesson_id: int) -> Any:
+    """Revalidate a read-only browser result even when the plan is paused."""
+    from app.api.native_lessons import _content, _digest, _lesson_and_progress
+
+    lesson, _ = _lesson_and_progress(lesson_id)
+    return jsonify(
+        success=True, account_id=str(current_user.id),
+        lesson={"id": lesson.id, "type": lesson.type, "content_revision": _digest(_content(lesson))},
+    )
 
 
 def _legacy_final_answers(questions: list[dict[str, Any]], progress: LessonProgress | None,

@@ -24,31 +24,55 @@ async function editor(options={}) {
     get firstElementChild(){return this.children[0];}
     querySelectorAll(selector){
       const all=[];const walk=e=>{for(const child of e.children){all.push(child);walk(child);}};walk(this);
-      return all.filter(e=>selector==='button'?e.tag==='button':selector==='h2'?e.tag==='h2':selector==='h3'?e.tag==='h3':selector==='[data-check]'?e.dataset.check:selector==='[role="status"]'?e.attrs.role==='status':false);
+      return all.filter(e=>selector==='[data-check]'?e.dataset.check:selector==='[role="status"]'?e.attrs.role==='status':e.tag===selector);
     }
     querySelector(selector){if(selector==='[role="status"] h3')return this.querySelector('[role="status"]')?.querySelector('h3');return this.querySelectorAll(selector)[0]||null;}
   }
   const root=new Element('main'), screen=new Element('section'),error=new Element('p'),warning=new Element('p'),note=new Element('p'),goal=new Element('p');
-  root.dataset={account:'7',lesson:'42',endpoint:'/curriculum/api/lesson/42/practice',...(options.review?{reviewOnly:'true'}:{})};
+  root.dataset={account:options.account||'7',lesson:'42',endpoint:'/curriculum/api/lesson/42/practice',...(options.review?{reviewOnly:'true'}:{})};
   const refs={'#practice-screen':screen,'#practice-error':error,'#practice-storage-warning':warning,'#practice-draft-note':note,'#practice-goal':goal};
-  root.append(screen);const query=root.querySelector.bind(root);root.querySelector=selector=>refs[selector]||query(selector);
+  const exit=new Element('a');exit.href='/dashboard';
+  if(options.result||options.history) root.dataset.resultPlan='/api/daily-plan/next-step';
+  root.append(exit,screen);const query=root.querySelector.bind(root);root.querySelector=selector=>refs[selector]||query(selector);
   document={activeElement:null,getElementById:id=>id==='guided-practice'?root:null,querySelector:()=>({content:'csrf-test'}),createElement:tag=>new Element(tag),createTextNode:text=>{const e=new Element('#text');e.textContent=text;return e;}};
   const answer=options.answer??'My exact ANSWER!';
-  const lesson={type:options.type||'quiz',quiz_phase:'first',content_revision:'r1',session_token:'signed-session',questions:[{id:'0',input:'text',instruction:'Write an answer',prompt:'A question',options:[]}],theory:[],support_mode:'off'};
-  const draft={revision:'r1',lessonType:lesson.type,index:0,answers:{0:answer},first:{0:answer},checks:{0:{correct:!!options.correct,expected:'Another answer',explanation:'An explanation'}},help:{},fragments:{},levels:{},readSteps:[],intro:false,disputes:options.disputes||{}};
-  const rows=new Map([['llt:practice:7:42:first',JSON.stringify(draft)]]);
+  const lesson={type:options.type||'quiz',quiz_phase:options.correction?'correction':'first',content_revision:options.revision||'r1',session_token:'signed-session',questions:[{id:'0',input:'text',instruction:'Write an answer',prompt:'A question',options:[]}],theory:[],support_mode:'off'};
+  if(options.correction) lesson.correction={attempt_id:'correction-id',first_score:50,previous_answers:{0:answer}};
+  if(options.result||options.history) lesson.study_day='2026-11-24';
+  const draft={revision:'r1',lessonType:lesson.type,index:options.result?1:0,answers:{0:answer},first:{0:answer},checks:{0:{correct:!!options.correct,expected:'Another answer',explanation:'An explanation'}},help:{},fragments:{},levels:{},readSteps:[],intro:false,disputes:options.disputes||{}};
+  const key='llt:practice:'+root.dataset.account+':42:'+(lesson.correction?.attempt_id||'first');
+  const rows=new Map(options.clean?[]:[[key,JSON.stringify(draft)]]);
+  if(options.pending) {
+    rows.set(key,JSON.stringify({...draft,pendingLesson:lesson,pendingSubmission:{session_token:'signed-session',answers:{0:answer}}}));
+    rows.set('llt:practice:'+root.dataset.account+':42:active',key);
+  }
   const storage={getItem:key=>rows.get(key)||null,setItem:(key,value)=>{if(options.quota)throw Error('quota');rows.set(key,value);},removeItem:key=>rows.delete(key)};
-  const requests=[],timers=[];
+  const history=options.history&&{state:options.history,replaceState(next){this.state=next;}};
+  const requests=[],planRequests=[],writes=[],identities=[],timers=[],events={};
   const fetch=async(url,init)=>{
-    if(!url.endsWith('/dispute'))return {ok:true,status:200,json:async()=>({account_id:'7',lesson})};
+    if(url.endsWith('/submit')) {
+      writes.push(JSON.parse(init.body));
+      return {ok:true,status:200,json:async()=>({success:true,lesson_id:42,...options.result})};
+    }
+    if(url.endsWith('?result_identity=1')) {
+      identities.push(url);
+      return {ok:true,status:200,json:async()=>({
+        account_id:root.dataset.account,lesson:{id:42,type:lesson.type,content_revision:lesson.content_revision}
+      })};
+    }
+    if(url.startsWith('/api/daily-plan/next-step?')) {
+      planRequests.push(url);
+      return {ok:true,status:200,json:async()=>({success:true,account_id:root.dataset.account,...await options.plan()})};
+    }
+    if(!url.endsWith('/dispute'))return {ok:true,status:200,json:async()=>({account_id:root.dataset.account,lesson})};
     requests.push({url,init,body:JSON.parse(init.body)});
     return options.send ? options.send(requests.at(-1),requests.length) : {ok:true,status:200,json:async()=>({success:true})};
   };
-  vm.runInNewContext(source,{document,window:{sessionStorage:storage,addEventListener(){},removeEventListener(){}},fetch,AbortController,setTimeout:fn=>{timers.push(fn);return fn;},clearTimeout:fn=>{const i=timers.indexOf(fn);if(i>=0)timers.splice(i,1);}});
+  vm.runInNewContext(source,{document,window:{history,sessionStorage:storage,addEventListener(k,fn){events[k]=fn;},removeEventListener(){}},fetch,AbortController,setTimeout:fn=>{timers.push(fn);return fn;},clearTimeout:fn=>{const i=timers.indexOf(fn);if(i>=0)timers.splice(i,1);}});
   await flush();await flush();
   const buttons=()=>root.querySelectorAll('button');
   const click=async label=>{const el=buttons().find(x=>x.textContent===label);assert(el,'Missing button '+label);const result=el.listeners.click();await result;await flush();return el;};
-  return {root,screen,error,warning,rows,requests,timers,buttons,click,draft};
+  return {root,screen,error,warning,rows,requests,timers,buttons,click,draft,planRequests,events,history,writes,identities};
 }
 
 test('quiz and grammar send the exact checked answer with CSRF, without changing its verdict',async()=>{
@@ -102,4 +126,93 @@ test('changed material explains refresh; authentication failure removes the old 
 });
 test('failed draft writes do not suppress the acknowledged status in the live tab',async()=>{
   const p=await editor({quota:true});await p.click('Мой ответ тоже верный');assert.match(p.screen.textContent,/Ответ передан/);assert.equal(p.warning.hidden,false);
+});
+
+test('result appears before plan lookup, links to same-lesson correction, and drops yesterday’s link on restore',async()=>{
+  let resolve, planned=new Promise(done=>{resolve=done;});
+  const p=await editor({result:{completed:false,correction_pending:true,score:50},plan:()=>planned});
+  await p.click('Сохранить результат');
+  assert.match(p.screen.textContent,/Результат первой попытки: 50%/);
+  assert.match(p.screen.textContent,/Уточняем следующий шаг/);
+  assert.deepEqual(p.planRequests,['/api/daily-plan/next-step?result_day=2026-11-24']);
+  resolve({status:'next',title:'Работа над ошибками',url:'/learn/42/?quiz_phase=correction',lesson_id:42,quiz_phase:'correction'});
+  await flush();
+  assert.deepEqual(p.screen.querySelectorAll('a').map(a=>[a.textContent,a.href]),[
+    ['Работа над ошибками','/learn/42/?quiz_phase=correction'],['К плану дня','/dashboard']
+  ]);
+  planned=Promise.resolve({status:'day_changed'});
+  await p.events.pageshow({persisted:true});await flush();
+  assert.match(p.screen.textContent,/Начался новый учебный день/);
+  assert.match(p.screen.textContent,/Результат первой попытки: 50%/);
+  assert.equal(p.screen.querySelectorAll('a').length,1);
+});
+
+test('review and failed results skip lookup; plan failure or a repeated lesson preserves the score and exit',async()=>{
+  const scenarios=[
+    [{review:true,result:{completed:true,score:100}},0,null],
+    [{result:{completed:false,score:25}},0,null],
+    [{result:{completed:true,score:100},plan:()=>{throw Error('offline');}},1,/Не удалось обновить план/],
+    [{result:{completed:true,score:100},plan:()=>({status:'next',title:'Тот же урок',url:'/learn/42/?quiz_phase=correction',lesson_id:42,quiz_phase:'correction'})},1,null]
+  ];
+  for(const [options,lookups,copy] of scenarios) {
+    const p=await editor(options);await p.click('Сохранить результат');
+    assert.equal(p.planRequests.length,lookups);
+    assert.match(p.screen.textContent,new RegExp(options.result.score+'%'));
+    if(copy) assert.match(p.screen.textContent,copy);
+    assert.deepEqual(p.screen.querySelectorAll('a').map(a=>a.textContent),['К плану дня']);
+  }
+});
+
+test('a slow old lookup cannot replace a newer result state, and a changed account clears the result',async()=>{
+  let finishOld;
+  const old=new Promise(done=>{finishOld=done;});
+  let planned=old;
+  const p=await editor({result:{completed:true,score:100},plan:()=>planned});
+  await p.click('Сохранить результат');
+  planned=Promise.resolve({status:'paused'});
+  await p.events.pageshow({persisted:true});
+  finishOld({status:'next',title:'Устаревшее задание',url:'/learn/43/',lesson_id:43});
+  await flush();
+  assert.match(p.screen.textContent,/План на паузе/);
+  assert.doesNotMatch(p.screen.textContent,/Устаревшее задание/);
+  planned=Promise.resolve({status:'next',account_id:'8',title:'Чужое задание',url:'/learn/43/'});
+  p.events.pageshow({persisted:true});await flush();
+  assert.equal(p.screen.children.length,0);
+  assert.match(p.error.textContent,/Аккаунт изменился/);
+});
+
+test('confirmed correction is restored only from its history entry, without storing answers or repeating submission',async()=>{
+  const p=await editor({history:{anotherEntryField:7},correction:true,plan:()=>({status:'secured'}),
+    result:{completed:true,score:50,correct_count:1,total_count:1,feedback:[{answer:'PRIVATE original'}]}});
+  await p.click('Сохранить результат');
+  const saved=p.history.state;
+  assert.equal(saved.anotherEntryField,7);
+  assert.doesNotMatch(JSON.stringify(saved),/PRIVATE|signed-session|My exact ANSWER!/);
+  const restored=await editor({history:saved,clean:true,plan:()=>({status:'secured'})});
+  assert.equal(restored.writes.length,0);
+  assert.equal(restored.identities.length,1);
+  assert.match(restored.screen.textContent,/Исправлено: 1 из 1. Исходный результат 50% сохранён/);
+  assert.match(restored.screen.textContent,/План на сегодня выполнен/);
+
+  for(const options of [{account:'8'},{revision:'r2'}]) {
+    const other=await editor({history:saved,clean:true,...options});
+    assert.equal(other.history.state.lltPracticeResult,undefined);
+    assert.doesNotMatch(other.screen.textContent,/50%/);
+    assert(other.buttons().some(button=>button.textContent==='К заданиям'));
+    assert.equal(other.writes.length,0);
+  }
+  const direct=await editor({history:{},clean:true});
+  assert.equal(direct.identities.length,0);
+  assert(direct.buttons().some(button=>button.textContent==='К заданиям'));
+});
+
+test('a retry receipt can restore a result; explicit repeat clears that history entry',async()=>{
+  const p=await editor({history:{},pending:true,plan:()=>({status:'plan'}),result:{completed:true,score:100}});
+  assert.equal(p.writes.length,1);
+  assert.equal(p.writes[0].session_token,'signed-session');
+  assert.equal(p.history.state.lltPracticeResult.result.score,100);
+  await p.click('Повторить урок');
+  assert.equal(p.history.state.lltPracticeResult,undefined);
+  assert.equal(p.writes.length,1);
+  assert(p.buttons().some(button=>button.textContent==='К заданиям'));
 });
