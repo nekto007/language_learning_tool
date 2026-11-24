@@ -46,7 +46,7 @@ def family_session_guard():
             or any(path == prefix or path.startswith(prefix + "/") for prefix in (
                 "/api/native/books", "/api/native/reading", "/api/native/lessons", "/api/native/courses",
                 "/api/native/modules", "/api/native/grammar", "/api/native/activities", "/api/native/srs",
-                "/api/native/reader", "/api/native/vocabulary", "/api/books", "/api/words", "/api/daily-plan"))
+                "/api/native/reader", "/api/native/vocabulary", "/api/native/placement", "/api/books", "/api/words", "/api/daily-plan"))
             or (path in ("/api/daily-status", "/api/xp-leaderboard") and request.method == "GET")
         )
         if allowed:

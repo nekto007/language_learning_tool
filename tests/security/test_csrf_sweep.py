@@ -33,6 +33,11 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.onboarding.placement_routes.native_start': 'JWT-only placement; cookie auth rejected',
+    'app.onboarding.placement_routes.native_answer': 'JWT-only placement; cookie auth rejected',
+    'app.onboarding.placement_routes.native_draft': 'JWT-only placement; cookie auth rejected',
+    'app.onboarding.placement_routes.native_apply': 'JWT-only placement; cookie auth rejected',
+    'app.onboarding.placement_routes.native_abandon': 'JWT-only placement; cookie auth rejected',
     'app.family.routes.invite': 'Bearer-only; invitation bound to a nominated existing child account',
     'app.family.routes.accept': 'Bearer-only plus explicit consent and a single-use account-bound code',
     'app.family.routes.remove': 'Bearer-only; only either linked account can revoke access',
@@ -93,6 +98,11 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.onboarding.placement_routes.native_start',
+    'app.onboarding.placement_routes.native_answer',
+    'app.onboarding.placement_routes.native_draft',
+    'app.onboarding.placement_routes.native_apply',
+    'app.onboarding.placement_routes.native_abandon',
     'app.family.routes.invite',
     'app.family.routes.accept',
     'app.family.routes.remove',

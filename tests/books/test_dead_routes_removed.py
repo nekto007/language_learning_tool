@@ -5,7 +5,9 @@ import pytest
 class TestLegacyReaderV2Removed:
     @pytest.mark.smoke
     def test_no_reader_v2_endpoint(self, app):
-        rules = {rule.rule for rule in app.url_map.iter_rules()}
+        # Versioned APIs in other blueprints are unrelated to the removed reader.
+        rules = {rule.rule for rule in app.url_map.iter_rules()
+                 if rule.endpoint.startswith('books.') or 'reader-v2' in rule.rule}
         assert not any('reader-v2' in r or '/v2' in r for r in rules), (
             f"reader-v2 routes should be removed; found: "
             f"{[r for r in rules if 'reader-v2' in r or '/v2' in r]}"

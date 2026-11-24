@@ -164,7 +164,7 @@
 /* === Placement test === */
 .onboarding-placement { margin-top: 1.25rem; text-align: center; }
 .onboarding-placement__divider { color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.75rem; position: relative; }
-.onboarding-placement__start { background: none; border: 1.5px dashed #c7d2fe; color: #4f46e5; border-radius: 10px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s ease; }
+.onboarding-placement__start { display: inline-block; background: none; border: 1.5px dashed #c7d2fe; color: #4f46e5; border-radius: 10px; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s ease; }
 .onboarding-placement__start:hover { background: #eef2ff; }
 .onboarding-placement__panel { margin-top: 1rem; text-align: left; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem 1.1rem; }
 .onboarding-placement__progress { font-size: 0.78rem; color: #64748b; margin-bottom: 0.5rem; }

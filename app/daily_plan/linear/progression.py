@@ -35,6 +35,9 @@ def _user_min_level_order(user_id: int, db: Any) -> int:
     level is eligible. A missing/unknown onboarding code also yields 0.
     """
     user = db.session.get(User, user_id)
+    if isinstance(user, User) and user.placement_pending_level and user.placement_pending_on:
+        from app.onboarding.placement_engine import activate_pending
+        activate_pending(user)
     if not user or not user.onboarding_level:
         return 0
     order = _cefr_code_to_order(user.onboarding_level, db)

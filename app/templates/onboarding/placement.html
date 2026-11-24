@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Подобрать уровень английского · LLT English{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/placement.css', v='20261124') }}">{% endblock %}
+{% block content %}
+<div class="placement-page" id="placement-root" data-account="{{ current_user.id }}" data-api="/onboarding/placement/v2" data-return="{{ url_for('auth.profile') if current_user.onboarding_completed else url_for('onboarding.wizard') }}">
+  <header class="placement-header">
+    <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" alt="" width="64" height="64">
+    <div><p class="placement-eyebrow">Начнём с подходящего места</p><h1>Подберём твой уровень</h1>
+      <p>Выбери удобный вариант. Здесь можно ошибаться и отвечать «Не знаю».</p></div>
+  </header>
+  <p id="placement-status" class="placement-status" role="status" aria-live="polite">Проверяем доступность теста…</p>
+  <section id="placement-chooser" aria-label="Вариант теста">
+    <div id="placement-resume" class="placement-notice" hidden></div>
+    <div class="placement-modes">
+      <article class="placement-card"><p class="placement-eyebrow">5–7 минут · до 14 заданий</p>
+        <h2>Быстро подобрать старт</h2><p>Грамматика, словарь, короткие тексты и аудио. Поможет выбрать, откуда начать курс.</p>
+        <button type="button" class="placement-primary" data-mode="quick" disabled>Выбрать быстрый тест</button>
+      </article>
+      <article class="placement-card"><p class="placement-eyebrow">15–20 минут · до 24 заданий</p>
+        <h2>Проверить знания подробнее</h2><p>Больше заданий по тем же направлениям и письменные ответы: дополни или переформулируй предложение.</p>
+        <button type="button" class="placement-primary" data-mode="detailed" disabled>Выбрать подробный тест</button>
+      </article>
+    </div>
+    <p class="placement-note">Без микрофона и ограничения времени. Примерная длительность зависит от темпа и повторного прослушивания аудио.</p>
+    <button type="button" id="placement-latest" class="placement-link" hidden>Посмотреть последний результат</button>
+  </section>
+  <section id="placement-test" class="placement-card" hidden aria-labelledby="placement-question-title">
+    <div class="placement-question-meta"><span id="placement-skill"></span><span id="placement-counter"></span></div>
+    <div class="placement-progress" role="progressbar" aria-label="Ход теста" aria-valuemin="0" aria-valuemax="14" aria-valuenow="0"><span id="placement-progress-fill"></span></div>
+    <p id="placement-passage" class="placement-passage" hidden></p>
+    <div id="placement-audio-wrap" hidden><audio id="placement-audio" controls preload="none" aria-label="Запись к заданию"></audio><button type="button" id="placement-audio-retry" class="placement-link" hidden>Загрузить аудио ещё раз</button></div>
+    <h2 id="placement-question-title" tabindex="-1"></h2>
+    <fieldset id="placement-options"><legend class="visually-hidden">Выбери один ответ</legend><div id="placement-options-list"></div></fieldset>
+    <div id="placement-text-wrap" hidden><label for="placement-text">Твой ответ на английском</label><textarea id="placement-text" rows="3" maxlength="1000" autocapitalize="sentences" autocomplete="off" spellcheck="false"></textarea></div>
+    <p id="placement-draft-status" class="placement-note" aria-live="polite"></p>
+    <div class="placement-actions"><button type="button" id="placement-answer" class="placement-primary" disabled>Ответить и продолжить</button><button type="button" id="placement-unknown" class="placement-secondary">Не знаю</button></div>
+    <p class="placement-note">Результаты и темы для повторения покажем в конце. Подсказок во время теста нет.</p>
+  </section>
+  <section id="placement-result" class="placement-card" hidden aria-labelledby="placement-result-title">
+    <p class="placement-eyebrow">Твоя стартовая точка</p><h2 id="placement-result-title" tabindex="-1"></h2>
+    <p id="placement-result-summary"></p><ul id="placement-domains" class="placement-domains"></ul>
+    <div id="placement-topics" hidden><h3>На что обратить внимание</h3><ul id="placement-topics-list"></ul></div>
+    <p class="placement-note">Это предварительная рекомендация для выбора уроков. Говорение и свободное письмо не проверялись. Письменные задания проверяют применение языка в заданных фразах.</p>
+    <div class="placement-actions"><button type="button" id="placement-apply" class="placement-primary">Выбрать этот уровень</button><button type="button" id="placement-retake" class="placement-secondary">Выбрать другой тест</button></div>
+    <p id="placement-apply-status" class="placement-note" aria-live="polite"></p>
+  </section>
+  <div class="placement-footer"><button type="button" id="placement-retry" class="placement-secondary" hidden>Повторить отправку</button><button type="button" id="placement-pause" class="placement-link" hidden>Продолжить позже</button><a id="placement-return" href="{{ url_for('auth.profile') if current_user.onboarding_completed else url_for('onboarding.wizard') }}">{{ 'Вернуться в профиль' if current_user.onboarding_completed else 'Выбрать уровень самостоятельно' }}</a></div>
+  <dialog id="placement-change-dialog" class="placement-dialog" aria-labelledby="placement-change-title"><h2 id="placement-change-title">Начать другой вариант?</h2><p>Текущая попытка завершится без результата. Её нельзя будет продолжить. Прогресс курса сохранится.</p><div class="placement-actions"><button type="button" id="placement-change-cancel" class="placement-secondary">Продолжить текущую</button><button type="button" id="placement-change-confirm" class="placement-primary">Начать другой вариант</button></div></dialog>
+</div>
+<script src="{{ url_for('static', filename='js/onboarding/placement.js', v='20261124') }}" defer></script>
+{% endblock %}

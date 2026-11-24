@@ -31,7 +31,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'api_anki.',
     'api_native_push.',
     'api_native_translation.',
-    'mobile_auth.', 'api_family.', 'family_web.', 'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.', 'api_native_reading.', 'api_native_cards.', 'api_native_activities.', 'api_native_catalog.', 'api_native_controls.', 'api_native_reader.',
+    'mobile_auth.', 'api_family.', 'family_web.', 'api_topics_collections.', 'api_daily_plan.', 'api_native_lessons.', 'api_native_srs.', 'api_native_reading.', 'api_native_cards.', 'api_native_activities.', 'api_native_catalog.', 'api_native_controls.', 'api_native_placement.', 'api_native_reader.',
     'uploads.',
     'admin.', 'user_admin.', 'audio_admin.', 'book_admin.',
     'collection_admin.', 'topic_admin.', 'word_admin.',
@@ -275,7 +275,9 @@ def create_app(config_class=Config):
     app.register_blueprint(grammar_lab_bp)
 
     from app.onboarding import onboarding_bp
+    from app.onboarding.placement_routes import api_native_placement
     app.register_blueprint(onboarding_bp)
+    app.register_blueprint(api_native_placement, url_prefix='/api/native')
 
     from app.feedback import feedback_bp
     app.register_blueprint(feedback_bp)

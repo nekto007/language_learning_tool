@@ -85,20 +85,10 @@
         </button>
       </div>
 
-      {% if placement_enabled %}
       <div class="onboarding-placement" id="placementBlock">
         <div class="onboarding-placement__divider">или</div>
-        <button type="button" class="onboarding-placement__start" id="placementStartBtn">
-          🎯 Не уверены? Пройти тест на уровень (≈2 минуты)
-        </button>
-        <div class="onboarding-placement__panel" id="placementPanel" hidden>
-          <div class="onboarding-placement__progress" id="placementProgress"></div>
-          <div class="onboarding-placement__question" id="placementQuestion"></div>
-          <div class="onboarding-placement__options" id="placementOptions"></div>
-          <div class="onboarding-placement__result" id="placementResult" hidden></div>
-        </div>
+        <a class="onboarding-placement__start" href="{{ url_for('onboarding.placement_page') }}">Не уверен в уровне? Выбрать быстрый или подробный тест</a>
       </div>
-      {% endif %}
     </div>
 
     <!-- Step 2: Focus selection -->

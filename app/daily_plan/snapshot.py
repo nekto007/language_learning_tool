@@ -107,6 +107,11 @@ def resolve_snapshot_for_today(
     """
     from datetime import timedelta
 
+    from app.auth.models import User
+    user = db.session.get(User, user_id)
+    if isinstance(user, User) and user.placement_pending_level and user.placement_pending_on:
+        from app.onboarding.placement_engine import activate_pending
+        activate_pending(user)
     log = _get_or_create_log_row(user_id, today_local, db)
     if log is None:
         return _empty_snapshot(today_local)
@@ -116,7 +121,8 @@ def resolve_snapshot_for_today(
         return existing
 
     yesterday = today_local - timedelta(days=1)
-    rolled = _try_rollover_from_yesterday(user_id, yesterday, today_local, db)
+    explicit_level_change = isinstance(log.plan_json, dict) and log.plan_json.get('placement_rebuild') is True
+    rolled = None if explicit_level_change else _try_rollover_from_yesterday(user_id, yesterday, today_local, db)
     if rolled is not None:
         log.plan_json = rolled
         db.session.flush()
