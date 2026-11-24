@@ -104,6 +104,10 @@
                     <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
                 </button>
                 <div class="nav-section-content" id="nav-content-content">
+                <a href="{{ url_for('content_packages_admin.index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('content_packages_admin.') }}">
+                    <i class="fas fa-file-archive" aria-hidden="true"></i>
+                    <span>Пакеты контента</span>
+                </a>
                 <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_curriculum.curriculum' }}">
                     <i class="fas fa-graduation-cap" aria-hidden="true"></i>
                     <span>Учебный план</span>

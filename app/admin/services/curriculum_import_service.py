@@ -315,7 +315,7 @@ class CurriculumImportService:
         }
 
     @staticmethod
-    def import_curriculum_data(data):
+    def import_curriculum_data(data: dict, *, commit: bool = True) -> dict:
         """
         Импортирует данные курса из JSON
 
@@ -600,15 +600,12 @@ class CurriculumImportService:
                     'xp_reward': lesson_data.get('xp_reward')
                 }
             elif lesson_type == 'quiz':
-                # Quiz может иметь exercises в content или напрямую
-                content = lesson_data.get('content', {})
-                exercises = content.get('exercises', []) if isinstance(content, dict) else []
-                if not exercises:
-                    exercises = lesson_data.get('exercises', [])
-                lesson.content = {
-                    'exercises': exercises,
-                    'xp_reward': lesson_data.get('xp_reward')
-                }
+                content = dict(lesson_data.get('content') or {})
+                if not content.get('questions') and not content.get('exercises'):
+                    content['exercises'] = lesson_data.get('exercises') or lesson_data.get('questions', [])
+                if lesson_data.get('xp_reward') is not None:
+                    content['xp_reward'] = lesson_data['xp_reward']
+                lesson.content = content
             elif lesson_type == 'text':
                 content = lesson_data.get('content', {})
                 if lesson_data.get('xp_reward'):
@@ -623,14 +620,18 @@ class CurriculumImportService:
                         'preserving them, but sections remain authoritative for display and grading',
                         number, len(extra_exercises),
                     )
-                lesson.content = {
+                final_content = {
                     **content,
-                    'passing_score': content.get('passing_score', lesson_data.get('passing_score_percent', 75)),
+                    'passing_score': content.get('passing_score', content.get('pass_score', lesson_data.get('passing_score_percent', 75))),
                     'total_points': content.get('total_points', 100),
                     'test_sections': content.get('test_sections', []),
-                    'exercises': extra_exercises,
                     'xp_reward': lesson_data.get('xp_reward', content.get('xp_reward'))
                 }
+                # The legacy web renderer uses "exercises" whenever that key
+                # exists. An invented empty list hides a flat "questions" test.
+                if not content.get('questions') or extra_exercises:
+                    final_content['exercises'] = extra_exercises
+                lesson.content = final_content
             elif lesson_type in ('reading', 'listening_quiz', 'dialogue_completion_quiz',
                                  'ordering_quiz', 'translation_quiz', 'listening_immersion'):
                 # Новые типы уроков - сохраняем content как есть
@@ -702,12 +703,14 @@ class CurriculumImportService:
                         f"смещён на number={_max_used}"
                     )
 
-        # 4. Сохраняем все изменения
-        db.session.commit()
-        logger.info(f"Commit выполнен для модуля {module.id}")
-
-        # 5. Сбрасываем PostgreSQL последовательности чтобы избежать конфликтов ID
-        CurriculumImportService._reset_sequences()
+        if commit:
+            db.session.commit()
+            logger.info(f"Commit выполнен для модуля {module.id}")
+            CurriculumImportService._reset_sequences()
+        else:
+            # Package publication owns the transaction, including its audit row.
+            # IDs in this importer are assigned by the database.
+            db.session.flush()
 
         # Возвращаем результат
         first_lesson = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.number).first()

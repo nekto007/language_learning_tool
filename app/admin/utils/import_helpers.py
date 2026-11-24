@@ -30,7 +30,7 @@ def _validate_import_id(import_id):
         return None
 
 
-def save_import_data(data):
+def save_import_data(data: dict, *, prefix: str = '') -> str:
     """
     Сохраняет данные импорта во временный файл
 
@@ -41,7 +41,7 @@ def save_import_data(data):
         str: Уникальный ID импорта
     """
     import_id = str(uuid.uuid4())
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{import_id}.json")
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{prefix}{import_id}.json")
 
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -52,7 +52,7 @@ def save_import_data(data):
     return import_id
 
 
-def load_import_data(import_id):
+def load_import_data(import_id: str, *, prefix: str = '') -> dict | None:
     """
     Загружает данные импорта из временного файла
 
@@ -66,16 +66,15 @@ def load_import_data(import_id):
     if safe_id is None:
         logger.warning("Rejected invalid import_id for load")
         return None
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{safe_id}.json")
-
-    if not os.path.exists(file_path):
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{prefix}{safe_id}.json")
+    try:
+        with open(file_path, encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
         return None
 
-    with open(file_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
 
-
-def delete_import_data(import_id):
+def delete_import_data(import_id: str, *, prefix: str = '') -> bool:
     """
     Удаляет временный файл импорта
 
@@ -85,11 +84,13 @@ def delete_import_data(import_id):
     safe_id = _validate_import_id(import_id)
     if safe_id is None:
         logger.warning("Rejected invalid import_id for delete")
-        return
-    file_path = os.path.join(IMPORT_TEMP_DIR, f"{safe_id}.json")
-
-    if os.path.exists(file_path):
+        return False
+    file_path = os.path.join(IMPORT_TEMP_DIR, f"{prefix}{safe_id}.json")
+    try:
         os.remove(file_path)
+    except FileNotFoundError:
+        return False
+    return True
 
 
 def cleanup_old_imports():
@@ -99,8 +100,8 @@ def cleanup_old_imports():
     for filename in os.listdir(IMPORT_TEMP_DIR):
         if filename.endswith('.json'):
             file_path = os.path.join(IMPORT_TEMP_DIR, filename)
-            file_time = os.path.getmtime(file_path)
-
-            # Удаляем файлы старше 1 часа
-            if current_time - file_time > 3600:
-                os.remove(file_path)
+            try:
+                if current_time - os.path.getmtime(file_path) > 3600:
+                    os.remove(file_path)
+            except FileNotFoundError:
+                continue

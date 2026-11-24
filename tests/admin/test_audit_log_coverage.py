@@ -47,6 +47,9 @@ MUTATING_METHODS = frozenset({'POST', 'PUT', 'DELETE', 'PATCH'})
 # start (which only redirects the browser), connection probes, and DB-state
 # read-only tests.
 AUDIT_LOG_WHITELIST = frozenset({
+    # Preview only stores a temporary, admin-bound upload. The separate apply
+    # route commits the curriculum changes and the audit entry together.
+    'content_packages_admin.index',
     # OAuth consent screen — only redirects to Google, no DB write.
     'seo_admin.gsc_connect',
     # GET-style listing helpers historically registered with POST so a download

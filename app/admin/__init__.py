@@ -33,6 +33,9 @@ def register_admin_routes(flask_app):
     from app.admin.routes.curriculum_routes import curriculum_bp
     flask_app.register_blueprint(curriculum_bp, url_prefix='/admin')
 
+    from app.admin.routes.content_packages import content_packages_bp
+    flask_app.register_blueprint(content_packages_bp, url_prefix='/admin')
+
     # Import and register word routes blueprint
     from app.admin.routes.word_routes import word_bp
     flask_app.register_blueprint(word_bp, url_prefix='/admin')

@@ -49,6 +49,17 @@ docker compose exec web python create_admin.py
 
 App available at http://localhost:5001
 
+### Updating an existing installation
+
+On the server, update the checkout and rebuild the services.
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Publish learning materials through the admin panel. Under **Контент → Пакеты контента**, upload a ZIP of course module JSON files or individual final tests identified by their existing `external_key`. Review the targets and select **Применить пакет**. The same page links to the import forms for Grammar Lab exercises, dictionary entries, and books.
+
 ### Local Development
 
 ```bash
