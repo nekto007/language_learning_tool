@@ -12,9 +12,15 @@ let pendingGrade = null;
 let queueChanged = false;
 let sessionRevisions = typeof exerciseRevisions === 'undefined' ? {} : exerciseRevisions;
 let pendingSaved = false;
+// Older cached pages declare sessionId as const. Keep a restored session private
+// to this client instead of assigning to the page's bootstrap binding.
+let restoredPracticeSessionId = null;
+function currentPracticeSessionId() {
+  return restoredPracticeSessionId === null ? sessionId : restoredPracticeSessionId;
+}
 
 function isCurrentExercise(generation, exerciseId, practiceSession) {
-  return generation === exerciseGeneration && String(sessionId) === practiceSession
+  return generation === exerciseGeneration && String(currentPracticeSessionId()) === practiceSession
     && String(exercises[currentIndex]?.id) === exerciseId;
 }
 
@@ -132,7 +138,7 @@ function saveSessionState() {
   try {
     const revisions = Object.fromEntries(exercises.map(ex => [ex.id, sessionRevisions[ex.id]]));
     sessionStorage.setItem(sessionKey, JSON.stringify({
-      exercises, revisions, sessionId, currentIndex, correctCount, wrongCount, totalXP, checkedAnswer, pendingGrade, queueChanged,
+      exercises, revisions, sessionId: currentPracticeSessionId(), currentIndex, correctCount, wrongCount, totalXP, checkedAnswer, pendingGrade, queueChanged,
       timestamp: Date.now()
     }));
     pendingSaved = Boolean(pendingGrade);
@@ -153,8 +159,8 @@ let restoreGeneration = 0;
 async function restoreSession() {
   if (!sessionKey) return false;
   const generation = ++restoreGeneration;
-  const pageSession = String(sessionId);
-  const isCurrent = () => generation === restoreGeneration && String(sessionId) === pageSession
+  const pageSession = String(currentPracticeSessionId());
+  const isCurrent = () => generation === restoreGeneration && String(currentPracticeSessionId()) === pageSession
     && document.querySelector('meta[name="llt-account-id"]')?.content === practiceActor;
   let state;
   try {
@@ -181,8 +187,9 @@ async function restoreSession() {
     return false;
   }
   let restoredItems = items, revisions = state.revisions;
-  let fresh = items.every(ex => typeof exerciseRevisions[ex.id] === 'string'
-    && exerciseRevisions[ex.id] === state.revisions?.[ex.id]);
+  const pageRevisions = typeof exerciseRevisions === 'undefined' ? {} : exerciseRevisions;
+  let fresh = items.every(ex => typeof pageRevisions[ex.id] === 'string'
+    && pageRevisions[ex.id] === state.revisions?.[ex.id]);
   const validBatch = items.every(ex => Number.isInteger(ex.id) && ex.id > 0 && ex.id <= 2147483647
     && typeof state.revisions?.[ex.id] === 'string' && /^[0-9a-f]{64}$/.test(state.revisions[ex.id]))
     && new Set(items.map(ex => ex.id)).size === items.length;
@@ -231,7 +238,7 @@ async function restoreSession() {
   if (!isCurrent()) return null;
   exercises = restoredItems;
   sessionRevisions = revisions || {};
-  sessionId = state.sessionId;
+  restoredPracticeSessionId = state.sessionId;
   currentIndex = index;
   correctCount = state.correctCount;
   wrongCount = state.wrongCount;
@@ -251,8 +258,24 @@ async function restoreSession() {
 let resumeNeedsRefresh = false;
 async function initializePractice() {
   const start = document.getElementById('start-btn');
-  const status = document.getElementById('practice-resume-status');
-  const retry = document.getElementById('practice-resume-retry');
+  const screen = document.getElementById('start-screen');
+  let status = document.getElementById('practice-resume-status');
+  let retry = document.getElementById('practice-resume-retry');
+  if (!status) {
+    status = document.createElement('p'); status.id = 'practice-resume-status';
+    status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); screen.append(status);
+  }
+  if (!retry) {
+    retry = document.createElement('button'); retry.id = 'practice-resume-retry'; retry.type = 'button';
+    retry.className = 'practice-btn practice-btn--secondary';
+    retry.addEventListener('click', () => resumeNeedsRefresh ? window.location.reload() : initializePractice());
+    screen.append(retry);
+  }
+  if (!document.getElementById('practice-empty-link')) {
+    const exit = document.createElement('a'); exit.id = 'practice-empty-link'; exit.href = '/grammar-lab/topics';
+    exit.className = 'practice-btn practice-btn--secondary'; exit.textContent = 'К темам грамматики';
+    exit.hidden = true; screen.append(exit);
+  }
   start.disabled = true;
   resumeNeedsRefresh = false;
   if (retry) retry.hidden = true;
@@ -462,10 +485,11 @@ function showCheckedExercise(exercise, result) {
   feedback.style.display = 'block';
   document.getElementById('check-btn').style.display = 'none';
   document.getElementById('next-btn').style.display = 'inline-flex';
-  document.getElementById('next-label').textContent = queueChanged ? 'Открыть актуальные задания'
+  const nextLabel = document.getElementById('next-label') || document.getElementById('next-btn');
+  nextLabel.textContent = queueChanged ? 'Открыть актуальные задания'
     : currentIndex + 1 === exercises.length ? 'Посмотреть результат' : 'Далее';
   if (!result.correct && result.token) {
-    activeDispute = {generation: exerciseGeneration, exerciseId: String(exercise.id), practiceSession: String(sessionId),
+    activeDispute = {generation: exerciseGeneration, exerciseId: String(exercise.id), practiceSession: String(currentPracticeSessionId()),
                      token: result.token, answer: result.submitted, status: result.reported ? 'sent' : 'idle'};
     renderDispute(activeDispute);
   }
@@ -860,7 +884,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
   if (!body) {
     const answer = readSubmittedAnswer(exercise);
     if (answer == null) return;
-    body = {answer, session_id: sessionId, source: topicId ? 'topic_practice' : 'srs_review'};
+    body = {answer, session_id: currentPracticeSessionId(), source: topicId ? 'topic_practice' : 'srs_review'};
     if (exercise.submission_id && sessionRevisions[exercise.id]) {
       body.submission_id = exercise.submission_id;
       body.exercise_revision = sessionRevisions[exercise.id];
@@ -880,7 +904,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
   // Abort a hung request so the button can never stay stuck on «Проверка…».
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
-  const generation = exerciseGeneration, exerciseId = String(exercise.id), practiceSession = String(sessionId);
+  const generation = exerciseGeneration, exerciseId = String(exercise.id), practiceSession = String(currentPracticeSessionId());
   const submittedAnswer = body.answer;
   let answered = false;  // true only when the answer was graded & shown
 

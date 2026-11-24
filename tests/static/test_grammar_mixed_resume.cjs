@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../../app/static/js/grammar/practice.js'),'utf8');
 const restore=source.slice(source.indexOf('let restoreGeneration ='),source.indexOf('// Start button'));
+const sessionHelper=source.slice(source.indexOf('let restoredPracticeSessionId ='),source.indexOf('function isCurrentExercise'));
 const validator=source.slice(source.indexOf('function validPendingGrade('),source.indexOf('function showPendingGrade('));
 const clean=value=>JSON.parse(JSON.stringify(value));
 const revision='a'.repeat(64),key='grammar_practice:1:srs';
@@ -27,13 +28,13 @@ function env(state,options={}){
   fetch:async(url,init)=>{calls.push({url,init,body:JSON.parse(init.body)});return options.fetch?options.fetch():response;},
   clearSessionState:()=>stored.delete(key),saveSessionState:()=>{context.saved=true;},
  };
- vm.createContext(context);vm.runInContext(validator+'\n'+restore,context);
+ vm.createContext(context);vm.runInContext(sessionHelper+'\n'+validator+'\n'+restore,context);
  return {context,stored,calls,shown,nodes,node,events,timers,actor:value=>actor=value,restore:()=>context.restoreSession(),init:()=>context.initializePractice()};
 }
 test('mixed reload hydrates the old ordered queue even when the fresh GET is empty or disjoint',async()=>{
  for(const fresh of [[],[exercise(99)]]){
   const state=snapshot(),p=env(state,{fresh});assert.equal(await p.restore(),true);
-  assert.deepEqual(clean(p.context.exercises).map(ex=>ex.id),[17,18]);assert.equal(p.context.sessionId,'saved-session');
+  assert.deepEqual(clean(p.context.exercises).map(ex=>ex.id),[17,18]);assert.equal(p.context.currentPracticeSessionId(),'saved-session');
   assert.equal(p.context.exercises[0].submission_id,state.exercises[0].submission_id);
   assert.deepEqual(clean(p.context.sessionRevisions),state.revisions);
   assert.deepEqual(p.shown,[0]);assert.equal(p.calls.length,1);

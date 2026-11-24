@@ -119,7 +119,7 @@
         </noscript>
         <p id="practice-resume-status" role="status" aria-live="polite" hidden></p>
         <button type="button" class="practice-btn practice-btn--secondary" id="practice-resume-retry" hidden>Повторить восстановление</button>
-        <button type="button" class="practice-btn practice-btn--primary practice-btn--large" id="start-btn" disabled{% if not session.exercises %} hidden{% endif %}>
+        <button type="button" class="practice-btn practice-btn--primary practice-btn--large" id="start-btn"{% if not session.exercises %} disabled hidden{% endif %}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
