@@ -54,10 +54,13 @@ def native_context(monkeypatch):
     import app.curriculum.models as models
     monkeypatch.setattr(models, 'LessonProgress', Mock(side_effect=lambda **values: SimpleNamespace(**values)))
     session = Mock()
+    session.query.return_value.join.return_value.filter.return_value.first.return_value = None
     monkeypatch.setattr(db, 'session', session)
     writes = []
 
-    def save(uid, target, grade, passing_score):
+    def save(uid, target, grade, passing_score, *, submission_nonce, submission_mistakes):
+        assert len(submission_nonce) == 32
+        assert isinstance(submission_mistakes, list)
         writes.append(deepcopy(grade))
         state.progress = SimpleNamespace(last_activity=datetime.now(UTC),
             status='completed' if grade['score'] >= passing_score else 'in_progress', data=deepcopy(grade))

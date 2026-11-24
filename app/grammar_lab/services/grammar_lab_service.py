@@ -407,7 +407,8 @@ class GrammarLabService:
 
     def submit_answer(self, exercise_id: int, user_id: int, answer: Any,
                       session_id: str = None, source: str = 'topic_practice',
-                      time_spent: int = None, *, claimed_attempt: GrammarAttempt | None = None) -> Dict:
+                      time_spent: int = None, *, claimed_attempt: GrammarAttempt | None = None,
+                      include_attempt_id: bool = False) -> Dict:
         """Grade an answer. An already claimed attempt is committed by its caller."""
         from app.api.native_lessons import NativeLessonError
 
@@ -508,6 +509,9 @@ class GrammarLabService:
         # Check mastery / regression
         self.check_and_update_mastery(exercise.topic_id, user_id)
 
+        if include_attempt_id:
+            db.session.flush()
+            result['attempt_id'] = attempt.id
         if claimed_attempt is None:
             db.session.commit()
 

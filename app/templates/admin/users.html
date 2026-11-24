@@ -215,6 +215,7 @@
           <select id="users-role" class="form-select" name="role">
             <option value="all" {% if role == 'all' %}selected{% endif %}>Все</option>
             <option value="user" {% if role == 'user' %}selected{% endif %}>Пользователи</option>
+            <option value="moderator" {% if role == 'moderator' %}selected{% endif %}>Модераторы контента</option>
             <option value="admin" {% if role == 'admin' %}selected{% endif %}>Админы</option>
           </select>
         </div>
@@ -304,6 +305,7 @@
                 <td>
                   {{ status_badge('Активен' if user.active else 'Отключен', 'success' if user.active else 'danger') }}
                   {% if user.is_admin %}{{ status_badge('Админ', 'info') }}{% endif %}
+                  {% if user.is_moderator %}{{ status_badge('Модератор контента', 'info') }}{% endif %}
                   {% if user.email_opted_out %}
                     {{ status_badge('Email opt-out', 'warning') }}
                   {% elif not user.notify_email_reminders %}

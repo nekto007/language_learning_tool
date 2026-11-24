@@ -50,6 +50,11 @@ AUDIT_LOG_WHITELIST = frozenset({
     # Preview only stores a temporary, admin-bound upload. The separate apply
     # route commits the curriculum changes and the audit entry together.
     'content_packages_admin.index',
+    # The signed review preview has no persistent side effects.
+    'answer_disputes_admin.preview',
+    # editor_decide writes answer_dispute.{action} in the same transaction as
+    # the edit, learner credit and thank-you. The HTTP test verifies it once.
+    'answer_disputes_admin.decide',
     # OAuth consent screen — only redirects to Google, no DB write.
     'seo_admin.gsc_connect',
     # GET-style listing helpers historically registered with POST so a download

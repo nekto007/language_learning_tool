@@ -729,7 +729,9 @@ def _handle_invite(chat_id: int, telegram_id: int) -> None:
 # ── Main dispatcher ─────────────────────────────────────────────────
 
 def _handle_answer_dispute(callback: dict) -> None:
-    from app.curriculum.answer_review import decide
+    """Old Telegram buttons now lead to the same authenticated editor as new cards."""
+    from app.curriculum.answer_disputes import AnswerDispute
+    from app.curriculum.answer_review import dispute_admin_url
 
     parts = callback['data'].split(':')
     if len(parts) != 4 or not (parts[1].isascii() and parts[1].isdigit() and len(parts[1]) <= 10):
@@ -737,11 +739,21 @@ def _handle_answer_dispute(callback: dict) -> None:
     sender = callback.get('from', {}).get('id')
     chat = callback.get('message', {}).get('chat', {}).get('id')
     try:
-        message = decide(int(parts[1]), parts[2], parts[3], sender, chat)
+        if type(sender) is not int or sender != chat or not TelegramUser.active_admin_links().filter(
+            TelegramUser.telegram_id == sender,
+        ).first():
+            message = 'Решение доступно администратору'
+        elif db.session.get(AnswerDispute, int(parts[1])) is None:
+            message = 'Спор больше не доступен'
+        else:
+            case_id = int(parts[1])
+            link = {'inline_keyboard': [[{'text': 'Открыть спор в админке', 'url': dispute_admin_url(case_id)}]]}
+            sent = send_message(chat, f'Спор №{case_id}. Выберите решение в админке.', parse_mode=None, reply_markup=link)
+            message = 'Отправлена ссылка на спор' if sent else 'Не удалось отправить ссылку. Нажмите ещё раз.'
     except SQLAlchemyError:
         db.session.rollback()
         logger.error('Failed to save answer dispute decision for case %s', parts[1])
-        message = 'Не удалось сохранить решение. Нажмите ещё раз.'
+        message = 'Не удалось открыть спор. Нажмите ещё раз.'
     _answer_callback(callback['id'], message)
 
 

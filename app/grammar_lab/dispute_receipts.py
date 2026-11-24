@@ -75,13 +75,18 @@ def _signer() -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt="grammar-lab-dispute-v1")
 
 
-def issue_rejection_receipt(user_id: int, exercise_id: int, revision: str, answer: object) -> str:
+def issue_rejection_receipt(
+    user_id: int, exercise_id: int, revision: str, answer: object, *, attempt_id: int | None = None,
+) -> str:
     from app.grammar_lab.answer_review import LAB_GRADER_VERSION
 
-    return _signer().dumps({
+    claims = {
         "user": user_id, "exercise": exercise_id, "revision": revision,
         "grader": LAB_GRADER_VERSION, "answer_digest": _hash(answer),
-    })
+    }
+    if attempt_id is not None:
+        claims["attempt"] = attempt_id
+    return _signer().dumps(claims)
 
 
 def read_rejection_receipt(token: str, user_id: int, exercise_id: int) -> dict:
@@ -97,9 +102,9 @@ def read_rejection_receipt(token: str, user_id: int, exercise_id: int) -> dict:
 
 
 def verify_rejected_answer(claims: dict, exercise: "GrammarExercise", answer: object) -> object:
-    from app.grammar_lab.answer_review import LAB_GRADER_VERSION, lab_revision
+    from app.grammar_lab.answer_review import LAB_GRADER_VERSION
 
-    if claims.get("grader") != LAB_GRADER_VERSION or claims.get("revision") != lab_revision(exercise):
+    if claims.get("grader") != LAB_GRADER_VERSION or not isinstance(claims.get("revision"), str):
         raise NativeLessonError("lesson_changed", 409)
     normalized = normalized_lab_answer(exercise, answer)
     if normalized is None or claims.get("answer_digest") != _hash(answer):

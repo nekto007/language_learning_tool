@@ -397,6 +397,7 @@ class LessonAttempt(db.Model):
     lesson_id = Column(Integer, ForeignKey('lessons.id', ondelete='CASCADE'), nullable=False)
     lesson_progress_id = Column(Integer, ForeignKey('lesson_progress.id', ondelete='CASCADE'))
 
+    submission_nonce = Column(String(32))  # Server-issued independent course session.
     attempt_number = Column(Integer, nullable=False)  # 1, 2, 3, etc.
     started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     completed_at = Column(DateTime)

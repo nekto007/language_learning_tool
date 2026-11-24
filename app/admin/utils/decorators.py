@@ -31,6 +31,7 @@ from app.utils.db import db
 
 logger = logging.getLogger(__name__)
 audit_logger = logging.getLogger('audit.admin')
+_ACCESS_DENIED = 'У вас нет прав для доступа к этой странице.'  # noqa: RUF001
 
 # Methods that cannot mutate state, per RFC 9110. A view reached by one of
 # these did not change anything, so it gets no audit row.
@@ -52,7 +53,7 @@ def admin_required(view_func: Callable[..., Any]) -> Callable[..., Any]:
                     'Unauthorized admin access attempt: user_id=%s, username=%s, path=%s, ip=%s',
                     current_user.id, current_user.username, request.path, request.remote_addr,
                 )
-            flash('У вас нет прав для доступа к этой странице.', 'danger')
+            flash(_ACCESS_DENIED, 'danger')
             return redirect(url_for('auth.login'))
 
         if request.method in ('POST', 'PUT', 'DELETE', 'PATCH'):
@@ -61,6 +62,18 @@ def admin_required(view_func: Callable[..., Any]) -> Callable[..., Any]:
                 request.method, request.path, current_user.id,
                 current_user.username, request.remote_addr,
             )
+        return view_func(*args, **kwargs)
+
+    return login_required(wrapped_view)
+
+
+def content_editor_required(view_func: Callable[..., Any]) -> Callable[..., Any]:
+    """Limit a content-specific view to an active administrator or moderator."""
+    @wraps(view_func)
+    def wrapped_view(*args: Any, **kwargs: Any) -> Any:
+        if not current_user.can_edit_content:
+            flash(_ACCESS_DENIED, 'danger')
+            return redirect(url_for('auth.login'))
         return view_func(*args, **kwargs)
 
     return login_required(wrapped_view)

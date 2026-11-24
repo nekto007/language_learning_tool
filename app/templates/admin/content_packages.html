@@ -2,7 +2,7 @@
 {% from 'admin/components.html' import page_header, breadcrumb %}
 {% block title %}Пакеты контента{% endblock %}
 {% block breadcrumb %}
-{{ breadcrumb([('Админка', url_for('dashboard_admin.dashboard')), ('Пакеты контента', '')]) }}
+{{ breadcrumb([('Админка', url_for('dashboard_admin.dashboard' if current_user.is_admin else 'answer_disputes_admin.index')), ('Пакеты контента', '')]) }}
 {% endblock %}
 {% block content %}
 {{ page_header('Пакеты контента', 'Обновите модули курса или отдельные итоговые тесты из ZIP.') }}
@@ -37,6 +37,7 @@
         <button type="submit" class="btn btn-outline-primary">Проверить архив</button>
     </div>
 </form>
+{% if current_user.is_admin %}
 <section aria-labelledby="other-imports">
     <h2 class="h5" id="other-imports">Другие форматы</h2>
     <ul>
@@ -46,4 +47,5 @@
         <li><a href="{{ url_for('book_admin.add_book') }}">Загрузить книгу</a></li>
     </ul>
 </section>
+{% endif %}
 {% endblock %}

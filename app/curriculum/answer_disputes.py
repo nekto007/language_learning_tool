@@ -58,15 +58,66 @@ class AnswerDispute(db.Model):
     next_attempt_at = db.Column(db.DateTime, nullable=True)
 
 
+class AnswerDisputeReport(db.Model):
+    """Each authenticated reporter of a shared content error."""
+
+    __tablename__ = "answer_dispute_reports"
+    __table_args__ = (
+        db.UniqueConstraint("dispute_id", "user_id", name="uq_answer_dispute_report_user"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    dispute_id = db.Column(db.Integer, db.ForeignKey("answer_disputes.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    grammar_attempt_id = db.Column(db.Integer, db.ForeignKey("grammar_attempts.id", ondelete="SET NULL"))
+    course_nonce = db.Column(db.String(32))
+    course_correction_id = db.Column(db.String(32))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
+    credited_at = db.Column(db.DateTime(timezone=True))
+    thanked_at = db.Column(db.DateTime(timezone=True))
+
+
 def _hash(value: object) -> str:
     encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("ascii")
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _insert_once(session: Session, identity: tuple[str, ...], values: dict) -> None:
+def _record_report(
+    session: Session, identity: tuple[str, ...], values: dict, *, user_id: int | None,
+    course_nonce: str | None = None, course_correction_id: str | None = None, grammar_attempt_id: int | None = None,
+) -> set[int]:
     dialect = session.get_bind().dialect.name
     insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[dialect]
     session.execute(insert(AnswerDispute).values(**values).on_conflict_do_nothing(index_elements=identity))
+    if user_id is None:
+        return set()
+    # The approval handler also locks the case before reading its reporters.
+    # A report racing approval is either included there or settled here.
+    case = (session.query(AnswerDispute).filter_by(**{field: values[field] for field in identity})
+            .populate_existing().with_for_update().one())
+    return _attribute_report(session, case, user_id, course_nonce=course_nonce,
+                             course_correction_id=course_correction_id, grammar_attempt_id=grammar_attempt_id)
+
+
+def _attribute_report(
+    session: Session, case: AnswerDispute, user_id: int, *,
+    course_nonce: str | None = None, course_correction_id: str | None = None, grammar_attempt_id: int | None = None,
+) -> set[int]:
+    report = session.query(AnswerDisputeReport).filter_by(dispute_id=case.id, user_id=user_id).one_or_none()
+    if report is None:
+        report = AnswerDisputeReport(dispute_id=case.id, user_id=user_id)
+        session.add(report)
+    if report.course_nonce is None and course_nonce is not None:
+        report.course_nonce = course_nonce
+        report.course_correction_id = course_correction_id
+    if report.grammar_attempt_id is None and grammar_attempt_id is not None:
+        report.grammar_attempt_id = grammar_attempt_id
+    if case.status == "applied":
+        from app.curriculum.dispute_credit import credit_approved_reports
+
+        session.flush()
+        return credit_approved_reports(case)
+    return set()
 
 
 def _source_rows_field(lesson: "Lessons", content: dict) -> str:
@@ -118,9 +169,8 @@ def current_dispute_row(dispute: AnswerDispute, lesson: "Lessons") -> dict | Non
     return row if dispute.question_revision == _question_revision(lesson, row, context) else None
 
 
-def record_rejected_answer(session: Session, lesson: "Lessons", question: dict, answer: str) -> None:
-    """Insert a graded rejection once, retaining the first evidence and review."""
-    row, context = _question_evidence(lesson, question)
+def course_answer_hash(question: dict, answer: str) -> str:
+    """Fingerprint the graded representation used in the shared case and attempt."""
     form = question.get("input")
     if form in ("order", "match"):
         normalized = json.loads(answer)
@@ -128,18 +178,28 @@ def record_rejected_answer(session: Session, lesson: "Lessons", question: dict, 
         normalized = answer
     else:
         normalized = normalize_quiz_answer(answer)
-    _insert_once(session, DISPUTE_IDENTITY, {
+    return _hash(normalized)
+
+
+def record_rejected_answer(
+    session: Session, lesson: "Lessons", question: dict, answer: str, *,
+    user_id: int | None = None, course_nonce: str | None = None, course_correction_id: str | None = None,
+) -> set[int]:
+    """Insert a graded rejection once, retaining the first evidence and review."""
+    row, context = _question_evidence(lesson, question)
+    return _record_report(session, DISPUTE_IDENTITY, {
         "lesson_id": lesson.id,
         "question_id": question["id"],
         "question_revision": _question_revision(lesson, row, context),
         "grader_version": GRADER_VERSION,
-        "normalized_answer_hash": _hash(normalized),
+        "normalized_answer_hash": course_answer_hash(question, answer),
         "evidence": {"row": row, "answer": answer, "question": context},
-    })
+    }, user_id=user_id, course_nonce=course_nonce, course_correction_id=course_correction_id)
 
 
 def record_lab_rejected_answer(
-    session: Session, exercise: "GrammarExercise", answer: object, normalized: object,
+    session: Session, exercise: "GrammarExercise", answer: object, normalized: object, *,
+    user_id: int | None = None, grammar_attempt_id: int | None = None,
 ) -> None:
     from app.api.native_lessons import plain
     from app.grammar_lab.answer_review import LAB_GRADER_VERSION, effective_content, lab_revision
@@ -150,14 +210,37 @@ def record_lab_rejected_answer(
                         or row.get("original") or row.get("prompt")),
         "instruction": plain(row.get("instruction")),
     }
-    _insert_once(session, LAB_DISPUTE_IDENTITY, {
+    _record_report(session, LAB_DISPUTE_IDENTITY, {
         "grammar_exercise_id": exercise.id,
         "question_id": "0",
         "question_revision": lab_revision(exercise),
         "grader_version": LAB_GRADER_VERSION,
         "normalized_answer_hash": _hash(normalized),
         "evidence": {"row": row, "answer": answer, "question": question},
-    })
+    }, user_id=user_id, grammar_attempt_id=grammar_attempt_id)
+
+
+def attach_approved_lab_report(
+    session: Session, exercise: "GrammarExercise", claims: dict, answer: object, normalized: object,
+) -> None:
+    """Accept a verified older rejection only for its exact, still-active approved edit."""
+    from app.api.native_lessons import NativeLessonError
+    from app.grammar_lab.answer_review import effective_content, grade_row, lab_revision
+    from app.grammar_lab.models import GrammarExercise
+
+    case = (session.query(AnswerDispute).filter_by(
+        grammar_exercise_id=exercise.id, question_revision=claims["revision"], grader_version=claims["grader"],
+        normalized_answer_hash=_hash(normalized), status="applied",
+    ).populate_existing().with_for_update().one_or_none())
+    if case is None or claims.get("attempt") is None:
+        raise NativeLessonError("lesson_changed", 409)
+    current = (session.query(GrammarExercise).filter_by(id=exercise.id)
+               .populate_existing().with_for_update(read=True).one_or_none())
+    if (current is None or current.content.get("guided_retired")
+            or (case.review or {}).get("updated_revision") != lab_revision(current)
+            or grade_row(current, effective_content(current), answer).get("is_correct") is not True):
+        raise NativeLessonError("lesson_changed", 409)
+    _attribute_report(session, case, claims["user"], grammar_attempt_id=claims["attempt"])
 
 
 def preserve_approved_answers(session: Session, lesson: "Lessons") -> None:
@@ -179,9 +262,12 @@ def preserve_approved_answers(session: Session, lesson: "Lessons") -> None:
     changes_by_revision = defaultdict(set)
     for dispute in disputes:
         review = dispute.review
-        answer = dispute.evidence.get("answer") if isinstance(dispute.evidence, dict) else None
-        if (not isinstance(review, dict) or type(review.get("decided_by")) is not int
-                or review["decided_by"] <= 0 or review.get("label") not in ("valid_variant", "wrong_key")
+        if not isinstance(review, dict):
+            continue
+        evidence = dispute.evidence if isinstance(dispute.evidence, dict) else {}
+        answer = review.get("editor_answer", evidence.get("answer"))
+        actor = review.get("decided_by_user_id", review.get("decided_by"))
+        if (type(actor) is not int or actor <= 0 or review.get("label") not in ("valid_variant", "wrong_key")
                 or not isinstance(review.get("patch"), dict) or not review["patch"]
                 or not isinstance(answer, str)):
             continue

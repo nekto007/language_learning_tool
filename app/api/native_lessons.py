@@ -153,7 +153,7 @@ def _theory(content):
 def _lesson_and_progress(lesson_id):
     from app.curriculum.models import Lessons, LessonProgress
     from app.curriculum.security import check_lesson_access
-    lesson = Lessons.query.get(lesson_id)
+    lesson = Lessons.query.populate_existing().get(lesson_id)
     if lesson is None:
         raise NativeLessonError('not_found', 404)
     if not check_lesson_access(lesson_id):
@@ -282,13 +282,13 @@ def check_native_learning_answer(lesson_id):
 
 
 def course_answer_check(lesson_id):
-    _, _, _, feedback = checked_course_answer(lesson_id)
+    _, _, _, feedback, _ = checked_course_answer(lesson_id)
     return jsonify(success=True, feedback=feedback)
 
 
 def checked_course_answer(
     lesson_id: int, *, lesson_types: frozenset[str] | None = None,
-) -> tuple['Lessons', dict, str, dict]:
+) -> tuple['Lessons', dict, str, dict, dict]:
     """Check a session-bound answer without writing attempts or progress."""
     from app.api.native_content import NATIVE_PROJECTION_VERSION, rows_for
 
@@ -306,8 +306,10 @@ def checked_course_answer(
     lesson, progress = _lesson_and_progress(lesson_id)
     _guard_plan(lesson_id)
     content = _content(lesson)
+    from app.curriculum.dispute_credit import course_revision_matches
+
     if (not _session_type_matches(sealed, lesson)
-            or sealed.get('revision') != _digest(content) or sealed.get('version') != _version(progress)
+            or not course_revision_matches(sealed, lesson, _digest(content)) or sealed.get('version') != _version(progress)
             or sealed.get('projection_version') != NATIVE_PROJECTION_VERSION):
         raise NativeLessonError('lesson_changed', 409)
     if lesson_types is not None and lesson.type not in lesson_types:
@@ -335,7 +337,7 @@ def checked_course_answer(
     if correction:
         from app.api.quiz_corrections import correction_help
         feedback['correction_help'] = correction_help(row, question, body['answer'], feedback, level)
-    return lesson, question, body['answer'], feedback
+    return lesson, question, body['answer'], feedback, sealed
 
 
 def _display_answer(question, value):
@@ -415,9 +417,13 @@ def course_submission(lesson_id):
             raise NativeLessonError('lesson_changed', 409)
         if sealed.get('projection_version') != NATIVE_PROJECTION_VERSION:
             raise NativeLessonError('lesson_changed', 409)
+        from app.curriculum.dispute_credit import course_revision_matches, submitted_mistakes
+
+        revision = _digest(_content(lesson))
         if (not _session_type_matches(sealed, lesson)
-                or sealed.get('revision') != _digest(_content(lesson)) or sealed.get('version') != _version(progress)):
+                or not course_revision_matches(sealed, lesson, revision) or sealed.get('version') != _version(progress)):
             raise NativeLessonError('lesson_changed', 409)
+        sealed['revision'] = revision
         if plan_error is not None:
             raise plan_error
         questions = project_questions(lesson)
@@ -442,7 +448,7 @@ def course_submission(lesson_id):
         if is_extended(lesson) or sealed.get('quiz_flow') == FLOW:
             passing = get_lesson_passing_score(lesson)
             grade, feedback, assessment, completed = grade_extended(lesson, questions, answers, passing)
-            return jsonify(persist_extended(lesson, progress, grade, feedback, assessment, completed, sealed, passing, answers=answers))
+            return jsonify(persist_extended(lesson, progress, grade, feedback, assessment, completed, sealed, passing, answers=answers, questions=questions))
         content = _content(lesson)
         rows = content.get('exercises' if lesson.type == 'grammar' else 'questions', [])
         if not questions:
@@ -471,7 +477,10 @@ def course_submission(lesson_id):
                         'passed': grade['score'] >= passing, 'correct_count': grade['correct_answers'],
                         'total_count': grade['total_questions'], 'feedback': feedback}
             grade['_native_submission'] = {'nonce': sealed['nonce'], 'response': response}
-            ProgressService.update_progress_with_grading(current_user.id, lesson, grade, passing_score=passing)
+            ProgressService.update_progress_with_grading(
+                current_user.id, lesson, grade, passing_score=passing, submission_nonce=sealed['nonce'],
+                submission_mistakes=submitted_mistakes(questions, feedback, answers),
+            )
         return jsonify(response)
     except NativeLessonError:
         db.session.rollback()

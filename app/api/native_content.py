@@ -1052,7 +1052,7 @@ def _writing_requirements(lesson, c, value):
     }
 
 
-def persist(lesson, progress, grade, feedback, assessment, completed, sealed, passing, answers=None):
+def persist(lesson, progress, grade, feedback, assessment, completed, sealed, passing, answers=None, questions=None):
     """Commit progress, attempt, diagnostics and repeat receipt atomically."""
     from datetime import datetime, UTC
     from flask_login import current_user
@@ -1167,9 +1167,15 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
         attempt.total_questions = grade.get(
             "total_questions", grade.get("total_items", len(feedback))
         )
-        attempt.mistakes = [
-            {"question": f["prompt"], "answer": f["answer"]} for f in feedback if not f["correct"]
-        ]
+        if lesson.type in ("quiz", "grammar") and questions is not None:
+            from app.curriculum.dispute_credit import submitted_mistakes
+
+            attempt.submission_nonce = sealed["nonce"]
+            attempt.mistakes = submitted_mistakes(questions, feedback, answers)
+        else:
+            attempt.mistakes = [
+                {"question": f["prompt"], "answer": f["answer"]} for f in feedback if not f["correct"]
+            ]
     if telemetry.get("writing_text"):
         grammar_check = None
         if lesson.type == "writing_prompt":

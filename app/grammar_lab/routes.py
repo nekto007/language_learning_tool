@@ -365,11 +365,15 @@ def api_submit_answer(exercise_id: int) -> Response | tuple[Response, int]:
         answer=answer,
         session_id=data.get('session_id'),
         source=data.get('source', 'topic_practice'),
-        time_spent=data.get('time_spent')
+        time_spent=data.get('time_spent'),
+        include_attempt_id=True,
     )
 
+    attempt_id = result.pop('attempt_id', None)
     if disputable and result.get('is_correct') is False and not result.get('error'):
-        result['dispute_token'] = issue_rejection_receipt(current_user.id, exercise_id, revision, answer)
+        result['dispute_token'] = issue_rejection_receipt(
+            current_user.id, exercise_id, revision, answer, attempt_id=attempt_id,
+        )
     response = jsonify(result)
     if 'dispute_token' in result:
         response.headers['Cache-Control'] = 'private, no-store'
@@ -381,8 +385,10 @@ def api_submit_answer(exercise_id: int) -> Response | tuple[Response, int]:
 @limiter.limit('10 per minute', key_func=get_authenticated_user_key)
 def api_answer_dispute(exercise_id: int) -> Response:
     from app.api.native_lessons import NativeLessonError, native_error
-    from app.curriculum.answer_disputes import record_lab_rejected_answer
+    from app.curriculum.answer_disputes import attach_approved_lab_report, record_lab_rejected_answer
+    from app.grammar_lab.answer_review import lab_revision
     from app.grammar_lab.dispute_receipts import read_rejection_receipt, verify_rejected_answer
+    from app.grammar_lab.models import GrammarAttempt
 
     try:
         data = request.get_json(silent=True)
@@ -396,7 +402,16 @@ def api_answer_dispute(exercise_id: int) -> Response:
             raise NativeLessonError('lesson_changed', 409)
         answer = data['answer']
         normalized = verify_rejected_answer(claims, exercise, answer)
-        record_lab_rejected_answer(db.session, exercise, answer, normalized)
+        attempt_id = claims.get('attempt')
+        if attempt_id is not None and (type(attempt_id) is not int or not GrammarAttempt.query.filter_by(
+            id=attempt_id, exercise_id=exercise_id, user_id=current_user.id,
+        ).with_entities(GrammarAttempt.id).first()):
+            raise NativeLessonError('dispute_receipt_invalid', 409)
+        if claims["revision"] != lab_revision(exercise):
+            attach_approved_lab_report(db.session, exercise, claims, answer, normalized)
+        else:
+            record_lab_rejected_answer(db.session, exercise, answer, normalized,
+                                       user_id=current_user.id, grammar_attempt_id=attempt_id)
         db.session.commit()
         response = jsonify(success=True)
     except NativeLessonError as error:

@@ -196,11 +196,12 @@ class GrammarExerciseGrader:
 
         # Answer can be either a string or a list of indices
         if isinstance(answer, list):
-            # Convert indices to sentence
             words = content.get('words', [])
-            try:
+            if (isinstance(words, list) and len(answer) == len(words)
+                    and all(type(index) is int for index in answer)
+                    and set(answer) == set(range(len(words)))):
                 user_sentence = ' '.join(words[i] for i in answer)
-            except (IndexError, TypeError):
+            else:
                 user_sentence = ''
         else:
             user_sentence = answer

@@ -298,6 +298,8 @@ class ProgressService:
             result: Dict,
             passing_score: int = PASSING_SCORE_DEFAULT,
             xp_score: object = _XP_SCORE_FROM_RESULT,
+            submission_nonce: str | None = None,
+            submission_mistakes: list[dict] | None = None,
     ) -> tuple['LessonProgress', Optional[Dict]]:
         """
         Update lesson progress with score grading and achievements
@@ -381,7 +383,8 @@ class ProgressService:
                 progress.completed_at = now
             db.session.add(progress)
 
-        if atomic_final:
+        atomic_attempt = atomic_final or submission_nonce is not None
+        if atomic_attempt:
             # Retain the caller's account lock until the attempt is durable.
             # The rolling final cap counts LessonAttempt, not progress rows.
             db.session.flush()
@@ -427,11 +430,14 @@ class ProgressService:
                 # *_questions. Preserve actual counts for both result contracts.
                 attempt.correct_answers = result.get('correct_answers', result.get('correct_items', 0))
                 attempt.total_questions = result.get('total_questions', result.get('total_items', 0))
-                if isinstance(result.get('mistakes'), list):
+                if submission_nonce is not None:
+                    attempt.submission_nonce = submission_nonce
+                    attempt.mistakes = submission_mistakes or []
+                elif isinstance(result.get('mistakes'), list):
                     attempt.mistakes = result['mistakes']
                 db.session.commit()
             except Exception:
-                if atomic_final:
+                if atomic_attempt:
                     db.session.rollback()
                     raise
                 logger.warning(
@@ -440,7 +446,7 @@ class ProgressService:
                 )
                 db.session.rollback()
 
-        if atomic_final:
+        if atomic_attempt:
             _invalidate_user_progress_cache(user_id)
 
         # Process grading and achievements if lesson completed

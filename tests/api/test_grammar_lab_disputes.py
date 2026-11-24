@@ -12,7 +12,7 @@ from werkzeug.test import TestResponse
 
 from app.achievements.models import UserStatistics
 from app.auth.models import User
-from app.curriculum.answer_disputes import AnswerDispute
+from app.curriculum.answer_disputes import AnswerDispute, AnswerDisputeReport
 from app.grammar_lab.models import GrammarAttempt, GrammarExercise, GrammarTopic, UserGrammarExercise
 from app.utils.db import db
 from tests.api.test_native_full_integration import learner
@@ -81,7 +81,9 @@ def test_rejection_receipt_is_bound_to_exact_answer_exercise_and_owner(native_ap
     token = submit(client, headers, item, "is")["dispute_token"]
     original_state = state(user, item)
     claims = read_rejection_receipt(token, user.id, item.id)
-    assert set(claims) == {"user", "exercise", "revision", "grader", "answer_digest"}
+    assert set(claims) == {"user", "exercise", "revision", "grader", "answer_digest", "attempt"}
+    assert claims["attempt"] == GrammarAttempt.query.filter_by(user_id=user.id, exercise_id=item.id,
+                                                               user_answer="is").one().id
     assert dispute(client, {}, item, token, "is").status_code == 400
     assert dispute(client, headers, item, token + "tampered", "is").status_code == 409
     assert dispute(client, headers, item, token, "IS!").status_code == 400
@@ -102,6 +104,8 @@ def test_rejection_receipt_is_bound_to_exact_answer_exercise_and_owner(native_ap
     assert state(user, item) == original_state
 
     saved = AnswerDispute.query.filter_by(grammar_exercise_id=item.id).one()
+    report = AnswerDisputeReport.query.filter_by(dispute_id=saved.id).one()
+    assert report.user_id == user.id and report.grammar_attempt_id == claims["attempt"]
     assert saved.lesson_id is None
     assert saved.evidence == {"row": row, "answer": "is", "question": {
         "prompt": "I ___ here.", "instruction": "Fill the gap.",
@@ -114,6 +118,30 @@ def test_rejection_receipt_is_bound_to_exact_answer_exercise_and_owner(native_ap
     second_token = submit(second, second_headers, item, "IS!")["dispute_token"]
     assert dispute(second, second_headers, item, second_token, "IS!").json == {"success": True}
     assert AnswerDispute.query.filter_by(grammar_exercise_id=item.id).one().evidence["answer"] == "is"
+    reports = AnswerDisputeReport.query.filter_by(dispute_id=saved.id).all()
+    assert len(reports) == 2
+    assert {r.user_id for r in reports} == {user.id, another.id}
+    assert len({r.grammar_attempt_id for r in reports}) == 2
+
+
+def test_legacy_receipt_never_guesses_the_attempt(native_app: Flask) -> None:  # noqa: F811
+    from app.grammar_lab.answer_review import lab_revision
+    from app.grammar_lab.dispute_receipts import issue_rejection_receipt
+
+    user, _ = learner(native_app)
+    client, headers = browser(native_app, user)
+    item = exercise("fill_blank", {"question": "I ___ here.", "correct_answer": "am"})
+    old_token = issue_rejection_receipt(user.id, item.id, lab_revision(item), "is")
+    # Even two indistinguishable wrong answers cannot identify an older signed receipt's attempt.
+    submit(client, headers, item, "is")
+    fresh_token = submit(client, headers, item, "is")["dispute_token"]
+    assert dispute(client, headers, item, old_token, "is").json == {"success": True}
+    report = AnswerDisputeReport.query.filter_by(user_id=user.id).one()
+    assert report.grammar_attempt_id is None
+    assert dispute(client, headers, item, fresh_token, "is").json == {"success": True}
+    attempts = GrammarAttempt.query.filter_by(user_id=user.id, exercise_id=item.id).order_by(GrammarAttempt.id).all()
+    assert len(attempts) == 2
+    assert report.grammar_attempt_id == attempts[1].id
 
 
 def test_typed_matching_rejection_keeps_original_json(native_app: Flask) -> None:  # noqa: F811
@@ -173,3 +201,41 @@ def test_content_override_changes_receipt_revision_and_evidence(native_app: Flas
     saved = AnswerDispute.query.filter_by(grammar_exercise_id=item.id).one()
     assert saved.evidence["row"]["correct_answer"] == "am"
     assert saved.evidence["answer"] == "is"
+
+
+def test_verified_report_after_the_same_edit_credits_once(native_app: Flask) -> None:  # noqa: F811
+    from app.grammar_lab.answer_review import apply_lab_patch, lab_revision
+    from app.grammar_lab.dispute_receipts import issue_rejection_receipt
+    from app.notifications.models import Notification
+
+    first, _ = learner(native_app)
+    client, headers = browser(native_app, first)
+    item = exercise("translation", {"sentence": "Пешком.", "correct_answer": "On foot."})
+    old_revision = lab_revision(item)
+    answer = "Walking."
+    token = submit(client, headers, item, answer)["dispute_token"]
+    assert dispute(client, headers, item, token, answer).status_code == 200
+    second, _ = learner(native_app)
+    second_client, second_headers = browser(native_app, second)
+    second_token = submit(second_client, second_headers, item, answer)["dispute_token"]
+    case = AnswerDispute.query.filter_by(grammar_exercise_id=item.id).one()
+    patch = {"alternatives": [answer]}
+    apply_lab_patch(item, patch)
+    case.status = "applied"
+    case.review = {"patch": patch, "updated_revision": lab_revision(item)}
+    db.session.commit()
+
+    unbound = issue_rejection_receipt(second.id, item.id, old_revision, answer)
+    assert dispute(second_client, second_headers, item, unbound, answer).status_code == 409
+    assert dispute(second_client, second_headers, item, second_token, "Running.").status_code == 400
+    assert not AnswerDisputeReport.query.filter_by(dispute_id=case.id, user_id=second.id).count()
+    for _ in range(2):
+        assert dispute(second_client, second_headers, item, second_token, answer).json == {"success": True}
+    report = AnswerDisputeReport.query.filter_by(dispute_id=case.id, user_id=second.id).one()
+    attempt = GrammarAttempt.query.filter_by(id=report.grammar_attempt_id).one()
+    assert attempt.user_id == second.id and attempt.is_correct
+    assert Notification.query.filter_by(user_id=second.id, type="answer_review").count() == 1
+    assert AnswerDispute.query.filter_by(grammar_exercise_id=item.id).count() == 1
+    item.content = {**item.content, "instruction": "Edited by a teacher"}
+    db.session.commit()
+    assert dispute(second_client, second_headers, item, second_token, answer).status_code == 409

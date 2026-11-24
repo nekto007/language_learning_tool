@@ -9,7 +9,7 @@ import io
 import logging
 from datetime import UTC, date, datetime, timedelta
 
-from flask import Blueprint, Response, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from sqlalchemy import asc, desc, func
 
@@ -63,8 +63,10 @@ def users():
 
     if role == 'admin':
         query = query.filter(User.is_admin.is_(True))
+    elif role == 'moderator':
+        query = query.filter(User.is_moderator.is_(True))
     elif role == 'user':
-        query = query.filter(User.is_admin.is_(False))
+        query = query.filter(User.is_admin.is_(False), User.is_moderator.is_(False))
 
     if email_state == 'ready':
         query = query.filter(
@@ -207,6 +209,32 @@ def toggle_admin_status(user_id):
         flash(message, 'danger')
 
     return redirect(url_for('user_admin.users'))
+
+
+@user_bp.post('/users/<int:user_id>/moderator')
+@admin_required
+def set_moderator_role(user_id: int) -> Response:
+    values = request.form.getlist('is_moderator')
+    if values not in (['0'], ['1']):
+        abort(400)
+    # A concurrent revocation is ordered with the grant. Lock in ID order
+    # because another administrator can simultaneously edit these accounts.
+    accounts = {user.id: user for user in User.query.filter(User.id.in_((current_user.id, user_id)))
+                .order_by(User.id).populate_existing().with_for_update().all()}
+    actor = accounts.get(current_user.id)
+    if actor is None or not actor.active or not actor.is_admin:
+        abort(403)
+    target = accounts.get(user_id)
+    if target is None:
+        abort(404)
+    desired = values == ['1']
+    if target.is_moderator != desired:
+        target.is_moderator = desired
+        log_admin_action(actor.id, 'user.grant_moderator' if desired else 'user.revoke_moderator',
+                         target_type='user', target_id=user_id, required=True)
+        db.session.commit()
+    flash('Права модератора контента сохранены.', 'success')
+    return redirect(url_for('user_admin.user_detail', user_id=user_id), code=303)
 
 
 @user_bp.route('/users/bulk', methods=['POST'])

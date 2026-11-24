@@ -1,0 +1,124 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb %}
+{% block title %}Спор №{{ case.id }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/answer-disputes.css') }}">{% endblock %}
+{% block breadcrumb %}
+{{ breadcrumb(([('Админка', url_for('dashboard_admin.dashboard'))] if can_see_reporters else []) + [('Спорные ответы', url_for('.index')), ('Спор №' ~ case.id, '')]) }}
+{% endblock %}
+{% macro value_text(value) -%}
+{% if value is none or value == '' %}—{% elif value is mapping %}{% for key, item in value.items() %}{{ key }} → {{ item }}{% if not loop.last %}, {% endif %}{% endfor %}{% elif value is sequence and value is not string %}{{ value|join(' · ') }}{% else %}{{ value }}{% endif %}
+{%- endmacro %}
+{% set decisions = {'add': 'Добавить допустимый ответ', 'replace': 'Заменить ключ', 'reject': 'Отклонить', 'revise': 'На доработку'} %}
+{% set labels = {'valid_variant': 'Возможен второй верный ответ', 'wrong_key': 'Возможная ошибка в ключе', 'grader_issue': 'Возможная ошибка проверки', 'learner_error': 'Вероятная ошибка ученика', 'insufficient_context': 'Недостаточно контекста', 'manual': 'Требуется ручной разбор', 'stale': 'Материал изменился'} %}
+{% block content %}
+<div class="disputes">
+    <header class="disputes-detail-head">
+        <div>
+            <div class="disputes-title-line"><h1 class="page-title">Спор №{{ case.id }}</h1>
+                <span class="disputes-status" data-status="{{ case.status }}">{{ case.status_label }}</span></div>
+            {% if case.source_url %}<a href="{{ case.source_url }}">{{ case.source_title }}</a>{% else %}{{ case.source_title }}{% endif %}
+        </div>
+        {% if next_case_id %}<a href="{{ url_for('.detail', case_id=next_case_id) }}">Следующий спор →</a>{% endif %}
+    </header>
+
+    {% if error %}<div class="alert alert-danger" role="alert" tabindex="-1" autofocus>{{ error }}</div>{% endif %}
+    {% if preview and preview_token %}
+    <section class="disputes-panel disputes-preview" aria-labelledby="preview-heading">
+        <h2 id="preview-heading" tabindex="-1" autofocus>Предпросмотр решения</h2>
+        <p class="disputes-preview-action">{{ decisions.get(preview.action, preview.action) }}</p>
+        {% if preview.action in ('add', 'replace') %}
+        <div class="disputes-comparison">
+            <div><h3>{{ 'Ключ сохраняется' if preview.action == 'add' else 'Ключ сейчас' }}</h3><p>{{ value_text(preview.before) }}</p>
+                {% if preview.before_aliases %}<p class="disputes-note">Допустимые варианты — {{ value_text(preview.before_aliases) }}</p>{% endif %}
+            </div>
+            <div><h3>{{ 'Добавится допустимый ответ' if preview.action == 'add' else 'Новый ключ' }}</h3>
+                <p>{{ value_text(preview.answer if preview.action == 'add' else preview.after) }}</p>
+                {% if preview.action == 'replace' and preview.aliases %}<p class="disputes-note">Допустимые варианты — {{ value_text(preview.aliases) }}</p>{% endif %}
+            </div>
+        </div>
+        {% if preview.removed_answers %}
+        <p class="disputes-note" id="preview-removed-answers">Перестанут засчитываться — {{ value_text(preview.removed_answers) }}</p>
+        {% endif %}
+        {% if preview.accepts_report is sameas true %}<p class="disputes-verdict">Проверка засчитает ответ ученика.</p>
+        {% elif preview.accepts_report is sameas false %}<p class="disputes-warning">Проверка по-прежнему отклонит исходный ответ ученика.</p>{% endif %}
+        {% elif preview.action == 'reject' %}<p>Спор будет закрыт. Правило проверки сохранится.</p>
+        {% elif preview.action == 'revise' %}<p>Спор появится в очереди «На доработке». Правило проверки сохранится.</p>{% endif %}
+        <form method="post" action="{{ url_for('.decide', case_id=case.id) }}" class="disputes-actions">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="preview_token" value="{{ preview_token }}">
+            {% if next_case_id %}<button type="submit" class="btn btn-primary" name="next" value="1">Подтвердить и открыть следующий</button>{% endif %}
+            <button type="submit" class="btn {{ 'btn-outline-primary' if next_case_id else 'btn-primary' }}">Подтвердить решение</button>
+            <a href="#decision">Изменить решение</a>
+        </form>
+    </section>
+    {% endif %}
+
+    <section class="disputes-panel" aria-labelledby="exercise-heading">
+        <h2 id="exercise-heading">Задание</h2>
+        {% if case.instruction and case.instruction != case.question %}<p>{{ case.instruction }}</p>{% endif %}
+        {% if case.question %}<p class="disputes-question">{{ case.question }}</p>{% endif %}
+        {% if case.words %}<div class="disputes-tiles" aria-label="Слова задания">
+            {% for word in case.words %}<span>{{ word }}</span>{% endfor %}
+        </div>{% elif case.options %}<p class="disputes-note">Варианты — {{ value_text(case.options) }}</p>{% endif %}
+        <div class="disputes-comparison">
+            <div><h3>Ответ ученика</h3><p>{{ value_text(case.answer) }}</p></div>
+            <div><h3>Ключ при отправке</h3><p>{{ value_text(case.key) }}</p>
+                {% if case.aliases %}<p class="disputes-note">Допустимые варианты — {{ value_text(case.aliases) }}</p>{% endif %}
+            </div>
+        </div>
+        {% if case.ai_reason or case.ai_label %}
+        <div class="disputes-ai"><h3>Разбор ИИ</h3>
+            {% if case.ai_label %}<strong>{{ labels.get(case.ai_label, case.ai_label) }}</strong>{% endif %}
+            {% if case.ai_reason %}<p>{{ case.ai_reason }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% if case.processing_note %}<div class="disputes-ai"><h3>Причина ручного разбора</h3><p>{{ case.processing_note }}</p></div>{% endif %}
+    </section>
+
+    {% if can_see_reporters %}
+    <section class="disputes-panel" aria-labelledby="learners-heading">
+        <h2 id="learners-heading">Кто сообщил{% if case.reporter_count > 1 %} · {{ case.reporter_count }}{% endif %}</h2>
+        {% if reporters %}<ul class="disputes-reporters">
+            {% for who in reporters %}<li><div>{% if who.profile_url %}<a href="{{ who.profile_url }}">{{ who.username or 'Ученик' }} · ID {{ who.user_id }}</a>{% else %}{{ who.username or 'Ученик' }} · ID {{ who.user_id }}{% endif %}</div>
+                {% if who.credited_at or who.thanked_at %}<small>{% if who.credited_at %}Ответ зачтён{% endif %}{% if who.credited_at and who.thanked_at %} · {% endif %}{% if who.thanked_at %}Благодарность отправлена{% endif %}</small>
+                {% elif who.created_at %}<small>Обращение от {{ who.created_at.strftime('%d.%m.%Y · %H:%M') }} UTC</small>{% endif %}
+            </li>{% endfor %}
+        </ul>{% else %}<p>Автор этого обращения не сохранён.</p>{% endif %}
+        {% if reporters_pages > 1 %}
+        <nav class="disputes-pagination" aria-label="Страницы учеников">
+            {% if reporters_page > 1 %}<a href="{{ url_for('.detail', case_id=case.id, reporters_page=reporters_page-1, _anchor='learners-heading') }}">← Назад</a>{% endif %}
+            <span>Страница {{ reporters_page }} из {{ reporters_pages }}</span>
+            {% if reporters_page < reporters_pages %}<a href="{{ url_for('.detail', case_id=case.id, reporters_page=reporters_page+1, _anchor='learners-heading') }}">Дальше →</a>{% endif %}
+        </nav>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    {% if editable %}
+    <form method="post" action="{{ url_for('.preview', case_id=case.id) }}#preview-heading" class="disputes-panel" id="decision">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="version" value="{{ version }}">
+        <fieldset><legend>Решение</legend>
+            <div class="disputes-choices">
+            {% for code, title in decisions.items() %}
+                <label><input type="radio" name="action" value="{{ code }}" required{% if action == code %} checked{% endif %}>
+                    <span>{{ title }}</span></label>
+            {% endfor %}
+            </div>
+        </fieldset>
+        <label for="dispute-answer" class="disputes-label">Вариант ответа для проверки</label>
+        <textarea id="dispute-answer" class="form-control" name="answer" rows="2" maxlength="500" aria-describedby="dispute-answer-help">{{ answer if answer is not none else case.answer }}</textarea>
+        <p id="dispute-answer-help" class="disputes-note">Для добавления варианта или замены ключа можно отредактировать ответ ученика.</p>
+        <button class="btn btn-primary" type="submit">Предпросмотр решения</button>
+    </form>
+    {% endif %}
+    {% if case.decided_at or case.decided_by or case.editor_action %}
+    <section class="disputes-panel" aria-labelledby="history-heading"><h2 id="history-heading">История решения</h2>
+        {% if case.editor_action == 'add' %}<p><strong>Добавлен допустимый ответ</strong> · {{ value_text(case.editor_answer) }}</p>
+        {% elif case.editor_action == 'replace' %}<p><strong>Новый ключ</strong> · {{ value_text(case.resulting_key or case.editor_answer) }}</p>{% endif %}
+        <p>{{ case.status_label }}{% if case.decided_at %} · <time datetime="{{ case.decided_at }}">{{ (case.decided_at|string)[:16]|replace('T', ' ') }} UTC</time>{% endif %}{% if case.decided_by %} · {{ case.decided_by }}{% endif %}</p>
+    </section>
+    {% endif %}
+    <a href="{{ url_for('.index') }}">← К очереди</a>
+</div>
+{% endblock %}

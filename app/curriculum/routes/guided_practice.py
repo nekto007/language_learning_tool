@@ -1,6 +1,7 @@
 """Cookie/CSRF transport for the same course engine used by native clients."""
 
 from functools import wraps
+import re
 from typing import Any
 from flask import jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -171,6 +172,10 @@ def practice_check(lesson_id):
     return course_answer_check(lesson_id)
 
 
+def _signed_attempt_id(value: object) -> str | None:
+    return value if isinstance(value, str) and re.fullmatch(r"[a-f0-9]{32}", value) else None
+
+
 @lessons_bp.post("/api/lesson/<int:lesson_id>/practice/dispute")
 @login_required
 @limiter.limit("10 per minute", key_func=get_authenticated_user_key)
@@ -178,15 +183,22 @@ def practice_check(lesson_id):
 def practice_dispute(lesson_id: int) -> Any:
     from app.api.native_lessons import NativeLessonError, checked_course_answer
     from app.curriculum.answer_disputes import DISPUTABLE_LESSON_TYPES, record_rejected_answer
+    from app.curriculum.services.progress_service import _invalidate_user_progress_cache
     from app.utils.db import db
 
-    lesson, question, answer, feedback = checked_course_answer(
+    lesson, question, answer, feedback, sealed = checked_course_answer(
         lesson_id, lesson_types=DISPUTABLE_LESSON_TYPES,
     )
     if feedback["correct"] is not False:
         raise NativeLessonError("answer_not_rejected")
-    record_rejected_answer(db.session, lesson, question, answer)
+    correction = sealed.get("correction_attempt") if sealed.get("quiz_phase") == "correction" else None
+    updated_learners = record_rejected_answer(
+        db.session, lesson, question, answer, user_id=current_user.id,
+        course_nonce=_signed_attempt_id(sealed.get("nonce")), course_correction_id=_signed_attempt_id(correction),
+    )
     db.session.commit()
+    for user_id in updated_learners:
+        _invalidate_user_progress_cache(user_id)
     return jsonify(success=True)
 
 

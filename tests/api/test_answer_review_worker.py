@@ -11,6 +11,7 @@ from app.auth.models import User
 from app.curriculum import answer_review as worker
 from app.curriculum import answer_review_ai as ai
 from app.curriculum.answer_disputes import AnswerDispute
+from app.curriculum.answer_review_editor import editor_decide, editor_preview, editor_version
 from app.telegram import bot
 from app.telegram.models import TelegramUser
 from app.utils.db import db
@@ -53,6 +54,29 @@ def open_case(f: SimpleNamespace) -> AnswerDispute:
     return AnswerDispute.query.filter_by(lesson_id=f.lesson.id).one()
 
 
+def test_admin_card_shows_server_source_and_learner_only_to_admins(flow: SimpleNamespace) -> None:
+    from app.auth.models import User
+    from app.curriculum.answer_disputes import AnswerDisputeReport
+
+    case = open_case(flow)
+    report = AnswerDisputeReport.query.filter_by(dispute_id=case.id).one()
+    user = db.session.get(User, report.user_id)
+    assert worker.process_one() and worker.process_one()
+    card = flow.send.call_args.args[1]
+    assert f'Сайт · Курс · {flow.lesson.module.level.code} · Модуль 1' in card
+    assert f'Урок {case.lesson_id} «{flow.lesson.title}», вопрос 1' in card
+    assert f'/curriculum/admin/lesson/{case.lesson_id}/view' in card
+    assert f'{user.username} (ID {user.id})' in card
+    assert user.email not in card
+    evidence = flow.classify.call_args.args[0]
+    assert set(evidence) == {'row', 'question', 'expected', 'submitted_answer'}
+    assert user.username not in json.dumps(evidence)
+    user.username = user.email
+    db.session.flush()
+    redacted, _ = worker._telegram_card(case)
+    assert f'От ученика: ID {user.id}' in redacted and user.email not in redacted
+
+
 def test_variant_survives_telegram_failure_and_requires_admin_click(flow: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
     f = flow
     case = open_case(f)
@@ -70,28 +94,30 @@ def test_variant_survives_telegram_failure_and_requires_admin_click(flow: Simple
     assert f.client.post(f.endpoint + '/check', json=f.body, headers=f.headers).json['feedback']['correct'] is False
     recipient, text = f.send.call_args.args
     assert recipient == f.telegram_id and f.body['answer'] in text and 'I walk to work.' in text
-    data = f.send.call_args.kwargs['reply_markup']['inline_keyboard'][0][0]['callback_data']
-    assert len(data.encode()) <= 64
-    tag = worker.decision_tag(case)
-    assert worker.decide(case.id, tag, 'approve', 456, 456) == 'Решение доступно администратору'
-    assert worker.decide(case.id, tag, 'approve', f.telegram_id, -f.telegram_id) == 'Решение доступно администратору'
-    assert worker.decide(case.id, 'older', 'approve', f.telegram_id, f.telegram_id) == 'Карточка уже обработана или устарела'
+    assert f.send.call_args.kwargs['reply_markup']['inline_keyboard'][0][0]['url'].endswith(f'/admin/answer-disputes/{case.id}')
+    data = f'dispute:{case.id}:old-tag:approve'
+    version = editor_version(case)
+    with pytest.raises(ValueError, match='Спор изменился'):
+        editor_decide(case.id, f.admin_user_id, 'older', 'add', f.body['answer'])
     assert case.status == 'notified'
     ack = Mock()
     monkeypatch.setattr(bot, '_answer_callback', ack)
     event = {'callback_query': {'id': 'cb', 'data': data, 'from': {'id': f.telegram_id}, 'message': {'chat': {'id': f.telegram_id}}}}
-    from sqlalchemy.exc import SQLAlchemyError
-    with monkeypatch.context() as patch:
-        patch.setattr(db.session, 'commit', Mock(side_effect=SQLAlchemyError('test failure')))
-        bot.handle_update(event)
-    assert case.status == 'notified' and f.body['answer'] not in f.lesson.content['questions'][0]['alternative_answers']
-    ack.assert_called_once_with('cb', 'Не удалось сохранить решение. Нажмите ещё раз.')  # noqa: RUF001
+    # Even an old Telegram message opens the editor instead of changing content.
+    f.send.side_effect = None
+    for sender, chat in [(f.telegram_id, -f.telegram_id), (456, 456)]:
+        bot.handle_update({'callback_query': {**event['callback_query'], 'from': {'id': sender},
+                                             'message': {'chat': {'id': chat}}}})
+        ack.assert_called_with('cb', 'Решение доступно администратору')
+        assert f.send.call_count == 2
     ack.reset_mock()
     bot.handle_update(event)
-    assert case.status == 'applied' and case.review['decided_by'] == f.telegram_id
-    ack.assert_called_once_with('cb', 'Правка применена')
-    bot.handle_update(event)
-    assert 'уже обработана' in ack.call_args.args[1]
+    ack.assert_called_once_with('cb', 'Отправлена ссылка на спор')
+    assert case.status == 'notified'
+    assert f.send.call_args.kwargs['reply_markup']['inline_keyboard'][0][0]['url'].endswith(f'/admin/answer-disputes/{case.id}')
+    assert editor_preview(case, 'add', f.body['answer'])['accepts_report']
+    editor_decide(case.id, f.admin_user_id, version, 'add', f.body['answer'])
+    assert case.status == 'applied' and case.review['decided_by_user_id'] == f.admin_user_id
     token = f.client.get(f.endpoint).json['lesson']['session_token']
     for value in [f.body['answer'], 'I walk to work.', 'I walk to my job.']:
         assert f.client.post(f.endpoint + '/check', json=f.body | {'session_token': token, 'answer': value},
@@ -100,8 +126,8 @@ def test_variant_survives_telegram_failure_and_requires_admin_click(flow: Simple
 
 
 @pytest.mark.parametrize(('label', 'action', 'state'), [
-    ('wrong_key', 'approve', 'applied'), ('valid_variant', 'reject', 'dismissed'),
-    ('valid_variant', 'revise', 'revise'), ('grader_issue', 'approve', 'manual'),
+    ('wrong_key', 'replace', 'applied'), ('valid_variant', 'reject', 'dismissed'),
+    ('valid_variant', 'revise', 'revise'), ('grader_issue', 'revise', 'revise'),
 ])
 def test_decisions(flow: SimpleNamespace, label: str, action: str, state: str) -> None:
     f = flow
@@ -109,7 +135,8 @@ def test_decisions(flow: SimpleNamespace, label: str, action: str, state: str) -
     before = deepcopy(f.lesson.content)
     f.classify.return_value['label'] = label
     assert worker.process_one() and worker.process_one()
-    worker.decide(case.id, worker.decision_tag(case), action, f.telegram_id, f.telegram_id)
+    preview = editor_preview(case, action, f.body['answer'])
+    editor_decide(case.id, f.admin_user_id, editor_version(case), preview['action'], preview['answer'])
     db.session.refresh(f.lesson)
     assert case.status == state
     if state == 'applied':
@@ -136,7 +163,8 @@ def test_admin_can_replace_wrong_choice_key(flow: SimpleNamespace, field: str, o
     f.classify.return_value['label'] = 'wrong_key'
     assert worker.process_one() and case.review['patch'] == {field: replacement}
     assert worker.process_one() and case.status == 'notified'
-    assert worker.decide(case.id, worker.decision_tag(case), 'approve', f.telegram_id, f.telegram_id) == 'Правка применена'
+    assert editor_preview(case, 'replace', options[1])['accepts_report']
+    assert editor_decide(case.id, f.admin_user_id, editor_version(case), 'replace', options[1]) == 'Правка сохранена.'
     token = f.client.get(f.endpoint).json['lesson']['session_token']
     for i in range(len(options)):
         feedback = f.client.post(f.endpoint + '/check', headers=f.headers,
@@ -148,10 +176,13 @@ def test_edited_question_invalidates_a_card(flow: SimpleNamespace) -> None:
     f = flow
     case = open_case(f)
     assert worker.process_one() and worker.process_one()
+    assert editor_preview(case, 'add', f.body['answer'])['accepts_report']
+    version = editor_version(case)
     f.lesson.content = {'questions': [f.lesson.content['questions'][0] | {'instruction': 'Use walk.'}]}
     db.session.commit()
-    assert worker.decide(case.id, worker.decision_tag(case), 'approve', f.telegram_id, f.telegram_id) == 'Задание изменилось'
-    assert case.status == 'stale' and f.body['answer'] not in f.lesson.content['questions'][0]['alternative_answers']
+    with pytest.raises(ValueError, match='Задание изменилось'):
+        editor_decide(case.id, f.admin_user_id, version, 'add', f.body['answer'])
+    assert case.status == 'notified' and f.body['answer'] not in f.lesson.content['questions'][0]['alternative_answers']
 
 
 def test_service_failure_and_missing_config_preserve_dispute(flow: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -213,20 +244,25 @@ def test_partial_telegram_delivery_retries_only_failed_admin(flow: SimpleNamespa
         assert f.send.call_count == 3 and f.send.call_args.args[0] == failed_id
         assert not worker.process_one()
         f.classify.assert_called_once()
-        tag = worker.decision_tag(case)
-        assert worker.decide(case.id, tag, 'approve', f.telegram_id, f.telegram_id) == 'Правка применена'
-        assert worker.decide(case.id, tag, 'reject', failed_id, failed_id) == 'Карточка уже обработана или устарела'
-        assert case.status == 'applied' and case.review['decided_by'] == f.telegram_id
+        version = editor_version(case)
+        assert editor_decide(case.id, f.admin_user_id, version, 'add', f.body['answer']) == 'Правка сохранена.'
+        with pytest.raises(ValueError, match='Спор изменился'):
+            editor_decide(case.id, other.user_id, version, 'reject', '')
+        assert case.status == 'applied' and case.review['decided_by_user_id'] == f.admin_user_id
 
 
 @pytest.mark.parametrize('revocation', ['role', 'unlink', 'account_inactive', 'telegram_inactive'])
-def test_previously_notified_admin_loses_right_to_decide(flow: SimpleNamespace, revocation: str) -> None:
+def test_revocation_rechecks_telegram_link_and_web_role(
+    flow: SimpleNamespace, revocation: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from flask import g
     f = flow
     case = open_case(f)
     before = deepcopy(f.lesson.content)
     assert worker.process_one() and worker.process_one()
     assert case.status == 'notified'
     user = db.session.get(User, f.admin_user_id)
+    user.onboarding_completed = True
     link = TelegramUser.query.filter_by(user_id=f.admin_user_id).one()
     if revocation == 'role':
         user.is_admin = False
@@ -237,11 +273,29 @@ def test_previously_notified_admin_loses_right_to_decide(flow: SimpleNamespace, 
     else:
         link.is_active = False
     db.session.commit()
-    assert worker.decide(case.id, worker.decision_tag(case), 'approve', f.telegram_id, f.telegram_id) == (
-        'Решение доступно администратору'
-    )
+    ack = Mock()
+    monkeypatch.setattr(bot, '_answer_callback', ack)
+    f.send.reset_mock()
+    bot.handle_update({'callback_query': {'id': 'cb', 'data': f'dispute:{case.id}:from-old-card:approve',
+                                         'from': {'id': f.telegram_id}, 'message': {'chat': {'id': f.telegram_id}}}})
+    ack.assert_called_once_with('cb', 'Решение доступно администратору')
+    f.send.assert_not_called()
     assert case.status == 'notified' and f.lesson.content == before
-    assert 'decided_by' not in case.review
+
+    client = f.app.test_client()
+    with client.session_transaction() as session:
+        session['_user_id'], session['_fresh'] = user.get_id(), True
+    g.pop('_login_user', None)
+    page = client.get(f'/admin/answer-disputes/{case.id}')
+    if revocation in ('role', 'account_inactive'):
+        assert page.status_code in (302, 403) and f.body['answer'] not in page.text
+        with pytest.raises(ValueError, match='Нет права'):
+            editor_decide(case.id, user.id, editor_version(case), 'add', f.body['answer'])
+        assert 'decided_by_user_id' not in case.review
+    else:
+        assert page.status_code == 200 and f.body['answer'] in page.text
+        assert editor_decide(case.id, user.id, editor_version(case), 'add', f.body['answer']) == 'Правка сохранена.'
+
 
 
 @pytest.mark.parametrize('label', ['learner_error', 'insufficient_context'])
@@ -257,9 +311,9 @@ def test_negative_review_is_sent_once_and_can_be_reopened_for_review(flow: Simpl
     f.send.assert_called_once()
     f.classify.assert_called_once()
     assert 'Разбор: ' + case.review['reason'] in f.send.call_args.args[1]
-    assert 'В ручной разбор' in str(f.send.call_args.kwargs['reply_markup'])
-    reply = worker.decide(case.id, worker.decision_tag(case), 'revise', f.telegram_id, f.telegram_id)
-    assert reply == 'Сохранено на доработку. Проверка ответов пока не изменена.'
+    assert 'Открыть спор в админке' in str(f.send.call_args.kwargs['reply_markup'])
+    reply = editor_decide(case.id, f.admin_user_id, editor_version(case), 'revise', '')
+    assert reply == 'Спор сохранён на доработку.'
     assert case.status == 'revise'
     assert not worker.process_one()
 

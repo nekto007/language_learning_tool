@@ -85,7 +85,7 @@ def submit_once(service: "GrammarLabService", user_id: int, exercise_id: int, da
         'digest': digest, 'grader_version': LAB_GRADER_VERSION,
         'answer_from_attempt': answer_from_attempt, 'response': result_for_storage,
     }
-    result = _with_dispute_token(result, exercise, attempt.user_id, answer, revision)
+    result = _with_dispute_token(result, exercise, attempt, answer, revision)
     db.session.commit()
     return result
 
@@ -97,15 +97,19 @@ def _replay(attempt: GrammarAttempt, digest: str, exercise: GrammarExercise, ans
         raise NativeLessonError('grading_failed', 503)
     if digest != receipt['digest']:
         raise NativeLessonError('submission_mismatch', 409)
-    result = {**receipt['response'], 'is_correct': attempt.is_correct}
+    result = {**receipt['response'], 'is_correct': receipt.get('original_is_correct', attempt.is_correct)}
     if receipt['answer_from_attempt']:
         result['user_answer'] = attempt.user_answer
     if revision_current and receipt['grader_version'] == LAB_GRADER_VERSION:
-        return _with_dispute_token(result, exercise, attempt.user_id, answer, revision)
+        return _with_dispute_token(result, exercise, attempt, answer, revision)
     return result
 
 
-def _with_dispute_token(result: dict, exercise: GrammarExercise, user_id: int, answer: object, revision: str) -> dict:
+def _with_dispute_token(
+    result: dict, exercise: GrammarExercise, attempt: GrammarAttempt, answer: object, revision: str,
+) -> dict:
     if result.get('is_correct') is False and normalized_lab_answer(exercise, answer) is not None:
-        return {**result, 'dispute_token': issue_rejection_receipt(user_id, exercise.id, revision, answer)}
+        return {**result, 'dispute_token': issue_rejection_receipt(
+            attempt.user_id, exercise.id, revision, answer, attempt_id=attempt.id,
+        )}
     return result

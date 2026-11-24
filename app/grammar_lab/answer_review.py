@@ -1,9 +1,11 @@
 """Versioned, owner-approved grading corrections for standalone Grammar Lab exercises."""
 from __future__ import annotations
 
+from collections import Counter
 from types import SimpleNamespace
 from typing import Any
 
+from app.curriculum.answer_review_edits import ALIAS_FIELDS, replace_text_key
 from app.grammar_lab.content_catalog import content_digest
 from app.grammar_lab.models import GrammarExercise
 from app.grammar_lab.services.grader import GrammarExerciseGrader
@@ -26,7 +28,7 @@ def effective_content(exercise: GrammarExercise) -> dict:
             or override.get('grader_version') != LAB_GRADER_VERSION):
         return raw
     patch = override.get('patch')
-    if not isinstance(patch, dict) or not patch.keys() <= {'correct_answer', 'correct_index', 'alternatives'}:
+    if not isinstance(patch, dict) or not patch.keys() <= {'correct_answer', 'correct_index', *ALIAS_FIELDS}:
         return raw
     effective = {**raw, **patch}
     if 'correct_answer' in patch and 'answer' in raw and raw['answer'] == raw.get('correct_answer'):
@@ -60,6 +62,25 @@ def display_review_answers(exercise: GrammarExercise, row: dict, result: dict) -
     return shown, expected
 
 
+def _uses_all_tiles(words: Any, sentence: str) -> bool:
+    """Prove that the submitted text can be assembled from the displayed tiles."""
+    if not isinstance(words, list) or not words or not all(isinstance(w, str) and w.strip() for w in words):
+        return False
+    available = Counter(w.strip().casefold() for w in words)
+    # Preserve phrase tiles (e.g. "in the") and repeated words. A partial or
+    # ambiguous reconstruction may go to an editor, never straight to a patch.
+    labels = sorted(available, key=len, reverse=True)
+    remaining = sentence.strip().casefold()
+    for _ in words:
+        tile = next((label for label in labels if available[label]
+                     and (remaining == label or remaining.startswith(label + ' '))), None)
+        if tile is None:
+            return False
+        remaining = remaining[len(tile):].lstrip()
+        available[tile] -= 1
+    return not remaining
+
+
 def proposed_lab_edit(exercise: GrammarExercise, row: dict, answer: Any, label: str) -> dict | None:
     if label not in {'valid_variant', 'wrong_key'}:
         return None
@@ -85,21 +106,37 @@ def proposed_lab_edit(exercise: GrammarExercise, row: dict, answer: Any, label: 
         after = [i for i in range(len(options)) if accepted({**row, **patch}, i)]
         return patch if len(before) == 1 and index not in before and after == [index] else None
 
+    if exercise.exercise_type == 'true_false' and label == 'wrong_key':
+        choice = GrammarExerciseGrader._boolean_answer(answer)
+        if choice is None or accepted(row, answer):
+            return None
+        patch = {'correct_answer': choice}
+        return patch if accepted({**row, **patch}, answer) else None
+    if exercise.exercise_type == 'reorder':
+        if not isinstance(answer, (str, list)):
+            return None
+        if isinstance(answer, list):
+            # The grader requires each authored index exactly once, even for identical tiles.
+            answer = grade_row(exercise, row, answer).get('user_answer')
+        elif len(answer) > 500 or not _uses_all_tiles(row.get('words'), answer):
+            return None
+    elif exercise.exercise_type not in TEXT_TYPES:
+        return None
     original = row.get('correct_answer')
-    if (exercise.exercise_type not in TEXT_TYPES or not isinstance(original, str) or not original.strip()
+    if (not isinstance(original, str) or not original.strip()
             or not isinstance(answer, str) or not answer.strip() or len(answer) > 500
-            or not answer.isprintable() or '<' in answer or '>' in answer or accepted(row, answer)):
+            or not answer.isprintable() or '<' in answer or '>' in answer):
         return None
     if label == 'valid_variant':
         aliases = row.get('alternatives', [])
-        if not isinstance(aliases, list):
+        if not isinstance(aliases, list) or accepted(row, answer):
             return None
         patch = {'alternatives': [*aliases, answer]}
     else:
         # A correction with separate word/sentence keys needs an editor to reconcile both.
         if row.get('correct_sentence') or row.get('full_correct'):
             return None
-        patch = {'correct_answer': answer}
+        patch = replace_text_key(row, 'correct_answer', answer)
     after = {**row, **patch}
     if not accepted(after, answer) or accepted(after, original) != (label == 'valid_variant'):
         return None
@@ -112,6 +149,6 @@ def apply_lab_patch(exercise: GrammarExercise, patch: dict) -> None:
     exercise.answer_review_override = {
         'source_revision': _revision(exercise, raw),
         'grader_version': LAB_GRADER_VERSION,
-        'patch': {k: updated[k] for k in ('alternatives', 'correct_answer', 'correct_index')
+        'patch': {k: updated[k] for k in (*ALIAS_FIELDS, 'correct_answer', 'correct_index')
                   if k in updated and updated[k] != raw.get(k)},
     }

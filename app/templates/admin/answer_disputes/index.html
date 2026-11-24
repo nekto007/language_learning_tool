@@ -1,0 +1,78 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import breadcrumb, page_header %}
+{% block title %}Спорные ответы{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/answer-disputes.css') }}">{% endblock %}
+{% block breadcrumb %}
+{% if can_see_reporters %}{{ breadcrumb([('Админка', url_for('dashboard_admin.dashboard')), ('Спорные ответы', '')]) }}{% endif %}
+{% endblock %}
+{% block content %}
+<div class="disputes">
+    {{ page_header('Спорные ответы') }}
+    <nav class="disputes-queues" aria-label="Очереди споров">
+        {% for value, label in [('work', 'Ждут разбора'), ('revise', 'На доработке'), ('history', 'История'), ('all', 'Все')] %}
+        <a href="{{ url_for('.index', queue=value, source=source, q=q, sort=sort) }}"
+           {% if queue == value %}aria-current="page"{% endif %}>
+            {{ label }} <span class="disputes-count">{{ queue_counts[value] }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+    <form method="get" action="{{ url_for('.index') }}" class="disputes-filters" role="search" aria-label="Поиск спорных ответов">
+        <input type="hidden" name="queue" value="{{ queue }}">
+        <label>Поиск <input type="search" class="form-control" name="q" value="{{ q }}" placeholder="Номер спора или текст"></label>
+        <label>Источник
+            <select name="source" class="form-select">
+                {% for value, label in [('', 'Все источники'), ('course', 'Курс'), ('lab', 'Grammar Lab')] %}
+                <option value="{{ value }}"{% if source == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Порядок
+            <select name="sort" class="form-select">
+                <option value="newest"{% if sort == 'newest' %} selected{% endif %}>Сначала новые</option>
+                <option value="oldest"{% if sort == 'oldest' %} selected{% endif %}>Сначала ранние</option>
+            </select>
+        </label>
+        <button type="submit" class="btn btn-outline-primary">Показать</button>
+    </form>
+    {% if cases %}
+    <p class="disputes-total">Найдено обращений — {{ total }}</p>
+    <ul class="disputes-list">
+    {% for row in cases %}
+        <li class="disputes-row">
+            <div class="disputes-row-main">
+                <div class="disputes-meta">№{{ row.id }} · {{ row.source_title }}</div>
+                <a class="disputes-open" href="{{ url_for('.detail', case_id=row.id) }}">
+                    {{ (row.question or row.instruction or 'Открыть спор №' ~ row.id)|truncate(150) }}
+                </a>
+                {% if row.answer is not none and row.answer != '' %}
+                <div class="disputes-excerpt"><span>Ответ ученика</span> {{ row.answer|string|truncate(160) }}</div>
+                {% endif %}
+            </div>
+            <div class="disputes-row-side">
+                <span class="disputes-status" data-status="{{ row.status }}">{{ row.status_label }}</span>
+                {% if row.created_at %}<time datetime="{{ row.created_at.isoformat() }}">{{ row.created_at.strftime('%d.%m.%Y · %H:%M') }} UTC</time>{% endif %}
+                {% if row.reporter_count %}<span>Учеников — {{ row.reporter_count }}</span>{% endif %}
+            </div>
+        </li>
+    {% endfor %}
+    </ul>
+    {% if pages > 1 %}
+    <nav class="disputes-pagination" aria-label="Страницы очереди">
+        {% if page > 1 %}<a href="{{ url_for('.index', queue=queue, source=source, q=q, sort=sort, page=page-1) }}">← Назад</a>{% endif %}
+        <span>Страница {{ page }} из {{ pages }}</span>
+        {% if page < pages %}<a href="{{ url_for('.index', queue=queue, source=source, q=q, sort=sort, page=page+1) }}">Дальше →</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <section class="disputes-panel disputes-empty">
+        {% if q or source %}
+        <h2>Совпадений нет</h2>
+        <a href="{{ url_for('.index', queue=queue) }}">Сбросить фильтры</a>
+        {% elif queue == 'work' %}<h2>Все обращения разобраны</h2>
+        <a href="{{ url_for('.index', queue='history') }}">Открыть историю</a>
+        {% elif queue == 'revise' %}<h2>На доработке пока пусто</h2>
+        {% else %}<h2>Пока нет обращений</h2>{% endif %}
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

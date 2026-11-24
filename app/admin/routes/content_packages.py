@@ -3,14 +3,15 @@
 import logging
 from time import time
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
 from app.admin.audit import log_admin_action
 from app.admin.services.content_package import read_content_package
 from app.admin.services.content_package_import import apply_package, preview_package
-from app.admin.utils.decorators import admin_required
+from app.admin.utils.decorators import content_editor_required
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
+from app.auth.models import User
 from app.curriculum import cache as curriculum_cache
 from app.utils.db import db
 
@@ -43,7 +44,7 @@ def _discard() -> None:
 
 
 @content_packages_bp.route('/content-packages', methods=['GET', 'POST'])
-@admin_required
+@content_editor_required
 def index() -> str | Response:
     if request.method != 'POST':
         return render_template('admin/content_packages.html', preview=_preview(),
@@ -70,8 +71,13 @@ def index() -> str | Response:
 
 
 @content_packages_bp.post('/content-packages/apply')
-@admin_required
+@content_editor_required
 def apply() -> Response:
+    # Keep this permission until publication commits, including when a preview
+    # was prepared days or minutes before an administrator revoked the role.
+    editor = User.query.filter_by(id=current_user.id).populate_existing().with_for_update(read=True).one_or_none()
+    if editor is None or not editor.can_edit_content:
+        abort(403)
     preview_id = request.form.get('preview_id')
     if not preview_id or preview_id != session.get(_SESSION_KEY) or not (data := _preview()):
         flash('Предпросмотр устарел. Проверьте архив ещё раз.', 'warning')

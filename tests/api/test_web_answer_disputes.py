@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.curriculum.answer_disputes import (
-    AnswerDispute, current_dispute_row, record_lab_rejected_answer, record_rejected_answer,
+    AnswerDispute, AnswerDisputeReport, current_dispute_row, record_lab_rejected_answer, record_rejected_answer,
 )
 from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
 from app.utils.db import db
@@ -69,6 +69,11 @@ def test_only_rejected_server_grade_can_create_a_dispute(course: tuple) -> None:
     assert result.json == {"success": True}
     assert result.headers["Cache-Control"] == "private, no-store"
     dispute = AnswerDispute.query.filter_by(lesson_id=lesson.id).one()
+    report = AnswerDisputeReport.query.filter_by(dispute_id=dispute.id).one()
+    assert report.user_id == user.id
+    from app.api.native_lessons import _signer
+    assert report.course_nonce == _signer().loads(token)["nonce"]
+    assert report.course_correction_id is None and report.grammar_attempt_id is None
     assert dispute.status == "pending"
     assert dispute.review is None and dispute.next_attempt_at is None
     assert dispute.evidence == {
@@ -101,6 +106,9 @@ def test_identity_is_shared_and_changes_only_with_the_question_revision(course: 
         "session_token": other_token, "answer": " SHE   GO TO SCHOOL!",
     }, headers=other_headers).json == {"success": True}
     assert AnswerDispute.query.filter_by(lesson_id=lesson.id).count() == 1
+    assert {report.user_id for report in AnswerDisputeReport.query.filter_by(dispute_id=original.id)} == {
+        user.id, other.id,
+    }
     assert original.status == "reviewed" and original.review == {"decision": "keep"}
     assert original.evidence["answer"] == body["answer"]
     assert original.evidence["question"]["lesson_instruction"] == "Correct the sentence."
@@ -192,6 +200,7 @@ def test_postgresql_migration_and_concurrent_browsers() -> None:
     engine = create_engine(url, connect_args={"options": f"-c search_path={schema}"})
     migration = import_module("migrations.versions.20261124_answer_disputes")
     lab_migration = import_module("migrations.versions.20261124_lab_disputes")
+    reports_migration = import_module("migrations.versions.20261125_answer_dispute_reports")
     try:
         with admin.begin() as conn:
             conn.execute(text(f"CREATE SCHEMA {schema}"))
@@ -212,27 +221,38 @@ def test_postgresql_migration_and_concurrent_browsers() -> None:
         with engine.begin() as conn:
             with Operations.context(MigrationContext.configure(conn)):
                 lab_migration.upgrade()
+                conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+                conn.execute(text("INSERT INTO users VALUES (1), (2), (3)"))
+                conn.execute(text("CREATE TABLE lesson_attempts (id INTEGER PRIMARY KEY)"))
+                conn.execute(text("CREATE TABLE grammar_attempts (id INTEGER PRIMARY KEY)"))
+                reports_migration.upgrade()
+                assert conn.execute(text("SELECT COUNT(*) FROM answer_dispute_reports")).scalar_one() == 0
 
         barrier = Barrier(6)
         exercise = SimpleNamespace(id=1, topic_id=3, exercise_type="fill_blank", content={
             "question": "She ___ ready.", "correct_answer": "is",
         }, answer_review_override=None)
 
-        def record(answer: str) -> None:
+        def record(actor: int) -> None:
             with Session(engine) as session:
                 barrier.wait(timeout=10)
-                record_rejected_answer(session, lesson, question, answer)
-                record_lab_rejected_answer(session, exercise, answer, "are")
+                answer = "ARE!" if actor % 2 else "are"
+                record_rejected_answer(session, lesson, question, answer, user_id=actor)
+                record_lab_rejected_answer(session, exercise, answer, "are", user_id=actor)
                 session.commit()
 
         with ThreadPoolExecutor(max_workers=6) as pool:
-            list(pool.map(record, ["are", "ARE!"] * 3))
+            list(pool.map(record, [1, 2, 3] * 2))
         with Session(engine) as session:
             dispute = session.scalars(select(AnswerDispute).where(AnswerDispute.lesson_id == 1)).one()
             assert dispute.status == "pending" and dispute.review is None
             assert dispute.grammar_exercise_id is None and dispute.evidence["answer"] == "are"
             lab = session.scalars(select(AnswerDispute).where(AnswerDispute.grammar_exercise_id == 1)).one()
             assert lab.lesson_id is None and lab.evidence["answer"] in ("are", "ARE!")
+            assert session.query(AnswerDisputeReport).count() == 6
+            session.execute(text("DELETE FROM users WHERE id=1"))
+            assert session.query(AnswerDisputeReport).count() == 4
+            session.commit()
         for mutation in ("grammar_exercise_id = 1", "lesson_id = NULL"):
             with pytest.raises(IntegrityError), engine.begin() as conn:
                 conn.execute(text(f"UPDATE answer_disputes SET {mutation} WHERE lesson_id = 1"))
@@ -242,7 +262,9 @@ def test_postgresql_migration_and_concurrent_browsers() -> None:
         with engine.begin() as conn:
             conn.execute(text("DELETE FROM grammar_exercises WHERE id = 1"))
             assert conn.execute(text("SELECT COUNT(*) FROM answer_disputes")).scalar() == 1
+            assert conn.execute(text("SELECT COUNT(*) FROM answer_dispute_reports")).scalar_one() == 2
             with Operations.context(MigrationContext.configure(conn)):
+                reports_migration.downgrade()
                 lab_migration.downgrade()
             remaining = conn.execute(text("SELECT lesson_id, evidence FROM answer_disputes")).one()
             assert remaining.lesson_id == 1 and remaining.evidence["answer"] == "are"

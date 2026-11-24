@@ -9,6 +9,7 @@ import pytest
 from app.curriculum import answer_review as worker
 from app.curriculum import answer_review_ai as ai
 from app.curriculum.answer_disputes import AnswerDispute
+from app.curriculum.answer_review_editor import editor_decide, editor_preview, editor_version
 from app.utils.db import db
 from tests.answer_review_fixtures import telegram_admin
 
@@ -38,26 +39,32 @@ def test_concurrent_admin_decisions_apply_once_in_postgres(app: Flask, monkeypat
     monkeypatch.setattr(ai, 'classify', Mock(return_value={'label': 'valid_variant', 'reason': 'Перевод верен.'}))
     worker.review_case(case, key='test-key', model='test-model')
     case.status = 'notified'
-    tag, case_id = worker.decision_tag(case), case.id
+    assert editor_preview(case, 'add', answer)['accepts_report']
+    version, case_id = editor_version(case), case.id
     db.session.commit()
     barrier = Barrier(2)
 
-    def approve(telegram_id: int) -> str:
+    def approve(user_id: int) -> str:
         with app.app_context():
             barrier.wait(timeout=10)
-            return worker.decide(case_id, tag, 'approve', telegram_id, telegram_id)
+            try:
+                return editor_decide(case_id, user_id, version, 'add', answer)
+            except ValueError as error:
+                assert 'Спор изменился' in str(error)
+                db.session.rollback()
+                return 'outdated'
 
     try:
         with telegram_admin() as first, telegram_admin() as second:
-            recipient_ids = (first.telegram_id, second.telegram_id)
+            editor_ids = (first.user_id, second.user_id)
             with ThreadPoolExecutor(max_workers=2) as pool:
-                futures = [pool.submit(approve, recipient) for recipient in recipient_ids]
+                futures = [pool.submit(approve, recipient) for recipient in editor_ids]
                 outcomes = [future.result(timeout=15) for future in futures]
-            assert sorted(outcomes) == sorted(['Правка применена', 'Карточка уже обработана или устарела'])
-            winner = recipient_ids[outcomes.index('Правка применена')]
+            assert sorted(outcomes) == sorted(['Правка сохранена.', 'outdated'])
+            winner = editor_ids[outcomes.index('Правка сохранена.')]
             db.session.refresh(lesson)
             db.session.refresh(case)
-            assert case.review['decided_by'] == winner
+            assert case.review['decided_by_user_id'] == winner
             assert case.status == 'applied' and lesson.content['questions'][0]['alternative_answers'] == [answer]
     finally:
         db.session.rollback()

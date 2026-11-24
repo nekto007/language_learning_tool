@@ -29,12 +29,13 @@
             <i class="fas fa-bars" aria-hidden="true"></i>
         </button>
 
-        <a href="{{ url_for('dashboard_admin.dashboard') }}" class="header-brand" aria-label="LLT Admin — на главную">
+        <a href="{{ url_for('dashboard_admin.dashboard' if current_user.is_admin else 'answer_disputes_admin.index') }}" class="header-brand" aria-label="LLT Admin — на главную">
             <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" alt="">
             <span>LLT Admin</span>
         </a>
 
         <!-- Global Search -->
+        {% if current_user.is_admin %}
         <div class="admin-search-container" role="search">
             <label for="admin-global-search" class="visually-hidden">Поиск по панели управления</label>
             <div class="admin-search-input-wrapper">
@@ -52,6 +53,7 @@
             <div id="admin-search-results" class="admin-search-results" role="listbox" aria-label="Результаты поиска"></div>
         </div>
 
+        {% endif %}
         <div class="header-actions">
             <a href="{{ url_for('words.dashboard') }}" class="btn btn-sm btn-outline-primary" target="_blank" aria-label="Открыть сайт в новой вкладке">
                 <i class="fas fa-external-link-alt me-1" aria-hidden="true"></i> На сайт
@@ -73,6 +75,7 @@
     <!-- Sidebar -->
     <nav class="admin-sidebar" id="sidebar" aria-label="Основная навигация">
         <div class="sidebar-nav">
+            {% if current_user.is_admin %}
             <div class="nav-section" data-section="main">
                 <button class="nav-section-title" type="button" onclick="toggleNavSection('main')" aria-expanded="true" aria-controls="nav-content-main">
                     <span>Главное</span>
@@ -98,16 +101,22 @@
                 </div>
             </div>
 
+            {% endif %}
             <div class="nav-section" data-section="content">
                 <button class="nav-section-title" type="button" onclick="toggleNavSection('content')" aria-expanded="true" aria-controls="nav-content-content">
                     <span>Контент</span>
                     <i class="fas fa-chevron-down nav-section-chevron" aria-hidden="true"></i>
                 </button>
                 <div class="nav-section-content" id="nav-content-content">
+                <a href="{{ url_for('answer_disputes_admin.index') }}" class="nav-link {{ 'active' if request.blueprint == 'answer_disputes_admin' }}" {% if request.blueprint == 'answer_disputes_admin' %}aria-current="page"{% endif %}>
+                    <i class="fas fa-comments" aria-hidden="true"></i>
+                    <span>Спорные ответы</span>
+                </a>
                 <a href="{{ url_for('content_packages_admin.index') }}" class="nav-link {{ 'active' if request.endpoint.startswith('content_packages_admin.') }}">
                     <i class="fas fa-file-archive" aria-hidden="true"></i>
                     <span>Пакеты контента</span>
                 </a>
+                {% if current_user.is_admin %}
                 <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_curriculum.curriculum' }}">
                     <i class="fas fa-graduation-cap" aria-hidden="true"></i>
                     <span>Учебный план</span>
@@ -168,9 +177,11 @@
                     <i class="fas fa-chart-bar" aria-hidden="true"></i>
                     <span>Качество контента</span>
                 </a>
+                {% endif %}
                 </div>
             </div>
 
+            {% if current_user.is_admin %}
             <div class="nav-section" data-section="tools">
                 <button class="nav-section-title" type="button" onclick="toggleNavSection('tools')" aria-expanded="true" aria-controls="nav-content-tools">
                     <span>Инструменты</span>
@@ -261,6 +272,7 @@
                     </a>
                 </div>
             </div>
+        {% endif %}
         </div>
     </nav>
 
@@ -345,8 +357,10 @@
 
         // Global Search
         const adminSearchData = [
+            {% if current_user.is_admin %}
             { title: 'Цель: 100 учеников', url: '{{ url_for("growth_admin.index") }}', icon: 'fa-bullseye', section: 'Main' },
             { title: 'Dashboard', url: '{{ url_for("dashboard_admin.dashboard") }}', icon: 'fa-home', section: 'Main' },
+            { title: 'Спорные ответы', url: '{{ url_for("answer_disputes_admin.index") }}', icon: 'fa-comments', section: 'Контент' },
             { title: 'Users', url: '{{ url_for("user_admin.users") }}', icon: 'fa-users', section: 'Main' },
             { title: 'Statistics', url: '{{ url_for("user_admin.stats") }}', icon: 'fa-chart-bar', section: 'Main' },
             { title: 'Curriculum', url: '{{ url_for("admin_curriculum.curriculum") }}', icon: 'fa-graduation-cap', section: 'Content' },
@@ -368,6 +382,7 @@
             { title: 'Database', url: '{{ url_for("system_admin.database_management") }}', icon: 'fa-database', section: 'Tools' },
             { title: 'Audio', url: '{{ url_for("audio_admin.audio_management") }}', icon: 'fa-volume-up', section: 'Tools' },
             { title: 'Настройки сайта', url: '{{ url_for("settings_admin.settings_index") }}', icon: 'fa-sliders-h', section: 'Settings' }
+            {% endif %}
         ];
 
         function initGlobalSearch() {

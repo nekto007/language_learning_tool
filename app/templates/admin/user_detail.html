@@ -116,7 +116,12 @@
         <p>#{{ detail.user_id }} · {{ detail.email or 'email не указан' }}</p>
         <div class="mt-2">
           {{ status_badge('Активен' if detail.active else 'Отключен', 'success' if detail.active else 'danger') }}
-          {{ status_badge('Админ' if detail.is_admin else 'Пользователь', 'info' if detail.is_admin else 'secondary') }}
+          {% if detail.is_admin %}
+            {{ status_badge('Админ', 'info') }}
+          {% elif not detail.user.is_moderator %}
+            {{ status_badge('Пользователь', 'secondary') }}
+          {% endif %}
+          {% if detail.user.is_moderator %}{{ status_badge('Модератор контента', 'info') }}{% endif %}
           {% if detail.user.email_opted_out %}{{ status_badge('Email opt-out', 'warning') }}{% endif %}
         </div>
       </div>
@@ -287,6 +292,13 @@
               </button>
             </form>
           {% endif %}
+          <form action="{{ url_for('user_admin.set_moderator_role', user_id=detail.user_id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="is_moderator" value="{{ '0' if detail.user.is_moderator else '1' }}">
+            <button type="submit" class="btn btn-outline-primary w-100">
+              {{ 'Снять роль модератора контента' if detail.user.is_moderator else 'Назначить модератором контента' }}
+            </button>
+          </form>
           <form action="{{ url_for('user_admin.send_password_reset', user_id=detail.user_id) }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-outline-secondary w-100" {% if not detail.email %}disabled{% endif %}>

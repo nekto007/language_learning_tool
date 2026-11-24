@@ -1,7 +1,6 @@
-"""Process distinct answer disputes and apply edits approved by a linked administrator."""
+"""Process distinct answer disputes and apply edits confirmed by an authorized content editor."""
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -9,9 +8,11 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, current_app
 
 from app.api.native_content import content_for
-from app.api.native_lessons import NativeLessonError, project_questions
+from app.api.native_lessons import NativeLessonError, _digest, project_questions
+from app.auth.models import User
 from app.curriculum import answer_review_ai as ai
-from app.curriculum.answer_disputes import AnswerDispute, current_dispute_row
+from app.curriculum.answer_disputes import AnswerDispute, AnswerDisputeReport, current_dispute_row
+from app.curriculum.answer_review_edits import replace_text_key
 from app.curriculum.models import Lessons
 from app.grammar_lab import answer_review as lab
 from app.grammar_lab.guided_learning import check_answer
@@ -62,7 +63,7 @@ def _choice_key_edit(row: dict, question: dict, answer: str, *, grammar: bool) -
 
 
 def proposed_edit(lesson: Lessons, row: dict, question: dict, answer: str, label: str) -> dict | None:
-    """Construct the limited edit ourselves, replay grading on a copy, keep all existing aliases."""
+    """Construct the limited edit ourselves, replay the real grader before proposing it."""
     if (label not in {'valid_variant', 'wrong_key'}
             or '<' in answer or '>' in answer or not answer.isprintable()
             or row.get('guided_key') or content_for(lesson).get('learning_steps')):
@@ -80,7 +81,7 @@ def proposed_edit(lesson: Lessons, row: dict, question: dict, answer: str, label
     original = row[key]
     if not original.strip() or len(original) > 500:
         return None
-    if check_answer(row, question, answer, grammar=grammar)['correct']:
+    if label == 'valid_variant' and check_answer(row, question, answer, grammar=grammar)['correct']:
         return None
     if label == 'valid_variant':
         aliases = row.get('alternative_answers', [])
@@ -88,7 +89,7 @@ def proposed_edit(lesson: Lessons, row: dict, question: dict, answer: str, label
             return None
         patch = {'alternative_answers': [*aliases, answer]}
     else:
-        patch = {key: answer}
+        patch = replace_text_key(row, key, answer)
     updated = {**row, **patch}
     if not check_answer(updated, question, answer, grammar=grammar)['correct']:
         return None
@@ -170,28 +171,66 @@ def review_case(case: AnswerDispute, *, key: str, model: str) -> None:
     case.status = 'closed' if negative and not _notify_all() else 'ready'
 
 
-def decision_tag(case: AnswerDispute) -> str:
-    payload = [case.question_revision, case.grader_version, case.review['label'], case.review.get('patch')]
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:14]
+def _card_source(case: AnswerDispute) -> str:
+    origin = (current_app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
+    if case.grammar_exercise_id is not None:
+        exercise = db.session.get(GrammarExercise, case.grammar_exercise_id)
+        topic = exercise.topic if exercise else None
+        heading = f'Сайт · Grammar Lab · {topic.level} · {topic.title_ru}' if topic else 'Сайт · Grammar Lab'
+        label = f'Тема {topic.id} · ' if topic else ''
+        source = f'{heading}\n{label}Упражнение №{case.grammar_exercise_id}'
+        path = f'/admin/grammar-lab/exercises/{case.grammar_exercise_id}/edit'
+    else:
+        lesson = db.session.get(Lessons, case.lesson_id)
+        heading = 'Сайт · Курс'
+        if lesson:
+            heading += f' · {lesson.module.level.code} · Модуль {lesson.module.number} «{lesson.module.title}»'
+        title = f' «{lesson.title}»' if lesson else ''
+        source = f'{heading}\nУрок {case.lesson_id}{title}, вопрос {int(case.question_id) + 1}'
+        path = f'/curriculum/admin/lesson/{case.lesson_id}/view'
+
+    reporters = (db.session.query(User.id, User.username).join(AnswerDisputeReport, AnswerDisputeReport.user_id == User.id)
+                 .filter(AnswerDisputeReport.dispute_id == case.id).order_by(AnswerDisputeReport.id))
+    names = []
+    visible = reporters.limit(3).all()
+    for user_id, username in visible:
+        # Only the account's display login belongs here. Some accounts use an email as their login.
+        name = username if username and username.isprintable() and not ai.CONTACT.search(username) else ''
+        names.append(f'{name} (ID {user_id})' if name else f'ID {user_id}')
+    people = ', '.join(names)
+    if len(names) == 3:
+        extra = reporters.order_by(None).count() - len(names)
+        if extra:
+            people += f' и ещё {extra}'
+    if len(visible) == 1:
+        attribution = f'От ученика: {people}\n{origin}/admin/users/{visible[0].id}'
+    elif visible:
+        attribution = f'От учеников: {people}'
+    else:
+        attribution = 'Автор обращения не сохранён'
+    return f'{source}\n{origin}{path}\n{attribution}'
+
+
+def dispute_admin_url(case_id: int) -> str:
+    origin = (current_app.config.get('SITE_URL') or 'https://llt-english.com').rstrip('/')
+    return f'{origin}/admin/answer-disputes/{case_id}'
 
 
 def _telegram_card(case: AnswerDispute) -> tuple[str, dict | None]:
     review = case.review
-    if case.grammar_exercise_id is not None:
-        topic = f'тема {review["topic_id"]}, ' if review.get('topic_id') is not None else ''
-        source = f'Grammar Lab · {topic}упражнение {case.grammar_exercise_id}'
-    else:
-        source = f'Урок {case.lesson_id}, вопрос {int(case.question_id) + 1}'
+    source = _card_source(case)
     if review.get('status_after_notification'):
-        return f'Спор {case.id}\n{source}\n{review["reason"]}', None
+        return f'Спор {case.id}\n{source}\n{review["reason"]}\n{dispute_admin_url(case.id)}', None
 
     row = case.evidence['row']
     instructions = [case.evidence['question'].get('lesson_instruction'), row.get('instruction'),
                     case.evidence['question'].get('instruction'), case.evidence['question'].get('prompt'),
                     row.get('statement'), row.get('original'), row.get('sentence'),
                     case.evidence['question'].get('context'), row.get('context'), row.get('constraints'), row.get('required_words')]
+    words = row.get('words')
+    if isinstance(words, list) and words and all(isinstance(word, str) for word in words):
+        instructions.append('Слова задания: ' + ' · '.join(words))
     question = '\n'.join(dict.fromkeys(str(s) for s in instructions if s))
-    prefix = f"dispute:{case.id}:{decision_tag(case)}:"
     patch = review.get('patch')
     if patch:
         field, value = next(iter(patch.items()))
@@ -199,22 +238,18 @@ def _telegram_card(case: AnswerDispute) -> tuple[str, dict | None]:
             change = 'Добавить допустимый ответ: ' + value[-1]
         else:
             change = f'Заменить ключ «{row.get(field)}» на «{value}»'
-        change += '\n«Одобрить правку» — применить изменение для будущих ответов.'
     else:
-        change = '«В ручной разбор» — сохранить спор для проверки человеком.'
-    keyboard = [[{'text': 'Одобрить правку' if patch else 'В ручной разбор', 'callback_data': prefix + 'approve'}],
-                [{'text': 'Отклонить', 'callback_data': prefix + 'reject'},
-                 {'text': 'На доработку', 'callback_data': prefix + 'revise'}]]
+        change = 'Проверьте задание в админке.'
+    keyboard = [[{'text': 'Открыть спор в админке', 'url': dispute_admin_url(case.id)}]]
     title = {'valid_variant': 'Возможен второй верный ответ', 'wrong_key': 'Возможная ошибка в ключе',
              'grader_issue': 'Возможная ошибка в проверке', 'learner_error': 'Модель считает ответ неверным',
              'insufficient_context': 'Модели не хватило контекста'}[review['label']]
     text = (f'{title} · спор {case.id}\n{source}\n'
             f'{question}\nОтвет ученика: {review["shown_answer"]}\n'
-            f'Текущий ключ: {review["shown_key"]}\nРазбор: {review["reason"]}\n\n{change}\n'
-            '«На доработку» — отметить для редактора. «Отклонить» — закрыть спор.')
+            f'Текущий ключ: {review["shown_key"]}\nРазбор: {review["reason"]}\n\n{change}')
     if len(text.encode('utf-16-le')) // 2 > 4096:
         return (f'Спор {case.id} ({source}) требует ручного разбора. '
-                'Полное условие превышает размер сообщения.'), None
+                f'Полное условие в админке: {dispute_admin_url(case.id)}'), None
     return text, {'inline_keyboard': keyboard}
 
 
@@ -233,58 +268,31 @@ def _notify_admins(case: AnswerDispute, recipients: list[int], now: datetime) ->
         case.next_attempt_at = now + timedelta(minutes=10)
 
 
-def decide(case_id: int, tag: str, action: str, sender: int, chat: int) -> str:
-    if type(sender) is not int or sender <= 0 or sender != chat:
-        return 'Решение доступно администратору'
-    # Keep both the link and the administrator's role valid until the decision commits.
-    if not TelegramUser.active_admin_links().filter(TelegramUser.telegram_id == sender).with_for_update(read=True).first():
-        db.session.rollback()
-        return 'Решение доступно администратору'
-    case = AnswerDispute.query.filter_by(id=case_id).populate_existing().with_for_update().first()
-    if (not case or case.status not in ('ready', 'notified') or case.review.get('status_after_notification')
-            or tag != decision_tag(case)):
-        db.session.rollback()
-        return 'Карточка уже обработана или устарела'
-    if action in ('reject', 'revise'):
-        case.status = 'dismissed' if action == 'reject' else 'revise'
-    elif action == 'approve' and case.grammar_exercise_id is not None:
-        exercise = _current_lab_exercise(case, lock=True)
-        patch = case.review.get('patch')
-        if exercise is None:
-            case.status = 'stale'
-        elif not patch:
-            case.status = 'manual'
-        elif lab.proposed_lab_edit(exercise, lab.effective_content(exercise), case.evidence['answer'], case.review['label']) != patch:
-            case.status = 'stale'
-        else:
-            lab.apply_lab_patch(exercise, patch)
-            case.status = 'applied'
-    elif action == 'approve':
-        lesson = Lessons.query.filter_by(id=case.lesson_id).populate_existing().with_for_update().first()
-        row = current_dispute_row(case, lesson) if lesson else None
-        patch = case.review.get('patch')
-        if row is None:
-            case.status = 'stale'
-        elif not patch:
-            case.status = 'manual'
-        elif proposed_edit(lesson, row, _question(lesson, case), case.evidence['answer'], case.review['label']) != patch:
-            case.status = 'stale'
-        else:
-            content = content_for(lesson)
-            rows = content.get('questions') if lesson.type == 'quiz' else None
-            rows = rows or content['exercises']
-            rows[int(case.question_id)].update(patch)
-            lesson.content = content
-            case.status = 'applied'
+def apply_review_patch(case: AnswerDispute, source: Lessons | GrammarExercise, patch: dict) -> None:
+    """Apply the verified patch to the locked material in the caller's transaction."""
+    if isinstance(source, GrammarExercise):
+        lab.apply_lab_patch(source, patch)
+        revisions = {'updated_revision': lab.lab_revision(source)}
     else:
-        db.session.rollback()
-        return 'Неизвестное действие'
-    case.review = {**case.review, 'decided_by': sender, 'decided_at': datetime.now(timezone.utc).isoformat()}
-    status = case.status
+        content = content_for(source)
+        previous = _digest(content)
+        rows = content.get('questions') if source.type == 'quiz' else None
+        rows = rows or content['exercises']
+        rows[int(case.question_id)].update(patch)
+        source.content = content
+        revisions = {'previous_revision': previous, 'updated_revision': _digest(content)}
+    case.review = {**(case.review or {}), **revisions}
+    case.status = 'applied'
+
+
+def commit_decision(case: AnswerDispute) -> None:
+    from app.curriculum.dispute_credit import credit_approved_reports
+    from app.curriculum.services.progress_service import _invalidate_user_progress_cache
+
+    updated_learners = credit_approved_reports(case) if case.status == 'applied' else set()
     db.session.commit()
-    return {'applied': 'Правка применена', 'manual': 'Передано на ручной разбор',
-            'stale': 'Задание изменилось', 'dismissed': 'Спор отклонён',
-            'revise': 'Сохранено на доработку. Проверка ответов пока не изменена.'}[status]
+    for user_id in updated_learners:
+        _invalidate_user_progress_cache(user_id)
 
 
 def process_one() -> bool:

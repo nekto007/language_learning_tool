@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from flask import current_app
 from flask_login import UserMixin
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, desc
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text, desc, false
 from sqlalchemy.orm import relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -32,6 +32,7 @@ class User(db.Model, UserMixin):
     last_login = Column(DateTime)
     active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    is_moderator = Column(Boolean, nullable=False, default=False, server_default=false())
     onboarding_completed = Column(Boolean, default=False, nullable=False, server_default='false')
     onboarding_level = Column(String(4), nullable=True)  # CEFR level chosen during onboarding (A1-C1)
     placement_pending_level = Column(String(4), nullable=True)
@@ -246,6 +247,10 @@ class User(db.Model, UserMixin):
     @property
     def is_active(self):
         return self.active
+
+    @property
+    def can_edit_content(self) -> bool:
+        return bool(self.active and (self.is_admin or self.is_moderator))
 
     def get_id(self):
         """Bind session and remember cookies to the current password state."""

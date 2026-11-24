@@ -32,6 +32,7 @@ def log_admin_action(
     action: str,
     target_type: Optional[str] = None,
     target_id: Optional[int] = None,
+    *, required: bool = False,
 ) -> None:
     """Stage an audit log entry for a destructive admin action.
 
@@ -40,7 +41,7 @@ def log_admin_action(
     is responsible for committing the surrounding transaction — the entry
     becomes durable together with the mutation it documents (or rolls
     back with it). Failures while staging are swallowed so the primary
-    operation is never blocked.
+    operation is never blocked unless its caller explicitly requires an audit.
     """
     nested = None
     try:
@@ -61,3 +62,5 @@ def log_admin_action(
             except Exception:
                 pass
         logger.exception('Failed to write admin audit log entry: action=%s', action)
+        if required:
+            raise

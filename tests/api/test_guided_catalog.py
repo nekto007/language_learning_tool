@@ -142,6 +142,42 @@ def test_repeat_install_and_reordering_keep_exercise_ids(catalog_case):
     assert case.topic.content["legacy_content"] == {"rule": "Legacy reference only"}
 
 
+def test_lab_reinstall_keeps_promoted_alias_and_retired_key(catalog_case: SimpleNamespace) -> None:
+    from app.curriculum.answer_disputes import AnswerDispute, record_lab_rejected_answer
+    from app.curriculum.answer_review_editor import editor_decide, editor_preview, editor_version
+    from app.grammar_lab.answer_review import effective_content
+    from app.grammar_lab.models import GrammarExercise
+    from app.grammar_lab.services.grader import GrammarExerciseGrader
+    from app.utils.db import db
+    from tests.answer_review_fixtures import telegram_admin
+
+    case = catalog_case
+    old_key, promoted, retained = "I sold a bicycle.", "I bought a bicycle.", "I bought a bike."
+    row = case.document["steps"][0]["exercises"][0]
+    row.update(type="translation", question="Я купил велосипед.", correct_answer=old_key,
+               alternatives=["I SOLD A BICYCLE!", promoted, retained])
+    case.path.write_text(json.dumps(case.document))
+    run(case, apply=True)
+    exercise_id = case.topic.content["guided_exercise_ids"][0]
+    exercise = db.session.get(GrammarExercise, exercise_id)
+    record_lab_rejected_answer(db.session, exercise, "I repaired a bicycle.", "i repaired a bicycle")
+    dispute = AnswerDispute.query.filter_by(grammar_exercise_id=exercise_id).one()
+    preview = editor_preview(dispute, "replace", promoted)
+    assert preview["after"] == promoted
+    assert preview["removed_answers"] == [old_key, "I SOLD A BICYCLE!"]
+    assert preview["aliases"] == [retained]
+    with telegram_admin() as admin:
+        editor_decide(dispute.id, admin.user_id, editor_version(dispute), "replace", promoted)
+    for _ in range(2):
+        assert run(case, apply=True)["topics_to_update"] == []
+        assert case.topic.content["guided_exercise_ids"][0] == exercise_id
+        db.session.refresh(exercise)
+        assert exercise.content["correct_answer"] == old_key
+        assert effective_content(exercise)["alternatives"] == [retained]
+        for answer, expected in [(old_key, False), (promoted, True), (retained, True)]:
+            assert GrammarExerciseGrader().grade(exercise, answer)["is_correct"] is expected
+
+
 @pytest.mark.parametrize("failure_point", ["_write_backup", "_seal_backup_after"])
 def test_failure_before_or_after_mutations_rolls_back_everything(catalog_case, monkeypatch, failure_point):
     import app.grammar_lab.content_install as installer
