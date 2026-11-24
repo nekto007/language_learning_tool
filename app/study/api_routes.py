@@ -24,7 +24,9 @@ from app.srs.stats_service import srs_stats_service
 from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import get_audio_url_for_word, study
 from app.study.deck_utils import get_daily_plan_mix_word_ids
-from app.study.models import QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord
+from app.study.models import (
+    PLAN_SRS_SESSION_TYPE, CardGradeEvent, QuizDeck, StudySession, StudySettings, UserCardDirection, UserWord,
+)
 from app.study.services import DeckService, SRSService
 from app.utils.db import db
 from app.utils.rate_limit_helpers import get_authenticated_user_key
@@ -635,6 +637,13 @@ def update_study_item():
     # lesson_mode bypasses new-card daily limits: once a lesson has started it must be completable
     lesson_mode = data.get('lesson_mode', False)
 
+    session = None
+    if session_id:
+        session = (StudySession.query.filter_by(id=session_id, user_id=current_user.id)
+                   .populate_existing().with_for_update().first())
+        if session and session.session_type == PLAN_SRS_SESSION_TYPE and session.end_time is not None:
+            return jsonify(success=False, error='session_completed', message='Это повторение уже завершено.'), 409
+
     user_word = UserWord.get_or_create(current_user.id, word_id)
 
     if user_word.srs_excluded:
@@ -699,14 +708,12 @@ def update_study_item():
 
     interval = direction.update_after_review(quality, context='study', session_id=session_id)
 
-    if session_id:
-        session = StudySession.query.get(session_id)
-        if session and session.user_id == current_user.id:
-            session.words_studied += 1
-            if quality >= 2:
-                session.correct_answers += 1
-            else:
-                session.incorrect_answers += 1
+    if session:
+        session.words_studied += 1
+        if quality >= 2:
+            session.correct_answers += 1
+        else:
+            session.incorrect_answers += 1
 
     try:
         from app.achievements.streak_service import earn_daily_coin
@@ -844,6 +851,23 @@ def include_word_in_srs():
     })
 
 
+def _plan_session_ratings(session: StudySession) -> dict[str, int] | None:
+    """Count words once and every rating, including requeued cards, within this run."""
+    row = db.session.query(
+        func.count(func.distinct(CardGradeEvent.word_id)),
+        func.count().filter(CardGradeEvent.rating == 1),
+        func.count().filter(CardGradeEvent.rating == 2),
+        func.count().filter(CardGradeEvent.rating == 3),
+    ).filter(
+        CardGradeEvent.user_id == session.user_id, CardGradeEvent.session_id == session.id,
+        CardGradeEvent.graded_at >= session.start_time,
+    ).one()
+    words, unknown, hesitant, known = row
+    if not words or unknown + hesitant + known != session.words_studied:
+        return None
+    return dict(words=words, unknown=unknown, hesitant=hesitant, known=known)
+
+
 @study.route('/api/complete-session', methods=['POST'])
 @login_required
 def complete_session():
@@ -853,10 +877,11 @@ def complete_session():
     session_id = data.get('session_id')
     is_linear_plan_srs = _is_linear_plan_srs_completion(data)
 
-    session = StudySession.query.get(session_id)
-    if session and session.user_id == current_user.id:
+    session = StudySession.query.filter_by(id=session_id, user_id=current_user.id).populate_existing().with_for_update().first()
+    if session:
         was_already_completed = session.end_time is not None
-        session.complete_session()
+        if not was_already_completed:
+            session.complete_session()
         db.session.commit()
 
         logger.info(
@@ -959,7 +984,8 @@ def complete_session():
                 'words_studied': session.words_studied,
                 'correct': session.correct_answers,
                 'incorrect': session.incorrect_answers,
-                'percentage': session.performance_percentage
+                'percentage': session.performance_percentage,
+                **({'ratings': _plan_session_ratings(session)} if session.session_type == PLAN_SRS_SESSION_TYPE else {}),
             },
             'xp_earned': xp_award.xp_awarded if xp_award else 0,
             'total_xp': _total_xp,

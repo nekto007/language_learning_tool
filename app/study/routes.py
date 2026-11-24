@@ -15,7 +15,7 @@ from app.srs.visibility import srs_servable_filter
 from app.study.blueprint import is_auto_deck, study
 from app.study.deck_utils import get_daily_plan_mix_word_ids
 from app.study.forms import StudySettingsForm
-from app.study.models import QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
+from app.study.models import PLAN_SRS_SESSION_TYPE, QuizDeck, QuizDeckWord, StudySettings, UserCardDirection, UserWord
 from app.study.services import DeckService, SessionService, SRSService, StatsService
 from app.utils.db import db
 
@@ -426,7 +426,8 @@ def cards():
             flash('План на паузе', 'info')
             return redirect(url_for('words.dashboard'))
     extra_study = request.args.get('extra_study', 'false').lower() == 'true'
-    from_daily_plan = request.args.get('from') == 'daily_plan'
+    plan_srs = source == 'linear_plan' and request.args.get('from') == 'linear_plan' and request.args.get('slot') == 'srs'
+    from_daily_plan = plan_srs or request.args.get('from') == 'daily_plan'
     list_id_arg = request.args.get('list_id', type=int)
     word_id_arg = request.args.get('word_id', type=int)
     if source == 'custom_list' and list_id_arg:
@@ -458,7 +459,7 @@ def cards():
         counts['limit_reached'] = False
 
     _reset_flashcard_attempts_for_new_session(current_user.id, word_ids=deck_word_ids)
-    session = SessionService.start_session(current_user.id, 'cards')
+    session = SessionService.start_session(current_user.id, PLAN_SRS_SESSION_TYPE if plan_srs else 'cards')
     from_word_detail = source == 'word_detail' and bool(word_id_arg)
     back_url = url_for('words.word_detail', word_id=word_id_arg) if from_word_detail else (
         url_for('words.dashboard') if from_daily_plan else url_for('study.index')
@@ -469,6 +470,7 @@ def cards():
         session_id=session.id,
         settings=settings,
         word_source=source,
+        fc_plan_srs=plan_srs,
         nothing_to_study=counts['nothing_to_study'],
         limit_reached=counts['limit_reached'],
         daily_limit=counts['new_limit'],

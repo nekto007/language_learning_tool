@@ -604,6 +604,9 @@ def get_daily_plan(
         )
 
     optional_dicts = [it.to_dict() for it in optional]
+    from app.daily_plan.items.srs import add_last_session_result
+
+    add_last_session_result(user_id, required_dicts + optional_dicts, session)
 
     from app.daily_plan.quiz_corrections import reconcile_quiz_corrections
 

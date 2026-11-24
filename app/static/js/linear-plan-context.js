@@ -235,7 +235,7 @@
    *     <a id="fc-continue-btn" ...>К колодам</a>
    *   </div>
    *
-   * On ``day_secured`` — redirects to ``/dashboard?day_secured=1`` and clears
+   * A completed SRS day keeps the round result visible with a dashboard link and clears
    * the session context (handing off to the dashboard banner). On an
    * available next slot — swaps the primary/secondary CTAs for the plan
    * equivalents and sets ``data-completion-mode="plan"`` on the container so
@@ -257,14 +257,12 @@
       if (!data || data.success === false) {
         return 'standalone';
       }
-      if (data.day_secured) {
-        try { clear(); } catch (e) { /* ignore */ }
+      if (data.day_secured && slotKind === 'curriculum') {
+        clear();
         window.location.href = '/dashboard?day_secured=1';
         return 'plan';
       }
-      if (!data.next || !data.next.url) {
-        return 'standalone';
-      }
+      if (!data.day_secured && (!data.next || !data.next.url)) return 'standalone';
 
       container.setAttribute('data-completion-mode', 'plan');
 
@@ -290,36 +288,29 @@
       var nextAnchor = container.querySelector('[data-plan-cta="next-slot"]');
       var dashAnchor = container.querySelector('[data-plan-cta="dashboard"]');
 
-      if (nextAnchor || dashAnchor) {
-        if (nextAnchor) {
-          nextAnchor.setAttribute('href', data.next.url);
-          nextAnchor.style.display = '';
-        }
-        if (dashAnchor) {
-          dashAnchor.style.display = '';
-        }
+      if (!dashAnchor) {
+        dashAnchor = document.createElement('a');
+        dashAnchor.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
+        dashAnchor.setAttribute('data-plan-cta', 'dashboard');
+        container.appendChild(dashAnchor);
+      }
+      dashAnchor.href = data.day_secured ? '/dashboard?day_secured=1' : '/dashboard';
+      dashAnchor.textContent = _t('back_to_daily_plan', 'К плану дня');
+
+      if (data.day_secured) {
+        if (nextAnchor) nextAnchor.style.display = 'none';
+        clear();
         return 'plan';
       }
-
-      // Fallback: the page rendered no server-side plan CTAs (e.g. the catalog
-      // branch of the partial). Synthesise them with the SHARED .lsn-btn
-      // styling so they don't render unstyled.
-      var primary = document.createElement('a');
-      primary.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
-      primary.setAttribute('data-plan-cta', 'next-slot');
-      primary.setAttribute('href', data.next.url);
-      primary.textContent = data.next.title
-        ? _t('plan_next_slot', 'Следующий слот плана') + ' · ' + data.next.title
-        : _t('plan_next_slot', 'Следующий слот плана');
-
-      var secondary = document.createElement('a');
-      secondary.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
-      secondary.setAttribute('data-plan-cta', 'dashboard');
-      secondary.setAttribute('href', '/dashboard');
-      secondary.textContent = _t('dashboard', 'На дашборд');
-
-      container.appendChild(primary);
-      container.appendChild(secondary);
+      if (!nextAnchor) {
+        nextAnchor = document.createElement('a');
+        nextAnchor.className = 'lsn-btn lsn-btn--primary lsn-btn--plan-equal';
+        nextAnchor.setAttribute('data-plan-cta', 'next-slot');
+        container.appendChild(nextAnchor);
+      }
+      nextAnchor.href = data.next.url;
+      nextAnchor.style.display = '';
+      nextAnchor.textContent = data.next.title || _t('plan_next_slot', 'Следующий слот плана');
       return 'plan';
     }).catch(function() {
       return 'standalone';
@@ -436,7 +427,7 @@
    * and #error-review-complete-btn internally). The container receives
    * ``data-completion-mode="plan"`` on success.
    *
-   * On ``day_secured`` — redirects to ``/dashboard?day_secured=1`` and clears
+   * A completed SRS day keeps the round result visible with a dashboard link and clears
    * the session context (handing off to the dashboard banner). On an available
    * next slot — replaces the resolve button and status line with plan CTAs
    * ("Следующий слот плана · <title>" + "На дашборд"). Contextless or

@@ -158,6 +158,27 @@ def _pause_reason_hint(pause: dict[str, Any], review_show: int = 0) -> str | Non
     return f'{backlog_text} {accuracy_text}' if accuracy_text else backlog_text
 
 
+def add_last_session_result(user_id: int, items: list[dict[str, Any]], db: Any) -> None:
+    """Show the latest finished plan round on today's completed card-review step."""
+    completed = [item for item in items if item.get('id') == 'srs:global' and item.get('completed')]
+    if not completed:
+        return
+
+    from app.study.models import PLAN_SRS_SESSION_TYPE, StudySession
+    from app.utils.time_utils import get_user_local_day_bounds
+
+    start, end = get_user_local_day_bounds(user_id, db)
+    last = (
+        db.session.query(StudySession.correct_answers, StudySession.words_studied)
+        .filter(StudySession.user_id == user_id, StudySession.session_type == PLAN_SRS_SESSION_TYPE,
+                StudySession.end_time >= start, StudySession.end_time < end, StudySession.words_studied > 0)
+        .order_by(StudySession.end_time.desc(), StudySession.id.desc()).first()
+    )
+    if last:
+        for item in completed:
+            item['subtitle'] = f'Последнее повторение · вспомнил {last.correct_answers} из {last.words_studied}'
+
+
 def _srs_completed_today(user_id: int, db: Any) -> bool:
     """Return True when the SRS slot is done for today.
 

@@ -48,9 +48,8 @@ class TestLinearPlanContextSrsHelper:
         # keeps both flows in lock-step with the server.
         assert 'fetchNextSlot()' in JS_SRC
 
-    def test_helper_redirects_on_day_secured(self):
-        # When the SRS slot was the final baseline, hand off to the
-        # dashboard's "День сохранён" banner instead of showing CTAs.
+    def test_completed_day_has_a_plan_exit(self):
+        # The actual SRS result stays visible until the learner follows the link.
         assert "'/dashboard?day_secured=1'" in JS_SRC
 
     def test_helper_renders_plan_ctas(self):
@@ -167,3 +166,66 @@ class TestStudyCardsRouteStillRenders:
         assert response.location.endswith(
             '/study/cards?source=linear_plan&from=linear_plan&slot=srs'
         )
+
+
+def test_web_round_counts_repeated_answers_and_both_directions(
+    authenticated_client, test_user, test_word, db_session,
+) -> None:
+    from app.study.models import PLAN_SRS_SESSION_TYPE, StudySession
+
+    entry = authenticated_client.get('/study/cards?source=linear_plan&from=linear_plan&slot=srs')
+    assert entry.status_code == 200 and b'planSrs: true' in entry.data
+    run = db_session.query(StudySession).filter_by(user_id=test_user.id, session_type=PLAN_SRS_SESSION_TYPE).one()
+    for direction, rating in [('eng-rus', 1), ('rus-eng', 2), ('eng-rus', 3)]:
+        result = authenticated_client.post('/study/api/update-study-item', json={
+            'session_id': run.id, 'direction': direction, 'quality': rating, 'word_id': test_word.id,
+        })
+        assert result.status_code == 200 and result.json['success']
+
+    result = authenticated_client.post('/study/api/complete-session', json={'session_id': run.id})
+    stats = result.json['stats']
+    assert stats['words_studied'] == 3 and stats['correct'] == 2 and stats['percentage'] == 67
+    assert stats['ratings'] == {'words': 1, 'unknown': 1, 'hesitant': 1, 'known': 1}
+    db_session.refresh(run)
+    finished_at = run.end_time
+    late = authenticated_client.post('/study/api/update-study-item', json={
+        'session_id': run.id, 'direction': 'eng-rus', 'quality': 1, 'word_id': test_word.id,
+    })
+    assert late.status_code == 409 and late.json['error'] == 'session_completed'
+    replay = authenticated_client.post('/study/api/complete-session', json={'session_id': run.id})
+    assert replay.json['stats'] == stats
+    db_session.refresh(run)
+    assert run.end_time == finished_at
+
+
+def test_completed_step_selects_only_latest_finished_plan_round_today(test_user, second_user, db_session) -> None:
+    from datetime import timedelta
+
+    from app.daily_plan.items.srs import add_last_session_result
+    from app.study.models import PLAN_SRS_SESSION_TYPE, StudySession
+    from app.utils.db import db
+    from app.utils.time_utils import get_user_local_day_bounds
+
+    start, end = get_user_local_day_bounds(test_user.id, db)
+    def round_(user_id: int, session_type: str, minutes: int | None, remembered: int, total: int) -> StudySession:
+        return StudySession(user_id=user_id, session_type=session_type,
+                            start_time=start - timedelta(hours=1),
+                            end_time=start + timedelta(minutes=minutes) if minutes is not None else None,
+                            words_studied=total, correct_answers=remembered, incorrect_answers=total - remembered)
+
+    # A different activity, an empty run or an unsubmitted round must not hide the result.
+    db_session.add_all([
+        round_(test_user.id, PLAN_SRS_SESSION_TYPE, -1, 0, 8),
+        round_(test_user.id, PLAN_SRS_SESSION_TYPE, 0, 1, 3),
+        round_(test_user.id, PLAN_SRS_SESSION_TYPE, 1, 3, 4),
+        round_(test_user.id, PLAN_SRS_SESSION_TYPE, 2, 0, 0),
+        round_(test_user.id, PLAN_SRS_SESSION_TYPE, None, 0, 6),
+        round_(test_user.id, PLAN_SRS_SESSION_TYPE, int((end - start).total_seconds() / 60), 1, 5),
+        round_(test_user.id, 'cards', 3, 9, 9),
+        round_(second_user.id, PLAN_SRS_SESSION_TYPE, 4, 7, 7),
+    ])
+    db_session.flush()
+    items = [dict(id=kind, completed=done, subtitle='план')
+             for kind, done in [('srs:global', True), ('srs:global', False), ('srs:deck_quiz', True)]]
+    add_last_session_result(test_user.id, items, db)
+    assert [item['subtitle'] for item in items] == ['Последнее повторение · вспомнил 3 из 4', 'план', 'план']

@@ -1120,12 +1120,12 @@ def get_daily_summary(user_id: int, tz: str = DEFAULT_TZ) -> dict[str, Any]:
     ).scalar() or 0
 
     # Words reviewed in dedicated SRS card sessions only (excludes curriculum lessons)
-    from app.study.models import StudySession
+    from app.study.models import CARD_SESSION_TYPES, StudySession
     srs_words_reviewed = db.session.query(
         func.coalesce(func.sum(StudySession.words_studied), 0)
     ).filter(
         StudySession.user_id == user_id,
-        StudySession.session_type == 'cards',
+        StudySession.session_type.in_(CARD_SESSION_TYPES),
         StudySession.start_time >= today_start,
         StudySession.start_time < today_end,
     ).scalar() or 0

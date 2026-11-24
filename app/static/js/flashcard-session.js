@@ -315,17 +315,15 @@ class FlashcardSession {
             this.els.showAnswerBtn.addEventListener('click', () => self.flipCard());
         }
 
-        // Audio buttons
-        if (this.els.frontAudioBtn) {
-            this.els.frontAudioBtn.addEventListener('click', () => {
-                if (self.els.wordAudio) self.els.wordAudio.play();
-            });
+        for (const button of [this.els.frontAudioBtn, this.els.backAudioBtn]) {
+            if (button) button.addEventListener('click', () => this._playWordAudio(true));
         }
-        if (this.els.backAudioBtn) {
-            this.els.backAudioBtn.addEventListener('click', () => {
-                if (self.els.wordAudio) self.els.wordAudio.play();
-            });
-        }
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.els.wordAudio) this.els.wordAudio.pause();
+        });
+        window.addEventListener('pagehide', () => {
+            if (this.els.wordAudio) this.els.wordAudio.pause();
+        });
 
         if (this.els.excludeWordBtn) {
             this.els.excludeWordBtn.addEventListener('click', () => self.excludeCurrentWord());
@@ -342,6 +340,7 @@ class FlashcardSession {
         // End session button
         if (this.els.endSessionBtn) {
             this.els.endSessionBtn.addEventListener('click', () => {
+                if (self._rateInFlight) return;
                 if (confirm('Вы уверены, что хотите завершить сессию?')) {
                     try {
                         self.completeSession();
@@ -721,9 +720,6 @@ class FlashcardSession {
         if (this.els.frontAudioBtn) this.els.frontAudioBtn.hidden = true;
         if (this.els.backAudioBtn) this.els.backAudioBtn.hidden = true;
 
-        // Configure audio
-        const hasAudio = card.audio_url !== null && card.audio_url !== undefined;
-
         // Unit type badge (WORD / PHRASE / PATTERN)
         if (this.els.unitTypeBadge) {
             const unitType = card.unit_type;
@@ -815,31 +811,7 @@ class FlashcardSession {
             }
         }
 
-        // Audio setup
-        if (hasAudio && this.config.showAudio) {
-            if (card.audio_url && this.els.wordAudio) {
-                this.els.wordAudio.src = card.audio_url;
-            }
-
-            if (card.direction === 'eng-rus') {
-                if (this.els.frontAudioBtn) this.els.frontAudioBtn.hidden = false;
-                if (this.els.backAudioBtn) this.els.backAudioBtn.hidden = false;
-
-                // Auto-play for eng-rus on front
-                if (this.els.wordAudio) {
-                    setTimeout(() => {
-                        this.els.wordAudio.play().catch(() => {});
-                    }, 300);
-                }
-            } else {
-                // rus-eng: no audio on front, show on back
-                if (this.els.frontAudioBtn) this.els.frontAudioBtn.hidden = true;
-                if (this.els.backAudioBtn) this.els.backAudioBtn.hidden = false;
-            }
-        } else {
-            if (this.els.frontAudioBtn) this.els.frontAudioBtn.hidden = true;
-            if (this.els.backAudioBtn) this.els.backAudioBtn.hidden = true;
-        }
+        this._setCardAudio(card);
 
         // Show hint after 7 seconds
         if (hint) {
@@ -872,15 +844,43 @@ class FlashcardSession {
             this.hintTimeout = null;
         }
 
-        // Auto-play audio on answer side (especially for rus-eng)
         const card = this.cards[this.currentCardIndex];
-        if (card && card.audio_url && this.config.showAudio && this.els.wordAudio) {
-            setTimeout(() => {
-                this.els.wordAudio.play().catch(error => {
-                    console.log('Audio playback failed:', error);
-                });
-            }, 300);
+        if (card && (card.direction === 'rus-eng' || this.audioBlocked)) {
+            this._playWordAudio();
         }
+    }
+
+    _setCardAudio(card) {
+        const { wordAudio, frontAudioBtn, backAudioBtn } = this.els;
+        const url = typeof card.audio_url === 'string' && card.audio_url.trim();
+        const enabled = Boolean(this.config.showAudio && url && wordAudio);
+        this.audioBlocked = false;
+        if (frontAudioBtn) frontAudioBtn.hidden = !enabled || card.direction !== 'eng-rus';
+        if (backAudioBtn) backAudioBtn.hidden = !enabled;
+        if (!wordAudio) return;
+        wordAudio.pause();
+        if (!enabled) {
+            wordAudio.removeAttribute('src');
+            return;
+        }
+        wordAudio.src = url;
+        if (card.direction === 'eng-rus') this._playWordAudio();
+    }
+
+    _playWordAudio(restart = false) {
+        const player = this.els.wordAudio;
+        if (!player || !player.getAttribute('src') || document.hidden) return;
+        const card = this.cards[this.currentCardIndex];
+        const attempt = (this.audioAttempt || 0) + 1;
+        this.audioAttempt = attempt;
+        this.audioBlocked = false;
+        if (restart) player.currentTime = 0;
+        player.play().catch(error => {
+            if (this.audioAttempt === attempt && this.cards[this.currentCardIndex] === card && error.name === 'NotAllowedError') {
+                // A tap on «Показать ответ» can unlock the first recording.
+                this.audioBlocked = true;
+            }
+        });
     }
 
     _csrfHeaders() {
@@ -1181,6 +1181,7 @@ class FlashcardSession {
      * Complete the study session.
      */
     async completeSession() {
+        if (this.els.wordAudio) this.els.wordAudio.pause();
         // If no completeUrl, show celebration with local stats
         if (!this.config.completeUrl) {
             this._showCelebration({
@@ -1376,13 +1377,22 @@ class FlashcardSession {
         // Set random completion message
         const titleEl = document.getElementById('celebration-title');
         if (titleEl) {
-            titleEl.textContent = this._getRandomCompletionMessage();
+            titleEl.textContent = this.config.planSrs ? 'Итог повторения' : this._getRandomCompletionMessage();
+            if (this.config.planSrs) titleEl.focus({ preventScroll: true });
         }
 
         // Get stats values
         const wordsStudied = stats.words_studied || 0;
         const correct = stats.correct || 0;
         const percentage = stats.percentage || 0;
+
+        const ratings = document.getElementById('srs-round-ratings');
+        if (ratings && stats.ratings) {
+            for (const count of ratings.querySelectorAll('[data-count]')) {
+                count.textContent = stats.ratings[count.dataset.count];
+            }
+            ratings.hidden = false;
+        }
 
         // Animate stats
         this.animateValue('stats-words', 0, wordsStudied, 800);
@@ -1521,6 +1531,10 @@ class FlashcardSession {
         const el = document.getElementById(elementId);
         if (!el) return;
 
+        if (this.config.planSrs) {
+            el.textContent = end;
+            return;
+        }
         const range = end - start;
         const startTime = performance.now();
 
@@ -1660,11 +1674,9 @@ class FlashcardSession {
         }
 
         const sessionNewCount = document.getElementById('session-new-count');
-        const sessionLearningCount = document.getElementById('session-learning-count');
         const sessionReviewCount = document.getElementById('session-review-count');
 
         if (sessionNewCount) sessionNewCount.textContent = stats.new_cards_today || 0;
-        if (sessionLearningCount) sessionLearningCount.textContent = this.sessionStats.learning_cards || 0;
         if (sessionReviewCount) sessionReviewCount.textContent = stats.reviews_today || 0;
 
         noCardsInSourceMessage.style.display = 'block';

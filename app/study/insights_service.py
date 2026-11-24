@@ -1629,7 +1629,7 @@ def get_accuracy_trend(user_id: int, days: int = 30) -> dict[str, Any]:
     Missing weeks produce ``null`` entries (not 0) so Chart.js skips the gap.
     """
     from app.curriculum.models import LessonAttempt, Lessons
-    from app.study.models import StudySession
+    from app.study.models import CARD_SESSION_TYPES, StudySession
 
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     start_dt = now_utc - timedelta(days=days)
@@ -1644,7 +1644,7 @@ def get_accuracy_trend(user_id: int, days: int = 30) -> dict[str, Any]:
         .filter(
             StudySession.user_id == user_id,
             StudySession.start_time >= start_dt,
-            StudySession.session_type == 'cards',
+            StudySession.session_type.in_(CARD_SESSION_TYPES),
         )
         .group_by(func.date_trunc('week', StudySession.start_time))
         .all()

@@ -24,6 +24,10 @@ from app.utils.db import db
 _BOTH_DIRECTIONS = frozenset((DIRECTION_ENG_RUS, DIRECTION_RUS_ENG))
 
 
+PLAN_SRS_SESSION_TYPE = 'cards_linear_plan'
+CARD_SESSION_TYPES = ('cards', PLAN_SRS_SESSION_TYPE)
+
+
 class StudySession(db.Model):
     """
     Model to track study sessions and their results

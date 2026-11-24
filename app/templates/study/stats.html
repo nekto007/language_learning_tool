@@ -301,7 +301,7 @@
                     <tr>
                         <td>{{ session.start_time.strftime('%Y-%m-%d %H:%M') if session.start_time else '—' }}</td>
                         <td>
-                            <span class="stats-table__type-badge">{{ session.session_type|capitalize }}</span>
+                            <span class="stats-table__type-badge">{{ 'Повторение по плану' if session.session_type == 'cards_linear_plan' else session.session_type|capitalize }}</span>
                         </td>
                         <td>{{ session.words_studied }}</td>
                         <td>

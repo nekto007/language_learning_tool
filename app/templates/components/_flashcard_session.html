@@ -32,7 +32,7 @@
 #}
 
 <!-- Flashcard Session CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcard-session.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcard-session.css', v='srs-result-1') }}">
 <style nonce="{{ csp_nonce }}">
 .cards-page { overflow-wrap: anywhere; }
 .cards-page button, .cards-page h1 { max-width: 100%; min-width: 0; white-space: normal; }
@@ -145,7 +145,7 @@
                 <span id="card-source-badge" class="card-source-badge" style="display: none;"></span>
                 <h1 id="front-word" class="display-3 mb-4 fw-medium"></h1>
 
-                <button id="front-audio-btn" class="btn btn-outline-secondary mb-4">
+                <button id="front-audio-btn" type="button" hidden class="btn btn-outline-secondary mb-4">
                     <i class="fas fa-volume-up me-2"></i>Произношение
                 </button>
 
@@ -172,7 +172,7 @@
             <div class="card-body">
                 <h1 id="back-word" class="display-3 mb-4 fw-medium"></h1>
 
-                <button id="back-audio-btn" class="btn btn-outline-secondary mb-4">
+                <button id="back-audio-btn" type="button" hidden class="btn btn-outline-secondary mb-4">
                     <i class="fas fa-volume-up me-2"></i>Произношение
                 </button>
 
@@ -266,10 +266,9 @@
             <div class="session-done-content">
                 <h1 class="session-done-title" id="no-cards-title">Ура! На сегодня всё.</h1>
                 <div class="session-done-stats" id="session-stats-block">
-                    <p class="session-stats-label">В этой сессии изучено:</p>
+                    <p class="session-stats-label">За сегодня</p>
                     <div class="session-stats-row">
                         <span class="stat-badge stat-new"><span id="session-new-count">0</span> новых</span>
-                        <span class="stat-badge stat-learning"><span id="session-learning-count">0</span> в изучении</span>
                         <span class="stat-badge stat-review"><span id="session-review-count">0</span> повторений</span>
                     </div>
                 </div>
@@ -307,13 +306,13 @@
                 </div>
 
                 <!-- Title -->
-                <h1 class="celebration-title" id="celebration-title">Сессия завершена!</h1>
+                <h1 class="celebration-title" id="celebration-title" tabindex="-1">Сессия завершена!</h1>
 
                 <!-- Stats grid -->
                 <div class="celebration-stats">
                     <div class="stat-card stat-cards-studied">
                         <div class="stat-value" id="stats-words">0</div>
-                        <div class="stat-label">карточек пройдено</div>
+                        <div class="stat-label">{{ 'ответов за повторение' if fc_plan_srs else 'карточек пройдено' }}</div>
                     </div>
 
                     <div class="stat-card stat-accuracy">
@@ -343,9 +342,16 @@
                         <div class="stat-value">
                             <span id="stats-correct">0</span><span class="stat-value__divider">/</span><span id="stats-total">0</span>
                         </div>
-                        <div class="stat-label">правильных</div>
+                        <div class="stat-label">{{ 'вспомнил сразу или с трудом' if fc_plan_srs else 'правильных' }}</div>
                     </div>
                 </div>
+
+                {% if fc_plan_srs %}
+                <div id="srs-round-ratings" hidden>
+                    <p>Разных слов <strong data-count="words"></strong></p>
+                    <p>Не знаю <strong data-count="unknown"></strong> · Сомневаюсь <strong data-count="hesitant"></strong> · Знаю <strong data-count="known"></strong></p>
+                </div>
+                {% endif %}
 
                 <!-- XP earned with animation -->
                 <div class="xp-reward">
@@ -436,10 +442,10 @@
 <audio id="word-audio" style="display: none;"></audio>
 
 <!-- Linear plan context (plan-aware completion CTAs for SRS sessions) -->
-<script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>
+<script src="{{ url_for('static', filename='js/linear-plan-context.js', v='srs-result-1') }}"></script>
 
 <!-- Flashcard Session JS -->
-<script src="{{ url_for('static', filename='js/flashcard-session.js') }}"></script>
+<script src="{{ url_for('static', filename='js/flashcard-session.js', v='srs-result-1') }}"></script>
 <script nonce="{{ csp_nonce }}">
     (function() {
         var url = new URL(window.location.href);
@@ -462,6 +468,7 @@
             sessionId: {{ fc_session_id | tojson if fc_session_id is defined and fc_session_id else 'null' }},
             backUrl: {{ fc_back_url | tojson }},
             title: {{ fc_title | tojson }},
+            planSrs: {{ fc_plan_srs | default(false) | tojson }},
             showBookContext: {{ fc_show_book_context | tojson if fc_show_book_context is defined else 'false' }},
             showExamples: {{ fc_show_examples | tojson if fc_show_examples is defined else 'true' }},
             showAudio: {{ fc_show_audio | tojson if fc_show_audio is defined else 'true' }},

@@ -12,6 +12,7 @@ from flask_login import current_user
 from app import csrf, limiter
 from app.api.decorators import api_bearer_required
 from app.api.native_lessons import NativeLessonError, native_error, plain, private_response
+from app.study.models import StudySettings
 from app.utils.db import db
 from app.utils.rate_limit_helpers import get_authenticated_user_key
 
@@ -115,14 +116,20 @@ def _examples(value):
     return plain(value).replace('|', '\n')
 
 
+def _with_audio_preference(response: dict) -> dict:
+    setting = db.session.query(StudySettings.include_audio).filter_by(user_id=current_user.id).scalar()
+    return {**response, 'autoplay_audio': setting is not False}
+
+
 def _response(run):
     state = run.state
     head = state['queue'][0] if state['queue'] else None
     card = {k: v for k, v in head.items() if k != 'revision'} if head else None
-    return {'success': True, 'session_id': run.session_id, 'step': state['step'], 'card': card,
+    response = {'success': True, 'session_id': run.session_id, 'step': state['step'], 'card': card,
             'remaining': len(state['queue']), 'reviewed': state['reviewed'], 'remembered': state['remembered'],
             'complete': state['complete'], 'xp_earned': state.get('xp_earned', 0), 'notice': state.get('notice'),
             'statistics': _statistics(state)}
+    return response if state.get('lesson_id') is not None else _with_audio_preference(response)
 
 
 def _round_metadata(queue):
@@ -205,9 +212,9 @@ def start_srs():
             if (run.state['start_id'] == data['request_id'] and run.state['complete']) or (not run.state['complete'] and guard_error is None):
                 return jsonify(_response(run))
         if guard_error: raise guard_error
-        from app.study.models import NativeSRSState, StudySession
+        from app.study.models import PLAN_SRS_SESSION_TYPE, NativeSRSState, StudySession
         queue = _pack_pool(items)
-        session = StudySession(user_id=current_user.id, session_type='cards', start_time=datetime.now(UTC))
+        session = StudySession(user_id=current_user.id, session_type=PLAN_SRS_SESSION_TYPE, start_time=datetime.now(UTC))
         db.session.add(session); db.session.flush()
         if run is None:
             run = NativeSRSState(user_id=current_user.id)
@@ -290,7 +297,8 @@ def grade_srs():
         if run is None or run.session_id != data['session_id'] or run.study_day != day or run.state.get('lesson_id') is not None:
             raise NativeLessonError('srs_changed', 409)
         state = deepcopy(run.state)
-        if state.get('last_step') == data['step']: return jsonify(state['last_response'])
+        if state.get('last_step') == data['step']:
+            return jsonify(_with_audio_preference(state['last_response']))
         if guard_error: raise guard_error
         if state['step'] != data['step'] or state['complete'] or not state['queue']:
             raise NativeLessonError('srs_changed', 409)

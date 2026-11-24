@@ -7,7 +7,7 @@ import pytest
 from flask import Flask
 from flask_jwt_extended import JWTManager, create_access_token
 from flask_login import LoginManager, UserMixin
-from sqlalchemy import Column, Integer, String, DateTime, JSON, create_engine
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, JSON, create_engine
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 
 Base = declarative_base()
@@ -15,6 +15,11 @@ class Account(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
     xp = Column(Integer, default=0)
+class AudioSettings(Base):
+    __tablename__ = 'study_settings'
+    user_id = Column(Integer, primary_key=True)
+    include_audio = Column(Boolean)
+
 class Run(Base):
     __tablename__ = 'native_srs_state'
     user_id = Column(Integer, primary_key=True)
@@ -45,6 +50,8 @@ def context(monkeypatch):
     from app import csrf
     from app.api import native_srs as native, decorators
     import app.study.models as models
+    # Load the real grading module before temporarily replacing ORM models.
+    import app.study.api_routes  # noqa: F401
     from app.achievements import xp_service
     import app.daily_plan.linear.xp as linear
     engine = create_engine('sqlite://')
@@ -55,6 +62,7 @@ def context(monkeypatch):
     monkeypatch.setattr(native, 'db', SimpleNamespace(session=session))
     monkeypatch.setattr(native, '_lock_user', lambda: session.query(Account.id).filter(
         Account.id == native.current_user.id).with_for_update().one())
+    monkeypatch.setattr(native, 'StudySettings', AudioSettings)
     monkeypatch.setattr(models,'StudySession',Session)
     monkeypatch.setattr(models,'NativeSRSState',Run,raising=False)
     guard_function=native._guard
@@ -339,3 +347,15 @@ def test_recording_url_survives_resume_requeue_and_receipt(context,monkeypatch):
     assert again.status_code==200
     assert again.json['card']['audio_url']==run['card']['audio_url']
     assert grade(c,run,1).json==again.json
+
+
+def test_global_round_reports_audio_preference_on_resume_and_grade_replay(context) -> None:
+    run = start(context).get_json()
+    assert run['autoplay_audio'] is True
+    context.db.add(AudioSettings(user_id=7, include_audio=False))
+    context.db.commit()
+    assert start(context).get_json()['autoplay_audio'] is False
+    first = grade(context, run).get_json()
+    assert first['autoplay_audio'] is False
+    assert grade(context, run).get_json() == first
+    assert len(context.grades) == 1
