@@ -4,6 +4,13 @@
   var card = document.querySelector('[data-study-start]');
   if (!card || card.dataset.studyStartBound) return;
   card.dataset.studyStartBound = 'true';
+  if (window.LLTPracticeDrafts && card.dataset.lesson && window.LLTPracticeDrafts.savedDraft(
+      window, card.dataset.account, card.dataset.lesson, card.dataset.lessonType)) {
+    card.dataset.resume = 'true';
+    card.querySelector('.study-start__eyebrow').textContent = 'Продолжим занятие';
+    card.querySelector('.study-start__cta').firstChild.textContent = 'Продолжить занятие ';
+    card.querySelector('.study-start__note').textContent = 'Черновик этого занятия сохранён в этом браузере.';
+  }
   function emit(name) {
     if (typeof window.gtag !== 'function') return;
     window.gtag('event', name, {

@@ -19,11 +19,13 @@
   <p id="practice-goal" class="text-secondary" hidden></p>
   <p id="practice-error" role="alert" class="text-danger" hidden></p>
   <p id="practice-storage-warning" role="status" class="alert alert-warning" hidden></p>
+  <p id="practice-draft-note" class="text-secondary small" role="status"></p>
   <section id="practice-screen" aria-live="polite" aria-atomic="false"><p>Открываем занятие…</p></section>
   <noscript>Для пошаговой практики включи JavaScript.</noscript>
 </main>
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/guided-practice.js') }}?v=20261124-choice" defer></script>
+<script src="{{ url_for('static', filename='js/practice-drafts.js', v='20261124-resume') }}" defer></script>
+<script src="{{ url_for('static', filename='js/guided-practice.js') }}?v=20261124-resume" defer></script>
 {% endblock %}

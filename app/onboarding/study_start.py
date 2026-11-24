@@ -98,4 +98,5 @@ def build_study_start_card(user_id, db, plan, completion):
                    or 'Примените изученное в короткой практике.',
         'url': item['url'], 'minutes': minutes, 'level': level, 'topic': topic,
         'resumed': resumed, 'lesson_type': lesson_type or item.get('kind'),
+        'lesson_id': data.get('lesson_id') if item.get('kind') == 'curriculum' else None,
     }

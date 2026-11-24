@@ -1,5 +1,6 @@
 <section class="study-start" aria-labelledby="study-start-title" data-study-start="true"
          data-level="{{ study_start.level or '' }}" data-lesson-type="{{ study_start.lesson_type }}"
+         data-account="{{ current_user.id }}" data-lesson="{{ study_start.lesson_id or '' }}"
          data-resume="{{ 'true' if study_start.resumed else 'false' }}">
   <p class="study-start__eyebrow">{{ study_start.eyebrow }}</p>
   <div class="study-start__meta">

@@ -7,6 +7,8 @@
   const errorBox = root.querySelector('#practice-error');
   const storageWarning = root.querySelector('#practice-storage-warning');
   const endpoint = root.dataset.endpoint;
+  const drafts = window.LLTPracticeDrafts ? new window.LLTPracticeDrafts.Store(window, root.dataset.account, root.dataset.lesson) : null;
+  const draftStorage = () => drafts || window.sessionStorage;
   const activeKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:active`;
   let lesson, state, busy = false, accountInvalid = false, storageKey, refreshButton, focusAfterDraw = false;
   let browserDraftAvailable = true, storageReadable = true, unloadGuarded = false;
@@ -30,6 +32,13 @@
   const warnBeforeUnload = event => { event.preventDefault(); event.returnValue = ''; };
   const updateStorageWarning = () => {
     const warn = !browserDraftAvailable && state && !state.result && !accountInvalid;
+    const note = root.querySelector('#practice-draft-note');
+    if (note) {
+      note.hidden = Boolean(state?.result || accountInvalid);
+      note.textContent = warn ? 'Текущие изменения остаются только в этой вкладке.' : drafts?.durable
+        ? 'Черновик сохраняется в этом браузере. Можно закрыть вкладку и продолжить через план дня.'
+        : 'Черновик сохраняется только в этой вкладке. Чтобы продолжить позже, оставь её открытой.';
+    }
     if (storageWarning) {
       storageWarning.hidden = !warn;
       storageWarning.textContent = state?.pendingSubmission
@@ -42,13 +51,13 @@
     else if (!dirty && unloadGuarded) { window.removeEventListener('beforeunload', warnBeforeUnload); unloadGuarded = false; }
   };
   const stored = key => {
-    try { const value = sessionStorage.getItem(key); storageReadable = true; return value; }
+    try { const value = draftStorage().getItem(key); storageReadable = true; return value; }
     catch (_) { storageReadable = false; browserDraftAvailable = false; updateStorageWarning(); return null; }
   };
   const save = () => {
     try {
-      sessionStorage.setItem(storageKey, JSON.stringify(state));
-      sessionStorage.setItem(activeKey, storageKey);
+      draftStorage().setItem(storageKey, JSON.stringify(state));
+      draftStorage().setItem(activeKey, storageKey);
       browserDraftAvailable = storageReadable;
     } catch (_) { browserDraftAvailable = false; }
     updateStorageWarning();
@@ -201,7 +210,7 @@
       if (isCorrection()) screen.append(node('p', `Исправлено: ${r.correct_count} из ${r.total_count}. Исходный результат ${first.first_score}% сохранён.`));
       if (r.correction_pending) screen.append(node('p', 'Продолжи план дня. Работа над ошибками появится отдельным шагом перед следующим связанным заданием.'));
       const link = node('a', 'К плану дня', 'btn btn-primary my-3'); link.href = root.querySelector('a').href; screen.append(link);
-      if (!r.correction_pending && !isCorrection() && root.dataset.reviewOnly !== 'true') screen.append(button('Повторить урок', () => perform(async () => { try { sessionStorage.removeItem(storageKey); } catch (_) {} await load(true); })));
+      if (!r.correction_pending && !isCorrection() && root.dataset.reviewOnly !== 'true') screen.append(button('Повторить урок', () => perform(async () => { try { draftStorage().removeItem(storageKey); } catch (_) {} await load(true); })));
       (r.feedback || []).forEach(f => {
         const card = node('article', null, 'card card-body my-3');
         const answer = node('p', 'Твой ответ: ' + f.answer); answer.style.whiteSpace = 'pre-wrap';
@@ -250,7 +259,7 @@
           throw error;
         }
         delete state.pendingSubmission; delete state.pendingLesson;
-        if (state.result.correction_pending || state.result.completed) { try { sessionStorage.removeItem(storageKey); } catch (_) {} }
+        if (state.result.correction_pending || state.result.completed) { try { draftStorage().removeItem(storageKey); } catch (_) {} }
         else save();
       }), true)); return;
     }
@@ -349,7 +358,7 @@
         try {
           state.result = await request('/submit', state.pendingSubmission);
           delete state.pendingSubmission; delete state.pendingLesson;
-          try { sessionStorage.removeItem(storageKey); } catch (_) {}
+          try { draftStorage().removeItem(storageKey); } catch (_) {}
           draw(); return;
         } catch (error) {
           if (error.code === 'lesson_changed') {
@@ -357,8 +366,8 @@
             // A changed authored revision cannot reuse checked answers. Keep
             // the old draft separately and let Refresh open the current copy.
             try {
-              sessionStorage.setItem(storageKey + ':expired:' + Date.now(), JSON.stringify(state));
-              sessionStorage.removeItem(storageKey); sessionStorage.removeItem(activeKey);
+              draftStorage().setItem(storageKey + ':expired:' + Date.now(), JSON.stringify(state));
+              draftStorage().removeItem(storageKey); draftStorage().removeItem(activeKey);
             } catch (_) {}
           } else {
             if (['access_denied','authentication_required'].includes(error.code)) {
@@ -389,7 +398,7 @@
       && (!isFinal() || draft.lessonType === 'final_test');
     const previous = expiredDraft || (!fresh && draft && !compatibleDraft ? draft : null);
     if (previous && !expiredDraft) {
-      try { sessionStorage.setItem(storageKey + ':expired:' + Date.now(), JSON.stringify(previous)); } catch (_) { browserDraftAvailable = false; }
+      try { draftStorage().setItem(storageKey + ':expired:' + Date.now(), JSON.stringify(previous)); } catch (_) { browserDraftAvailable = false; }
     }
     state = !fresh && !expiredDraft && compatibleDraft && !draft.result ? draft : {
       revision, lessonType: lesson.type, index: 0, answers: {...(isFinal() && !fresh ? lesson.resume_answers : lesson.correction?.previous_answers || {})}, first: {}, checks: {},
@@ -408,5 +417,21 @@
   };
   refreshButton = button('Обновить задание', () => perform(() => load()));
   root.prepend(refreshButton);
-  perform(() => load());
+  let opening = false;
+  const openEditor = async () => {
+    if (opening || accountInvalid) return;
+    opening = true; refreshButton.disabled = true;
+    if (drafts && !await drafts.acquire()) {
+      lesson = null; state = null; screen.replaceChildren();
+      screen.append(node('h2', 'Занятие открыто в другой вкладке', 'h4'));
+      screen.append(node('p', 'Продолжи там или закрой ту вкладку, затем нажми «Продолжить здесь». Это защищает ответы от перезаписи.'));
+      screen.append(button('Продолжить здесь', openEditor, true));
+      opening = false; return;
+    }
+    opening = false;
+    await perform(() => load());
+  };
+  window.addEventListener('pagehide', () => { if (drafts) drafts.close(); });
+  window.addEventListener('pageshow', event => { if (event.persisted) openEditor(); });
+  openEditor();
 })();

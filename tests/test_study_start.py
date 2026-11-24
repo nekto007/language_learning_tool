@@ -83,6 +83,7 @@ class TestStudyStartSelection:
         assert card['topic'] == 'Discussing academic ideas'
         assert card['cta'] == 'Начать первое занятие'
         assert card['resumed'] is False
+        assert card['lesson_id'] == start_lessons[0].id
         assert plan == original
         assert db_session.query(LessonProgress).filter_by(user_id=test_user.id).count() == before
         assert not db_session.new
@@ -155,6 +156,7 @@ class TestStudyStartSelection:
         assert card['url'] == srs['url']
         assert card['cta'] == 'Начать следующее занятие'
         assert 'повторения' in card['outcome']
+        assert card['lesson_id'] is None
 
     def test_no_curriculum_history_does_not_relabel_existing_srs_user(self, db_session, test_user, start_lessons):
         srs = {'id': 'srs:today', 'kind': 'srs', 'title': 'Cards', 'url': '/study/cards', 'data': {}}
