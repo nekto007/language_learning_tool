@@ -8,7 +8,7 @@ from typing import Any
 
 import click
 from flask import Flask, current_app
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.curriculum import answer_review_ai as ai
@@ -84,9 +84,14 @@ def _status(case_id: int | None) -> dict[str, Any]:
             'grader_version': case.grader_version, 'evidence': case.evidence, 'review': case.review,
         }
     counts = dict(db.session.query(AnswerDispute.status, func.count()).group_by(AnswerDispute.status).all())
-    ids = db.session.query(AnswerDispute.id).filter(AnswerDispute.status.in_(MANUAL_STATUSES)).order_by(AnswerDispute.id).limit(100).all()
+    manual = db.session.query(AnswerDispute.id).filter(or_(
+        AnswerDispute.status.in_(MANUAL_STATUSES),
+        (AnswerDispute.status == 'ready')
+        & (AnswerDispute.review['status_after_notification'].as_string() == 'manual'),
+    ))
+    ids = manual.order_by(AnswerDispute.id).limit(MAX_CASES).all()
     manual_ids = [row[0] for row in ids]
-    total = sum(counts.get(status, 0) for status in MANUAL_STATUSES)
+    total = manual.count()
     return {'counts': counts, 'manual_total': total, 'manual_ids': manual_ids,
             'manual_ids_truncated': total > len(manual_ids)}
 

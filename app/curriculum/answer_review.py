@@ -108,18 +108,31 @@ def _current_lab_exercise(case: AnswerDispute, *, lock: bool = False) -> Grammar
     return exercise
 
 
+def _notify_all() -> bool:
+    return current_app.config.get('ANSWER_REVIEW_NOTIFY_ALL', True)
+
+
+def _finish_without_verdict(case: AnswerDispute, status: str, reason: str) -> None:
+    case.review = {'label': status, 'reason': reason}
+    case.status = status
+    if _notify_all():
+        # The details can be sensitive or obsolete. Send only a reference to the case.
+        case.review = {**case.review, 'status_after_notification': status}
+        case.status = 'ready'
+
+
 def review_case(case: AnswerDispute, *, key: str, model: str) -> None:
     answer = case.evidence['answer']
     exercise = None
     if case.grammar_exercise_id is not None:
         exercise = _current_lab_exercise(case)
         if exercise is None:
-            case.status = 'stale'
+            _finish_without_verdict(case, 'stale', 'Версия упражнения изменилась после отправки.')
             return
         row = lab.effective_content(exercise)
         result = lab.grade_row(exercise, row, answer)
         if result.get('error'):
-            case.status = 'manual'
+            _finish_without_verdict(case, 'manual', 'Формат ответа требует ручного разбора.')
             return
         correct = result['is_correct']
         shown, expected = lab.display_review_answers(exercise, row, result)
@@ -129,21 +142,20 @@ def review_case(case: AnswerDispute, *, key: str, model: str) -> None:
         lesson = db.session.get(Lessons, case.lesson_id)
         row = current_dispute_row(case, lesson) if lesson else None
         if row is None:
-            case.status = 'stale'
+            _finish_without_verdict(case, 'stale', 'Версия задания изменилась после отправки.')
             return
         question = _question(lesson, case)
         feedback = check_answer(row, question, answer, grammar=lesson.type == 'grammar')
         correct, shown, expected = feedback['correct'], feedback['answer'], feedback['expected']
         model_row = {k: v for k, v in row.items() if k in ROW_FIELDS}
     if correct:
-        case.status = 'stale'
+        _finish_without_verdict(case, 'stale', 'Актуальная проверка уже принимает этот ответ.')
         return
     evidence = {'row': model_row,
                 'question': case.evidence['question'], 'expected': expected, 'submitted_answer': shown}
     encoded = json.dumps(evidence, ensure_ascii=False)
     if len(encoded) > 10000 or len(str(shown)) > 500 or ai.CONTACT.search(encoded):
-        case.review = {'label': 'manual', 'reason': 'Требуется локальный разбор содержимого.'}
-        case.status = 'manual'
+        _finish_without_verdict(case, 'manual', 'Требуется локальный разбор содержимого.')
         return
     review = ai.classify(evidence, key=key, model=model)
     if exercise is not None:
@@ -154,7 +166,8 @@ def review_case(case: AnswerDispute, *, key: str, model: str) -> None:
     review['shown_answer'] = shown
     review['shown_key'] = expected
     case.review = review
-    case.status = 'closed' if review['label'] in ('learner_error', 'insufficient_context') else 'ready'
+    negative = review['label'] in ('learner_error', 'insufficient_context')
+    case.status = 'closed' if negative and not _notify_all() else 'ready'
 
 
 def decision_tag(case: AnswerDispute) -> str:
@@ -164,9 +177,18 @@ def decision_tag(case: AnswerDispute) -> str:
 
 def _telegram_card(case: AnswerDispute) -> tuple[str, dict | None]:
     review = case.review
+    if case.grammar_exercise_id is not None:
+        topic = f'тема {review["topic_id"]}, ' if review.get('topic_id') is not None else ''
+        source = f'Grammar Lab · {topic}упражнение {case.grammar_exercise_id}'
+    else:
+        source = f'Урок {case.lesson_id}, вопрос {int(case.question_id) + 1}'
+    if review.get('status_after_notification'):
+        return f'Спор {case.id}\n{source}\n{review["reason"]}', None
+
     row = case.evidence['row']
     instructions = [case.evidence['question'].get('lesson_instruction'), row.get('instruction'),
                     case.evidence['question'].get('instruction'), case.evidence['question'].get('prompt'),
+                    row.get('statement'), row.get('original'), row.get('sentence'),
                     case.evidence['question'].get('context'), row.get('context'), row.get('constraints'), row.get('required_words')]
     question = '\n'.join(dict.fromkeys(str(s) for s in instructions if s))
     prefix = f"dispute:{case.id}:{decision_tag(case)}:"
@@ -177,21 +199,19 @@ def _telegram_card(case: AnswerDispute) -> tuple[str, dict | None]:
             change = 'Добавить допустимый ответ: ' + value[-1]
         else:
             change = f'Заменить ключ «{row.get(field)}» на «{value}»'
+        change += '\n«Одобрить правку» — применить изменение для будущих ответов.'
     else:
-        change = 'Передать на разбор проверки и задания вручную'
+        change = '«В ручной разбор» — сохранить спор для проверки человеком.'
     keyboard = [[{'text': 'Одобрить правку' if patch else 'В ручной разбор', 'callback_data': prefix + 'approve'}],
                 [{'text': 'Отклонить', 'callback_data': prefix + 'reject'},
                  {'text': 'На доработку', 'callback_data': prefix + 'revise'}]]
     title = {'valid_variant': 'Возможен второй верный ответ', 'wrong_key': 'Возможная ошибка в ключе',
-             'grader_issue': 'Возможная ошибка в проверке'}[review['label']]
-    # Keep the complete instruction and proposed change visible when asking for approval.
-    if case.grammar_exercise_id is not None:
-        source = f'Grammar Lab · тема {review["topic_id"]}, упражнение {case.grammar_exercise_id}'
-    else:
-        source = f'Урок {case.lesson_id}, вопрос {int(case.question_id) + 1}'
+             'grader_issue': 'Возможная ошибка в проверке', 'learner_error': 'Модель считает ответ неверным',
+             'insufficient_context': 'Модели не хватило контекста'}[review['label']]
     text = (f'{title} · спор {case.id}\n{source}\n'
             f'{question}\nОтвет ученика: {review["shown_answer"]}\n'
-            f'Текущий ключ: {review["shown_key"]}\n{review["reason"]}\n\n{change}')
+            f'Текущий ключ: {review["shown_key"]}\nРазбор: {review["reason"]}\n\n{change}\n'
+            '«На доработку» — отметить для редактора. «Отклонить» — закрыть спор.')
     if len(text.encode('utf-16-le')) // 2 > 4096:
         return (f'Спор {case.id} ({source}) требует ручного разбора. '
                 'Полное условие превышает размер сообщения.'), None
@@ -208,7 +228,7 @@ def _notify_admins(case: AnswerDispute, recipients: list[int], now: datetime) ->
             delivered.add(recipient)
     case.review = {**case.review, 'notified_telegram_ids': sorted(delivered)}
     if delivered.issuperset(recipients):
-        case.status = 'notified' if keyboard else 'manual'
+        case.status = case.review.get('status_after_notification') or ('notified' if keyboard else 'manual')
     else:
         case.next_attempt_at = now + timedelta(minutes=10)
 
@@ -221,7 +241,8 @@ def decide(case_id: int, tag: str, action: str, sender: int, chat: int) -> str:
         db.session.rollback()
         return 'Решение доступно администратору'
     case = AnswerDispute.query.filter_by(id=case_id).populate_existing().with_for_update().first()
-    if not case or case.status not in ('ready', 'notified') or tag != decision_tag(case):
+    if (not case or case.status not in ('ready', 'notified') or case.review.get('status_after_notification')
+            or tag != decision_tag(case)):
         db.session.rollback()
         return 'Карточка уже обработана или устарела'
     if action in ('reject', 'revise'):
@@ -262,7 +283,8 @@ def decide(case_id: int, tag: str, action: str, sender: int, chat: int) -> str:
     status = case.status
     db.session.commit()
     return {'applied': 'Правка применена', 'manual': 'Передано на ручной разбор',
-            'stale': 'Задание изменилось', 'dismissed': 'Отклонено', 'revise': 'На доработке'}[status]
+            'stale': 'Задание изменилось', 'dismissed': 'Спор отклонён',
+            'revise': 'Сохранено на доработку. Проверка ответов пока не изменена.'}[status]
 
 
 def process_one() -> bool:
@@ -296,8 +318,7 @@ def process_one() -> bool:
         log.warning('Answer review %s deferred: %s', case.id, exc)
         case.next_attempt_at = now + timedelta(hours=1)
     except NativeLessonError:
-        case.review = {'label': 'manual', 'reason': 'Требуется разбор формата задания.'}
-        case.status = 'manual'
+        _finish_without_verdict(case, 'manual', 'Требуется разбор формата задания.')
     db.session.commit()
     return True
 

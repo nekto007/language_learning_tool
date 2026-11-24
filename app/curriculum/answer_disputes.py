@@ -146,7 +146,8 @@ def record_lab_rejected_answer(
 
     row = effective_content(exercise)
     question = {
-        "prompt": plain(row.get("question") or row.get("sentence") or row.get("prompt")),
+        "prompt": plain(row.get("question") or row.get("statement") or row.get("sentence")
+                        or row.get("original") or row.get("prompt")),
         "instruction": plain(row.get("instruction")),
     }
     _insert_once(session, LAB_DISPUTE_IDENTITY, {

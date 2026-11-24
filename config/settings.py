@@ -238,6 +238,9 @@ class Config:
 
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
     OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "").strip()
+    ANSWER_REVIEW_NOTIFY_ALL = os.environ.get("ANSWER_REVIEW_NOTIFY_ALL", "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
     TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     APNS_TEAM_ID = os.environ.get('APNS_TEAM_ID', '')
     APNS_KEY_ID = os.environ.get('APNS_KEY_ID', '')

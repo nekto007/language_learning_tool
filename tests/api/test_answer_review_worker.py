@@ -1,4 +1,5 @@
 """One learner dispute through the real grader, queue, owner decision and next check."""
+import json
 from collections.abc import Iterator
 from copy import deepcopy
 from types import SimpleNamespace
@@ -244,24 +245,65 @@ def test_previously_notified_admin_loses_right_to_decide(flow: SimpleNamespace, 
 
 
 @pytest.mark.parametrize('label', ['learner_error', 'insufficient_context'])
-def test_reviewed_negative_is_reused(flow: SimpleNamespace, label: str) -> None:
+def test_negative_review_is_sent_once_and_can_be_reopened_for_review(flow: SimpleNamespace, label: str) -> None:
     f = flow
     case = open_case(f)
     f.classify.return_value['label'] = label
-    assert worker.process_one() and case.status == 'closed'
+    assert worker.process_one() and case.status == 'ready'
+    assert worker.process_one() and case.status == 'notified'
+    assert case.review['patch'] is None
     assert open_case(f).id == case.id
     assert not worker.process_one()
-    f.send.assert_not_called()
+    f.send.assert_called_once()
     f.classify.assert_called_once()
+    assert 'Разбор: ' + case.review['reason'] in f.send.call_args.args[1]
+    assert 'В ручной разбор' in str(f.send.call_args.kwargs['reply_markup'])
+    reply = worker.decide(case.id, worker.decision_tag(case), 'revise', f.telegram_id, f.telegram_id)
+    assert reply == 'Сохранено на доработку. Проверка ответов пока не изменена.'
+    assert case.status == 'revise'
+    assert not worker.process_one()
+
+
+def test_turning_off_pilot_closes_negative_review_without_delivery(
+    flow: SimpleNamespace, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(flow.app.config, 'ANSWER_REVIEW_NOTIFY_ALL', False)
+    case = open_case(flow)
+    flow.classify.return_value['label'] = 'learner_error'
+    assert worker.process_one() and case.status == 'closed'
+    monkeypatch.setitem(flow.app.config, 'ANSWER_REVIEW_NOTIFY_ALL', True)
+    assert not worker.process_one()
+    flow.send.assert_not_called()
 
 
 def test_contact_in_answer_stays_local(flow: SimpleNamespace) -> None:
     f = flow
     f.body['answer'] = 'user@example.com'
     case = open_case(f)
+    assert worker.process_one() and case.status == 'ready'
+    status = f.app.test_cli_runner().invoke(args=['answer-review-status'])
+    assert status.exit_code == 0
+    assert case.id in json.loads(status.output)['manual_ids']
     assert worker.process_one() and case.status == 'manual'
     f.classify.assert_not_called()
-    f.send.assert_not_called()
+    f.send.assert_called_once()
+    text = f.send.call_args.args[1]
+    assert f'Спор {case.id}' in text and f.body['answer'] not in text
+    assert f.send.call_args.kwargs['reply_markup'] is None
+
+
+def test_changed_source_sends_reference_without_grading_or_quietly_reopening_case(flow: SimpleNamespace) -> None:
+    case = open_case(flow)
+    flow.lesson.content = {'questions': [flow.lesson.content['questions'][0] | {'instruction': 'Use walk.'}]}
+    db.session.commit()
+    assert worker.process_one() and case.status == 'ready'
+    assert worker.process_one() and case.status == 'stale'
+    assert not worker.process_one()
+    flow.classify.assert_not_called()
+    flow.send.assert_called_once()
+    text = flow.send.call_args.args[1]
+    assert 'Версия задания изменилась' in text and flow.body['answer'] not in text
+    assert flow.send.call_args.kwargs['reply_markup'] is None
 
 
 def test_responses_contract_uses_configured_model(monkeypatch: pytest.MonkeyPatch) -> None:

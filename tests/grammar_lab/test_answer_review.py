@@ -66,12 +66,28 @@ def test_topic_four_bus_and_duplicate_lab_report(services: tuple) -> None:
     assert report(exercise, 'TWO BUSess.').id == case.id
     classify.side_effect = None
     classify.return_value = {'label': 'learner_error', 'reason': 'Нужна форма buses.'}
-    assert worker.process_one() and case.status == 'closed'
+    assert worker.process_one() and case.status == 'ready'
+    assert worker.process_one() and case.status == 'notified'
     assert not worker.process_one()
     assert classify.call_args.args[0]['question']['instruction'] == raw['instruction']
     assert classify.call_args.args[0]['submitted_answer'] == 'two busess'
-    send.assert_not_called()
+    send.assert_called_once()
+    assert 'two busess' in send.call_args.args[1]
+    assert 'Нужна форма buses.' in send.call_args.args[1]
     assert exercise.content == raw and exercise.answer_review_override is None
+
+
+def test_true_false_dispute_card_keeps_the_actual_statement(services: tuple) -> None:
+    _, classify, send, _ = services
+    statement = '«Don’t have to» означает запрет.'
+    exercise = exercise_for({'type': 'true_false', 'statement': statement, 'correct_answer': False})
+    case = report(exercise, 'true')
+    classify.side_effect = None
+    classify.return_value = {'label': 'learner_error', 'reason': 'Это отсутствие обязанности.'}
+    assert case.evidence['question']['prompt'] == statement
+    assert worker.process_one() and worker.process_one()
+    assert case.status == 'notified'
+    assert send.call_args.args[1].count(statement) == 1
 
 
 def test_owner_approval_survives_identical_reimport_and_stales_old_native_attempt(services: tuple) -> None:
