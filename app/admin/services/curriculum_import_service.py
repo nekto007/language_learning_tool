@@ -428,7 +428,13 @@ class CurriculumImportService:
         # index so that renumbered source files don't silently mutate the wrong
         # DB row. Identity resolution order: external_key first, then (module_id,
         # number), then explicit JSON id (within-module only).
-        existing_module_lessons = Lessons.query.filter_by(module_id=module.id).all()
+        # Reordering writes every existing row. Lock them in ID order before
+        # reading their content or the dispute journal so owner approvals cannot
+        # land between that read and the import's write.
+        existing_module_lessons = (
+            Lessons.query.filter_by(module_id=module.id).order_by(Lessons.id)
+            .populate_existing().with_for_update().all()
+        )
         _by_external_key: dict[str, 'Lessons'] = {}
         for _l in existing_module_lessons:
             if isinstance(_l.content, dict):
@@ -519,6 +525,7 @@ class CurriculumImportService:
                 ):
                     lesson = existing
 
+            is_reimport = lesson is not None
             if not lesson:
                 lesson = Lessons(
                     module_id=module.id,
@@ -641,6 +648,11 @@ class CurriculumImportService:
             # Preserve external_key in persisted content so re-imports use key-based matching
             if src_external_key and isinstance(lesson.content, dict):
                 lesson.content['external_key'] = src_external_key.strip()
+
+            if is_reimport and lesson_type in ('quiz', 'grammar'):
+                from app.curriculum.answer_disputes import preserve_approved_answers
+
+                preserve_approved_answers(db.session, lesson)
 
             # Validate built content against the lesson-type schema. Unknown
             # lesson types are tolerated (LessonContentValidator raises

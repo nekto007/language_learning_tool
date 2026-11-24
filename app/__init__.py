@@ -138,6 +138,7 @@ def create_app(config_class=Config):
     from app.curriculum import book_courses as book_courses_models  # noqa: F401
     from app.curriculum import daily_lessons as daily_lessons_models  # noqa: F401
     from app.curriculum import models as curriculum_models  # noqa: F401
+    from app.curriculum import answer_disputes as curriculum_answer_disputes  # noqa: F401
     from app.daily_plan import models as daily_plan_models  # noqa: F401
     from app.daily_plan.linear import models as daily_plan_linear_models  # noqa: F401
     from app.feedback import models as feedback_models  # noqa: F401
@@ -669,6 +670,8 @@ def _register_cli_commands(app):
     register_content_commands(app)
     from app.cli.auth_mail import register_auth_mail_commands
     register_auth_mail_commands(app)
+    from app.cli.answer_review import register_answer_review_commands
+    register_answer_review_commands(app)
     from app.books.short_readings import register_short_reading_commands
     register_short_reading_commands(app)
     from app.curriculum.journey_pack import register_journey_commands

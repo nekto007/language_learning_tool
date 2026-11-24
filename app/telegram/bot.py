@@ -4,7 +4,7 @@ from typing import Any
 
 import requests
 from flask import current_app
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.telegram.models import PendingTelegramLink, TelegramLinkCode, TelegramUser
 from app.utils.db import db
@@ -18,19 +18,20 @@ def _progress_bar(pct: int, length: int = 10) -> str:
     return '▓' * filled + '░' * (length - filled)
 
 
-def _send_message(chat_id: int, text: str, parse_mode: str = 'HTML',
-                  reply_markup: dict | None = None) -> None:
+def _send_message(chat_id: int, text: str, parse_mode: str | None = 'HTML',
+                  reply_markup: dict | None = None) -> bool:
     """Send a message via Telegram Bot API."""
     token = current_app.config.get('TELEGRAM_BOT_TOKEN')
     if not token:
         logger.error('TELEGRAM_BOT_TOKEN not configured')
-        return
+        return False
 
     payload: dict[str, Any] = {
         'chat_id': chat_id,
         'text': text,
-        'parse_mode': parse_mode,
     }
+    if parse_mode:
+        payload['parse_mode'] = parse_mode
     if reply_markup:
         payload['reply_markup'] = reply_markup
 
@@ -41,17 +42,24 @@ def _send_message(chat_id: int, text: str, parse_mode: str = 'HTML',
             timeout=10,
         )
         if not resp.ok:
-            logger.warning('Telegram API error: %s', resp.text)
+            logger.warning('Telegram API error: HTTP %s', resp.status_code)
+            return False
+        try:
+            result = resp.json()
+        except ValueError:
+            return False
+        return isinstance(result, dict) and result.get('ok') is True
     except requests.RequestException as e:
         # Use type name only — full exception repr includes the request URL
         # which contains the bot token.
         logger.error('Failed to send Telegram message: %s', type(e).__name__)
+        return False
 
 
-def send_message(chat_id: int, text: str, parse_mode: str = 'HTML',
-                 reply_markup: dict | None = None) -> None:
+def send_message(chat_id: int, text: str, parse_mode: str | None = 'HTML',
+                 reply_markup: dict | None = None) -> bool:
     """Public wrapper — usable from scheduler outside request context."""
-    _send_message(chat_id, text, parse_mode, reply_markup)
+    return _send_message(chat_id, text, parse_mode, reply_markup)
 
 
 # ── Command handlers ────────────────────────────────────────────────
@@ -720,12 +728,32 @@ def _handle_invite(chat_id: int, telegram_id: int) -> None:
 
 # ── Main dispatcher ─────────────────────────────────────────────────
 
+def _handle_answer_dispute(callback: dict) -> None:
+    from app.curriculum.answer_review import decide
+
+    parts = callback['data'].split(':')
+    if len(parts) != 4 or not (parts[1].isascii() and parts[1].isdigit() and len(parts[1]) <= 10):
+        return
+    sender = callback.get('from', {}).get('id')
+    chat = callback.get('message', {}).get('chat', {}).get('id')
+    try:
+        message = decide(int(parts[1]), parts[2], parts[3], sender, chat)
+    except SQLAlchemyError:
+        db.session.rollback()
+        logger.error('Failed to save answer dispute decision for case %s', parts[1])
+        message = 'Не удалось сохранить решение. Нажмите ещё раз.'
+    _answer_callback(callback['id'], message)
+
+
 def handle_update(data: dict) -> None:
     """Dispatch an incoming Telegram update to the appropriate handler."""
+    callback_query = data.get('callback_query')
+    if callback_query and str(callback_query.get('data', '')).startswith('dispute:'):
+        _handle_answer_dispute(callback_query)
+        return
     PendingTelegramLink.cleanup_expired()
 
     # Handle callback queries (inline button presses)
-    callback_query = data.get('callback_query')
     if callback_query:
         chat_id = callback_query['message']['chat']['id']
         telegram_id = callback_query['from']['id']

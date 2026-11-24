@@ -377,7 +377,8 @@ class TestImportIdempotency:
         mock_lesson.order = 1
         # The existing_module_lessons prefetch returns this lesson
         all_lessons_query = MagicMock()
-        all_lessons_query.all.return_value = [mock_lesson]
+        preload = all_lessons_query.order_by.return_value.populate_existing.return_value
+        preload.with_for_update.return_value.all.return_value = [mock_lesson]
         mock_lessons_cls.query.filter_by.return_value = all_lessons_query
         mock_lessons_cls.query.filter_by.return_value.order_by.return_value.first.return_value = mock_lesson
 

@@ -282,6 +282,14 @@ def check_native_learning_answer(lesson_id):
 
 
 def course_answer_check(lesson_id):
+    _, _, _, feedback = checked_course_answer(lesson_id)
+    return jsonify(success=True, feedback=feedback)
+
+
+def checked_course_answer(
+    lesson_id: int, *, lesson_types: frozenset[str] | None = None,
+) -> tuple['Lessons', dict, str, dict]:
+    """Check a session-bound answer without writing attempts or progress."""
     from app.api.native_content import NATIVE_PROJECTION_VERSION, rows_for
 
     body = request.get_json(silent=True)
@@ -302,6 +310,8 @@ def course_answer_check(lesson_id):
             or sealed.get('revision') != _digest(content) or sealed.get('version') != _version(progress)
             or sealed.get('projection_version') != NATIVE_PROJECTION_VERSION):
         raise NativeLessonError('lesson_changed', 409)
+    if lesson_types is not None and lesson.type not in lesson_types:
+        raise NativeLessonError('not_found', 404)
     questions = project_questions(lesson)
     from app.curriculum.constants import is_objective_practice
     if not is_objective_practice(lesson):
@@ -325,7 +335,7 @@ def course_answer_check(lesson_id):
     if correction:
         from app.api.quiz_corrections import correction_help
         feedback['correction_help'] = correction_help(row, question, body['answer'], feedback, level)
-    return jsonify(success=True, feedback=feedback)
+    return lesson, question, body['answer'], feedback
 
 
 def _display_answer(question, value):

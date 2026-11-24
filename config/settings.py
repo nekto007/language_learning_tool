@@ -236,6 +236,9 @@ class Config:
     # Безопасность не меняется — токен по-прежнему привязан к сессии.
     WTF_CSRF_TIME_LIMIT = None
 
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
+    OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "").strip()
+    ANSWER_REVIEW_OWNER_TELEGRAM_ID = os.environ.get("ANSWER_REVIEW_OWNER_TELEGRAM_ID", "").strip()
     TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     APNS_TEAM_ID = os.environ.get('APNS_TEAM_ID', '')
     APNS_KEY_ID = os.environ.get('APNS_KEY_ID', '')

@@ -347,7 +347,11 @@ def import_curriculum_data(data) -> dict:
         number = lesson_data.get('lesson_number') or lesson_data.get('order') or lesson_data.get('id')
         lesson_type = lesson_data.get('lesson_type') or lesson_data.get('type')
         title = lesson_data.get('title', '')
-        lesson = Lessons.query.filter_by(module_id=module.id, number=number).first()
+        lesson_query = Lessons.query.filter_by(module_id=module.id, number=number)
+        if lesson_type in ('quiz', 'grammar'):
+            lesson_query = lesson_query.with_for_update()
+        lesson = lesson_query.first()
+        is_reimport = lesson is not None
         if not lesson:
             lesson = Lessons(
                 module_id=module.id,
@@ -411,6 +415,11 @@ def import_curriculum_data(data) -> dict:
             }
         else:
             lesson.content = lesson_data
+
+        if is_reimport and lesson_type in ('quiz', 'grammar') and lesson.type == lesson_type:
+            from app.curriculum.answer_disputes import preserve_approved_answers
+
+            preserve_approved_answers(db.session, lesson)
 
     # 4. Сохраняем все изменения
     db.session.commit()

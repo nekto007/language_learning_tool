@@ -286,6 +286,13 @@ def init_email_scheduler(app, *, blocking: bool = False) -> None:
         id='native_auth_mail', replace_existing=True, max_instances=1,
     )
 
+    if ((app.config.get('OPENAI_API_KEY') and app.config.get('OPENAI_MODEL')) or
+            (app.config.get('ANSWER_REVIEW_OWNER_TELEGRAM_ID') and app.config.get('TELEGRAM_BOT_TOKEN'))):
+        from app.curriculum.answer_review import process_answer_disputes
+
+        _scheduler.add_job(process_answer_disputes, 'interval', minutes=1, args=[app],
+                           id='answer_disputes', replace_existing=True, max_instances=1, coalesce=True)
+
     def account_deletion_notices_wrapper():
         from app.auth.account_deletion_notifications import process_admin_deletion_notices
         with app.app_context():

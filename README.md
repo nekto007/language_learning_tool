@@ -74,6 +74,14 @@ POSTGRES_HOST=127.0.0.1 flask run --port 5000
 | `flask seed` | Seed initial data (modules, achievements) — safe to run multiple times |
 | `flask warm-cache` | Pre-warm curriculum cache |
 | `flask start-bot` | Start Telegram bot polling |
+| `flask answer-review-check` | Send one synthetic translation to the configured OpenAI model and print its verdict |
+| `flask answer-review-status` | Show queue counts and manual case IDs. Add `--case ID` to inspect one case privately |
+
+### Reviewing disputed answers
+
+In web quizzes and grammar practice, a learner can flag an answer immediately after it is marked incorrect. The queue groups equivalent submissions for the same question and grader revision across learners. The scheduler sends a proposed correction to the designated Telegram owner. Approval rechecks the question and applies the change to the live lesson. Suspected grader defects go to the manual queue.
+
+Set `OPENAI_API_KEY`, `OPENAI_MODEL`, and `ANSWER_REVIEW_OWNER_TELEGRAM_ID` (the owner's numeric private Telegram ID) in the production `.env`. The existing Telegram bot must be able to message the owner and receive callbacks. Rebuild and recreate both services with `docker compose up -d --build web scheduler`. The web container runs the migration on startup. Run `docker compose exec web flask answer-review-check` to verify model access using the synthetic translation, then check the queue with `docker compose exec web flask answer-review-status`.
 
 ## Testing
 

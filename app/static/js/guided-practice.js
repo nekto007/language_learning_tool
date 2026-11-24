@@ -82,10 +82,10 @@
       if (refreshButton) refreshButton.disabled = accountInvalid;
     }
   };
-  const request = async (suffix = '', body) => {
+  const request = async (suffix = '', body, signal) => {
     let response;
     try { response = await fetch(endpoint + suffix, {
-      method: body ? 'POST' : 'GET', credentials: 'same-origin',
+      method: body ? 'POST' : 'GET', credentials: 'same-origin', signal,
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content},
       body: body ? JSON.stringify(body) : undefined
     }); } catch (_) { throw new Error('Связь прервалась. ' + retryNotice()); }
@@ -114,6 +114,37 @@
   };
   const isCorrection = () => lesson.quiz_phase === 'correction';
   const isFinal = () => lesson.type === 'final_test';
+  const dispute = (parent, q, feedback) => {
+    if (feedback.correct || !['quiz', 'grammar'].includes(lesson.type) || root.dataset.reviewOnly === 'true') return;
+    const answer = state.answers[q.id];
+    if (typeof answer !== 'string' || !answer.trim()) return;
+    const previous = state.disputes?.[q.id];
+    const entry = previous?.answer === answer ? previous : null;
+    const status = node('p', entry?.status === 'sent' ? 'Ответ передан на проверку'
+      : entry?.status === 'pending' ? (busy ? 'Передаём ответ на проверку…' : 'Статус отправки неизвестен. Можно повторить запрос.')
+      : entry?.status === 'failed' ? entry.message : '', 'small mb-2');
+    status.setAttribute('role', 'status'); status.dataset.disputeStatus = 'true'; parent.append(status);
+    if (entry?.status === 'sent') return;
+    const send = button(entry ? 'Повторить запрос' : 'Мой ответ тоже верный', () => perform(async () => {
+      const record = {answer, status: 'pending'};
+      state.disputes ||= {}; state.disputes[q.id] = record;
+      save(); draw();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      try {
+        const response = await request('/dispute', {session_token: lesson.session_token, question_id: q.id, answer}, controller.signal);
+        if (response.success !== true) throw new Error('Unconfirmed dispute');
+        record.status = 'sent';
+      } catch (error) {
+        if (['access_denied', 'authentication_required', 'csrf_error'].includes(error.code)) throw error;
+        record.status = 'failed';
+        record.message = error.code === 'lesson_changed' ? 'Материал изменился. Обнови задание перед повторным запросом.'
+          : 'Не удалось подтвердить отправку. Можно повторить запрос.';
+      } finally { clearTimeout(timer); }
+      save();
+    }));
+    send.dataset.dispute = 'true'; parent.append(send);
+  };
   // Basic grammar and quiz documents can supply options without an input type.
   const isChoiceQuestion = q => q.input === 'choice' ||
     (q.input == null && Array.isArray(q.options) && q.options.length > 0);
@@ -302,6 +333,7 @@
       box.setAttribute('role', 'status');
       box.append(node('h3', feedback.correct ? 'Верно' : 'Разберём ответ', 'h5'));
       if (!feedback.correct) { if (!isCorrection()) box.append(node('p', 'Образец: ' + feedback.expected)); box.append(node('p', feedback.explanation)); }
+      dispute(box, q, feedback);
       screen.append(box);
       if ((isCorrection() || root.dataset.reviewOnly === 'true') && !feedback.correct) {
         screen.append(button('Попробовать ещё раз', () => { delete state.checks[q.id]; delete state.fragments[q.id]; if (help?.segments?.length) state.answers[q.id] = help.segments.map(s => s.text).join(' '); save(); draw(); }, true));
