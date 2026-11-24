@@ -34,6 +34,7 @@
       <button type="button" class="linear-modal__close" data-linear-close="book-select-modal" aria-label="Закрыть">×</button>
     </div>
     <div class="linear-modal__body">
+      <p>Норму чтения можно изменить в <a href="{{ url_for('study.settings', _anchor='reading_minutes_per_day') }}">настройках занятий</a>.</p>
       <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
       <div id="book-select-modal-list" class="linear-modal__grid"></div>
     </div>

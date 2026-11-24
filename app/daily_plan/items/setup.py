@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.daily_plan.items import PlanItem
+from app.daily_plan.items.reading import DEFAULT_READING_GOAL_MINUTES
 
 
 def build_setup_book_item() -> PlanItem:
@@ -30,7 +31,7 @@ def build_setup_book_item() -> PlanItem:
         section='setup',
         kind='setup_book',
         title='Выбрать книгу',
-        subtitle='Чтение появится в плане после выбора — норма 5 минут в день',
+        subtitle=f'Если своей нормы пока нет, первая книга добавит {DEFAULT_READING_GOAL_MINUTES} минут чтения в день.',
         lesson_type=None,
         eta_minutes=2,
         url='#book-select-modal',
