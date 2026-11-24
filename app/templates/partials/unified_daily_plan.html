@@ -9,6 +9,9 @@
 {% set u_has_more = unified_plan.get('has_more_optional', false) %}
 {% set u_day_secured = unified_plan.get('day_secured', false) %}
 {% set u_blocked_module = unified_plan.get('blocked_module') or {} %}
+{% set u_paused = unified_plan.get('mode') == 'paused' %}
+{% set u_course_ended = unified_plan.get('graduated', false) and not u_blocked_module %}
+{% set u_show_plan_status = not u_required and (u_paused or u_course_ended) %}
 {% set u_pace = unified_plan.get('pace') or {} %}
 {# The first ``u_optional_fold`` optional items render open; the rest render
    folded (``hidden``) and unfold in place — no network, no reload. A reload
@@ -124,7 +127,9 @@
 <section id="daily-plan" class="daily-plan" data-daily-plan="true" data-mode="unified">
 
   {% if dashboard_today %}
-    {% include 'components/_today_header.html' %}
+    {% if u_day_secured or not u_show_plan_status %}
+      {% include 'components/_today_header.html' %}
+    {% endif %}
     {% include 'components/_fox_day_complete.html' %}
   {% else %}
   {# ── Header: human-readable spine position + module progress ── #}
@@ -542,7 +547,33 @@
         {# A blocked spine also empties the required list, but for a reason the
            learner can act on — name the module and the unmet condition instead
            of sending them to a setup they have already done. #}
-        {% if u_blocked_module %}
+        {% if u_show_plan_status %}
+          {% set status_title = 'План на паузе' if u_paused else 'Курс завершён' %}
+          {% if dashboard_today %}<h1 class="h4">{{ status_title }}</h1>
+          {% else %}<h3>{{ status_title }}</h3>{% endif %}
+          {% if u_paused %}
+            {% set pause_day = unified_plan.get('paused_until') %}
+            {% if pause_day %}
+              <p class="daily-plan__empty">План возобновится <time datetime="{{ pause_day }}">{{ pause_day[8:10] }}.{{ pause_day[5:7] }}.{{ pause_day[:4] }}</time>.</p>
+            {% endif %}
+          {% else %}
+            <p class="daily-plan__empty">Обязательных уроков больше нет.</p>
+          {% endif %}
+          {# The optional section only opens its first unfinished item. #}
+          {% set next_extra = namespace(item=none) %}
+          {% for item in u_optional %}
+            {% if next_extra.item is none and not (item.get('completed') or (plan_completion and plan_completion.get(item.get('id')))) %}
+              {% set next_extra.item = item %}
+            {% endif %}
+          {% endfor %}
+          <p class="daily-plan__empty">
+            {% if next_extra.item and next_extra.item.get('url') and not (next_extra.item.get('blocked') or next_extra.item.get('skipped')) %}
+              <a href="#daily-plan-optional-list">Выбрать дополнительное занятие</a>
+            {% else %}
+              <a href="{{ url_for('courses.catalog') }}">Открыть каталог курсов</a>
+            {% endif %}
+          </p>
+        {% elif u_blocked_module %}
         {# u_blocked_module is the module the learner CANNOT open (its own
            prerequisites are unmet) — not the module they have to finish. The
            requirement lives in `reasons` below, so this sentence must not tell
