@@ -34,7 +34,7 @@
           </svg>
         </div>
         <h1 class="auth-card__title">Регистрация</h1>
-        <p class="auth-card__subtitle">{% if entry_param == 'preview' %}Сохраните прогресс и начните курс A1. Уровень можно изменить после регистрации.{% else %}Создайте аккаунт для начала обучения{% endif %}</p>
+        <p class="auth-card__subtitle">{% if entry_param == 'preview' %}Создайте аккаунт, чтобы начать курс A1 и сохранять результаты будущих занятий. Уровень можно изменить после регистрации.{% else %}Создайте аккаунт для начала обучения{% endif %}</p>
         {% if learner_count and learner_count > 0 %}
           <p class="auth-card__social-proof">Учатся с нами · {{ learner_count }}</p>
         {% endif %}

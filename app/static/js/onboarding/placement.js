@@ -4,6 +4,7 @@
   if (!root) return;
   var base = root.dataset.api, account = root.dataset.account, guest = root.dataset.guest === 'true';
   var compact = root.dataset.simple === 'true', forceStart = root.dataset.forceStart === 'true';
+  var continueAfterApply = compact || root.dataset.continueAfterApply === 'true';
   var compactChoice = '', lastChoiceAt = 0, simpleQuiz = false;
   var openRetry = document.getElementById('placement-open-retry');
   var prefix = 'llt-placement-v1:' + account + ':';
@@ -46,25 +47,42 @@
   function remove(key) { try { localStorage.removeItem(prefix + key); } catch (_) {} }
   if (pending && (typeof pending.attempt !== 'string' || typeof pending.question_id !== 'string' ||
       typeof pending.answer !== 'string' || typeof pending.dont_know !== 'boolean')) pending = null;
+  var pendingDurable = !!pending;
   function say(value) { statusNode.textContent = value || ''; }
   function request(path, body) {
     var headers = {'Accept': 'application/json'};
     if (guest) headers['X-LLT-Placement-Guest'] = '1'; else headers['X-LLT-Account-ID'] = account;
     var options = {headers: headers, credentials: 'same-origin', cache: 'no-store'};
+    var controller = new AbortController(); options.signal = controller.signal;
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
       headers['X-CSRFToken'] = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
       options.method = 'POST'; options.body = JSON.stringify(body);
     }
-    return fetch(base + path, options).then(function (response) {
+    var timer;
+    var deadline = new Promise(function (_, reject) {
+      timer = setTimeout(function () {
+        var error = new Error('Превышено время ожидания. Проверь соединение и повтори запрос.');
+        error.code = 'request_timeout';
+        reject(error); controller.abort();
+      }, 15000);
+    });
+    var responsePromise = Promise.resolve().then(function () { return fetch(base + path, options); }).then(function (response) {
       return response.json().then(function (data) {
-        if (!response.ok || data.success !== true) {
-          var error = new Error(messages[data.error] || 'Не получилось сохранить ответ. Попробуй снова.');
-          error.code = data.error; error.status = response.status; throw error;
+        if (!response.ok || !data || data.success !== true) {
+          var error = new Error(messages[data && data.error] || 'Не получилось сохранить ответ. Попробуй снова.');
+          error.code = data && data.error;
+          if (!response.ok) error.status = response.status;
+          throw error;
         }
         return data;
       });
     });
+    return Promise.race([responsePromise, deadline]).catch(function (error) {
+      if (error.code || error.status) throw error;
+      var failure = new Error('Не удалось получить подтверждение от сервера. Проверь соединение и повтори запрос.');
+      failure.code = 'request_failed'; throw failure;
+    }).finally(function () { clearTimeout(timer); });
   }
   function selected() {
     if (!current || !current.question) return '';
@@ -88,9 +106,10 @@
     busy = true; var token = ++sequence; availability();
     document.querySelectorAll('[data-mode]').forEach(function (button) { button.disabled = true; });
     return operation().catch(function (error) {
-      say(error.message || 'Нет связи. Попробуй ещё раз.');
+      say((error.message || 'Нет связи. Попробуй ещё раз.') + (pending && !pendingDurable
+        ? ' Отправляемый ответ хранится только в этой вкладке. Повтори отправку; после обновления страницы сверим состояние с сервером.' : ''));
       retry.hidden = !pending;
-      openRetry.hidden = !(compact && !pending && !current);
+      openRetry.hidden = !!pending || !!current;
       if (error.code === 'stale_question' || error.code === 'answer_already_saved' || error.code === 'attempt_closed') {
         pending = null; remove('pending'); retry.hidden = true; return loadStatus(compact);
       }
@@ -151,10 +170,12 @@
       var topics = document.getElementById('placement-topics-list'); topics.replaceChildren();
       (info.weak_topics || []).forEach(function (topic) { var li = document.createElement('li'); li.textContent = topic; topics.appendChild(li); });
       document.getElementById('placement-topics').hidden = !info.weak_topics.length;
-      var apply = document.getElementById('placement-apply'); apply.textContent = compact ? 'Продолжить обучение' : 'Выбрать уровень ' + info.recommended_level;
+      var apply = document.getElementById('placement-apply');
+      apply.textContent = compact || (continueAfterApply && attempt.applied) ? 'Продолжить обучение'
+        : 'Выбрать уровень ' + info.recommended_level + (continueAfterApply ? ' и продолжить' : '');
       var note = document.getElementById('placement-simple-note');
       if (note) note.textContent = attempt.scope === 'starter' ? 'Предварительная оценка по словарю и грамматике.' : 'Предварительная рекомендация для выбора первых уроков.';
-      apply.disabled = attempt.applied && !compact;
+      apply.disabled = attempt.applied && !continueAfterApply;
       document.getElementById('placement-apply-status').textContent = attempt.applied ?
         (info.effective_on ? 'Уровень выбран. Новые планы будут учитывать его с ' + info.effective_on + '. Сегодняшний план сохраняется.' : 'Уровень выбран. Можно перейти к обучению.') : '';
       if (focus) document.getElementById('placement-result-title').focus({preventScroll: compact});
@@ -210,7 +231,7 @@
     if (!pending) return Promise.resolve();
     var body = pending;
     return request('/' + encodeURIComponent(body.attempt) + '/answer', {question_id: body.question_id, answer: body.answer, dont_know: body.dont_know}).then(function (data) {
-      pending = null; remove('pending'); remove(localKey(body.attempt, body.question_id));
+      pending = null; pendingDurable = false; remove('pending'); remove(localKey(body.attempt, body.question_id));
       say(''); retry.hidden = true; draftDurable = true; render(data.attempt, true);
     });
   }
@@ -218,11 +239,9 @@
     if (!current || !current.question || pending) return;
     clearTimeout(draftTimer);
     var value = {attempt: current.id, question_id: current.question.id, answer: dontKnow ? '' : selected(), dont_know: dontKnow};
-    if (!write('pending', value)) {
-      say('Не удалось сохранить отправляемый ответ на устройстве. Освободи место или разреши хранение данных сайта и попробуй снова.');
-      return;
-    }
-    pending = value; run(sendPending);
+    pending = value; pendingDurable = write('pending', value);
+    if (!pendingDurable) say('Отправляемый ответ хранится только в этой вкладке. После обновления страницы сверим состояние с сервером.');
+    run(sendPending);
   }
   function start(mode) {
     var body = {mode: mode};
@@ -268,14 +287,20 @@
   });
   document.getElementById('placement-apply').addEventListener('click', function () {
     if (!current || current.status !== 'completed') return;
+    if (current.applied && continueAfterApply) {
+      window.location.assign(root.dataset.learnReturn);
+      return;
+    }
     var button = this; button.disabled = true;
     run(function () { return request('/' + current.id + '/apply', {}).then(function (data) {
-      if (compact) { window.location.assign(root.dataset.learnReturn); return; }
+      if (continueAfterApply) { window.location.assign(root.dataset.learnReturn); return; }
       current.applied = true; current.result.effective_on = data.attempt.effective_on; render(current, false);
     }).catch(function (error) { button.disabled = false; throw error; }); });
   });
   submit.addEventListener('click', function () { send(false); }); unknown.addEventListener('click', function () { send(true); });
-  openRetry.addEventListener('click', function () { run(function () { return loadStatus(true); }); });
+  openRetry.addEventListener('click', function () {
+    run(function () { return loadStatus(true).then(function () { openRetry.hidden = !!current || root.dataset.available === 'true'; }); });
+  });
   text.addEventListener('input', edit); retry.addEventListener('click', function () { run(sendPending); });
   pause.addEventListener('click', function () {
     if (!current || !current.question || pending) return;

@@ -3,8 +3,10 @@
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/placement.css', v='20261124-simple') }}">{% endblock %}
 {% block content %}
 {% set wizard_url = url_for('onboarding.wizard', next=onboarding_next or none) %}
-{% set return_url = wizard_url if onboarding_next else url_for('landing.index') if placement_guest else url_for('auth.profile') if current_user.onboarding_completed else wizard_url %}
-<div class="placement-page" id="placement-root" data-account="{{ placement_actor }}" data-guest="{{ 'true' if placement_guest else 'false' }}" data-simple="{{ 'true' if placement_simple else 'false' }}" data-force-start="{{ 'true' if placement_force_start else 'false' }}" data-learn-return="{{ url_for('words.dashboard') if current_user.is_authenticated and current_user.onboarding_completed else wizard_url }}" data-api="/onboarding/placement/v2" data-return="{{ return_url }}">
+{% set in_setup = current_user.is_authenticated and not current_user.onboarding_completed %}
+{% set learn_url = wizard_url if in_setup else onboarding_next or url_for('words.dashboard') %}
+{% set return_url = wizard_url if in_setup else onboarding_next or (url_for('landing.index') if placement_guest else url_for('auth.profile')) %}
+<div class="placement-page" id="placement-root" data-account="{{ placement_actor }}" data-guest="{{ 'true' if placement_guest else 'false' }}" data-simple="{{ 'true' if placement_simple else 'false' }}" data-force-start="{{ 'true' if placement_force_start else 'false' }}" data-continue-after-apply="{{ 'true' if in_setup or onboarding_next else 'false' }}" data-learn-return="{{ learn_url }}" data-api="/onboarding/placement/v2" data-return="{{ return_url }}">
   <header class="placement-header">
     <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" alt="" width="64" height="64">
     <div><p class="placement-eyebrow">{{ 'Около 2 минут · 10 вопросов' if placement_simple else 'Начнём с подходящего места' }}</p><h1>{{ 'Проверим твой английский' if placement_simple else 'Подберём твой уровень' }}</h1>
@@ -59,8 +61,8 @@
     {% endif %}
     <p id="placement-apply-status" class="placement-note" aria-live="polite"></p>
   </section>
-  <div class="placement-footer"><button type="button" id="placement-retry" class="placement-secondary" hidden>Повторить отправку</button><button type="button" id="placement-pause" class="placement-link" hidden>Продолжить позже</button><button type="button" id="placement-change" class="placement-link" hidden>Выбрать другой вариант</button><a id="placement-return" href="{{ return_url }}">{{ 'Вернуться на главную' if placement_guest else 'Вернуться в профиль' if current_user.onboarding_completed else 'Выбрать уровень самостоятельно' }}</a></div>
+  <div class="placement-footer"><button type="button" id="placement-retry" class="placement-secondary" hidden>Повторить отправку</button><button type="button" id="placement-pause" class="placement-link" hidden>Продолжить позже</button><button type="button" id="placement-change" class="placement-link" hidden>Выбрать другой вариант</button><a id="placement-return" href="{{ return_url }}">{{ 'Вернуться на главную' if placement_guest else 'Выбрать уровень самостоятельно' if in_setup else 'Вернуться к материалу' if onboarding_next else 'Вернуться в профиль' }}</a></div>
   <dialog id="placement-change-dialog" class="placement-dialog" aria-labelledby="placement-change-title"><h2 id="placement-change-title">Начать другой вариант?</h2><p>Текущая попытка завершится без результата. Её нельзя будет продолжить. Прогресс курса сохранится.</p><div class="placement-actions"><button type="button" id="placement-change-cancel" class="placement-secondary">Продолжить текущую</button><button type="button" id="placement-change-confirm" class="placement-primary">Начать другой вариант</button></div></dialog>
 </div>
-<script src="{{ url_for('static', filename='js/onboarding/placement.js', v='20261124-simple') }}" defer></script>
+<script src="{{ url_for('static', filename='js/onboarding/placement.js', v='20261124-return') }}" defer></script>
 {% endblock %}

@@ -46,6 +46,22 @@ def test_failed_signup_keeps_preview_intent_and_level(client, db_session):
     assert params['entry'] == ['preview']
 
 
+@pytest.mark.parametrize('path, expected_subtitle', [
+    ('/register?level=A1&entry=preview',
+     'Создайте аккаунт, чтобы начать курс A1 и сохранять результаты будущих занятий. '
+     'Уровень можно изменить после регистрации.'),
+    ('/register?level=C1', 'Создайте аккаунт для начала обучения'),
+    ('/register', 'Создайте аккаунт для начала обучения'),
+], ids=['demo', 'placement', 'direct'])
+def test_signup_subtitle_matches_the_entry(
+    client: FlaskClient, db_session: Session, path: str, expected_subtitle: str,
+) -> None:
+    response = client.get(path)
+    assert response.status_code == 200
+    page = BeautifulSoup(response.data, 'html.parser')
+    assert page.select_one('.auth-card__subtitle').get_text(strip=True) == expected_subtitle
+
+
 def test_expired_form_csrf_without_referrer_returns_to_a_real_page(client, db_session, app, monkeypatch):
     monkeypatch.setitem(app.config, 'WTF_CSRF_ENABLED', True)
     response = client.post('/register?level=A1&entry=preview', data=registration())
@@ -124,6 +140,9 @@ def test_topic_destination_survives_level_test_detour_and_native_level_form(
     wizard = BeautifulSoup(client.get(response.location).data, 'html.parser')
     test_link = wizard.select_one('.onboarding-placement__start')['href']
     placement = BeautifulSoup(client.get(test_link).data, 'html.parser')
+    placement_root = placement.select_one('#placement-root')
+    assert placement_root['data-continue-after-apply'] == 'true'
+    assert parse_qs(urlparse(placement_root['data-learn-return']).query)['next'] == [target]
     back = placement.select_one('#placement-return')['href']
     assert parse_qs(urlparse(back).query)['next'] == [target]
     wizard = BeautifulSoup(client.get(back).data, 'html.parser')
