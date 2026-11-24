@@ -322,7 +322,7 @@ def test_phrase_review_preview_and_submission_share_quiz_text_policy(native_app,
     _, headers = learner(native_app)
     client = native_app.test_client()
     monkeypatch.setattr(activities, "_guard", lambda *a: None)
-    monkeypatch.setattr(activities, "_prepare", lambda kind, item: {
+    monkeypatch.setattr(activities, "_prepare", lambda kind, item, plan_item: {
         "rows": [{"type": "translation", "prompt": "Она не ходит пешком.", "answer": "She doesn't walk.",
                   "acceptable_answers": ["She does not walk."]}],
         "source": {"items": [{"answer": "She doesn't walk.", "accepted_answers": ["She does not walk."]}]},

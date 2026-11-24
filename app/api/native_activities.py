@@ -49,9 +49,9 @@ def _day():
     return get_user_local_date(current_user.id, db).isoformat()
 
 
-def _guard(kind, item_id):
+def _guard(kind: str, item_id: str) -> dict[str, Any] | None:
     if kind == "grammar_topic":
-        return
+        return None
     from app.daily_plan.service import get_daily_plan_unified
     from app.achievements.streak_service import compute_plan_steps
     from app.telegram.queries import get_daily_summary
@@ -95,6 +95,7 @@ def _guard(kind, item_id):
         or item.get("blocked")
     ):
         raise NativeLessonError("lesson_locked", 403)
+    return item
 
 
 def _public_topic(topic):
@@ -103,7 +104,7 @@ def _public_topic(topic):
     return topic is not None and topic.level in PUBLIC_CEFR_CODES
 
 
-def _prepare(kind, item_id):
+def _prepare(kind: str, item_id: str, plan_item: dict[str, Any] | None = None) -> dict[str, Any]:
     rows = []
     source = {}
     theory = []
@@ -113,8 +114,13 @@ def _prepare(kind, item_id):
         from app.grammar_lab.models import GrammarTopic, GrammarExercise
         from app.grammar_lab.services.grammar_lab_service import GrammarLabService
 
+        # The pre-final review ID ends in "pre_ft". Its topic belongs to the
+        # authorized plan item. Direct topic starts and older reviews use the ID.
+        topic_ref = ((plan_item or {}).get("data") or {}).get("topic_id")
+        if topic_ref is None:
+            topic_ref = item_id.rsplit(":", 1)[-1]
         try:
-            topic_id = int(item_id.rsplit(":", 1)[-1])
+            topic_id = int(str(topic_ref))
         except ValueError:
             raise NativeLessonError("invalid_input")
         topic = GrammarTopic.query.get(topic_id)
@@ -452,7 +458,7 @@ def start_activity_document(kind: str, body: Any) -> Any:
     from app.api.native_srs import _lock_user
 
     try:
-        _guard(kind, body["item_id"])
+        plan_item = _guard(kind, body["item_id"])
         existing = NativeLearningRun.query.filter_by(
             user_id=current_user.id, request_id=body["request_id"]
         ).first()
@@ -462,7 +468,7 @@ def start_activity_document(kind: str, body: Any) -> Any:
             if existing.kind != kind or existing.payload["item_id"] != body["item_id"]:
                 raise NativeLessonError("invalid_input")
             return jsonify(success=True, lesson=_document(existing))
-        payload = _prepare(kind, body["item_id"])
+        payload = _prepare(kind, body["item_id"], plan_item)
         _lock_user()
         existing = (
             NativeLearningRun.query.filter_by(
