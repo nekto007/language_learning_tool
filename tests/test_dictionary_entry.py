@@ -1,33 +1,31 @@
-"""Search-entry handoff uses existing auth, onboarding and word-saving on isolated SQLite."""
+"""Search-entry handoff uses existing auth, onboarding and word-saving with the shared application and database fixtures."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from collections.abc import Iterator
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 from unittest.mock import Mock
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
-from flask import g
+from flask import Flask, g
+from flask.testing import FlaskClient
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.study.models import UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords
-from tests.api.test_account_deletion import native_app as _native_app
 
 
-@pytest.fixture(scope='module')
-def native_app(tmp_path_factory: Any) -> Any:
-    yield from _native_app.__wrapped__(tmp_path_factory)
-
-
-@pytest.fixture
-def entry(native_app: Any, monkeypatch: Any) -> dict[str, Any]:
+@pytest.fixture(name='entry')
+def dictionary_entry(app: Flask, client: FlaskClient, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, Any]]:
     from app.modules.service import ModuleService
     from app.auth import welcome_email
+    monkeypatch.setitem(app.config, 'WTF_CSRF_ENABLED', True)
     monkeypatch.setattr(ModuleService, 'is_module_enabled_for_user', lambda *a, **k: True)
     monkeypatch.setattr(welcome_email, 'enqueue_welcome_email', Mock())
     monkeypatch.setattr('app.auth.routes.email_sender.send_email', Mock(side_effect=AssertionError('No external sends')))
@@ -35,8 +33,9 @@ def entry(native_app: Any, monkeypatch: Any) -> dict[str, Any]:
     g.pop('csrf_token', None)
     word = CollectionWords(english_word='entry'+uuid4().hex[:10], russian_word='тестовое слово',
                            level='A1', item_type='word', sentences='An artificial example.')
-    db.session.add(word); db.session.commit()
-    value = {'app': native_app, 'client': native_app.test_client(), 'word': word,
+    db_session.add(word)
+    db_session.commit()
+    value = {'app': app, 'client': client, 'word': word,
              'target': '/dictionary/'+word.english_word}
     yield value
     db.session.rollback(); g.pop('_login_user', None); g.pop('csrf_token', None)

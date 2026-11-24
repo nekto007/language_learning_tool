@@ -10,7 +10,7 @@ import pytest
 
 from app.auth.routes import get_reset_token, verify_reset_token
 from app.study.models import UserWord
-from tests.test_dictionary_entry import entry, native_app, _form, _user
+from tests.test_dictionary_entry import _form, _user, dictionary_entry as dictionary_entry
 
 
 def test_forgot_link_and_validation_preserve_word_without_sending(entry: Any) -> None:

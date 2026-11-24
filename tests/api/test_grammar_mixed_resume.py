@@ -1,45 +1,44 @@
-"""Bounded read-only mixed queue recovery on an isolated SQLite database."""
+"""Bounded read-only mixed queue recovery with the shared application and database fixtures."""
 from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 import json
+from collections.abc import Iterator
 from typing import Any
 from uuid import UUID, uuid4
 
 from bs4 import BeautifulSoup
-from flask import g
+from flask import Flask, g
+from flask.testing import FlaskClient
 import pytest
 from sqlalchemy import event
 
+from app.auth.models import User
 from app.grammar_lab.answer_review import lab_revision
 from app.grammar_lab.models import GrammarAttempt, GrammarExercise, GrammarTopic, UserGrammarExercise
 from app.grammar_lab.routes import _resume_practice_session
 from app.utils.db import db
-from tests.api.test_account_deletion import native_app as _native_app
-from tests.api.test_grammar_lab_disputes import browser
 from tests.api.test_native_full_integration import learner
 
 
-@pytest.fixture(scope='module')
-def native_app(tmp_path_factory: Any) -> Any:
-    yield from _native_app.__wrapped__(tmp_path_factory)
-
-
 @pytest.fixture
-def mixed(native_app: Any) -> Any:
-    user, _ = learner(native_app)
-    user.onboarding_completed = True
+def mixed(app: Flask, authenticated_client: FlaskClient, test_user: User,
+          monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, Any]]:
+    monkeypatch.setitem(app.config, 'WTF_CSRF_ENABLED', True)
+    user = test_user
     topics = [GrammarTopic(slug='mixed-'+uuid4().hex, title='Mixed '+str(i), title_ru='Тема '+str(i),
                            level='A1', content={}) for i in range(3)]
     db.session.add_all(topics); db.session.flush()
     rows = [GrammarExercise(topic_id=topic.id, exercise_type='fill_blank',
                             content={'question': 'We ___ here.', 'correct_answer': 'are'}) for topic in topics]
     db.session.add_all(rows); db.session.commit()
-    client, headers = browser(native_app, user)
+    g.pop('csrf_token', None)
+    token = authenticated_client.get('/csrf-token').get_json()['csrf_token']
+    headers = {'X-CSRFToken': token}
     body = {'mode': 'resume', 'account_id': str(user.id), 'session_id': 'grammar_practice_'+str(user.id)+'_a1b2c3d4',
             'items': [{'id': row.id, 'revision': lab_revision(row)} for row in reversed(rows)]}
-    yield {'app': native_app, 'user': user, 'rows': rows, 'client': client, 'headers': headers, 'body': body}
+    yield {'app': app, 'user': user, 'rows': rows, 'client': authenticated_client, 'headers': headers, 'body': body}
     db.session.rollback(); g.pop('_login_user', None); g.pop('csrf_token', None)
 
 
@@ -135,6 +134,8 @@ def test_resume_queries_only_requested_rows_in_one_select(mixed: Any, size: int)
     def capture(conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, executemany: bool) -> None:
         statements.append(statement)
     db.session.expire_all()
+    # Open the test fixture's savepoint before measuring queries from the resume handler.
+    db.session.connection()
     event.listen(db.engine, 'before_cursor_execute', capture)
     try:
         result, status = _resume_practice_session(body, uid)
