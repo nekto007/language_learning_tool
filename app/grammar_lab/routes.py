@@ -7,6 +7,8 @@ Uses UnifiedSRSService for Anki-like spaced repetition.
 """
 
 import logging
+from typing import Any
+from uuid import uuid4
 
 from flask import Response, abort, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -220,7 +222,7 @@ def practice(topic_id=None):
     return_url = get_safe_redirect_url(raw_return_url, fallback='grammar_lab.topics') if raw_return_url else ''
 
     if topic_id:
-        session = grammar_service.start_topic_practice(topic_id, current_user.id)
+        session = grammar_service.start_topic_practice(topic_id, current_user.id, reset_session_attempts=False)
         topic = session.get('topic')
         if not topic:
             return redirect(url_for('grammar_lab.topics'))
@@ -228,12 +230,19 @@ def practice(topic_id=None):
         # SRS mixed practice
         session = grammar_service.get_practice_session(current_user.id, count=10)
 
-    return render_template(
+    session.setdefault('exercises', [])
+    session.setdefault('total_exercises', len(session['exercises']))
+    session.setdefault('exercise_revisions', {})
+    for exercise in session['exercises']:
+        exercise['submission_id'] = str(uuid4())
+    response = Response(render_template(
         'grammar_lab/practice.html',
         session=session,
         topic=topic,
         return_url=return_url
-    )
+    ))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @grammar_lab_bp.route('/stats')
@@ -307,16 +316,37 @@ def api_start_practice(topic_id):
 
 @grammar_lab_bp.route('/api/exercise/<int:exercise_id>/submit', methods=['POST'])
 @login_required
-def api_submit_answer(exercise_id):
+def api_submit_answer(exercise_id: int) -> Response | tuple[Response, int]:
     """POST: Submit exercise answer"""
     from app.grammar_lab.answer_review import lab_revision
     from app.grammar_lab.dispute_receipts import issue_rejection_receipt, normalized_lab_answer
 
     data = request.get_json()
 
-    if not isinstance(data, dict) or 'answer' not in data:
+    if not isinstance(data, dict):
         return jsonify({'error': 'Answer required'}), 400
 
+    if 'submission_id' in data or 'exercise_revision' in data:
+        from app.api.native_lessons import NativeLessonError
+        from app.grammar_lab.submissions import submit_once
+
+        try:
+            result = submit_once(grammar_service, current_user.id, exercise_id, data)
+        except NativeLessonError as error:
+            db.session.rollback()
+            if error.status >= 500:
+                logger.warning('Idempotent grammar submission failed for exercise %s', exercise_id, exc_info=True)
+            return jsonify(error=error.code, code=error.code), error.status
+        except Exception:
+            db.session.rollback()
+            logger.exception('Idempotent grammar submission failed for exercise %s', exercise_id)
+            return jsonify(error='grading_failed', code='grading_failed'), 503
+        response = jsonify(result)
+        response.headers['Cache-Control'] = 'private, no-store'
+        return response
+
+    if 'answer' not in data:
+        return jsonify({'error': 'Answer required'}), 400
     exercise = GrammarExercise.query.get(exercise_id)
     if not exercise:
         return jsonify({'error': 'Exercise not found'}), 404
@@ -389,7 +419,18 @@ def api_complete_theory(topic_id):
 @login_required
 def api_create_practice_session():
     """POST: Create SRS practice session"""
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        return jsonify(error='invalid_input'), 400
+    if data.get('mode') == 'resume':
+        result, status = _resume_practice_session(data, current_user.id)
+        response = jsonify(result)
+        response.headers['Cache-Control'] = 'private, no-store'
+        return response, status
+    if 'mode' in data:
+        return jsonify(error='invalid_input'), 400
 
     result = grammar_service.get_practice_session(
         user_id=current_user.id,
@@ -399,6 +440,49 @@ def api_create_practice_session():
     )
 
     return jsonify(result)
+
+
+def _resume_practice_session(data: dict[str, Any], user_id: int) -> tuple[dict[str, Any], int]:
+    """Validate a small saved mixed queue without sampling or changing its SRS."""
+    import re
+    from sqlalchemy.orm import joinedload
+    from app.grammar_lab.answer_review import lab_revision
+    from app.grammar_lab.exercise_visibility import active_exercise_clause
+
+    if set(data) != {'mode', 'account_id', 'session_id', 'items'}:
+        return {'error': 'invalid_input'}, 400
+    if data['account_id'] != str(user_id):
+        return {'error': 'account_changed'}, 403
+    key, items = data['session_id'], data['items']
+    if (not isinstance(key, str) or not 0 < len(key) <= 100
+            or any(ord(char) < 32 for char in key)
+            or not isinstance(items, list) or not 1 <= len(items) <= 10):
+        return {'error': 'invalid_input'}, 400
+    for item in items:
+        if (not isinstance(item, dict) or set(item) != {'id', 'revision'}
+                or type(item['id']) is not int or not 0 < item['id'] <= 2**31 - 1
+                or not isinstance(item['revision'], str)
+                or not re.fullmatch(r'[0-9a-f]{64}', item['revision'])):
+            return {'error': 'invalid_input'}, 400
+    ids = [item['id'] for item in items]
+    if len(set(ids)) != len(ids):
+        return {'error': 'invalid_input'}, 400
+    rows = GrammarExercise.query.options(
+        joinedload(GrammarExercise.topic).load_only(GrammarTopic.title)
+    ).filter(GrammarExercise.id.in_(ids), active_exercise_clause()).populate_existing().all()
+    by_id = {row.id: row for row in rows}
+    if len(by_id) != len(ids):
+        return {'error': 'lesson_changed', 'code': 'lesson_changed'}, 409
+    revisions = {row.id: lab_revision(row) for row in rows}
+    if any(revisions[item['id']] != item['revision'] for item in items):
+        return {'error': 'lesson_changed', 'code': 'lesson_changed'}, 409
+    exercises = []
+    for item_id in ids:
+        row = by_id[item_id]
+        exercises.append({**row.to_dict(hide_answer=True), 'topic_title': row.topic.title if row.topic else None,
+                          'submission_id': str(uuid4())})
+    return {'account_id': str(user_id), 'session_id': key, 'exercises': exercises,
+            'exercise_revisions': revisions, 'total_exercises': len(exercises)}, 200
 
 
 @grammar_lab_bp.route('/api/stats')

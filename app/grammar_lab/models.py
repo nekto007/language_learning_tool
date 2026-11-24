@@ -11,7 +11,8 @@ Models:
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import backref, relationship
 
@@ -341,6 +342,8 @@ class GrammarAttempt(db.Model):
     # Context
     session_id = Column(String(100))  # for grouping attempts in a session
     source = Column(String(50))  # 'topic_practice', 'srs_review', 'daily_lesson'
+    submission_id = Column(UUID(as_uuid=False).with_variant(String(36), 'sqlite'), nullable=True)
+    submission_receipt = Column(JSONBCompat, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -359,6 +362,8 @@ class GrammarAttempt(db.Model):
         Index('idx_grammar_attempts_user', 'user_id'),
         Index('idx_grammar_attempts_exercise', 'exercise_id'),
         Index('idx_grammar_attempts_session', 'session_id'),
+        Index('uq_grammar_attempts_user_submission', 'user_id', 'submission_id', unique=True,
+              postgresql_where=text('submission_id IS NOT NULL'), sqlite_where=text('submission_id IS NOT NULL')),
     )
 
     def __repr__(self):

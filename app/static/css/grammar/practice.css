@@ -470,6 +470,12 @@
   color: var(--success-700);
 }
 
+.practice-exercise__feedback--pending {
+  background: var(--grammar-surface-alt);
+  border: 1px solid var(--grammar-border);
+  color: var(--grammar-text);
+}
+
 .practice-exercise__feedback.error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
@@ -507,6 +513,10 @@
 }
 
 /* Buttons */
+.practice-container [hidden] {
+  display: none !important;
+}
+
 .practice-btn {
   display: inline-flex;
   align-items: center;

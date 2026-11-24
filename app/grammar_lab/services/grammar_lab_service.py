@@ -279,7 +279,8 @@ class GrammarLabService:
 
         return data
 
-    def start_topic_practice(self, topic_id: int, user_id: int, max_exercises: int = 12) -> Dict:
+    def start_topic_practice(self, topic_id: int, user_id: int, max_exercises: int = 12, *,
+                             reset_session_attempts: bool = True) -> Dict:
         """
         Start practice session with Anki-like state-based exercise selection.
 
@@ -316,8 +317,10 @@ class GrammarLabService:
             row.exercise_id: row for row in srs.get_or_create_grammar_exercise_progress(user_id, exercise_ids)
         }
 
-        # Reset session attempts
-        srs.reset_grammar_session_attempts(user_id, topic_id=topic_id)
+        # Native and legacy sessions reset their shared counter. A browser may
+        # simply be reloading an existing session or be open in another tab.
+        if reset_session_attempts:
+            srs.reset_grammar_session_attempts(user_id, topic_id=topic_id)
 
         now = datetime.now(timezone.utc)
 
@@ -404,16 +407,10 @@ class GrammarLabService:
 
     def submit_answer(self, exercise_id: int, user_id: int, answer: Any,
                       session_id: str = None, source: str = 'topic_practice',
-                      time_spent: int = None) -> Dict:
-        """Submit and grade an exercise answer.
+                      time_spent: int = None, *, claimed_attempt: GrammarAttempt | None = None) -> Dict:
+        """Grade an answer. An already claimed attempt is committed by its caller."""
+        from app.api.native_lessons import NativeLessonError
 
-        XP award depends on the user's plan mode. For linear-plan users,
-        grammar XP flows only through the curriculum linear path
-        (``maybe_award_curriculum_xp`` with ``linear_curriculum_grammar``)
-        when the containing lesson completes; this method therefore skips
-        its own ``srs.add_xp`` call to avoid double-awarding. For mission /
-        legacy users, grammar_lab stays standalone and still awards XP here.
-        """
         exercise = GrammarExercise.query.get(exercise_id)
         if not exercise:
             return {'error': 'Exercise not found'}
@@ -423,18 +420,21 @@ class GrammarLabService:
 
         # Grade the answer
         result = self.grader.grade(exercise, answer)
+        if claimed_attempt is not None and result.get('error'):
+            raise NativeLessonError('invalid_input', 400)
 
         # Record attempt
-        attempt = GrammarAttempt(
+        attempt = claimed_attempt or GrammarAttempt(
             user_id=user_id,
             exercise_id=exercise_id,
-            is_correct=result['is_correct'],
-            user_answer=str(result.get('user_answer', answer)),
             time_spent=time_spent,
             session_id=session_id,
             source=source
         )
-        db.session.add(attempt)
+        attempt.is_correct = result['is_correct']
+        attempt.user_answer = str(result.get('user_answer', answer))
+        if claimed_attempt is None:
+            db.session.add(attempt)
 
         # Update SRS
         rating = RATING_KNOW if result['is_correct'] else RATING_DONT_KNOW
@@ -442,8 +442,11 @@ class GrammarLabService:
             exercise_id=exercise_id,
             rating=rating,
             user_id=user_id,
-            session_key=session_id
+            session_key=session_id,
+            count_session_attempts=claimed_attempt is not None and source == 'topic_practice' and bool(session_id),
         )
+        if claimed_attempt is not None and not srs_result.get('success'):
+            raise NativeLessonError('grading_failed', 503)
 
         # Award XP
         xp_earned = 0
@@ -455,12 +458,16 @@ class GrammarLabService:
                 if srs_result.get('interval', 0) >= UserGrammarExercise.MASTERED_THRESHOLD_DAYS:
                     xp_earned += GRAMMAR_XP['exercise_mastered']
 
-        if xp_earned > 0:
-            # All users are on the unified plan. Standalone grammar-lab XP is
-            # still awarded here so direct grammar-lab practice (outside the
-            # curriculum spine) credits the user. Curriculum-driven grammar
-            # lessons award their own XP via maybe_award_curriculum_xp and
-            # ignore this path.
+        topic_status = None
+        if claimed_attempt is not None:
+            # The legacy XP helper commits. Keep the claim and all updates in
+            # the caller's transaction, serializing writes to the topic counter.
+            topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)
+            topic_status = (UserGrammarTopicStatus.query.filter_by(id=topic_status.id)
+                            .populate_existing().with_for_update().one())
+            if xp_earned:
+                topic_status.add_xp(xp_earned)
+        elif xp_earned > 0:
             self.srs.add_xp(user_id, exercise.topic_id, xp_earned)
 
         # Credit the daily grammar_review slot in the global XP system so
@@ -473,33 +480,36 @@ class GrammarLabService:
         # bound, waiting on a row lock held by that poller would hang the whole
         # /submit request indefinitely (button stuck on «Проверка…»). We cap the
         # wait with lock_timeout and isolate any failure in a savepoint so the
-        # already-graded answer (committed below) is never affected — the slot
-        # XP is simply skipped this time if the row is busy.
+        # already-graded answer is never affected. Flush its mandatory writes
+        # before the savepoint, so only a failure in the optional award is skipped.
         from sqlalchemy import text as _sql_text
 
         from app.daily_plan.linear.xp import maybe_award_grammar_review_xp
+        pg = db.session.get_bind().dialect.name == 'postgresql'
+        if claimed_attempt is not None:
+            db.session.flush()
         try:
-            db.session.execute(_sql_text("SET LOCAL lock_timeout = '3s'"))
             with db.session.begin_nested():
+                if pg:
+                    db.session.execute(_sql_text("SET LOCAL lock_timeout = '3s'"))
                 maybe_award_grammar_review_xp(user_id, db_session=db)
+                if pg:
+                    db.session.execute(_sql_text("SET LOCAL lock_timeout = '0'"))
         except Exception as _gr_err:
+            # Rolling back the savepoint also restores the lock timeout.
             logger.warning('grammar_review slot XP skipped (lock/err): %s', _gr_err)
-        finally:
-            # Don't let the 3s cap leak onto the final commit below.
-            try:
-                db.session.execute(_sql_text("SET LOCAL lock_timeout = '0'"))
-            except Exception:
-                pass
 
         # Update topic status based on exercise activity
-        topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)
+        if topic_status is None:
+            topic_status = self.srs.get_or_create_topic_status(user_id, exercise.topic_id)
         if result['is_correct'] and topic_status.status == 'theory_completed':
             topic_status.transition_to('practicing')
 
         # Check mastery / regression
         self.check_and_update_mastery(exercise.topic_id, user_id)
 
-        db.session.commit()
+        if claimed_attempt is None:
+            db.session.commit()
 
         return {
             **result,

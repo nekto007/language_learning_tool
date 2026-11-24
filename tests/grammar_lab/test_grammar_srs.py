@@ -257,6 +257,7 @@ class TestFirstReview:
             # re-read under a row lock, so the locked query has to answer with
             # the same mock or nothing on it ever moves.
             (MockModel.query.filter_by.return_value
+             .populate_existing.return_value
              .with_for_update.return_value
              .first.return_value) = mock_progress
 

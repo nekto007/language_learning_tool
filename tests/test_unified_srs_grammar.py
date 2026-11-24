@@ -221,12 +221,13 @@ def _stub_locked_progress(mock_model, progress):
     """Wire the mock the way ``grade_grammar_exercise`` loads its row.
 
     ``get_or_create`` only resolves the id; the row that actually gets graded
-    is re-read under ``filter_by(id=...).with_for_update().first()``. Stubbing
+    is refreshed under a row lock. Stubbing
     only ``get_or_create`` leaves grading a bare ``MagicMock``, so none of the
     fixture's counters ever move.
     """
     mock_model.get_or_create.return_value = progress
     (mock_model.query.filter_by.return_value
+     .populate_existing.return_value
      .with_for_update.return_value
      .first.return_value) = progress
 

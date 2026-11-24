@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from app.grammar_lab.models import GrammarExercise, UserGrammarExercise, compute_initial_ease_for_difficulty
+from app.grammar_lab.models import GrammarAttempt, GrammarExercise, UserGrammarExercise, compute_initial_ease_for_difficulty
 from app.srs.constants import (
     DEFAULT_EASE_FACTOR,
     DIFFICULTY_BURY_THRESHOLD,
@@ -668,7 +668,9 @@ class UnifiedSRSService:
         exercise_id: int,
         rating: int,
         user_id: int,
-        session_key: str = None
+        session_key: str = None,
+        *,
+        count_session_attempts: bool = False,
     ) -> Dict[str, Any]:
         """
         Process grammar exercise rating using Anki-like state machine.
@@ -678,6 +680,8 @@ class UnifiedSRSService:
             rating: Rating (1=Don't know, 2=Doubt, 3=Know)
             user_id: User ID
             session_key: Session key (optional, for logging)
+            count_session_attempts: Use the caller's claimed attempt and prior
+                attempts in this session, rather than the legacy shared counter.
 
         Returns:
             Dict with result:
@@ -700,6 +704,7 @@ class UnifiedSRSService:
             progress = (
                 UserGrammarExercise.query
                 .filter_by(id=progress.id)
+                .populate_existing()
                 .with_for_update()
                 .first()
             )
@@ -754,8 +759,12 @@ class UnifiedSRSService:
             else:
                 progress.incorrect_count = (progress.incorrect_count or 0) + 1
 
-            # Increment session_attempts
-            progress.session_attempts = (progress.session_attempts or 0) + 1
+            if count_session_attempts:
+                progress.session_attempts = GrammarAttempt.query.filter_by(
+                    user_id=user_id, exercise_id=exercise_id, session_id=session_key,
+                ).count()
+            else:
+                progress.session_attempts = (progress.session_attempts or 0) + 1
 
             db.session.flush()  # caller commits
 

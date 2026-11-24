@@ -8,6 +8,10 @@ const SUBMIT_TIMEOUT_MS = 15000;
 let exerciseGeneration = 0;
 let activeDispute = null;
 let checkedAnswer = null;
+let pendingGrade = null;
+let queueChanged = false;
+let sessionRevisions = typeof exerciseRevisions === 'undefined' ? {} : exerciseRevisions;
+let pendingSaved = false;
 
 function isCurrentExercise(generation, exerciseId, practiceSession) {
   return generation === exerciseGeneration && String(sessionId) === practiceSession
@@ -126,12 +130,14 @@ const sessionKey = practiceActor ? `grammar_practice:${practiceActor}:${topicId 
 function saveSessionState() {
   if (!sessionKey) return;
   try {
-    const revisions = Object.fromEntries(exercises.map(ex => [ex.id, exerciseRevisions[ex.id]]));
+    const revisions = Object.fromEntries(exercises.map(ex => [ex.id, sessionRevisions[ex.id]]));
     sessionStorage.setItem(sessionKey, JSON.stringify({
-      exercises, revisions, sessionId, currentIndex, correctCount, wrongCount, totalXP, checkedAnswer,
+      exercises, revisions, sessionId, currentIndex, correctCount, wrongCount, totalXP, checkedAnswer, pendingGrade, queueChanged,
       timestamp: Date.now()
     }));
+    pendingSaved = Boolean(pendingGrade);
   } catch (_) {
+    pendingSaved = false;
     // Storage can be unavailable or full; a confirmed grade is still final in this tab.
   }
 }
@@ -142,48 +148,149 @@ function clearSessionState() {
   }
 }
 
-function restoreSession() {
-  if (!sessionKey) return;
+let restoreGeneration = 0;
+
+async function restoreSession() {
+  if (!sessionKey) return false;
+  const generation = ++restoreGeneration;
+  const pageSession = String(sessionId);
+  const isCurrent = () => generation === restoreGeneration && String(sessionId) === pageSession
+    && document.querySelector('meta[name="llt-account-id"]')?.content === practiceActor;
+  let state;
   try {
-    const state = JSON.parse(sessionStorage.getItem(sessionKey));
-    if (!state) return;
-    const items = state.exercises;
-    const index = state.currentIndex;
-    // Topic practice resamples on reload. Validate against all current topic revisions.
-    // For a mixed review, only the exercises still available in today's selection can resume.
-    const fresh = Array.isArray(items) && items.every(ex => isRenderable(ex)
-      && typeof exerciseRevisions[ex.id] === 'string' && exerciseRevisions[ex.id] === state.revisions?.[ex.id]);
-    const result = state.checkedAnswer;
-    const validResult = result == null || (typeof result.correct === 'boolean' && result.exerciseId === items?.[index]?.id
-      && typeof result.given === 'string' && typeof result.expected === 'string');
-    if (!fresh || !validResult || typeof state.sessionId !== 'string' || !state.sessionId || state.sessionId.length > 100
-        || !Number.isFinite(state.timestamp) || Date.now() - state.timestamp > 3600000
-        || !Number.isInteger(index) || index < 0 || index >= items.length
-        || ![state.correctCount, state.wrongCount, state.totalXP].every(n => Number.isInteger(n) && n >= 0)
-        || state.correctCount + state.wrongCount !== index + (result ? 1 : 0)) {
-      clearSessionState();
-      return;
-    }
-    exercises = items;
-    sessionId = state.sessionId;
-    currentIndex = index;
-    correctCount = state.correctCount;
-    wrongCount = state.wrongCount;
-    totalXP = state.totalXP;
-    checkedAnswer = result;
+    state = JSON.parse(sessionStorage.getItem(sessionKey));
   } catch (_) {
     clearSessionState();
-    return;
+    return false;
   }
+  if (!state) return false;
+  const items = state.exercises, index = state.currentIndex, result = state.checkedAnswer;
+  const hasPending = validPendingGrade(state.pendingGrade, items, index, state.sessionId);
+  const age = Date.now() - state.timestamp;
+  const validResult = result == null || (typeof result.correct === 'boolean' && result.exerciseId === items?.[index]?.id
+    && typeof result.given === 'string' && typeof result.expected === 'string');
+  if (!Array.isArray(items) || !items.length || (!topicId && items.length > 10)
+      || !items.every(isRenderable) || !validResult || (result && hasPending)
+      || (state.pendingGrade != null && !hasPending)
+      || typeof state.sessionId !== 'string' || !state.sessionId || state.sessionId.length > 100
+      || !Number.isFinite(state.timestamp) || age < 0 || (age > 3600000 && !hasPending)
+      || !Number.isInteger(index) || index < 0 || index >= items.length
+      || ![state.correctCount, state.wrongCount, state.totalXP].every(n => Number.isInteger(n) && n >= 0)
+      || state.correctCount + state.wrongCount !== index + (result ? 1 : 0)) {
+    clearSessionState();
+    return false;
+  }
+  let restoredItems = items, revisions = state.revisions;
+  let fresh = items.every(ex => typeof exerciseRevisions[ex.id] === 'string'
+    && exerciseRevisions[ex.id] === state.revisions?.[ex.id]);
+  const validBatch = items.every(ex => Number.isInteger(ex.id) && ex.id > 0 && ex.id <= 2147483647
+    && typeof state.revisions?.[ex.id] === 'string' && /^[0-9a-f]{64}$/.test(state.revisions[ex.id]))
+    && new Set(items.map(ex => ex.id)).size === items.length;
+  if (!topicId && !validBatch) fresh = false;
+  if (!topicId && validBatch) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
+    try {
+      const response = await fetch('/grammar-lab/api/practice/session', {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken()},
+        body: JSON.stringify({mode: 'resume', account_id: practiceActor, session_id: state.sessionId,
+          items: items.map(ex => ({id: ex.id, revision: state.revisions?.[ex.id]}))}), signal: controller.signal
+      });
+      if (response.redirected) {
+        const error = new Error('Login required'); error.refresh = true; throw error;
+      }
+      const data = await response.json();
+      if (!isCurrent()) return null;
+      if ([401, 403].includes(response.status) || data?.csrf_expired) {
+        const error = new Error('Session changed'); error.refresh = true; throw error;
+      }
+      if (response.status === 409 && data?.code === 'lesson_changed') {
+        fresh = false;
+      } else {
+        if (!response.ok || data?.account_id !== practiceActor || data.session_id !== state.sessionId
+            || !Array.isArray(data.exercises) || data.exercises.length !== items.length
+            || !data.exercises.every((ex, i) => isRenderable(ex) && ex.id === items[i].id
+              && typeof data.exercise_revisions?.[ex.id] === 'string'
+              && data.exercise_revisions[ex.id] === state.revisions?.[ex.id])) {
+          throw new Error('Unconfirmed saved practice');
+        }
+        restoredItems = data.exercises.map((ex, i) => ({...ex,
+          submission_id: items[i].submission_id || ex.submission_id}));
+        revisions = data.exercise_revisions;
+        fresh = true;
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  if (!fresh && !hasPending && !(result && state.queueChanged === true)) {
+    clearSessionState();
+    return false;
+  }
+  if (!isCurrent()) return null;
+  exercises = restoredItems;
+  sessionRevisions = revisions || {};
+  sessionId = state.sessionId;
+  currentIndex = index;
+  correctCount = state.correctCount;
+  wrongCount = state.wrongCount;
+  totalXP = state.totalXP;
+  checkedAnswer = result || null;
+  pendingGrade = hasPending ? state.pendingGrade : null;
+  pendingSaved = hasPending;
+  queueChanged = state.queueChanged === true || !fresh;
+  saveSessionState();
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('exercise-screen').style.display = 'block';
   showExercise(currentIndex);
+  return true;
 }
 
 // Try to restore session on page load
-document.addEventListener('DOMContentLoaded', function() {
-  restoreSession();
-});
+let resumeNeedsRefresh = false;
+async function initializePractice() {
+  const start = document.getElementById('start-btn');
+  const status = document.getElementById('practice-resume-status');
+  const retry = document.getElementById('practice-resume-retry');
+  start.disabled = true;
+  resumeNeedsRefresh = false;
+  if (retry) retry.hidden = true;
+  if (status) { status.hidden = false; status.textContent = 'Проверяем сохранённое занятие…'; }
+  try {
+    const restored = await restoreSession();
+    if (restored === null) return;
+    if (status) status.hidden = true;
+    if (restored) return;
+    start.disabled = !exercises.length;
+    start.hidden = !exercises.length;
+    const screen = document.getElementById('start-screen');
+    const title = screen.querySelector('.practice-start__title');
+    const desc = screen.querySelector('.practice-start__desc');
+    if (title) title.textContent = exercises.length ? 'Готовы к практике?' : 'Нет доступных упражнений';
+    if (!exercises.length && desc) desc.textContent = 'Сейчас нет упражнений для повторения. Изучите новые темы или вернитесь позже.';
+    const emptyLink = document.getElementById('practice-empty-link');
+    if (emptyLink) emptyLink.hidden = Boolean(exercises.length);
+  } catch (error) {
+    resumeNeedsRefresh = error?.refresh === true;
+    const screen = document.getElementById('start-screen');
+    const title = screen.querySelector('.practice-start__title');
+    const desc = screen.querySelector('.practice-start__desc');
+    if (title) title.textContent = 'Продолжим занятие';
+    if (desc) desc.textContent = 'Сохранённое занятие останется в этом браузере.';
+    if (status) {
+      status.hidden = false;
+      status.textContent = resumeNeedsRefresh ? 'Сессия изменилась. Обновите страницу для продолжения.'
+        : 'Не удалось восстановить занятие. Проверьте соединение и повторите попытку.';
+    }
+    if (retry) { retry.hidden = false; retry.textContent = resumeNeedsRefresh ? 'Обновить страницу' : 'Повторить восстановление'; }
+    const exit = document.getElementById('practice-empty-link');
+    if (exit) exit.hidden = false;
+  }
+}
+document.addEventListener('DOMContentLoaded', initializePractice);
+const resumeRetry = document.getElementById('practice-resume-retry');
+if (resumeRetry) resumeRetry.addEventListener('click', () => resumeNeedsRefresh ? window.location.reload() : initializePractice());
 
 // Start button
 document.getElementById('start-btn').addEventListener('click', function() {
@@ -227,6 +334,10 @@ function showExercise(index) {
 
   if (checkedAnswer) {
     showCheckedExercise(exercise, checkedAnswer);
+    return;
+  }
+  if (pendingGrade) {
+    showPendingGrade(exercise);
     return;
   }
 
@@ -280,7 +391,7 @@ function checkedExercise(exercise, data, submitted) {
   };
 }
 
-function showCheckedExercise(exercise, result) {
+function showSubmittedAnswer(exercise, given) {
   const question = document.getElementById('question-area');
   question.replaceChildren();
   const prompt = [exercise.instruction, exercise.question, exercise.sentence, exercise.statement, exercise.original];
@@ -291,8 +402,43 @@ function showCheckedExercise(exercise, result) {
   }
   const answer = document.createElement('p');
   answer.className = 'practice-exercise__submitted';
-  answer.textContent = 'Ваш ответ: ' + result.given;
+  answer.textContent = 'Ваш ответ: ' + given;
   question.append(answer);
+}
+
+function validPendingGrade(record, items, index, practiceSession) {
+  const body = record?.body;
+  return Boolean(body && record.exerciseId === items?.[index]?.id && typeof record.given === 'string'
+    && body.session_id === practiceSession && body.source === (topicId ? 'topic_practice' : 'srs_review')
+    && typeof body.submission_id === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(body.submission_id)
+    && typeof body.exercise_revision === 'string' && /^[0-9a-f]{64}$/i.test(body.exercise_revision)
+    && body.answer != null);
+}
+
+function showPendingGrade(exercise) {
+  showSubmittedAnswer(exercise, pendingGrade.given);
+  const feedback = document.getElementById('feedback-area');
+  const check = document.getElementById('check-btn');
+  const message = {
+    changed: 'Упражнение изменилось. Откройте актуальные задания, чтобы продолжить.',
+    mismatch: 'Сохранённый результат относится к другой попытке. Откройте занятие заново.',
+    edit: 'Сервер не смог проверить этот ответ. Можно вернуться к заданию.',
+    refresh: 'Обновите страницу, чтобы получить результат с действующей сессией.'
+  }[pendingGrade.problem];
+  feedback.className = 'practice-exercise__feedback practice-exercise__feedback--pending';
+  feedback.textContent = message || 'Пока неизвестно, сохранился ли ответ. Повторная отправка уточнит результат.';
+  if (!pendingSaved && !message) feedback.textContent += ' Для повтора оставьте эту страницу открытой.';
+  feedback.style.display = 'block';
+  check.textContent = {changed: 'Открыть актуальные задания', mismatch: 'Открыть занятие заново',
+    edit: 'Вернуться к заданию', refresh: 'Обновить страницу'}[pendingGrade.problem] || 'Повторить отправку';
+  check.disabled = false;
+  check.style.opacity = '';
+  check.style.display = 'inline-flex';
+  document.getElementById('next-btn').style.display = 'none';
+}
+
+function showCheckedExercise(exercise, result) {
+  showSubmittedAnswer(exercise, result.given);
 
   const feedback = document.getElementById('feedback-area');
   feedback.replaceChildren();
@@ -316,7 +462,8 @@ function showCheckedExercise(exercise, result) {
   feedback.style.display = 'block';
   document.getElementById('check-btn').style.display = 'none';
   document.getElementById('next-btn').style.display = 'inline-flex';
-  document.getElementById('next-label').textContent = currentIndex + 1 === exercises.length ? 'Посмотреть результат' : 'Далее';
+  document.getElementById('next-label').textContent = queueChanged ? 'Открыть актуальные задания'
+    : currentIndex + 1 === exercises.length ? 'Посмотреть результат' : 'Далее';
   if (!result.correct && result.token) {
     activeDispute = {generation: exerciseGeneration, exerciseId: String(exercise.id), practiceSession: String(sessionId),
                      token: result.token, answer: result.submitted, status: result.reported ? 'sent' : 'idle'};
@@ -686,44 +833,67 @@ function setupExerciseHandlers(exercise) {
   }
 }
 
-// Check answer
+function readSubmittedAnswer(exercise) {
+  if (exercise.exercise_type === 'multiple_choice') {
+    const selected = document.querySelector('input[name="answer"]:checked');
+    if (selected) return selected.value;
+    alert('Выберите ответ');
+    return null;
+  }
+  const input = document.getElementById('user-answer');
+  if (exercise.exercise_type === 'matching') {
+    try {
+      const matches = JSON.parse(input.value);
+      const total = (exercise.pairs || exercise.content?.pairs || []).length;
+      if (matches && Object.keys(matches).length === total) return matches;
+    } catch (_) { /* A partial set of pairs is not ready to submit. */ }
+    alert('Соотнесите все пары');
+    return null;
+  }
+  if (input?.value) return input.value;
+  alert('Введите ответ');
+  return null;
+}
+
+function reloadPractice(discard) {
+  if (discard) clearSessionState();
+  window.location.reload();
+}
+
+// Send the exact saved request again if the previous response was lost.
 document.getElementById('check-btn').addEventListener('click', async function() {
   const exercise = exercises[currentIndex];
   const checkBtn = this;
   if (!exercise || checkedAnswer || checkBtn.disabled) return;
-  const exerciseType = (exercise.exercise_type || '').toLowerCase();
-  let answer;
-
-  if (exerciseType === 'multiple_choice') {
-    const selected = document.querySelector('input[name="answer"]:checked');
-    if (!selected) {
-      alert('Выберите ответ');
-      return;
+  if (pendingGrade?.problem) {
+    if (pendingGrade.problem === 'edit' && !queueChanged) {
+      const answer = pendingGrade.body.answer;
+      pendingGrade = null;
+      saveSessionState();
+      showExercise(currentIndex);
+      const input = document.getElementById('user-answer');
+      if (input?.type === 'text' && typeof answer === 'string') input.value = answer;
+    } else if (pendingGrade.problem === 'refresh') {
+      delete pendingGrade.problem;
+      saveSessionState();
+      reloadPractice(false);
+    } else {
+      reloadPractice(true);
     }
-    answer = selected.value;
-  } else if (exerciseType === 'matching') {
-    const answerStr = document.getElementById('user-answer').value;
-    if (!answerStr) {
-      alert('Соотнесите все пары');
-      return;
-    }
-    try {
-      const matches = JSON.parse(answerStr);
-      const pairsCount = (exercise.pairs || exercise.content?.pairs || []).length;
-      if (Object.keys(matches).length < pairsCount) {
-        alert(`Соотнесите все пары (${Object.keys(matches).length}/${pairsCount})`);
-        return;
-      }
-      answer = matches;
-    } catch (e) {
-      alert('Соотнесите все пары');
-      return;
-    }
-  } else {
-    answer = document.getElementById('user-answer').value;
-    if (!answer) {
-      alert('Введите ответ');
-      return;
+    return;
+  }
+  let body = pendingGrade?.body;
+  if (!body) {
+    const answer = readSubmittedAnswer(exercise);
+    if (answer == null) return;
+    body = {answer, session_id: sessionId, source: topicId ? 'topic_practice' : 'srs_review'};
+    if (exercise.submission_id && sessionRevisions[exercise.id]) {
+      body.submission_id = exercise.submission_id;
+      body.exercise_revision = sessionRevisions[exercise.id];
+      const selected = exercise.exercise_type === 'multiple_choice'
+        ? document.querySelector('input[name="answer"]:checked')?.closest('label') : null;
+      pendingGrade = {exerciseId: exercise.id, body, given: selected?.textContent.trim() || answerText(exercise, answer)};
+      saveSessionState();
     }
   }
 
@@ -737,7 +907,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SUBMIT_TIMEOUT_MS);
   const generation = exerciseGeneration, exerciseId = String(exercise.id), practiceSession = String(sessionId);
-  const submittedAnswer = JSON.parse(JSON.stringify(answer));
+  const submittedAnswer = body.answer;
   let answered = false;  // true only when the answer was graded & shown
 
   try {
@@ -747,22 +917,30 @@ document.getElementById('check-btn').addEventListener('click', async function() 
         'Content-Type': 'application/json',
         'X-CSRFToken': getCSRFToken()
       },
-      body: JSON.stringify({
-        answer: answer,
-        session_id: sessionId,
-        source: topicId ? 'topic_practice' : 'srs_review'
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal
     });
-    if (!response.ok) {
-      throw new Error('submit failed: HTTP ' + response.status);
+    if (!isCurrentExercise(generation, exerciseId, practiceSession)) return;
+    if (pendingGrade && (response.redirected || [401, 403, 404].includes(response.status))) {
+      pendingGrade.problem = response.status === 404 ? 'changed' : 'refresh';
+      saveSessionState();
+      return;
     }
-
     const data = await response.json();
     if (!isCurrentExercise(generation, exerciseId, practiceSession)) return;
+    if (!response.ok) {
+      if (pendingGrade && (response.status === 400 || response.status === 409)) {
+        pendingGrade.problem = response.status === 409
+          ? (data.code === 'submission_mismatch' ? 'mismatch' : 'changed')
+          : (data.csrf_expired ? 'refresh' : 'edit');
+        saveSessionState();
+      }
+      throw new Error('submit failed: HTTP ' + response.status);
+    }
     if (typeof data?.is_correct !== 'boolean') throw new Error('Invalid grade response');
 
     checkedAnswer = checkedExercise(exercise, data, submittedAnswer);
+    pendingGrade = null;
     if (checkedAnswer.correct) {
       correctCount++;
       totalXP += checkedAnswer.xp;
@@ -778,7 +956,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
     if (!isCurrentExercise(generation, exerciseId, practiceSession)) return;
     console.error('grammar submit failed:', error);
     const feedback = document.getElementById('feedback-area');
-    if (feedback) {
+    if (feedback && !pendingGrade) {
       feedback.className = 'practice-exercise__feedback error';
       feedback.textContent = (error && error.name === 'AbortError')
         ? 'Превышено время ожидания. Проверьте соединение и попробуйте снова.'
@@ -793,6 +971,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
       checkBtn.disabled = false;
       checkBtn.innerHTML = originalHTML;
       checkBtn.style.opacity = '';
+      if (pendingGrade) showPendingGrade(exercise);
     }
   }
 });
@@ -800,6 +979,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
 // Next exercise
 document.getElementById('next-btn').addEventListener('click', function() {
   if (!checkedAnswer) return;
+  if (queueChanged) { reloadPractice(true); return; }
   checkedAnswer = null;
   clearDispute();
   currentIndex++;
@@ -821,6 +1001,6 @@ document.getElementById('next-btn').addEventListener('click', function() {
 
     document.getElementById('progress-bar').style.width = '100%';
     document.getElementById('progress-text').textContent = `${exercises.length} / ${exercises.length}`;
-
+    document.getElementById('practice-result-title')?.focus();
   }
 });

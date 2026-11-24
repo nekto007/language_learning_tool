@@ -3,6 +3,10 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const source=fs.readFileSync(path.join(__dirname,'../../app/static/js/grammar/practice.js'),'utf8');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+const firstRevision = 'a'.repeat(64);
+const secondRevision = 'b'.repeat(64);
+const firstKey = 'cc40fb0e-52ef-42ea-ba02-abdeb59e789f';
+const secondKey = 'cc40fb0e-52ef-42ea-ba02-abdeb59e7801';
 async function practice(options={}) {
   const nodes={},events={},storage=options.storage || new Map(),timers=[],calls=[];
   const element=id=>({id,style:{},disabled:false,value:'',type:'text',textContent:'',innerHTML:'Проверить',listeners:{},children:[],classList:{add(){},remove(){}},
@@ -13,9 +17,10 @@ async function practice(options={}) {
   for(const id of ['start-btn','check-btn','next-btn','dispute-btn','dispute-status','feedback-area','question-area'])el(id);
   el('dispute-btn').style.display='none';el('dispute-status').style.display='none';
   const first=options.matching?{id:41,exercise_type:'matching',pairs:[{left:'a',right:'b'}]}:{id:41,exercise_type:'fill_blank',question:'She ___ here.'};
-  const context={exercises:[first,{id:42,exercise_type:'fill_blank',question:'I ___ here.'}],exerciseRevisions:options.revisions || {41:'first',42:'second'},topicId:4,sessionId:'session-one',
+  first.submission_id=firstKey;
+  const context={exercises:[first,{id:42,exercise_type:'fill_blank',question:'I ___ here.',submission_id:secondKey}],exerciseRevisions:options.revisions || {41:firstRevision,42:secondRevision},topicId:4,sessionId:'session-one',
     document:{getElementById:el,createElement:element,querySelector:selector=>selector.includes('csrf')?{getAttribute:()=> 'csrf-token'}:selector.includes('llt-account-id')?{content:options.actor || '1'}:{value:'1'},querySelectorAll:()=>[],addEventListener:(name,fn)=>{events['document:'+name]=fn;}},
-    window:{addEventListener:(name,fn)=>{events[name]=fn;}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
+    window:{addEventListener:(name,fn)=>{events[name]=fn;},location:{reload:()=>{events.reloaded=true;}}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
     setTimeout:(fn,delay)=>{const t={fn,delay};timers.push(t);return t;},clearTimeout:t=>{const i=timers.indexOf(t);if(i>=0)timers.splice(i,1);},AbortController,
     console:{error(){}},alert:message=>{throw Error(message);},
     fetch:async(url,init)=>{const call={url,init,body:JSON.parse(init.body)};calls.push(call);
@@ -23,7 +28,7 @@ async function practice(options={}) {
       return options.submit?options.submit(call):{ok:true,status:200,json:async()=>({is_correct:options.correct??false,correct_answer:'is',dispute_token:options.token===undefined?'signed-dispute':options.token})};}
   };
   vm.createContext(context);vm.runInContext(source,context);
-  events['document:DOMContentLoaded']();
+  await events['document:DOMContentLoaded']();
   if(!options.reload)el('start-btn').click();
   const answer=options.matching?{0:0}:'My typed ANSWER!';el('user-answer').value=options.matching?JSON.stringify(answer):answer;
   const submit=()=>el('check-btn').click();
@@ -155,4 +160,57 @@ test('an incomplete grading response never increments the attempts displayed to 
   const p = await practice({submit:() => ({ok:true, json:async () => ({})})});
   assert.equal(p.el('check-btn').disabled, false);
   assert.equal(p.el('progress-text').textContent, '0 / 2');
+});
+
+test('a lost grading response survives reload and resends the original typed answer and identity', async () => {
+  const first = await practice({matching:true, submit:() => {throw Error('lost response');}});
+  const original = first.calls[0].body;
+  assert.equal(original.submission_id, firstKey);
+  assert.equal(original.exercise_revision, firstRevision);
+  assert.equal(first.el('check-btn').textContent, 'Повторить отправку');
+  const restored = await practice({reload:true, storage:first.storage, matching:true});
+  assert.equal(restored.calls.length, 0);
+  assert.equal(restored.el('check-btn').textContent, 'Повторить отправку');
+  restored.el('user-answer').value = 'different after reload';
+  await restored.submit();
+  assert.deepEqual(restored.calls[0].body, original);
+  assert.equal(restored.el('progress-text').textContent,'1 / 2');
+  assert.equal(JSON.parse(restored.storage.get('grammar_practice:1:4')).pendingGrade, null);
+});
+
+test('an expired CSRF form refreshes before resending the original body', async () => {
+  const first = await practice({submit:() => ({ok:false,status:400,json:async () => ({csrf_expired:true})})});
+  assert.equal(first.el('check-btn').textContent, 'Обновить страницу');
+  await first.submit();
+  assert(first.events.reloaded);
+  const restored = await practice({reload:true,storage:first.storage,correct:true});
+  await restored.submit();
+  assert.deepEqual(restored.calls[0].body,first.calls[0].body);
+  assert.equal(restored.el('next-btn').style.display,'inline-flex');
+});
+
+test('a changed exercise or conflicting submission offers a fresh session without resubmitting', async () => {
+  for (const code of ['lesson_changed','submission_mismatch']) {
+    const p = await practice({submit:() => ({ok:false,status:409,json:async () => ({code})})});
+    assert.match(p.el('check-btn').textContent,/Открыть/);
+    assert.equal(p.el('progress-text').textContent,'0 / 2');
+    await p.submit();
+    assert(p.events.reloaded);
+    assert.equal(p.storage.size,0);
+    assert.equal(p.calls.length,1);
+  }
+});
+
+test('a definitive input rejection allows editing the original response', async () => {
+  let tries = 0;
+  const p = await practice({submit:() => ++tries === 1
+    ? {ok:false,status:400,json:async () => ({code:'invalid_input'})}
+    : {ok:true,status:200,json:async () => ({is_correct:true})}});
+  assert.equal(p.el('check-btn').textContent,'Вернуться к заданию');
+  await p.submit();
+  assert.equal(p.el('user-answer').value,p.answer);
+  p.el('user-answer').value = 'corrected';
+  await p.submit();
+  assert.equal(p.calls[1].body.answer,'corrected');
+  assert.equal(p.el('progress-text').textContent,'1 / 2');
 });
