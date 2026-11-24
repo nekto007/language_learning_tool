@@ -14,6 +14,8 @@ from app.utils.db import db
 from app.utils.normalization import normalize_quiz_answer
 
 CORE = ('grammar', 'vocabulary', 'reading', 'listening')
+STARTER_SCOPE = 'starter'
+STARTER_QUESTIONS = 10
 MODES = {
     'quick': {'title': 'Быстро подобрать старт', 'minutes': '5–7', 'max_questions': 14},  # noqa: RUF001
     'detailed': {'title': 'Проверить знания подробнее', 'minutes': '15–20', 'max_questions': 24},  # noqa: RUF001
@@ -96,7 +98,30 @@ def _finish(row: PlacementAttempt, state: dict, pool: dict[str, dict]) -> None:
                   'review_topics': list(mapped.values()), 'preliminary': True, 'speaking_assessed': False, 'free_writing_assessed': False}
 
 
+def _next_starter(row: PlacementAttempt, state: dict, pool: dict[str, dict]) -> None:
+    """Five short pairs, starting at A1; never interpret one guess as mastery."""
+    answered = len(state['asked'])
+    if answered % 2:
+        _issue(state, pool, LEVELS[state['level']], 'vocabulary')
+        return
+    passed = all(a['correct'] for a in state['asked'][-2:])
+    level = state['level']
+    if passed:
+        state['candidate'] = max(state['candidate'], level)
+    else:
+        state['candidate'] = min(state['candidate'], max(0, level - 1))
+        state['failed_levels'] = sorted(set(state['failed_levels']) | {level})
+    if answered == STARTER_QUESTIONS:
+        _finish(row, state, pool)
+        return
+    state['level'] = (level if level + 1 in state['failed_levels'] else min(level + 1, 4)) if passed else max(0, level - 1)
+    _issue(state, pool, LEVELS[state['level']], 'grammar')
+
+
 def _next(row: PlacementAttempt, state: dict, pool: dict[str, dict]) -> None:
+    if state.get('scope') == STARTER_SCOPE:
+        _next_starter(row, state, pool)
+        return
     answered = len(state['asked'])
     if state['phase'] == 'warmup':
         if answered == 1:
@@ -143,7 +168,11 @@ def projection(row: PlacementAttempt) -> dict:
     answered = sum('correct' in a for a in row.state['asked'])
     result = {'id': row.id, 'mode': row.mode, 'status': row.status, 'answered': answered,
               'max_questions': MODES[row.mode]['max_questions'], 'result': row.result,
-              'applied': row.applied_at is not None}
+              'applied': row.applied_at is not None,
+              'scope': row.state.get('scope'),
+              # max_questions remains the legacy quick upper bound so shipped
+              # native clients can read imported guest results. Exact UI length:
+              'question_count': STARTER_QUESTIONS if row.state.get('scope') == STARTER_SCOPE else MODES[row.mode]['max_questions']}
     if row.status == 'active':
         asked = row.state['asked'][-1]
         q = _items(row)[asked['id']]
@@ -165,13 +194,15 @@ def status(user_id: int | str) -> dict:
             'pending_on': user.placement_pending_on.isoformat() if user and user.placement_pending_on else None}
 
 
-def start(user_id: int | str, mode: Any) -> dict:
+def start(user_id: int | str, mode: Any, *, scope: Any = None) -> dict:
     if not isinstance(mode, str) or mode not in MODES:
         raise PlacementError('invalid_mode')
+    if scope is not None and (scope != STARTER_SCOPE or mode != 'quick'):
+        raise PlacementError('invalid_scope')
     _owner(user_id)
     active = _query(user_id).filter_by(status='active').first()
     if active is not None:
-        if active.mode != mode:
+        if active.mode != mode or (scope is not None and active.state.get('scope') != scope):
             raise PlacementError('active_attempt', 409)
         return projection(active)
     bank = db.session.query(PlacementBank).filter_by(active=True).first()
@@ -180,6 +211,8 @@ def start(user_id: int | str, mode: Any) -> dict:
     row = PlacementAttempt(id=str(uuid4()), bank_id=bank.id, mode=mode, status='active',
                            **({'user_id': user_id} if type(user_id) is int else {'guest_key': user_id}))
     state = {'version': 1, 'phase': 'warmup', 'candidate': 0, 'failed_levels': [], 'asked': []}
+    if scope == STARTER_SCOPE:
+        state.update(scope=STARTER_SCOPE, phase='starter', level=0)
     _issue(state, {q['id']: q for q in bank.content['items']}, 'A1', 'grammar')
     row.state = state
     db.session.add(row)

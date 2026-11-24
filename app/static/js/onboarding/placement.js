@@ -3,6 +3,9 @@
   var root = document.getElementById('placement-root');
   if (!root) return;
   var base = root.dataset.api, account = root.dataset.account, guest = root.dataset.guest === 'true';
+  var compact = root.dataset.simple === 'true', forceStart = root.dataset.forceStart === 'true';
+  var compactChoice = '', lastChoiceAt = 0, simpleQuiz = false;
+  var openRetry = document.getElementById('placement-open-retry');
   var prefix = 'llt-placement-v1:' + account + ':';
   var statusNode = document.getElementById('placement-status');
   var chooser = document.getElementById('placement-chooser');
@@ -66,6 +69,7 @@
   function selected() {
     if (!current || !current.question) return '';
     if (current.question.input === 'text') return text.value;
+    if (simpleQuiz) return compactChoice;
     var checked = document.querySelector('input[name="placement-option"]:checked');
     return checked ? checked.value : '';
   }
@@ -73,6 +77,8 @@
     submit.disabled = busy || !!pending || !selected().trim(); unknown.disabled = busy || !!pending;
     text.disabled = busy || !!pending;
     document.querySelectorAll('input[name="placement-option"]').forEach(function (e) { e.disabled = busy || !!pending; });
+    root.querySelectorAll('[data-placement-choice]').forEach(function (e) { e.disabled = busy || !!pending; });
+    openRetry.disabled = busy;
     pause.disabled = busy || !!pending;
     change.disabled = busy || !!pending;
     root.setAttribute('aria-busy', String(busy));
@@ -84,8 +90,9 @@
     return operation().catch(function (error) {
       say(error.message || 'Нет связи. Попробуй ещё раз.');
       retry.hidden = !pending;
+      openRetry.hidden = !(compact && !pending && !current);
       if (error.code === 'stale_question' || error.code === 'answer_already_saved' || error.code === 'attempt_closed') {
-        pending = null; remove('pending'); retry.hidden = true; return loadStatus(false);
+        pending = null; remove('pending'); retry.hidden = true; return loadStatus(compact);
       }
       if (pending && error.status && error.status < 500 && error.status !== 429 && error.status !== 401 && error.status !== 403) {
         pending = null; remove('pending'); retry.hidden = true;
@@ -124,12 +131,16 @@
     clearTimeout(draftTimer); stopAudio(); current = attempt; chooser.hidden = true;
     test.hidden = attempt.status !== 'active'; result.hidden = attempt.status !== 'completed';
     pause.hidden = attempt.status !== 'active'; retry.hidden = !pending;
-    change.hidden = attempt.status !== 'active';
+    change.hidden = attempt.status !== 'active' || (compact && attempt.scope === 'starter');
+    change.textContent = compact ? 'Начать короткую проверку' : 'Выбрать другой вариант';
+    openRetry.hidden = true;
+    simpleQuiz = compact && attempt.scope === 'starter';
+    root.querySelector('.placement-header').hidden = compact && attempt.status === 'completed';
     if (attempt.status === 'completed') {
       var info = attempt.result;
       document.getElementById('placement-apply').hidden = guest;
-      document.getElementById('placement-result-title').textContent = 'Рекомендуем начать с ' + info.recommended_level;
-      document.getElementById('placement-result-summary').textContent = 'Верно: ' + info.correct_count + ' из ' + info.total + '. Выбор уровня не удалит пройденные уроки.';
+      document.getElementById('placement-result-title').textContent = (compact ? 'Твой стартовый уровень — ' : 'Рекомендуем начать с ') + info.recommended_level;
+      document.getElementById('placement-result-summary').textContent = compact ? 'Подберём уроки под твой результат.' : 'Верно: ' + info.correct_count + ' из ' + info.total + '. Выбор уровня не удалит пройденные уроки.';
       var list = document.getElementById('placement-domains'); list.replaceChildren();
       info.domains.forEach(function (domain) {
         var li = document.createElement('li'), strong = document.createElement('strong');
@@ -140,20 +151,29 @@
       var topics = document.getElementById('placement-topics-list'); topics.replaceChildren();
       (info.weak_topics || []).forEach(function (topic) { var li = document.createElement('li'); li.textContent = topic; topics.appendChild(li); });
       document.getElementById('placement-topics').hidden = !info.weak_topics.length;
-      var apply = document.getElementById('placement-apply'); apply.textContent = 'Выбрать уровень ' + info.recommended_level;
-      apply.disabled = attempt.applied;
+      var apply = document.getElementById('placement-apply'); apply.textContent = compact ? 'Продолжить обучение' : 'Выбрать уровень ' + info.recommended_level;
+      var note = document.getElementById('placement-simple-note');
+      if (note) note.textContent = attempt.scope === 'starter' ? 'Предварительная оценка по словарю и грамматике.' : 'Предварительная рекомендация для выбора первых уроков.';
+      apply.disabled = attempt.applied && !compact;
       document.getElementById('placement-apply-status').textContent = attempt.applied ?
         (info.effective_on ? 'Уровень выбран. Новые планы будут учитывать его с ' + info.effective_on + '. Сегодняшний план сохраняется.' : 'Уровень выбран. Можно перейти к обучению.') : '';
-      if (focus) document.getElementById('placement-result-title').focus();
+      if (focus) document.getElementById('placement-result-title').focus({preventScroll: compact});
+      if (compact) window.scrollTo({top: 0, behavior: 'instant'});
       return;
     }
     if (attempt.status !== 'active') return;
-    var question = attempt.question;
-    document.getElementById('placement-counter').textContent = 'Задание ' + (attempt.answered + 1) + ' · до ' + attempt.max_questions;
+    if (compact) {
+      root.querySelector('.placement-header .placement-eyebrow').textContent = simpleQuiz ? 'Около 2 минут · 10 вопросов' : 'Продолжим начатую проверку';
+      root.querySelector('.placement-header h1').textContent = simpleQuiz ? 'Проверим твой английский' : 'Твой тест сохранён';
+      root.querySelector('.placement-header > div > p:last-child').textContent = simpleQuiz ? 'Нажми на ответ. Если не знаешь — так и отвечай.' : 'Продолжим с того же задания. Можно выбрать короткую проверку вместо этой.';
+    }
+    var question = attempt.question, total = attempt.question_count || attempt.max_questions;
+    submit.hidden = simpleQuiz;
+    document.getElementById('placement-counter').textContent = simpleQuiz ? (attempt.answered + 1) + ' из ' + total : 'Задание ' + (attempt.answered + 1) + ' · до ' + total;
     document.getElementById('placement-skill').textContent = question.skill_title;
     var progress = root.querySelector('.placement-progress');
-    progress.setAttribute('aria-valuemax', attempt.max_questions); progress.setAttribute('aria-valuenow', attempt.answered);
-    document.getElementById('placement-progress-fill').style.width = (attempt.answered / attempt.max_questions * 100) + '%';
+    progress.setAttribute('aria-valuemax', total); progress.setAttribute('aria-valuenow', attempt.answered);
+    document.getElementById('placement-progress-fill').style.width = (attempt.answered / total * 100) + '%';
     var passage = document.getElementById('placement-passage'); passage.hidden = !question.passage; passage.textContent = question.passage || '';
     document.getElementById('placement-audio-wrap').hidden = !question.audio_url;
     document.getElementById('placement-audio-retry').hidden = true;
@@ -163,7 +183,17 @@
     var options = document.getElementById('placement-options-list'); options.replaceChildren();
     document.getElementById('placement-options').hidden = question.input !== 'choice';
     document.getElementById('placement-text-wrap').hidden = question.input !== 'text';
-    if (question.input === 'choice') question.options.forEach(function (option, index) {
+    compactChoice = draft;
+    if (simpleQuiz) question.options.forEach(function (option) {
+      var pick = document.createElement('button'); pick.type = 'button'; pick.className = 'placement-option';
+      pick.dataset.placementChoice = 'true'; pick.textContent = option;
+      pick.addEventListener('click', function () {
+        if (busy || pending || Date.now() - lastChoiceAt < 300) return;
+        lastChoiceAt = Date.now(); compactChoice = option; send(false);
+      });
+      options.appendChild(pick);
+    });
+    else if (question.input === 'choice') question.options.forEach(function (option, index) {
       var label = document.createElement('label'), input = document.createElement('input'), span = document.createElement('span');
       label.className = 'placement-option'; input.type = 'radio'; input.name = 'placement-option'; input.value = option;
       input.checked = draft === option; input.addEventListener('change', edit); span.textContent = option;
@@ -172,7 +202,8 @@
     text.value = question.input === 'text' ? draft : '';
     draftDurable = draft === (question.draft || '');
     draftStatus.textContent = pending ? 'Проверяем отправленный ответ. Повторная отправка сохранит тот же ответ.' : '';
-    if (focus) { heading.focus(); heading.scrollIntoView({block: 'start'}); }
+    if (focus) { heading.focus({preventScroll: compact}); if (!compact) heading.scrollIntoView({block: 'start'}); }
+    if (compact) window.scrollTo({top: 0, behavior: 'instant'});
     availability();
   }
   function sendPending() {
@@ -194,16 +225,20 @@
     pending = value; run(sendPending);
   }
   function start(mode) {
-    return request('/start', {mode: mode}).then(function (data) { active = data.attempt; say(''); render(active, true); });
+    var body = {mode: mode};
+    if (compact) { body.scope = 'starter'; history.replaceState(null, '', location.pathname + '?simple=1'); }
+    return request('/start', body).then(function (data) { active = data.attempt; say(''); render(active, true); });
   }
   function loadStatus(restore) {
     return request('/status').then(function (data) {
       root.dataset.available = data.available ? 'true' : '';
       active = data.active; latest = data.latest;
       if (restore && pending) return sendPending();
-      if (restore && latest && ((!active && guest) || new URLSearchParams(location.search).get('result') === '1')) { render(latest, false); say(''); return; }
+      if (restore && latest && new URLSearchParams(location.search).get('result') === '1') { render(latest, false); say(''); return; }
       if (restore && active) { render(active, false); say('Продолжим с сохранённого задания.'); return; }
-      stopAudio(); current = null; test.hidden = true; result.hidden = true; chooser.hidden = false; pause.hidden = true; change.hidden = true;
+      if (restore && latest && ((!forceStart && (guest || compact)) || new URLSearchParams(location.search).get('result') === '1')) { render(latest, false); say(''); return; }
+      if (restore && compact && data.available) return start('quick');
+      stopAudio(); current = null; test.hidden = true; result.hidden = true; chooser.hidden = compact; pause.hidden = true; change.hidden = true;
       resume.replaceChildren(); resume.hidden = !active;
       if (active) {
         var p = document.createElement('p'); p.textContent = 'Есть начатый ' + (active.mode === 'quick' ? 'быстрый' : 'подробный') + ' тест. Ответов сохранено: ' + active.answered + '.';
@@ -226,15 +261,21 @@
   });
   document.getElementById('placement-latest').addEventListener('click', function () { if (latest) render(latest, true); });
   document.getElementById('placement-retake').addEventListener('click', function () { run(function () { return loadStatus(false); }); });
-  change.addEventListener('click', function () { if (!pending) run(function () { return loadStatus(false); }); });
+  change.addEventListener('click', function () {
+    if (pending) return;
+    if (compact) { nextMode = 'quick'; dialog.showModal(); }
+    else run(function () { return loadStatus(false); });
+  });
   document.getElementById('placement-apply').addEventListener('click', function () {
     if (!current || current.status !== 'completed') return;
     var button = this; button.disabled = true;
     run(function () { return request('/' + current.id + '/apply', {}).then(function (data) {
+      if (compact) { window.location.assign(root.dataset.learnReturn); return; }
       current.applied = true; current.result.effective_on = data.attempt.effective_on; render(current, false);
     }).catch(function (error) { button.disabled = false; throw error; }); });
   });
   submit.addEventListener('click', function () { send(false); }); unknown.addEventListener('click', function () { send(true); });
+  openRetry.addEventListener('click', function () { run(function () { return loadStatus(true); }); });
   text.addEventListener('input', edit); retry.addEventListener('click', function () { run(sendPending); });
   pause.addEventListener('click', function () {
     if (!current || !current.question || pending) return;

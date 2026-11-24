@@ -65,3 +65,34 @@ The next eligible plan includes at most one three-exercise review per day. It us
 The review replaces the last eligible course lesson (or filler) of at least the same ETA. It preserves the first course lesson, SRS and final tests, never increases required item count, and stays first optional when no replacement fits the chosen pace. A required review suppresses misleading weekly pace nudges caused by the substituted course lesson. Three first answers are scored independently of later assistance. Three correct answers retire the candidate; otherwise it returns after two days. This is a small practice check, not CEFR certification. A new applied test supersedes the previous queue once its chosen level takes effect.
 
 Browser review routes: `/placement/review/<review_id>` and CSRF-protected `/onboarding/placement/review/<review_id>/{start,check,submit}`. Native clients use the existing `/api/native/activities/grammar_review/...` routes with the full server-provided item ID. Completed mini-practice has a return-to-plan action and no immediate repeat button.
+
+
+## Direct public entry
+
+The landing hero has two main actions: **Начать обучение** and **Проверить уровень языка**.
+The second opens `/placement?start=1` and immediately starts a ten-question choice-only
+screening. There is no mode chooser, passage or audio in this entry. A choice tap submits
+that answer and advances; «Не знаю» remains available. The compact result provides one
+primary learning/registration CTA and a smaller existing-account login link. Full 14/24
+checks remain available in the profile; anonymous advanced access uses `?advanced=1`.
+
+The short scope is `starter`: five grammar/vocabulary pairs beginning at A1. A pair must
+have both answers correct to raise the candidate; one-domain success does not promote.
+The result is a preliminary starting recommendation about vocabulary and grammar. It
+does not infer reading, listening, speaking or free-writing performance. Existing private
+banks already have enough distinct choice items; no bank reimport or schema migration is
+needed for this change.
+
+Transport: `POST .../placement/start` may add `scope: "starter"` to `mode: "quick"`.
+Scope is frozen in attempt state; its projection adds `scope` and exact `question_count=10`.
+`max_questions=14` remains the compatible quick upper bound for shipped native clients,
+whose result validators accept a completed count below that bound. Comprehensive requests
+without a scope retain their original behavior. Existing active long checks are resumed,
+with an explicit confirmation offered before replacing them with a short attempt.
+
+On the compact result, «Начать обучение» explicitly selects the shown recommendation
+along with transferring the result. After signup/login, that saved consent applies the
+level via the canonical adoption service. A novice's onboarding is completed with existing
+defaults, so registration proceeds to the daily plan without another level-confirmation
+screen. Started days still defer the level change, completed lessons remain authoritative,
+and a more recent account result wins. A legacy full-result handoff does not auto-apply.

@@ -46,8 +46,8 @@ def _mutate(action: str, attempt_id: str = '', actor: int | str | None = None) -
     actor = current_user.id if actor is None else actor
     try:
         if action == 'start':
-            value = _body({'mode'})
-            payload = engine.start(actor, value['mode'])
+            value = _body({'mode'}, {'scope'})
+            payload = engine.start(actor, value['mode'], scope=value.get('scope'))
         elif action in ('answer', 'draft'):
             value = _body({'question_id', 'answer', 'dont_know'} if action == 'answer' else {'question_id', 'answer'})
             if action == 'answer':
@@ -69,7 +69,9 @@ def _mutate(action: str, attempt_id: str = '', actor: int | str | None = None) -
 def placement_page() -> Response:
     guest = not current_user.is_authenticated
     actor = guest_actor() if guest else current_user.id
-    response = private_response(render_template('onboarding/placement.html', placement_guest=guest, placement_actor=actor))
+    simple = (guest and request.args.get('advanced') != '1') or request.args.get('start') == '1' or request.args.get('simple') == '1'
+    response = private_response(render_template('onboarding/placement.html', placement_guest=guest, placement_actor=actor,
+        placement_simple=simple, placement_force_start=request.args.get('start') == '1'))
     if guest:
         from flask import session, current_app
         response.set_cookie('llt_placement_guest', session['placement_guest'], max_age=7 * 86400,
@@ -165,7 +167,13 @@ def placement_handoff() -> Response:
     if not state['latest']:
         raise engine.PlacementError('test_not_completed', 409)
     session['placement_handoff'] = actor
+    simple = request.form.get('flow') == 'starter' and state['latest'].get('scope') == engine.STARTER_SCOPE
+    session.pop('placement_apply_after_login', None)
+    if simple:
+        session['placement_apply_after_login'] = state['latest']['id']
     if request.form.get('destination') == 'login':
+        if simple:
+            return redirect(url_for('auth.login', next=url_for('words.dashboard')))
         return redirect(url_for('auth.login', next=url_for('onboarding.placement_page', result=1)))
     return redirect(url_for('auth.register', level=state['latest']['result']['recommended_level']))
 

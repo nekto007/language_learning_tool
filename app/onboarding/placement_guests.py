@@ -34,6 +34,7 @@ def guest_actor(create: bool = True) -> str | None:
     db.session.commit()
     session["placement_guest"] = token
     session.pop("placement_handoff", None)
+    session.pop("placement_apply_after_login", None)
     return key
 
 
@@ -58,7 +59,7 @@ def web_rate_key() -> str:
 
 
 def claim_after_login(sender: object, user: object, **extra: object) -> None:
-    """Explicit pre-login handoff transfers ownership, never silently changes level."""
+    """Transfer explicit handoff; only the starter CTA also selects its shown level."""
     expected = session.get("placement_handoff")
     key = guest_actor(create=False)
     if not expected or expected != key or not getattr(user, "id", None):
@@ -78,10 +79,28 @@ def claim_after_login(sender: object, user: object, **extra: object) -> None:
             row.user_id = user.id
             row.guest_key = None
         db.session.flush()
+        finished_onboarding = False
+        chosen = session.get("placement_apply_after_login")
+        if any(row.id == chosen and row.status == "completed" and row.state.get("scope") == "starter" for row in rows):
+            from app.onboarding.placement_engine import adopt_level
+            try:
+                with db.session.begin_nested():
+                    adopt_level(user.id, chosen)
+                    if not user.onboarding_completed:
+                        user.onboarding_completed = True
+                        finished_onboarding = True
+            except PlacementError as error:
+                # A newer account result can win. Keep the imported result
+                # without silently replacing that more recent level choice.
+                current_app.logger.info("Starter level not applied: %s", error.code)
         db.session.delete(guest)
         db.session.commit()
         session.pop("placement_guest", None)
         session.pop("placement_handoff", None)
+        session.pop("placement_apply_after_login", None)
+        if finished_onboarding:
+            from app.utils.gtag_events import queue_gtag_event
+            queue_gtag_event('onboarding_done', {'level': user.onboarding_level or '', 'focus': user.onboarding_focus or ''})
     except Exception:
         db.session.rollback()
         current_app.logger.exception("Placement handoff failed for account %s", user.id)
