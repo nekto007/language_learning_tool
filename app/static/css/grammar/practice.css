@@ -44,6 +44,10 @@
   opacity: 0.5;
 }
 
+.grammar-breadcrumb__back {
+  display: none;
+}
+
 /* Header */
 .practice-header {
   display: flex;
@@ -307,6 +311,10 @@
   text-decoration: none;
 }
 
+.practice-exercise__topic[hidden] {
+  display: none;
+}
+
 .practice-exercise__topic--linked {
   cursor: pointer;
   transition: all 0.2s;
@@ -459,13 +467,13 @@
 .practice-exercise__feedback.success {
   background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.2);
-  color: var(--success-600);
+  color: var(--success-700);
 }
 
 .practice-exercise__feedback.error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #dc2626;
+  color: var(--danger-700);
 }
 
 .practice-exercise__feedback-header {
@@ -476,8 +484,20 @@
   margin-bottom: 0.25rem;
 }
 
+.practice-exercise__submitted,
+.practice-exercise__feedback-answer {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .practice-exercise__feedback-answer {
   font-weight: 600;
+}
+
+.practice-exercise__explanation {
+  margin: 0.5rem 0 0;
+  color: var(--grammar-text);
+  overflow-wrap: anywhere;
 }
 
 /* Actions */
@@ -521,7 +541,7 @@
 }
 
 .practice-btn--success {
-  background: linear-gradient(135deg, var(--grammar-success) 0%, var(--success-600) 100%);
+  background: var(--success-700);
   color: #fff !important;
   flex: 1;
 }
@@ -599,8 +619,8 @@
   line-height: 1;
 }
 
-.practice-complete__stat--correct .practice-complete__stat-value { color: var(--grammar-success); }
-.practice-complete__stat--wrong .practice-complete__stat-value { color: var(--grammar-danger); }
+.practice-complete__stat--correct .practice-complete__stat-value { color: var(--success-700); }
+.practice-complete__stat--wrong .practice-complete__stat-value { color: var(--danger-700); }
 .practice-complete__stat--xp .practice-complete__stat-value { color: var(--grammar-primary); }
 
 .practice-complete__stat-label {
@@ -851,8 +871,28 @@
 .practice-card { animation: slideUp 0.4s ease-out 0.2s both; }
 .practice-empty { animation: slideUp 0.5s ease-out; }
 
+@media (prefers-reduced-motion: reduce) {
+  .practice-header, .practice-hero, .practice-hero .shape, .practice-stats,
+  .practice-progress, .practice-card, .practice-empty {
+    animation: none;
+  }
+}
+
 /* Responsive */
+@media (scripting: none) {
+  #start-btn { display: none; }
+}
+
 @media (max-width: 640px) {
+  .grammar-breadcrumb--topic > :not(.grammar-breadcrumb__topic-link),
+  .grammar-breadcrumb--topic .grammar-breadcrumb__long-title {
+    display: none;
+  }
+
+  .grammar-breadcrumb__back {
+    display: inline;
+  }
+
   .grammar-page {
     padding: 0 0.75rem 2rem;
   }

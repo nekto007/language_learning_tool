@@ -14,7 +14,10 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from app.grammar_lab.models import GrammarExercise, UserGrammarExercise
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+from app.grammar_lab.models import GrammarExercise, UserGrammarExercise, compute_initial_ease_for_difficulty
 from app.srs.constants import (
     DEFAULT_EASE_FACTOR,
     DIFFICULTY_BURY_THRESHOLD,
@@ -911,25 +914,37 @@ class UnifiedSRSService:
         Returns:
             List of UserGrammarExercise objects
         """
-        result = []
+        if not exercise_ids:
+            return []
 
-        for exercise_id in exercise_ids:
-            progress = UserGrammarExercise.query.filter_by(
-                user_id=user_id,
-                exercise_id=exercise_id
-            ).first()
+        requested_ids = set(exercise_ids)
+        user_progress = UserGrammarExercise.query.filter_by(user_id=user_id)
+        progress_by_id = {
+            row.exercise_id: row
+            for row in user_progress.filter(UserGrammarExercise.exercise_id.in_(requested_ids)).all()
+        }
+        # Concurrent sessions can share some of these exercises. Insert missing
+        # rows in a consistent order and retain the winner's SRS state.
+        missing = sorted(requested_ids - progress_by_id.keys())
+        if missing:
+            difficulties = dict(db.session.query(GrammarExercise.id, GrammarExercise.difficulty)
+                                .filter(GrammarExercise.id.in_(missing)).all())
+            insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[db.session.get_bind().dialect.name]
+            for start in range(0, len(missing), 500):
+                values = [
+                    {"user_id": user_id, "exercise_id": exercise_id,
+                     "ease_factor": compute_initial_ease_for_difficulty(difficulties.get(exercise_id))}
+                    for exercise_id in missing[start:start + 500]
+                ]
+                db.session.execute(insert(UserGrammarExercise).values(values).on_conflict_do_nothing(
+                    index_elements=["user_id", "exercise_id"],
+                ))
+            progress_by_id.update(
+                (row.exercise_id, row)
+                for row in user_progress.filter(UserGrammarExercise.exercise_id.in_(missing)).all()
+            )
 
-            if not progress:
-                progress = UserGrammarExercise(
-                    user_id=user_id,
-                    exercise_id=exercise_id
-                )
-                db.session.add(progress)
-                db.session.flush()
-
-            result.append(progress)
-
-        return result
+        return [progress_by_id[exercise_id] for exercise_id in exercise_ids]
 
     def reset_grammar_session_attempts(
         self,

@@ -220,12 +220,10 @@ def practice(topic_id=None):
     return_url = get_safe_redirect_url(raw_return_url, fallback='grammar_lab.topics') if raw_return_url else ''
 
     if topic_id:
-        # Topic-specific practice
-        topic = grammar_service.get_topic_detail(topic_id, current_user.id)
+        session = grammar_service.start_topic_practice(topic_id, current_user.id)
+        topic = session.get('topic')
         if not topic:
             return redirect(url_for('grammar_lab.topics'))
-
-        session = grammar_service.start_topic_practice(topic_id, current_user.id)
     else:
         # SRS mixed practice
         session = grammar_service.get_practice_session(current_user.id, count=10)

@@ -125,7 +125,8 @@ def test_owner_approval_survives_identical_reimport_and_stales_old_native_attemp
 def test_wrong_choice_key_and_concurrent_editorial_change(services: tuple, change_before_approval: bool) -> None:
     _, classify, _, telegram_id = services
     raw = {'type': 'multiple_choice', 'question': 'Выбери перевод слова «магазин».',
-           'options': ['magazine', 'shop', 'newspaper'], 'correct_answer': 'magazine', 'answer': 'magazine'}
+           'options': ['magazine', 'shop', 'newspaper'], 'correct_answer': 'magazine', 'answer': 'magazine',
+           'explanation': 'An explanation for the original key.'}
     exercise = exercise_for(raw)
     case = report(exercise, 1)
     classify.side_effect = None
@@ -138,11 +139,13 @@ def test_wrong_choice_key_and_concurrent_editorial_change(services: tuple, chang
     worker.decide(case.id, worker.decision_tag(case), 'approve', telegram_id, telegram_id)
     if change_before_approval:
         assert case.status == 'stale' and exercise.answer_review_override is None
+        assert GrammarExerciseGrader().grade(exercise, 1)['explanation'] == raw['explanation']
     else:
         assert case.status == 'applied' and exercise.content == raw
         assert effective_content(exercise)['answer'] == 'shop'
         assert exercise.to_dict()['correct_answer'] == 'shop'
         assert [GrammarExerciseGrader().grade(exercise, i)['is_correct'] for i in range(3)] == [False, True, False]
+        assert GrammarExerciseGrader().grade(exercise, 0)['explanation'] == ''
 
 
 def test_web_receipt_to_approved_answer_on_next_web_submission(services: tuple) -> None:

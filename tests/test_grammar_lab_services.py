@@ -744,7 +744,7 @@ class TestGrammarLabServiceStartTopicPractice:
     def test_success(self, mock_srs_fn, app, db_session, test_user,
                      grammar_topic, grammar_exercises):
         mock_srs = MagicMock()
-        mock_srs.get_or_create_grammar_exercise_progress.return_value = None
+        mock_srs.get_or_create_grammar_exercise_progress.return_value = []
         mock_srs.reset_grammar_session_attempts.return_value = None
         mock_srs_fn.return_value = mock_srs
 
@@ -765,7 +765,7 @@ class TestGrammarLabServiceStartTopicPractice:
     def test_max_exercises_limit(self, mock_srs_fn, app, db_session, test_user,
                                  grammar_topic, grammar_exercises):
         mock_srs = MagicMock()
-        mock_srs.get_or_create_grammar_exercise_progress.return_value = None
+        mock_srs.get_or_create_grammar_exercise_progress.return_value = []
         mock_srs.reset_grammar_session_attempts.return_value = None
         mock_srs_fn.return_value = mock_srs
 
@@ -796,7 +796,7 @@ class TestGrammarLabServiceGetPracticeSession:
     @patch('app.grammar_lab.services.grammar_lab_service._get_unified_srs_service')
     def test_empty(self, mock_srs_fn, app, db_session, test_user):
         mock_srs = MagicMock()
-        mock_srs.get_or_create_grammar_exercise_progress.return_value = None
+        mock_srs.get_or_create_grammar_exercise_progress.return_value = []
         mock_srs_fn.return_value = mock_srs
 
         service = GrammarLabService()
@@ -808,7 +808,7 @@ class TestGrammarLabServiceGetPracticeSession:
     def test_with_exercises(self, mock_srs_fn, app, db_session, test_user,
                             grammar_topic, grammar_exercises):
         mock_srs = MagicMock()
-        mock_srs.get_or_create_grammar_exercise_progress.return_value = None
+        mock_srs.get_or_create_grammar_exercise_progress.return_value = []
         mock_srs_fn.return_value = mock_srs
 
         service = GrammarLabService()

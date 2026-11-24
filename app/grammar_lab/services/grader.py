@@ -35,8 +35,12 @@ class GrammarExerciseGrader:
         if isinstance(exercise, GrammarExercise) and getattr(exercise, 'answer_review_override', None):
             from app.grammar_lab.answer_review import effective_content
             from types import SimpleNamespace
+            content = effective_content(exercise)
+            # An approved replacement key can invalidate the author's reason for the old answer.
+            if any(content.get(key) != exercise.content.get(key) for key in ('correct_answer', 'correct_index')):
+                content = {**content, 'explanation': ''}
             exercise = SimpleNamespace(id=exercise.id, exercise_type=exercise.exercise_type,
-                                       content=effective_content(exercise))
+                                       content=content)
         grader_method = getattr(self, f'_grade_{exercise.exercise_type}', None)
         if not grader_method:
             logger.error(f"Unknown exercise type: {exercise.exercise_type}")

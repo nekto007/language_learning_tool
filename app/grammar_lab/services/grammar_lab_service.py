@@ -14,6 +14,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.orm import joinedload
+
 from app.utils.db import db
 
 
@@ -64,6 +66,12 @@ class GrammarLabService:
     def __init__(self):
         self.srs = GrammarSRS()
         self.grader = GrammarExerciseGrader()
+
+    @staticmethod
+    def _exercise_revisions(exercises: list[GrammarExercise]) -> dict[int, str]:
+        from app.grammar_lab.answer_review import lab_revision
+
+        return {exercise.id: lab_revision(exercise) for exercise in exercises}
 
     def _sync_curriculum_progress(self, user_id: int, topic_ids: List[int]) -> None:
         """
@@ -303,11 +311,13 @@ class GrammarLabService:
 
         # Ensure exercise-level progress records exist
         exercise_ids = [e.id for e in all_exercises]
-        _get_unified_srs_service().get_or_create_grammar_exercise_progress(user_id, exercise_ids)
+        srs = _get_unified_srs_service()
+        progress_by_id = {
+            row.exercise_id: row for row in srs.get_or_create_grammar_exercise_progress(user_id, exercise_ids)
+        }
 
         # Reset session attempts
-        _get_unified_srs_service().reset_grammar_session_attempts(user_id, topic_id=topic_id)
-        db.session.commit()
+        srs.reset_grammar_session_attempts(user_id, topic_id=topic_id)
 
         now = datetime.now(timezone.utc)
 
@@ -315,9 +325,7 @@ class GrammarLabService:
         relearning, learning, review, new = [], [], [], []
 
         for ex in all_exercises:
-            progress = UserGrammarExercise.query.filter_by(
-                user_id=user_id, exercise_id=ex.id
-            ).first()
+            progress = progress_by_id.get(ex.id)
 
             if not progress or progress.state == CardState.NEW.value:
                 new.append(ex)
@@ -367,16 +375,14 @@ class GrammarLabService:
         exercises_data = []
         for ex in selected:
             ex_data = ex.to_dict(hide_answer=True)
-            progress = UserGrammarExercise.query.filter_by(
-                user_id=user_id, exercise_id=ex.id
-            ).first()
+            progress = progress_by_id.get(ex.id)
 
             ex_data['srs_state'] = progress.state if progress else 'new'
             ex_data['srs_interval'] = progress.interval if progress else 0
             ex_data['srs_lapses'] = progress.lapses if progress else 0
             exercises_data.append(ex_data)
 
-        return {
+        result = {
             'session_id': session_id,
             'topic': topic.to_dict(),
             'total_exercises': len(selected),
@@ -388,9 +394,13 @@ class GrammarLabService:
             # THIS (the topic's full set) — not the new random sample — to tell
             # "exercise was deleted" from "just not sampled this time".
             'all_exercise_ids': exercise_ids,
+            'exercise_revisions': self._exercise_revisions(all_exercises),
             'status': status.to_dict(),
             'srs_stats': _get_srs_stats_service().get_grammar_stats(user_id, topic_id=topic_id)
         }
+        # Serialize before commit expires the exercise and progress rows.
+        db.session.commit()
+        return result
 
     def submit_answer(self, exercise_id: int, user_id: int, answer: Any,
                       session_id: str = None, source: str = 'topic_practice',
@@ -573,7 +583,9 @@ class GrammarLabService:
         # Build exercise query
         from app.grammar_lab.exercise_visibility import active_exercise_clause
 
-        query = GrammarExercise.query.filter(active_exercise_clause())
+        query = GrammarExercise.query.options(
+            joinedload(GrammarExercise.topic).load_only(GrammarTopic.title)
+        ).filter(active_exercise_clause())
         if topic_ids:
             query = query.filter(GrammarExercise.topic_id.in_(topic_ids))
 
@@ -589,15 +601,16 @@ class GrammarLabService:
 
         # Ensure progress records exist
         exercise_ids = [e.id for e in all_exercises]
-        _get_unified_srs_service().get_or_create_grammar_exercise_progress(user_id, exercise_ids)
+        progress_by_id = {
+            row.exercise_id: row
+            for row in _get_unified_srs_service().get_or_create_grammar_exercise_progress(user_id, exercise_ids)
+        }
 
         # Categorize by state
         relearning, learning, review, new = [], [], [], []
 
         for ex in all_exercises:
-            progress = UserGrammarExercise.query.filter_by(
-                user_id=user_id, exercise_id=ex.id
-            ).first()
+            progress = progress_by_id.get(ex.id)
 
             if not progress or progress.state == CardState.NEW.value:
                 if include_new:
@@ -627,9 +640,7 @@ class GrammarLabService:
         exercises_data = []
         for ex in selected:
             ex_data = ex.to_dict(hide_answer=True)
-            progress = UserGrammarExercise.query.filter_by(
-                user_id=user_id, exercise_id=ex.id
-            ).first()
+            progress = progress_by_id.get(ex.id)
 
             ex_data['srs_state'] = progress.state if progress else 'new'
             ex_data['srs_interval'] = progress.interval if progress else 0
@@ -641,6 +652,7 @@ class GrammarLabService:
             'session_id': session_id,
             'exercises': exercises_data,
             'total_exercises': len(selected),
+            'exercise_revisions': self._exercise_revisions(selected),
             'stats': {
                 'relearning_count': len(relearning),
                 'learning_count': len(learning),

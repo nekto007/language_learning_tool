@@ -3,13 +3,13 @@
 {% block title %}{% if topic %}{{ topic.title }}{% else %}Практика{% endif %} - Grammar Lab{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/practice.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/practice.css') }}?v=20261124-feedback">
 {% endblock %}
 
 {% block content %}
 <div class="grammar-page">
   <!-- Breadcrumb -->
-  <nav class="grammar-breadcrumb" aria-label="breadcrumb">
+  <nav class="grammar-breadcrumb{% if topic %} grammar-breadcrumb--topic{% endif %}" aria-label="Навигация по грамматике">
     <a href="{{ url_for('grammar_lab.index') }}">Grammar Lab</a>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M9 18l6-6-6-6"/>
@@ -19,7 +19,10 @@
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M9 18l6-6-6-6"/>
     </svg>
-    <a href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}">{{ topic.title }}</a>
+    <a class="grammar-breadcrumb__topic-link" href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}">
+      <span class="grammar-breadcrumb__long-title">{{ topic.title }}</span>
+      <span class="grammar-breadcrumb__back"><span aria-hidden="true">←</span> К теории темы</span>
+    </a>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M9 18l6-6-6-6"/>
     </svg>
@@ -43,7 +46,9 @@
       <div class="practice-hero__content">
         <div class="practice-hero__badge">{{ topic.level }}</div>
         <h1 class="practice-hero__title">{{ topic.title }}</h1>
+        {% if topic.title_ru and topic.title_ru|trim != topic.title|trim %}
         <p class="practice-hero__subtitle">{{ topic.title_ru }}</p>
+        {% endif %}
       </div>
     </div>
     {% else %}
@@ -105,11 +110,14 @@
         </div>
         <h2 class="practice-start__title">Готовы к практике?</h2>
         {% if topic %}
-        <p class="practice-start__desc">{{ session.total_exercises }} упражнений по теме «{{ topic.title }}»</p>
-        <p class="practice-start__note">Система подберёт задания на основе вашего прогресса</p>
+        <p class="practice-start__desc">Упражнений по теме в этом занятии — {{ session.total_exercises }}.</p>
         {% else %}
-        <p class="practice-start__desc">{{ session.total_exercises }} упражнений из разных тем</p>
+        <p class="practice-start__desc">Упражнений для повторения — {{ session.total_exercises }}.</p>
         {% endif %}
+        <noscript>
+          <p>Для проверки ответов включите JavaScript в браузере.</p>
+          {% if topic %}<a href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}">Читать теорию этой темы</a>{% endif %}
+        </noscript>
         <button type="button" class="practice-btn practice-btn--primary practice-btn--large" id="start-btn">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
@@ -123,7 +131,7 @@
         <div class="practice-exercise">
           <a href="#" class="practice-exercise__topic" id="topic-badge"></a>
           <div class="practice-exercise__question" id="question-area"></div>
-          <div class="practice-exercise__feedback" id="feedback-area" style="display: none;"></div>
+          <div class="practice-exercise__feedback" id="feedback-area" role="status" style="display: none;"></div>
           <p id="dispute-status" role="status" aria-live="polite" style="display: none;"></p>
           <div class="practice-exercise__actions">
             <button type="button" class="practice-btn practice-btn--primary" id="check-btn">
@@ -133,7 +141,7 @@
               Проверить
             </button>
             <button type="button" class="practice-btn practice-btn--success" id="next-btn" style="display: none;">
-              Далее
+              <span id="next-label">Далее</span>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
@@ -147,8 +155,7 @@
       <div id="complete-screen" style="display: none;">
         <div class="practice-complete">
           <div class="practice-complete__icon">🎉</div>
-          <h2 class="practice-complete__title">Отлично!</h2>
-          <p class="practice-complete__desc">Вы завершили сессию практики</p>
+          <h2 class="practice-complete__title">Практика завершена</h2>
 
           <div class="practice-complete__stats">
             <div class="practice-complete__stat practice-complete__stat--correct">
@@ -178,7 +185,7 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
-              Continue lesson
+              Вернуться к занятию
             </a>
             {% if topic %}
             <a href="{{ url_for('grammar_lab.practice', topic_id=topic.id) }}" class="practice-btn practice-btn--secondary">
@@ -186,7 +193,7 @@
                 <path d="M1 4v6h6M23 20v-6h-6"/>
                 <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
               </svg>
-              More practice
+              Ещё упражнения по теме
             </a>
             {% endif %}
             {% elif topic %}
@@ -195,14 +202,14 @@
                 <path d="M1 4v6h6M23 20v-6h-6"/>
                 <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
               </svg>
-              More practice
+              Ещё упражнения по теме
             </a>
             <a href="{{ url_for('grammar_lab.topic_detail', slug=topic.slug) }}" class="practice-btn practice-btn--secondary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
                 <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
               </svg>
-              Theory
+              К теории темы
             </a>
             {% else %}
             <a href="{{ url_for('grammar_lab.practice') }}" class="practice-btn practice-btn--primary">
@@ -210,14 +217,14 @@
                 <path d="M1 4v6h6M23 20v-6h-6"/>
                 <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
               </svg>
-              More practice
+              Продолжить повторение
             </a>
             <a href="{{ url_for('grammar_lab.index') }}" class="practice-btn practice-btn--secondary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
                 <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
-              Home
+              К разделу грамматики
             </a>
             {% endif %}
           </div>
@@ -259,23 +266,15 @@
 {% block scripts %}
 {% if session.exercises %}
 <script nonce="{{ csp_nonce }}">
-const sessionId = '{{ session.session_id }}';
+let sessionId = {{ session.session_id|tojson }};
 let exercises = {{ session.exercises|tojson|safe }};
 {% if topic %}
 const topicId = {{ topic.id }};
 {% else %}
 const topicId = null;
 {% endif %}
-// Full id universe for this topic (all exercises that exist), used to
-// validate the cached in-progress session against deletions WITHOUT
-// false-dropping it just because the server re-sampled a different random
-// subset on reload. null for SRS mixed practice (no single topic).
-{% if session.all_exercise_ids %}
-const topicExerciseIds = {{ session.all_exercise_ids|tojson|safe }};
-{% else %}
-const topicExerciseIds = null;
-{% endif %}
+const exerciseRevisions = {{ session.exercise_revisions|default({})|tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=20261124-dispute"></script>
+<script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=20261124-feedback"></script>
 {% endif %}
 {% endblock %}

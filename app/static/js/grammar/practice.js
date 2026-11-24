@@ -7,6 +7,7 @@ let totalXP = 0;
 const SUBMIT_TIMEOUT_MS = 15000;
 let exerciseGeneration = 0;
 let activeDispute = null;
+let checkedAnswer = null;
 
 function isCurrentExercise(generation, exerciseId, practiceSession) {
   return generation === exerciseGeneration && String(sessionId) === practiceSession
@@ -58,7 +59,11 @@ if (disputeButton) disputeButton.addEventListener('click', async function() {
     if (record !== activeDispute || !isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) return;
     if (response.redirected || [401, 403, 409].includes(response.status)) { record.status = 'unavailable'; return; }
     if (!response.ok || (await response.json()).success !== true) throw new Error('Unconfirmed dispute');
-    if (record === activeDispute && isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) record.status = 'sent';
+    if (record === activeDispute && isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) {
+      record.status = 'sent';
+      checkedAnswer.reported = true;
+      saveSessionState();
+    }
   } catch (_) {
     if (record === activeDispute && isCurrentExercise(record.generation, record.exerciseId, record.practiceSession)) record.status = 'failed';
   } finally {
@@ -66,7 +71,13 @@ if (disputeButton) disputeButton.addEventListener('click', async function() {
   }
 });
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  window.addEventListener('pagehide', clearDispute);
+  window.addEventListener('pagehide', event => {
+    // A cached page can receive the grade for its pending submit when it resumes.
+    if (!event.persisted || activeDispute) clearDispute();
+  });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted && checkedAnswer) showExercise(currentIndex);
+  });
 }
 
 // Pristine «Проверить» button markup, captured before any submit mutates it.
@@ -109,103 +120,64 @@ function getCSRFToken() {
   return meta ? meta.getAttribute('content') : '';
 }
 
-// Session storage key - use stable key based on topic or SRS mode
-// This ensures the key doesn't change on page reload
-const SESSION_KEY = topicId ? `grammar_practice_topic_${topicId}` : 'grammar_practice_srs';
+const practiceActor = document.querySelector('meta[name="llt-account-id"]')?.content;
+const sessionKey = practiceActor ? `grammar_practice:${practiceActor}:${topicId || 'srs'}` : null;
 
-// Save session state to sessionStorage
 function saveSessionState() {
-  const state = {
-    exercises,  // Save entire exercises array to preserve order
-    currentIndex,
-    correctCount,
-    wrongCount,
-    totalXP,
-    timestamp: Date.now()
-  };
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
-}
-
-// Load session state from sessionStorage
-function loadSessionState() {
-  const saved = sessionStorage.getItem(SESSION_KEY);
-  if (!saved) return null;
-
+  if (!sessionKey) return;
   try {
-    const state = JSON.parse(saved);
-    // Check if session is not too old (1 hour max)
-    if (Date.now() - state.timestamp > 3600000) {
-      clearSessionState();
-      return null;
-    }
-    // Validate saved state has exercises
-    if (!state.exercises || !Array.isArray(state.exercises) || state.exercises.length === 0) {
-      clearSessionState();
-      return null;
-    }
-    // Verify it's a valid in-progress session (not already completed)
-    if (state.currentIndex >= state.exercises.length) {
-      clearSessionState();
-      return null;
-    }
-    return state;
-  } catch (e) {
-    clearSessionState();
-    return null;
+    const revisions = Object.fromEntries(exercises.map(ex => [ex.id, exerciseRevisions[ex.id]]));
+    sessionStorage.setItem(sessionKey, JSON.stringify({
+      exercises, revisions, sessionId, currentIndex, correctCount, wrongCount, totalXP, checkedAnswer,
+      timestamp: Date.now()
+    }));
+  } catch (_) {
+    // Storage can be unavailable or full; a confirmed grade is still final in this tab.
   }
 }
 
-// Clear session state
 function clearSessionState() {
-  sessionStorage.removeItem(SESSION_KEY);
+  if (sessionKey) {
+    try { sessionStorage.removeItem(sessionKey); } catch (_) { /* Storage is optional. */ }
+  }
 }
 
-// Restore session on page load
 function restoreSession() {
-  const state = loadSessionState();
-  if (!state) return false;
-
-  // Validate cached exercise ids against the set of exercises that still
-  // EXIST. For a topic, that universe is ``topicExerciseIds`` (the full set,
-  // passed by the server) — NOT this load's ``exercises``, which is only a
-  // random 12-item sample and changes every reload (topic practice re-samples
-  // via random.shuffle). Validating against the random sample false-dropped
-  // valid in-progress sessions on every refresh. We only drop the cache when a
-  // cached exercise is genuinely gone (admin purge / re-import). For SRS mixed
-  // practice (no topic) we fall back to the fresh-sample check.
-  const universe = (typeof topicExerciseIds !== 'undefined' && topicExerciseIds)
-    ? new Set(topicExerciseIds)
-    : new Set((exercises || []).map(e => e && e.id).filter(Boolean));
-  const cachedIds = (state.exercises || []).map(e => e && e.id).filter(Boolean);
-  const allCachedStillExist = cachedIds.length > 0
-    && cachedIds.every(id => universe.has(id));
-  if (!allCachedStillExist) {
+  if (!sessionKey) return;
+  try {
+    const state = JSON.parse(sessionStorage.getItem(sessionKey));
+    if (!state) return;
+    const items = state.exercises;
+    const index = state.currentIndex;
+    // Topic practice resamples on reload. Validate against all current topic revisions.
+    // For a mixed review, only the exercises still available in today's selection can resume.
+    const fresh = Array.isArray(items) && items.every(ex => isRenderable(ex)
+      && typeof exerciseRevisions[ex.id] === 'string' && exerciseRevisions[ex.id] === state.revisions?.[ex.id]);
+    const result = state.checkedAnswer;
+    const validResult = result == null || (typeof result.correct === 'boolean' && result.exerciseId === items?.[index]?.id
+      && typeof result.given === 'string' && typeof result.expected === 'string');
+    if (!fresh || !validResult || typeof state.sessionId !== 'string' || !state.sessionId || state.sessionId.length > 100
+        || !Number.isFinite(state.timestamp) || Date.now() - state.timestamp > 3600000
+        || !Number.isInteger(index) || index < 0 || index >= items.length
+        || ![state.correctCount, state.wrongCount, state.totalXP].every(n => Number.isInteger(n) && n >= 0)
+        || state.correctCount + state.wrongCount !== index + (result ? 1 : 0)) {
+      clearSessionState();
+      return;
+    }
+    exercises = items;
+    sessionId = state.sessionId;
+    currentIndex = index;
+    correctCount = state.correctCount;
+    wrongCount = state.wrongCount;
+    totalXP = state.totalXP;
+    checkedAnswer = result;
+  } catch (_) {
     clearSessionState();
-    return false;
+    return;
   }
-
-  // Restore saved exercises array to preserve order and avoid server's random
-  // shuffle. Re-apply the renderable filter in case the cache predates it
-  // (or content changed), and clamp the index so we never point past the end.
-  exercises = (state.exercises || []).filter(isRenderable);
-  if (exercises.length === 0) {
-    clearSessionState();
-    return false;
-  }
-  currentIndex = Math.min(state.currentIndex || 0, exercises.length - 1);
-  correctCount = state.correctCount || 0;
-  wrongCount = state.wrongCount || 0;
-  totalXP = state.totalXP || 0;
-
-  // If session was in progress, show exercise screen
-  if (currentIndex < exercises.length) {
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('exercise-screen').style.display = 'block';
-    showExercise(currentIndex);
-    return true;
-  }
-
-  return false;
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('exercise-screen').style.display = 'block';
+  showExercise(currentIndex);
 }
 
 // Try to restore session on page load
@@ -236,18 +208,26 @@ function showExercise(index) {
   clearDispute();
 
   // Update progress
-  document.getElementById('progress-text').textContent = `${index} / ${exercises.length}`;
-  document.getElementById('progress-bar').style.width = `${(index / exercises.length) * 100}%`;
+  const answeredCount = correctCount + wrongCount;
+  document.getElementById('progress-text').textContent = `${answeredCount} / ${exercises.length}`;
+  document.getElementById('progress-bar').style.width = `${(answeredCount / exercises.length) * 100}%`;
 
   // Set topic badge with link to topic
   const topicBadge = document.getElementById('topic-badge');
-  topicBadge.textContent = exercise.topic_title || 'Grammar';
+  // Topic practice already names the topic in its heading. Mixed practice names each exercise's topic here.
+  topicBadge.hidden = Boolean(topicId || !exercise.topic_title);
+  topicBadge.textContent = exercise.topic_title || '';
   if (exercise.topic_id) {
     topicBadge.href = '/grammar-lab/topic/' + exercise.topic_id;
     topicBadge.classList.add('practice-exercise__topic--linked');
   } else {
     topicBadge.removeAttribute('href');
     topicBadge.classList.remove('practice-exercise__topic--linked');
+  }
+
+  if (checkedAnswer) {
+    showCheckedExercise(exercise, checkedAnswer);
+    return;
   }
 
   // Render question
@@ -268,6 +248,80 @@ function showExercise(index) {
 
   // Setup handlers
   setupExerciseHandlers(exercise);
+}
+
+function answerText(exercise, answer) {
+  if (exercise.exercise_type === 'matching') {
+    const pairs = exercise.pairs || exercise.content?.pairs || [];
+    const isKey = Array.isArray(answer);
+    return pairs.map((pair, i) => {
+      const left = isKey ? answer[i] : pair;
+      const right = isKey ? answer[i] : pairs[answer?.[i]];
+      const source = left?.english || left?.left;
+      const target = right?.russian || right?.right;
+      return source && target ? `${source} → ${target}` : '';
+    }).filter(Boolean).join('\n');
+  }
+  if (exercise.exercise_type === 'true_false') {
+    return {true: 'Верно', false: 'Неверно'}[String(answer).toLowerCase()] || '';
+  }
+  return String(answer ?? '');
+}
+
+function checkedExercise(exercise, data, submitted) {
+  const xp = Number.isSafeInteger(data.xp_earned) && data.xp_earned > 0 ? data.xp_earned : 0;
+  return {
+    exerciseId: exercise.id, correct: data.is_correct, xp,
+    given: answerText(exercise, data.user_answer ?? submitted),
+    expected: answerText(exercise, data.correct_answer),
+    explanation: typeof data.explanation === 'string' ? data.explanation.trim() : '',
+    token: typeof data.dispute_token === 'string' ? data.dispute_token.trim() : '',
+    submitted, reported: false
+  };
+}
+
+function showCheckedExercise(exercise, result) {
+  const question = document.getElementById('question-area');
+  question.replaceChildren();
+  const prompt = [exercise.instruction, exercise.question, exercise.sentence, exercise.statement, exercise.original];
+  for (const line of new Set(prompt.filter(Boolean))) {
+    const text = document.createElement('p');
+    text.textContent = line;
+    question.append(text);
+  }
+  const answer = document.createElement('p');
+  answer.className = 'practice-exercise__submitted';
+  answer.textContent = 'Ваш ответ: ' + result.given;
+  question.append(answer);
+
+  const feedback = document.getElementById('feedback-area');
+  feedback.replaceChildren();
+  feedback.className = 'practice-exercise__feedback ' + (result.correct ? 'success' : 'error');
+  const heading = document.createElement('strong');
+  heading.className = 'practice-exercise__feedback-header';
+  heading.textContent = result.correct ? (result.xp ? `Правильно! +${result.xp} XP` : 'Правильно!') : 'Неверно';
+  feedback.append(heading);
+  if (!result.correct && result.expected) {
+    const key = document.createElement('span');
+    key.className = 'practice-exercise__feedback-answer';
+    key.textContent = result.expected;
+    feedback.append('Правильный ответ: ', key);
+  }
+  if (!result.correct && result.explanation) {
+    const explanation = document.createElement('p');
+    explanation.className = 'practice-exercise__explanation';
+    explanation.textContent = result.explanation;
+    feedback.append(explanation);
+  }
+  feedback.style.display = 'block';
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('next-btn').style.display = 'inline-flex';
+  document.getElementById('next-label').textContent = currentIndex + 1 === exercises.length ? 'Посмотреть результат' : 'Далее';
+  if (!result.correct && result.token) {
+    activeDispute = {generation: exerciseGeneration, exerciseId: String(exercise.id), practiceSession: String(sessionId),
+                     token: result.token, answer: result.submitted, status: result.reported ? 'sent' : 'idle'};
+    renderDispute(activeDispute);
+  }
 }
 
 function renderExercise(exercise) {
@@ -635,9 +689,10 @@ function setupExerciseHandlers(exercise) {
 // Check answer
 document.getElementById('check-btn').addEventListener('click', async function() {
   const exercise = exercises[currentIndex];
+  const checkBtn = this;
+  if (!exercise || checkedAnswer || checkBtn.disabled) return;
   const exerciseType = (exercise.exercise_type || '').toLowerCase();
   let answer;
-  const checkBtn = this;
 
   if (exerciseType === 'multiple_choice') {
     const selected = document.querySelector('input[name="answer"]:checked');
@@ -695,7 +750,7 @@ document.getElementById('check-btn').addEventListener('click', async function() 
       body: JSON.stringify({
         answer: answer,
         session_id: sessionId,
-        source: 'srs_review'
+        source: topicId ? 'topic_practice' : 'srs_review'
       }),
       signal: controller.signal
     });
@@ -705,58 +760,18 @@ document.getElementById('check-btn').addEventListener('click', async function() 
 
     const data = await response.json();
     if (!isCurrentExercise(generation, exerciseId, practiceSession)) return;
+    if (typeof data?.is_correct !== 'boolean') throw new Error('Invalid grade response');
 
-    const feedback = document.getElementById('feedback-area');
-    if (data.is_correct) {
+    checkedAnswer = checkedExercise(exercise, data, submittedAnswer);
+    if (checkedAnswer.correct) {
       correctCount++;
-      totalXP += data.xp_earned || 0;
-      feedback.className = 'practice-exercise__feedback success';
-      feedback.innerHTML = `
-        <div class="practice-exercise__feedback-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-            <path d="M22 4L12 14.01l-3-3"/>
-          </svg>
-          Правильно!${data.xp_earned ? ` +${data.xp_earned} XP` : ''}
-        </div>
-      `;
+      totalXP += checkedAnswer.xp;
     } else {
       wrongCount++;
-      feedback.className = 'practice-exercise__feedback error';
-      feedback.innerHTML = `
-        <div class="practice-exercise__feedback-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M15 9l-6 6M9 9l6 6"/>
-          </svg>
-          Неверно
-        </div>
-        <div>Правильный ответ: <span class="practice-exercise__feedback-answer"></span></div>
-      `;
-      // The true/false grader reports the key as the strings 'True'/'False';
-      // show the same labels the learner clicked, not the raw literal.
-      let correctLabel = data.correct_answer;
-      if (exerciseType === 'true_false') {
-        const key = String(data.correct_answer).toLowerCase();
-        correctLabel = (key === 'true' || key === '1' || key === 'yes') ? 'Верно' : 'Неверно';
-      }
-      feedback.querySelector('.practice-exercise__feedback-answer').textContent = correctLabel;
-      if (data.is_correct === false && typeof data.dispute_token === 'string' && data.dispute_token.trim()) {
-        activeDispute = {generation, exerciseId, practiceSession, token: data.dispute_token,
-                         answer: submittedAnswer, status: 'idle'};
-        renderDispute(activeDispute);
-      }
     }
-    feedback.style.display = 'block';
-
-    checkBtn.style.display = 'none';
-    document.getElementById('next-btn').style.display = 'inline-flex';
-
-    // Disable inputs
-    document.querySelectorAll('#question-area input, #question-area button').forEach(el => el.disabled = true);
-
-    // Save progress after answer
     saveSessionState();
+    showExercise(currentIndex);
+    document.getElementById('next-btn').focus({preventScroll: true});
     answered = true;
 
   } catch (error) {
@@ -784,10 +799,12 @@ document.getElementById('check-btn').addEventListener('click', async function() 
 
 // Next exercise
 document.getElementById('next-btn').addEventListener('click', function() {
+  if (!checkedAnswer) return;
+  checkedAnswer = null;
   clearDispute();
   currentIndex++;
-  saveSessionState();
   if (currentIndex < exercises.length) {
+    saveSessionState();
     showExercise(currentIndex);
   } else {
     // Complete - clear session state
