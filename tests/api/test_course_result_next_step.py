@@ -5,12 +5,15 @@ from datetime import date
 
 import pytest
 from flask.testing import FlaskClient
+from sqlalchemy.orm import Session
 
+from app.api import native_lessons
+from app.auth.models import User
+from app.curriculum import security
+from app.curriculum.models import Lessons
 from app.daily_plan import service
 from app.telegram import queries
 from app.utils import time_utils
-from tests.api.test_quiz_corrections import course, native_app
-from tests.api.test_web_objective_practice import cookie_client
 
 
 DAY = "2026-11-24"
@@ -22,8 +25,7 @@ def slot(key: str, title: str, url: str, **fields: object) -> dict:
 
 
 @pytest.fixture
-def daily_plan(course: tuple, monkeypatch: pytest.MonkeyPatch) -> tuple[FlaskClient, dict]:  # noqa: F811
-    client, _ = cookie_client(course)
+def daily_plan(authenticated_client: FlaskClient, monkeypatch: pytest.MonkeyPatch) -> tuple[FlaskClient, dict]:
     monkeypatch.setattr(time_utils, "get_user_local_date", lambda *_: date.fromisoformat(DAY))
     monkeypatch.setattr(queries, "get_daily_summary", lambda *_, **__: {"error_review_resolved_today": 1})
     plan = {
@@ -31,7 +33,18 @@ def daily_plan(course: tuple, monkeypatch: pytest.MonkeyPatch) -> tuple[FlaskCli
         "required": [], "optional": [slot("extra", "Дополнительное", "/study/extra")],
     }
     monkeypatch.setattr(service, "get_daily_plan_unified", lambda *_, **__: plan)
-    return client, plan
+    return authenticated_client, plan
+
+
+@pytest.fixture
+def accessible_quiz(test_lesson_quiz: Lessons, db_session: Session, monkeypatch: pytest.MonkeyPatch) -> Lessons:
+    test_lesson_quiz.content = {"questions": [{
+        "type": "multiple_choice", "question": "They ___ ready.", "options": ["is", "are"], "correct": 1,
+    }]}
+    db_session.commit()
+    monkeypatch.setattr(native_lessons, "_guard_plan", lambda _: "curriculum")
+    monkeypatch.setattr(security, "check_lesson_access", lambda _: True)
+    return test_lesson_quiz
 
 
 def test_result_uses_canonical_required_title_and_url(daily_plan: tuple[FlaskClient, dict]) -> None:
@@ -118,21 +131,21 @@ def test_stale_result_opens_today_plan_without_assembling_old_day(
     assert value["status"] == "day_changed" and "url" not in value
 
 
-def test_web_lesson_document_marks_the_study_day(course: tuple, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
-    client, lesson = cookie_client(course)
+def test_web_lesson_document_marks_the_study_day(
+    authenticated_client: FlaskClient, accessible_quiz: Lessons, test_user: User, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(time_utils, "get_user_local_date", lambda *_: date.fromisoformat(DAY))
-    response = client.get(f"/curriculum/api/lesson/{lesson.id}/practice")
+    response = authenticated_client.get(f"/curriculum/api/lesson/{accessible_quiz.id}/practice")
+    assert response.status_code == 200, response.json
     assert response.json["lesson"]["study_day"] == DAY
-    assert response.json["account_id"] == str(course[0].id)
+    assert response.json["account_id"] == str(test_user.id)
 
 
 def test_history_identity_revalidates_authored_revision_without_opening_the_editor(
-    course: tuple, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
+    authenticated_client: FlaskClient, accessible_quiz: Lessons, test_user: User, db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.api import native_lessons
-    from app.utils.db import db
-
-    client, lesson = cookie_client(course)
+    client, lesson = authenticated_client, accessible_quiz
     endpoint = f"/curriculum/api/lesson/{lesson.id}/practice"
     document = client.get(endpoint).json["lesson"]
 
@@ -143,11 +156,11 @@ def test_history_identity_revalidates_authored_revision_without_opening_the_edit
     identity = client.get(endpoint, query_string={"result_identity": "1"})
     assert identity.headers["Cache-Control"] == "private, no-store"
     assert identity.json == {
-        "success": True, "account_id": str(course[0].id),
+        "success": True, "account_id": str(test_user.id),
         "lesson": {"id": lesson.id, "type": lesson.type, "content_revision": document["content_revision"]},
     }
     assert client.get(endpoint).status_code == 403
     lesson.content = {**lesson.content, "description": "Updated grammar rule"}
-    db.session.commit()
+    db_session.commit()
     updated = client.get(endpoint, query_string={"result_identity": "1"}).json["lesson"]
     assert updated["content_revision"] != document["content_revision"]
