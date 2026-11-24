@@ -73,7 +73,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/topic_detail.css') }}?v=20261124-entry">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/topic_detail.css') }}?v=20261124-reflow">
 {% endblock %}
 
 {% block content %}
@@ -517,7 +517,7 @@
             {% else %}
             <p class="practice-start__desc">После входа откроются упражнения по этой теме.</p>
             <div class="practice-start__actions">
-              <a href="{{ url_for('auth.register', next=practice_url) }}" class="topic-btn topic-btn--primary">Зарегистрироваться</a>
+              <a href="{{ url_for('auth.register', next=practice_url) }}" class="topic-btn topic-btn--primary">Создать аккаунт</a>
               <a href="{{ url_for('auth.login', next=practice_url) }}" class="topic-btn topic-btn--secondary">Войти</a>
             </div>
             {% endif %}

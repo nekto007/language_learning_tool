@@ -904,7 +904,8 @@
   }
 
   .grammar-page {
-    padding: 0 0.75rem 2rem;
+    padding: 0 min(0.75rem, 12px) 2rem;
+    overflow-wrap: anywhere;
   }
 
   .practice-header {
@@ -924,7 +925,13 @@
 
   .practice-start,
   .practice-complete {
-    padding: 2rem 1.5rem;
+    padding: 2rem min(1.5rem, 24px);
+  }
+
+  .practice-btn {
+    max-width: 100%;
+    padding-inline: min(1.5rem, 24px);
+    white-space: normal;
   }
 
   .practice-complete__stats {

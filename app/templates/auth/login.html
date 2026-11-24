@@ -72,7 +72,6 @@
         <div class="auth-field auth-field--row">
           <label class="auth-checkbox">
             <input type="checkbox" name="{{ form.remember_me.name }}" {% if form.remember_me.data %}checked{% endif %}>
-            <span class="auth-checkbox__mark"></span>
             <span class="auth-checkbox__text">{{ form.remember_me.label.text }}</span>
           </label>
           <a href="{{ url_for('auth.reset_request', **({'next': next_url} if next_url else {})) }}" class="auth-link">Забыли пароль?</a>
@@ -215,6 +214,8 @@
 
 .auth-field--row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   align-items: center;
   justify-content: space-between;
 }
@@ -270,35 +271,11 @@
 }
 
 .auth-checkbox input {
-  display: none;
-}
-
-.auth-checkbox__mark {
   width: 18px;
   height: 18px;
-  border: 1.5px solid var(--auth-border);
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+  margin: 0;
   flex-shrink: 0;
-}
-
-.auth-checkbox input:checked + .auth-checkbox__mark {
-  background: var(--auth-gradient);
-  border-color: transparent;
-}
-
-.auth-checkbox input:checked + .auth-checkbox__mark::after {
-  content: '';
-  width: 5px;
-  height: 9px;
-  border: 2px solid white;
-  border-top: none;
-  border-left: none;
-  transform: rotate(45deg);
-  margin-top: -2px;
+  accent-color: var(--auth-primary);
 }
 
 /* Button */

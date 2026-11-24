@@ -79,7 +79,7 @@
 
 /* Breadcrumb */
 .pubw-breadcrumb {
-  display: flex; align-items: center; gap: 0.5rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
   margin-bottom: 1rem; font-size: 0.8125rem; color: var(--pubw-text-muted);
 }
 .pubw-breadcrumb a { color: var(--pubw-text-muted); text-decoration: none; font-weight: 500; transition: color 0.2s; }
@@ -201,11 +201,15 @@
 @media (max-width: 768px) {
   .pubw-hero__word { font-size: 2rem; }
   .pubw-hero__translation { font-size: 1.1rem; }
-  .pubw-related-grid { grid-template-columns: 1fr; }
+  .pubw-related-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .pubw-page { padding: 0 0.75rem 2rem; }
-  .pubw-hero { padding: 1.5rem; }
+  .pubw-page { padding: 0 min(0.75rem, 12px) 2rem; overflow-wrap: anywhere; }
+  .pubw-hero, .pubw-card, .pubw-banner { padding-inline: min(1.5rem, 24px); }
+  .pubw-hero__actions form, .pubw-cta, .pubw-banner__btn { max-width: 100%; }
+  .pubw-cta, .pubw-banner__btn { padding-inline: min(1.5rem, 24px); white-space: normal; }
+  .pubw-card__title { min-width: 0; }
+  .pubw-hero { padding-block: 1.5rem; }
   .pubw-hero__word { font-size: 1.75rem; }
 }
 </style>
