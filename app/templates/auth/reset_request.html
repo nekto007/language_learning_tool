@@ -38,15 +38,25 @@
 
     <!-- Form -->
     <div class="auth-card__body">
-      <form method="POST" action="{{ url_for('auth.reset_request') }}">
+      <form method="POST" action="{{ url_for('auth.reset_request', **(auth_context or {})) }}">
         {{ form.hidden_tag() }}
+        {% if auth_context and auth_context.get('next') %}<input type="hidden" name="next" value="{{ auth_context.next }}">{% endif %}
 
         <div class="auth-field">
-          <label class="auth-field__label" for="{{ form.email.id }}">{{ form.email.label.text }}</label>
-          <input type="email" class="auth-field__input" id="{{ form.email.id }}" name="{{ form.email.name }}" placeholder="Введите ваш email" value="{{ form.email.data or '' }}">
-          {% for error in form.email.errors %}
-            <span class="auth-field__error">{{ error }}</span>
-          {% endfor %}
+          <label class="auth-field__label" for="{{ form.email.id }}">{{ _('Электронная почта') }}</label>
+          <input type="email" class="auth-field__input" id="{{ form.email.id }}" name="{{ form.email.name }}" placeholder="Введите ваш email" value="{{ form.email.data or '' }}"
+                 autocomplete="email" inputmode="email" required maxlength="254"
+                 {% if form.email.errors %}aria-invalid="true" aria-describedby="email-errors" autofocus{% endif %}>
+          {% if form.email.errors %}
+            {% set messages = {
+              form.email.gettext('This field is required.'): _('Введите email.'),
+              form.email.gettext('Invalid email address.'): _('Введите корректный email.'),
+              form.email.gettext('Field cannot be longer than %(max)d characters.') % {'max': 254}: _('Email не должен превышать 254 символа.')
+            } %}
+            <div id="email-errors">
+              {% for error in form.email.errors %}<span class="auth-field__error">{{ messages.get(error, error) }}</span>{% endfor %}
+            </div>
+          {% endif %}
         </div>
 
         <button type="submit" class="auth-btn">Отправить ссылку</button>
@@ -55,7 +65,7 @@
 
     <!-- Footer -->
     <div class="auth-card__footer">
-      <p>Вспомнили пароль? <a href="{{ url_for('auth.login') }}" class="auth-link">Войти</a></p>
+      <p>Вспомнили пароль? <a href="{{ url_for('auth.login', **(auth_context or {})) }}" class="auth-link">Войти</a></p>
     </div>
   </div>
 </div>

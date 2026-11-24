@@ -20,7 +20,8 @@ def _get_dashboard_url() -> str:
 def wizard():
     """Show onboarding wizard for new users."""
     if current_user.onboarding_completed:
-        return redirect(_get_dashboard_url())
+        raw_next = request.args.get('next', '')
+        return redirect(get_safe_redirect_url(raw_next) if raw_next else _get_dashboard_url())
 
     # Sanitize ?next= on intake — the wizard form re-submits this value as
     # a POST field, so an open-redirect via the query-string would leak
@@ -82,7 +83,8 @@ def placement_answer():
 def complete():
     """Save onboarding choices and mark as completed."""
     if current_user.onboarding_completed:
-        return redirect(_get_dashboard_url())
+        raw_next = request.form.get('next', '')
+        return redirect(get_safe_redirect_url(raw_next) if raw_next else _get_dashboard_url())
 
     # Save onboarding choices
     level = request.form.get('level', '').strip()

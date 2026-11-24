@@ -43,8 +43,9 @@
 
     <!-- Form -->
     <div class="auth-card__body">
-      <form method="POST" action="{{ url_for('auth.register', level=level_param or '', ref=ref_param or '', entry=entry_param or '') }}">
+      <form method="POST" action="{{ url_for('auth.register', level=level_param or '', ref=ref_param or '', entry=entry_param or '', **({'next': next_url} if next_url else {})) }}">
         {{ form.hidden_tag() }}
+        {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
         {% if ref_param %}<input type="hidden" name="ref" value="{{ ref_param }}">{% endif %}
 
         <div class="auth-field">
@@ -114,7 +115,7 @@
 
     <!-- Footer -->
     <div class="auth-card__footer">
-      <p>Уже есть аккаунт? <a href="{{ url_for('auth.login') }}" class="auth-link">Войти</a></p>
+      <p>Уже есть аккаунт? <a href="{{ url_for('auth.login', **(auth_context or {})) }}" class="auth-link">Войти</a></p>
     </div>
   </div>
 </div>

@@ -3,11 +3,12 @@ import threading
 import time
 from typing import Any
 
-from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Query
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.modules.decorators import module_required
 from app.utils.db import db
@@ -285,7 +286,22 @@ def public_word(word_slug: str):
         f'{url_for("words.public_word", word_slug=canonical_slug)}'
     )
 
-    return render_template(
+    saved_word = None
+    saved_summary = None
+    dictionary_enabled = False
+    if current_user.is_authenticated:
+        from app.study.models import UserWord
+        from app.modules.service import ModuleService
+        dictionary_enabled = ModuleService.is_module_enabled_for_user(current_user.id, 'words')
+        saved_word = UserWord.query.filter_by(user_id=current_user.id, word_id=word.id).first()
+        if saved_word:
+            saved_summary = build_word_study_summary(saved_word)
+    word_return_url = url_for('words.public_word', word_slug=canonical_slug)
+    word_auth_args = {'next': word_return_url}
+    referral = request.args.get('ref', '').strip()
+    if referral and referral.isalnum() and len(referral) <= 16:
+        word_auth_args['ref'] = referral
+    response = make_response(render_template(
         'words/public_word.html',
         word=word,
         word_profile=word_profile,
@@ -296,7 +312,13 @@ def public_word(word_slug: str):
         contrasts=contrasts,
         meta_description=meta_description,
         canonical_url=canonical_url,
-    )
+        word_saved=bool(saved_word), saved_summary=saved_summary,
+        dictionary_enabled=dictionary_enabled,
+        word_return_url=word_return_url, word_auth_args=word_auth_args,
+    ))
+    if current_user.is_authenticated:
+        response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @words.route('/contrast/<a_slug>/<b_slug>')
@@ -1707,9 +1729,26 @@ def update_word_status(word_id, status):
 
     # Используем обновленный метод set_word_status из модели User
     # Этот метод должен быть обновлен для работы с новыми моделями
-    current_user.set_word_status(word_id, status)
+    if request.form.get('source') == 'public_dictionary':
+        from app.modules.service import ModuleService
+        if not ModuleService.is_module_enabled_for_user(current_user.id, 'words'):
+            from app.auth.routes import get_safe_redirect_url
+            flash('Словарь сейчас недоступен. Значение слова можно посмотреть на этой странице.', 'warning')
+            return redirect(get_safe_redirect_url(request.args.get('next'), fallback='words.word_list'))
+    try:
+        current_user.set_word_status(word_id, status)
+    except SQLAlchemyError:
+        db.session.rollback()
+        if request.form.get('source') != 'public_dictionary':
+            raise
+        flash('Не удалось сохранить слово. Попробуйте ещё раз.', 'danger')
+        from app.auth.routes import get_safe_redirect_url
+        return redirect(get_safe_redirect_url(request.args.get('next'), fallback='words.word_list'))
 
-    flash(f'Status for word \"{word.english_word}\" updated successfully.', 'success')
+    if request.form.get('source') == 'public_dictionary':
+        flash('Слово сохранено в вашем словаре.', 'success')
+    else:
+        flash(f'Status for word \"{word.english_word}\" updated successfully.', 'success')
 
     # Перенаправляем обратно на страницу, с которой пришел запрос (с проверкой безопасности)
     from app.auth.routes import get_safe_redirect_url

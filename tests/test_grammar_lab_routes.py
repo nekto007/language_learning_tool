@@ -1,5 +1,9 @@
 """Tests for grammar_lab routes: HTML pages and JSON API endpoints."""
 import uuid
+from urllib.parse import parse_qs, urlsplit
+
+from bs4 import BeautifulSoup
+from flask.testing import FlaskClient
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -105,6 +109,18 @@ class TestTopicDetail:
     def test_topic_detail_authenticated(self, authenticated_client, db_session, grammar_topic):
         resp = authenticated_client.get(f"/grammar-lab/topic/{grammar_topic.slug}")
         assert resp.status_code == 200
+
+    def test_guest_can_register_or_sign_in_for_this_topic(
+        self, client: FlaskClient, grammar_topic: GrammarTopic, grammar_exercise: GrammarExercise,
+    ) -> None:
+        page = BeautifulSoup(client.get(f'/grammar-lab/topic/{grammar_topic.slug}').data, 'html.parser')
+        links = [urlsplit(link['href']) for link in page.select('#practice .practice-start__actions a')]
+        assert [link.path for link in links] == ['/register', '/login']
+        assert all(parse_qs(link.query) == {'next': [f'/grammar-lab/practice/topic/{grammar_topic.id}']} for link in links)
+        header = page.select('.public-nav__cta a')
+        assert header and all(parse_qs(urlsplit(link['href']).query)['next'] ==
+                              [f'/grammar-lab/topic/{grammar_topic.slug}'] for link in header)
+        assert page.select_one('.topic-hero__subtitle').get_text(strip=True) == grammar_topic.title_ru
 
     def test_legacy_id_url_redirects_to_slug(self, client, db_session, grammar_topic):
         resp = client.get(f"/grammar-lab/topic/{grammar_topic.id}")

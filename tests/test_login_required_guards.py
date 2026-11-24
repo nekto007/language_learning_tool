@@ -15,6 +15,9 @@ Audit findings (Task 51):
 These tests verify that existing @login_required guards correctly redirect
 unauthenticated users to the login page (302).
 """
+from urllib.parse import parse_qs, urlsplit
+
+from flask.testing import FlaskClient
 import pytest
 
 
@@ -87,10 +90,11 @@ class TestLoginRequiredGuards:
         response = client.get('/api/words', follow_redirects=False)
         assert response.status_code == 401
 
-    def test_redirect_includes_next_param(self, client):
-        """Login redirect preserves the original URL in 'next' parameter."""
-        response = client.get('/study/', follow_redirects=False)
+    def test_redirect_includes_next_param(self, client: FlaskClient) -> None:
+        """A bookmarked exercise can survive the login form's local-path validation."""
+        target = '/grammar-lab/practice/topic/4?from=plan'
+        response = client.get(target, follow_redirects=False)
         assert response.status_code == 302
-        location = response.headers.get('Location', '')
-        # Flask-Login adds ?next= to the login URL
-        assert 'login' in location
+        location = urlsplit(response.headers['Location'])
+        assert location.path == '/login'
+        assert parse_qs(location.query)['next'] == [target]

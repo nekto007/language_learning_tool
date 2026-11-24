@@ -104,6 +104,23 @@ def get_safe_redirect_url(next_url, fallback=None):
     return next_url
 
 
+def _auth_entry_context() -> dict[str, str]:
+    """Keep the validated destination and existing signup context across forms."""
+    values = {key: (request.args.get(key) or request.form.get(key, '')).strip()
+              for key in ('next', 'level', 'entry', 'ref')}
+    context = {}
+    if values['next']:
+        context['next'] = get_safe_redirect_url(values['next'], fallback='words.dashboard')
+    level = values['level'].upper()
+    if level in {'A1', 'A2', 'B1', 'B2', 'C1'}:
+        context['level'] = level
+    if values['entry'] == 'preview' and level == 'A1':
+        context['entry'] = 'preview'
+    if values['ref'].isalnum() and len(values['ref']) <= 16:
+        context['ref'] = values['ref']
+    return context
+
+
 def _get_reset_salt(user: User) -> str:
     """Per-user salt derived from password hash — token auto-invalidates on password change."""
     import hashlib
@@ -181,8 +198,10 @@ def verify_reset_token(token: str, expiration: int = 3600):
 @auth.route('/reset_password', methods=['GET', 'POST'])
 @limiter.limit("3 per hour", methods=["POST"])
 def reset_request():
+    next_url = _auth_entry_context().get('next', '')
+    auth_context = {'next': next_url} if next_url else {}
     if current_user.is_authenticated:
-        return redirect(url_for(_default_fallback()))
+        return redirect(next_url or url_for(_default_fallback()))
 
     form = RequestResetForm()
     if form.validate_on_submit():
@@ -190,7 +209,7 @@ def reset_request():
         if user:
             token = get_reset_token(user.id)
             from app.utils.url_helpers import canonical_external_url
-            reset_url = canonical_external_url('auth.reset_password', token=token)
+            reset_url = canonical_external_url('auth.reset_password', token=token, **auth_context)
 
             # Отправляем электронное письмо
             email_sent = email_sender.send_email(
@@ -203,33 +222,34 @@ def reset_request():
                 }
             )
 
-            if email_sent:
-                flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
-            else:
-                flash('Возникла проблема при отправке электронного письма. Пожалуйста, попробуйте позже.', 'danger')
-        else:
-            # Всегда показываем положительное сообщение из соображений безопасности
-            flash('На вашу электронную почту была отправлена инструкция по сбросу пароля.', 'info')
+            if not email_sent:
+                logger.warning('Password reset email submission failed user_id=%s', user.id)
 
-        return redirect(url_for('auth.login'))
+        # Keep the public response identical even when SMTP rejects submission.
+        flash('Если этот email зарегистрирован, ищите инструкцию по сбросу пароля в почте. '
+              'Если письма нет, проверьте «Спам» или повторите запрос позже.', 'info')
 
-    return render_template('auth/reset_request.html', form=form)
+        return redirect(url_for('auth.login', **auth_context))
+
+    return render_template('auth/reset_request.html', form=form, auth_context=auth_context)
 
 
 @auth.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
+    next_url = _auth_entry_context().get('next', '')
+    auth_context = {'next': next_url} if next_url else {}
     if current_user.is_authenticated:
-        return redirect(url_for(_default_fallback()))
+        return redirect(next_url or url_for(_default_fallback()))
 
     user_id = verify_reset_token(token)
     if user_id is None:
         flash('Недействительная или истекшая ссылка для сброса пароля', 'warning')
-        return redirect(url_for('auth.reset_request'))
+        return redirect(url_for('auth.reset_request', **auth_context))
 
     user = User.query.get(user_id)
     if not user:
         flash('Пользователь не найден', 'danger')
-        return redirect(url_for('auth.reset_request'))
+        return redirect(url_for('auth.reset_request', **auth_context))
 
     form = ResetPasswordForm()
     if form.validate_on_submit():
@@ -241,7 +261,7 @@ def reset_password(token):
         ).update({'used_at': datetime.now(timezone.utc)})
         if rows_updated == 0:
             flash('Недействительная или истекшая ссылка для сброса пароля', 'warning')
-            return redirect(url_for('auth.reset_request'))
+            return redirect(url_for('auth.reset_request', **auth_context))
 
         # Generate a new salt
         user.salt = secrets.token_hex(16)
@@ -251,16 +271,18 @@ def reset_password(token):
         # Drop stale browser/remember state; password reset never signs in.
         logout_user()
         flash('Ваш пароль был обновлен! Теперь вы можете войти с новым паролем.', 'success')
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.login', **auth_context))
 
-    return render_template('auth/reset_password.html', form=form)
+    return render_template('auth/reset_password.html', form=form, auth_context=auth_context)
 
 
 @auth.route('/login', methods=['GET', 'POST'])
 @limiter.limit("10 per minute", methods=["POST"])
 def login():
+    auth_context = _auth_entry_context()
+    next_url = auth_context.get('next', '')
     if current_user.is_authenticated:
-        return redirect(url_for(_default_fallback()))
+        return redirect(next_url or url_for(_default_fallback()))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -274,7 +296,7 @@ def login():
         if user and user.check_password(form.password.data):
             if not user.is_active:
                 flash('Ваша учетная запись неактивна. Пожалуйста, обратитесь к администратору.', 'danger')
-                return render_template('auth/login.html', form=form)
+                return render_template('auth/login.html', form=form, auth_context=auth_context, next_url=next_url)
 
             login_user(user, remember=form.remember_me.data)
 
@@ -299,16 +321,18 @@ def login():
                 request.remote_addr,
             )
             flash(_l('Invalid email or password'), 'danger')
-            return render_template('auth/login.html', form=form), 401
+            return render_template('auth/login.html', form=form, auth_context=auth_context, next_url=next_url), 401
 
-    return render_template('auth/login.html', form=form)
+    return render_template('auth/login.html', form=form, auth_context=auth_context, next_url=next_url)
 
 
 @auth.route('/register', methods=['GET', 'POST'])
 @limiter.limit("5 per minute", methods=["POST"])
 def register():
+    auth_context = _auth_entry_context()
+    next_url = auth_context.get('next', '')
     if current_user.is_authenticated:
-        return redirect(url_for(_default_fallback()))
+        return redirect(next_url or url_for(_default_fallback()))
 
     level_param = request.args.get('level', '').strip().upper()
     if level_param not in {'A1', 'A2', 'B1', 'B2', 'C1'}:
@@ -327,6 +351,7 @@ def register():
             level_param=level_param,
             entry_param=entry_param,
             ref_param=ref_code,
+            auth_context=auth_context, next_url=next_url,
         ))
         resp.set_cookie('ref', ref_code, max_age=86400 * 30, httponly=True,
                        samesite='Lax', secure=not current_app.debug)
@@ -432,7 +457,7 @@ def register():
             )
 
             flash('Добро пожаловать! Ваш аккаунт создан.', 'success')
-            resp = redirect(url_for('onboarding.wizard'))
+            resp = redirect(url_for('onboarding.wizard', next=next_url) if next_url else url_for('onboarding.wizard'))
             resp.delete_cookie('ref')
             return resp
         except IntegrityError as e:
@@ -446,7 +471,7 @@ def register():
                                        learner_count=learner_count,
                                        level_param=level_param,
                                        entry_param=entry_param,
-                                       ref_param=ref_param), 400
+                                       ref_param=ref_param, auth_context=auth_context, next_url=next_url), 400
             logger.error("Registration IntegrityError: %s", e, exc_info=True)
             flash('Регистрация не удалась. Попробуйте позже.', 'danger')
         except SQLAlchemyError as e:
@@ -461,7 +486,7 @@ def register():
                            learner_count=learner_count,
                            level_param=level_param,
                            entry_param=entry_param,
-                           ref_param=ref_param)
+                           ref_param=ref_param, auth_context=auth_context, next_url=next_url)
 
 
 @auth.route('/logout')

@@ -5,6 +5,8 @@ from uuid import uuid4
 
 import pytest
 from bs4 import BeautifulSoup
+from flask.testing import FlaskClient
+from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.auth.welcome_email import WelcomeEmail
@@ -113,6 +115,23 @@ def test_explicit_safe_next_takes_priority_over_quick_start(client, db_session):
         })
     select.assert_not_called()
     assert response.headers['Location'] == '/study/achievements'
+
+
+def test_topic_destination_survives_level_test_detour_and_native_level_form(
+        client: FlaskClient, db_session: Session) -> None:
+    target = '/grammar-lab/practice/topic/4'
+    response = client.post('/register', query_string={'next': target}, data=registration())
+    wizard = BeautifulSoup(client.get(response.location).data, 'html.parser')
+    test_link = wizard.select_one('.onboarding-placement__start')['href']
+    placement = BeautifulSoup(client.get(test_link).data, 'html.parser')
+    back = placement.select_one('#placement-return')['href']
+    assert parse_qs(urlparse(back).query)['next'] == [target]
+    wizard = BeautifulSoup(client.get(back).data, 'html.parser')
+    form = wizard.select_one('form.onboarding-levels')
+    assert form.select_one('button[name=level][value=A2]') is not None
+    data = {field['name']: field['value'] for field in form.select('input[type=hidden]')}
+    response = client.post(form['action'], data={**data, 'level': 'A2'})
+    assert response.location == target
 
 
 def test_quick_entry_keeps_the_existing_plan_url_and_saved_progress(db_session, test_user):

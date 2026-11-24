@@ -69,9 +69,14 @@ def _mutate(action: str, attempt_id: str = '', actor: int | str | None = None) -
 def placement_page() -> Response:
     guest = not current_user.is_authenticated
     actor = guest_actor() if guest else current_user.id
+    onboarding_next = None
+    if not guest and request.args.get('next'):
+        from app.auth.routes import get_safe_redirect_url
+        onboarding_next = get_safe_redirect_url(request.args['next'])
     simple = (guest and request.args.get('advanced') != '1') or request.args.get('start') == '1' or request.args.get('simple') == '1'
     response = private_response(render_template('onboarding/placement.html', placement_guest=guest, placement_actor=actor,
-        placement_simple=simple, placement_force_start=request.args.get('start') == '1'))
+        placement_simple=simple, placement_force_start=request.args.get('start') == '1',
+        onboarding_next=onboarding_next))
     if guest:
         from flask import session, current_app
         response.set_cookie('llt_placement_guest', session['placement_guest'], max_age=7 * 86400,

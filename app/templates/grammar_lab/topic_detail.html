@@ -1,4 +1,5 @@
 {% extends "base.html" if current_user.is_authenticated else "public_base.html" %}
+{% set public_auth_args = {'next': url_for('grammar_lab.topic_detail', slug=topic.slug, return_url=return_url or none)} %}
 
 {% set _title_ru = topic.title_ru or topic.title %}
 {% set _title_en = topic.title if topic.title and topic.title != _title_ru else '' %}
@@ -72,7 +73,7 @@
 {% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/topic_detail.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/topic_detail.css') }}?v=20261124-entry">
 {% endblock %}
 
 {% block content %}
@@ -145,7 +146,9 @@
         {% endif %}
       </div>
       <h1 class="topic-hero__title">{{ topic.title }}</h1>
+      {% if topic.title_ru and topic.title_ru|trim != topic.title|trim %}
       <p class="topic-hero__subtitle">{{ topic.title_ru }}</p>
+      {% endif %}
 
       {% if topic.progress %}
       {% set topic_status = topic.progress.status|default('new') %}
@@ -494,6 +497,7 @@
 
         <div class="topic-card__body">
           {% if topic.exercises %}
+          {% set practice_url = url_for('grammar_lab.practice', topic_id=topic.id, return_url=return_url or none) %}
           <div class="practice-start">
             <div class="practice-start__icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -502,24 +506,20 @@
             </div>
             {% if current_user.is_authenticated %}
             <h3 class="practice-start__title">Готовы к практике?</h3>
-            <p class="practice-start__desc">Сессия: <strong>10-12 упражнений</strong> из {{ topic.exercise_count }}</p>
+            <p class="practice-start__desc">За одно занятие можно пройти до 12 упражнений по этой теме.</p>
             <p class="practice-start__note">Система подберёт задания на основе вашего прогресса</p>
-            <a href="{{ url_for('grammar_lab.practice', topic_id=topic.id, return_url=return_url) if return_url else url_for('grammar_lab.practice', topic_id=topic.id) }}" class="topic-btn topic-btn--primary topic-btn--large">
+            <a href="{{ practice_url }}" class="topic-btn topic-btn--primary topic-btn--large">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="5 3 19 12 5 21 5 3"/>
               </svg>
               Начать практику
             </a>
             {% else %}
-            <h3 class="practice-start__title">Закрепите на практике</h3>
-            <p class="practice-start__desc">{{ topic.exercise_count }} упражнений для отработки этой темы</p>
-            <p class="practice-start__note">Зарегистрируйтесь, чтобы получить доступ к упражнениям и отслеживать прогресс</p>
-            <a href="{{ url_for('auth.register') }}" class="topic-btn topic-btn--success topic-btn--large">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-              </svg>
-              Начать практику
-            </a>
+            <p class="practice-start__desc">После входа откроются упражнения по этой теме.</p>
+            <div class="practice-start__actions">
+              <a href="{{ url_for('auth.register', next=practice_url) }}" class="topic-btn topic-btn--primary">Зарегистрироваться</a>
+              <a href="{{ url_for('auth.login', next=practice_url) }}" class="topic-btn topic-btn--secondary">Войти</a>
+            </div>
             {% endif %}
           </div>
           {% else %}

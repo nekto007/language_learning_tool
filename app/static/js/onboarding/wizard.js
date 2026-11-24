@@ -33,7 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Step 1: Level selection
   document.querySelectorAll('.onboarding-level-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function(event) {
+      event.preventDefault();
       document.querySelectorAll('.onboarding-level-btn').forEach(function(b) { b.classList.remove('selected'); });
       btn.classList.add('selected');
       selectedLevel = btn.dataset.level;

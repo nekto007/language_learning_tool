@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/wizard.css') }}?v=20261115a">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/wizard.css') }}?v=20261124-entry">
 {% endblock %}
 
 {% block title %}Добро пожаловать | LLT English{% endblock %}
@@ -57,37 +57,41 @@
         <h1 class="onboarding-step__title">Какой у вас уровень?</h1>
         <p class="onboarding-step__subtitle">Мы подберём материалы под ваш уровень</p>
       </div>
-      <div class="onboarding-levels">
-        <button class="onboarding-level-btn" data-level="A1" data-desc="Знаю базовые фразы">
+      <noscript><p>Выберите уровень, чтобы сохранить его и продолжить обучение.</p></noscript>
+      <form class="onboarding-levels" method="post" action="{{ url_for('onboarding.complete') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <input type="hidden" name="start_first_lesson" value="1">
+        <button type="submit" name="level" value="A1" class="onboarding-level-btn" data-level="A1" data-desc="Знаю базовые фразы">
           <span class="onboarding-level-btn__code">A1</span>
           <span class="onboarding-level-btn__name">Beginner</span>
           <span class="onboarding-level-btn__desc">Знаю базовые фразы</span>
         </button>
-        <button class="onboarding-level-btn" data-level="A2" data-desc="Могу рассказать о себе">
+        <button type="submit" name="level" value="A2" class="onboarding-level-btn" data-level="A2" data-desc="Могу рассказать о себе">
           <span class="onboarding-level-btn__code">A2</span>
           <span class="onboarding-level-btn__name">Elementary</span>
           <span class="onboarding-level-btn__desc">Могу рассказать о себе</span>
         </button>
-        <button class="onboarding-level-btn" data-level="B1" data-desc="Понимаю основное содержание">
+        <button type="submit" name="level" value="B1" class="onboarding-level-btn" data-level="B1" data-desc="Понимаю основное содержание">
           <span class="onboarding-level-btn__code">B1</span>
           <span class="onboarding-level-btn__name">Intermediate</span>
           <span class="onboarding-level-btn__desc">Понимаю основное содержание</span>
         </button>
-        <button class="onboarding-level-btn" data-level="B2" data-desc="Свободно общаюсь на знакомые темы">
+        <button type="submit" name="level" value="B2" class="onboarding-level-btn" data-level="B2" data-desc="Свободно общаюсь на знакомые темы">
           <span class="onboarding-level-btn__code">B2</span>
           <span class="onboarding-level-btn__name">Upper-Intermediate</span>
           <span class="onboarding-level-btn__desc">Свободно общаюсь на знакомые темы</span>
         </button>
-        <button class="onboarding-level-btn" data-level="C1" data-desc="Понимаю сложные тексты и фильмы">
+        <button type="submit" name="level" value="C1" class="onboarding-level-btn" data-level="C1" data-desc="Понимаю сложные тексты и фильмы">
           <span class="onboarding-level-btn__code">C1</span>
           <span class="onboarding-level-btn__name">Advanced</span>
           <span class="onboarding-level-btn__desc">Понимаю сложные тексты и фильмы</span>
         </button>
-      </div>
+      </form>
 
       <div class="onboarding-placement" id="placementBlock">
         <div class="onboarding-placement__divider">или</div>
-        <a class="onboarding-placement__start" href="{{ url_for('onboarding.placement_page') }}">Не уверен в уровне? Выбрать быстрый или подробный тест</a>
+        <a class="onboarding-placement__start" href="{{ url_for('onboarding.placement_page', next=next_url or none) }}">Не уверен в уровне? Выбрать быстрый или подробный тест</a>
       </div>
     </div>
 
@@ -152,7 +156,7 @@
           </svg>
         </div>
         <h1 class="onboarding-step__title">Всё готово!</h1>
-        <p class="onboarding-step__subtitle">Покажем, с какого занятия начать. Весь план сразу выполнять необязательно.</p>
+        <p class="onboarding-step__subtitle">{% if next_url %}Вернёмся к материалу, который вы открывали.{% else %}Покажем, с какого занятия начать. Весь план сразу выполнять необязательно.{% endif %}</p>
       </div>
       <div class="onboarding-ready">
         <div class="onboarding-ready__summary" id="readySummary"></div>
@@ -181,5 +185,5 @@
 </div>
 
 
-{% if not quick_start %}<script src="{{ url_for('static', filename='js/onboarding/wizard.js') }}?v=20261115a"></script>{% endif %}
+{% if not quick_start %}<script src="{{ url_for('static', filename='js/onboarding/wizard.js') }}?v=20261124-entry"></script>{% endif %}
 {% endblock %}

@@ -376,11 +376,21 @@ def create_app(config_class=Config):
         # чтобы пользователь мог сразу повторить отправку со свежим токеном.
         from flask import flash, redirect, url_for
 
-        from app.auth.routes import get_safe_redirect_url
+        from app.auth.routes import _auth_entry_context, get_safe_redirect_url
         flash('Сессия устарела, страница обновлена — попробуйте ещё раз.', 'warning')
-        if request.endpoint == 'auth.register':
-            intent = {key: request.args[key] for key in ('level', 'entry', 'ref') if key in request.args}
-            return redirect(url_for('auth.register', **intent))
+        if request.endpoint in ('auth.register', 'auth.login'):
+            return redirect(url_for(request.endpoint, **_auth_entry_context()))
+        if request.endpoint in ('auth.reset_request', 'auth.reset_password'):
+            next_url = _auth_entry_context().get('next')
+            values = {'next': next_url} if next_url else {}
+            if request.endpoint == 'auth.reset_password':
+                values['token'] = request.view_args['token']
+            return redirect(url_for(request.endpoint, **values))
+        if request.endpoint == 'onboarding.complete':
+            next_url = _auth_entry_context().get('next')
+            return redirect(url_for('onboarding.wizard', next=next_url))
+        if request.endpoint == 'words.update_word_status' and request.form.get('source') == 'public_dictionary':
+            return redirect(get_safe_redirect_url(request.args.get('next'), fallback='words.public_dictionary'))
         return redirect(get_safe_redirect_url(request.referrer, fallback='landing.index'))
 
     def _wants_json():
@@ -490,7 +500,8 @@ def create_app(config_class=Config):
                and not any(request.endpoint.startswith(p) for p in _ONBOARDING_SKIP_PREFIXES) \
                and request.headers.get('X-Requested-With') != 'XMLHttpRequest' \
                and 'application/json' not in request.headers.get('Accept', ''):
-                return redirect(url_for('onboarding.wizard', next=request.path))
+                next_url = request.full_path if request.query_string else request.path
+                return redirect(url_for('onboarding.wizard', next=next_url))
 
     @login_manager.unauthorized_handler
     def unauthorized():
@@ -501,8 +512,11 @@ def create_app(config_class=Config):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'error': 'Authentication required'}), 401
 
-        # For regular requests, redirect to login with next parameter
-        return redirect(url_for('auth.login', next=request.url))
+        # Login can resume a bookmarked page, including its query, with a local GET.
+        if request.method in ('GET', 'HEAD'):
+            next_url = request.full_path if request.query_string else request.path
+            return redirect(url_for('auth.login', next=next_url))
+        return redirect(url_for('auth.login'))
 
     _LESSON_ENDPOINT_PREFIXES = (
         'curriculum_lessons.',
