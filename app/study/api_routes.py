@@ -17,6 +17,7 @@ from app.srs.counting import (
     get_review_batch_budget,
     learning_budget_after_reserve,
     interleave_old_debt,
+    multi_day_rest_filter,
     old_debt_cutoff,
     old_debt_quota,
 )
@@ -738,7 +739,7 @@ def update_study_item():
         RELEARNING_STEPS,
     )
     from app.srs.service import UnifiedSRSService
-    from app.utils.time_utils import day_to_naive_utc, naive_utc_to_user_local_date
+    from app.utils.time_utils import naive_utc_to_user_local_date
 
     requeue_position = UnifiedSRSService.get_requeue_position(
         rating=rating,
@@ -772,11 +773,11 @@ def update_study_item():
     # session bury is an implementation detail, a multi-day rest is not.
     resting_until_local = None
     if direction.buried_until is not None:
-        tomorrow_start = day_to_naive_utc(current_user.id, db, days_ahead=1)
-        if direction.buried_until >= tomorrow_start:
-            resting_until_local = naive_utc_to_user_local_date(
-                current_user.id, direction.buried_until, db,
-            ).isoformat()
+        rest_end = db.session.query(UserCardDirection.buried_until).filter(
+            UserCardDirection.id == direction.id, multi_day_rest_filter(current_user.id, db),
+        ).scalar()
+        if rest_end is not None:
+            resting_until_local = naive_utc_to_user_local_date(current_user.id, rest_end, db).isoformat()
 
     return jsonify({
         'success': True,

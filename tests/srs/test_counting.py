@@ -4,8 +4,13 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import pytest
+from flask.testing import FlaskClient
+from freezegun import freeze_time
+from sqlalchemy.orm import scoped_session
+
 from app.auth.models import User
-from app.srs.constants import CardState
+from app.srs.constants import DIFFICULTY_BURY_THRESHOLD, MAX_SESSION_ATTEMPTS, CardState
 from app.srs.counting import (
     count_due_cards,
     count_new_cards_today,
@@ -673,13 +678,51 @@ class TestCountRestingWords:
 
         assert count_resting_words(user.id, real_db) == 1
 
-    def test_ignores_short_session_bury(self, db_session):
-        # bury_for_session parks a card for four hours; that is not a rest.
+    def test_ignores_short_session_bury(self, db_session: scoped_session) -> None:
         user = _make_user(db_session)
+        user.timezone = 'Europe/Istanbul'
         uw = _make_user_word(db_session, user, _make_word(db_session))
-        _make_direction(db_session, uw, buried_until=_now_naive() + timedelta(hours=4))
+        # 01:00 local, just before the 02:00 study-day boundary.
+        now = datetime(2026, 11, 24, 22)
+        _make_direction(db_session, uw, buried_until=now + timedelta(hours=4))
 
-        assert count_resting_words(user.id, real_db) == 0
+        assert count_resting_words(user.id, real_db, now_utc=now) == 0
+
+    @pytest.mark.parametrize(('hour_utc', 'difficulty'), [(22, 0), (19, 0), (22, DIFFICULTY_BURY_THRESHOLD)])
+    def test_grade_and_stats_distinguish_session_from_multi_day_rest(
+        self, db_session: scoped_session, authenticated_client: FlaskClient, test_user: User,
+        hour_utc: int, difficulty: int,
+    ) -> None:
+        test_user.timezone = 'Europe/Istanbul'
+        word = _make_word(db_session)
+        uw = _make_user_word(db_session, test_user, word)
+        now = datetime(2026, 11, 24, hour_utc)
+        direction = _make_direction(db_session, uw, first_reviewed=now - timedelta(days=7))
+        direction.session_attempts = MAX_SESSION_ATTEMPTS - 1
+        direction.difficulty_score = difficulty
+        db_session.commit()
+        with freeze_time(now):
+            grade = authenticated_client.post('/study/api/update-study-item', json={
+                'word_id': word.id, 'direction': direction.direction, 'quality': 1,
+            })
+            assert grade.status_code == 200 and grade.json['is_buried']
+            if difficulty == 0:
+                assert grade.json['resting_until'] is None
+                assert count_resting_words(test_user.id, real_db, now_utc=now) == 0
+            else:
+                assert grade.json['resting_until'] == '2026-12-01'
+                end = direction.buried_until
+                assert count_resting_words(test_user.id, real_db, now_utc=end - timedelta(seconds=1)) == 1
+                assert count_resting_words(test_user.id, real_db, now_utc=end) == 0
+
+    def test_legacy_rest_without_recovery_marker(self, db_session: scoped_session) -> None:
+        user = _make_user(db_session)
+        user.timezone = 'UTC'
+        now = datetime(2026, 11, 24, 23)
+        uw = _make_user_word(db_session, user, _make_word(db_session))
+        _make_direction(db_session, uw, last_reviewed=now - timedelta(days=7),
+                        buried_until=now + timedelta(minutes=5))
+        assert count_resting_words(user.id, real_db, now_utc=now) == 1
 
     def test_counts_a_word_once_when_both_directions_rest(self, db_session):
         user = _make_user(db_session)

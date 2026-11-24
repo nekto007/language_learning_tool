@@ -21,7 +21,8 @@ import math
 from datetime import datetime, timedelta
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.srs.constants import MASTERED_THRESHOLD_DAYS, STATUS_REVIEW, CardState
 from app.srs.visibility import naive_utc_now, srs_scope_filter, srs_servable_filter
@@ -423,26 +424,32 @@ def mastered_word_ids_subquery(user_id: int, db: Any = _db):
     )
 
 
+def multi_day_rest_filter(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> ColumnElement:
+    """Identify an active long rest for display, including older rows without recovery markers."""
+    now = _naive_utc_now(now_utc)
+    end = UserCardDirection.buried_until
+    reviewed = UserCardDirection.last_reviewed
+    # Grades store the study-day start as last_reviewed. A four-hour hold can cross
+    # one day boundary, so its review may be in the previous study day.
+    yesterday = day_to_naive_utc(user_id, db, days_ahead=-1, now_utc=now)
+    tomorrow = day_to_naive_utc(user_id, db, days_ahead=1, now_utc=now)
+    return and_(end > now, or_(
+        end > now + timedelta(hours=4),
+        and_(UserCardDirection.consecutive_leech_burials > 0, UserCardDirection.recovery_due_at == end),
+        reviewed < yesterday,
+        # Old rows can lack a review timestamp as well as a recovery marker.
+        and_(reviewed.is_(None), end == tomorrow),
+    ))
+
+
 def count_resting_words(user_id: int, db: Any = _db, now_utc: Optional[datetime] = None) -> int:
-    """Count distinct words currently resting for at least the rest of today.
-
-    A resting word is one the SRS has taken out of circulation because it would
-    not stick — see ``app/srs/scheduling.py``. Counting distinct words (rather
-    than directions) means a word rested in both directions shows up once.
-
-    The threshold is tomorrow's local midnight so the short intra-session bury
-    (``UserCardDirection.bury_for_session``) is not reported as a rest. Note it
-    deliberately selects buried rows, so it takes the scope half of the
-    visibility rule only.
-    """
-    tomorrow_start = day_to_naive_utc(user_id, db, days_ahead=1, now_utc=now_utc)
+    """Count distinct personal words that have an active multi-day rest."""
     return int(
         db.session.query(func.count(func.distinct(UserCardDirection.user_word_id)))
         .join(UserWord, UserCardDirection.user_word_id == UserWord.id)
         .filter(
             srs_scope_filter(user_id),
-            UserCardDirection.buried_until.isnot(None),
-            UserCardDirection.buried_until >= tomorrow_start,
+            multi_day_rest_filter(user_id, db, now_utc),
         )
         .scalar() or 0
     )
