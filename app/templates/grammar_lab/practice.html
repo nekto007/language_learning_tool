@@ -3,7 +3,7 @@
 {% block title %}{% if topic %}{{ topic.title }}{% else %}Практика{% endif %} - Grammar Lab{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/practice.css') }}?v=20261124-feedback">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/grammar/practice.css') }}?v=20261124-controls">
 {% endblock %}
 
 {% block content %}
@@ -249,7 +249,7 @@ const topicId = {{ topic.id }};
 {% else %}
 const topicId = null;
 {% endif %}
-let exerciseRevisions = {{ session.exercise_revisions|default({})|tojson }};
+const exerciseRevisions = {{ session.exercise_revisions|default({})|tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=20261124-resume"></script>
+<script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=20261124-controls"></script>
 {% endblock %}

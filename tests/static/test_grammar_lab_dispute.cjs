@@ -214,3 +214,19 @@ test('a definitive input rejection allows editing the original response', async 
   assert.equal(p.calls[1].body.answer,'corrected');
   assert.equal(p.el('progress-text').textContent,'1 / 2');
 });
+
+test('grammar controls have native input names and expose selection before the first answer', async () => {
+  const {context} = await practice({deferSubmit:true});
+  for (const type of ['fill_blank', 'translation', 'error_correction', 'transformation']) {
+    const html = context.renderExercise({exercise_type:type, question:'One woman → three ___'});
+    assert.match(html, /<label for="user-answer">/);
+    assert.match(html, /<input type="text" id="user-answer"/);
+  }
+  const choice = context.renderExercise({exercise_type:'multiple_choice', question:'Which word?', options:['one','two']});
+  assert.match(choice, /<fieldset[^>]*><legend>Which word\?<\/legend>/);
+  assert.equal((choice.match(/<input type="radio" name="answer"/g) || []).length, 2);
+  const pairs = context.renderExercise({exercise_type:'matching', pairs:[{left:'woman',right:'women'}]});
+  assert.equal((pairs.match(/<button type="button" class="practice-matching__item" aria-pressed="false"/g) || []).length, 2);
+  const binary = context.renderExercise({exercise_type:'true_false', statement:'They are here.'});
+  assert.equal((binary.match(/aria-pressed="false"/g) || []).length, 2);
+});

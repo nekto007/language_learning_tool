@@ -501,13 +501,13 @@ function renderExercise(exercise) {
     case 'fill_blank':
       return `
         ${instructionHtml}
-        <label>${question || 'Заполните пропуск:'}</label>
+        <label for="user-answer">${question || 'Заполните пропуск:'}</label>
         ${sourcePhraseHtml}
         <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
       `;
 
     case 'multiple_choice': {
-      let html = `${instructionHtml}<label>${question || 'Выберите правильный ответ:'}</label>`;
+      let html = `${instructionHtml}<fieldset class="practice-choice-group"><legend>${question || 'Выберите правильный ответ:'}</legend>`;
       // Options are shown in a random order (the authored files put the
       // key in position 2 in 40 of 48 items — a positional cue), but the
       // value sent to the server stays the ORIGINAL index: the grader
@@ -519,28 +519,27 @@ function renderExercise(exercise) {
       }
       order.forEach((origIndex) => {
         html += `
-          <label class="practice-option" data-action="select-option" data-value="${origIndex}">
+          <label class="practice-option">
             <input type="radio" name="answer" value="${origIndex}">
-            <span class="practice-option__radio"></span>
             <span class="practice-option__text">${options[origIndex]}</span>
           </label>
         `;
       });
-      return html;
+      return html + '</fieldset>';
     }
 
     case 'true_false':
       return `
         ${instructionText ? `<p class="practice-instruction">${instructionText}</p>` : ''}
-        <label>${statement}</label>
-        <div class="practice-tf">
-          <button type="button" class="practice-tf__btn practice-tf__btn--true" data-action="select-tf" data-value="true">
+        <p id="tf-statement">${statement}</p>
+        <div class="practice-tf" role="group" aria-labelledby="tf-statement">
+          <button type="button" class="practice-tf__btn practice-tf__btn--true" data-action="select-tf" aria-pressed="false" data-value="true">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 6L9 17l-5-5"/>
             </svg>
             Верно
           </button>
-          <button type="button" class="practice-tf__btn practice-tf__btn--false" data-action="select-tf" data-value="false">
+          <button type="button" class="practice-tf__btn practice-tf__btn--false" data-action="select-tf" aria-pressed="false" data-value="false">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -574,7 +573,7 @@ function renderExercise(exercise) {
         ? `<p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${translationText}</p>`
         : '';
       return `
-        <label>${labelText}</label>
+        <label for="user-answer">${labelText}</label>
         ${phraseHtml}
         <input type="text" id="user-answer" placeholder="${placeholderText}" autocomplete="off">
       `;
@@ -588,7 +587,7 @@ function renderExercise(exercise) {
 
     case 'error_correction':
       return `
-        <label>${instructionText || 'Найдите и исправьте ошибку:'}</label>
+        <label for="user-answer">${instructionText || 'Найдите и исправьте ошибку:'}</label>
         <p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px;">${sentence}</p>
         <input type="text" id="user-answer" placeholder="Исправленное слово/фраза" autocomplete="off">
       `;
@@ -597,43 +596,30 @@ function renderExercise(exercise) {
       const original = exercise.original || sentence;
       const instruction = exercise.instruction || 'Преобразуйте предложение';
       return `
-        <label>${instruction}:</label>
+        <label for="user-answer">${instruction}</label>
         <p style="font-size: 1.125rem; font-weight: 600; color: var(--grammar-text); margin: 0.5rem 0 1rem; padding: 1rem; background: var(--grammar-surface-alt); border-radius: 8px;">${original}</p>
         <input type="text" id="user-answer" placeholder="Введите преобразованное предложение" autocomplete="off">
       `;
 
     default:
       return `
-        <label>${question || 'Введите ответ:'}</label>
+        <label for="user-answer">${question || 'Введите ответ:'}</label>
         ${sourcePhraseHtml}
         <input type="text" id="user-answer" placeholder="Введите ответ" autocomplete="off">
       `;
   }
 }
 
-function selectOption(el, value) {
-  document.querySelectorAll('.practice-option').forEach(opt => opt.classList.remove('selected'));
-  el.classList.add('selected');
-  el.querySelector('input').checked = true;
-}
-
-function selectTF(el, value) {
-  document.querySelectorAll('.practice-tf__btn').forEach(btn => btn.classList.remove('selected'));
-  el.classList.add('selected');
-  document.getElementById('user-answer').value = value;
-}
-
-// CSP-safe delegated handlers for dynamic exercise UI
-document.addEventListener('click', function(e) {
-  var optEl = e.target.closest('[data-action="select-option"]');
-  if (optEl) {
-    selectOption(optEl, parseInt(optEl.getAttribute('data-value'), 10));
-    return;
+// True/false choices publish their current state to keyboard and screen-reader users.
+document.addEventListener('click', function(event) {
+  const choice = event.target.closest('[data-action="select-tf"]');
+  if (!choice) return;
+  for (const button of document.querySelectorAll('.practice-tf__btn')) {
+    const selected = button === choice;
+    button.setAttribute('aria-pressed', String(selected));
+    button.classList.toggle('selected', selected);
   }
-  var tfEl = e.target.closest('[data-action="select-tf"]');
-  if (tfEl) {
-    selectTF(tfEl, tfEl.getAttribute('data-value'));
-  }
+  document.getElementById('user-answer').value = choice.dataset.value;
 });
 
 function renderReorder(exercise) {
@@ -647,70 +633,74 @@ function renderReorder(exercise) {
   let html = `<label>${exercise.instruction || 'Составьте предложение из слов:'}</label>`;
   html += '<div class="practice-wordbank" id="word-bank">';
   shuffledWords.forEach((word, i) => {
-    html += `<button type="button" class="practice-word" data-index="${i}" data-word="${word}">${word}</button>`;
+    html += `<button type="button" class="practice-word" aria-pressed="false" data-index="${i}" data-word="${word}">${word}</button>`;
   });
   html += '</div>';
   html += '<div class="practice-answer-area empty" id="answer-area"><span class="practice-answer-placeholder">Нажмите на слова выше</span></div>';
   html += '<input type="hidden" id="user-answer" value="">';
 
-  setTimeout(() => {
-    const wordBank = document.getElementById('word-bank');
-    const answerArea = document.getElementById('answer-area');
-    const hiddenInput = document.getElementById('user-answer');
-    // Store selected word indices (not just words, to handle duplicates)
-    let selectedIndices = [];
-
-    function updateAnswerArea() {
-      if (selectedIndices.length > 0) {
-        // Render clickable word buttons in answer area
-        const wordButtons = selectedIndices.map((idx, pos) => {
-          const word = wordBank.querySelector(`[data-index="${idx}"]`).dataset.word;
-          return `<button type="button" class="practice-answer-word" data-pos="${pos}" data-index="${idx}">${word}</button>`;
-        }).join('');
-        answerArea.innerHTML = wordButtons;
-        answerArea.classList.remove('empty');
-
-        // Add click handlers to remove words from answer
-        answerArea.querySelectorAll('.practice-answer-word').forEach(btn => {
-          btn.addEventListener('click', function() {
-            const idx = parseInt(this.dataset.index);
-            const pos = parseInt(this.dataset.pos);
-            // Remove from selectedIndices
-            selectedIndices.splice(pos, 1);
-            // Remove selected class from word bank
-            wordBank.querySelector(`[data-index="${idx}"]`).classList.remove('selected');
-            updateAnswerArea();
-          });
-        });
-      } else {
-        answerArea.innerHTML = '<span class="practice-answer-placeholder">Нажмите на слова выше</span>';
-        answerArea.classList.add('empty');
-      }
-      // Update hidden input with joined words
-      hiddenInput.value = selectedIndices.map(idx =>
-        wordBank.querySelector(`[data-index="${idx}"]`).dataset.word
-      ).join(' ');
-    }
-
-    wordBank?.querySelectorAll('.practice-word').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const idx = parseInt(this.dataset.index);
-        if (this.classList.contains('selected')) {
-          // Remove from selection
-          const pos = selectedIndices.indexOf(idx);
-          if (pos > -1) selectedIndices.splice(pos, 1);
-          this.classList.remove('selected');
-        } else {
-          // Add to selection
-          selectedIndices.push(idx);
-          this.classList.add('selected');
-        }
-        updateAnswerArea();
-      });
-    });
-  }, 100);
-
   return html;
+}
+
+function setupReorderHandlers() {
+  const wordBank = document.getElementById('word-bank');
+  const answerArea = document.getElementById('answer-area');
+  const hiddenInput = document.getElementById('user-answer');
+  // Store selected word indices (not just words, to handle duplicates)
+  let selectedIndices = [];
+
+  function updateAnswerArea() {
+    if (selectedIndices.length > 0) {
+      // Render clickable word buttons in answer area
+      const wordButtons = selectedIndices.map((idx, pos) => {
+        const word = wordBank.querySelector(`[data-index="${idx}"]`).dataset.word;
+        return `<button type="button" class="practice-answer-word" data-pos="${pos}" data-index="${idx}">${word}</button>`;
+      }).join('');
+      answerArea.innerHTML = wordButtons;
+      answerArea.classList.remove('empty');
+
+      // Add click handlers to remove words from answer
+      answerArea.querySelectorAll('.practice-answer-word').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const idx = parseInt(this.dataset.index);
+          const pos = parseInt(this.dataset.pos);
+          // Remove from selectedIndices
+          selectedIndices.splice(pos, 1);
+          // Remove selected class from word bank
+          const bankButton = wordBank.querySelector(`[data-index="${idx}"]`);
+          bankButton.classList.remove('selected');
+          bankButton.setAttribute('aria-pressed', 'false');
+          bankButton.focus();
+          updateAnswerArea();
+        });
+      });
+    } else {
+      answerArea.innerHTML = '<span class="practice-answer-placeholder">Нажмите на слова выше</span>';
+      answerArea.classList.add('empty');
+    }
+    // Update hidden input with joined words
+    hiddenInput.value = selectedIndices.map(idx =>
+      wordBank.querySelector(`[data-index="${idx}"]`).dataset.word
+    ).join(' ');
+  }
+
+  wordBank?.querySelectorAll('.practice-word').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const idx = parseInt(this.dataset.index);
+      if (this.classList.contains('selected')) {
+        // Remove from selection
+        const pos = selectedIndices.indexOf(idx);
+        if (pos > -1) selectedIndices.splice(pos, 1);
+        this.classList.remove('selected');
+      } else {
+        // Add to selection
+        selectedIndices.push(idx);
+        this.classList.add('selected');
+      }
+      this.setAttribute('aria-pressed', String(this.classList.contains('selected')));
+      updateAnswerArea();
+    });
+  });
 }
 
 function renderMatching(exercise) {
@@ -732,88 +722,70 @@ function renderMatching(exercise) {
   html += '<div class="practice-matching">';
   html += '<div class="practice-matching__column" id="matching-left">';
   pairs.forEach((pair, i) => {
-    html += `<div class="practice-matching__item" data-index="${i}" data-side="left">${pair.english || pair.left}</div>`;
+    html += `<button type="button" class="practice-matching__item" aria-pressed="false" data-index="${i}" data-side="left">${pair.english || pair.left}</button>`;
   });
   html += '</div>';
   html += '<div class="practice-matching__column" id="matching-right">';
   rightItems.forEach((item, i) => {
-    html += `<div class="practice-matching__item" data-index="${i}" data-correct="${item.correctIndex}" data-side="right">${item.text}</div>`;
+    html += `<button type="button" class="practice-matching__item" aria-pressed="false" data-index="${i}" data-correct="${item.correctIndex}" data-side="right">${item.text}</button>`;
   });
   html += '</div>';
   html += '</div>';
-  html += `<div class="practice-matching__progress">Совпадений: <strong id="match-count">0</strong> из <strong>${pairs.length}</strong></div>`;
+  html += `<div class="practice-matching__progress" role="status">Совпадений: <strong id="match-count">0</strong> из <strong>${pairs.length}</strong></div>`;
   html += '<input type="hidden" id="user-answer" value="">';
 
-  setTimeout(() => setupMatchingHandlers(pairs.length), 100);
+  html += '<p id="matching-feedback" class="practice-matching__feedback" role="status"></p>';
 
   return html;
 }
 
-function setupMatchingHandlers(totalPairs) {
-  let selectedLeft = null;
-  let selectedRight = null;
-  let matches = {};
-  let matchCount = 0;
+function setupMatchingHandlers() {
+  const buttons = Array.from(document.querySelectorAll('.practice-matching__item'));
+  const feedback = document.getElementById('matching-feedback');
+  const matches = {};
+  let first = null;
 
-  const leftItems = document.querySelectorAll('#matching-left .practice-matching__item');
-  const rightItems = document.querySelectorAll('#matching-right .practice-matching__item');
-
-  function updateAnswer() {
-    document.getElementById('user-answer').value = JSON.stringify(matches);
-    document.getElementById('match-count').textContent = matchCount;
+  function select(button, pressed) {
+    button.classList.toggle('selected', pressed);
+    button.setAttribute('aria-pressed', String(pressed));
   }
 
-  function checkMatch() {
-    if (selectedLeft !== null && selectedRight !== null) {
-      const leftIdx = parseInt(selectedLeft.dataset.index);
-      const rightCorrect = parseInt(selectedRight.dataset.correct);
-
-      if (leftIdx === rightCorrect) {
-        selectedLeft.classList.remove('selected');
-        selectedLeft.classList.add('matched');
-        selectedRight.classList.remove('selected');
-        selectedRight.classList.add('matched');
-        matches[leftIdx] = leftIdx;
-        matchCount++;
-        updateAnswer();
-      } else {
-        selectedLeft.classList.add('wrong');
-        selectedRight.classList.add('wrong');
-        setTimeout(() => {
-          selectedLeft?.classList.remove('selected', 'wrong');
-          selectedRight?.classList.remove('selected', 'wrong');
-          selectedLeft = null;
-          selectedRight = null;
-        }, 500);
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      feedback.textContent = '';
+      if (!first || first.dataset.side === button.dataset.side) {
+        if (first) select(first, false);
+        first = first === button ? null : button;
+        if (first) select(first, true);
         return;
       }
-      selectedLeft = null;
-      selectedRight = null;
-    }
+
+      const left = first.dataset.side === 'left' ? first : button;
+      const right = first.dataset.side === 'right' ? first : button;
+      select(first, false);
+      first = null;
+      if (left.dataset.index !== right.dataset.correct) {
+        feedback.textContent = 'Эти слова не образуют пару. Выберите другую пару.';
+        return;
+      }
+
+      matches[left.dataset.index] = Number(right.dataset.correct);
+      document.getElementById('user-answer').value = JSON.stringify(matches);
+      document.getElementById('match-count').textContent = Object.keys(matches).length;
+      for (const matched of [left, right]) {
+        matched.classList.add('matched');
+        matched.setAttribute('aria-pressed', 'true');
+        matched.disabled = true;
+      }
+      const next = buttons.find(item => item.dataset.side === 'left' && !item.disabled);
+      (next || document.getElementById('check-btn')).focus();
+    });
   }
-
-  leftItems.forEach(item => {
-    item.addEventListener('click', function() {
-      if (this.classList.contains('matched')) return;
-      leftItems.forEach(i => i.classList.remove('selected'));
-      this.classList.add('selected');
-      selectedLeft = this;
-      checkMatch();
-    });
-  });
-
-  rightItems.forEach(item => {
-    item.addEventListener('click', function() {
-      if (this.classList.contains('matched')) return;
-      rightItems.forEach(i => i.classList.remove('selected'));
-      this.classList.add('selected');
-      selectedRight = this;
-      checkMatch();
-    });
-  });
 }
 
 function setupExerciseHandlers(exercise) {
+  if (exercise.exercise_type === 'reorder') setupReorderHandlers();
+  if (exercise.exercise_type === 'matching') setupMatchingHandlers();
   // Focus on input if exists
   const input = document.getElementById('user-answer');
   if (input && input.type === 'text') {
@@ -830,6 +802,8 @@ function setupExerciseHandlers(exercise) {
         }
       }
     });
+  } else {
+    document.getElementById('question-area').querySelector('input[type="radio"], button')?.focus();
   }
 }
 
