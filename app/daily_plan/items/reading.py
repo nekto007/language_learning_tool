@@ -214,6 +214,11 @@ def _read_today(user_id: int, book_id: Optional[int], db: Any) -> bool:
         return False
 
 
+def reading_duration_label(section: str, minutes: int) -> str:
+    """Describe the duration without presenting optional reading as a daily goal."""
+    return f'Можно почитать {minutes} мин' if section == 'optional' else f'Норма дня — {minutes} мин'
+
+
 def build_reading_item(
     user_id: int,
     db: Any,
@@ -269,7 +274,7 @@ def build_reading_item(
         subtitle_parts.append(f'Глава {chapter_num}')
     if chapter_title:
         subtitle_parts.append(chapter_title)
-    subtitle_parts.append(f'Норма дня — {target_minutes} мин')
+    subtitle_parts.append(reading_duration_label(section, target_minutes))
     if book.is_short_reading:
         count = len(book.reading.get('questions') or [])
         subtitle_parts = [f'Прочитай текст и ответь на вопросы: {count}']

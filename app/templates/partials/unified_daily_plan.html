@@ -756,11 +756,13 @@
                   <span class="plan-item__title">{{ item.get('title') }}</span>
                 </a>
               {% endif %}
-              {% if item.get('subtitle') or item.get('eta_minutes') %}
+              {% set _subtitle = item.get('subtitle') %}
+              {% set _eta = item.get('eta_minutes') if not (_subtitle and _kind == 'reading' and _data.get('completion_mode') == 'active_reading') else none %}
+              {% if _subtitle or _eta %}
                 <span class="plan-item__subtitle">
-                  {% if item.get('subtitle') %}{{ item.get('subtitle') }}{% endif %}
-                  {% if item.get('subtitle') and item.get('eta_minutes') %} · {% endif %}
-                  {% if item.get('eta_minutes') %}~{{ item.get('eta_minutes') }} мин{% endif %}
+                  {% if _subtitle %}{{ _subtitle }}{% endif %}
+                  {% if _subtitle and _eta %} · {% endif %}
+                  {% if _eta %}~{{ _eta }} мин{% endif %}
                 </span>
               {% endif %}
             </div>

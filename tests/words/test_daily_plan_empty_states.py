@@ -83,3 +83,21 @@ def test_novice_with_setup_and_blocked_plan_have_their_own_copy(app: Flask) -> N
     empty = blocked.select_one(".daily-plan__empty-state")
     assert "Следующий модуль" in empty.get_text()
     assert empty.select_one("li").get_text() == "Наберите 80%"
+
+
+@pytest.mark.parametrize(("kind", "mode", "subtitle", "expected"), [
+    ("reading", "active_reading", "Можно почитать 5 мин", "Можно почитать 5 мин"),
+    ("reading", "short_reading", "Ответь на вопросы", "Ответь на вопросы · ~5 мин"),
+    ("reading", "active_reading", None, "~5 мин"),
+    ("reading", None, "Глава 1", "Глава 1 · ~5 мин"),
+    ("grammar_review", None, "Практика", "Практика · ~5 мин"),
+])
+def test_optional_card_shows_eta_unless_the_reading_subtitle_already_includes_it(
+    app: Flask, kind: str, mode: str | None, subtitle: str | None, expected: str,
+) -> None:
+    item = optional_review(kind=kind, subtitle=subtitle, eta_minutes=5)
+    if mode is not None:
+        item["data"] = {"completion_mode": mode}
+    page = render_plan(app, {"mode": "unified", "optional": [item]})
+    rendered = page.select_one("#daily-plan-optional-list .plan-item__subtitle")
+    assert " ".join(rendered.get_text().split()) == expected

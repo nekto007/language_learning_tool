@@ -463,9 +463,9 @@ def _refresh_srs_counters(user_id: int, item: dict[str, Any], db: Any) -> None:
 
 
 def _refresh_reading_target(user_id: int, item: dict[str, Any], db: Any) -> None:
-    """Refresh today's alternating reading target on a frozen item (DP-049).
+    """Refresh today's reading target on a frozen item (DP-049).
 
-    Rolled-over snapshots retain yesterday's 5/10 minute subtitle and gate,
+    Rolled-over snapshots retain the previous subtitle and gate,
     while completion is evaluated against today's target.  Refresh every
     target-dependent field together so API consumers never see a mixture of
     today's completion state and yesterday's progress metadata.
@@ -505,6 +505,19 @@ def _refresh_reading_target(user_id: int, item: dict[str, Any], db: Any) -> None
         )
         return
 
+    refreshed = dict(data)
+    refreshed.update({
+        'time_spent_seconds': time_spent_seconds,
+        'gate_seconds': target_seconds,
+        'gate_reached': bool(item.get('completed')) or time_spent_seconds >= target_seconds,
+    })
+    item['data'] = refreshed
+    if data.get('completion_mode') == 'short_reading':
+        # The subtitle describes the questions, and the ETA comes from the text.
+        return
+
+    from app.daily_plan.items.reading import reading_duration_label
+
     target_minutes = target_seconds // 60
     subtitle_parts: list[str] = []
     chapter_num = data.get('current_chapter_num')
@@ -513,15 +526,7 @@ def _refresh_reading_target(user_id: int, item: dict[str, Any], db: Any) -> None
         subtitle_parts.append(f'Глава {chapter_num}')
     if chapter_title:
         subtitle_parts.append(str(chapter_title))
-    subtitle_parts.append(f'Норма дня — {target_minutes} мин')
-
-    refreshed = dict(data)
-    refreshed.update({
-        'time_spent_seconds': time_spent_seconds,
-        'gate_seconds': target_seconds,
-        'gate_reached': bool(item.get('completed')) or time_spent_seconds >= target_seconds,
-    })
-    item['data'] = refreshed
+    subtitle_parts.append(reading_duration_label(item.get('section', 'required'), target_minutes))
     item['subtitle'] = ' · '.join(subtitle_parts)
     item['eta_minutes'] = target_minutes
 
