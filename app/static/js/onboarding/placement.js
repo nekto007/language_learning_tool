@@ -11,6 +11,7 @@
   var resume = document.getElementById('placement-resume');
   var retry = document.getElementById('placement-retry');
   var pause = document.getElementById('placement-pause');
+  var change = document.getElementById('placement-change');
   var text = document.getElementById('placement-text');
   var audio = document.getElementById('placement-audio');
   var submit = document.getElementById('placement-answer');
@@ -25,6 +26,7 @@
     active_attempt: 'У тебя уже есть начатый тест. Продолжи его или выбери другой вариант.',
     stale_question: 'Задание уже изменилось на другом устройстве. Обновим состояние.',
     answer_already_saved: 'Ответ уже сохранён на другом устройстве. Продолжим с текущего задания.',
+    attempt_closed: 'Попытка уже завершена на другом устройстве. Обновим состояние теста.',
     newer_result_applied: 'Уже выбран уровень из более нового результата.',
     empty_answer: 'Введи ответ или нажми «Не знаю».',
     access_denied: 'Аккаунт изменился. Открой страницу снова.',
@@ -70,6 +72,7 @@
     text.disabled = busy || !!pending;
     document.querySelectorAll('input[name="placement-option"]').forEach(function (e) { e.disabled = busy || !!pending; });
     pause.disabled = busy || !!pending;
+    change.disabled = busy || !!pending;
     root.setAttribute('aria-busy', String(busy));
   }
   function run(operation) {
@@ -79,8 +82,8 @@
     return operation().catch(function (error) {
       say(error.message || 'Нет связи. Попробуй ещё раз.');
       retry.hidden = !pending;
-      if (error.code === 'stale_question' || error.code === 'answer_already_saved') {
-        pending = null; remove('pending'); return loadStatus(false);
+      if (error.code === 'stale_question' || error.code === 'answer_already_saved' || error.code === 'attempt_closed') {
+        pending = null; remove('pending'); retry.hidden = true; return loadStatus(false);
       }
       if (pending && error.status && error.status < 500 && error.status !== 429 && error.status !== 401 && error.status !== 403) {
         pending = null; remove('pending'); retry.hidden = true;
@@ -119,6 +122,7 @@
     clearTimeout(draftTimer); stopAudio(); current = attempt; chooser.hidden = true;
     test.hidden = attempt.status !== 'active'; result.hidden = attempt.status !== 'completed';
     pause.hidden = attempt.status !== 'active'; retry.hidden = !pending;
+    change.hidden = attempt.status !== 'active';
     if (attempt.status === 'completed') {
       var info = attempt.result;
       document.getElementById('placement-result-title').textContent = 'Рекомендуем начать с ' + info.recommended_level;
@@ -195,7 +199,7 @@
       active = data.active; latest = data.latest;
       if (restore && pending) return sendPending();
       if (restore && active) { render(active, false); say('Продолжим с сохранённого задания.'); return; }
-      current = null; test.hidden = true; result.hidden = true; chooser.hidden = false; pause.hidden = true;
+      stopAudio(); current = null; test.hidden = true; result.hidden = true; chooser.hidden = false; pause.hidden = true; change.hidden = true;
       resume.replaceChildren(); resume.hidden = !active;
       if (active) {
         var p = document.createElement('p'); p.textContent = 'Есть начатый ' + (active.mode === 'quick' ? 'быстрый' : 'подробный') + ' тест. Ответов сохранено: ' + active.answered + '.';
@@ -218,6 +222,7 @@
   });
   document.getElementById('placement-latest').addEventListener('click', function () { if (latest) render(latest, true); });
   document.getElementById('placement-retake').addEventListener('click', function () { run(function () { return loadStatus(false); }); });
+  change.addEventListener('click', function () { if (!pending) run(function () { return loadStatus(false); }); });
   document.getElementById('placement-apply').addEventListener('click', function () {
     if (!current || current.status !== 'completed') return;
     var button = this; button.disabled = true;

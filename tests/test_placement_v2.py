@@ -340,3 +340,18 @@ def test_migration_up_and_down_on_empty_sqlite_schema():
         assert inspect(connection).get_table_names() == ["users"]
         assert [c["name"] for c in inspect(connection).get_columns("users")] == ["id"]
     local.dispose()
+
+
+def test_retry_after_other_device_abandons_attempt_refreshes_instead_of_returning_closed_payload(
+    db_session, test_user, bank
+):
+    first = engine.start(test_user.id, "quick")
+    args = (test_user.id, first["id"], first["question"]["id"], "", True)
+    next_question = engine.answer(*args)
+    engine.abandon(test_user.id, first["id"])
+    replacement = engine.start(test_user.id, "detailed")
+    with pytest.raises(engine.PlacementError, match="attempt_closed"):
+        engine.answer(*args)
+    with pytest.raises(engine.PlacementError, match="attempt_closed"):
+        engine.answer(test_user.id, first["id"], next_question["question"]["id"], "", True)
+    assert engine.status(test_user.id)["active"] == replacement

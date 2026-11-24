@@ -184,6 +184,8 @@ def _answer_value(value: Any, dont_know: Any) -> str:
 def answer(user_id: int, attempt_id: str, question_id: Any, value: Any, dont_know: Any) -> dict:
     _owner(user_id)
     row = _attempt(user_id, attempt_id)
+    if row.status == 'abandoned':
+        raise PlacementError('attempt_closed', 409)
     value = _answer_value(value, dont_know)
     if not isinstance(question_id, str) or len(question_id) != 36:
         raise PlacementError('invalid_question')
