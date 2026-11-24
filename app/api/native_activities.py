@@ -3,6 +3,7 @@
 from copy import deepcopy
 from datetime import datetime, UTC
 from types import SimpleNamespace
+from typing import Any
 from uuid import UUID
 
 from flask import Blueprint, request, jsonify, current_app
@@ -132,7 +133,16 @@ def _prepare(kind, item_id):
             selected = {"session_id": f"grammar_{topic_id}_{current_user.id}_{uuid4().hex[:8]}",
                         "exercises": [{"id": key} for key in guided]}
         else:
-            selected = service.start_topic_practice(topic_id, current_user.id)
+            targeted = item_id.startswith('grammar_review:placement:')
+            if targeted:
+                from app.onboarding.placement_reviews import from_item, item_for
+                review = from_item(current_user.id, item_id)
+                expected = item_for(review)
+                if expected is None or expected.id != item_id:
+                    raise NativeLessonError('lesson_changed', 409)
+            selected = service.start_topic_practice(topic_id, current_user.id, max_exercises=3) if targeted else service.start_topic_practice(topic_id, current_user.id)
+            if targeted and len(selected.get('exercises') or []) != 3:
+                raise NativeLessonError('lesson_changed', 409)
         if selected.get("error"):
             raise NativeLessonError("not_found", 404)
         ids = [int(e["id"]) for e in selected.get("exercises") or []]
@@ -153,11 +163,15 @@ def _prepare(kind, item_id):
             "revision": {str(k): _digest(all_ex[k].content) for k in ids},
             "session_key": selected["session_id"],
         }
+        if item_id.startswith('grammar_review:placement:'):
+            source['placement_review_id'] = review.id
         if guided:
             from app.grammar_lab.guided_learning import learning_steps
 
             source["learning_steps"] = learning_steps(topic.content, len(rows))
         theory = _theory(topic.content or {})
+        if item_id.startswith('grammar_review:placement:'):
+            theory = [block for block in theory if len(block.get('body') or '') <= 1500][:1]
         title = topic.title_ru or topic.title
         level = topic.level
     elif kind == "phrase_review":
@@ -329,6 +343,7 @@ def _document(run):
         "type": proxy.type,
         "passing_score": PASSING_SCORE_QUIZ,
         "assessment": "practice",
+        "allow_repeat": not bool(p["source"].get("placement_review_id")),
         "theory": p["theory"],
         "questions": questions,
         "learning_steps": p["source"].get("learning_steps", []),
@@ -339,6 +354,7 @@ def _document(run):
             else "toggle" if p.get("level") == "A2" else "off"
         ),
         "session_token": token,
+        "learning_goal": "Проверь тему на трёх примерах и разбери ответы." if p["source"].get("placement_review_id") else None,
     }
 
 
@@ -412,9 +428,12 @@ def complete_grammar_theory(topic_id):
 @api_bearer_required
 @limiter.limit("30 per minute", key_func=get_authenticated_user_key)
 def start_activity(kind):
+    return start_activity_document(kind, request.get_json(silent=True))
+
+
+def start_activity_document(kind: str, body: Any) -> Any:
     if kind not in KINDS:
         raise NativeLessonError("not_found", 404)
-    body = request.get_json(silent=True)
     if (
         not isinstance(body, dict)
         or set(body) != {"item_id", "request_id"}
@@ -684,6 +703,9 @@ def _grade_activity(run, answers):
                 "explanation": _plain(explanation),
             }
         )
+    if p['source'].get('placement_review_id'):
+        from app.onboarding.placement_reviews import complete
+        complete(current_user.id, p['source']['placement_review_id'], correct, len(rows))
     score = round(correct / len(rows) * 100, 2)
     study = StudySession.query.filter_by(id=run.session_id, user_id=current_user.id).one()
     study.words_studied = len(rows)
@@ -785,13 +807,16 @@ def _grade_activity(run, answers):
 @api_bearer_required
 @limiter.limit("90 per minute", key_func=get_authenticated_user_key)
 def check_learning_answer(kind):
+    return check_activity_document(kind, request.get_json(silent=True))
+
+
+def check_activity_document(kind: str, body: Any) -> Any:
     from app.study.models import NativeLearningRun
     from app.grammar_lab.models import GrammarExercise
     from app.grammar_lab.guided_learning import check_answer
 
     if kind not in KINDS:
         raise NativeLessonError("not_found", 404)
-    body = request.get_json(silent=True)
     if (not isinstance(body, dict) or set(body) != {"session_token", "question_id", "answer"}
             or not isinstance(body["session_token"], str) or not isinstance(body["question_id"], str)):
         raise NativeLessonError("invalid_input")
@@ -842,9 +867,12 @@ def check_learning_answer(kind):
 @api_bearer_required
 @limiter.limit("30 per minute", key_func=get_authenticated_user_key)
 def submit_activity(kind):
+    return submit_activity_document(kind, request.get_json(silent=True))
+
+
+def submit_activity_document(kind: str, body: Any) -> Any:
     if kind not in KINDS:
         raise NativeLessonError("not_found", 404)
-    body = request.get_json(silent=True)
     if (
         not isinstance(body, dict)
         or set(body) != {"session_token", "answers"}

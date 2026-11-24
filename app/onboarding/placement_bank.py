@@ -37,7 +37,7 @@ def validate_bank(pack: Any) -> dict:
     seen: set[str] = set()
     counts: Counter = Counter()
     for row in items:
-        if not isinstance(row, dict) or set(row) - {'id', 'level', 'skill', 'input', 'prompt', 'options', 'answers', 'passage', 'audio_url', 'topic'}:
+        if not isinstance(row, dict) or set(row) - {'id', 'level', 'skill', 'input', 'prompt', 'options', 'answers', 'passage', 'audio_url', 'topic', 'topic_slug'}:
             raise ValueError('Invalid item fields')
         key = row.get('id')
         if not _string(key, 100) or not re.fullmatch(r'[a-zA-Z0-9_-]+', key) or key in seen:
@@ -48,6 +48,8 @@ def validate_bank(pack: Any) -> dict:
             raise ValueError(f'Invalid skill, level or prompt: {key}')
         if 'topic' in row and not _string(row['topic'], 200):
             raise ValueError(f'Invalid topic: {key}')
+        if 'topic_slug' in row and (skill not in ('grammar', 'writing') or not _string(row['topic_slug'], 100) or not re.fullmatch(r'[a-z][a-z0-9-]+', row['topic_slug'])):
+            raise ValueError(f'Invalid review topic: {key}')
         answers = row.get('answers')
         if not isinstance(answers, list) or not 1 <= len(answers) <= 20 or not all(_string(a, 1000) for a in answers):
             raise ValueError(f'Invalid answers: {key}')

@@ -155,3 +155,16 @@ body.dashboard-today main.container{max-width:990px;padding-inline:var(--space-4
 /* A fixed negative top leaves part of a large skip link on screen at 200%. */
 .dashboard-today .skip-to-content{top:0;transform:translate(-50%,-110%);max-width:calc(100% - 24px);text-align:center}
 .dashboard-today .skip-to-content:focus{top:8px;transform:translateX(-50%)}
+
+/* Voluntary diagnostic entry stays visually secondary to today's lesson. */
+.placement-invitation{display:flex;gap:18px;padding:24px;border:1px solid var(--border-light);border-left:4px solid var(--primary-500);border-radius:20px;background:var(--bg-primary);margin-bottom:22px;min-width:0}
+.placement-invitation>img{flex-shrink:0;border-radius:12px}
+.placement-invitation__body{min-width:0;overflow-wrap:anywhere}
+.placement-invitation__eyebrow{font-size:.78rem;color:var(--primary-600);font-weight:700;margin:0 0 6px}
+.placement-invitation h2{font-size:1.15rem;line-height:1.4;margin:0 0 8px;color:var(--text-primary)}
+.placement-invitation__body>p:not(.placement-invitation__eyebrow){color:var(--text-secondary);font-size:.9rem;line-height:1.6;margin-bottom:12px}
+.placement-invitation__actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.placement-invitation__actions a,.placement-invitation__actions button{display:inline-flex;align-items:center;min-height:44px;font:inherit;white-space:normal}
+.placement-invitation__actions a{color:var(--primary-600);font-weight:650}
+.placement-invitation__actions button{border:0;background:none;color:var(--text-secondary);padding:4px 10px;cursor:pointer}
+@media(max-width:480px){.placement-invitation{padding:18px 14px;gap:12px}.placement-invitation>img{width:36px;height:36px}.placement-invitation__actions{gap:8px}}

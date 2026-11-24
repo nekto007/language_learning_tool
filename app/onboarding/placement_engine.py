@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from app.auth.models import User
 from app.onboarding.placement_bank import LEVELS, SKILL_LABELS
-from app.onboarding.placement_models import PlacementAttempt, PlacementBank, utcnow
+from app.onboarding.placement_models import PlacementAttempt, PlacementBank, PlacementGuest, utcnow
 from app.utils.db import db
 from app.utils.normalization import normalize_quiz_answer
 
@@ -25,17 +25,26 @@ class PlacementError(Exception):
         self.code, self.status = code, status
 
 
-def _owner(user_id: int) -> User:
+def _query(user_id: int | str) -> Any:
+    return db.session.query(PlacementAttempt).filter_by(**({'user_id': user_id} if type(user_id) is int else {'guest_key': user_id}))
+
+
+def _owner(user_id: int | str) -> User | PlacementGuest:
+    if isinstance(user_id, str):
+        guest = db.session.query(PlacementGuest).filter_by(key=user_id).populate_existing().with_for_update().one_or_none()
+        if guest is None or guest.expires_at <= utcnow():
+            raise PlacementError('guest_expired', 409)
+        return guest
     user = db.session.query(User).filter_by(id=user_id).populate_existing().with_for_update().one_or_none()
     if user is None or not user.is_active:
         raise PlacementError('access_denied', 403)
     return user
 
 
-def _attempt(user_id: int, attempt_id: str) -> PlacementAttempt:
+def _attempt(user_id: int | str, attempt_id: str) -> PlacementAttempt:
     if not isinstance(attempt_id, str) or len(attempt_id) > 36:
         raise PlacementError('not_found', 404)
-    row = db.session.query(PlacementAttempt).filter_by(id=attempt_id, user_id=user_id).populate_existing().with_for_update().one_or_none()
+    row = _query(user_id).filter_by(id=attempt_id).populate_existing().with_for_update().one_or_none()
     if row is None:
         raise PlacementError('not_found', 404)
     return row
@@ -73,12 +82,18 @@ def _finish(row: PlacementAttempt, state: dict, pool: dict[str, dict]) -> None:
             topic = question.get('topic') or SKILL_LABELS[question['skill']]
             if topic not in weak:
                 weak.append(topic)
+    mapped = {}
+    for answer in state['asked']:
+        question = pool[answer['id']]
+        slug = question.get('topic_slug')
+        if not answer.get('correct') and slug and LEVELS.index(question['level']) <= state['candidate']:
+            mapped.setdefault(slug, {'slug': slug, 'title': question.get('topic'), 'signals': 0})['signals'] += 1
     row.status = 'completed'
     row.completed_at = utcnow()
     row.result = {'recommended_level': LEVELS[state['candidate']], 'domains': domains,
                   'correct_count': sum(a.get('correct', False) for a in state['asked']),
                   'total': len(state['asked']), 'weak_topics': weak[:8],
-                  'preliminary': True, 'speaking_assessed': False, 'free_writing_assessed': False}
+                  'review_topics': list(mapped.values()), 'preliminary': True, 'speaking_assessed': False, 'free_writing_assessed': False}
 
 
 def _next(row: PlacementAttempt, state: dict, pool: dict[str, dict]) -> None:
@@ -138,11 +153,11 @@ def projection(row: PlacementAttempt) -> dict:
     return result
 
 
-def status(user_id: int) -> dict:
-    active = db.session.query(PlacementAttempt).filter_by(user_id=user_id, status='active').first()
-    latest = db.session.query(PlacementAttempt).filter_by(user_id=user_id, status='completed').order_by(PlacementAttempt.completed_at.desc()).first()
+def status(user_id: int | str) -> dict:
+    active = _query(user_id).filter_by(status='active').first()
+    latest = _query(user_id).filter_by(status='completed').order_by(PlacementAttempt.completed_at.desc()).first()
     bank = db.session.query(PlacementBank.id).filter_by(active=True).first()
-    user = db.session.get(User, user_id)
+    user = db.session.get(User, user_id) if type(user_id) is int else None
     return {'success': True, 'available': bank is not None,
             'modes': [{'id': key, **value} for key, value in MODES.items()],
             'active': projection(active) if active else None, 'latest': projection(latest) if latest else None,
@@ -150,11 +165,11 @@ def status(user_id: int) -> dict:
             'pending_on': user.placement_pending_on.isoformat() if user and user.placement_pending_on else None}
 
 
-def start(user_id: int, mode: Any) -> dict:
+def start(user_id: int | str, mode: Any) -> dict:
     if not isinstance(mode, str) or mode not in MODES:
         raise PlacementError('invalid_mode')
     _owner(user_id)
-    active = db.session.query(PlacementAttempt).filter_by(user_id=user_id, status='active').first()
+    active = _query(user_id).filter_by(status='active').first()
     if active is not None:
         if active.mode != mode:
             raise PlacementError('active_attempt', 409)
@@ -162,7 +177,8 @@ def start(user_id: int, mode: Any) -> dict:
     bank = db.session.query(PlacementBank).filter_by(active=True).first()
     if bank is None:
         raise PlacementError('bank_unavailable', 409)
-    row = PlacementAttempt(id=str(uuid4()), user_id=user_id, bank_id=bank.id, mode=mode, status='active')
+    row = PlacementAttempt(id=str(uuid4()), bank_id=bank.id, mode=mode, status='active',
+                           **({'user_id': user_id} if type(user_id) is int else {'guest_key': user_id}))
     state = {'version': 1, 'phase': 'warmup', 'candidate': 0, 'failed_levels': [], 'asked': []}
     _issue(state, {q['id']: q for q in bank.content['items']}, 'A1', 'grammar')
     row.state = state
@@ -181,7 +197,7 @@ def _answer_value(value: Any, dont_know: Any) -> str:
     return value
 
 
-def answer(user_id: int, attempt_id: str, question_id: Any, value: Any, dont_know: Any) -> dict:
+def answer(user_id: int | str, attempt_id: str, question_id: Any, value: Any, dont_know: Any) -> dict:
     _owner(user_id)
     row = _attempt(user_id, attempt_id)
     if row.status == 'abandoned':
@@ -214,7 +230,7 @@ def answer(user_id: int, attempt_id: str, question_id: Any, value: Any, dont_kno
     return projection(row)
 
 
-def save_draft(user_id: int, attempt_id: str, question_id: Any, value: Any) -> dict:
+def save_draft(user_id: int | str, attempt_id: str, question_id: Any, value: Any) -> dict:
     _owner(user_id)
     row = _attempt(user_id, attempt_id)
     if not isinstance(value, str) or len(value) > 1000 or '\x00' in value:
@@ -233,7 +249,7 @@ def save_draft(user_id: int, attempt_id: str, question_id: Any, value: Any) -> d
     return projection(row)
 
 
-def abandon(user_id: int, attempt_id: str) -> dict:
+def abandon(user_id: int | str, attempt_id: str) -> dict:
     _owner(user_id)
     row = _attempt(user_id, attempt_id)
     if row.status == 'completed':
@@ -246,6 +262,8 @@ def abandon(user_id: int, attempt_id: str) -> dict:
 
 def adopt_level(user_id: int, attempt_id: str) -> dict:
     user = _owner(user_id)
+    if not isinstance(user, User):
+        raise PlacementError('registration_required', 401)
     row = _attempt(user_id, attempt_id)
     if row.status != 'completed' or not row.result:
         raise PlacementError('test_not_completed', 409)
@@ -256,19 +274,31 @@ def adopt_level(user_id: int, attempt_id: str) -> dict:
         if newer:
             raise PlacementError('newer_result_applied', 409)
         level = row.result['recommended_level']
-        # New learners have no frozen day to disturb. Established learners
-        # choose tomorrow's floor; today's lesson IDs, streak and drafts stay intact.
-        if not user.onboarding_completed:
+        # Rebuild only an untouched study day. Once learning activity exists,
+        # preserve today's lesson IDs, streak and drafts and start tomorrow.
+        from app.utils.activity_tracker import has_learning_activity
+        from app.utils.time_utils import get_user_local_day_bounds, study_day_date_for_tz
+        start, end = get_user_local_day_bounds(user.id, db)
+        studied = has_learning_activity(user.id, start, min(end, utcnow()))
+        if not studied:
             user.onboarding_level = level
             user.placement_pending_level = None
             user.placement_pending_on = None
+            from app.daily_plan.snapshot import _get_or_create_log_row
+            log = _get_or_create_log_row(user.id, study_day_date_for_tz(user.timezone), db)
+            log.plan_json = {'placement_rebuild': True}
         else:
             from app.utils.time_utils import study_day_date_for_tz
             user.placement_pending_level = level
             user.placement_pending_on = study_day_date_for_tz(user.timezone) + timedelta(days=1)
+        from flask import has_request_context, g
+        if has_request_context():
+            getattr(g, '_request_cache', {}).clear()
         row.applied_at = utcnow()
         row.result = {**row.result, 'effective_on': user.placement_pending_on.isoformat() if user.placement_pending_on else None}
         db.session.flush()
+        from app.onboarding.placement_reviews import seed
+        seed(row)
     return {'id': row.id, 'applied': True,
             'level': row.result['recommended_level'],
             'effective_on': row.result.get('effective_on')}

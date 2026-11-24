@@ -265,7 +265,9 @@
         {% set _pace_n = u_pace.get('lessons_per_day')|int %}
         {% set _pace_word = 'урок' if _pace_n == 1 else 'урока' %}
         <div class="daily-plan__pace">
-          {% if u_pace.get('recommended') %}
+          {% if u_pace.get('review_adjusted') %}
+            В плане есть короткое закрепление темы по результату теста.
+          {% elif u_pace.get('recommended') %}
             Темп: {{ _pace_n }} {{ _pace_word }} в день · вы держите его {{ u_pace.get('days_hit') }} дней из 7 —
             <a href="{{ url_for('study.settings') }}">попробовать {{ u_pace.get('recommended') }}?</a>
           {% elif u_pace.get('behind') %}

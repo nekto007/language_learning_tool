@@ -8307,6 +8307,8 @@ textarea:focus-visible,
    ======================================== */
 
 .xp-bar {
+    flex-wrap: wrap;
+    row-gap: 6px;
     background: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
     border-radius: 0 0 8px 8px;
     padding: 8px 20px;
@@ -19347,7 +19349,14 @@ body.feedback-modal-open { overflow: hidden; }
     outline-offset: 2px;
     box-shadow: none;
 }
+.cabinet-nav__username {
+    max-width: 20ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 @media (min-width: 992px) {
+    .cabinet-nav__username { max-width: min(10ch, 10vw); }
     .navbar-expand-lg .navbar-collapse {
         align-items: center;
         min-width: 0;

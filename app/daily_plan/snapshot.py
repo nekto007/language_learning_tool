@@ -155,6 +155,8 @@ def _build_fresh_snapshot(
 
     tier = compute_user_tier(user_id, db)
     items = build_required_snapshot(user_id, tier, db)
+    from app.onboarding.placement_reviews import replace_slot
+    items = replace_slot(user_id, items)
     logger.info(
         "daily_plan_snapshot user=%s date=%s tier=%s items=%d fresh",
         user_id, today_local, tier, len(items),
@@ -307,6 +309,9 @@ def _item_unreachable(user_id: int, item: dict[str, Any], db: Any) -> bool:
     decides whether the drop is allowed at all.
     """
     kind = item.get('kind') or ''
+    if (item.get('data') or {}).get('placement_review_id'):
+        from app.onboarding.placement_reviews import unreachable
+        return unreachable(user_id, item['data']['placement_review_id'])
     if kind == 'reading':
         return _reading_book_unreachable(user_id, item, db)
     if kind == 'curriculum':
@@ -562,6 +567,12 @@ def _is_item_completed(user_id: int, item: dict[str, Any], db: Any) -> bool:
         return _curriculum_lesson_done_today(user_id, lesson_id_int, db)
 
     if kind == 'grammar_review':
+        if data.get('placement_review_id'):
+            from app.onboarding.placement_reviews import owned_review, _today
+            try:
+                return owned_review(user_id, data['placement_review_id']).completed_on == _today(user_id)
+            except Exception:
+                return False
         topic_id = data.get('topic_id')
         module_id = data.get('module_id')
         try:

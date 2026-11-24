@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}{{ item.title }} · LLT English{% endblock %}
+{% block content %}
+{% if review_completed %}
+<main class="container py-4" style="max-width:800px">
+  <h1 class="h3">Тренировка на сегодня завершена</h1>
+  <p>Первых верных ответов: {{ practice.first_correct }} из {{ practice.total }}. Результат сохранён.</p>
+  <a href="{{ url_for('words.dashboard') }}" class="btn btn-primary">К плану дня</a>
+</main>
+{% else %}
+<main id="guided-practice" class="container py-4" style="max-width:800px"
+ data-endpoint="{{ url_for('onboarding.placement_review_action', review_id=item.data.placement_review_id, action='start')|replace('/start', '') }}"
+ data-account="{{ current_user.id }}" data-lesson="{{ item.id }}:{{ request_id }}"
+ data-review-only="true" data-start-id="{{ item.id }}" data-request-id="{{ request_id }}">
+ <a href="{{ url_for('words.dashboard') }}" class="btn btn-outline-secondary mb-3">К плану дня</a>
+ <h1 class="h3">{{ item.title }}</h1>
+ <p>Три задания · примерно 3–5 минут. Это тренировка, а не новый экзамен.</p>
+ <p id="practice-goal" class="text-secondary" hidden></p>
+ <p id="practice-error" role="alert" class="text-danger" hidden></p>
+ <p id="practice-storage-warning" role="status" class="alert alert-warning" hidden></p>
+ <section id="practice-screen" aria-live="polite"><p>Открываем тренировку…</p></section>
+</main>
+{% endif %}
+{% endblock %}
+{% block scripts %}{{ super() }}{% if not review_completed %}<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261124-review') }}" defer></script>{% endif %}{% endblock %}

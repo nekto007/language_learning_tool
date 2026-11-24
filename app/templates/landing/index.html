@@ -74,6 +74,7 @@
             и разбирайте ответы в своём темпе. Обучение бесплатное.
         </p>
         <div class="land-hero__actions land-anim land-anim--d3">
+            <a href="{{ url_for('onboarding.placement_page') }}" class="land-btn land-btn--secondary">Проверить уровень · без регистрации</a>
             {% if current_user.is_authenticated %}
             <a href="{{ url_for('grammar_lab.topics') }}" class="land-btn land-btn--primary">
                 <svg class="land-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

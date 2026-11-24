@@ -2,7 +2,7 @@
   'use strict';
   var root = document.getElementById('placement-root');
   if (!root) return;
-  var base = root.dataset.api, account = root.dataset.account;
+  var base = root.dataset.api, account = root.dataset.account, guest = root.dataset.guest === 'true';
   var prefix = 'llt-placement-v1:' + account + ':';
   var statusNode = document.getElementById('placement-status');
   var chooser = document.getElementById('placement-chooser');
@@ -29,6 +29,7 @@
     attempt_closed: 'Попытка уже завершена на другом устройстве. Обновим состояние теста.',
     newer_result_applied: 'Уже выбран уровень из более нового результата.',
     empty_answer: 'Введи ответ или нажми «Не знаю».',
+    guest_expired: 'Срок гостевой попытки истёк. Обнови страницу, чтобы начать новый тест.',
     access_denied: 'Аккаунт изменился. Открой страницу снова.',
     not_found: 'Попытка недоступна для этого аккаунта.',
     invalid_option: 'Выбери один из предложенных вариантов.'
@@ -44,7 +45,8 @@
       typeof pending.answer !== 'string' || typeof pending.dont_know !== 'boolean')) pending = null;
   function say(value) { statusNode.textContent = value || ''; }
   function request(path, body) {
-    var headers = {'X-LLT-Account-ID': account, 'Accept': 'application/json'};
+    var headers = {'Accept': 'application/json'};
+    if (guest) headers['X-LLT-Placement-Guest'] = '1'; else headers['X-LLT-Account-ID'] = account;
     var options = {headers: headers, credentials: 'same-origin', cache: 'no-store'};
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
@@ -125,6 +127,7 @@
     change.hidden = attempt.status !== 'active';
     if (attempt.status === 'completed') {
       var info = attempt.result;
+      document.getElementById('placement-apply').hidden = guest;
       document.getElementById('placement-result-title').textContent = 'Рекомендуем начать с ' + info.recommended_level;
       document.getElementById('placement-result-summary').textContent = 'Верно: ' + info.correct_count + ' из ' + info.total + '. Выбор уровня не удалит пройденные уроки.';
       var list = document.getElementById('placement-domains'); list.replaceChildren();
@@ -198,6 +201,7 @@
       root.dataset.available = data.available ? 'true' : '';
       active = data.active; latest = data.latest;
       if (restore && pending) return sendPending();
+      if (restore && latest && ((!active && guest) || new URLSearchParams(location.search).get('result') === '1')) { render(latest, false); say(''); return; }
       if (restore && active) { render(active, false); say('Продолжим с сохранённого задания.'); return; }
       stopAudio(); current = null; test.hidden = true; result.hidden = true; chooser.hidden = false; pause.hidden = true; change.hidden = true;
       resume.replaceChildren(); resume.hidden = !active;

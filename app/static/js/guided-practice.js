@@ -198,7 +198,7 @@
       if (isCorrection()) screen.append(node('p', `Исправлено: ${r.correct_count} из ${r.total_count}. Исходный результат ${first.first_score}% сохранён.`));
       if (r.correction_pending) screen.append(node('p', 'Продолжи план дня. Работа над ошибками появится отдельным шагом перед следующим связанным заданием.'));
       const link = node('a', 'К плану дня', 'btn btn-primary my-3'); link.href = root.querySelector('a').href; screen.append(link);
-      if (!r.correction_pending && !isCorrection()) screen.append(button('Повторить урок', () => perform(async () => { try { sessionStorage.removeItem(storageKey); } catch (_) {} await load(true); })));
+      if (!r.correction_pending && !isCorrection() && root.dataset.reviewOnly !== 'true') screen.append(button('Повторить урок', () => perform(async () => { try { sessionStorage.removeItem(storageKey); } catch (_) {} await load(true); })));
       (r.feedback || []).forEach(f => {
         const card = node('article', null, 'card card-body my-3');
         const answer = node('p', 'Твой ответ: ' + f.answer); answer.style.whiteSpace = 'pre-wrap';
@@ -291,7 +291,7 @@
       box.append(node('h3', feedback.correct ? 'Верно' : 'Разберём ответ', 'h5'));
       if (!feedback.correct) { if (!isCorrection()) box.append(node('p', 'Образец: ' + feedback.expected)); box.append(node('p', feedback.explanation)); }
       screen.append(box);
-      if (isCorrection() && !feedback.correct) {
+      if ((isCorrection() || root.dataset.reviewOnly === 'true') && !feedback.correct) {
         screen.append(button('Попробовать ещё раз', () => { delete state.checks[q.id]; delete state.fragments[q.id]; if (help?.segments?.length) state.answers[q.id] = help.segments.map(s => s.text).join(' '); save(); draw(); }, true));
       } else screen.append(button('Дальше', () => { state.index += 1; save(); draw(); screen.scrollIntoView({block: 'start'}); }, true));
       // Keep the next action above the site's fixed mobile navigation.
@@ -366,7 +366,9 @@
         }
       }
     }
-    const document = await request();
+    const document = root.dataset.startId
+      ? await request('/start', {item_id: root.dataset.startId, request_id: root.dataset.requestId})
+      : await request();
     if (String(document.account_id) !== root.dataset.account) {
       const error = new Error('Аккаунт изменился. Открой план заново.');
       error.code = 'access_denied'; throw error;

@@ -79,6 +79,10 @@ def build_grammar_review_item(
     section: str = 'optional',
 ) -> Optional[PlanItem]:
     """Return a grammar_review PlanItem or None when no topics exist."""
+    from app.onboarding.placement_reviews import plan_item
+    targeted = plan_item(user_id, section)
+    if targeted is not None:
+        return targeted
     topic = _stalest_practiced_topic(user_id, db)
     if topic is None:
         topic = _level_fallback_topic(user_id, db)

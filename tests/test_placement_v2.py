@@ -183,7 +183,8 @@ def test_existing_learner_adoption_is_deferred_and_keeps_today_plan(db_session, 
     db_session.add(log)
     db_session.flush()
     value = complete(test_user.id)
-    adoption = engine.adopt_level(test_user.id, value["id"])
+    with patch("app.utils.activity_tracker.has_learning_activity", return_value=True):
+        adoption = engine.adopt_level(test_user.id, value["id"])
     assert adoption["effective_on"] == (today + timedelta(days=1)).isoformat()
     assert test_user.onboarding_level == "A1"
     assert test_user.placement_pending_level == "C1"

@@ -20,7 +20,7 @@
     <!-- Font Awesome (local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/fontawesome.min.css') }}">
     <!-- Design System (unified CSS) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20261112b">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}?v=20261124-placement">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {% if current_user.is_authenticated %}
     <meta name="llt-account-id" content="{{ current_user.id }}">
@@ -301,7 +301,7 @@
                     <!-- User Menu -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
+                            <i class="fas fa-user-circle me-1"></i><span class="cabinet-nav__username" title="{{ current_user.username }}">{{ current_user.username }}</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             {% if current_user.is_admin %}

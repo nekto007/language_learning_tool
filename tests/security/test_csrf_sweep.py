@@ -33,6 +33,7 @@ MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
 
 # module.function -> why the framework-level CSRF check is skipped there.
 CSRF_EXEMPT_ALLOWLIST = {
+    'app.onboarding.placement_routes.native_dismiss': 'JWT-only placement; cookie auth rejected',
     'app.onboarding.placement_routes.native_start': 'JWT-only placement; cookie auth rejected',
     'app.onboarding.placement_routes.native_answer': 'JWT-only placement; cookie auth rejected',
     'app.onboarding.placement_routes.native_draft': 'JWT-only placement; cookie auth rejected',
@@ -98,6 +99,7 @@ CSRF_EXEMPT_ALLOWLIST = {
 # Handlers the dynamic sweep may reach without a token: the allowlist minus
 # reading_session_end, whose own check must fire.
 SWEEP_MAY_REACH = {
+    'app.onboarding.placement_routes.native_dismiss',
     'app.onboarding.placement_routes.native_start',
     'app.onboarding.placement_routes.native_answer',
     'app.onboarding.placement_routes.native_draft',

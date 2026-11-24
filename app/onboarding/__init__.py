@@ -12,3 +12,7 @@ from .placement_bank import install_bank
 @onboarding_bp.record_once
 def register_placement_cli(state: BlueprintSetupState) -> None:
     state.app.cli.add_command(install_bank)
+    from flask_login import user_logged_in
+    from .placement_guests import claim_after_login, cleanup_command
+    state.app.cli.add_command(cleanup_command)
+    user_logged_in.connect(claim_after_login, sender=state.app, weak=False)

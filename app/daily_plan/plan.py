@@ -429,7 +429,9 @@ def build_optional(
             queue_items_accepted = queue_items_accepted[:len(queue_items_accepted) - cut]
             overflow -= cut
 
-    items = completed_subset + short_items + queue_items_accepted + practice_items
+    targeted = [it for it in practice_items if it.data.get('placement_review_id')]
+    ordinary = [it for it in practice_items if not it.data.get('placement_review_id')]
+    items = completed_subset + targeted + short_items + queue_items_accepted + ordinary
     items = items[:max_items]
     has_more = (
         queue_truncated
@@ -640,13 +642,20 @@ def get_daily_plan(
             'recommended': None, 'days_hit': 0, 'behind': False,
         }
 
+    from app.onboarding.placement_reviews import pace_adjusted
+    if pace_adjusted(user_id):
+        pace_info.update(review_adjusted=True, behind=False, recommended=None)
+
     from app.daily_plan.learning_journey import build_journey
     from app.utils.time_utils import get_user_local_date
 
     journey = build_journey(user_id, session, next_lesson, required_dicts, optional_dicts)
+    from app.onboarding.placement_home import invitation
+    placement_invitation = invitation(user_id)
     return {
         'mode': 'unified',
         'learning_journey': journey,
+        'placement_invitation': placement_invitation,
         # Stable server study-day identity. Clients never deduplicate by their
         # device calendar, nor claim completion from a cached plan.
         'study_day': get_user_local_date(user_id, session).isoformat(),

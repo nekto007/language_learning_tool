@@ -1,0 +1,13 @@
+{% set invite = unified_plan.get('placement_invitation') %}
+{% if invite %}
+<section class="placement-invitation" data-placement-invitation data-key="{{ invite.key }}" data-account="{{ current_user.id }}" aria-labelledby="placement-invitation-title">
+  <img src="{{ url_for('static', filename='media/llt_logo_mini.png') }}" width="48" height="48" alt="">
+  <div class="placement-invitation__body">
+    <p class="placement-invitation__eyebrow">{{ 'Проверка после уровня' if invite.kind == 'checkpoint' else 'Твой старт в английском' }}</p>
+    <h2 id="placement-invitation-title">{{ invite.title }}</h2>
+    <p>{{ invite.body }}</p>
+    <div class="placement-invitation__actions"><a href="{{ invite.url }}">{{ invite.cta }}</a><button type="button" data-placement-dismiss>Позже</button></div>
+    <p data-placement-notice role="status" hidden></p>
+  </div>
+</section>
+{% endif %}
