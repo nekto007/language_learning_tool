@@ -13,6 +13,7 @@ from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.admin.services.guided_lesson_import import is_published_guided_lesson, preserved_guided_lessons
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.curriculum.validators import LessonContentValidator
@@ -382,7 +383,8 @@ class CurriculumImportService:
 
         # Ищем модуль по level_id + number (единственный надёжный способ)
         # НЕ используем explicit_module_id для поиска — id в JSON относительный, не DB PK
-        module = Module.query.filter_by(level_id=level.id, number=module_number).first()
+        module = (Module.query.filter_by(level_id=level.id, number=module_number)
+                  .populate_existing().with_for_update().first())
 
         # Получаем prerequisites из JSON. Слаги вида "module_3" резолвим в
         # modules.id прямо здесь: check_prerequisites молча выбрасывает строки,
@@ -435,6 +437,11 @@ class CurriculumImportService:
             Lessons.query.filter_by(module_id=module.id).order_by(Lessons.id)
             .populate_existing().with_for_update().all()
         )
+        source_lessons = data.get('lessons', [])
+        preserved = preserved_guided_lessons(existing_module_lessons, source_lessons)
+        # Leave guided rows in place even when the source omits them.
+        protected = {_l.number for _l in existing_module_lessons if is_published_guided_lesson(_l)}
+        existing_module_lessons = [_l for _l in existing_module_lessons if _l.number not in protected]
         _by_external_key: dict[str, 'Lessons'] = {}
         for _l in existing_module_lessons:
             if isinstance(_l.content, dict):
@@ -467,9 +474,11 @@ class CurriculumImportService:
 
         # Track numbers assigned during the loop so the restore pass can detect
         # collisions before they hit the unique (module_id, number) constraint.
-        _used_numbers: set[int] = set()
+        _used_numbers: set[int] = set(protected)
 
-        for lesson_data in data.get('lessons', []):
+        for index, lesson_data in enumerate(source_lessons):
+            if index in preserved:
+                continue
             # Нормализация формата урока (поддержка двух форматов)
             explicit_lesson_id = lesson_data.get('id')
             number = lesson_data.get('lesson_number') or lesson_data.get('order') or lesson_data.get('id')
@@ -521,6 +530,7 @@ class CurriculumImportService:
                 if (
                     existing
                     and existing.module_id == module.id
+                    and not is_published_guided_lesson(existing)
                     and (not src_external_key or _is_legacy(existing))
                 ):
                     lesson = existing

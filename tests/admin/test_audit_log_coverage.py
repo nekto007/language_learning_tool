@@ -52,6 +52,8 @@ AUDIT_LOG_WHITELIST = frozenset({
     'content_packages_admin.index',
     # The signed review preview has no persistent side effects.
     'answer_disputes_admin.preview',
+    # Stages an authored document and a database fingerprint for confirmation.
+    'guided_topics_admin.preview',
     # editor_decide writes answer_dispute.{action} in the same transaction as
     # the edit, learner credit and thank-you. The HTTP test verifies it once.
     'answer_disputes_admin.decide',

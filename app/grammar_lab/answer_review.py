@@ -152,3 +152,25 @@ def apply_lab_patch(exercise: GrammarExercise, patch: dict) -> None:
         'patch': {k: updated[k] for k in (*ALIAS_FIELDS, 'correct_answer', 'correct_index')
                   if k in updated and updated[k] != raw.get(k)},
     }
+
+
+def guided_override_for(exercise: GrammarExercise, content: dict) -> dict | None:
+    """Return the decision for the same authored exercise under its new theory."""
+    previous = exercise.content
+    override = exercise.answer_review_override
+    if (not isinstance(override, dict) or not isinstance(previous, dict)
+            or not previous.get('guided_key') or override.get('grader_version') != LAB_GRADER_VERSION
+            or override.get('source_revision') != _revision(exercise, previous)):
+        return None
+    display_fields = {'guided_revision', 'theory_help'}
+    authored_before = {key: value for key, value in previous.items() if key not in display_fields}
+    authored_after = {key: value for key, value in content.items() if key not in display_fields}
+    if authored_before != authored_after:
+        return None
+    return {**override, 'source_revision': _revision(exercise, content)}
+
+
+def rebase_guided_override(exercise: GrammarExercise, content: dict) -> None:
+    override = guided_override_for(exercise, content)
+    if override is not None and override != exercise.answer_review_override:
+        exercise.answer_review_override = override

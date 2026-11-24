@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from urllib.parse import parse_qsl, urlencode
 
 from flask import Blueprint, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import Integer, func, literal, or_, select, union_all
 from sqlalchemy.sql import CompoundSelect, Select
 
@@ -19,6 +20,7 @@ _PAGE_SIZE = 24
 _MATERIAL_DESTINATIONS = {
     'curriculum_admin.edit_lesson', 'curriculum_admin.view_lesson',
     'grammar_lab_admin.edit_exercise', 'grammar_lab_admin.edit_topic',
+    'guided_topics_admin.edit', 'guided_topics_admin.preview', 'guided_topics_admin.publish',
 }
 _DIRECTORIES = (
     ('Словарь', 'word_admin.word_management', 'Статистика словаря, статусы слов и импорт переводов'),
@@ -29,6 +31,7 @@ _DIRECTORIES = (
     ('Книжные курсы', 'admin.book_courses', 'Курсы, модули, уроки и задания по книгам'),
     ('Quiz-колоды', 'admin.quiz_decks_list', 'Настройки колод и состав слов'),
     ('Темы Grammar Lab', 'grammar_lab_admin.topic_list', 'Темы, теория и список упражнений'),
+    ('Пошаговые темы', 'guided_topics_admin.index', 'Редактирование и публикация установленных тем Grammar Lab'),
     ('Модули курса', 'admin_curriculum.module_list', 'Уровни, модули и структура курса'),
     ('Сравнения слов', 'word_contrast_admin.word_contrast_index', 'Карточки различий и примеры'),
     ('Культурные заметки', 'admin.cultural_notes_list', 'Редактор заметок курса'),
@@ -68,7 +71,7 @@ def materials_return_url() -> str | None:
 
 @materials_bp.app_context_processor
 def _materials_back_link() -> dict[str, str | None]:
-    if request.endpoint not in _MATERIAL_DESTINATIONS:
+    if request.endpoint not in _MATERIAL_DESTINATIONS or not current_user.is_admin:
         return {}
     return {'materials_catalog_back': materials_return_url()}
 

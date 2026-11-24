@@ -366,7 +366,8 @@ class TestImportIdempotency:
         mock_module.number = 2
         mock_module.title = 'Original Title'
         # Module exists on first and second call
-        mock_module_cls.query.filter_by.return_value.first.return_value = mock_module
+        module_query = mock_module_cls.query.filter_by.return_value.populate_existing.return_value
+        module_query.with_for_update.return_value.first.return_value = mock_module
 
         mock_lesson = MagicMock()
         mock_lesson.id = 100

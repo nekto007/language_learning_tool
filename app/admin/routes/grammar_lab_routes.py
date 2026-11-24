@@ -34,6 +34,7 @@ from app.admin.services.grammar_exercise_import import (
     prepare_exercise,
     prepare_json_batch,
 )
+from app.admin.services.guided_topic_guard import managed_topic_editor
 from app.admin.utils.decorators import admin_required
 from app.grammar_lab.models import GrammarExercise, GrammarTopic
 from app.utils.db import db
@@ -422,6 +423,8 @@ def edit_topic(topic_id):
     """Edit a grammar topic"""
     topic = GrammarTopic.query.get_or_404(topic_id)
 
+    if guided_editor := managed_topic_editor(topic.id):
+        return guided_editor
     if request.method == 'POST':
         try:
             topic.slug = request.form.get('slug', topic.slug).strip()
@@ -477,6 +480,8 @@ def edit_topic(topic_id):
 def delete_topic(topic_id):
     """Delete a grammar topic"""
     topic = GrammarTopic.query.get_or_404(topic_id)
+    if guided_editor := managed_topic_editor(topic_id):
+        return guided_editor
     title = topic.title
 
     try:
@@ -510,6 +515,8 @@ def create_exercise(topic_id):
     """Create a new exercise for a topic"""
     topic = GrammarTopic.query.get_or_404(topic_id)
 
+    if guided_editor := managed_topic_editor(topic.id):
+        return guided_editor
     if request.method == 'POST':
         try:
             exercise_type = request.form.get('exercise_type', 'fill_blank')
@@ -574,6 +581,8 @@ def edit_exercise(exercise_id):
     exercise = GrammarExercise.query.get_or_404(exercise_id)
     topic = exercise.topic
 
+    if guided_editor := managed_topic_editor(topic.id):
+        return guided_editor
     if request.method == 'POST':
         try:
             exercise.exercise_type = request.form.get('exercise_type', exercise.exercise_type)
@@ -630,6 +639,8 @@ def delete_exercise(exercise_id):
     exercise = GrammarExercise.query.get_or_404(exercise_id)
     topic_id = exercise.topic_id
 
+    if guided_editor := managed_topic_editor(topic_id):
+        return guided_editor
     try:
         db.session.delete(exercise)
         log_admin_action(

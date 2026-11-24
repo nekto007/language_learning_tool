@@ -336,7 +336,8 @@ class TestImportCurriculumData:
         # Setup
         mock_user.id = 1
         mock_level_cls.query.filter_by.return_value.first.return_value = None
-        mock_module_cls.query.filter_by.return_value.first.return_value = None
+        module_query = mock_module_cls.query.filter_by.return_value.populate_existing.return_value
+        module_query.with_for_update.return_value.first.return_value = None
 
         # Create mock instances
         mock_level = MagicMock()
@@ -405,7 +406,8 @@ class TestImportCurriculumData:
         mock_module = MagicMock()
         mock_module.id = 10
         mock_module.title = 'Module 1'
-        mock_module_cls.query.filter_by.return_value.first.return_value = mock_module
+        module_query = mock_module_cls.query.filter_by.return_value.populate_existing.return_value
+        module_query.with_for_update.return_value.first.return_value = mock_module
 
         mock_lesson = MagicMock()
         mock_lesson.id = 100

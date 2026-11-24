@@ -73,7 +73,7 @@
                         <td>{{ topic.estimated_time }} min</td>
                         <td class="text-end">
                             <div class="btn-group">
-                                <a href="{{ url_for('grammar_lab_admin.edit_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary" title="Edit">
+                                <a href="{{ url_for('guided_topics_admin.edit' if topic.content and topic.content.guided_catalog_digest else 'grammar_lab_admin.edit_topic', topic_id=topic.id) }}" class="btn btn-sm btn-primary" title="Редактировать">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ topic.id }}" title="Delete">

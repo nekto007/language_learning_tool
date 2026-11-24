@@ -1,6 +1,7 @@
 """Transactional, repeatable installation of reviewed grammar; no user-data writes."""
 
 from copy import deepcopy
+from collections.abc import Callable
 from datetime import datetime, UTC
 import json
 import os
@@ -22,6 +23,10 @@ def _snapshot(topics, lessons, exercises):
                        "exercise_type": e.exercise_type, "difficulty": e.difficulty, "order": e.order}
                       for e in exercises],
     }
+
+
+def _preview_state(snapshot: dict, exercises: list) -> str:
+    return content_digest([snapshot, [[row.id, row.answer_review_override] for row in exercises]])
 
 
 def _write_backup(snapshot, documents, directory):
@@ -98,15 +103,30 @@ def _preflight_existing(topics, lessons, exercises):
             raise ValueError(f"Installed grammar drift in {topic.slug}; review manual edits before applying")
 
 
-def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
+def install_catalog(
+    *, slugs=None, apply=False, backup_dir=None, root=None, documents: dict | None = None,
+    expected_state: str | None = None, before_commit: Callable[[], None] | None = None,
+):
     from flask import current_app
     from app.curriculum.models import Lessons
+    from app.grammar_lab.answer_review import effective_content, guided_override_for, rebase_guided_override
     from app.grammar_lab.models import GrammarTopic, GrammarExercise
     from app.utils.db import db
 
     # Validate the ENTIRE selected package, including accepted answers, before
     # creating a single row. A missing topic cannot silently make a partial roll-out.
-    documents = load_catalog(slugs, root=root)
+    authored_publication = documents is not None
+    if documents is None:
+        documents = load_catalog(slugs, root=root)
+    else:
+        if slugs is not None or root is not None or len(documents) != 1:
+            raise ValueError("An authored publication must target exactly one topic")
+        from app.grammar_lab.content_catalog import validate_authored_topic
+
+        slug, document = next(iter(documents.items()))
+        if validate_authored_topic(document)["topic_slug"] != slug:
+            raise ValueError("The authored document targets another topic")
+        slugs = [slug]
     totals = validate_catalog_answers(documents)
     topics = GrammarTopic.query.filter(GrammarTopic.slug.in_(documents)).order_by(GrammarTopic.id).all()
     found = {topic.slug: topic for topic in topics}
@@ -127,8 +147,12 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
                  .order_by(GrammarExercise.id).all())
     _preflight_existing(topics, lessons, exercises)
     before = _snapshot(topics, lessons, exercises)
+    preview_state = _preview_state(before, exercises)
+    if expected_state is not None and preview_state != expected_state:
+        raise ValueError("Grammar preview is stale")
     changes = [t.slug for t in topics if (t.content or {}).get("guided_catalog_digest") != content_digest(documents[t.slug])]
     planned = {"create": 0, "update": 0, "retire": 0}
+    inactive_decisions = []
     for topic in topics:
         if topic.slug not in changes:
             continue
@@ -137,6 +161,16 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
         by_key = {(exercise.content or {}).get("guided_key"): exercise for exercise in existing
                   if (exercise.content or {}).get("guided_key")}
         kept_keys = {row["guided_key"] for row in desired}
+        if authored_publication:
+            desired_by_key = {row["guided_key"]: row for row in desired}
+            for exercise in existing:
+                old = exercise.content or {}
+                if old.get("guided_retired") or effective_content(exercise) == old:
+                    continue
+                replacement = desired_by_key.get(old.get("guided_key"))
+                if replacement is None or guided_override_for(exercise, replacement) is None:
+                    inactive_decisions.append({"exercise_id": exercise.id, "question": old.get("question", ""),
+                                               "retired": replacement is None})
         for index, row in enumerate(desired):
             exercise = by_key.get(row["guided_key"])
             if exercise is None:
@@ -148,7 +182,8 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
     report = {**totals, "lesson_count": len(lessons), "topics_to_update": changes, "applied": False,
               "planned_exercise_changes": planned,
               "created_exercises": 0, "updated_exercises": 0, "retired_exercises": 0,
-              "topic_ids": topic_ids, "lesson_ids": [lesson.id for lesson in lessons]}
+              "topic_ids": topic_ids, "lesson_ids": [lesson.id for lesson in lessons],
+              "preview_state": preview_state, "inactive_decisions": inactive_decisions}
     if not apply:
         return report
     if not changes:
@@ -165,7 +200,7 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
                    .order_by(Lessons.id).with_for_update().populate_existing().all())
         exercises = (GrammarExercise.query.filter(GrammarExercise.topic_id.in_(topic_ids))
                      .order_by(GrammarExercise.id).with_for_update().populate_existing().all())
-        if content_digest(_snapshot(topics, lessons, exercises)) != content_digest(before):
+        if _preview_state(_snapshot(topics, lessons, exercises), exercises) != preview_state:
             raise ValueError("Grammar changed during preflight; run the dry-run again")
         by_topic = {}
         for exercise in exercises:
@@ -194,6 +229,7 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
                     db.session.add(exercise)
                     report["created_exercises"] += 1
                 elif exercise.content != row or exercise.order != index or exercise.exercise_type != row["type"]:
+                    rebase_guided_override(exercise, row)
                     exercise.content = deepcopy(row)
                     exercise.exercise_type = row["type"]
                     exercise.order = index
@@ -208,6 +244,7 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
                     report["retired_exercises"] += 1
             topic.content = {**deepcopy(compiled), "guided_exercise_ids": kept,
                              "guided_catalog_digest": content_digest(authored),
+                             "guided_author_document": deepcopy(authored),
                              "guided_content_digest": content_digest(compiled), "guided_display_title": authored["title"],
                              "legacy_content": old_content.get("legacy_content", old_content)}
             topic.title = topic.title_ru = authored["title"]
@@ -227,6 +264,8 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
         after_exercises = (GrammarExercise.query.filter(GrammarExercise.topic_id.in_(topic_ids))
                            .order_by(GrammarExercise.id).all())
         _seal_backup_after(backup, _snapshot(topics, lessons, after_exercises))
+        if before_commit is not None:
+            before_commit()
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -237,6 +276,7 @@ def install_catalog(*, slugs=None, apply=False, backup_dir=None, root=None):
 def restore_catalog(backup_path, *, apply=False):
     """Restore authored content/visibility without deleting any learner history."""
     from app.curriculum.models import Lessons
+    from app.grammar_lab.answer_review import rebase_guided_override
     from app.grammar_lab.models import GrammarTopic, GrammarExercise
     from app.utils.db import db
 
@@ -277,6 +317,7 @@ def restore_catalog(backup_path, *, apply=False):
                 exercise.content = {**deepcopy(exercise.content), "guided_retired": True}
         for row in saved["exercises"]:
             exercise = db.session.get(GrammarExercise, row["id"])
+            rebase_guided_override(exercise, row["content"])
             for key in ("content", "exercise_type", "difficulty", "order"):
                 setattr(exercise, key, deepcopy(row[key]))
         for row in saved["topics"]:

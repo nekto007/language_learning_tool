@@ -10,6 +10,7 @@ from sqlalchemy import or_
 
 from app.admin.audit import log_admin_action
 from app.admin.services.curriculum_import_service import CurriculumImportService
+from app.admin.services.guided_topic_guard import managed_lesson_editor
 from app.admin.utils.decorators import admin_required
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import safe_int, sanitize_json_content, validate_file_upload
@@ -318,6 +319,8 @@ def edit_lesson(lesson_id):
     from app.admin.routes.materials import materials_return_url
 
     lesson = Lessons.query.get_or_404(lesson_id)
+    if guided_editor := managed_lesson_editor(lesson):
+        return guided_editor
 
     if request.method == 'POST':
         # Check if it's the JSON content form
@@ -449,6 +452,8 @@ def delete_lesson(lesson_id):
     """Delete lesson with confirmation"""
     try:
         lesson = Lessons.query.get_or_404(lesson_id)
+        if guided_editor := managed_lesson_editor(lesson):
+            return guided_editor
         
         # Check if lesson has any user progress
         progress_count = LessonProgress.query.filter_by(lesson_id=lesson_id).count()

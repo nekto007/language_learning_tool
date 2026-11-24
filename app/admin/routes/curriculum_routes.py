@@ -268,6 +268,7 @@ def import_curriculum():
                     return redirect(url_for('admin_curriculum.curriculum'))
 
             except Exception as e:
+                db.session.rollback()
                 logger.error(f'Ошибка при импорте: {str(e)}', exc_info=True)
                 flash(f'Ошибка при импорте: {str(e)}', 'danger')
                 return redirect(url_for('admin_curriculum.import_curriculum'))

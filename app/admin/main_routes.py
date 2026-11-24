@@ -16,6 +16,7 @@ from sqlalchemy import distinct, func
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.admin.audit import log_admin_action
+from app.admin.services.guided_lesson_import import preserved_guided_lessons
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.utils.db import db
@@ -260,6 +261,7 @@ def import_curriculum():
                 else:
                     return redirect(url_for('admin.curriculum'))
             except (SQLAlchemyError, ValueError, KeyError) as e:
+                db.session.rollback()
                 logger.error("Ошибка при импорте: %s", e, exc_info=True)
                 flash(f'Ошибка при импорте: {str(e)}', 'danger')
                 return redirect(url_for('admin.import_curriculum'))
@@ -316,7 +318,8 @@ def import_curriculum_data(data) -> dict:
     # 2. Создаем или находим модуль
     module_number = data['module']
     module_description = data.get('description', '')
-    module = Module.query.filter_by(level_id=level.id, number=module_number).first()
+    module = (Module.query.filter_by(level_id=level.id, number=module_number)
+              .populate_existing().with_for_update().first())
 
     if not module:
         # Создаем новый модуль
@@ -340,17 +343,23 @@ def import_curriculum_data(data) -> dict:
             module.description = module_description
 
     # 3. Создаём уроки из списка data['lessons']
-    for lesson_data in data.get('lessons', []):
+    source_lessons = data.get('lessons', [])
+    existing_lessons = (
+        Lessons.query.filter_by(module_id=module.id).order_by(Lessons.id)
+        .populate_existing().with_for_update().all()
+    )
+    preserved = preserved_guided_lessons(existing_lessons, source_lessons)
+    by_number = {lesson.number: lesson for lesson in existing_lessons}
+    for index, lesson_data in enumerate(source_lessons):
+        if index in preserved:
+            continue
         # Нормализация формата урока (поддержка двух форматов)
         # Старый: {"lesson_number": 1, "lesson_type": "vocabulary", "words": [...]}
         # Новый: {"id": 1, "type": "vocabulary", "content": {"vocabulary": [...]}}
         number = lesson_data.get('lesson_number') or lesson_data.get('order') or lesson_data.get('id')
         lesson_type = lesson_data.get('lesson_type') or lesson_data.get('type')
         title = lesson_data.get('title', '')
-        lesson_query = Lessons.query.filter_by(module_id=module.id, number=number)
-        if lesson_type in ('quiz', 'grammar'):
-            lesson_query = lesson_query.with_for_update()
-        lesson = lesson_query.first()
+        lesson = by_number.get(number)
         is_reimport = lesson is not None
         if not lesson:
             lesson = Lessons(
@@ -363,6 +372,7 @@ def import_curriculum_data(data) -> dict:
             )
             db.session.add(lesson)
             db.session.flush()
+            by_number[number] = lesson
         # Обрабатываем контент по типу урока
         if lesson_type == 'grammar':
             # Поддержка обоих форматов грамматики

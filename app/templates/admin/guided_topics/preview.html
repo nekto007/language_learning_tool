@@ -1,0 +1,43 @@
+{% extends 'admin/base.html' %}
+{% block title %}Предпросмотр пошаговой темы{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/guided-topics.css') }}">{% endblock %}
+{% block content %}
+<div class="guided-editor">
+    <a class="guided-return" href="{{ url_for('.edit', topic_id=topic.id, draft=token, materials_query=materials_query) }}">Продолжить редактирование</a>
+    <header class="guided-heading"><h1>Предпросмотр</h1><p>{{ topic.title_ru }} · {{ topic.slug | upper }}</p></header>
+    {% for label, before, after in changes %}
+    <section class="guided-diff">
+        <h2>{{ label }}</h2>
+        <div class="guided-compare">
+            <div><h3>Сейчас</h3><div class="guided-value">{{ before }}</div></div>
+            <div><h3>После публикации</h3><div class="guided-value">{{ after }}</div></div>
+        </div>
+    </section>
+    {% endfor %}
+    <section class="guided-diff">
+        <h2>Упражнения и связанные уроки</h2>
+        {% set plan = report.planned_exercise_changes %}
+        <p>Новых упражнений — {{ plan.create }}. Обновятся с тем же ID — {{ plan.update }}. Снимутся с показа — {{ plan.retire }}. Связанных уроков — {{ report.lesson_ids | length }}.</p>
+        {% if report.inactive_decisions %}
+        <div class="alert alert-warning">
+            <h3>Решения, которые перестанут применяться</h3>
+            <ul>
+                {% for item in report.inactive_decisions %}
+                <li>Упражнение ID {{ item.exercise_id }} · {{ item.question }}.
+                    {% if item.dispute_ids %}Споры № {{ item.dispute_ids | join(', ') }}.{% endif %}
+                    {{ 'Упражнение снимается с показа.' if item.retired else 'Авторские данные упражнения изменились.' }} Решение останется в истории.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+    <form method="post" action="{{ url_for('.publish', topic_id=topic.id, materials_query=materials_query) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="preview_id" value="{{ token }}">
+        {% if report.inactive_decisions %}
+        <label class="guided-confirm"><input type="checkbox" name="acknowledge_decisions" value="yes" required> Согласен с указанными изменениями решений</label>
+        {% endif %}
+        <button class="btn btn-primary" type="submit">Опубликовать</button>
+    </form>
+</div>
+{% endblock %}

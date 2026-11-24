@@ -117,7 +117,10 @@ class TestGrammarLabRouteErrorLogging:
         mock_db.session.commit.side_effect = Exception('DB connection lost')
         mock_db.session.rollback.return_value = None
 
-        with patch('app.admin.routes.grammar_lab_routes.GrammarTopic') as mock_topic_cls:
+        with (
+            patch('app.admin.routes.grammar_lab_routes.GrammarTopic') as mock_topic_cls,
+            patch('app.admin.routes.grammar_lab_routes.managed_topic_editor', return_value=None) as guard,
+        ):
             mock_topic = MagicMock()
             mock_topic.title = 'Test Topic'
             mock_topic_cls.query.get_or_404.return_value = mock_topic
@@ -127,7 +130,9 @@ class TestGrammarLabRouteErrorLogging:
                     '/admin/grammar-lab/topics/99/delete',
                     follow_redirects=True,
                 )
+            guard.assert_called_once_with(99)
 
+        mock_db.session.rollback.assert_called_once()
         error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
         assert error_records, "Expected at least one ERROR log record for topic delete failure"
         combined = ' '.join(r.message for r in error_records)

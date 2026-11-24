@@ -9,6 +9,7 @@ from marshmallow import ValidationError
 from sqlalchemy import text
 
 from app.admin.services.curriculum_import_service import ALLOWED_CEFR_LEVELS, CurriculumImportService
+from app.admin.services.guided_lesson_import import is_published_guided_lesson, preserved_guided_lessons
 from app.api.native_content import CHOICE, FILL_BLANKS, TEXT, _prompt
 from app.curriculum.grading import _pair_left, _pair_right, _quiz_option_index, _strict_bool
 from app.curriculum.models import CEFRLevel, Lessons, Module
@@ -205,32 +206,42 @@ def _targets(entries: list[dict]) -> list[_Target]:
 
 def _lesson_state(lesson: Lessons) -> list:
     return [lesson.id, lesson.module_id, lesson.number, lesson.order, lesson.title, lesson.description,
-            lesson.type, lesson.collection_id, lesson.content_version, lesson.content]
+            lesson.type, lesson.collection_id, lesson.grammar_topic_id, lesson.content_version, lesson.content]
 
 
-def _module_state(target: _Target, lock: bool) -> list | None:
+def _module_state(target: _Target, lock: bool) -> tuple[list | None, list[dict]]:
     query = Module.query.join(CEFRLevel).filter(CEFRLevel.code == target.level, Module.number == target.number)
     module = (query.with_for_update(of=Module) if lock else query).populate_existing().one_or_none()
     if module is None:
-        return None
+        return None, []
     query = Lessons.query.filter_by(module_id=module.id).order_by(Lessons.id)
     lessons = (query.with_for_update() if lock else query).populate_existing().all()
     # An authored key beats position. Ambiguous legacy title matches or two
     # source lessons resolving to the same record would steal learner history.
     source = target.data['module'] if isinstance(target.data['module'], dict) else target.data
-    by_number = {lesson.number: lesson for lesson in lessons}
-    by_id = {lesson.id: lesson for lesson in lessons}
+    preserved = preserved_guided_lessons(lessons, source['lessons'])
+    ordinary = [lesson for lesson in lessons if not is_published_guided_lesson(lesson)]
+    by_number = {lesson.number: lesson for lesson in ordinary}
+    by_id = {lesson.id: lesson for lesson in ordinary}
     by_key = {}
     by_title = {}
+    seen_keys = set()
     for lesson in lessons:
         key = lesson.content.get('external_key') if isinstance(lesson.content, dict) else None
         if key:
-            if not _string(key) or key in by_key:
+            if not _string(key) or key in seen_keys:
                 raise ValueError('В модуле неоднозначные внешние ключи уроков.')
+            seen_keys.add(key)
+        if is_published_guided_lesson(lesson):
+            continue
+        if key:
             by_key[key] = lesson
         by_title.setdefault((lesson.type, lesson.title.strip().lower()), []).append(lesson)
     used = set()
-    for row in source['lessons']:
+    for index, row in enumerate(source['lessons']):
+        if index in preserved:
+            used.add(preserved[index].id)
+            continue
         key = (row.get('content') or {}).get('external_key')
         kind = row.get('lesson_type') or row.get('type')
         title = ('card' if kind == 'flashcards' else kind, row['title'].strip().lower())
@@ -256,26 +267,30 @@ def _module_state(target: _Target, lock: bool) -> list | None:
     numbers = {row.get('lesson_number') or row.get('order') or row.get('id') for row in source['lessons']}
     if protected_numbers & numbers:
         raise ValueError('Один из номеров занят уроком, который отсутствует в пакете.')
-    return [module.id, module.title, module.description, module.raw_content, module.input_mode,
-            module.prerequisites, [_lesson_state(lesson) for lesson in lessons]]
+    state = [module.id, module.title, module.description, module.raw_content, module.input_mode,
+             module.prerequisites, [_lesson_state(lesson) for lesson in lessons]]
+    guided = [{'number': lesson.number, 'title': lesson.title}
+              for lesson in sorted(lessons, key=lambda lesson: lesson.number) if is_published_guided_lesson(lesson)]
+    return state, guided
 
 
 def _inspect(targets: list[_Target], lock: bool) -> list[dict]:
     rows = {}
     for target in sorted(targets, key=lambda t: (t.level, t.number, t.lesson_key)):
+        guided = []
         if target.lesson_key:
             lesson = _final_lesson(target.lesson_key, lock=lock)
             if lesson.module.number != target.number or lesson.module.level.code != target.level:
                 raise ValueError('Итоговый тест перемещён. Повторите просмотр пакета.')
             state = _lesson_state(lesson)
         else:
-            state = _module_state(target, lock)
+            state, guided = _module_state(target, lock)
         digest = hashlib.sha256(json.dumps([target.data, state], sort_keys=True, separators=(',', ':'),
                                            ensure_ascii=False, allow_nan=False).encode()).hexdigest()
         title = f'{target.level} · Модуль {target.number} · {target.title}'
         rows[target.name] = {'name': target.name, 'title': title, 'kind': target.kind,
                              'count': target.count, 'operation': 'create' if state is None else 'update',
-                             'fingerprint': digest}
+                             'fingerprint': digest, 'preserved_guided': guided}
     return [rows[target.name] for target in targets]
 
 

@@ -16,7 +16,10 @@
                 <tbody>{% for row in preview.summary %}
                     <tr><td><strong>{{ row.title }}</strong><small class="d-block text-muted text-break">{{ row.name }}</small></td>
                         <td><strong>{% if row.operation == 'create' %}Создание{% else %}Обновление{% endif %}</strong>
-                            <small class="d-block">{% if row.kind == 'module' %}Уроков в модуле{% else %}Заданий в тесте{% endif %} — {{ row.count }}</small></td></tr>
+                            <small class="d-block">{% if row.kind == 'module' %}Уроков в модуле{% else %}Заданий в тесте{% endif %} — {{ row.count }}</small>
+                            {% for lesson in row.preserved_guided %}
+                            <small class="d-block">Пошаговый урок №{{ lesson.number }} сохранится без изменений · {{ lesson.title }}</small>
+                            {% endfor %}</td></tr>
                 {% endfor %}</tbody>
             </table>
         </div>

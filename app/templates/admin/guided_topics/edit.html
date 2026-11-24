@@ -1,0 +1,61 @@
+{% extends 'admin/base.html' %}
+{% block title %}Пошаговая тема {{ topic.slug | upper }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/guided-topics.css') }}">{% endblock %}
+{% macro form_state() %}
+    <input type="hidden" name="base_digest" value="{{ topic.content.guided_catalog_digest }}">
+    {% if recovery %}<input type="hidden" name="recovery" value="{{ recovery }}">{% endif %}
+    {% if draft %}<input type="hidden" name="draft" value="{{ draft }}">{% endif %}
+{% endmacro %}
+{% block content %}
+<div class="guided-editor">
+    <a class="guided-return" href="{{ url_for('.index') }}">Все пошаговые темы</a>
+    <header class="guided-heading">
+        <h1>{{ topic.title_ru }}</h1>
+        <p>Grammar Lab · {{ topic.slug | upper }}</p>
+    </header>
+    {% if error %}<div class="alert alert-warning" role="alert">{{ error }}</div>{% endif %}
+    {% if document %}
+    <form class="guided-main-form" method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ form_state() }}
+        <input type="hidden" name="mode" value="fields">
+        <div class="guided-fields">
+            <label for="guided-title">Название темы</label>
+            <input id="guided-title" class="form-control" name="title" required maxlength="188" value="{{ document.title }}">
+            <label for="guided-goal">Цель</label>
+            <textarea id="guided-goal" class="form-control" name="goal" required rows="2">{{ document.goal }}</textarea>
+        </div>
+        <h2>Теория по шагам</h2>
+        {% for step in document.steps %}
+        <details class="guided-step"{% if loop.first %} open{% endif %}>
+            <summary>{{ loop.index }}. {{ step.title }}</summary>
+            <label for="guided-body-{{ loop.index }}">Текст теории</label>
+            <textarea id="guided-body-{{ loop.index }}" class="form-control" name="body" maxlength="2000" rows="5">{{ step.body }}</textarea>
+        </details>
+        {% endfor %}
+        <button class="btn btn-primary" type="submit">Предпросмотр</button>
+    </form>
+    <details class="guided-source">
+        <summary>Авторский JSON и упражнения</summary>
+        <form method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ form_state() }}
+            <input type="hidden" name="mode" value="source">
+            <label for="guided-document">Авторский документ темы</label>
+            <textarea id="guided-document" name="document" class="form-control guided-json" rows="12" required>{{ source }}</textarea>
+            <button class="btn btn-outline-primary" type="submit">Предпросмотр JSON</button>
+        </form>
+    </details>
+    {% else %}
+    <p>Исходник установленной темы не совпал с восстановленным документом. Вставьте точный авторский JSON этой версии, чтобы открыть поля редактирования.</p>
+    <form method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ form_state() }}
+        <input type="hidden" name="mode" value="recover">
+        <label for="guided-document">Точный исходник темы</label>
+        <textarea id="guided-document" name="document" class="form-control guided-json" rows="12" required>{{ source }}</textarea>
+        <button class="btn btn-primary" type="submit">Проверить исходник</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

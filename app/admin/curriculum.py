@@ -20,6 +20,7 @@ from wtforms.validators import AnyOf, DataRequired, Length, NumberRange, Optiona
 
 from app.admin.audit import log_admin_action
 from app.admin.main_routes import admin
+from app.admin.services.guided_topic_guard import managed_lesson_editor
 from app.admin.utils.decorators import admin_required
 from app.auth.models import User
 from app.books.models import Book
@@ -395,6 +396,8 @@ def create_lesson():
 def edit_lesson(lesson_id):
     """Редактирование урока"""
     lesson = Lessons.query.get_or_404(lesson_id)
+    if guided_editor := managed_lesson_editor(lesson):
+        return guided_editor
     form = LessonForm(obj=lesson)
 
     if form.validate_on_submit():
@@ -432,6 +435,8 @@ def edit_lesson(lesson_id):
 def delete_lesson(lesson_id):
     """Удаление урока"""
     lesson = Lessons.query.get_or_404(lesson_id)
+    if guided_editor := managed_lesson_editor(lesson):
+        return guided_editor
     module_id = lesson.module_id
 
     # Удаляем прогресс пользователей по этому уроку
@@ -451,6 +456,8 @@ def delete_lesson(lesson_id):
 def edit_grammar_lesson(lesson_id):
     """Редактирование грамматического урока"""
     lesson = Lessons.query.get_or_404(lesson_id)
+    if guided_editor := managed_lesson_editor(lesson):
+        return guided_editor
 
     if lesson.type != 'grammar':
         flash(_('Неверный тип урока!'), 'danger')

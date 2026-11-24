@@ -129,7 +129,11 @@ class GrammarTopic(db.Model):
             'exercise_count': self.exercise_count
         }
         if include_content:
-            data['content'] = self.content
+            content = self.content
+            data['content'] = (
+                {key: value for key, value in content.items() if key != 'guided_author_document'}
+                if isinstance(content, dict) else content
+            )
         return data
 
 
