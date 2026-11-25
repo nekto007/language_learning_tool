@@ -5,6 +5,7 @@ const validator=source.slice(source.indexOf('function validPendingGrade('),sourc
 const helperStart=source.indexOf('let restoredPracticeSessionId =');
 const helper=helperStart<0?'':source.slice(helperStart,source.indexOf('function isCurrentExercise'));
 const grade=source.slice(source.indexOf('function showCheckedExercise('),source.indexOf('function renderExercise('));
+const renderable=source.slice(source.indexOf('function isRenderable('),source.indexOf('// Drop unactionable exercises'));
 const revision='a'.repeat(64),key='grammar_practice:1:4',clean=value=>JSON.parse(JSON.stringify(value));
 const items=[{id:17,question:'We ___ here.',exercise_type:'fill_blank',submission_id:'00000000-0000-4000-8000-000000000001'}];
 function state(pending=false){return {exercises:items,revisions:{17:revision},sessionId:'saved-session',currentIndex:0,correctCount:0,wrongCount:0,totalXP:0,checkedAnswer:null,queueChanged:false,timestamp:Date.now(),pendingGrade:pending?{exerciseId:17,given:'are',body:{answer:'are',session_id:'saved-session',source:'topic_practice',exercise_revision:revision,submission_id:items[0].submission_id}}:null};}
@@ -19,13 +20,20 @@ function env(options={}){
   document:{getElementById:get,createElement:()=>node(''),querySelector:()=>({content:'1'}),addEventListener:(name,fn)=>events[name]=fn},
   window:{location:{reload(){context.reload=true;}}},sessionStorage:{getItem:k=>storage.get(k)||null,removeItem:k=>storage.delete(k)},
   fetch:async()=>{throw Error('offline');},AbortController,setTimeout,clearTimeout,
-  isRenderable:ex=>Boolean(ex&&ex.question),getCSRFToken:()=> 'csrf',showExercise(){rendered++;},
+  getCSRFToken:()=> 'csrf',showExercise(){rendered++;},
   clearSessionState:()=>storage.delete(key),saveSessionState:()=>{context.saved=true;},showSubmittedAnswer(){},renderDispute(){}};
  if(options.revisions!==false)context.exerciseRevisions={17:revision};
  vm.createContext(context);vm.runInContext("const sessionId = 'legacy-page-session';",context);
- vm.runInContext(helper+'\n'+validator+'\n'+restore+'\n'+grade,context);
+ vm.runInContext(helper+'\n'+validator+'\n'+renderable+'\n'+restore+'\n'+grade,context);
  return {context,storage,nodes,get,events,rendered:()=>rendered,run:code=>vm.runInContext(code,context),restore:()=>context.restoreSession(),init:()=>context.initializePractice()};
 }
+test('fill blank requires at least two underscores or an explicit source sentence', () => {
+ const {isRenderable}=env().context;
+ for (const [marker, expected] of [['__',true],['___',true],['_',false],['',false]]) {
+  assert.equal(isRenderable({exercise_type:'fill_blank',question:`The vents ${marker} open.`}),expected);
+ }
+ assert.equal(isRenderable({exercise_type:'fill_blank',question:'Complete the sentence.',sentence:'The vents __ open.'}),true);
+});
 test('restoring a modern snapshot never writes the const sessionId emitted by legacy HTML',async()=>{
  const original=state(true),p=env({state:original});assert.equal(await p.restore(),true);assert.equal(p.rendered(),1);
  assert.equal(p.run('sessionId'),'legacy-page-session');assert.equal(p.run('currentPracticeSessionId()'),'saved-session');assert.deepEqual(clean(p.context.pendingGrade),original.pendingGrade);

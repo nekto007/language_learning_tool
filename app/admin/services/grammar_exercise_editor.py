@@ -1,11 +1,13 @@
-"""Structured edits for ordinary reordering and correction exercises."""
+"""Structured edits for ordinary Grammar Lab exercises."""
 
+import re
 from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
 
 from app.curriculum.answer_review_edits import ALIAS_FIELDS, answer_aliases
+from app.curriculum.blank_answers import blank_instruction, has_blank_gap
 from app.grammar_lab.answer_review import (
     active_lab_override,
     effective_content,
@@ -18,14 +20,19 @@ from app.grammar_lab.content_validator import validate_exercise_content
 from app.grammar_lab.models import GrammarExercise
 from app.utils.normalization import normalize_quiz_answer
 
-EDITABLE_TYPES = frozenset(('reorder', 'error_correction'))
+WRITTEN_TYPES = frozenset(('translation', 'fill_blank'))
 _COMMON = ('question', 'instruction', 'hint', 'explanation', 'correct_answer')
 _FIELDS = {
     'reorder': (*_COMMON, 'words', 'alternatives'),
     'error_correction': (*_COMMON, 'sentence', 'error_word', 'correct_sentence', 'full_correct', *ALIAS_FIELDS),
+    'translation': (*_COMMON, 'sentence', *ALIAS_FIELDS),
+    'fill_blank': (*_COMMON, *ALIAS_FIELDS),
 }
+EDITABLE_TYPES = frozenset(_FIELDS)
 _LIST_FIELDS = frozenset(('words', *ALIAS_FIELDS))
 _PATCH_FIELDS = frozenset(('correct_answer', *ALIAS_FIELDS))
+_DIRECTIONS = {'ru-en': ('ru', 'en'), 'en-ru': ('en', 'ru')}
+_TRANSLATION_PREFIX = re.compile(r'^Переведите на (английский|русский):\s*', re.I)
 
 
 @dataclass(frozen=True)
@@ -53,7 +60,38 @@ def _display(value: object) -> str:
 
 def fields_for(exercise: GrammarExercise) -> dict[str, str]:
     current = effective_content(exercise)
-    return {field: _display(current.get(field)) for field in _FIELDS[exercise.exercise_type]}
+    fields = {field: _display(current.get(field)) for field in _FIELDS[exercise.exercise_type]}
+    if exercise.exercise_type in WRITTEN_TYPES:
+        for field in ALIAS_FIELDS[1:]:
+            if not fields[field]:
+                del fields[field]
+    if exercise.exercise_type == 'translation':
+        fields['direction'] = _translation_direction(current)
+    return fields
+
+
+def _translation_direction(row: dict) -> str:
+    target = str(row.get('target_lang') or 'en').lower()
+    return 'en-ru' if target in ('ru', 'rus', 'russian') else 'ru-en'
+
+
+def _translation_phrase(row: dict) -> str:
+    return _TRANSLATION_PREFIX.sub('', row.get('sentence') or row.get('question') or '').strip()
+
+
+def written_prompt(kind: str, row: dict) -> tuple[str, str, str] | None:
+    """Show the wording used by the ordinary web practice."""
+    question = row.get('question') or ''
+    if kind == 'fill_blank':
+        instruction = blank_instruction(row, kind=kind, canonical=row.get('correct_answer'))
+        return (instruction if question else '', question or instruction or 'Заполните пропуск:', 'en')
+    if kind == 'translation':
+        phrase = _translation_phrase(row)
+        source, target = _DIRECTIONS[_translation_direction(row)]
+        default = 'Переведите на русский:' if target == 'ru' else 'Переведите на английский:'
+        label = row.get('instruction') or (question if question.strip() != phrase else '') or default
+        return label, phrase, source
+    return None
 
 
 def _tiles(row: dict) -> Counter:
@@ -114,6 +152,16 @@ def _field_value(key: str, text: str, previous: object) -> object:
 
 def _validate(exercise: GrammarExercise, row: dict) -> None:
     validate_exercise_content(exercise.exercise_type, row)
+    if exercise.exercise_type in WRITTEN_TYPES:
+        key = row['correct_answer']
+        keys = key if isinstance(key, list) else [key]
+        if not all(isinstance(value, str) and grade_row(exercise, row, value)['is_correct'] for value in keys):
+            raise ValueError('Укажите текстовый ключ, который принимает проверка.')
+        if exercise.exercise_type == 'translation' and not _translation_phrase(row):
+            raise ValueError('Укажите исходную фразу для перевода.')
+        if exercise.exercise_type == 'fill_blank' and not has_blank_gap(row.get('question')):
+            raise ValueError('Обозначьте пропуск двумя или более подчёркиваниями.')
+        return
     if exercise.exercise_type == 'error_correction':
         if not (row.get('sentence') or row.get('question')) or not accepted_answers(exercise, row):
             raise ValueError('Нужны ошибочная фраза и хотя бы один ответ, который принимает проверка.')
@@ -142,9 +190,18 @@ def plan_edit(
     authored = exercise.content.copy()
     patch = {}
     for key, value in submitted.items():
+        if key == 'direction':
+            if value not in _DIRECTIONS:
+                raise ValueError('Выберите направление перевода.')
+            if value != _translation_direction(before):
+                authored['source_lang'], authored['target_lang'] = _DIRECTIONS[value]
+            continue
         if value == _display(before.get(key)):
             continue
-        new = _field_value(key, value, before.get(key))
+        key_list = key == 'correct_answer' and exercise.exercise_type in WRITTEN_TYPES and (
+            isinstance(before.get(key), list) or '\n' in value
+        )
+        new = _field_value('alternatives' if key_list else key, value, before.get(key))
         if active and key in _PATCH_FIELDS:
             patch[key] = new
         elif new or key == 'correct_answer':
@@ -159,6 +216,8 @@ def plan_edit(
         return None
     _validate(exercise, after)
     relevant = set(_FIELDS[exercise.exercise_type]) - {'hint', 'explanation', 'words'}
+    if exercise.exercise_type == 'translation':
+        relevant.update(('source_lang', 'target_lang'))
     if exercise.exercise_type == 'reorder':
         relevant -= {'correct_answer', 'alternatives'}
         before_answers, after_answers = (

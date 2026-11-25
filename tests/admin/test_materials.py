@@ -92,12 +92,16 @@ def test_editor_back_link_and_save_keep_search_and_page(
         assert parse_qs(urlsplit(back).query) == {key: [value] for key, value in search.items()}
         assert _results(_page(admin_client.get(back))) == _results(page)
 
-        data = ({'title': 'Harbour second lesson', 'description': 'Saved via catalog',
-                 'number': '2', 'module_id': str(lesson.module_id)}
-                if kind == 'lesson' else {'exercise_type': 'translation', 'order': '3', 'difficulty': '2',
-                                         'content': '{"question":"Harbour second exercise","correct_answer":"A port"}'})
+        if kind == 'lesson':
+            data = {'title': 'Harbour second lesson', 'description': 'Saved via catalog',
+                    'number': '2', 'module_id': str(lesson.module_id)}
+        else:
+            revision = editor.select_one('input[name=revision]')['value']
+            data = {'editor_type': 'translation', 'revision': revision, 'order': '3', 'difficulty': '2'}
+            preview = _page(admin_client.post(editor_url, data={**data, 'action': 'preview'}))
+            data.update(action='apply', preview_token=preview.select_one('input[name=preview_token]')['value'])
         saved = admin_client.post(editor_url, data=data)
-        assert saved.status_code == 302 and saved.location == back
+        assert saved.status_code == (302 if kind == 'lesson' else 303) and saved.location == back
         assert _results(_page(admin_client.get(saved.location))) == _results(page)
         if kind == 'lesson':
             assert db_session.get(Lessons, item_id).description == 'Saved via catalog'

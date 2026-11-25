@@ -175,7 +175,7 @@ class TestGrammarLabRouteErrorLogging:
         with patch('app.admin.routes.grammar_lab_routes.GrammarExercise') as mock_ex_cls:
             mock_ex = MagicMock()
             mock_ex.topic_id = 3
-            mock_ex.exercise_type = 'fill_blank'
+            mock_ex.exercise_type = 'transformation'
             mock_ex.content = {'correct_answer': 'word'}
             mock_ex.order = 1
             mock_ex.difficulty = 1
@@ -188,7 +188,7 @@ class TestGrammarLabRouteErrorLogging:
                 admin_client.post(
                     '/admin/grammar-lab/exercises/55/edit',
                     data={
-                        'exercise_type': 'fill_blank',
+                        'exercise_type': 'transformation',
                         'order': '1',
                         'difficulty': '1',
                         'content': '{"correct_answer": "word"}',

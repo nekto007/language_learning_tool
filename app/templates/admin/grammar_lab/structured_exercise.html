@@ -1,10 +1,31 @@
 {% extends 'admin/base.html' %}
 
+{% macro alias_field(name, label, value, translation) %}
+<div class="mb-3">
+    <label class="form-label" for="{{ name }}">{{ label }}</label>
+    <textarea class="form-control"{% if not translation %} lang="en"{% endif %} id="{{ name }}" name="{{ name }}" rows="3" maxlength="8000"
+              aria-describedby="{{ name }}-help">{{ value }}</textarea>
+    <p class="form-text" id="{{ name }}-help">Один вариант на строку.</p>
+</div>
+{% endmacro %}
+
 {% block title %}Упражнение Grammar Lab{% endblock %}
 {% block content %}
+{% set kind = exercise.exercise_type %}
+{% set reorder = kind == 'reorder' %}
+{% set translation = kind == 'translation' %}
+{% set written = kind in ('translation', 'fill_blank') %}
 <p><a href="{{ url_for('.edit_topic', topic_id=topic.id) }}">К теме «{{ topic.title_ru or topic.title }}»</a></p>
-<h1 class="h3">{{ 'Собрать предложение' if exercise.exercise_type == 'reorder' else 'Исправить ошибку' }}</h1>
+<h1 class="h3">{{ {'reorder': 'Собрать предложение', 'error_correction': 'Исправить ошибку',
+                   'translation': 'Перевод', 'fill_blank': 'Заполнить пропуск'}[kind] }}</h1>
 <p class="text-muted">Упражнение №{{ exercise.id }}</p>
+{% if written %}
+{% set source = exercise.content.get('source') %}
+<p class="small text-muted">Тема {{ topic.slug }} · {% if source == 'json_import' %}Импорт JSON{% elif source == 'module_import' %}Импорт из модуля{% else %}Источник не указан{% endif %}</p>
+{% if source in ('json_import', 'module_import') %}
+<p class="alert alert-info">Повторный импорт прежнего набора может снять изменённое упражнение с показа. Попытки и решения сохраняются в его истории.</p>
+{% endif %}
+{% endif %}
 {% if error %}<p class="alert alert-warning" role="alert" data-persist="true">{{ error }}</p>{% endif %}
 <form method="post" action="{{ url_for('.edit_exercise', exercise_id=exercise.id, materials_query=request.args.get('materials_query')) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -15,7 +36,7 @@
     <section class="card mb-3" aria-labelledby="exercise-trial-title">
         <div class="card-body text-break">
             <h2 class="h5" id="exercise-trial-title">Проверка текущего ответа</h2>
-            <p><span lang="en">{{ trial }}</span> · {{ 'верно' if trial_result else 'неверно' }}</p>
+            <p><span{% if not translation %} lang="en"{% endif %}>{{ trial }}</span> · {{ 'верно' if trial_result else 'неверно' }}</p>
             <p class="mb-0">Изменений в упражнении нет.</p>
         </div>
     </section>
@@ -25,10 +46,15 @@
         <div class="card-body">
             <h2 class="h5" id="exercise-preview-title">Предпросмотр</h2>
             <div class="row gy-3 text-break">
-                {% for heading, row, accepted, result in preview.sides %}
+                {% for heading, row, prompt, accepted, result in preview.sides %}
                 <div class="col-md-6">
                     <h3 class="h6">{{ heading }}</h3>
-                    {% if row.question and exercise.exercise_type == 'reorder' %}
+                    {% if prompt %}
+                    {% if translation %}<p class="text-muted mb-1">{{ 'Русский → английский' if prompt[2] == 'ru' else 'Английский → русский' }}</p>{% endif %}
+                    {% if prompt[0] %}<p class="mb-1">{{ prompt[0] }}</p>{% endif %}
+                    <p class="mb-1 fw-semibold" lang="{{ prompt[2] }}">{{ prompt[1] }}</p>
+                    {% else %}
+                    {% if row.question and reorder %}
                     <p class="mb-1"><strong>Справочный текст</strong> · {{ row.question }}</p>
                     {% elif row.question and row.sentence %}
                     <p class="mb-1"><strong>Запасная фраза с ошибкой</strong> · {{ row.question }}</p>
@@ -36,6 +62,7 @@
                     {% if row.instruction %}<p class="mb-1">{{ row.instruction }}</p>{% endif %}
                     {% if exercise.exercise_type == 'error_correction' and (row.sentence or row.question) %}
                     <p class="mb-1" lang="en">{{ row.sentence or row.question }}</p>
+                    {% endif %}
                     {% endif %}
                     {% if row.hint %}<p class="mb-1"><strong>Подсказка</strong> · {{ row.hint }}</p>{% endif %}
                     {% if row.words %}
@@ -45,7 +72,7 @@
                     {% endif %}
                     <h4 class="h6">Проверка принимает</h4>
                     {% if accepted %}
-                    <ul class="mb-2">{% for answer in accepted %}<li lang="en">{{ answer }}</li>{% endfor %}</ul>
+                    <ul class="mb-2">{% for answer in accepted %}<li lang="{{ 'ru' if translation and prompt[2] == 'en' else 'en' }}">{{ answer }}</li>{% endfor %}</ul>
                     {% else %}<p class="mb-2">Среди заданных вариантов нет принимаемого ответа.</p>{% endif %}
                     {% if trial %}<p><strong>Проверка «{{ trial }}»</strong> · {{ 'верно' if result else 'неверно' }}</p>{% endif %}
                     {% if row.explanation %}<p class="mb-0"><strong>Объяснение</strong> · {{ row.explanation }}</p>{% endif %}
@@ -71,13 +98,26 @@
     <div class="card mb-3" id="exercise-fields">
         <div class="card-body">
             <h2 class="h5">Условие</h2>
-            {% set reorder = exercise.exercise_type == 'reorder' %}
+            {% if translation %}
             <div class="mb-3">
-                <label class="form-label" for="question">{{ 'Справочный текст' if reorder else 'Запасная фраза с ошибкой' }}</label>
+                <label class="form-label" for="direction">Направление перевода</label>
+                <select class="form-select" id="direction" name="direction">
+                    <option value="ru-en"{% if values.direction == 'ru-en' %} selected{% endif %}>Русский → английский</option>
+                    <option value="en-ru"{% if values.direction == 'en-ru' %} selected{% endif %}>Английский → русский</option>
+                </select>
+            </div>
+            {% endif %}
+            <div class="mb-3">
+                <label class="form-label" for="question">{{ {'reorder': 'Справочный текст', 'error_correction': 'Запасная фраза с ошибкой',
+                                                            'translation': 'Текст задания', 'fill_blank': 'Фраза с пропуском'}[kind] }}</label>
                 <textarea class="form-control" id="question" name="question" rows="2" maxlength="500"
                           aria-describedby="exercise-question-help">{{ values.question }}</textarea>
-                <p class="form-text" id="exercise-question-help">{{ 'В практике ученик видит инструкцию.' if reorder
-                    else 'Показывается, если поле «Фраза с ошибкой» пусто.' }}</p>
+                <p class="form-text" id="exercise-question-help">
+                    {% if reorder %}В практике ученик видит инструкцию.
+                    {% elif translation %}Если отдельная исходная фраза пуста, этот текст показывается как фраза для перевода.
+                    {% elif written %}Обозначьте пропуск двумя или более подчёркиваниями, например __.
+                    {% else %}Показывается, если поле «Фраза с ошибкой» пусто.{% endif %}
+                </p>
             </div>
             {% for name, label in (('instruction', 'Инструкция'), ('hint', 'Подсказка')) %}
             <div class="mb-3">
@@ -99,7 +139,10 @@
                     <button type="button" class="btn btn-outline-primary btn-sm" id="builder-use" disabled>Использовать как ключ</button>
                 </div>
             </details>
-            {% else %}
+            {% elif translation %}
+            <label class="form-label" for="sentence">Исходная фраза</label>
+            <textarea class="form-control" id="sentence" name="sentence" rows="2" maxlength="500">{{ values.sentence }}</textarea>
+            {% elif kind == 'error_correction' %}
             <div class="mb-3">
                 <label class="form-label" for="sentence">Фраза с ошибкой</label>
                 <textarea class="form-control" lang="en" id="sentence" name="sentence" rows="2" maxlength="500">{{ values.sentence }}</textarea>
@@ -114,7 +157,13 @@
         {% if decision %}<p>Показаны действующие ответы с учётом согласованного решения.</p>{% endif %}
         <div class="mb-3">
             <label class="form-label" for="correct_answer">{{ 'Ключ' if exercise.exercise_type == 'reorder' else 'Основной ключ' }}</label>
+            {% if written %}
+            <textarea class="form-control" id="correct_answer" name="correct_answer" rows="2" maxlength="8000"
+                      aria-describedby="key-help" required>{{ values.correct_answer }}</textarea>
+            <p class="form-text" id="key-help">{{ 'Укажите текст для пропуска. ' if not translation else '' }}Если ключей несколько, введите по одному на строку.</p>
+            {% else %}
             <input class="form-control" lang="en" id="correct_answer" name="correct_answer" maxlength="500" value="{{ values.correct_answer }}" required>
+            {% endif %}
         </div>
         {% if exercise.exercise_type == 'error_correction' %}
         <div class="mb-3">
@@ -128,15 +177,24 @@
             <p class="form-text" id="correct-sentence-help">Если поле заполнено, проверка использует его вместо основного ключа.</p>
         </div>
         {% endif %}
-        {% for name, label in (('alternatives', 'Допустимые варианты'), ('alternative_answers', 'Дополнительные варианты'),
-                              ('acceptable_answers', 'Дополнительные ответы')) if name in values %}
-        <div class="mb-3">
-            <label class="form-label" for="{{ name }}">{{ label }}</label>
-            <textarea class="form-control" lang="en" id="{{ name }}" name="{{ name }}" rows="3" maxlength="8000"
-                      aria-describedby="{{ name }}-help">{{ values[name] }}</textarea>
-            <p class="form-text" id="{{ name }}-help">Один вариант на строку.</p>
-        </div>
-        {% endfor %}
+        {{ alias_field('alternatives', 'Допустимые варианты', values.alternatives, translation) }}
+        {% set other_aliases = (('alternative_answers', 'Дополнительные варианты'), ('acceptable_answers', 'Дополнительные ответы')) %}
+        {% if written and ('alternative_answers' in values or 'acceptable_answers' in values) %}
+        {% set other_lines = ((values.get('alternative_answers', '') + '\n' + values.get('acceptable_answers', '')).splitlines()
+                             | map('trim') | reject('equalto', '') | list) %}
+        <details class="border rounded p-3 mb-3" id="saved-aliases">
+            <summary>Другие сохранённые варианты ({{ other_lines|length }})</summary>
+            <div class="mt-3">
+                {% for name, label in other_aliases if name in values %}
+                {{ alias_field(name, label, values[name], translation) }}
+                {% endfor %}
+            </div>
+        </details>
+        {% elif not written %}
+            {% for name, label in other_aliases if name in values %}
+            {{ alias_field(name, label, values[name], translation) }}
+            {% endfor %}
+        {% endif %}
         <label class="form-label" for="explanation">Объяснение</label>
         <textarea class="form-control" id="explanation" name="explanation" rows="3" maxlength="4000">{{ values.explanation }}</textarea>
     </div></div>
@@ -156,7 +214,7 @@
         </div>
         <div class="col-12 col-md-6">
             <label class="form-label" for="trial">Проверить свой вариант в предпросмотре</label>
-            <input class="form-control" lang="en" id="trial" name="trial" maxlength="500" value="{{ trial }}">
+            <input class="form-control"{% if not translation %} lang="en"{% endif %} id="trial" name="trial" maxlength="500" value="{{ trial }}">
         </div>
     </div>
     <button type="submit" class="btn {{ 'btn-outline-primary' if preview else 'btn-primary' }}" name="action" value="preview">Предпросмотр</button>

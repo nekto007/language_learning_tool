@@ -580,7 +580,7 @@ class TestEditExerciseValidation:
 
         exercise = GrammarExercise(
             topic_id=topic.id,
-            exercise_type='fill_blank',
+            exercise_type='transformation',
             content={'question': 'Q', 'correct_answer': 'a'},
             difficulty=1,
             order=1,
@@ -598,7 +598,7 @@ class TestEditExerciseValidation:
         response = admin_client.post(
             f'/admin/grammar-lab/exercises/{exercise.id}/edit',
             data={
-                'exercise_type': 'fill_blank',
+                'exercise_type': 'transformation',
                 'content': json.dumps({'question': 'No answer field'}),
                 'difficulty': '1',
                 'order': '1',
@@ -615,7 +615,7 @@ class TestEditExerciseValidation:
         response = admin_client.post(
             f'/admin/grammar-lab/exercises/{exercise.id}/edit',
             data={
-                'exercise_type': 'fill_blank',
+                'exercise_type': 'transformation',
                 'content': json.dumps({'question': 'Q', 'correct_answer': 'a'}),
                 'difficulty': '5',
                 'order': '1',
@@ -632,7 +632,7 @@ class TestEditExerciseValidation:
         response = admin_client.post(
             f'/admin/grammar-lab/exercises/{exercise.id}/edit',
             data={
-                'exercise_type': 'fill_blank',
+                'exercise_type': 'transformation',
                 'content': json.dumps({'question': 'Q', 'correct_answer': 'a'}),
                 'difficulty': '0',
                 'order': '1',

@@ -113,8 +113,8 @@ function isRenderable(ex) {
   if (t === 'true_false') return !!txt(ex.statement || ex.question);
   if (t === 'error_correction') return !!txt(ex.sentence || ex.question);
   if (t === 'fill_blank') {
-    // Needs a blank to fill (question with ___) or an explicit source sentence.
-    return txt(ex.question).indexOf('___') !== -1 || !!txt(ex.sentence);
+    // Match the grader's gap marker of two or more underscores.
+    return /_{2,}/.test(txt(ex.question)) || !!txt(ex.sentence);
   }
   // translation / transformation / default: need a non-empty prompt phrase.
   return !!txt(ex.question || ex.sentence || ex.statement || ex.original);

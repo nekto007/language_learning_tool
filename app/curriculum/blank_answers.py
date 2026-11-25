@@ -27,6 +27,11 @@ def normalize_completed_blank(text: str) -> str:
     ).split())
 
 
+def has_blank_gap(text: object) -> bool:
+    """Recognize an underscore gap using the same marker as the grader."""
+    return isinstance(text, str) and _GAP.search(text) is not None
+
+
 def _response_template(prompt: str) -> tuple[str, str]:
     # Inline parentheses after a gap and trailing parentheticals are author
     # hints. In particular a trailing hint can show a different blank.

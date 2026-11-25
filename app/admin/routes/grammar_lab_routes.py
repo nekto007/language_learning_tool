@@ -27,7 +27,14 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy.exc import IntegrityError
 
 from app.admin.audit import log_admin_action
-from app.admin.services.grammar_exercise_editor import EDITABLE_TYPES, accepted_answers, editor_revision, fields_for, plan_edit
+from app.admin.services.grammar_exercise_editor import (
+    EDITABLE_TYPES,
+    accepted_answers,
+    editor_revision,
+    fields_for,
+    plan_edit,
+    written_prompt,
+)
 from app.admin.services.grammar_exercise_import import (
     JSON_SOURCE,
     MODULE_SOURCE,
@@ -631,7 +638,7 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
                         flash('Упражнение сохранено.', 'success')
                         return redirect(materials_return_url() or url_for('.edit_topic', topic_id=exercise.topic_id), code=303)
                     error, status = 'Подтвердите сверку старых и новых ответов.', 422
-                sides = [(caption, row, accepted_answers(exercise, row),
+                sides = [(caption, row, written_prompt(exercise.exercise_type, row), accepted_answers(exercise, row),
                           grade_row(exercise, row, trial)['is_correct'] if trial else None)
                          for caption, row in (('Сейчас', before), ('После сохранения', planned.effective))]
                 preview = {'sides': sides, 'needs_confirmation': planned.needs_confirmation}

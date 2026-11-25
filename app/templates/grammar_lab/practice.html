@@ -251,5 +251,5 @@ const topicId = null;
 {% endif %}
 const exerciseRevisions = {{ session.exercise_revisions|default({})|tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/grammar/practice.js') }}?v=20261124-controls"></script>
+<script src="{{ url_for('static', filename='js/grammar/practice.js', v='20261125-blank-gap') }}"></script>
 {% endblock %}
