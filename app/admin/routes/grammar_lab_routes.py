@@ -18,12 +18,16 @@ Cascade-deletion упражнений (lapses/attempts/SRS-rows) обеспеч�
 """
 import json
 import logging
+from dataclasses import asdict
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy.exc import IntegrityError
 
 from app.admin.audit import log_admin_action
+from app.admin.services.grammar_exercise_editor import EDITABLE_TYPES, accepted_answers, editor_revision, fields_for, plan_edit
 from app.admin.services.grammar_exercise_import import (
     JSON_SOURCE,
     MODULE_SOURCE,
@@ -36,6 +40,8 @@ from app.admin.services.grammar_exercise_import import (
 )
 from app.admin.services.guided_topic_guard import managed_topic_editor
 from app.admin.utils.decorators import admin_required
+from app.grammar_lab.answer_review import active_lab_override, effective_content, grade_row
+from app.grammar_lab.content_catalog import content_digest
 from app.grammar_lab.models import GrammarExercise, GrammarTopic
 from app.utils.db import db
 
@@ -572,17 +578,101 @@ def create_exercise(topic_id):
     return render_template('admin/grammar_lab/exercise_form.html', topic=topic, exercise=None)
 
 
+def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
+    from app.admin.routes.materials import materials_return_url
+
+    action = request.form.get('action') if request.method == 'POST' else None
+    if action == 'apply':
+        exercise = GrammarExercise.query.filter_by(id=exercise.id).populate_existing().with_for_update().first_or_404()
+        if exercise.exercise_type not in EDITABLE_TYPES:
+            return 'Упражнение изменилось. Откройте его актуальную версию.', 409  # noqa: RUF001 -- Russian form message.
+    revision = editor_revision(exercise)
+    values = fields_for(exercise)
+    difficulty = '' if exercise.difficulty is None else str(exercise.difficulty)
+    order = '' if exercise.order is None else str(exercise.order)
+    token, error, trial, status = '', '', '', 200
+    preview = None
+    trial_result = None
+    if request.method == 'POST':
+        values = {key: request.form.get(key, value).replace('\r\n', '\n').replace('\r', '\n').strip()
+                  for key, value in values.items()}
+        difficulty, order = request.form.get('difficulty', difficulty), request.form.get('order', order)
+        trial = request.form.get('trial', '').strip()[:500]
+        try:
+            if action not in ('preview', 'apply'):
+                return 'Откройте форму упражнения и выполните предпросмотр.', 400
+            if request.form.get('revision') != revision:
+                raise BadSignature('stale exercise')
+            planned = plan_edit(exercise, values, int(difficulty) if difficulty.strip() else None,
+                                int(order) if order.strip() else None)
+            before = effective_content(exercise)
+            if planned is None:
+                if action == 'apply':
+                    raise BadSignature('no changes to apply')
+                if not trial:
+                    raise ValueError('Изменений нет. Введите пробный ответ для проверки.')
+                trial_result = grade_row(exercise, before, trial)['is_correct']
+            else:
+                serializer = URLSafeTimedSerializer(current_app.secret_key, salt='admin-lab-exercise-edit')
+                binding = [current_user.id, exercise.id, revision, content_digest(asdict(planned))]
+                if action == 'apply':
+                    signed = request.form.get('preview_token', '')
+                    if len(signed) > 1024 or serializer.loads(signed, max_age=1800) != binding:
+                        raise BadSignature('stale preview')
+                    if not planned.needs_confirmation or request.form.get('decision_checked') == 'yes':
+                        if exercise.content != planned.authored:
+                            exercise.content = planned.authored
+                        if exercise.answer_review_override != planned.override:
+                            exercise.answer_review_override = planned.override
+                        exercise.difficulty, exercise.order = planned.difficulty, planned.order
+                        log_admin_action(current_user.id, 'grammar_exercise.update', 'grammar_exercise',
+                                         exercise.id, required=True)
+                        db.session.commit()
+                        flash('Упражнение сохранено.', 'success')
+                        return redirect(materials_return_url() or url_for('.edit_topic', topic_id=exercise.topic_id), code=303)
+                    error, status = 'Подтвердите сверку старых и новых ответов.', 422
+                sides = [(caption, row, accepted_answers(exercise, row),
+                          grade_row(exercise, row, trial)['is_correct'] if trial else None)
+                         for caption, row in (('Сейчас', before), ('После сохранения', planned.effective))]
+                preview = {'sides': sides, 'needs_confirmation': planned.needs_confirmation}
+                token = serializer.dumps(binding)
+        except BadSignature:
+            db.session.rollback()
+            error, status = 'Предпросмотр истёк или упражнение изменилось. Откройте свежий предпросмотр.', 409
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            error, status = str(exc), 422
+        except Exception:
+            db.session.rollback()
+            logger.exception('Structured grammar exercise edit failed exercise_id=%s admin_id=%s',
+                             exercise.id, current_user.id)
+            raise
+    response = current_app.make_response((render_template(
+        'admin/grammar_lab/structured_exercise.html', exercise=exercise, topic=exercise.topic, values=values,
+        difficulty=difficulty, order=order, revision=revision, preview=preview, token=token, trial=trial, error=error,
+        trial_result=trial_result, decision=active_lab_override(exercise) is not None,
+    ), status))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
+
+
 @grammar_lab_bp.route('/grammar-lab/exercises/<int:exercise_id>/edit', methods=['GET', 'POST'])
 @admin_required
-def edit_exercise(exercise_id):
+def edit_exercise(exercise_id: int) -> ResponseReturnValue:
     """Edit an exercise"""
     from app.admin.routes.materials import materials_return_url
 
     exercise = GrammarExercise.query.get_or_404(exercise_id)
     topic = exercise.topic
 
+    if (request.method == 'POST' and ('revision' in request.form or 'action' in request.form)
+            and (exercise.exercise_type not in EDITABLE_TYPES
+                 or request.form.get('editor_type', exercise.exercise_type) != exercise.exercise_type)):
+        return 'Упражнение изменилось. Откройте его актуальную версию.', 409  # noqa: RUF001 -- Russian form message.
     if guided_editor := managed_topic_editor(topic.id):
         return guided_editor
+    if exercise.exercise_type in EDITABLE_TYPES:
+        return _structured_exercise_form(exercise)
     if request.method == 'POST':
         try:
             exercise.exercise_type = request.form.get('exercise_type', exercise.exercise_type)

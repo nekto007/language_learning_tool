@@ -20,20 +20,41 @@ def _revision(exercise: GrammarExercise, row: dict) -> str:
     return content_digest([exercise.topic_id, exercise.exercise_type, material])
 
 
-def effective_content(exercise: GrammarExercise) -> dict:
-    """Keep the authored catalog intact and expire the correction when the source changes."""
-    raw = exercise.content
+def active_lab_override(exercise: GrammarExercise, row: dict | None = None) -> dict | None:
+    """Return the decision attached to this authored revision and grader."""
+    raw = exercise.content if row is None else row
     override = getattr(exercise, 'answer_review_override', None)
     if (not isinstance(override, dict) or override.get('source_revision') != _revision(exercise, raw)
             or override.get('grader_version') != LAB_GRADER_VERSION):
-        return raw
+        return None
     patch = override.get('patch')
     if not isinstance(patch, dict) or not patch.keys() <= {'correct_answer', 'correct_index', *ALIAS_FIELDS}:
-        return raw
+        return None
+    return override
+
+
+def lab_content_with_patch(raw: dict, patch: dict) -> dict:
     effective = {**raw, **patch}
     if 'correct_answer' in patch and 'answer' in raw and raw['answer'] == raw.get('correct_answer'):
         effective['answer'] = patch['correct_answer']
     return effective
+
+
+def effective_content(exercise: GrammarExercise) -> dict:
+    """Keep the authored catalog intact and expire the correction when the source changes."""
+    raw = exercise.content
+    override = active_lab_override(exercise)
+    if override is None:
+        return raw
+    return lab_content_with_patch(raw, override['patch'])
+
+
+def rebased_lab_override(exercise: GrammarExercise, authored: dict, changes: dict) -> dict | None:
+    """Keep the current decision attached when an editor updates its own source."""
+    override = active_lab_override(exercise)
+    if override is None:
+        return exercise.answer_review_override
+    return {**override, 'source_revision': _revision(exercise, authored), 'patch': {**override['patch'], **changes}}
 
 
 def lab_revision(exercise: GrammarExercise) -> str:
