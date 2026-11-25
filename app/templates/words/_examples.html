@@ -1,0 +1,13 @@
+{% macro render_examples(value, pairs) %}
+    {% if pairs is not none %}
+        {% for english, russian in pairs %}
+        <p class="mb-2">
+            {% if english %}<span lang="en">{{ english }}</span>{% endif %}
+            {% if english and russian %}<br>{% endif %}
+            {% if russian %}<span lang="ru">{{ russian }}</span>{% endif %}
+        </p>
+        {% endfor %}
+    {% else %}
+        {{ value|sanitize }}
+    {% endif %}
+{% endmacro %}

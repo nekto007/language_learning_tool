@@ -7,11 +7,14 @@ Word Management Routes для административной панели
 import logging
 from hashlib import sha256
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+import bleach
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from app.admin.audit import log_admin_action
+from app.admin.services.word_card_examples import Examples, parse_examples, replacement_examples, validate_example_lines
 from app.admin.services.word_management_service import WordManagementService
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.decorators import admin_required, handle_admin_errors
@@ -20,8 +23,11 @@ from app.admin.utils.import_helpers import delete_import_data, load_import_data,
 from app.admin.utils.request_validators import get_choice_arg, get_enum_arg, get_int_arg
 from app.auth.models import User
 from app.modules.service import ModuleService
+from app.public_copy import digest
 from app.utils.db import db
 from app.utils.validators import WordStatus
+from app.words.detail_service import normalise_word_list
+from app.words.example_projection import json_example_pairs
 from app.words.models import CollectionWords
 from app.words.routes import encode_word_slug
 
@@ -62,6 +68,192 @@ def edit_translation(word_id: int) -> ResponseReturnValue:
                            revision=revision, error=error, slug=encode_word_slug(word.english_word),
                            public_word=not word.level or word.level in PUBLIC_CEFR_CODES,
                            card_available=ModuleService.is_module_enabled_for_user(current_user.id, 'words')), status
+
+
+_CARD_FIELDS = {'ipa_transcription': 160, 'synonyms': 1500, 'antonyms': 1500, 'etymology': 2000}
+
+
+def _card_values(state: dict) -> dict[str, str]:
+    return {
+        'ipa_transcription': (state['ipa_transcription'] or '').strip(),
+        'synonyms': '\n'.join(normalise_word_list(state['synonyms'])),
+        'antonyms': '\n'.join(normalise_word_list(state['antonyms'])),
+        'etymology': (state['etymology'] or '').replace('\r\n', '\n').replace('\r', '\n').strip(),
+    }
+
+
+def _card_input(key: str) -> str:
+    return request.form[key].replace('\r\n', '\n').replace('\r', '\n').strip()
+
+
+def _card_candidate(state: dict, values: dict[str, str], examples: Examples, index: int | None) -> dict:
+    candidate = state.copy()
+    before = _card_values(state)
+    for key, limit in _CARD_FIELDS.items():
+        value = values[key]
+        if value == before[key]:
+            continue
+        if len(value) > limit or any(ord(char) < 32 and char != '\n' for char in value) or '\x7f' in value:
+            raise ValueError('Проверьте длину и символы в дополнительных полях.')
+        if key == 'ipa_transcription':
+            if '\n' in value:
+                raise ValueError('Транскрипция должна быть в одной строке.')
+            candidate[key] = WordManagementService._normalize_ipa(value)
+        elif key in ('synonyms', 'antonyms'):
+            items = normalise_word_list(value.splitlines())
+            if len(items) > 20 or any(len(item) > 120 for item in items):
+                raise ValueError('Можно указать до 20 слов, не более 120 символов в строке.')
+            candidate[key] = items
+        else:
+            candidate[key] = value or None
+    if index is not None:
+        english, russian = values['example_en'], values['example_ru']
+        if examples.empty_format is not None and not english and not russian:
+            return candidate
+        validate_example_lines(english, russian)
+        updated = examples.edit(index, english, russian)
+        if updated != examples.source:
+            candidate['sentences'] = updated
+    return candidate
+
+
+def _card_study_preview(sentences: str | None, *, changed: bool) -> str:
+    from app.api.native_lessons import NativeLessonError
+    from app.api.native_srs import _examples
+
+    try:
+        return _examples(sentences or '')
+    except NativeLessonError as exc:
+        if changed:
+            raise ValueError('Сократите общую длину примеров для повторения слов.') from exc
+        return ''
+
+
+@word_bp.route('/words/<int:word_id>/card', methods=['GET', 'POST'])
+@admin_required
+def edit_card(word_id: int) -> ResponseReturnValue:
+    from app.admin.routes.materials import materials_return_url
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    action = request.form.get('action') if request.method == 'POST' else None
+    query = CollectionWords.query.filter_by(id=word_id)
+    if action == 'apply':
+        query = query.populate_existing().with_for_update()
+    word = query.first_or_404()
+    state = {key: getattr(word, key) for key in ('sentences', *_CARD_FIELDS)}
+    revision = digest(state)
+    examples = parse_examples(word.sentences)
+    index = request.args.get('example', 0, type=int) if examples.pairs or examples.empty_format else None
+    if index is not None and not 0 <= index < max(1, len(examples.pairs)):
+        abort(404)
+    values = _card_values(state)
+    if index is not None:
+        pair = examples.pairs[index] if examples.pairs else None
+        values['example_en'] = pair.english.text if pair else ''
+        values['example_ru'] = pair.russian.text if pair and pair.russian is not None else ''
+    preview, token, error, status = None, '', '', 200
+    if request.method == 'POST':
+        values = {key: _card_input(key) for key in values}
+        try:
+            if request.form.get('revision') != revision:
+                raise BadSignature('stale word card')
+            if action not in ('preview', 'apply'):
+                abort(400)
+            candidate = _card_candidate(state, values, examples, index)
+            signer = URLSafeTimedSerializer(current_app.secret_key, salt='admin-word-card')
+            binding = [current_user.id, word.id, index, revision, digest(candidate)]
+            if action == 'preview':
+                if candidate == state:
+                    raise ValueError('Изменений нет.')
+                preview = {**candidate, **_card_values(candidate),
+                           'study_examples': _card_study_preview(candidate['sentences'],
+                                                                 changed=candidate['sentences'] != state['sentences']),
+                           'etymology': bleach.clean(candidate['etymology'] or '', tags=[], strip=True),
+                           'example_pairs': json_example_pairs(candidate['sentences'])}
+                token = signer.dumps(binding)
+            else:
+                supplied = request.form.get('preview_token', '')
+                if len(supplied) > 1024 or signer.loads(supplied, max_age=1800) != binding or candidate == state:
+                    raise BadSignature('stale or modified preview')
+                for key, value in candidate.items():
+                    if value != state[key]:
+                        setattr(word, key, value)
+                log_admin_action(current_user.id, 'word.card.update', 'word', word.id, required=True)
+                db.session.commit()
+                clear_admin_cache()
+                flash('Карточка слова сохранена.', 'success')
+                return redirect(materials_return_url() or url_for('.edit_card', word_id=word.id), code=303)
+        except BadSignature:
+            db.session.rollback()
+            error, status = 'Карточка или предпросмотр изменились. Откройте свежую карточку и повторите правку.', 409
+        except ValueError as exc:
+            db.session.rollback()
+            error, status = str(exc), 422
+        except Exception:
+            db.session.rollback()
+            raise
+    return render_template(
+        'admin/words/edit_word_card.html', word=word, values=values, examples=examples, selected=index, revision=revision,
+        preview=preview, token=token, error=error, slug=encode_word_slug(word.english_word),
+        public_word=not word.level or word.level in PUBLIC_CEFR_CODES,
+        card_available=ModuleService.is_module_enabled_for_user(current_user.id, 'words'),
+    ), status
+
+
+@word_bp.route('/words/<int:word_id>/card/replace-examples', methods=['GET', 'POST'])
+@admin_required
+def replace_examples(word_id: int) -> ResponseReturnValue:
+    from app.admin.routes.materials import materials_return_url
+
+    action = request.form.get('action') if request.method == 'POST' else None
+    query = CollectionWords.query.filter_by(id=word_id)
+    if action == 'apply':
+        query = query.populate_existing().with_for_update()
+    word = query.first_or_404()
+    original = word.sentences
+    parsed = parse_examples(original)
+    unsafe_to_split = bool(original and parsed.can_replace)
+    if request.method == 'GET' and not unsafe_to_split:
+        abort(404)
+    revision = digest(original)
+    english = russian = preview = study_preview = token = error = ''
+    status = 200
+    if request.method == 'POST':
+        english, russian = _card_input('english'), _card_input('russian')
+        try:
+            if not unsafe_to_split or request.form.get('revision') != revision:
+                raise BadSignature('source changed')
+            if action not in ('preview', 'apply'):
+                abort(400)
+            replacement = replacement_examples(english, russian)
+            signer = URLSafeTimedSerializer(current_app.secret_key, salt='admin-word-example-replacement')
+            binding = [current_user.id, word.id, revision, digest(replacement)]
+            if action == 'preview':
+                study_preview = _card_study_preview(replacement, changed=True)
+                preview = replacement
+                token = signer.dumps(binding)
+            else:
+                supplied = request.form.get('preview_token', '')
+                if len(supplied) > 1024 or signer.loads(supplied, max_age=1800) != binding:
+                    raise BadSignature('stale replacement preview')
+                word.sentences = replacement
+                log_admin_action(current_user.id, 'word.examples.replace', 'word', word.id, required=True)
+                db.session.commit()
+                clear_admin_cache()
+                flash('Примеры заменены.', 'success')
+                return redirect(materials_return_url() or url_for('.edit_card', word_id=word.id), code=303)
+        except BadSignature:
+            db.session.rollback()
+            error, status = 'Примеры или предпросмотр изменились. Откройте актуальную карточку.', 409
+        except ValueError as exc:
+            db.session.rollback()
+            error, status = str(exc), 422
+        except Exception:
+            db.session.rollback()
+            raise
+    return render_template('admin/words/replace_examples.html', word=word, original=original, revision=revision,
+                           editable=unsafe_to_split, english=english, russian=russian, preview=preview,
+                           study_preview=study_preview, token=token, error=error), status
 
 
 @word_bp.route('/words')

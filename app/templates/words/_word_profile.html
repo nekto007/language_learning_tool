@@ -1,3 +1,4 @@
+{% from 'words/_examples.html' import render_examples %}
 {% set profile = word_profile or {} %}
 {% set synonyms = profile.synonyms or [] %}
 {% set antonyms = profile.antonyms or [] %}
@@ -258,11 +259,11 @@
     </div>
     {% endif %}
 
-    {% if word.sentences %}
+    {% if word.sentences and profile.example_pairs != [] %}
     <div class="wprof-section">
       <div class="wprof-label">{{ _('Примеры') }}</div>
       <div class="wprof-example">
-        {{ word.sentences|sanitize }}
+        {{ render_examples(word.sentences, profile.get('example_pairs')) }}
       </div>
     </div>
     {% endif %}

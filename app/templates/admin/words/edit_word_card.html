@@ -1,0 +1,100 @@
+{% extends 'admin/base.html' %}
+{% from 'words/_examples.html' import render_examples %}
+{% block title %}Карточка · {{ word.english_word }}{% endblock %}
+{% block content %}
+<h1 class="h3" lang="en">{{ word.english_word }}</h1>
+<p class="d-flex flex-wrap gap-3">
+    <a href="{{ url_for('word_admin.edit_translation', word_id=word.id, materials_query=request.args.get('materials_query')) }}">Править перевод слова</a>
+    {% if public_word %}<a href="{{ url_for('words.public_word', word_slug=slug) }}">На сайте</a>{% endif %}
+    {% if card_available %}<a href="{{ url_for('words.word_detail', word_id=word.id) }}">Карточка в словаре</a>{% endif %}
+</p>
+{% if error %}<p class="alert alert-warning" role="alert" data-persist="true">{{ error }}</p>{% endif %}
+<form method="post" action="{{ url_for('.edit_card', word_id=word.id, example=selected, materials_query=request.args.get('materials_query')) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="preview_token" value="{{ token }}">
+    {% if preview %}
+    <section class="card mb-3" aria-labelledby="card-preview-title">
+        <div class="card-body">
+            <h2 id="card-preview-title" class="h5">Предпросмотр карточки</h2>
+            <dl class="mb-3 text-break">
+                {% if word.russian_word %}<dt>Перевод слова</dt><dd>{{ word.russian_word }}</dd>{% endif %}
+                {% if preview.ipa_transcription %}<dt>Транскрипция IPA</dt><dd>/{{ preview.ipa_transcription }}/</dd>{% endif %}
+                {% if preview.sentences and preview.example_pairs != [] %}
+                <dt>Примеры на сайте</dt><dd>{{ render_examples(preview.sentences, preview.example_pairs) }}</dd>
+                {% endif %}
+                {% if preview.study_examples %}<dt>Примеры в повторении</dt>
+                <dd style="white-space: pre-line;">{{ preview.study_examples }}</dd>{% endif %}
+                {% if preview.synonyms %}<dt>Синонимы</dt><dd>{{ preview.synonyms.splitlines()|join(', ') }}</dd>{% endif %}
+                {% if preview.antonyms %}<dt>Антонимы</dt><dd>{{ preview.antonyms.splitlines()|join(', ') }}</dd>{% endif %}
+                {% if preview.etymology %}<dt>Происхождение</dt><dd>{{ preview.etymology }}</dd>{% endif %}
+            </dl>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary" name="action" value="apply">Сохранить карточку</button>
+                <a href="#word-card-fields" class="btn btn-outline-secondary">Продолжить редактирование</a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+    <div id="word-card-fields" class="card mb-3">
+        <div class="card-body">
+            <h2 class="h5">{{ 'Добавить пример' if examples.empty_format else 'Примеры' }}</h2>
+            {% if examples.pairs|length > 1 %}
+            <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Выбор примера">
+                {% for pair in examples.pairs %}
+                <a class="btn btn-sm {{ 'btn-primary' if loop.index0 == selected else 'btn-outline-secondary' }}"
+                   {% if loop.index0 == selected %}aria-current="page"{% endif %}
+                   href="{{ url_for('.edit_card', word_id=word.id, example=loop.index0, materials_query=request.args.get('materials_query')) }}">
+                    Пример {{ loop.index }}
+                </a>
+                {% endfor %}
+            </nav>
+            {% endif %}
+            {% if selected is not none %}
+            <div class="mb-3">
+                <label class="form-label" for="example-en">Фраза на английском</label>
+                <input class="form-control" id="example-en" name="example_en" lang="en" maxlength="1000"
+                       value="{{ values.example_en }}"{% if examples.pairs %} required{% endif %}>
+            </div>
+            <div>
+                <label class="form-label" for="example-ru">Перевод примера</label>
+                <input class="form-control" id="example-ru" name="example_ru" maxlength="1000" value="{{ values.example_ru }}"
+                       {% if examples.pairs and examples.pairs[selected].russian is not none %}required{% endif %}>
+            </div>
+            {% else %}
+            <p class="alert alert-info mb-2">Этот формат примеров нельзя безопасно разобрать на пары. Дополнительные поля доступны.</p>
+            <div class="text-break">{{ word.sentences|sanitize }}</div>
+            {% endif %}
+            {% if examples.can_replace %}
+            {% if examples.pairs %}<p class="form-text mt-3">Часть примеров нельзя разобрать на пары.</p>{% endif %}
+            <a class="btn btn-outline-secondary mt-3"
+               href="{{ url_for('.replace_examples', word_id=word.id, materials_query=request.args.get('materials_query')) }}">
+                Заменить все примеры
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h5">Дополнительные поля</h2>
+            <div class="mb-3">
+                <label class="form-label" for="word-ipa">Транскрипция IPA</label>
+                <input class="form-control" id="word-ipa" name="ipa_transcription" maxlength="160" value="{{ values.ipa_transcription }}">
+            </div>
+            <div class="row g-3 mb-3">
+                {% for name, label in (('synonyms', 'Синонимы'), ('antonyms', 'Антонимы')) %}
+                <div class="col-md-6">
+                    <label class="form-label" for="word-{{ name }}">{{ label }}</label>
+                    <textarea class="form-control" id="word-{{ name }}" name="{{ name }}" maxlength="1500"
+                              aria-describedby="word-{{ name }}-help" rows="3">{{ values[name] }}</textarea>
+                    <p class="form-text" id="word-{{ name }}-help">Каждое слово с новой строки.</p>
+                </div>
+                {% endfor %}
+            </div>
+            <label class="form-label" for="word-origin">Происхождение</label>
+            <textarea class="form-control" id="word-origin" name="etymology" maxlength="2000" rows="3">{{ values.etymology }}</textarea>
+        </div>
+    </div>
+    <button type="submit" class="btn {{ 'btn-outline-primary' if preview else 'btn-primary' }}" name="action" value="preview">Предпросмотр</button>
+</form>
+{% endblock %}

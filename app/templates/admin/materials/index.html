@@ -66,6 +66,7 @@
                     <a class="btn btn-outline-primary" href="{{ url_for('book_admin.edit_book', book_id=row.id, materials_query=materials_query) }}">Карточка</a>
                     {% elif row.kind == 'word' %}
                     <a class="btn btn-outline-primary" href="{{ url_for('word_admin.edit_translation', word_id=row.id, materials_query=materials_query) }}">Править перевод</a>
+                    <a class="materials-secondary" href="{{ url_for('word_admin.edit_card', word_id=row.id, materials_query=materials_query) }}">Примеры и карточка</a>
                     {% elif row.kind == 'word_set' %}
                     <a class="btn btn-outline-primary" href="{{ url_for('word_set_admin.word_set_edit', set_id=row.id, materials_query=materials_query) }}">Редактировать</a>
                     {% elif row.kind == 'collection' %}

@@ -7,6 +7,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
 
 from app.utils.time_utils import naive_utc_to_user_local_date
+from app.words.example_projection import json_example_pairs
 from app.words.models import Collection, CollectionWords, Topic
 
 _SEMANTIC_GROUPS = {
@@ -228,6 +229,7 @@ def build_word_profile(word: CollectionWords, *, public_only: bool = False) -> d
         public_facts.append({'label': 'Аудио', 'value': 'Есть'})
 
     return {
+        'example_pairs': json_example_pairs(word.sentences),
         'synonyms': synonyms,
         'antonyms': antonyms,
         'usage_context': usage_context,

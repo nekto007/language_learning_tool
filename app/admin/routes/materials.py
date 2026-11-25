@@ -30,7 +30,8 @@ _MATERIAL_DESTINATIONS = {
     'guided_topics_admin.edit', 'guided_topics_admin.preview', 'guided_topics_admin.publish',
     'book_admin.edit_book', 'book_admin.chapter_list', 'book_admin.edit_chapter',
     'short_reading_admin.edit',
-    'word_admin.edit_translation', 'word_set_admin.word_set_edit', 'collection_admin.edit_collection',
+    'word_admin.edit_translation', 'word_admin.edit_card', 'word_admin.replace_examples',
+    'word_set_admin.word_set_edit', 'collection_admin.edit_collection',
 }
 _DIRECTORIES = (
     ('Словарь', 'word_admin.word_management', 'Статистика словаря, статусы слов и импорт переводов'),
