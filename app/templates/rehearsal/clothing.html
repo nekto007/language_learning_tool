@@ -1,0 +1,84 @@
+{% extends 'public_base.html' %}
+{% block title %}Репетиция перед жизнью · LLT English{% endblock %}
+{% block robots %}<meta name="robots" content="noindex, follow">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/rehearsal.css', v='1') }}">{% endblock %}
+{% block content %}
+<div class="rehearsal">
+    <header class="rehearsal-header">
+        <p class="rehearsal-context">A1 · Модуль 3 · Одежда</p>
+        <h1>Репетиция перед жизнью</h1>
+        <p>Две короткие сцены в магазине. Без оценки и очков курса.</p>
+    </header>
+    <section class="rehearsal-panel" aria-labelledby="round-title">
+        <h2 id="round-title">{% if complete %}Обе сцены завершены{% elif waiting %}Первая сцена завершена{% else %}{{ scene.title }}{% endif %}</h2>
+        {% if not waiting and not complete %}<p>{{ scene.task }}</p>{% endif %}
+        {% if status == 409 %}<p role="alert">Открылась актуальная сцена. Продолжите с этого места.</p>
+        {% elif status == 422 %}<p role="alert">Введите реплику до 240 символов или выберите доступное действие.</p>{% endif %}
+        {% if repeat %}<p class="rehearsal-repeat">Ваша реплика <span lang="en">{{ repeat }}</span></p>{% endif %}
+        {% if seller %}<div class="rehearsal-seller">
+            <span class="rehearsal-context">Продавец</span>
+            <p id="seller-line" lang="en">{{ seller }}</p>
+            <button class="btn btn-secondary" type="button" id="seller-audio" hidden>Послушать продавца</button>
+            <p class="rehearsal-mode" id="voice-status" role="status">Реплика продавца доступна текстом.</p>
+        </div>{% endif %}
+
+        {% if complete %}
+        <section aria-labelledby="comparison-title">
+            <h3 id="comparison-title">{{ 'Подсказки в двух сценах' if comparable else 'Итоги по сценам' }}</h3>
+            <dl class="rehearsal-comparison">
+                {% for finished in progress.finished %}
+                <div><dt>{{ 'Куртка' if loop.first else 'Обувь' }}</dt>
+                    <dd>{{ 'Подсказка была открыта' if finished.hint else 'Подсказка не открывалась' }}</dd>
+                    <dd>{{ 'Продавец попросил уточнить' if finished.misunderstood else 'Продавец понял реплику' }}</dd>
+                    <dd>{{ 'Вы попросили повторить' if finished.asked_repeat else 'Вы не просили повторить' }}</dd>
+                    <dd>{{ 'Выбран готовый ответ' if finished.quick_choice else 'Ответ продавцу введён письменно' }}</dd>
+                </div>
+                {% endfor %}
+            </dl>
+            {% if comparable %}<p>Сцены различаются. Здесь сравнивается только использование подсказок.</p>
+            {% else %}<p>Сцены были пройдены в разных редакциях. Итоги показаны отдельно.</p>{% endif %}
+        </section>
+        {% elif waiting %}
+        <p>{{ 'В первой сцене вы открыли подсказку.' if progress.finished[0].hint else 'В первой сцене подсказка не открывалась.' }}</p>
+        <p>Сцена с обувью откроется через три дня после завершения первой. Вернитесь по этой ссылке в том же браузере.</p>
+        <div class="rehearsal-share">
+            <button class="btn btn-secondary" type="button" id="share-scene" hidden>Поделиться сценой</button>
+            <label for="scene-link">Гостевая ссылка на сцену</label>
+            <input id="scene-link" type="url" value="{{ url_for('landing.clothing_rehearsal', _external=true) }}" readonly>
+            <p id="share-status" role="status"></p>
+        </div>
+        {% else %}
+        <form method="post" action="{{ url_for('landing.clothing_rehearsal') }}" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="state" value="{{ state }}">
+            {% if progress.stage == 'write' %}
+            <label for="reply">Ваша реплика по-английски</label>
+            <textarea id="reply" name="reply" rows="2" maxlength="240" lang="en" required spellcheck="false">{{ entry }}</textarea>
+            {% if progress.hint %}<p class="rehearsal-hint"><strong>Подсказка</strong><br>{{ scene.hint }}</p>{% endif %}
+            <div class="rehearsal-actions">
+                <button class="btn btn-primary" type="submit" name="action" value="reply">Отправить реплику</button>
+                {% if not progress.hint %}<button class="btn btn-secondary" type="submit" name="action" value="hint" formnovalidate>Показать подсказку</button>{% endif %}
+            </div>
+            {% else %}
+            <label for="reply">Ответьте продавцу по-английски</label>
+            <textarea id="reply" name="reply" rows="2" maxlength="240" lang="en" required spellcheck="false">{{ entry }}</textarea>
+            <button class="btn btn-primary" type="submit" name="action" value="offer_reply">Отправить реплику</button>
+            <details class="rehearsal-quick">
+                <summary>Готовые варианты</summary>
+            <div class="rehearsal-actions">
+                <button class="btn btn-secondary" type="submit" name="action" value="accept" formnovalidate>{{ scene.accept_label }}</button>
+                <button class="btn btn-secondary" type="submit" name="action" value="decline" formnovalidate>{{ scene.decline_label }}</button>
+            </div>
+            </details>
+            {% endif %}
+        </form>
+        {% endif %}
+    </section>
+    {% if current_user.is_authenticated %}
+    <a href="{{ url_for('learn.learn_by_module', level_code='a1', module_number=3) }}">Выйти к модулю «Одежда»</a>
+    {% else %}
+    <a href="{{ url_for('landing.index') }}">Выйти на главную</a>
+    {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/rehearsal.js', v='1') }}" defer></script>{% endblock %}

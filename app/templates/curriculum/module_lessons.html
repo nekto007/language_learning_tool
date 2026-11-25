@@ -111,6 +111,16 @@
     {% endif %}
   </div>
 
+  {% if rehearsal_available %}
+  <aside class="card my-3" aria-labelledby="module-rehearsal-title">
+    <div class="card-body">
+      <h2 class="h5" id="module-rehearsal-title">Репетиция перед жизнью</h2>
+      <p>Поговорите с продавцом в магазине одежды. Без оценки и очков курса.</p>
+      <a class="btn btn-primary" href="{{ url_for('landing.clothing_rehearsal') }}">Начать репетицию</a>
+    </div>
+  </aside>
+  {% endif %}
+
   <!-- Lessons Section -->
   <div class="ml-lessons">
     <div class="ml-lessons__header">

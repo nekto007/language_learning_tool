@@ -1,0 +1,46 @@
+{% extends 'admin/base.html' %}
+{% block title %}Репетиция перед жизнью{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('.index') }}">К публичным страницам</a></p>
+<h1 class="h3">Репетиция перед жизнью · A1 М3</h1>
+<p>{% if published %}<a href="{{ url_for('landing.clothing_rehearsal') }}">Открыть гостевую сцену</a>{% else %}Репетиция ещё не опубликована.{% endif %}</p>
+{% if error %}<p class="alert alert-warning" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="{{ url_for('.edit_rehearsal') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    {% if token %}<input type="hidden" name="preview_token" value="{{ token }}">{% endif %}
+    <label class="form-label" for="document">Авторский JSON двух сцен</label>
+    <textarea class="form-control font-monospace mb-2" id="document" name="document" rows="16" maxlength="20000" required>{{ raw }}</textarea>
+    <button class="btn btn-outline-primary" type="submit" name="action" value="preview">Предпросмотр</button>
+    {% if preview %}
+    <section class="my-3" aria-labelledby="preview-heading">
+        <h2 class="h5" id="preview-heading">Предпросмотр двух сцен</h2>
+        <div class="row g-3">
+            {% for name in ('jacket', 'shoes') %}
+            {% set scene = preview[name] %}
+            <div class="col-12 col-lg-6">
+                <div class="card h-100"><div class="card-body">
+                    <h3 class="h6">{{ scene.title }}</h3>
+                    <p>{{ scene.task }}</p>
+                    <dl>
+                        <dt>Начало</dt><dd lang="en">{{ scene.opening }}</dd>
+                        <dt>Подсказка</dt><dd>{{ scene.hint }}</dd>
+                        <dt>Переспрос</dt><dd lang="en">{{ scene.clarification }}</dd>
+                        <dt>Предложение продавца</dt><dd lang="en">{{ scene.offer }}</dd>
+                        <dt>Ответ о цвете</dt><dd lang="en">{{ scene.color_reply }}</dd>
+                        <dt>Ответ о другом цвете</dt><dd lang="en">{{ scene.other_color_reply }}</dd>
+                        <dt>Согласие на примерку</dt><dd lang="en">{{ scene.try_reply }}</dd>
+                        <dt>{{ scene.accept_label }}</dt><dd lang="en">{{ scene.accept_reply }}</dd>
+                        <dt>{{ scene.decline_label }}</dt><dd lang="en">{{ scene.decline_reply }}</dd>
+                        <dt>Допустимые реплики ({{ scene.accepted|length }})</dt>
+                        <dd><ul>{% for answer in scene.accepted %}<li lang="en">{{ answer }}</li>{% endfor %}</ul></dd>
+                    </dl>
+                </div></div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    <button class="btn btn-primary" type="submit" name="action" value="publish">Опубликовать обе сцены</button>
+    {% endif %}
+</form>
+{% endblock %}

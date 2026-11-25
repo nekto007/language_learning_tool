@@ -1,0 +1,56 @@
+.rehearsal {
+    max-inline-size: 45rem;
+    margin-inline: auto;
+    padding: clamp(1rem, 4vw, 2.5rem);
+}
+.rehearsal-header { margin-block-end: 1.25rem; }
+.rehearsal-header h1 { margin: .25rem 0; }
+.rehearsal-context { color: var(--color-text-secondary, #496075); font-size: .9rem; font-weight: 600; }
+.rehearsal-panel {
+    border: 1px solid var(--color-border, #d8e0e9);
+    border-radius: 1rem;
+    background: var(--color-surface, #fff);
+    padding: clamp(1rem, 4vw, 2rem);
+    margin-block-end: 1rem;
+    overflow-wrap: anywhere;
+}
+.rehearsal-panel h2 { margin-block-start: 0; }
+.rehearsal-seller, .rehearsal-hint, .rehearsal-repeat {
+    background: var(--color-background, #f1f5fa);
+    padding: .85rem 1rem;
+    border-radius: .75rem;
+    margin-block: 1rem;
+}
+.rehearsal-seller p { margin-block: .35rem; }
+.rehearsal-seller #seller-line { font-size: 1.2rem; }
+.rehearsal-mode { font-size: .9rem; }
+.rehearsal-mode:empty { margin: 0; }
+.rehearsal textarea {
+    display: block;
+    inline-size: 100%;
+    margin-block: .35rem 1rem;
+    padding: .65rem;
+    border: 1px solid var(--color-border, #77899b);
+    border-radius: .5rem;
+    font: inherit;
+    resize: vertical;
+}
+.rehearsal-actions, .rehearsal-comparison { display: flex; flex-wrap: wrap; gap: .65rem 1.5rem; }
+.rehearsal-quick { margin-block-start: 1rem; }
+.rehearsal-quick summary { cursor: pointer; margin-block-end: .5rem; }
+.rehearsal-share label { display: block; margin-block-start: .75rem; }
+.rehearsal-share input {
+    inline-size: 100%;
+    font: inherit;
+    padding: .5rem;
+    border: 1px solid var(--color-border, #77899b);
+    border-radius: .5rem;
+}
+.rehearsal-actions .btn, .rehearsal-seller .btn { min-block-size: 44px; }
+.rehearsal [hidden] { display: none; }
+.rehearsal :is(a, button, textarea):focus-visible { outline: 2px solid var(--color-primary, #064c9c); outline-offset: 3px; }
+.rehearsal-comparison dt { font-weight: 700; }
+.rehearsal-comparison dd { margin-inline-start: 0; }
+@media (max-width: 34rem) {
+    .rehearsal-actions { flex-direction: column; align-items: stretch; }
+}

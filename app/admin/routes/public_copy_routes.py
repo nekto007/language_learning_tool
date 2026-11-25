@@ -1,5 +1,6 @@
 """Administrative page copy with private previews and explicit publication."""
 
+import json
 import re
 
 from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
@@ -11,6 +12,7 @@ from app.admin.audit import log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.landing.demo_publication import demos_for_editing, publish_demo, published_demo
 from app.landing.previews import PREVIEWS_BY_ID
+from app.landing.rehearsal_content import publish_rehearsal, published_rehearsal, validate_rehearsal
 from app.landing.routes import render_landing
 from app.public_copy import (
     MAX_FAQ, PAGES, QUESTION_LIMIT, TEXT_LIMIT, StalePublication, digest, field_limit, publish_copy, published_copy,
@@ -73,6 +75,50 @@ def _originals(page: str) -> tuple[str, ...]:
 @admin_required
 def index() -> str:
     return render_template('admin/public_copy/index.html', pages=PAGES)
+
+
+@public_copy_bp.route('/public-pages/rehearsal', methods=['GET', 'POST'])
+@admin_required
+def edit_rehearsal() -> ResponseReturnValue:
+    published, revision = published_rehearsal()
+    raw = json.dumps(published, ensure_ascii=False, indent=2) if published else ''
+    preview = None
+    error = token = ''
+    status = 200
+    if request.method == 'POST':
+        raw = request.form.get('document', '')
+        action = request.form.get('action')
+        try:
+            if request.form.get('revision') != revision:
+                raise StalePublication()
+            if action not in ('preview', 'publish'):
+                abort(400)
+            document = validate_rehearsal(raw)
+            signer = URLSafeTimedSerializer(current_app.secret_key, salt='admin-rehearsal-clothing')
+            binding = [current_user.id, revision, digest(document)]
+            if action == 'preview':
+                preview = document
+                token = signer.dumps(binding)
+            else:
+                signed = request.form.get('preview_token', '')
+                if len(signed) > 1024 or signer.loads(signed, max_age=_PREVIEW_AGE) != binding:
+                    raise StalePublication()
+                if publish_rehearsal(document, revision):
+                    log_admin_action(current_user.id, 'rehearsal.clothing.publish', 'rehearsal', required=True)
+                db.session.commit()
+                flash('Обе сцены опубликованы.', 'success')  # noqa: RUF001 -- Russian publication message.
+                return redirect(url_for('.edit_rehearsal'), code=303)
+        except (BadSignature, StalePublication):
+            db.session.rollback()
+            error, status = 'Предпросмотр устарел. Подготовьте новый.', 409
+        except ValueError as failure:
+            db.session.rollback()
+            error, status = str(failure), 422
+        except Exception:
+            db.session.rollback()
+            raise
+    return render_template('admin/public_copy/rehearsal.html', raw=raw[:20_000], revision=revision,
+                           published=published, preview=preview, token=token, error=error), status
 
 
 @public_copy_bp.route('/public-pages/<page>', methods=['GET', 'POST'])

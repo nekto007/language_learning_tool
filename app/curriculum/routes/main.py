@@ -493,6 +493,17 @@ def learn_by_module(level_code, module_number):
         except Exception:
             logger.exception("test-out state failed for module %s", module.id)
 
+    rehearsal_available = False
+    if level_code_upper == 'A1' and module.number == 3 and module_lock_reason is None:
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.landing.rehearsal_content import published_rehearsal
+        try:
+            rehearsal_available = bool(published_rehearsal()[0])
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.warning('Cannot load the clothing rehearsal on the module page')
+
     return render_template(
         'curriculum/module_lessons.html',
         module=module,
@@ -501,6 +512,7 @@ def learn_by_module(level_code, module_number):
         module_lock_reason=module_lock_reason,
         admin_preview=getattr(current_user, 'is_admin', False),
         test_out_available=test_out_available,
+        rehearsal_available=rehearsal_available,
     )
 
 
