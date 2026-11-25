@@ -48,7 +48,10 @@ def test_row_preview_preserves_neighbor_edits_and_module_metadata(
     preview = _page(admin_client, _upload(admin_client, {'dialogue.json': package}))
     preview_id = _preview_id(preview)
     diffs = preview.select_one('details').get_text()
-    assert 'exercises / 1' in diffs and 'Not really.' in diffs and 'Yes, it is.' in diffs
+    assert 'Задание 1 · Варианты ответа' in diffs and 'Not really.' in diffs and 'Yes, it is.' in diffs
+    assert 'exercises / 1' not in diffs
+    summary = preview.select_one('dl[aria-label="Сводка пакета"]').get_text()
+    assert 'Изменённых заданий' in summary and 'Полей письменных работ' not in summary
     assert lesson.content == old and _audit_count(admin_user) == 0
 
     neighbor = {**old['exercises'][1], 'hint': 'A newer edit from another editor.'}
@@ -114,8 +117,9 @@ def test_rejects_other_module_and_ambiguous_anchor(
     assert rejected.select_one('input[name=preview_id]') is None
 
 
+@pytest.mark.parametrize('mixed', [False, True], ids=['writing-only', 'mixed'])
 def test_writing_patch_checks_and_changes_only_prompt_ru(
-    admin_client: FlaskClient, db_session: scoped_session, test_module: Module,
+    admin_client: FlaskClient, db_session: scoped_session, test_module: Module, mixed: bool,
 ) -> None:
     original = {'external_key': 'test:writing:1', 'prompt': 'Write about a museum.',
                 'prompt_ru': 'Расскажите про музэй.', 'min_words': 20}
@@ -128,11 +132,29 @@ def test_writing_patch_checks_and_changes_only_prompt_ru(
                'level': test_module.level.code, 'module_number': test_module.number, 'lesson_type': lesson.type,
                 'writing_guard': writing_guard(original),
                'changes': [{'path': ['prompt_ru'], 'before': original['prompt_ru'], 'after': corrected}]}
-    preview = _page(admin_client, _upload(admin_client, {'writing.json': package}))
-    assert corrected in preview.select_one('details').get_text()
+    documents = {'writing.json': package}
+    lessons_label = 'Уроков с точечными изменениями'  # noqa: RUF001 -- Russian UI label.
+    expected = {'Файлов': '1', lessons_label: '1', 'Полей письменных работ': '1'}
+    if mixed:
+        dialogue = _lesson(db_session, test_module, 13)
+        dialogue_patch = _patch(dialogue)
+        before = deepcopy(dialogue.content['exercises'][1])
+        dialogue_patch['changes'].append({'path': ['exercises', 1], 'before': before,
+                                          'after': {**before, 'options': ['A lamp.', 'A window.']}})
+        documents['dialogue.json'] = dialogue_patch
+        expected.update({'Файлов': '2', lessons_label: '2', 'Изменённых заданий': '2'})
+    preview = _page(admin_client, _upload(admin_client, documents))
+    summary = preview.select_one('dl[aria-label="Сводка пакета"]')
+    assert {item.dt.get_text(strip=True): item.dd.get_text(strip=True) for item in summary.select('div')} == expected
+    detail = preview.find('summary', string='Задание на русском').parent.get_text()
+    assert 'Задание на русском' in detail and corrected in detail and 'prompt_ru' not in detail
     lesson.content = {**original, 'technical_tag': 'Concurrent non-editorial metadata'}
     db_session.commit()
-    _page(admin_client, admin_client.post(APPLY, data={'preview_id': _preview_id(preview)}))
+    applied = _page(admin_client, admin_client.post(APPLY, data={'preview_id': _preview_id(preview)}))
+    message = applied.select_one('[role=alert]').get_text()
+    for label, count in expected.items():
+        assert f'{label} — {count}' in message
+    assert ('Изменённых заданий' in message) == mixed
     db_session.refresh(lesson)
     assert lesson.content == {**original, 'prompt_ru': corrected, 'technical_tag': 'Concurrent non-editorial metadata'}
 

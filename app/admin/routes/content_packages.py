@@ -8,6 +8,7 @@ from flask_login import current_user
 
 from app.admin.audit import log_admin_action
 from app.admin.services.content_package import read_content_package
+from app.admin.services.content_package_display import display_rows, package_totals
 from app.admin.services.content_package_import import apply_package, preview_package
 from app.admin.utils.decorators import content_editor_required
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
@@ -47,7 +48,10 @@ def _discard() -> None:
 @content_editor_required
 def index() -> str | Response:
     if request.method != 'POST':
-        return render_template('admin/content_packages.html', preview=_preview(),
+        preview = _preview()
+        rows = preview['summary'] if preview else []
+        return render_template('admin/content_packages.html', preview=preview, rows=display_rows(rows),
+                               totals=package_totals(rows) if preview else [],
                                preview_id=session.get(_SESSION_KEY))
     _discard()
     upload = request.files.get('file')
@@ -101,7 +105,8 @@ def apply() -> Response:
         flash('Не удалось подтвердить импорт. Проверьте материалы и загрузите архив заново.', 'danger')
     else:
         curriculum_cache.cache.clear()
-        flash(f"Пакет «{data['filename']}» применён. Материалов в пакете — {len(data['summary'])}.", 'success')
+        totals = ' · '.join(f'{label} — {count}' for label, count in package_totals(data['summary']))
+        flash(f"Пакет «{data['filename']}» применён. {totals}.", 'success')
     finally:
         session.pop(_SESSION_KEY, None)
     return redirect(url_for('.index'), code=303)

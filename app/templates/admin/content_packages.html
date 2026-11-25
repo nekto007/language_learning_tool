@@ -10,29 +10,51 @@
 <section class="card mb-4" aria-labelledby="package-preview">
     <div class="card-body">
         <h2 id="package-preview" class="h5">Предпросмотр архива «{{ preview.filename }}»</h2>
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead><tr><th scope="col">Материал и файл</th><th scope="col">Содержание</th></tr></thead>
-                <tbody>{% for row in preview.summary %}
-                    <tr><td><strong>{{ row.title }}</strong><small class="d-block text-muted text-break">{{ row.name }}</small></td>
-                        <td><strong>{% if row.operation == 'create' %}Создание{% else %}Обновление{% endif %}</strong>
-                            <small class="d-block">{% if row.kind == 'module' %}Уроков в модуле{% elif row.kind == 'lesson_rows' %}Точечных правок{% else %}Заданий в тесте{% endif %} — {{ row.count }}</small>
-                            {% for lesson in row.preserved_guided %}
-                            <small class="d-block">Пошаговый урок №{{ lesson.number }} сохранится без изменений · {{ lesson.title }}</small>
+        <p>Архив проверен. Изменения ещё не применены.</p>
+        <dl class="d-flex flex-wrap gap-3 p-3 border rounded bg-body-tertiary" aria-label="Сводка пакета">
+            {% for label, count in totals %}
+            <div><dt class="small">{{ label }}</dt><dd class="mb-0 fs-5">{{ count }}</dd></div>
+            {% endfor %}
+        </dl>
+        <div class="list-group list-group-flush mb-3">
+            {% for row in rows %}
+            <article class="list-group-item px-0" data-package-row>
+                <h3 class="h6 mb-1">{{ row.title }}</h3>
+                <p class="small text-muted text-break mb-2">{{ row.name }}</p>
+                <p class="mb-2">
+                    <strong>{{ 'Создание' if row.operation == 'create' else 'Обновление' }}</strong> ·
+                    {% if row.precise_units %}
+                    {% for label, count in row.precise_units.items() %}{{ label }} — {{ count }}{% if not loop.last %} · {% endif %}{% endfor %}
+                    {% else %}
+                    {% if row.kind == 'module' %}Уроков в модуле{% else %}Заданий в тесте{% endif %} — {{ row.count }}
+                    {% endif %}
+                </p>
+                {% for lesson in row.preserved_guided %}
+                <p class="small mb-2">Пошаговый урок №{{ lesson.number }} сохранится без изменений · {{ lesson.title }}</p>
+                {% endfor %}
+                {% for change in row.display_changes %}
+                <details class="border rounded p-2 mb-2">
+                    <summary class="fw-semibold">{{ change.title }}</summary>
+                    {% for field in change.fields %}
+                    <div class="border-top mt-2 pt-2">
+                        {% if not loop.first or change.fields|length > 1 %}<h4 class="h6">{{ field.label }}</h4>{% endif %}
+                        <dl class="row g-2 small text-break mb-0">
+                            {% for heading, values in (('Сейчас', field.before), ('После применения', field.after)) %}
+                            <div class="col-sm-6">
+                                <dt>{{ heading }}</dt>
+                                <dd class="mb-0">
+                                    {% if values|length == 1 %}{{ values[0] }}
+                                    {% else %}<ul class="list-unstyled mb-0">{% for value in values %}<li>{{ value }}</li>{% endfor %}</ul>{% endif %}
+                                </dd>
+                            </div>
                             {% endfor %}
-                            {% for change in row.changes|default([]) %}
-                            <details class="mt-2">
-                                <summary>Задание {{ change.path }}</summary>
-                                <dl class="small mb-0">
-                                    <dt>До</dt>
-                                    <dd><pre class="mb-2 text-wrap">{{ change.before }}</pre></dd>
-                                    <dt>После</dt>
-                                    <dd><pre class="mb-0 text-wrap">{{ change.after }}</pre></dd>
-                                </dl>
-                            </details>
-                            {% endfor %}</td></tr>
-                {% endfor %}</tbody>
-            </table>
+                        </dl>
+                    </div>
+                    {% endfor %}
+                </details>
+                {% endfor %}
+            </article>
+            {% endfor %}
         </div>
         <form method="post" action="{{ url_for('.apply') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -48,10 +70,12 @@
         <label class="form-label fw-semibold" for="content-zip">ZIP с учебными материалами</label>
         <input class="form-control" type="file" name="file" id="content-zip" accept=".zip" required aria-describedby="package-format">
         <p class="form-text" id="package-format">Вложите JSON-файлы модулей или итоговых тестов. Точечные правки заданий загружайте отдельным ZIP. Размер ZIP — до 8 МиБ.</p>
+        {% if preview %}<p class="form-text">Загрузка другого архива заменит текущий предпросмотр.</p>{% endif %}
         <button type="submit" class="btn btn-outline-primary">Проверить архив</button>
     </div>
 </form>
 {% if current_user.is_admin %}
+<p><a href="{{ url_for('audit_admin.audit_index', action='content_package.apply') }}">Публикации пакетов в журнале аудита</a></p>
 <section aria-labelledby="other-imports">
     <h2 class="h5" id="other-imports">Другие форматы</h2>
     <ul>

@@ -103,17 +103,25 @@ def test_admin_previews_and_confirms_once(
     page = _page(admin_client, _upload(admin_client, {'course/final.json': new}))
     preview_id = _preview_id(page)
     assert 'update.zip' in page.get_text()
-    row = page.select_one('tbody tr')
+    row = page.select_one('[data-package-row]')
     assert row and 'course/final.json' in row.get_text() and lesson.title in row.get_text()
     assert 'Заданий в тесте — 1' in row.get_text(' ', strip=True)
+    assert 'Заданий в отдельных тестах' in page.select_one('dl[aria-label="Сводка пакета"]').get_text(' ', strip=True)
     assert list(staged_files.iterdir())
     db_session.refresh(lesson)
     assert lesson.content == old and _audit_count(admin_user) == 0
 
+    staged_path, = staged_files.iterdir()
+    staged_bytes = staged_path.read_bytes()
     assert admin_client.head(INDEX).status_code == 200
+    assert staged_path.read_bytes() == staged_bytes
     confirmation = {'preview_id': preview_id}
     done = _page(admin_client, admin_client.post(APPLY, data=confirmation))
     assert done.select_one('input[name="preview_id"]') is None
+    assert 'Заданий в отдельных тестах — 1' in done.select_one('[role=alert]').get_text()
+    audit = done.select_one('a[href*="action=content_package.apply"]')
+    assert urlsplit(audit['href']).path == '/admin/audit-log'
+    assert b'content_package.apply' in admin_client.get(audit['href']).data
     db_session.refresh(lesson)
     assert lesson.content == new and _audit_count(admin_user) == 1
     assert not list(staged_files.iterdir())
@@ -133,6 +141,28 @@ def test_content_and_translation_previews_have_separate_storage(
     _page(admin_client, admin_client.post(APPLY, data={'preview_id': preview_id}))
     assert import_helpers.load_import_data(translation_id) == translations
     assert list(staged_files.glob('curriculum-*.json')) == []
+
+
+def test_mixed_archive_summary_keeps_lesson_and_question_units_separate(
+    admin_client: FlaskClient, finals: list[Lessons], staged_files: Path,
+) -> None:
+    existing = finals[0]
+    content = _updated(existing)
+    content['test_sections'][0]['exercises'].append({
+        'type': 'multiple_choice', 'question': 'Pick a shape.',
+        'options': ['a square', 'a circle'], 'correct': 'a circle',
+    })
+    module = {'module': {
+        'level': 'A1', 'number': 8820, 'title': 'New shapes',
+        'lessons': [{'order': 1, 'type': 'final_test', 'title': 'Shapes',
+                     'content': _content('new:shapes:final', 'Pick a shape.')}],
+    }}
+    page = _page(admin_client, _upload(admin_client, {'module.json': module, 'final.json': content}))
+    summary = page.select_one('dl[aria-label="Сводка пакета"]')
+    assert summary is not None, page.get_text(' ', strip=True)
+    counts = {item.dt.get_text(strip=True): item.dd.get_text(strip=True) for item in summary.select('div')}
+    assert counts == {'Файлов': '2', 'Модулей': '1', 'Уроков в модулях': '1',
+                      'Отдельных итоговых тестов': '1', 'Заданий в отдельных тестах': '2'}
 
 
 def test_confirmation_losing_file_claim_skips_apply_and_audit(
