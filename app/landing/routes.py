@@ -1,9 +1,11 @@
 from flask import redirect, render_template, url_for
-from flask_login import current_user
+from flask_login import AnonymousUserMixin, current_user
 
 from app.landing import landing_bp
 from app.landing.analytics import get_or_create_visit
-from app.landing.previews import PREVIEWS_BY_ID, pick_preview
+from app.landing.demo_publication import demo_for_landing
+from app.landing.previews import pick_preview
+from app.public_copy import copy_for_public_view
 from app.utils.db import db
 
 
@@ -18,6 +20,10 @@ def index():
         if ModuleService.is_module_enabled_for_user(current_user.id, 'words'):
             return redirect(url_for('words.dashboard'))
 
+    return copy_for_public_view('home', render_landing())
+
+
+def render_landing(*, editorial_preview: bool = False, guest_view: bool = True) -> str:
     # Get platform statistics for social proof
     from sqlalchemy import func
 
@@ -59,9 +65,9 @@ def index():
         )
 
     preview = pick_preview()
-    visit = get_or_create_visit(preview['id']) if not current_user.is_authenticated else None
-    if visit:
-        preview = PREVIEWS_BY_ID[visit.preview_id]
+    visit = (get_or_create_visit(preview['id'])
+             if not editorial_preview and not current_user.is_authenticated else None)
+    preview = demo_for_landing(visit.preview_id if visit else preview['id'])
     recorded_events = ','.join(name for name, timestamp in (
         ('preview_started', visit.started_at if visit else None),
         ('preview_answered', visit.answered_at if visit else None),
@@ -71,4 +77,5 @@ def index():
         'landing/index.html', stats=stats, word_of_day=word_of_day,
         preview=preview, preview_event_url=url_for('landing.preview_event') if visit else '',
         preview_recorded_events=recorded_events,
+        **({'current_user': AnonymousUserMixin()} if editorial_preview and guest_view else {}),
     )

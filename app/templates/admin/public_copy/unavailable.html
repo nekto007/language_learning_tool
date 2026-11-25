@@ -1,0 +1,7 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ page_info[0] }} · Публичные страницы{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('.index') }}">К публичным страницам</a></p>
+<h1 class="h3">{{ page_info[0] }}</h1>
+<p class="alert alert-warning" role="alert">Разметка страницы изменилась. Редактор недоступен до сверки полей.</p>
+{% endblock %}

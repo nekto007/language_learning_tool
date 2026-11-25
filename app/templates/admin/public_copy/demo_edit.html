@@ -1,0 +1,73 @@
+{% extends 'admin/base.html' %}
+{% block title %}Пробное упражнение · {{ document.id }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('.demo_index') }}">К пробным упражнениям</a></p>
+<h1 class="h3">Пробное упражнение</h1>
+<p><code>{{ document.id }}</code></p>
+{% if error %}<p class="alert alert-warning" role="alert" data-persist="true">{{ error }}</p>{% endif %}
+<form method="post" action="{{ url_for('.edit_demo', preview_id=document.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="preview_token" value="{{ token }}">
+    {% if token %}
+    <section class="card mb-3" aria-labelledby="demo-preview-title">
+        <div class="card-body">
+            <h2 id="demo-preview-title" class="h5">Предпросмотр</h2>
+            <div class="row gy-3 text-break">
+                {% for heading, item in (('Сейчас', current), ('После публикации', document)) %}
+                <div class="col-md-6">
+                    <h3 class="h6">{{ heading }}</h3>
+                    <p lang="en" class="fw-semibold mb-1">{{ item.prompt }}</p>
+                    <p>{{ item.instruction }}</p>
+                    <ul>{% for option in item.options %}<li><span lang="en">{{ option }}</span>{% if option == item.correct %} · верно{% endif %}</li>{% endfor %}</ul>
+                    <p class="mb-0">{{ item.explanation }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-primary" name="action" value="publish">Опубликовать</button>
+                <a href="#demo-edit-fields" class="btn btn-outline-secondary">Продолжить редактирование</a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+    <div class="card">
+        <div class="card-body" id="demo-edit-fields">
+            <div class="mb-3">
+                <label for="demo-prompt" class="form-label">Фраза с пропуском</label>
+                <input class="form-control" id="demo-prompt" name="prompt" maxlength="250" lang="en"
+                       aria-describedby="demo-prompt-help" value="{{ document.prompt }}" required>
+                <p class="form-text" id="demo-prompt-help">Обозначьте пропуск тремя подчёркиваниями: <code>___</code></p>
+            </div>
+            <div class="mb-3">
+                <label for="demo-instruction" class="form-label">Инструкция</label>
+                <textarea class="form-control" id="demo-instruction" name="instruction" rows="2" maxlength="500" required>{{ document.instruction }}</textarea>
+            </div>
+            <fieldset class="mb-3">
+                <legend class="h6">Варианты ответа</legend>
+                <div class="row g-2">
+                    {% for option in document.options %}
+                    <div class="col-sm-4">
+                        <label for="demo-option-{{ loop.index0 }}" class="form-label">Вариант {{ loop.index }}</label>
+                        <input class="form-control" id="demo-option-{{ loop.index0 }}" name="option{{ loop.index0 }}" maxlength="120"
+                               lang="en" value="{{ option }}" required>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" id="demo-key-{{ loop.index0 }}" name="correct_option"
+                                   value="{{ loop.index0 }}"{% if loop.index0 == selected %} checked{% endif %} required>
+                            <label class="form-check-label" for="demo-key-{{ loop.index0 }}">
+                                Верный<span class="visually-hidden"> вариант {{ loop.index }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <div class="mb-3">
+                <label for="demo-explanation" class="form-label">Объяснение</label>
+                <textarea class="form-control" id="demo-explanation" name="explanation" rows="3" maxlength="1000" required>{{ document.explanation }}</textarea>
+            </div>
+            <button type="submit" class="btn {{ 'btn-outline-primary' if token else 'btn-primary' }}" name="action" value="preview">Предпросмотр</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

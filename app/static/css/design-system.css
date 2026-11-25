@@ -5111,6 +5111,10 @@ body.dark-theme #translationPopup {
 }
 
 /* Admin Responsive */
+.admin-search-toggle {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .sidebar-toggle {
         display: block;
@@ -5132,11 +5136,41 @@ body.dark-theme #translationPopup {
         display: none;
     }
 
+    .admin-search-toggle {
+        display: inline-grid;
+        place-items: center;
+        min-width: 44px;
+        min-height: 44px;
+        margin-inline-start: var(--space-2);
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--text-primary);
+    }
+
+    .admin-search-toggle[aria-expanded="true"] {
+        background: var(--primary-100);
+        color: var(--primary-700);
+    }
+
+    .admin-search-toggle:focus-visible {
+        outline: 2px solid var(--primary-600);
+        outline-offset: 2px;
+    }
+
     .admin-search-container.search-open {
         display: block;
         position: fixed;
         inset: calc(var(--admin-header-height) + 8px) 12px auto;
         margin: 0 auto;
+    }
+
+    .admin-search-container .admin-search-kbd {
+        display: none;
+    }
+
+    .admin-search-container .admin-search-input {
+        padding-inline-end: 12px;
     }
 }
 
@@ -5178,6 +5212,31 @@ body.dark-theme #translationPopup {
 
 /* Admin Mobile - Very narrow screens (< 480px) */
 @media (max-width: 480px) {
+    .admin-header:has(.admin-search-toggle) {
+        padding-inline: var(--space-3);
+    }
+
+    .admin-header:has(.admin-search-toggle) .header-actions {
+        min-width: 0;
+        gap: var(--space-1);
+    }
+
+    .admin-header:has(.admin-search-toggle) .header-actions > .dropdown {
+        min-width: 0;
+    }
+
+    .admin-header:has(.admin-search-toggle) .header-actions .dropdown-toggle {
+        display: flex;
+        align-items: center;
+        max-width: 100%;
+    }
+
+    .admin-header-user-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .admin-main {
         padding: var(--space-4);
     }

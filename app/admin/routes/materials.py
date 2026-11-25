@@ -44,6 +44,7 @@ _DIRECTORIES = (
     ('Пошаговые темы', 'guided_topics_admin.index', 'Редактирование и публикация установленных тем Grammar Lab'),
     ('Модули курса', 'admin_curriculum.module_list', 'Уровни, модули и структура курса'),
     ('Банк входного теста', 'placement_bank_admin.index', 'Вопросы, предпросмотр и активация версии'),
+    ('Публичные страницы', 'public_copy_admin.index', 'Главная и FAQ, поддержка и политика конфиденциальности'),
     ('Сравнения слов', 'word_contrast_admin.word_contrast_index', 'Карточки различий и примеры'),
     ('Культурные заметки', 'admin.cultural_notes_list', 'Редактор заметок курса'),
     ('Спорные ответы', 'answer_disputes_admin.index', 'Очередь обращений и правки ключей'),

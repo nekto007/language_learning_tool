@@ -36,7 +36,11 @@
 
         <!-- Global Search -->
         {% if current_user.is_admin %}
-        <div class="admin-search-container" role="search">
+        <button type="button" class="admin-search-toggle" id="admin-search-toggle" aria-label="Поиск по админке"
+                aria-expanded="false" aria-controls="admin-search-panel" title="Поиск по админке">
+            <i class="fas fa-search" aria-hidden="true"></i>
+        </button>
+        <div class="admin-search-container" id="admin-search-panel" role="search">
             <label for="admin-global-search" class="visually-hidden">Поиск по панели управления</label>
             <div class="admin-search-input-wrapper">
                 <i class="fas fa-search admin-search-icon" aria-hidden="true"></i>
@@ -60,7 +64,8 @@
 
             <div class="dropdown">
                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Меню пользователя {{ current_user.username }}">
-                    <i class="fas fa-user-circle me-1" aria-hidden="true"></i> {{ current_user.username }}
+                    <i class="fas fa-user-circle me-1" aria-hidden="true"></i>
+                    <span class="admin-header-user-name">{{ current_user.username }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
@@ -125,6 +130,10 @@
                 <a href="{{ url_for('materials_admin.index') }}" class="nav-link {{ 'active' if request.blueprint == 'materials_admin' }}" {% if request.blueprint == 'materials_admin' %}aria-current="page"{% endif %}>
                     <i class="fas fa-folder-open" aria-hidden="true"></i>
                     <span>Материалы</span>
+                </a>
+                <a href="{{ url_for('public_copy_admin.index') }}" class="nav-link {{ 'active' if request.blueprint == 'public_copy_admin' }}" {% if request.blueprint == 'public_copy_admin' %}aria-current="page"{% endif %}>
+                    <i class="fas fa-file-lines" aria-hidden="true"></i>
+                    <span>Публичные страницы</span>
                 </a>
                 <a href="{{ url_for('placement_bank_admin.index') }}" class="nav-link {{ 'active' if request.blueprint == 'placement_bank_admin' }}" {% if request.blueprint == 'placement_bank_admin' %}aria-current="page"{% endif %}>
                     <i class="fas fa-clipboard-check" aria-hidden="true"></i>
@@ -374,8 +383,10 @@
         function initGlobalSearch() {
             const searchInput = document.getElementById('admin-global-search');
             const searchResults = document.getElementById('admin-search-results');
-            if (!searchInput || !searchResults) return;
-            const container = searchInput.closest('.admin-search-container');
+            const toggle = document.getElementById('admin-search-toggle');
+            if (!searchInput || !searchResults || !toggle) return;
+            const container = document.getElementById('admin-search-panel');
+            const mobile = window.matchMedia('(max-width: 768px)');
             const links = Array.from(document.querySelectorAll('#sidebar .nav-section-content a.nav-link'));
             const entries = links.map(link => ({
                 title: link.querySelector('span')?.textContent.trim() || link.textContent.trim(),
@@ -417,19 +428,41 @@
                 searchInput.setAttribute('aria-expanded', 'true');
             };
             let previousFocus;
+            const isOpen = () => container.classList.contains('search-open');
+            const open = () => {
+                if (mobile.matches && document.getElementById('sidebar').classList.contains('show')) toggleSidebar();
+                if (!container.contains(document.activeElement)) previousFocus = document.activeElement;
+                container.classList.add('search-open');
+                toggle.setAttribute('aria-expanded', 'true');
+                searchInput.focus();
+                searchInput.select();
+            };
+            const close = (restoreFocus) => {
+                hide();
+                container.classList.remove('search-open');
+                toggle.setAttribute('aria-expanded', 'false');
+                if (!restoreFocus) return;
+                const target = mobile.matches ? toggle : previousFocus;
+                if (target instanceof HTMLElement && target !== document.body) target.focus();
+                else searchInput.blur();
+            };
+            toggle.addEventListener('click', () => {
+                if (isOpen()) close(true);
+                else open();
+            });
             document.addEventListener('keydown', event => {
                 if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
                     event.preventDefault();
-                    if (!container.contains(document.activeElement)) previousFocus = document.activeElement;
-                    container.classList.add('search-open');
-                    searchInput.focus();
-                    searchInput.select();
-                } else if (event.key === 'Escape' && container.contains(document.activeElement)) {
+                    open();
+                } else if (event.key === 'Escape' && (container.contains(document.activeElement)
+                        || (isOpen() && document.activeElement === toggle))) {
                     event.preventDefault();
-                    hide();
-                    container.classList.remove('search-open');
-                    if (previousFocus instanceof HTMLElement && previousFocus !== document.body) previousFocus.focus();
-                    else searchInput.blur();
+                    close(true);
+                }
+            });
+            document.addEventListener('click', event => {
+                if (mobile.matches && isOpen() && !toggle.contains(event.target) && !container.contains(event.target)) {
+                    close(true);
                 }
             });
             searchInput.addEventListener('input', render);
@@ -446,11 +479,14 @@
                 }
             });
             container.addEventListener('focusout', event => {
-                if (!container.contains(event.relatedTarget)) {
-                    hide();
-                    container.classList.remove('search-open');
-                }
+                if (container.contains(event.relatedTarget)) return;
+                if (mobile.matches && (!event.relatedTarget || toggle.contains(event.relatedTarget))) return;
+                close(false);
             });
+            searchResults.addEventListener('click', event => {
+                if (mobile.matches && event.target.closest('a')) close(true);
+            });
+            mobile.addEventListener('change', () => close(false));
         }
 
         // Auto-hide alerts after 5 seconds

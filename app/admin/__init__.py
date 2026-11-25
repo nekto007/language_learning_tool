@@ -32,6 +32,8 @@ def register_admin_routes(flask_app):
     flask_app.register_blueprint(short_reading_bp, url_prefix='/admin')
     from app.admin.routes.placement_bank_routes import placement_bank_bp
     flask_app.register_blueprint(placement_bank_bp, url_prefix='/admin')
+    from app.admin.routes.public_copy_routes import public_copy_bp
+    flask_app.register_blueprint(public_copy_bp, url_prefix='/admin')
 
     # Import and register curriculum routes blueprint
     from app.admin.routes.curriculum_routes import curriculum_bp

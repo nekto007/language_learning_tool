@@ -1,0 +1,15 @@
+{% extends 'admin/base.html' %}
+{% block title %}Публичные страницы{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('materials_admin.index') }}">К материалам</a></p>
+<h1 class="h3 mb-3">Публичные страницы</h1>
+<ul class="list-group">
+    {% for page, (title, endpoint) in pages.items() %}
+    <li class="list-group-item d-flex flex-wrap align-items-baseline gap-2 justify-content-between">
+        <a href="{{ url_for('.edit', page=page) }}">{{ title }}</a>
+        <code>{{ url_for(endpoint) }}</code>
+    </li>
+    {% endfor %}
+    <li class="list-group-item"><a href="{{ url_for('.demo_index') }}">Пробные упражнения главной</a></li>
+</ul>
+{% endblock %}

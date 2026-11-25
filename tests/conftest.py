@@ -191,7 +191,25 @@ def app(worker_id):
         SQLALCHEMY_TRACK_MODIFICATIONS = False
         RATELIMIT_ENABLED = False  # Disable rate limiting in tests
 
-    test_app = create_app(config_class=TestConfig)
+    create_all = db.create_all
+
+    def create_tables() -> None:
+        # SQLAlchemy 1.4 defers circular foreign keys to ALTER TABLE on PostgreSQL
+        # and can leave the shared constraints marked to skip subsequent inline DDL.
+        create_rules = {
+            constraint: constraint._create_rule
+            for table in db.metadata.tables.values()
+            for constraint in table.constraints
+        }
+        try:
+            create_all()
+        finally:
+            for constraint, rule in create_rules.items():
+                constraint._create_rule = rule
+
+    # The app factory also creates tables in TESTING mode after importing its models.
+    with patch.object(db, 'create_all', new=create_tables):
+        test_app = create_app(config_class=TestConfig)
 
     # VERIFY we're using test database, not production!
     db_uri = test_app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -210,7 +228,7 @@ def app(worker_id):
         )
 
     with test_app.app_context():
-        db.create_all()
+        create_tables()
         db.session.remove()
         _truncate_all_tables(db)
         yield test_app

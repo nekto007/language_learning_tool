@@ -1,0 +1,93 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ page_info[0] }} · Публичные страницы{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('.index') }}">К публичным страницам</a></p>
+<h1 class="h3">{{ page_info[0] }}</h1>
+{% if error %}<p class="alert alert-warning" role="alert" data-persist="true">{{ error }}</p>{% endif %}
+<form method="post" action="{{ url_for('.edit', page=page) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="preview_token" value="{{ token }}">
+    {% if preview %}
+    <section class="mb-4" id="editorial-preview" aria-labelledby="preview-heading">
+        <h2 class="h5" id="preview-heading">Предпросмотр публикации</h2>
+        {% if changed %}
+        <details class="card mb-2">
+            <summary class="card-header">Изменения текста · {{ changed | length }}</summary>
+            <div class="card-body">
+                {% for group, number, old, new in changed %}
+                <h3 class="h6">{{ group }} · поле {{ number }}</h3>
+                <dl class="row text-break">
+                    <dt class="col-sm-2">Было</dt><dd class="col-sm-10">{{ old }}</dd>
+                    <dt class="col-sm-2">Стало</dt><dd class="col-sm-10">{{ new }}</dd>
+                </dl>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+        {% if faq_changed %}
+        <details class="card mb-2">
+            <summary class="card-header">Изменения в FAQ</summary>
+            <div class="card-body row gy-2 text-break">
+                {% for label, items in (('Было', old_faq), ('Стало', document.faq)) %}
+                <div class="col-md-6"><h3 class="h6">{{ label }}</h3>
+                    <dl>{% for question, answer in items %}<dt>{{ question }}</dt><dd>{{ answer }}</dd>{% endfor %}</dl>
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+        <iframe class="w-100 border rounded bg-white mb-3" height="450" title="Вид публичной страницы"
+                sandbox srcdoc="{{ preview }}"></iframe>
+        <button type="submit" name="action" value="publish" class="btn btn-primary">Опубликовать</button>
+        <a href="#edit-fields" class="btn btn-outline-secondary">Продолжить редактирование</a>
+    </section>
+    {% endif %}
+    <h2 class="h5" id="edit-fields">Текст страницы</h2>
+    {% for title, fields in groups.items() %}
+    <details class="card mb-2"{% if loop.first or error %} open{% endif %}>
+        <summary class="card-header">{{ title }}</summary>
+        <div class="card-body">
+            {% for key, label in fields %}
+            <div class="mb-3">
+                <label class="form-label" for="copy-{{ key }}">{{ label }}{% if not key.startswith('seo.') %} {{ loop.index }}{% endif %}</label>
+                {% if key.startswith('seo.') %}
+                <input class="form-control" id="copy-{{ key }}" name="text.{{ key }}" maxlength="{{ field_limit(key) }}"
+                       value="{{ document.text[key] }}" required>
+                {% else %}
+                <textarea class="form-control" id="copy-{{ key }}" name="text.{{ key }}" rows="{{ 4 if defaults[key]|length > 180 else 2 }}"
+                          maxlength="{{ field_limit(key) }}" required>{{ document.text[key] }}</textarea>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endfor %}
+    {% if page == 'home' %}
+    <details id="faq-editor" class="card mb-3"{% if faq_changed or error or request.form.get('action', '').startswith(('add', 'remove.')) %} open{% endif %}>
+        <summary class="card-header">Вопросы и ответы FAQ</summary>
+        <div class="card-body">
+            {% for question, answer in document.faq %}
+            <fieldset class="border rounded p-3 mb-3">
+                <legend class="h6 float-none w-auto px-1">Пара {{ loop.index }}</legend>
+                <label class="form-label" for="faq-q-{{ loop.index }}">Вопрос</label>
+                <input class="form-control mb-3" id="faq-q-{{ loop.index }}" name="question" maxlength="{{ question_limit }}" value="{{ question }}" required>
+                <label class="form-label" for="faq-a-{{ loop.index }}">Ответ</label>
+                <textarea class="form-control mb-3" id="faq-a-{{ loop.index }}" name="answer" rows="3" maxlength="{{ text_limit }}" required>{{ answer }}</textarea>
+                {% if document.faq | length > 1 %}
+                <button type="submit" class="btn btn-outline-danger btn-sm" name="action" value="remove.{{ loop.index0 }}"
+                        formaction="{{ url_for('.edit', page=page, _anchor='faq-editor') }}"
+                        formnovalidate>Убрать пару {{ loop.index }}</button>
+                {% endif %}
+            </fieldset>
+            {% endfor %}
+            {% if document.faq | length < max_faq %}
+            <button type="submit" class="btn btn-outline-primary" name="action" value="add"
+                    formaction="{{ url_for('.edit', page=page, _anchor='faq-editor') }}" formnovalidate>Добавить пару</button>
+            {% endif %}
+        </div>
+    </details>
+    {% endif %}
+    <button type="submit" name="action" value="preview" class="btn {{ 'btn-outline-primary' if preview else 'btn-primary' }}">Предпросмотр</button>
+</form>
+{% endblock %}

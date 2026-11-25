@@ -1,0 +1,14 @@
+{% extends 'admin/base.html' %}
+{% block title %}Пробные упражнения главной{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('.index') }}">К публичным страницам</a></p>
+<h1 class="h3 mb-3">Пробные упражнения главной</h1>
+<ul class="list-group">
+    {% for demo in demos %}
+    <li class="list-group-item d-flex flex-wrap align-items-baseline gap-2 justify-content-between">
+        <a href="{{ url_for('.edit_demo', preview_id=demo.id) }}" lang="en">{{ demo.prompt }}</a>
+        <code>{{ demo.id }}</code>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
