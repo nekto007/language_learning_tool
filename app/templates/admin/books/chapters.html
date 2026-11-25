@@ -1,0 +1,18 @@
+{% extends 'admin/base.html' %}
+{% block title %}Главы · {{ book.title }}{% endblock %}
+{% block content %}
+<h1 class="h3">{{ book.title }}</h1>
+<p><a href="{{ url_for('.edit_book', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Карточка книги</a></p>
+<h2 class="h5">Главы</h2>
+<ul class="list-group">
+    {% for chapter in chapters %}
+    <li class="list-group-item d-flex align-items-baseline flex-wrap gap-2 justify-content-between">
+        <span>{{ chapter.chap_num }}. {{ chapter.title }}</span>
+        <a href="{{ url_for('.edit_chapter', book_id=book.id, chapter_id=chapter.id, materials_query=request.args.get('materials_query')) }}"
+           aria-label="Редактировать главу {{ chapter.chap_num }} — {{ chapter.title }}">Редактировать</a>
+    </li>
+    {% else %}
+    <li class="list-group-item">В книге пока нет глав.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

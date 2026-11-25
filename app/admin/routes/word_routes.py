@@ -5,6 +5,7 @@ Word Management Routes для административной панели
 Маршруты для управления словами, переводами и статистикой слов
 """
 import logging
+from hashlib import sha256
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user
@@ -17,13 +18,49 @@ from app.admin.utils.export_helpers import export_words_csv, export_words_json, 
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.admin.utils.request_validators import get_choice_arg, get_enum_arg, get_int_arg
 from app.auth.models import User
+from app.modules.service import ModuleService
 from app.utils.db import db
 from app.utils.validators import WordStatus
+from app.words.models import CollectionWords
+from app.words.routes import encode_word_slug
 
 # Создаем blueprint для word routes
 word_bp = Blueprint('word_admin', __name__)
 
 logger = logging.getLogger(__name__)
+
+
+@word_bp.route('/words/<int:word_id>/translation', methods=['GET', 'POST'])
+@admin_required
+def edit_translation(word_id: int):
+    from app.admin.routes.materials import materials_return_url
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    query = CollectionWords.query.filter_by(id=word_id)
+    if request.method == 'POST':
+        query = query.populate_existing().with_for_update()
+    word = query.first_or_404()
+    stored = word.russian_word or ''
+    revision = sha256(stored.encode()).hexdigest()
+    value, error, status = stored, '', 200
+    if request.method == 'POST':
+        value = request.form.get('translation', '').strip()
+        if request.form.get('revision') != revision:
+            error, status = 'Перевод уже изменился. Сверьте актуальное значение и повторите сохранение.', 409
+        elif not value or len(value) > 255 or any(ord(char) < 32 for char in request.form.get('translation', '')):
+            error, status = 'Введите непустой перевод одной строкой, до 255 символов.', 422
+        else:
+            if value != stored:
+                word.russian_word = value
+                log_admin_action(current_user.id, 'word.translation.update', 'word', word.id, required=True)
+                db.session.commit()
+                clear_admin_cache()
+                flash('Перевод сохранён.', 'success')
+            return redirect(materials_return_url() or url_for('word_admin.word_management'), code=303)
+    return render_template('admin/words/edit_translation.html', word=word, value=value, stored=stored,
+                           revision=revision, error=error, slug=encode_word_slug(word.english_word),
+                           public_word=not word.level or word.level in PUBLIC_CEFR_CODES,
+                           card_available=ModuleService.is_module_enabled_for_user(current_user.id, 'words')), status
 
 
 @word_bp.route('/words')

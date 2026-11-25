@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
@@ -21,6 +22,7 @@ from app.admin.services.book_processing_service import (
     BookUploadError,
     save_uploaded_book_file,
 )
+from app.admin.services.chapter_editor import apply_chapter, chapter_revision, review_chapter, text_for_edit
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.books.forms import BookContentForm
@@ -489,6 +491,8 @@ def cleanup_books():
 @handle_admin_errors(return_json=False)
 def edit_book(book_id):
     """Редактирование книги"""
+    from app.admin.routes.materials import materials_return_url
+
     book = Book.query.get_or_404(book_id)
 
     if request.method == 'POST':
@@ -512,9 +516,66 @@ def edit_book(book_id):
         log_admin_action(current_user.id, 'book.update', target_type='book', target_id=book_id)
         db.session.commit()
         flash(f'Книга "{book.title}" обновлена', 'success')
-        return redirect(url_for('book_admin.books'))
+        return redirect(materials_return_url() or url_for('book_admin.books'))
 
     return render_template('admin/books/edit.html', book=book)
+
+
+@book_bp.get('/books/<int:book_id>/chapters')
+@admin_required
+def chapter_list(book_id: int):
+    book = Book.query.get_or_404(book_id)
+    chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chap_num).all()
+    return render_template('admin/books/chapters.html', book=book, chapters=chapters)
+
+
+@book_bp.route('/books/<int:book_id>/chapters/<int:chapter_id>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_chapter(book_id: int, chapter_id: int):
+    from app.admin.routes.materials import materials_return_url
+
+    book_query = Book.query.filter_by(id=book_id)
+    chapter_query = Chapter.query.filter_by(book_id=book_id, id=chapter_id)
+    action = request.form.get('action') if request.method == 'POST' else None
+    if action == 'apply':
+        book_query = book_query.with_for_update().populate_existing()
+        chapter_query = chapter_query.with_for_update().populate_existing()
+    book = book_query.first_or_404()
+    chapter = chapter_query.first_or_404()
+    title, text = chapter.title, text_for_edit(chapter.text_raw)
+    revision = chapter_revision(title, text)
+    preview, token, error, status = None, '', '', 200
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        text = text_for_edit(request.form.get('text', ''))
+        try:
+            if request.form.get('revision') != revision:
+                raise BadSignature('chapter changed')
+            if action not in ('preview', 'apply'):
+                raise ValueError('Выберите предпросмотр или сохранение.')
+            binding = [current_user.id, chapter.id, revision, chapter_revision(title, text)]
+            signer = URLSafeTimedSerializer(current_app.secret_key, salt='admin-chapter-preview')
+            if action == 'apply':
+                signed = request.form.get('preview_token', '')
+                if len(signed) > 1024 or signer.loads(signed, max_age=1800) != binding:
+                    raise BadSignature('preview changed')
+            preview = review_chapter(book, chapter, title, text)
+            if action == 'preview':
+                token = signer.dumps(binding)
+            else:
+                if title != chapter.title or preview.text_changed:
+                    apply_chapter(book, chapter, title, text, preview)
+                    log_admin_action(current_user.id, 'book.chapter.update', 'chapter', chapter.id, required=True)
+                    db.session.commit()
+                    clear_admin_cache()
+                    flash('Глава сохранена.', 'success')
+                return redirect(materials_return_url() or url_for('.chapter_list', book_id=book.id), code=303)
+        except BadSignature:
+            error, status = 'Глава или черновик изменились. Сверьте данные и заново откройте предпросмотр.', 409
+        except ValueError as exc:
+            error, status = str(exc), 422
+    return render_template('admin/books/edit_chapter.html', book=book, chapter=chapter, title=title, text=text,
+                           revision=revision, preview=preview, token=token, error=error), status
 
 
 # ---------------------------------------------------------------------------

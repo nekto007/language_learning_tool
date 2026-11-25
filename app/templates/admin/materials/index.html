@@ -7,12 +7,11 @@
 <div class="materials">
     <header class="materials-heading">
         <h1>Материалы</h1>
-        <p>Поиск по урокам курса и упражнениям Grammar Lab.</p>
     </header>
 
     <form class="materials-filters" method="get" action="{{ url_for('.index') }}" role="search" aria-label="Поиск материалов">
         <div class="materials-search">
-            <label for="materials-q">Название, текст задания или ID</label>
+            <label for="materials-q">Название, текст, перевод или ID</label>
             <input class="form-control" type="search" id="materials-q" name="q" value="{{ filters.q }}" maxlength="160" placeholder="Например, Present Simple или #42">
         </div>
         <div>
@@ -48,20 +47,29 @@
             {% for row in rows %}
             <li class="materials-result" data-kind="{{ row.kind }}" data-material-id="{{ row.id }}">
                 <div>
-                    <div class="materials-meta"><span class="materials-level">{{ row.level }}</span> {{ kinds[row.kind] }} · ID {{ row.id }}</div>
+                    <div class="materials-meta">{% if row.level %}<span class="materials-level">{{ row.level }}</span> {% endif %}{{ kinds[row.kind] }} · ID {{ row.id }}</div>
                     <h3>{{ row.title | truncate(150) if row.title else 'Упражнение без текста' }}</h3>
                     <p class="materials-meta">
                         {% if row.kind == 'lesson' %}Модуль {{ row.module_number }} · {{ row.parent_title }} · Урок {{ row.lesson_number }}
-                        {% else %}{{ row.parent_title }}{% if row.retired %} · Снято с практики{% endif %}{% endif %}
+                        {% else %}{{ row.parent_title or '' }}{% if row.retired %} · Снято с практики{% endif %}{% endif %}
                     </p>
                 </div>
                 <div class="materials-actions">
                     {% if row.kind == 'lesson' %}
                     <a class="materials-secondary" href="{{ url_for('curriculum_admin.view_lesson', lesson_id=row.id, materials_query=materials_query) }}">Просмотр</a>
                     <a class="btn btn-outline-primary" href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=row.id, materials_query=materials_query) }}">Редактировать</a>
-                    {% else %}
+                    {% elif row.kind == 'exercise' %}
                     <a class="materials-secondary" href="{{ url_for('grammar_lab_admin.edit_topic', topic_id=row.parent_id, materials_query=materials_query) }}">Тема</a>
                     <a class="btn btn-outline-primary" href="{{ url_for('grammar_lab_admin.edit_exercise', exercise_id=row.id, materials_query=materials_query) }}">Редактировать</a>
+                    {% elif row.kind == 'book' %}
+                    <a class="materials-secondary" href="{{ url_for('book_admin.chapter_list', book_id=row.id, materials_query=materials_query) }}">Главы</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('book_admin.edit_book', book_id=row.id, materials_query=materials_query) }}">Карточка</a>
+                    {% elif row.kind == 'word' %}
+                    <a class="btn btn-outline-primary" href="{{ url_for('word_admin.edit_translation', word_id=row.id, materials_query=materials_query) }}">Править перевод</a>
+                    {% elif row.kind == 'word_set' %}
+                    <a class="btn btn-outline-primary" href="{{ url_for('word_set_admin.word_set_edit', set_id=row.id, materials_query=materials_query) }}">Редактировать</a>
+                    {% elif row.kind == 'collection' %}
+                    <a class="btn btn-outline-primary" href="{{ url_for('collection_admin.edit_collection', collection_id=row.id, materials_query=materials_query) }}">Редактировать</a>
                     {% endif %}
                 </div>
             </li>

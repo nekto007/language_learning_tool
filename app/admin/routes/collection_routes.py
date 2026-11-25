@@ -223,6 +223,8 @@ def create_collection():
 @admin_required
 def edit_collection(collection_id):
     """Редактирование коллекции"""
+    from app.admin.routes.materials import materials_return_url
+
     collection = Collection.query.get_or_404(collection_id)
     form = CollectionForm(obj=collection)
 
@@ -262,7 +264,7 @@ def edit_collection(collection_id):
         db.session.commit()
 
         flash(_('Collection updated successfully!'), 'success')
-        return redirect(url_for('collection_admin.collection_list'))
+        return redirect(materials_return_url() or url_for('collection_admin.collection_list'))
 
     # Предзаполняем form.word_ids значениями из коллекции
     current_word_ids = [str(word.id) for word in collection.words]

@@ -1,0 +1,25 @@
+{% extends 'admin/base.html' %}
+{% block title %}Перевод · {{ word.english_word }}{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h1 class="h3">{{ word.english_word }}</h1>
+        {% if public_word or card_available %}
+        <p class="d-flex flex-wrap gap-3">
+            {% if public_word %}<a href="{{ url_for('words.public_word', word_slug=slug) }}">На сайте</a>{% endif %}
+            {% if card_available %}<a href="{{ url_for('words.word_detail', word_id=word.id) }}">Карточка в словаре</a>{% endif %}
+        </p>
+        {% endif %}
+        {% if error %}
+        <p class="alert alert-warning" role="alert">{{ error }} Актуальное значение — {{ stored or 'пусто' }}.</p>
+        {% endif %}
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="revision" value="{{ revision }}">
+            <label class="form-label" for="translation">Перевод на русский</label>
+            <input class="form-control mb-3" id="translation" name="translation" maxlength="255" required value="{{ value }}">
+            <button class="btn btn-primary" type="submit">Сохранить перевод</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

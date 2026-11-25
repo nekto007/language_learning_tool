@@ -166,20 +166,13 @@ def get_book(book_id):
 # Chapter-based Reading API
 # ============================================================================
 
-# Кэшируются только данные (одинаковые для всех юзеров), НЕ response роута:
-# `@cached` на самом роуте без user_specific отдавал первый закэшированный
-# ответ всем подряд — юзер без доступа получал чужой список глав, юзер с
-# доступом — чужой 403. Проверки доступа всегда выполняются до кэша.
-@cached(timeout=3600, key_prefix='book_chapters_data')  # Cache for 1 hour
-def _chapter_list_payload(book_id: int) -> list:
-    chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
-    return [{
-        'id': ch.id,
-        'num': ch.chap_num,
-        'title': ch.title,
-        'words': ch.words,
-        'audio_url': ch.audio_url
-    } for ch in chapters]
+def _chapter_list_payload(book_id: int) -> list[dict]:
+    # A chapter publication must reach every worker immediately. Select just
+    # the TOC columns, without loading the chapter bodies.
+    chapters = db.session.execute(db.select(
+        Chapter.id, Chapter.chap_num.label('num'), Chapter.title, Chapter.words, Chapter.audio_url,
+    ).where(Chapter.book_id == book_id).order_by(Chapter.chap_num)).mappings()
+    return [dict(chapter) for chapter in chapters]
 
 
 @api_books.route('/books/<slug>/chapters', methods=['GET'])

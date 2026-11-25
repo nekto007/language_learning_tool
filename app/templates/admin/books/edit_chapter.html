@@ -1,0 +1,58 @@
+{% extends 'admin/base.html' %}
+{% block title %}Глава {{ chapter.chap_num }} · {{ book.title }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('.chapter_list', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Главы книги</a></p>
+<h1 class="h3">{{ book.title }} · глава {{ chapter.chap_num }}</h1>
+{% if error %}<p class="alert alert-warning" role="alert">{{ error }}</p>{% endif %}
+<form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="preview_token" value="{{ token }}">
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label" for="chapter-title">Название главы</label>
+            <input class="form-control mb-3" id="chapter-title" name="title" maxlength="255" required value="{{ title }}">
+            <label class="form-label" for="chapter-text">Текст главы</label>
+            <textarea class="form-control" id="chapter-text" name="text" rows="12" required
+                      aria-describedby="chapter-edit-help">{{ text }}</textarea>
+            <p id="chapter-edit-help" class="form-text mb-0">Пустая строка отделяет абзацы. При замене текста сохранённый процент чтения остаётся прежним, а точная высота прокрутки зависит от экрана.</p>
+        </div>
+    </div>
+    {% if preview %}
+    <section class="card mb-3" aria-labelledby="chapter-preview">
+        <div class="card-body text-break">
+            <h2 class="h5" id="chapter-preview">Предпросмотр изменений</h2>
+            {% if preview.structure_changed and book.is_published %}
+            <p class="alert alert-warning">Изменились границы или порядок абзацев. Закладки, сохранённые только на устройстве, могут вести к другому месту. Уже загруженная копия сохранит прежний текст до обновления в приложении.</p>
+            {% endif %}
+            {% if title != chapter.title %}
+            <p><strong>Название</strong> · {{ chapter.title }} → {{ title }}</p>
+            {% endif %}
+            {% if preview.text_changed %}
+            <p>Слов в главе · {{ chapter.words }} → {{ preview.word_count }}</p>
+            {% for before, after in preview.changes[:6] %}
+            <div class="row gy-2 mb-3">
+                <div class="col-md-6"><h3 class="h6">Было</h3>
+                    {% for paragraph in before %}<p>{{ paragraph | truncate(600) }}</p>{% else %}<p>Абзаца не было.</p>{% endfor %}
+                </div>
+                <div class="col-md-6"><h3 class="h6">Стало</h3>
+                    {% for paragraph in after %}<p>{{ paragraph | truncate(600) }}</p>{% else %}<p>Абзац снят.</p>{% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+            {% if preview.changes | length > 6 %}<p>Показаны первые шесть групп изменённых абзацев. Полный текст приведён в поле формы.</p>{% endif %}
+            {% if not preview.changes %}<p>Изменилось оформление. Видимый текст тот же.</p>{% endif %}
+            {% elif title == chapter.title %}
+            <p class="mb-0">Изменений нет.</p>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn {{ 'btn-outline-primary' if token else 'btn-primary' }}" name="action" value="preview" type="submit">Предпросмотр</button>
+        {% if token and (preview.text_changed or title != chapter.title) %}
+        <button class="btn btn-primary" name="action" value="apply" type="submit">Сохранить главу</button>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

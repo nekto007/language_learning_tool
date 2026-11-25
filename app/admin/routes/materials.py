@@ -4,23 +4,32 @@ from urllib.parse import parse_qsl, urlencode
 
 from flask import Blueprint, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import Integer, func, literal, or_, select, union_all
+from sqlalchemy import Integer, String, func, literal, or_, select, union_all
 from sqlalchemy.sql import CompoundSelect, Select
 
 from app.admin.utils.decorators import admin_required
 from app.admin.utils.request_validators import escape_like
+from app.books.models import Book
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.grammar_lab.models import GrammarExercise, GrammarTopic
+from app.study.models import WordSet
 from app.utils.db import db
+from app.words.models import Collection, CollectionWords
 
 materials_bp = Blueprint('materials_admin', __name__)
 _LEVELS = ('A1', 'A2', 'B1', 'B2', 'C1')
-_KINDS = {'lesson': 'Урок курса', 'exercise': 'Упражнение Grammar Lab'}
+_KINDS = {
+    'lesson': 'Урок курса', 'exercise': 'Упражнение Grammar Lab',
+    'book': 'Книга', 'word': 'Слово', 'collection': 'Коллекция',
+    'word_set': 'Набор слов',  # noqa: RUF001 -- Russian catalog label.
+}
 _PAGE_SIZE = 24
 _MATERIAL_DESTINATIONS = {
     'curriculum_admin.edit_lesson', 'curriculum_admin.view_lesson',
     'grammar_lab_admin.edit_exercise', 'grammar_lab_admin.edit_topic',
     'guided_topics_admin.edit', 'guided_topics_admin.preview', 'guided_topics_admin.publish',
+    'book_admin.edit_book', 'book_admin.chapter_list', 'book_admin.edit_chapter',
+    'word_admin.edit_translation', 'word_set_admin.word_set_edit', 'collection_admin.edit_collection',
 }
 _DIRECTORIES = (
     ('Словарь', 'word_admin.word_management', 'Статистика словаря, статусы слов и импорт переводов'),
@@ -115,7 +124,31 @@ def _materials(term: str, kind: str, level: str) -> Select | CompoundSelect:
         return lessons
     if kind == 'exercise':
         return exercises
-    return union_all(lessons, exercises)
+    queries = [] if kind else [lessons, exercises]
+    additional = {
+        'book': (Book.id, Book.level, Book.title, Book.author, (Book.title, Book.author, Book.slug)),
+        'word': (CollectionWords.id, CollectionWords.level, CollectionWords.english_word,
+                 CollectionWords.russian_word, (CollectionWords.english_word, CollectionWords.russian_word)),
+        'word_set': (WordSet.id, WordSet.level, WordSet.name, literal(None, String), (WordSet.name, WordSet.slug)),
+        'collection': (Collection.id, literal(None, String), Collection.name, literal(None, String), (Collection.name,)),
+    }
+    for entry_kind, (identity, cefr, title, secondary, fields) in additional.items():
+        if kind and kind != entry_kind:
+            continue
+        query = select(
+            literal(entry_kind).label('kind'), identity.label('id'), cefr.label('level'), title.label('title'),
+            secondary.label('parent_title'), literal(None, Integer).label('parent_id'),
+            literal(None, Integer).label('module_number'), literal(None, Integer).label('lesson_number'),
+            literal(False).label('retired'),
+        )
+        if level:
+            query = query.where(cefr == level)
+        if item_id is not None:
+            query = query.where(identity == item_id)
+        elif term:
+            query = query.where(or_(*(field.ilike(pattern, escape='\\') for field in fields)))
+        queries.append(query)
+    return queries[0] if len(queries) == 1 else union_all(*queries)
 
 
 @materials_bp.get('/materials')

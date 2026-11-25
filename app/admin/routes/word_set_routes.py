@@ -175,6 +175,8 @@ def word_set_create():
 @word_set_bp.route('/word-sets/<int:set_id>/edit', methods=['GET', 'POST'])
 @admin_audit_required('word_set.update', target_type='word_set', target_id_arg='set_id')
 def word_set_edit(set_id):
+    from app.admin.routes.materials import materials_return_url
+
     word_set = WordSet.query.get_or_404(set_id)
 
     if request.method == 'POST':
@@ -211,7 +213,7 @@ def word_set_edit(set_id):
         word_set.is_published = data['is_published']
         db.session.commit()
         flash('Набор обновлён', 'success')
-        return redirect(url_for('word_set_admin.word_set_list'))
+        return redirect(materials_return_url() or url_for('word_set_admin.word_set_list'))
 
     return render_template(
         'admin/word_sets/form.html', word_set=word_set, accents=WORD_SET_ACCENTS, data=None

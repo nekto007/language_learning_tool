@@ -9,6 +9,9 @@
 
 {% block content %}
 {% set actions %}
+<a href="{{ url_for('materials_admin.index', kind='word') }}" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-search" aria-hidden="true"></i> Найти слово
+</a>
 <a href="{{ url_for('word_admin.import_translations') }}" class="btn btn-success btn-sm">
     <i class="fas fa-upload"></i> Импорт переводов
 </a>
@@ -147,6 +150,7 @@
                                     <th>Русский перевод</th>
                                     <th>Уровень</th>
                                     <th>Статус перевода</th>
+                                    <th>Действие</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -175,6 +179,7 @@
                                             <span class="badge badge-warning">Требует перевода</span>
                                         {% endif %}
                                     </td>
+                                    <td><a href="{{ url_for('word_admin.edit_translation', word_id=word.id) }}">Править перевод</a></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
