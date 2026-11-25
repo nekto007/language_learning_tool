@@ -13,6 +13,7 @@ from app.admin.utils.decorators import content_editor_required
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.auth.models import User
 from app.curriculum.answer_disputes import AnswerDispute
+from app.curriculum.blank_answers import blank_instruction, has_blank_format_conflict
 from app.grammar_lab.content_catalog import content_digest, validate_authored_topic
 from app.grammar_lab.content_install import install_catalog
 from app.grammar_lab.guided_authoring import edited_document, is_guided_content, recover_document
@@ -66,8 +67,17 @@ def _format_document(document: dict | None) -> str:
 
 def _form(topic: GrammarTopic, document: dict | None, *, error: str = '', source: str | None = None,
           recovery: str = '', draft: str = '', status: int = 200) -> Response:
+    learner_instructions = {}
+    for step in (document or {}).get('steps', []):
+        notes = []
+        for row in step['exercises']:
+            if has_blank_format_conflict(row) and (shown := blank_instruction(row)) != row['instruction']:
+                notes.append((row['question'], shown))
+        if notes:
+            learner_instructions[step['id']] = notes
     return _private('edit', status, topic=topic, document=document, error=error,
-                    source=_format_document(document) if source is None else source, recovery=recovery, draft=draft)
+                    source=_format_document(document) if source is None else source, recovery=recovery, draft=draft,
+                    learner_instructions=learner_instructions)
 
 
 def _parse_document(topic: GrammarTopic, value: str) -> dict:

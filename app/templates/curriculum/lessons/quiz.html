@@ -590,6 +590,7 @@
   {% endif %}
 </div>
 
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/curriculum-completed-blank.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 // Match the shared quiz punctuation policy: Unicode punctuation (including
 // underscores and apostrophes) never changes an otherwise complete answer.
@@ -1266,7 +1267,7 @@ window.QuizApp = {
     // Get correct answer from various possible fields
     let correctAnswer = question.correct_answer || question.answer || question.correct;
     
-    const isCorrect = quizTextEquals(answer, question, correctAnswer);
+    const isCorrect = quizTextEquals(answer, question, correctAnswer) || matchesCompletedBlank(answer, question);
 
     this.state.answers[questionIndex] = {
       value: answer,

@@ -201,7 +201,10 @@
               </button>
             </div>
 
-          {% elif question.type in ['fill_in_blank', 'fill_blank', 'translation'] %}
+          {% elif question.type in ['fill_blank', 'translation'] %}
+            {% if question.completed_blanks %}
+              <p class="final-test-instruction">{{ question.instruction }}</p>
+            {% endif %}
             {# For final tests, translation questions ALWAYS show text input #}
             {% if question.options %}
               <!-- Fill blank with options (multiple choice style) -->
@@ -387,6 +390,7 @@
   </div>
 </div>
 
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/curriculum-completed-blank.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 // Final Test data
 window.finalTestData = {
@@ -879,13 +883,11 @@ window.FinalTestApp = {
       isCorrect = normalize(answer) === normalize(correctAnswer);
     }
 
-    if (!isCorrect && question.alternative_answers) {
-      isCorrect = question.alternative_answers.some(ans => normalize(ans) === normalize(answer));
-    }
-
-    if (!isCorrect && question.acceptable_answers) {
-      isCorrect = question.acceptable_answers.some(ans => normalize(ans) === normalize(answer));
-    }
+    const aliases = [question.alternatives, question.alternative_answers, question.acceptable_answers].flatMap(
+      values => Array.isArray(values) ? values : []
+    );
+    isCorrect = isCorrect || aliases.some(ans => normalize(ans) === normalize(answer)) ||
+      matchesCompletedBlank(answer, question);
 
     this.state.answers[questionIndex] = {
       value: answer,
@@ -1065,6 +1067,10 @@ window.FinalTestApp = {
       const answer = this.state.answers[i];
       if (answer) {
         formData.append(`answer_${i}`, answer.value);
+        const question = window.finalTestData.questions[i];
+        if (question.type === 'fill_blank' && question.options?.length) {
+          formData.append(`option_text_${i}`, answer.text);
+        }
         // For matching: ship raw pairs so the server persists them into
         // feedback.user_pairs for the results page.
         if (Array.isArray(answer.pairs) && answer.pairs.length) {

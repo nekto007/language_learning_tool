@@ -31,6 +31,14 @@
             <summary>{{ loop.index }}. {{ step.title }}</summary>
             <label for="guided-body-{{ loop.index }}">Текст теории</label>
             <textarea id="guided-body-{{ loop.index }}" class="form-control" name="body" maxlength="2000" rows="5">{{ step.body }}</textarea>
+            {% if step.id in learner_instructions %}
+            <p class="mt-3 mb-1 fw-semibold">Подсказки ученику для текстовых пропусков</p>
+            <ul class="mb-0">
+                {% for question, instruction in learner_instructions[step.id] %}
+                <li><strong>{{ question }}</strong> {{ instruction }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
         </details>
         {% endfor %}
         <button class="btn btn-primary" type="submit">Предпросмотр</button>

@@ -12,8 +12,9 @@ from flask_login import current_user, login_required
 from marshmallow import ValidationError
 from sqlalchemy.orm import joinedload
 
+from app.curriculum.blank_answers import BLANK_TYPES, legacy_blank_row
 from app.curriculum.constants import PASSING_SCORE_DEFAULT, get_lesson_passing_score
-from app.curriculum.grading import check_final_test_attempts_exhausted
+from app.curriculum.grading import _quiz_option_index, check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
 from app.curriculum.language_support import language_support_mode, localized_option, question_translation
 from app.curriculum.routes.lessons import (
@@ -87,7 +88,7 @@ def _uses_option_answer_text(question: dict) -> bool:
     question_type = question.get('type', 'multiple_choice')
     return (
         question_type in _OPTION_ANSWER_TYPES
-        or (question_type in {'fill_blank', 'fill_in_blank'} and bool(question.get('options')))
+        or (question_type in BLANK_TYPES and bool(question.get('options')))
     )
 
 
@@ -137,12 +138,15 @@ def _collect_quiz_form_answers(questions: list[dict]) -> dict:
         selected_text = item.get('answer')
         if selected_text is None or not _uses_option_answer_text(questions[idx]):
             continue
-        answers[idx] = str(selected_text)
+        row = questions[idx]
+        if row.get('type') in BLANK_TYPES:
+            answers[idx] = _quiz_option_index(row['options'], str(selected_text), prefer_literal=True)
+        else:
+            answers[idx] = str(selected_text)
 
     return answers
 
 
-_FILL_BLANK_TYPES = frozenset({'fill_blank', 'fill_in_blank'})
 _BLANK_MARKERS = ('___', '____', '[blank]', '(blank)', '{blank}', '...')
 
 
@@ -175,7 +179,7 @@ def _filter_final_test_questions_for_student(
     for question in questions:
         q_type = question.get('type')
         if (
-            q_type in _FILL_BLANK_TYPES
+            q_type in BLANK_TYPES
             and not question.get('options')
             and not _has_visible_blank_context(question)
         ):
@@ -206,6 +210,13 @@ def _shuffle_question_options(question: dict) -> None:
         return
     perm = list(range(len(options)))
     random.shuffle(perm)
+    if question.get('type') in BLANK_TYPES:
+        fields = ('answer', 'correct_answer', 'correct', 'correct_index')
+        key = next((field for field in fields if field in question), None)
+        index = _quiz_option_index(options, question.get(key), prefer_literal=key != 'correct_index')
+        question['options'] = [options[i] for i in perm]
+        question['correct_index'] = perm.index(index) if index >= 0 else -1
+        return
     new_pos = {old: new for new, old in enumerate(perm)}
     for key in ('correct', 'correct_index'):
         value = question.get(key)
@@ -301,7 +312,7 @@ def _final_test_display_questions(
             )
             question['section_start'] = s_idx not in seen
             seen.add(s_idx)
-    return questions, sections_meta
+    return [legacy_blank_row(question, feedback=True) for question in questions], sections_meta
 
 
 def _submission_passed(
@@ -528,7 +539,7 @@ def render_grammar_lesson(lesson):
         grammar_rule=grammar_rule,
         grammar_description=grammar_description,
         examples=examples,
-        exercises=exercises,
+        exercises=[legacy_blank_row(row) for row in exercises],
         grammar_explanation=grammar_explanation,
         theory_topic=theory_topic,
         progress=retry_display_progress(progress, force=reset_progress),
@@ -617,7 +628,7 @@ def _quiz_display_context(lesson, questions: list[dict]) -> dict:
     return context
 
 
-def _sanitize_quiz_questions(cleaned_content: dict, lesson=None) -> None:
+def _sanitize_quiz_questions(cleaned_content: dict, lesson=None, *, shuffle_blanks: bool = True) -> None:
     """Sanitize and normalize quiz question content in-place."""
     for question in cleaned_content['questions']:
         if lesson is not None:
@@ -647,7 +658,7 @@ def _sanitize_quiz_questions(cleaned_content: dict, lesson=None) -> None:
         if 'explanation' in question:
             question['explanation'] = html.unescape(sanitize_html(question['explanation']))
 
-        if 'correct_index' in question and 'correct' not in question:
+        if 'correct_index' in question and 'correct' not in question and question.get('type') not in BLANK_TYPES:
             question['correct'] = question['correct_index']
 
         if 'answer' in question and 'correct_answer' not in question:
@@ -674,9 +685,12 @@ def _sanitize_quiz_questions(cleaned_content: dict, lesson=None) -> None:
             random.shuffle(shuffled_words)
             question['shuffled_words'] = shuffled_words
 
-        if (
+        if question.get('type') in BLANK_TYPES and question.get('options'):
+            if shuffle_blanks:
+                _shuffle_question_options(question)
+        elif (
             question.get('type') in [
-                'multiple_choice', 'fill_blank', 'fill_in_blank', 'listening_choice', 'dialogue_completion'
+                'multiple_choice', 'listening_choice', 'dialogue_completion'
             ]
             and 'options' in question and len(question['options']) > 0
         ):
@@ -724,7 +738,7 @@ def render_quiz_lesson(lesson):
         flash('Ошибка в содержимом урока', 'error')
         return redirect('/learn/')
 
-    _sanitize_quiz_questions(cleaned_content, lesson)
+    _sanitize_quiz_questions(cleaned_content, lesson, shuffle_blanks=request.method != 'POST')
 
     reset_progress = is_lesson_retry_requested()
     retry_errors = request.args.get('retry_errors') == 'true'
@@ -821,7 +835,7 @@ def render_quiz_lesson(lesson):
         'curriculum/lessons/quiz.html',
         lesson=lesson,
         **_quiz_display_context(lesson, cleaned_content['questions']),
-        questions=cleaned_content['questions'],
+        questions=[legacy_blank_row(row, feedback=True) for row in cleaned_content['questions']],
         settings=cleaned_content,
         passing_score=get_lesson_passing_score(lesson),
         progress=retry_display_progress(progress, force=reset_progress),
@@ -870,7 +884,7 @@ def render_final_test_lesson(lesson):
         if 'explanation' in question:
             question['explanation'] = sanitize_html(question['explanation'])
 
-        if 'correct_index' in question and 'correct' not in question:
+        if 'correct_index' in question and 'correct' not in question and question.get('type') not in BLANK_TYPES:
             question['correct'] = question['correct_index']
 
         if 'answer' in question and 'correct_answer' not in question:
@@ -933,6 +947,10 @@ def render_final_test_lesson(lesson):
         }
         for idx, pair_list in pairs_by_idx.items():
             answers[idx] = json.dumps({'pairs': pair_list})
+
+        for idx, row in enumerate(all_questions):
+            if row.get('type') in BLANK_TYPES and row.get('options') and f'option_text_{idx}' in request.form:
+                answers[idx] = _quiz_option_index(row['options'], request.form[f'option_text_{idx}'], prefer_literal=True)
 
         result = process_quiz_submission(all_questions, answers)
 
@@ -1212,7 +1230,7 @@ def grammar_lesson(lesson_id):
         grammar_rule=grammar_rule,
         grammar_description=grammar_description,
         examples=examples,
-        exercises=exercises,
+        exercises=[legacy_blank_row(row) for row in exercises],
         grammar_explanation=grammar_explanation,
         theory_topic=theory_topic,
         progress=retry_display_progress(progress, force=reset_progress),
@@ -1261,7 +1279,7 @@ def quiz_lesson(lesson_id):
         flash('Ошибка в содержимом урока', 'error')
         return redirect('/learn/')
 
-    _sanitize_quiz_questions(cleaned_content, lesson)
+    _sanitize_quiz_questions(cleaned_content, lesson, shuffle_blanks=request.method != 'POST')
 
     reset_progress = is_lesson_retry_requested()
 
@@ -1342,7 +1360,7 @@ def quiz_lesson(lesson_id):
         'curriculum/lessons/quiz.html',
         lesson=lesson,
         **_quiz_display_context(lesson, cleaned_content['questions']),
-        questions=cleaned_content['questions'],
+        questions=[legacy_blank_row(row, feedback=True) for row in cleaned_content['questions']],
         settings=cleaned_content,
         passing_score=get_lesson_passing_score(lesson),
         progress=retry_display_progress(progress, force=reset_progress),

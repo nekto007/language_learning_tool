@@ -38,7 +38,11 @@ def test_pilot_all_answers_work_in_course_and_lab_graders():
         for source in (None, exercise):
             result = check_answer(row, q, answer, exercise=source)
             assert result["correct"], (i, source, result)
-        assert q["instruction"] == row["instruction"]
+        assert row["instruction"] in q["instruction"]
+        if row["type"] == "fill_blank":
+            assert "Можно также написать фразу с заполненным пропуском целиком." in q["instruction"]  # noqa: RUF001 -- Russian learner copy
+        else:
+            assert q["instruction"] == row["instruction"]
         assert q["theory_help"] == next(s["theory"] for s in steps if str(i) in s["question_ids"])
 
 

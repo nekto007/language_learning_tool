@@ -10,6 +10,8 @@ import random
 import re
 from urllib.parse import urlsplit
 
+from app.curriculum.blank_answers import BLANK_TYPES as FILL_BLANKS, blank_instruction
+
 QUIZZES = {
     "quiz",
     "ordering_quiz",
@@ -41,7 +43,6 @@ TEXT = {
     "transformation",
     "error_correction",
 }
-FILL_BLANKS = {"fill_blank", "fill-blank", "fill_in_blank", "fill-in-blank"}
 NATIVE_PROJECTION_VERSION = 2
 
 
@@ -297,7 +298,8 @@ def _question(lesson, row, index):
     question = {
         "id": str(index),
         "prompt": _sentence_prompt(row) if lesson.type == "sentence_completion" else _prompt(row),
-        "instruction": _plain(row.get("instruction")),
+        "instruction": _plain(blank_instruction(row) if lesson.type in QUIZZES | READINGS | {"grammar"}
+                              else row.get("instruction")),
         "options": [],
         "input": "text",
         "translation": (
@@ -620,7 +622,7 @@ def _converted(row, q, value, grammar=False):
             _error("invalid_input", 400)
         if row.get("type") in ("true_false", "tf"):
             return value
-        if row.get("type") in FILL_BLANKS and (grammar or row.get("type") != "fill_blank"):
+        if row.get("type") in FILL_BLANKS and grammar:
             return row["options"][int(value)]
         # Existing quiz graders accept source option indexes; audio-fill uses text.
         return value

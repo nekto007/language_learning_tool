@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 from marshmallow import INCLUDE, Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.decorators import post_load
 
+from app.curriculum.blank_answers import BLANK_TYPES
 
 class VocabularyItemSchema(Schema):
     """Schema for vocabulary lesson items"""
@@ -119,7 +120,7 @@ class QuizQuestionSchema(Schema):
 
         # For these types, question/prompt is not strictly required
         # They may have alternative fields like 'instruction', 'russian', 'sentence', 'audio', etc.
-        skip_question_prompt = q_type in ['fill_blank', 'fill_in_blank', 'translation', 'matching', 'ordering',
+        skip_question_prompt = q_type in BLANK_TYPES or q_type in ['translation', 'matching', 'ordering',
                                           'transformation', 'dialogue_completion', 'listening_choice', 'reorder',
                                           'true_false', 'tf']
 
@@ -150,7 +151,17 @@ class QuizQuestionSchema(Schema):
             if data.get('correct_answer') is None and data.get('answer') is None and data.get('correct') is None:
                 raise ValidationError('True/false questions require "correct_answer", "answer", or "correct" field')
 
-        elif q_type in ['fill_blank', 'fill_in_blank', 'translation']:
+        elif q_type in BLANK_TYPES:
+            options = data.get('options')
+            if options:
+                key = next((data[field] for field in ('answer', 'correct_answer', 'correct', 'correct_index')
+                            if field in data), None)
+                if key is None or (type(key) is int and not 0 <= key < len(options)):
+                    raise ValidationError('Fill-blank choices require a valid answer key')
+            elif not any(data.get(field) for field in ('correct_answer', 'answer', 'correct')):
+                raise ValidationError(f'{q_type} questions require "correct_answer", "answer", or "correct" field')
+
+        elif q_type == 'translation':
             # Must have either 'correct_answer', 'answer', or 'correct'
             if not data.get('correct_answer') and not data.get('answer') and not data.get('correct'):
                 raise ValidationError(f'{q_type} questions require "correct_answer", "answer", or "correct" field')

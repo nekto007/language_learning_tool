@@ -193,6 +193,7 @@ process.stdout.write(JSON.stringify(rows.map(row=>context.renderExercise(row))))
 def test_every_new_constraint_is_visible_in_actual_native_and_web_prompt_surfaces():
     rows = []
     constraints = []
+    expanded = 0
     for change in manifest()["changes"]:
         if "instruction" not in change["fields"]:
             continue
@@ -205,17 +206,27 @@ def test_every_new_constraint_is_visible_in_actual_native_and_web_prompt_surface
             exercise_type=change["exercise_type"],
             content=content,
         )
-        rows.append(GrammarExercise.to_dict(exercise, hide_answer=True))
+        web_row = GrammarExercise.to_dict(exercise, hide_answer=True)
+        rows.append(web_row)
         constraints.append(content["instruction"])
         lesson = SimpleNamespace(id=1, type="grammar", content={}, module=None)
         projected = _question(lesson, {**content, "type": change["exercise_type"]}, 0)
-        assert projected["instruction"] == content["instruction"]
+        assert projected["instruction"] == web_row["instruction"]
+        assert content["instruction"] in projected["instruction"]
+        if projected["instruction"] != content["instruction"]:
+            assert change["exercise_type"] == "fill_blank"
+            assert projected["instruction"].endswith(
+                "Можно также написать фразу с заполненным пропуском целиком."  # noqa: RUF001 -- Russian learner copy
+            )
+            expanded += 1
         source = content.get("question") or content.get("sentence") or content.get("statement")
         assert projected["prompt"] == source
         assert "correct_answer" not in projected and "alternatives" not in projected
+    assert expanded > 0
     rendered = _web_html(rows)
     for row, constraint, markup in zip(rows, constraints, rendered, strict=True):
         assert constraint in html.unescape(markup)
+        assert row["instruction"] in html.unescape(markup)
         source = row.get("sentence") or row.get("statement") or row.get("question")
         assert source in html.unescape(markup)
         if row["exercise_type"] == "error_correction":

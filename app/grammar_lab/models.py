@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import backref, relationship
 
+from app.curriculum.blank_answers import blank_instruction
 from app.srs.constants import DEFAULT_EASE_FACTOR
 from app.srs.constants import MATURE_THRESHOLD_DAYS as _MATURE_DAYS
 from app.srs.constants import MIN_EASE_FACTOR
@@ -186,6 +187,9 @@ class GrammarExercise(db.Model):
 
     def to_dict(self, hide_answer=False):
         """Convert to dictionary for JSON response"""
+        from app.grammar_lab.answer_review import effective_content
+
+        graded = effective_content(self)
         data = {
             'id': self.id,
             'topic_id': self.topic_id,
@@ -195,7 +199,7 @@ class GrammarExercise(db.Model):
             'question': self.content.get('question', ''),
             'options': self.content.get('options', []),
             'hint': self.content.get('hint'),
-            'instruction': self.content.get('instruction', ''),
+            'instruction': blank_instruction(graded, kind=self.exercise_type, canonical=graded.get('correct_answer')),
         }
 
         # For reorder type
@@ -225,9 +229,6 @@ class GrammarExercise(db.Model):
             data['statement'] = self.content.get('statement') or self.content.get('question', '')
 
         if not hide_answer:
-            from app.grammar_lab.answer_review import effective_content
-
-            graded = effective_content(self)
             data['correct_answer'] = graded.get('correct_answer')
             data['alternatives'] = graded.get('alternatives', [])
             data['explanation'] = self.content.get('explanation', '')

@@ -6,9 +6,9 @@ Grades different types of grammar exercises.
 """
 
 import logging
-import re
 from typing import Any, Dict
 
+from app.curriculum.blank_answers import matches_completed_blank
 from app.curriculum.grading import _quiz_option_index, _quiz_text_candidates, quiz_text_matches
 from app.utils.normalization import (
     EXPECTED_ZERO_ARTICLE_MARKERS, ZERO_ARTICLE_MARKERS, normalize_quiz_answer,
@@ -84,8 +84,6 @@ class GrammarExerciseGrader:
         """Use the same case/punctuation policy as native and course quizzes."""
         return normalize_quiz_answer(answer)
 
-    _HINT_RE = re.compile(r"\s*\([^()]*\)")
-
     # «Нулевой артикль» in fill_blank items is authored as an em dash («—»),
     # which no learner can type: accept the usual ways of saying «nothing
     # goes here» when — and only when — the expected answer is such a marker
@@ -103,13 +101,6 @@ class GrammarExerciseGrader:
     @classmethod
     def _expects_zero_article(cls, text) -> bool:
         return str(text or '').strip().lower() in cls._EXPECTED_ZERO_ARTICLE_MARKERS
-
-    @classmethod
-    def _strip_hints(cls, text: str) -> str:
-        """Drop parenthesised author hints — ``Tom ___ (wake up) at sunrise``
-        → ``Tom ___ at sunrise`` — so a full-sentence answer can be compared
-        with the question text the learner actually reproduces."""
-        return cls._HINT_RE.sub('', text or '')
 
     @staticmethod
     def _same_text(user: str, candidate: str) -> bool:
@@ -145,25 +136,9 @@ class GrammarExerciseGrader:
         content = exercise.content
         candidates = _quiz_text_candidates(content, content.get('correct_answer', ''))
 
-        is_correct = self._text_matches(answer, candidates)
-
-        # If not matched and question has a blank, check if user typed the
-        # full sentence. The author hint in brackets («(wake up)») is NOT part
-        # of what the learner reproduces, so it is stripped before the
-        # substitution; the raw question is still tried for hint-less items.
-        if not is_correct and '___' in (content.get('question') or ''):
-            question = content.get('question', '')
-            stripped = self._strip_hints(question)
-            for candidate in candidates:
-                if not str(candidate or '').strip():
-                    continue
-                filler = '' if self._expects_zero_article(candidate) else str(candidate)
-                for template in (stripped, question):
-                    if self._text_matches(answer, [template.replace('___', filler)]):
-                        is_correct = True
-                        break
-                if is_correct:
-                    break
+        is_correct = self._text_matches(answer, candidates) or matches_completed_blank(
+            answer, content, content.get('correct_answer'), kind=exercise.exercise_type, legacy_context=True,
+        )
 
         return {
             'is_correct': is_correct,

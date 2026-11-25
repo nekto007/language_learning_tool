@@ -7,6 +7,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Optional
 
+from app.curriculum.blank_answers import matches_completed_blank
 from app.curriculum.constants import PASSING_SCORE_DEFAULT, PASSING_SCORE_DICTATION, PASSING_SCORE_FINAL_TEST
 from app.utils.normalization import (
     EXPECTED_ZERO_ARTICLE_MARKERS, ZERO_ARTICLE_MARKERS, normalize_text, normalize_quiz_answer,
@@ -146,6 +147,8 @@ _S_CONTRACTION_HEADS = (
 _AMBIGUOUS_CONTRACTION_RE = re.compile(
     r"\b(?P<head>" + '|'.join(_S_CONTRACTION_HEADS) + r")'s\b|(?<=\w)'d\b",
 )
+_S_READINGS = ('is', 'has')
+_D_READINGS = ('would', 'had')
 _CONTRACTION_VARIANTS_CAP = 64
 
 
@@ -167,15 +170,62 @@ def _contraction_variants(text) -> list[str]:
     for match in _AMBIGUOUS_CONTRACTION_RE.finditer(low):
         literal = low[pos:match.start()]
         if match.group('head'):
-            options = [f"{match.group('head')} is", f"{match.group('head')} has"]
+            options = [f"{match.group('head')} {verb}" for verb in _S_READINGS]
         else:
-            options = [' would', ' had']
+            options = [' ' + verb for verb in _D_READINGS]
         variants = [v + literal + opt for v in variants for opt in options]
         if len(variants) > _CONTRACTION_VARIANTS_CAP:
             variants = variants[:_CONTRACTION_VARIANTS_CAP]
         pos = match.end()
     tail = low[pos:]
     return [v + tail for v in variants]
+
+
+_WRITTEN_WHOLE = [(expanded, form.removeprefix(r'\b').removesuffix(r'\b'))
+                  for form, expanded in _CONTRACTION_WHOLE_WORDS]
+_WRITTEN_SUFFIX = {expanded.strip(): form.removesuffix(r'\b')
+                   for form, expanded in _CONTRACTION_SUFFIXES[1:]}
+_WRITTEN_AUXILIARIES = frozenset({
+    'is', 'are', 'was', 'were', 'do', 'does', 'did', 'have', 'has', 'had',
+    'could', 'would', 'should', 'must', 'need',
+})
+_WRITTEN_HEADS = frozenset({'i', 'you', 'he', 'she', 'it', 'we', 'they', *_S_CONTRACTION_HEADS})
+_WRITTEN_PAIR = re.compile(r'(?=(\b([a-z]+)\s+([a-z]+)\b))')
+
+
+def written_contraction_forms(sentence: str) -> set[str]:
+    """Use the existing contraction spellings in the direction of an exact key."""
+    expanded = _contraction_variants(sentence)
+    variants = {sentence, *expanded} if len(expanded) == 1 else {sentence}
+    queue = sorted(variants)
+    for text in queue:
+        if len(variants) >= _CONTRACTION_VARIANTS_CAP:
+            break
+        replacements = [(m.start(), m.end(), short) for full, short in _WRITTEN_WHOLE
+                        for m in re.finditer(r'\b' + full + r'\b', text)]
+        for match in _WRITTEN_PAIR.finditer(text):
+            _, head, verb = match.groups()
+            start, end = match.span(1)
+            if verb == 'not' and head in _WRITTEN_AUXILIARIES:
+                replacements.append((start, end, head + "n't"))
+            # A positive auxiliary needs a continuation within the clause.
+            # In a short answer a stressed final auxiliary stays written out.
+            if head not in _WRITTEN_HEADS or not re.match(r'\s+\w', text[end:]):
+                continue
+            if verb in _S_READINGS and head in _S_CONTRACTION_HEADS:
+                suffix = "'s"
+            elif verb in _D_READINGS:
+                suffix = "'d"
+            else:
+                suffix = _WRITTEN_SUFFIX.get(verb)
+            if suffix:
+                replacements.append((start, end, head + suffix))
+        for start, end, replacement in replacements:
+            alternate = text[:start] + replacement + text[end:]
+            if alternate not in variants and len(variants) < _CONTRACTION_VARIANTS_CAP:
+                variants.add(alternate)
+                queue.append(alternate)
+    return variants
 
 
 # Lexical variants folded to one spelling before the strict comparison
@@ -996,7 +1046,7 @@ def process_grammar_submission(exercises: list, answers: dict) -> dict:
                 ok = bool(actual) and any(actual == normalize_quiz_answer(value)
                                           for value in candidates if value is not None)
             else:
-                ok = quiz_text_matches(given, candidates)
+                ok = quiz_text_matches(given, candidates) or matches_completed_blank(given, exercise, correct)
         correct_count += int(bool(ok))
         entry = {
             'status': 'correct' if ok else 'incorrect',
@@ -1118,7 +1168,9 @@ def process_quiz_submission(questions: list, answers: dict) -> dict:
                 candidates = _quiz_text_candidates(question, correct_answer)
                 if question_type == 'error_correction' and question.get('full_correct'):
                     candidates.append(question['full_correct'])
-                is_correct = quiz_text_matches(user_answer, candidates)
+                is_correct = quiz_text_matches(user_answer, candidates) or matches_completed_blank(
+                    user_answer, question, correct_answer,
+                )
 
 
         elif question_type in ['reorder', 'ordering']:
