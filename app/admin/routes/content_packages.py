@@ -89,7 +89,8 @@ def apply() -> Response:
             flash('Предпросмотр уже закрыт. Для новой проверки загрузите архив ещё раз.', 'warning')
             return redirect(url_for('.index'), code=303)
         apply_package(data['entries'], data['summary'])
-        log_admin_action(current_user.id, 'content_package.apply', target_type='curriculum')
+        log_admin_action(current_user.id, 'content_package.apply', target_type='curriculum',
+                         required=any(row['kind'] == 'lesson_rows' for row in data['summary']))
         db.session.commit()
     except ValueError as error:
         db.session.rollback()

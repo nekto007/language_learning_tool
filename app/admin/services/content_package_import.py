@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from marshmallow import ValidationError
 from sqlalchemy import text
 
+from app.admin.services.content_package_rows import ROW_PACKAGE, plan_row_package
 from app.admin.services.curriculum_import_service import ALLOWED_CEFR_LEVELS, CurriculumImportService
 from app.admin.services.guided_lesson_import import is_published_guided_lesson, preserved_guided_lessons
 from app.api.native_content import CHOICE, FILL_BLANKS, TEXT, _prompt
@@ -296,6 +297,8 @@ def _inspect(targets: list[_Target], lock: bool) -> list[dict]:
 
 def preview_package(entries: list[dict]) -> list[dict]:
     """Read the exact current publication targets. Nothing is written."""
+    if any(entry['data'].get('kind') == ROW_PACKAGE for entry in entries):
+        return plan_row_package(entries)[0]
     return _inspect(_targets(entries), lock=False)
 
 
@@ -306,6 +309,14 @@ def apply_package(entries: list[dict], preview: list[dict]) -> None:
             # New modules and new globally addressed final keys have no row to
             # lock. Compare their owners only after the prior publisher commits.
             db.session.execute(text("SELECT pg_advisory_xact_lock(1819046979, 1)"))
+        if any(entry['data'].get('kind') == ROW_PACKAGE for entry in entries):
+            summary, updates = plan_row_package(entries, lock=True)
+            if summary != preview:
+                raise ValueError('Предпросмотр устарел. Загрузите пакет повторно.')
+            for lesson, updated in updates:
+                lesson.content = updated
+            db.session.flush()
+            return
         targets = _targets(entries)
         if _inspect(targets, lock=True) != preview:
             raise ValueError('Содержимое изменилось после просмотра. Загрузите пакет и проверьте изменения ещё раз.')

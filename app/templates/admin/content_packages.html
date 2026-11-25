@@ -5,7 +5,7 @@
 {{ breadcrumb([('Админка', url_for('dashboard_admin.dashboard' if current_user.is_admin else 'answer_disputes_admin.index')), ('Пакеты контента', '')]) }}
 {% endblock %}
 {% block content %}
-{{ page_header('Пакеты контента', 'Обновите модули курса или отдельные итоговые тесты из ZIP.') }}
+{{ page_header('Пакеты контента', 'Обновите модули, итоговые тесты или отдельные задания из ZIP.') }}
 {% if preview %}
 <section class="card mb-4" aria-labelledby="package-preview">
     <div class="card-body">
@@ -16,9 +16,20 @@
                 <tbody>{% for row in preview.summary %}
                     <tr><td><strong>{{ row.title }}</strong><small class="d-block text-muted text-break">{{ row.name }}</small></td>
                         <td><strong>{% if row.operation == 'create' %}Создание{% else %}Обновление{% endif %}</strong>
-                            <small class="d-block">{% if row.kind == 'module' %}Уроков в модуле{% else %}Заданий в тесте{% endif %} — {{ row.count }}</small>
+                            <small class="d-block">{% if row.kind == 'module' %}Уроков в модуле{% elif row.kind == 'lesson_rows' %}Точечных правок{% else %}Заданий в тесте{% endif %} — {{ row.count }}</small>
                             {% for lesson in row.preserved_guided %}
                             <small class="d-block">Пошаговый урок №{{ lesson.number }} сохранится без изменений · {{ lesson.title }}</small>
+                            {% endfor %}
+                            {% for change in row.changes|default([]) %}
+                            <details class="mt-2">
+                                <summary>Задание {{ change.path }}</summary>
+                                <dl class="small mb-0">
+                                    <dt>До</dt>
+                                    <dd><pre class="mb-2 text-wrap">{{ change.before }}</pre></dd>
+                                    <dt>После</dt>
+                                    <dd><pre class="mb-0 text-wrap">{{ change.after }}</pre></dd>
+                                </dl>
+                            </details>
                             {% endfor %}</td></tr>
                 {% endfor %}</tbody>
             </table>
@@ -36,7 +47,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="form-label fw-semibold" for="content-zip">ZIP с учебными материалами</label>
         <input class="form-control" type="file" name="file" id="content-zip" accept=".zip" required aria-describedby="package-format">
-        <p class="form-text" id="package-format">Вложите JSON-файлы модулей или содержимое итоговых тестов с ключом <code>external_key</code>. Размер ZIP — до 8 МиБ.</p>
+        <p class="form-text" id="package-format">Вложите JSON-файлы модулей или итоговых тестов. Точечные правки заданий загружайте отдельным ZIP. Размер ZIP — до 8 МиБ.</p>
         <button type="submit" class="btn btn-outline-primary">Проверить архив</button>
     </div>
 </form>
