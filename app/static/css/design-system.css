@@ -5131,6 +5131,13 @@ body.dark-theme #translationPopup {
     .admin-search-container {
         display: none;
     }
+
+    .admin-search-container.search-open {
+        display: block;
+        position: fixed;
+        inset: calc(var(--admin-header-height) + 8px) 12px auto;
+        margin: 0 auto;
+    }
 }
 
 /* Admin Mobile - Small screens (< 576px) */

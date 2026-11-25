@@ -127,7 +127,9 @@ def _indexed_changes(book: Book, before: tuple[str, ...], after: tuple[str, ...]
                      max(0, (book.unique_words or 0) + unique_delta), frequencies)
 
 
-def review_chapter(book: Book, chapter: Chapter, title: str, text: str) -> ChapterPreview:
+def review_chapter(
+    book: Book, chapter: Chapter, title: str, text: str, *, coordinated_reading: bool = False,
+) -> ChapterPreview:
     current_text = text_for_edit(chapter.text_raw)
     changed = text != current_text
     if not title.strip() or len(title) > 255 or '\0' in title or '\n' in title or '\r' in title:
@@ -145,8 +147,8 @@ def review_chapter(book: Book, chapter: Chapter, title: str, text: str) -> Chapt
     old_words, words = _words(before), _words(after)
     if chapter.audio_url and old_words != words:
         raise ValueError('Правка меняет произносимые слова главы с аудио. Сначала требуется сверить дорожку.')
-    if book.is_short_reading:
-        raise ValueError('Текст короткого чтения связан с вопросами и словарём. Обновите его через исходный пакет.')
+    if book.is_short_reading and not coordinated_reading:
+        raise ValueError('Текст короткого чтения связан с вопросами и словарём. Откройте редактор короткого чтения.')
 
     changes = _changes(before, after)
     native_before, native_after = _paragraphs(current_text, native=True), _paragraphs(text, native=True)

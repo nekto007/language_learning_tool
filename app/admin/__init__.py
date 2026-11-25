@@ -28,6 +28,10 @@ def register_admin_routes(flask_app):
     # Import and register book routes blueprint
     from app.admin.routes.book_routes import book_bp
     flask_app.register_blueprint(book_bp, url_prefix='/admin')
+    from app.admin.routes.short_reading_routes import short_reading_bp
+    flask_app.register_blueprint(short_reading_bp, url_prefix='/admin')
+    from app.admin.routes.placement_bank_routes import placement_bank_bp
+    flask_app.register_blueprint(placement_bank_bp, url_prefix='/admin')
 
     # Import and register curriculum routes blueprint
     from app.admin.routes.curriculum_routes import curriculum_bp

@@ -37,6 +37,7 @@ _ONBOARDING_SKIP_PREFIXES = (
     'collection_admin.', 'topic_admin.', 'word_admin.',
     'system_admin.', 'grammar_lab_admin.', 'admin_curriculum.', 'content_packages_admin.', 'answer_disputes_admin.',
     'materials_admin.', 'guided_topics_admin.',
+    'account_deletion_admin.', 'short_reading_admin.', 'placement_bank_admin.',
     'curriculum_admin.', 'reminders.', 'settings_admin.', 'seo_admin.',
     'activity_admin.', 'audit_admin.', 'dashboard_admin.', 'growth_admin.',
     'feedback.', 'feedback_admin.', 'acquisition_admin.',

@@ -1,0 +1,8 @@
+<p class="mb-1"><strong>{{ q.prompt }}</strong> — {{ q.prompt_translation }}</p>
+<p class="mb-1">{{ q.instruction }}</p>
+<ul class="mb-1">
+    {% for option in q.options %}
+    <li>{{ option.text }}{% if option.id == q.correct_option %} <strong>· верно</strong>{% endif %}</li>
+    {% endfor %}
+</ul>
+<p>{{ q.explanation }}</p>

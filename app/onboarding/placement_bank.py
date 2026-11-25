@@ -20,10 +20,12 @@ SKILLS = ('grammar', 'vocabulary', 'reading', 'listening', 'writing')
 MIN_ITEMS = {'grammar': 6, 'vocabulary': 6, 'reading': 5, 'listening': 5, 'writing': 2}
 SKILL_LABELS = {'grammar': 'Грамматика', 'vocabulary': 'Словарь', 'reading': 'Чтение',
                 'listening': 'Аудирование', 'writing': 'Письменные задания'}
+MAX_BANK_BYTES = 4_000_000
+_ANY_ACTIVE = object()
 
 
 def _string(value: Any, maximum: int) -> bool:
-    return isinstance(value, str) and bool(value.strip()) and len(value) <= maximum
+    return isinstance(value, str) and bool(value.strip()) and len(value) <= maximum and '\0' not in value
 
 
 def validate_bank(pack: Any) -> dict:
@@ -85,33 +87,62 @@ def bank_digest(pack: dict) -> str:
     return hashlib.sha256(json.dumps(pack, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()).hexdigest()
 
 
+def _distinct_fields(pairs: list[tuple[str, Any]]) -> dict:
+    value = dict(pairs)
+    if len(value) != len(pairs):
+        raise ValueError('Duplicate JSON fields')
+    return value
+
+
+def read_bank(contents: bytes) -> dict:
+    if len(contents) > MAX_BANK_BYTES:
+        raise ValueError('Pack exceeds 4 MB')
+    return validate_bank(json.loads(contents.decode('utf-8-sig'), object_pairs_hook=_distinct_fields))
+
+
+def active_bank() -> PlacementBank | None:
+    return (PlacementBank.query.filter_by(active=True).order_by(PlacementBank.created_at.desc(), PlacementBank.id)
+            .populate_existing().first())
+
+
+def activate_bank(document: dict, *, expected_active: object = _ANY_ACTIVE) -> tuple[str, bool]:
+    """Publish an immutable version. The caller owns the commit and audit."""
+    document = validate_bank(document)
+    digest = bank_digest(document)
+    if db.session.get_bind().dialect.name == 'postgresql':
+        db.session.execute(db.text('SELECT pg_advisory_xact_lock(624117024)'))
+    active = active_bank()
+    active_id = active.id if active is not None else None
+    if expected_active is not _ANY_ACTIVE and expected_active != active_id:
+        raise ValueError('The active bank changed after preview')
+    if digest == active_id:
+        return digest, False
+    PlacementBank.query.filter_by(active=True).update({'active': False})
+    row = db.session.get(PlacementBank, digest, populate_existing=True)
+    if row is None:
+        db.session.add(PlacementBank(id=digest, label=document['label'], content=document, active=True))
+    else:
+        row.active = True
+    db.session.flush()
+    return digest, True
+
+
 @click.command('placement-bank-install')
 @click.option('--pack', type=click.Path(exists=True, dir_okay=False, path_type=Path), required=True)
 @click.option('--apply', is_flag=True, help='Install and activate this immutable bank.')
 @with_appcontext
 def install_bank(pack: Path, apply: bool) -> None:
     """Dry-run by default. Existing attempts keep their original bank."""
-    if pack.stat().st_size > 4_000_000:
-        raise click.ClickException('Pack exceeds 4 MB')
     try:
-        document = validate_bank(json.loads(pack.read_text(encoding='utf-8')))
+        with pack.open('rb') as source:
+            document = read_bank(source.read(MAX_BANK_BYTES + 1))
     except (ValueError, OSError) as exc:
         raise click.ClickException(str(exc)) from exc
     digest = bank_digest(document)
     row = db.session.get(PlacementBank, digest)
     changed = row is None or not row.active
-    if apply and changed:
-        # Serialize publisher updates without holding any learner/attempt lock.
-        if db.engine.dialect.name == 'postgresql':
-            db.session.execute(db.text('SELECT pg_advisory_xact_lock(624117024)'))
-        row = db.session.get(PlacementBank, digest)
-        db.session.query(PlacementBank).filter_by(active=True).update({'active': False})
-        db.session.flush()
-        if row is None:
-            row = PlacementBank(id=digest, label=document['label'], content=document, active=True)
-            db.session.add(row)
-        else:
-            row.active = True
+    if apply:
+        digest, changed = activate_bank(document)
         db.session.commit()
     click.echo(json.dumps({'applied': bool(apply), 'changed': changed, 'bank_id': digest,
                            'items': len(document['items']), 'levels': list(LEVELS)}, ensure_ascii=False, indent=2))

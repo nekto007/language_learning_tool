@@ -8,6 +8,8 @@ import logging
 import os
 import re
 
+from sqlalchemy import case, func
+
 from app.admin.utils.request_validators import escape_like
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
@@ -422,104 +424,45 @@ class AudioManagementService:
             return []
 
     @staticmethod
-    def get_detailed_statistics():
-        """
-        Получает детальную статистику по аудио для страницы статистики
-
-        Returns:
-            dict: Детальная статистика с разбивкой по статусам загрузки,
-                  форматам listening и уровням
-        """
+    def get_detailed_statistics() -> dict[str, list[dict] | str]:
+        """Read dictionary audio statistics through the application database session."""
         try:
-            from app.repository import DatabaseRepository
-            from config.settings import COLLECTIONS_TABLE
-
-            repo = DatabaseRepository()
-
-            # Статистика по статусу загрузки
-            download_stats_raw = repo.execute_query(f"""
-                SELECT
-                    CASE
-                        WHEN get_download = 1 THEN 'Available'
-                        WHEN get_download = 0 THEN 'Not Available'
-                        ELSE 'Unknown'
-                    END as status,
-                    COUNT(*) as count
-                FROM {COLLECTIONS_TABLE}
-                GROUP BY get_download
-                ORDER BY get_download DESC
-            """, fetch=True)
-
-            # Преобразуем в словари
-            download_stats = []
-            for row in download_stats_raw or []:
-                if row and len(row) >= 2:
-                    download_stats.append({
-                        'status': row[0],
-                        'count': row[1]
-                    })
-
-            # Статистика по форматам listening
-            listening_stats_raw = repo.execute_query(f"""
-                SELECT
-                    CASE
-                        WHEN listening LIKE 'http%%' THEN 'HTTP URL'
-                        WHEN listening LIKE '[sound:%%' THEN 'Anki Format'
-                        WHEN listening IS NULL OR listening = '' THEN 'Empty'
-                        WHEN listening LIKE 'pronunciation_en_%%' THEN 'Clean Filename'
-                        ELSE 'Other Format'
-                    END as format_type,
-                    COUNT(*) as row_count
-                FROM collection_words
-                GROUP BY
-                    CASE
-                        WHEN listening LIKE 'http%%' THEN 'HTTP URL'
-                        WHEN listening LIKE '[sound:%%' THEN 'Anki Format'
-                        WHEN listening IS NULL OR listening = '' THEN 'Empty'
-                        WHEN listening LIKE 'pronunciation_en_%%' THEN 'Clean Filename'
-                        ELSE 'Other Format'
-                    END
-                ORDER BY row_count DESC""", fetch=True)
-
-            # Преобразуем в словари
-            listening_stats = []
-            for row in listening_stats_raw or []:
-                if row and len(row) >= 2:
-                    listening_stats.append({
-                        'format_type': row[0],
-                        'count': row[1]
-                    })
-
-            # Слова по уровням с аудио
-            level_audio_stats_raw = repo.execute_query(f"""
-                SELECT
-                    COALESCE(level, 'Unknown') as level,
-                    COUNT(*) as words_total,
-                    SUM(CASE WHEN get_download = 1 THEN 1 ELSE 0 END) as with_audio
-                FROM {COLLECTIONS_TABLE}
-                GROUP BY level
-                ORDER BY level
-            """, fetch=True)
-
-            # Преобразуем в словари
-            level_audio_stats = []
-            for row in level_audio_stats_raw or []:
-                if row and len(row) >= 3:
-                    level_audio_stats.append({
-                        'level': row[0],
-                        'words_total': row[1],
-                        'with_audio': row[2]
-                    })
-
+            words = CollectionWords
+            download_status = case(
+                (words.get_download == 1, 'Available'),
+                (words.get_download == 0, 'Not Available'),
+                else_='Unknown',
+            )
+            listening_format = case(
+                (words.listening.like('http%'), 'HTTP URL'),
+                (words.listening.like('[sound:%'), 'Anki Format'),
+                (words.listening.is_(None) | (words.listening == ''), 'Empty'),
+                (words.listening.like('pronunciation_en_%'), 'Clean Filename'),
+                else_='Other Format',
+            )
+            download_rows = db.session.query(download_status, func.count()).group_by(
+                words.get_download, download_status,
+            ).order_by(words.get_download.desc()).all()
+            count = func.count()
+            listening_rows = db.session.query(listening_format, count).group_by(
+                listening_format,
+            ).order_by(count.desc(), listening_format).all()
+            level_rows = db.session.query(
+                func.coalesce(words.level, 'Unknown'),
+                func.count(),
+                func.count().filter(words.get_download == 1),
+            ).group_by(words.level).order_by(words.level).all()
             return {
-                'download_stats': download_stats,
-                'listening_stats': listening_stats,
-                'level_audio_stats': level_audio_stats
+                'download_stats': [{'status': label, 'count': total} for label, total in download_rows],
+                'listening_stats': [{'format_type': label, 'count': total} for label, total in listening_rows],
+                'level_audio_stats': [
+                    {'level': level, 'words_total': total, 'with_audio': available}
+                    for level, total, available in level_rows
+                ],
             }
-
-        except Exception as e:
-            logger.error(f"Error getting detailed audio statistics: {str(e)}")
-            return {'error': str(e)}
+        except Exception as exc:
+            logger.error('Error getting detailed audio statistics: %s', exc)
+            return {'error': str(exc)}
 
     @staticmethod
     def _collect_referenced_filenames():

@@ -5,6 +5,8 @@ Tests for audio statistics, download status updates, and field fixing
 import pytest
 from unittest.mock import patch, MagicMock, Mock
 
+from sqlalchemy.orm import scoped_session
+
 from app.admin.services.audio_management_service import AudioManagementService
 
 
@@ -365,93 +367,14 @@ class TestGetDownloadList:
 
 
 class TestGetDetailedStatistics:
-    """Tests for get_detailed_statistics method"""
+    """Detailed statistics use the Flask SQLAlchemy session."""
 
-    @patch('config.settings.COLLECTIONS_TABLE', 'collection_words')
-    @patch('app.repository.DatabaseRepository')
-    def test_get_detailed_statistics_success(self, mock_repo_cls):
-        """Test successful detailed statistics retrieval"""
-        # Setup
-        mock_repo = MagicMock()
+    def test_empty_results(self, db_session: scoped_session) -> None:
+        assert AudioManagementService.get_detailed_statistics() == {
+            'download_stats': [], 'listening_stats': [], 'level_audio_stats': [],
+        }
 
-        # Mock query results
-        mock_repo.execute_query.side_effect = [
-            # Download stats
-            [('Available', 800), ('Not Available', 200)],
-            # Listening stats
-            [('Anki Format', 700), ('HTTP URL', 100), ('Empty', 200)],
-            # Level audio stats
-            [('A1', 300, 250), ('A2', 400, 350), ('B1', 300, 200)]
-        ]
-        mock_repo_cls.return_value = mock_repo
-
-        # Execute
-        result = AudioManagementService.get_detailed_statistics()
-
-        # Assert
-        assert 'download_stats' in result
-        assert 'listening_stats' in result
-        assert 'level_audio_stats' in result
-
-        assert len(result['download_stats']) == 2
-        assert result['download_stats'][0]['status'] == 'Available'
-        assert result['download_stats'][0]['count'] == 800
-
-        assert len(result['listening_stats']) == 3
-        assert result['listening_stats'][0]['format_type'] == 'Anki Format'
-
-        assert len(result['level_audio_stats']) == 3
-        assert result['level_audio_stats'][0]['level'] == 'A1'
-        assert result['level_audio_stats'][0]['words_total'] == 300
-        assert result['level_audio_stats'][0]['with_audio'] == 250
-
-    @patch('config.settings.COLLECTIONS_TABLE', 'collection_words')
-    @patch('app.repository.DatabaseRepository')
-    def test_get_detailed_statistics_empty_results(self, mock_repo_cls):
-        """Test detailed statistics with empty database"""
-        # Setup
-        mock_repo = MagicMock()
-        mock_repo.execute_query.side_effect = [[], [], []]
-        mock_repo_cls.return_value = mock_repo
-
-        # Execute
-        result = AudioManagementService.get_detailed_statistics()
-
-        # Assert
-        assert result['download_stats'] == []
-        assert result['listening_stats'] == []
-        assert result['level_audio_stats'] == []
-
-    @patch('config.settings.COLLECTIONS_TABLE', 'collection_words')
-    @patch('app.repository.DatabaseRepository')
-    def test_get_detailed_statistics_error(self, mock_repo_cls):
-        """Test error handling in detailed statistics"""
-        mock_repo_cls.side_effect = Exception("Database connection error")
-
-        result = AudioManagementService.get_detailed_statistics()
-
-        assert 'error' in result
-        assert 'Database connection error' in result['error']
-
-    @patch('config.settings.COLLECTIONS_TABLE', 'collection_words')
-    @patch('app.repository.DatabaseRepository')
-    def test_get_detailed_statistics_malformed_rows(self, mock_repo_cls):
-        """Test handling of malformed database rows"""
-        # Setup
-        mock_repo = MagicMock()
-
-        # Mock with some malformed rows (None, incomplete)
-        mock_repo.execute_query.side_effect = [
-            [('Available', 100), None, ('Missing',)],  # Incomplete row
-            [('Anki', 50), None],
-            [('A1', 10, 5), None]  # One good row + None
-        ]
-        mock_repo_cls.return_value = mock_repo
-
-        # Execute
-        result = AudioManagementService.get_detailed_statistics()
-
-        # Assert - should skip None rows but keep ones with enough fields
-        assert len(result['download_stats']) == 1  # Only 'Available' has 2+ fields
-        assert len(result['listening_stats']) == 1  # Only 'Anki' has 2+ fields
-        assert len(result['level_audio_stats']) == 1  # Only 'A1' row has 3+ fields
+    @patch('app.admin.services.audio_management_service.db')
+    def test_query_error(self, mock_db: MagicMock) -> None:
+        mock_db.session.query.side_effect = RuntimeError('Database connection error')
+        assert AudioManagementService.get_detailed_statistics() == {'error': 'Database connection error'}

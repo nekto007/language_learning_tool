@@ -4,7 +4,7 @@ import json
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 
@@ -116,55 +116,17 @@ def import_curriculum():
 @admin_bp.route('/admin/stats')
 @login_required
 @admin_required
-def admin_stats():
+def admin_stats() -> Response:
     """Display curriculum statistics for admin"""
-    try:
-        # Get curriculum statistics
-        stats = {
-            'total_levels': CEFRLevel.query.count(),
-            'total_modules': Module.query.count(),
-            'total_lessons': Lessons.query.count(),
-            'lesson_types': db.session.query(
-                Lessons.type, db.func.count(Lessons.id)
-            ).group_by(Lessons.type).all(),
-            'total_users_enrolled': db.session.query(
-                db.func.count(db.func.distinct(LessonProgress.user_id))
-            ).scalar() or 0,
-            'total_lessons_completed': LessonProgress.query.filter_by(
-                status='completed'
-            ).count(),
-            'average_score': db.session.query(
-                db.func.avg(LessonProgress.score)
-            ).filter(
-                LessonProgress.status == 'completed',
-                LessonProgress.score > 0
-            ).scalar() or 0
-        }
-
-        # Get recent activity
-        recent_progress = LessonProgress.query.order_by(
-            LessonProgress.last_activity.desc()
-        ).limit(20).all()
-
-        return render_template(
-            'admin/curriculum/stats.html',
-            stats=stats,
-            recent_progress=recent_progress
-        )
-
-    except Exception as e:
-        logger.error(f"Error getting admin stats: {str(e)}")
-        flash('Ошибка при загрузке статистики', 'error')
-        return redirect(url_for('curriculum.index'))
+    return redirect(url_for('admin.curriculum_overview', _anchor='learning-statistics'))
 
 
 @admin_bp.route('/admin/levels')
 @login_required
 @admin_required
-def admin_levels():
+def admin_levels() -> Response:
     """Manage CEFR levels"""
-    levels = CEFRLevel.query.order_by(CEFRLevel.order).all()
-    return render_template('admin/curriculum/levels.html', levels=levels)
+    return redirect(url_for('admin_curriculum.level_list'))
 
 
 @admin_bp.route('/admin/lessons')

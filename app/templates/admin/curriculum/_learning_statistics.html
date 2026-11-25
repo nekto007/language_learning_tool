@@ -1,0 +1,26 @@
+<section class="card mb-4" id="learning-statistics" aria-labelledby="learning-statistics-title">
+    <div class="card-body">
+        <h2 id="learning-statistics-title" class="h5">Статистика учебной программы</h2>
+        <dl class="row">
+            <dt class="col-sm-7">Завершений уроков</dt><dd class="col-sm-5">{{ completed_lessons }}</dd>
+            <dt class="col-sm-7">Средний балл завершений с положительной оценкой</dt>
+            <dd class="col-sm-5">{{ '%.1f'|format(average_score) if average_score is not none else '—' }}</dd>
+        </dl>
+        <h3 class="h6">Уроки по типам</h3>
+        {% if lesson_types %}
+        <ul>{% for lesson_type, count in lesson_types %}<li>{{ lesson_type }} — {{ count }}</li>{% endfor %}</ul>
+        {% else %}<p class="text-muted">Уроков пока нет.</p>{% endif %}
+        <h3 class="h6">Последняя активность</h3>
+        {% if recent_progress %}
+        <div class="table-responsive"><table class="table mb-0">
+            <thead><tr><th scope="col">Ученик</th><th scope="col">Урок</th><th scope="col">Статус</th><th scope="col">Дата (UTC)</th></tr></thead>
+            <tbody>
+            {% for entry in recent_progress %}
+            <tr><td>{{ entry.user.username }}</td><td>{{ entry.lesson.title }}</td><td>{{ entry.status }}</td>
+                <td>{{ entry.last_activity.strftime('%Y-%m-%d %H:%M') if entry.last_activity else '—' }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        {% else %}<p class="text-muted mb-0">Учебной активности пока нет.</p>{% endif %}
+    </div>
+</section>

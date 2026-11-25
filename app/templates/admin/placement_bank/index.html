@@ -1,0 +1,66 @@
+{% extends 'admin/base.html' %}
+{% block title %}Банк входного теста{% endblock %}
+{% block content %}
+<h1 class="h3">Банк входного теста</h1>
+{% if bank %}
+<p>Действующая версия — <strong>{{ bank.label }}</strong> · {{ count }} вопросов · <code>{{ bank.id[:12] }}</code></p>
+{% else %}<p class="alert alert-info">Активного банка пока нет.</p>{% endif %}
+<form class="card mb-4" method="post" enctype="multipart/form-data" action="{{ url_for('.upload') }}">
+    <div class="card-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="form-label fw-semibold" for="bank-file">Загрузить версию банка</label>
+        <input class="form-control mb-2" id="bank-file" name="bank" type="file" accept=".json,application/json" required
+               aria-describedby="bank-upload-help">
+        <p class="form-text" id="bank-upload-help">Файл JSON до 4 МБ. Новая версия начнёт действовать только после подтверждения.</p>
+        <button class="btn btn-outline-primary" type="submit">Проверить файл</button>
+    </div>
+</form>
+{% if bank %}
+<h2 class="h5">Вопросы действующей версии</h2>
+<form class="row g-2 align-items-end mb-3" method="get" action="{{ url_for('.index') }}">
+    <div class="col-md">
+        <label class="form-label" for="bank-q">Текст вопроса или ID</label>
+        <input class="form-control" id="bank-q" name="q" type="search" maxlength="100" value="{{ q }}">
+    </div>
+    <div class="col-6 col-md-auto">
+        <label class="form-label" for="bank-level">Уровень</label>
+        <select class="form-select" id="bank-level" name="level">
+            <option value="">Все</option>
+            {% for value in levels %}<option{% if value == level %} selected{% endif %}>{{ value }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-6 col-md-auto">
+        <label class="form-label" for="bank-skill">Навык</label>
+        <select class="form-select" id="bank-skill" name="skill">
+            <option value="">Все</option>
+            {% for value, label in skills.items() %}<option value="{{ value }}"{% if value == skill %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="col-md-auto"><button class="btn btn-primary" type="submit">Найти</button></div>
+</form>
+<ul class="list-group mb-3">
+    {% for item in choices %}
+    <li class="list-group-item">
+        <a href="{{ url_for('.edit_item', item_id=item.id, **filters) }}" class="d-block text-break">{{ item.prompt }}</a>
+        <small class="text-muted">{{ item.level }} · {{ skills[item.skill] }} · {{ item.id }}</small>
+    </li>
+    {% else %}<li class="list-group-item">Вопросов по запросу нет.</li>{% endfor %}
+</ul>
+{% if pages > 1 %}
+<nav class="d-flex flex-wrap gap-3 mb-3" aria-label="Страницы вопросов">
+    {% if page > 1 %}<a href="{{ url_for('.index', q=q, level=level, skill=skill, page=page-1) }}">Назад</a>{% endif %}
+    <span>{{ page }} из {{ pages }}</span>
+    {% if page < pages %}<a href="{{ url_for('.index', q=q, level=level, skill=skill, page=page+1) }}">Дальше</a>{% endif %}
+</nav>
+{% endif %}
+{% endif %}
+{% if versions %}
+<details class="card">
+    <summary class="card-header">Недавние версии</summary>
+    <div class="card-body">
+    <ul class="mb-0">{% for version in versions %}
+        <li>{{ version.label }} · <code>{{ version.id[:12] }}</code>{% if version.active %} · активна{% endif %}</li>
+    {% endfor %}</ul>
+</div></details>
+{% endif %}
+{% endblock %}

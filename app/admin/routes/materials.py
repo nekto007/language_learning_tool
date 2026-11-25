@@ -29,6 +29,7 @@ _MATERIAL_DESTINATIONS = {
     'grammar_lab_admin.edit_exercise', 'grammar_lab_admin.edit_topic',
     'guided_topics_admin.edit', 'guided_topics_admin.preview', 'guided_topics_admin.publish',
     'book_admin.edit_book', 'book_admin.chapter_list', 'book_admin.edit_chapter',
+    'short_reading_admin.edit',
     'word_admin.edit_translation', 'word_set_admin.word_set_edit', 'collection_admin.edit_collection',
 }
 _DIRECTORIES = (
@@ -42,6 +43,7 @@ _DIRECTORIES = (
     ('Темы Grammar Lab', 'grammar_lab_admin.topic_list', 'Темы, теория и список упражнений'),
     ('Пошаговые темы', 'guided_topics_admin.index', 'Редактирование и публикация установленных тем Grammar Lab'),
     ('Модули курса', 'admin_curriculum.module_list', 'Уровни, модули и структура курса'),
+    ('Банк входного теста', 'placement_bank_admin.index', 'Вопросы, предпросмотр и активация версии'),
     ('Сравнения слов', 'word_contrast_admin.word_contrast_index', 'Карточки различий и примеры'),
     ('Культурные заметки', 'admin.cultural_notes_list', 'Редактор заметок курса'),
     ('Спорные ответы', 'answer_disputes_admin.index', 'Очередь обращений и правки ключей'),

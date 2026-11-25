@@ -1,0 +1,7 @@
+{% extends 'admin/base.html' %}
+{% block title %}Версия банка изменилась{% endblock %}
+{% block content %}
+<h1 class="h3">Версия банка изменилась</h1>
+<p>Этот предпросмотр устарел. Откройте действующую версию и повторите проверку.</p>
+<a class="btn btn-primary" href="{{ url_for('.index', **filters) }}">К банку</a>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends 'admin/base.html' %}
+{% block title %}Аналитика книжных курсов{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin.view_book_course', course_id=course.id) if course else url_for('admin.book_courses') }}">
+    {{ 'К книжному курсу' if course else 'К списку книжных курсов' }}
+</a></p>
+<h1 class="h3">Аналитика книжных курсов</h1>
+{% if course %}
+<p>{{ course.title }} · <a href="{{ url_for('admin.book_courses_analytics') }}">Все курсы</a></p>
+{% endif %}
+<dl class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3 my-3">
+    {% for label, value in (
+        ('Всего курсов', total_courses), ('Активных курсов', active_courses),
+        ('Записей на курсы', total_enrollments),
+        ('Средний прогресс', ('%.1f'|format(engagement_stats.avg_progress) ~ '%') if engagement_stats.avg_progress is not none else '—'),
+        ('Прогресс выше 50%', engagement_stats.above_50_percent),
+        ('Завершённых прохождений', engagement_stats.completed_courses)
+    ) %}
+    <div class="col"><div class="card card-body h-100">
+        <dt class="fw-normal text-muted">{{ label }}</dt>
+        <dd class="fs-4 mb-0">{{ value }}</dd>
+    </div></div>
+    {% endfor %}
+</dl>
+
+<section class="mb-4" aria-labelledby="enrollments-title">
+    <h2 id="enrollments-title" class="h5">Записи за последние 30 дней</h2>
+    {% if daily_enrollments %}
+    <div class="table-responsive"><table class="table">
+        <thead><tr><th scope="col">Дата</th><th scope="col">Записей</th></tr></thead>
+        <tbody>{% for day in daily_enrollments %}<tr><td>{{ day.date }}</td><td>{{ day.count }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="text-muted">За этот период ещё нет записей.</p>{% endif %}
+</section>
+
+<section aria-labelledby="popular-title">
+    <h2 id="popular-title" class="h5">{{ 'Прогресс по курсу' if course else 'Курсы по числу записей' }}</h2>
+    {% if popular_courses %}
+    <div class="table-responsive"><table class="table">
+        <thead><tr><th scope="col">Курс</th><th scope="col">Записей</th><th scope="col">Средний прогресс</th></tr></thead>
+        <tbody>
+        {% for row_course, enrollment_count, avg_progress in popular_courses %}
+        <tr>
+            <th scope="row"><a href="{{ url_for('admin.book_courses_analytics', course_id=row_course.id) }}">{{ row_course.title }}</a></th>
+            <td>{{ enrollment_count }}</td><td>{{ ('%.1f'|format(avg_progress) ~ '%') if avg_progress is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {% else %}<p class="text-muted">Книжных курсов пока нет.</p>{% endif %}
+</section>
+{% endblock %}

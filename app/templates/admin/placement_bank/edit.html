@@ -1,0 +1,46 @@
+{% extends 'admin/base.html' %}
+{% block title %}Правка вопроса входного теста{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('.index', **filters) }}">Вернуться к списку вопросов</a></p>
+<h1 class="h3">Вопрос входного теста</h1>
+<p class="text-muted">{{ item.level }} · {{ skills[item.skill] }} · {{ item.id }}</p>
+{% if error %}<p class="alert alert-warning" role="alert" data-persist>{{ error }}</p>{% endif %}
+<form class="card" method="post">
+    <div class="card-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="bank_id" value="{{ bank.id }}">
+        <label class="form-label" for="bank-prompt">Вопрос</label>
+        <textarea class="form-control mb-3" id="bank-prompt" name="prompt" rows="3" maxlength="1500" required>{{ item.prompt }}</textarea>
+        {% if item.skill == 'reading' %}
+        <label class="form-label" for="bank-passage">Текст для чтения</label>
+        <textarea class="form-control mb-3" id="bank-passage" name="passage" rows="6" maxlength="8000" required>{{ item.passage }}</textarea>
+        {% elif item.skill == 'listening' %}
+        <label class="form-label" for="bank-audio">Локальный URL аудио</label>
+        <input class="form-control mb-3" id="bank-audio" name="audio_url" maxlength="500" required value="{{ item.audio_url }}">
+        {% endif %}
+        {% if item.input == 'choice' %}
+        <label class="form-label" for="bank-options">Варианты ответа</label>
+        <textarea class="form-control mb-3" id="bank-options" name="options" rows="5" required
+                  aria-describedby="bank-options-help">{{ item.options | join('\n') }}</textarea>
+        <p class="form-text" id="bank-options-help">От трёх до шести вариантов, каждый с новой строки.</p>
+        {% endif %}
+        <label class="form-label" for="bank-answers">{% if item.input == 'choice' %}Правильный вариант{% else %}Допустимые ответы{% endif %}</label>
+        <textarea class="form-control mb-2" id="bank-answers" name="answers" rows="{{ 2 if item.input == 'choice' else 4 }}"
+                  aria-describedby="bank-answer-help" required>{{ item.answers | join('\n') }}</textarea>
+        <p class="form-text" id="bank-answer-help">{% if item.input == 'choice' %}Введите текст одного варианта точно как в списке.{% else %}Каждый ответ с новой строки.{% endif %}</p>
+        <div class="row g-2 mb-3">
+            <div class="col-md">
+                <label class="form-label" for="bank-topic">Тема</label>
+                <input class="form-control" id="bank-topic" name="topic" maxlength="200" value="{{ item.topic or '' }}">
+            </div>
+            {% if item.skill in ('grammar', 'writing') %}
+            <div class="col-md">
+                <label class="form-label" for="bank-topic-slug">Слаг темы для повторения</label>
+                <input class="form-control" id="bank-topic-slug" name="topic_slug" maxlength="100" value="{{ item.topic_slug or '' }}">
+            </div>
+            {% endif %}
+        </div>
+        <button class="btn btn-primary" type="submit">Предпросмотр новой версии</button>
+    </div>
+</form>
+{% endblock %}

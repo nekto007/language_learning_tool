@@ -10,6 +10,7 @@ import re
 from datetime import UTC, datetime
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy import func
@@ -531,7 +532,7 @@ def chapter_list(book_id: int):
 
 @book_bp.route('/books/<int:book_id>/chapters/<int:chapter_id>/edit', methods=['GET', 'POST'])
 @admin_required
-def edit_chapter(book_id: int, chapter_id: int):
+def edit_chapter(book_id: int, chapter_id: int) -> ResponseReturnValue:
     from app.admin.routes.materials import materials_return_url
 
     book_query = Book.query.filter_by(id=book_id)

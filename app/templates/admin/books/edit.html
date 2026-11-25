@@ -19,7 +19,12 @@
                     <h6 class="m-0 font-weight-bold text-primary">Основная информация</h6>
                 </div>
                 <div class="card-body">
-                    <p><a href="{{ url_for('book_admin.chapter_list', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Главы книги</a></p>
+                    <p class="d-flex flex-wrap gap-3">
+                        <a href="{{ url_for('book_admin.chapter_list', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Главы книги</a>
+                        {% if book.is_short_reading %}
+                        <a href="{{ url_for('short_reading_admin.edit', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Редактировать короткое чтение</a>
+                        {% endif %}
+                    </p>
                     <form method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 

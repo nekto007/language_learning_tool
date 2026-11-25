@@ -1,0 +1,111 @@
+{% extends 'admin/base.html' %}
+{% block title %}Короткое чтение · {{ book.title }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('book_admin.edit_book', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Карточка книги</a></p>
+<h1 class="h3">{{ book.title }}</h1>
+{% if error %}<p class="alert alert-warning" role="alert" data-persist>{{ error }}</p>{% endif %}
+<form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+    <input type="hidden" name="preview_token" value="{{ token }}">
+    <div class="card mb-3"><div class="card-body">
+        <label class="form-label fw-semibold" for="short-reading-text">Текст чтения</label>
+        <textarea class="form-control" id="short-reading-text" name="text" rows="8" maxlength="8000" required
+                  aria-describedby="short-reading-text-help">{{ text }}</textarea>
+        <p class="form-text mb-0" id="short-reading-text-help">От 30 до 200 слов. Отделяйте абзацы пустой строкой.</p>
+        <div class="row g-2 mt-2">
+            <div class="col-md-9">
+                <label class="form-label" for="focus">Учебная цель</label>
+                <input class="form-control" id="focus" name="focus" maxlength="1000" required value="{{ fields.focus }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="estimated_minutes">Время, мин.</label>
+                <input class="form-control" type="number" id="estimated_minutes" name="estimated_minutes"
+                       min="1" max="120" required value="{{ fields.estimated_minutes }}">
+            </div>
+        </div>
+    </div></div>
+    <section class="card mb-3" aria-labelledby="reading-glossary-title"><div class="card-body">
+        <h2 class="h5" id="reading-glossary-title">Слова-подсказки</h2>
+        <p class="form-text">Заполните от трёх до пяти пар.</p>
+        {% for row in fields.glossary %}
+        {% set n = loop.index0 %}
+        <div class="row g-2 mb-2">
+            <div class="col-md-6">
+                <label class="form-label" for="g{{ n }}_english">Слово {{ loop.index }}</label>
+                <input class="form-control" id="g{{ n }}_english" name="g{{ n }}_english" maxlength="255" value="{{ row.english }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="g{{ n }}_translation">Перевод {{ loop.index }}</label>
+                <input class="form-control" id="g{{ n }}_translation" name="g{{ n }}_translation" maxlength="255" value="{{ row.translation }}">
+            </div>
+        </div>
+        {% endfor %}
+    </div></section>
+    <section class="card mb-3" aria-labelledby="reading-questions-title"><div class="card-body">
+        <h2 class="h5" id="reading-questions-title">Вопросы на понимание</h2>
+        <p class="form-text">Заполните два или три вопроса и отметьте по одному верному варианту.</p>
+        {% for q in fields.questions %}
+        {% set n = loop.index0 %}
+        <details class="border rounded p-3 mb-2"{% if loop.first or error %} open{% endif %}>
+            <summary class="fw-semibold text-break">{{ q.prompt or ('Вопрос ' ~ loop.index) }}</summary>
+            <div class="row g-2 mt-1">
+                {% for key, label in (('instruction', 'Инструкция'), ('prompt', 'Вопрос'), ('prompt_translation', 'Перевод вопроса'), ('explanation', 'Разбор ответа')) %}
+                <div class="col-md-6">
+                    <label class="form-label" for="q{{ n }}_{{ key }}">{{ label }}</label>
+                    <textarea class="form-control" id="q{{ n }}_{{ key }}" name="q{{ n }}_{{ key }}" rows="2" maxlength="2000">{{ q[key] }}</textarea>
+                </div>
+                {% endfor %}
+            </div>
+            <fieldset class="mt-3">
+                <legend class="h6">Варианты ответа</legend>
+                {% for option in q.options %}
+                <div class="mb-2">
+                    <label class="form-label" for="q{{ n }}_option{{ loop.index0 }}">Вариант {{ loop.index }}</label>
+                    <input class="form-control" id="q{{ n }}_option{{ loop.index0 }}" name="q{{ n }}_option{{ loop.index0 }}"
+                           maxlength="500" value="{{ option.text }}">
+                </div>
+                {% endfor %}
+                <label class="form-label" for="q{{ n }}_correct_option">Верный вариант</label>
+                <select class="form-select" id="q{{ n }}_correct_option" name="q{{ n }}_correct_option">
+                    <option value="">Выберите вариант</option>
+                    {% for option in q.options %}
+                    <option value="{{ option.id }}"{% if option.id == q.correct_option %} selected{% endif %}>Вариант {{ loop.index }}</option>
+                    {% endfor %}
+                </select>
+            </fieldset>
+        </details>
+        {% endfor %}
+    </div></section>
+    {% if changes %}
+    <section class="card mb-3" aria-labelledby="reading-preview-title"><div class="card-body text-break">
+        <h2 class="h5" id="reading-preview-title">Предпросмотр изменений</h2>
+        {% if structural and book.is_published %}
+        <p class="alert alert-warning" data-persist>Изменились границы абзацев. Закладки, сохранённые только на устройстве, могут вести к другому месту. Скачанная копия обновится по правилам приложения.</p>
+        {% endif %}
+        {% for label, before, after in changes %}
+        <details class="border rounded p-3 mb-2" open>
+            <summary class="fw-semibold">{{ label }}</summary>
+            <div class="row gy-2 mt-1">
+                {% for heading, value in (('Было', before), ('Стало', after)) %}
+                <div class="col-md-6">
+                    <h3 class="h6">{{ heading }}</h3>
+                    {% if value is string %}<div class="text-break">{{ value }}</div>
+                    {% elif label == 'Словарь' %}
+                    <ul class="mb-0">{% for row in value %}<li>{{ row.english }} — {{ row.translation }}</li>{% endfor %}</ul>
+                    {% else %}
+                    {% for q in value %}{% include 'admin/books/_reading_question_preview.html' %}{% endfor %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+        {% endfor %}
+    </div></section>
+    {% endif %}
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn {{ 'btn-outline-primary' if token else 'btn-primary' }}" name="action" value="preview" type="submit">Предпросмотр</button>
+        {% if token %}<button class="btn btn-primary" name="action" value="apply" type="submit">Опубликовать чтение</button>{% endif %}
+    </div>
+</form>
+{% endblock %}

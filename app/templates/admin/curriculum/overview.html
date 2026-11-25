@@ -12,6 +12,19 @@
 {% endblock %}
 
 {% block content %}
+<h1 class="h3 mb-3">Обзор учебной программы</h1>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-layer-group fa-2x text-primary mb-3"></i>
+            <div class="stat-value">{{ levels_count }}</div>
+            <div class="stat-label">Levels</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card text-center">
+            <i class="fas fa-folder fa-2x text-success mb-3"></i>
+            <div class="stat-value">{{ modules_count }}</div>
             <div class="stat-label">Modules</div>
         </div>
     </div>
@@ -30,6 +43,8 @@
         </div>
     </div>
 </div>
+
+{% include 'admin/curriculum/_learning_statistics.html' %}
 
 <div class="row">
     <div class="col-lg-8">

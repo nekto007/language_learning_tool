@@ -45,12 +45,11 @@
                        class="admin-search-input"
                        placeholder="Поиск..."
                        autocomplete="off"
-                       aria-autocomplete="list"
                        aria-controls="admin-search-results"
                        aria-expanded="false">
                 <kbd class="admin-search-kbd" aria-label="Горячая клавиша: Ctrl+K или Cmd+K">⌘K</kbd>
             </div>
-            <div id="admin-search-results" class="admin-search-results" role="listbox" aria-label="Результаты поиска"></div>
+            <div id="admin-search-results" class="admin-search-results" role="region" aria-label="Результаты поиска"></div>
         </div>
 
         {% endif %}
@@ -126,6 +125,10 @@
                 <a href="{{ url_for('materials_admin.index') }}" class="nav-link {{ 'active' if request.blueprint == 'materials_admin' }}" {% if request.blueprint == 'materials_admin' %}aria-current="page"{% endif %}>
                     <i class="fas fa-folder-open" aria-hidden="true"></i>
                     <span>Материалы</span>
+                </a>
+                <a href="{{ url_for('placement_bank_admin.index') }}" class="nav-link {{ 'active' if request.blueprint == 'placement_bank_admin' }}" {% if request.blueprint == 'placement_bank_admin' %}aria-current="page"{% endif %}>
+                    <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+                    <span>Банк входного теста</span>
                 </a>
                 <a href="{{ url_for('admin_curriculum.curriculum') }}" class="nav-link {{ 'active' if request.endpoint == 'admin_curriculum.curriculum' }}">
                     <i class="fas fa-graduation-cap" aria-hidden="true"></i>
@@ -368,103 +371,84 @@
             });
         }
 
-        // Global Search
-        const adminSearchData = [
-            {% if current_user.is_admin %}
-            { title: 'Цель: 100 учеников', url: '{{ url_for("growth_admin.index") }}', icon: 'fa-bullseye', section: 'Main' },
-            { title: 'Dashboard', url: '{{ url_for("dashboard_admin.dashboard") }}', icon: 'fa-home', section: 'Main' },
-            { title: 'Спорные ответы', url: '{{ url_for("answer_disputes_admin.index") }}', icon: 'fa-comments', section: 'Контент' },
-            { title: 'Users', url: '{{ url_for("user_admin.users") }}', icon: 'fa-users', section: 'Main' },
-            { title: 'Statistics', url: '{{ url_for("user_admin.stats") }}', icon: 'fa-chart-bar', section: 'Main' },
-            { title: 'Curriculum', url: '{{ url_for("admin_curriculum.curriculum") }}', icon: 'fa-graduation-cap', section: 'Content' },
-            { title: 'Levels', url: '{{ url_for("admin_curriculum.level_list") }}', icon: 'fa-book-open', section: 'Content' },
-            { title: 'Modules', url: '{{ url_for("admin_curriculum.module_list") }}', icon: 'fa-book-open', section: 'Content' },
-            { title: 'Lessons', url: '{{ url_for("admin_curriculum.lesson_list") }}', icon: 'fa-file-alt', section: 'Content' },
-            { title: 'Topics', url: '{{ url_for("topic_admin.topic_list") }}', icon: 'fa-tags', section: 'Content' },
-            { title: 'Collections', url: '{{ url_for("collection_admin.collection_list") }}', icon: 'fa-layer-group', section: 'Content' },
-            { title: 'Word Sets', url: '{{ url_for("word_set_admin.word_set_list") }}', icon: 'fa-shapes', section: 'Content' },
-            { title: 'Words', url: '{{ url_for("word_admin.word_management") }}', icon: 'fa-spell-check', section: 'Content' },
-            { title: 'Books', url: '{{ url_for("book_admin.books") }}', icon: 'fa-book', section: 'Content' },
-            { title: 'Book Courses', url: '{{ url_for("admin.book_courses") }}', icon: 'fa-graduation-cap', section: 'Content' },
-            { title: 'Quiz Decks', url: '{{ url_for("admin.quiz_decks_list") }}', icon: 'fa-layer-group', section: 'Content' },
-            { title: 'Grammar Lab', url: '{{ url_for("grammar_lab_admin.grammar_lab_index") }}', icon: 'fa-pencil-ruler', section: 'Content' },
-            { title: 'Reminders', url: '{{ url_for("reminders.reminder_dashboard") }}', icon: 'fa-bell', section: 'Tools' },
-            { title: 'Modules (System)', url: '{{ url_for("admin.modules_list") }}', icon: 'fa-puzzle-piece', section: 'Tools' },
-            { title: 'Import Curriculum', url: '{{ url_for("admin_curriculum.import_curriculum") }}', icon: 'fa-upload', section: 'Tools' },
-            { title: 'System Info', url: '{{ url_for("system_admin.system") }}', icon: 'fa-cogs', section: 'Tools' },
-            { title: 'Database', url: '{{ url_for("system_admin.database_management") }}', icon: 'fa-database', section: 'Tools' },
-            { title: 'Audio', url: '{{ url_for("audio_admin.audio_management") }}', icon: 'fa-volume-up', section: 'Tools' },
-            { title: 'Настройки сайта', url: '{{ url_for("settings_admin.settings_index") }}', icon: 'fa-sliders-h', section: 'Settings' }
-            {% endif %}
-        ];
-
         function initGlobalSearch() {
             const searchInput = document.getElementById('admin-global-search');
             const searchResults = document.getElementById('admin-search-results');
-
             if (!searchInput || !searchResults) return;
-
-            // Keyboard shortcut (Cmd+K / Ctrl+K)
-            document.addEventListener('keydown', (e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-                    e.preventDefault();
-                    searchInput.focus();
-                }
-                if (e.key === 'Escape') {
-                    searchInput.blur();
-                    searchResults.classList.remove('show');
-                }
-            });
-
-            // Search functionality
-            searchInput.addEventListener('input', (e) => {
-                const query = e.target.value.toLowerCase().trim();
-
-                if (query.length < 1) {
-                    searchResults.classList.remove('show');
-                    return;
-                }
-
-                const results = adminSearchData.filter(item =>
-                    item.title.toLowerCase().includes(query) ||
-                    item.section.toLowerCase().includes(query)
+            const container = searchInput.closest('.admin-search-container');
+            const links = Array.from(document.querySelectorAll('#sidebar .nav-section-content a.nav-link'));
+            const entries = links.map(link => ({
+                title: link.querySelector('span')?.textContent.trim() || link.textContent.trim(),
+                section: link.closest('.nav-section').querySelector('.nav-section-title span')?.textContent.trim() || '',
+                href: link.getAttribute('href'),
+                icon: link.querySelector('i')
+            }));
+            const normalize = value => value.toLocaleLowerCase('ru').replaceAll('ё', 'е');
+            const hide = () => {
+                searchResults.classList.remove('show');
+                searchInput.setAttribute('aria-expanded', 'false');
+            };
+            const render = () => {
+                const query = normalize(searchInput.value.trim());
+                searchResults.replaceChildren();
+                if (!query) return hide();
+                const results = entries.filter(item =>
+                    normalize(item.title).includes(query) || normalize(item.section).includes(query)
                 );
-
-                while (searchResults.firstChild) searchResults.removeChild(searchResults.firstChild);
-                if (results.length > 0) {
-                    results.forEach(item => {
-                        const a = document.createElement('a');
-                        a.href = item.url;
-                        a.className = 'admin-search-result-item';
-                        const icon = document.createElement('i');
-                        icon.className = 'fas ' + item.icon;
-                        const title = document.createElement('span');
-                        title.textContent = item.title;
-                        const section = document.createElement('small');
-                        section.textContent = item.section;
-                        a.appendChild(icon);
-                        a.appendChild(title);
-                        a.appendChild(section);
-                        searchResults.appendChild(a);
-                    });
-                } else {
+                for (const item of results) {
+                    const anchor = document.createElement('a');
+                    anchor.href = item.href;
+                    anchor.className = 'admin-search-result-item';
+                    if (item.icon) anchor.append(item.icon.cloneNode(true));
+                    const title = document.createElement('span');
+                    title.textContent = item.title;
+                    const section = document.createElement('small');
+                    section.textContent = item.section;
+                    anchor.append(title, section);
+                    searchResults.append(anchor);
+                }
+                if (!results.length) {
                     const empty = document.createElement('div');
                     empty.className = 'admin-search-no-results';
                     empty.textContent = 'Ничего не найдено';
-                    searchResults.appendChild(empty);
+                    searchResults.append(empty);
                 }
                 searchResults.classList.add('show');
+                searchInput.setAttribute('aria-expanded', 'true');
+            };
+            let previousFocus;
+            document.addEventListener('keydown', event => {
+                if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+                    event.preventDefault();
+                    if (!container.contains(document.activeElement)) previousFocus = document.activeElement;
+                    container.classList.add('search-open');
+                    searchInput.focus();
+                    searchInput.select();
+                } else if (event.key === 'Escape' && container.contains(document.activeElement)) {
+                    event.preventDefault();
+                    hide();
+                    container.classList.remove('search-open');
+                    if (previousFocus instanceof HTMLElement && previousFocus !== document.body) previousFocus.focus();
+                    else searchInput.blur();
+                }
             });
-
-            // Hide results on blur (with delay for click)
-            searchInput.addEventListener('blur', () => {
-                setTimeout(() => searchResults.classList.remove('show'), 200);
+            searchInput.addEventListener('input', render);
+            searchInput.addEventListener('focus', render);
+            searchInput.addEventListener('keydown', event => {
+                const first = searchResults.querySelector('a');
+                if (!searchResults.classList.contains('show') || !first) return;
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    first.focus();
+                } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    first.click();
+                }
             });
-
-            // Show results on focus if has value
-            searchInput.addEventListener('focus', (e) => {
-                if (e.target.value.trim().length > 0) {
-                    e.target.dispatchEvent(new Event('input'));
+            container.addEventListener('focusout', event => {
+                if (!container.contains(event.relatedTarget)) {
+                    hide();
+                    container.classList.remove('search-open');
                 }
             });
         }

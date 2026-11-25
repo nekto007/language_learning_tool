@@ -54,6 +54,8 @@ AUDIT_LOG_WHITELIST = frozenset({
     'answer_disputes_admin.preview',
     # Stages an authored document and a database fingerprint for confirmation.
     'guided_topics_admin.preview',
+    # Store a private draft only. The separate activation has transactional audit.
+    'placement_bank_admin.upload', 'placement_bank_admin.edit_item',
     # editor_decide writes answer_dispute.{action} in the same transaction as
     # the edit, learner credit and thank-you. The HTTP test verifies it once.
     'answer_disputes_admin.decide',

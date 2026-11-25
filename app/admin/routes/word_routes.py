@@ -8,6 +8,7 @@ import logging
 from hashlib import sha256
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 
 from app.admin.audit import log_admin_action
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 @word_bp.route('/words/<int:word_id>/translation', methods=['GET', 'POST'])
 @admin_required
-def edit_translation(word_id: int):
+def edit_translation(word_id: int) -> ResponseReturnValue:
     from app.admin.routes.materials import materials_return_url
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 

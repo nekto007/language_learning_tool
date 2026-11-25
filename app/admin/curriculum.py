@@ -9,12 +9,15 @@ import logging
 from datetime import UTC, datetime
 
 from flask import flash, jsonify, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_babel import gettext as _
 from flask_babel import lazy_gettext as _l
 from flask_login import current_user
 from flask_wtf import FlaskForm
 from marshmallow import ValidationError
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 from wtforms import IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import AnyOf, DataRequired, Length, NumberRange, Optional
 
@@ -27,7 +30,7 @@ from app.books.models import Book
 from app.curriculum.models import CEFRLevel, CulturalNote, LessonProgress, Lessons, Module
 from app.curriculum.validators import LessonContentValidator
 from app.utils.db import db
-from app.words.models import CollectionWordLink, CollectionWords
+from app.words.models import Collection, CollectionWordLink, CollectionWords
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
@@ -89,18 +92,47 @@ class ModuleForm(FlaskForm):
 
 class LessonForm(FlaskForm):
     """Форма для создания/редактирования урока"""
-    module_id = SelectField(_l('Module'), coerce=int, validators=[DataRequired()])
-    number = IntegerField(_l('Number'), validators=[DataRequired(), NumberRange(min=1)])
-    title = StringField(_l('Title'), validators=[DataRequired(), Length(max=200)])
-    description = TextAreaField(_l('Description'), validators=[Optional()])
+    module_id = SelectField(_l('Модуль'), coerce=int, validators=[DataRequired()])
+    number = IntegerField(_l('Номер урока'), validators=[DataRequired(), NumberRange(min=1)])
+    title = StringField(_l('Название'), validators=[DataRequired(), Length(max=200)])
+    description = TextAreaField(_l('Описание'), validators=[Optional()])
     submit = SubmitField(_l('Save'))
 
     def __init__(self, *args, **kwargs):
         super(LessonForm, self).__init__(*args, **kwargs)
         # Заполняем список модулей
         modules = Module.query.join(CEFRLevel).order_by(CEFRLevel.order, Module.number).all()
-        self.module_id.choices = [(m.id, f"{m.level.code} - {m.title} (Module {m.number})")
-                                  for m in modules]
+        self.module_id.choices = [
+            (module.id, _('%(level)s · Модуль %(number)s · %(title)s',
+                          level=module.level.code, number=module.number, title=module.title))
+            for module in modules
+        ]
+
+
+class CreateLessonForm(LessonForm):
+    """Fields used only when adding a lesson to a module."""
+
+    type = SelectField(_l('Тип урока'), choices=[
+        ('card', _l('Карточки')),
+        ('vocabulary', _l('Словарь')),
+        ('matching', _l('Сопоставление')),
+        ('grammar', _l('Грамматика')),
+        ('quiz', _l('Викторина')),
+        ('text', _l('Текст')),
+        ('final_test', _l('Итоговый тест')),
+    ], validators=[DataRequired()])
+    order = IntegerField(_l('Порядок отображения'), validators=[Optional(), NumberRange(min=0)])
+    collection_id = SelectField(_l('Коллекция слов'), coerce=int, validators=[Optional()])
+    book_id = SelectField(_l('Книга'), coerce=int, validators=[Optional()])
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.collection_id.choices = [(0, _l('Без коллекции'))] + [
+            (row.id, row.name) for row in db.session.query(Collection.id, Collection.name).order_by(Collection.name)
+        ]
+        self.book_id.choices = [(0, _l('Без книги'))] + [
+            (row.id, row.title) for row in db.session.query(Book.id, Book.title).order_by(Book.title)
+        ]
 
 
 # Страница управления учебной программой
@@ -121,6 +153,13 @@ def curriculum_overview():
 
     # Статистика по пользователям
     user_progress_count = db.session.query(LessonProgress.user_id).distinct().count()
+    completed_lessons, average_score = db.session.query(
+        func.count(LessonProgress.id), func.avg(LessonProgress.score).filter(LessonProgress.score > 0),
+    ).filter(LessonProgress.status == 'completed').one()
+    lesson_types = db.session.query(Lessons.type, func.count(Lessons.id)).group_by(Lessons.type).order_by(Lessons.type).all()
+    recent_progress = LessonProgress.query.options(joinedload(LessonProgress.user), joinedload(LessonProgress.lesson)).order_by(
+        LessonProgress.last_activity.desc().nullslast(), LessonProgress.id.desc(),
+    ).limit(20).all()
 
     # Получение данных для графика прогресса студентов по уровням
     level_progress = {}
@@ -158,7 +197,11 @@ def curriculum_overview():
         levels=levels,
         recent_lessons=recent_lessons,
         user_progress_count=user_progress_count,
-        level_progress=level_progress
+        level_progress=level_progress,
+        completed_lessons=completed_lessons,
+        average_score=average_score,
+        lesson_types=lesson_types,
+        recent_progress=recent_progress,
     )
 
 
@@ -344,16 +387,22 @@ def delete_module(module_id):
 # Управление уроками
 @admin.route('/curriculum/lessons/create', methods=['GET', 'POST'])
 @admin_required
-def create_lesson():
+def create_lesson() -> ResponseReturnValue:
     """Создание нового урока"""
-    form = LessonForm()
+    form = CreateLessonForm()
 
     # Предварительно выбираем модуль из URL-параметра, если есть
     module_id = request.args.get('module_id', type=int)
-    if module_id:
+    if request.method == 'GET' and module_id:
         form.module_id.data = module_id
 
     if form.validate_on_submit():
+        # Serialize creation for a module before checking its lesson numbers.
+        module = db.session.query(Module.id).filter_by(id=form.module_id.data).with_for_update().first()
+        if module is None:
+            flash(_('Этот модуль больше недоступен.'), 'danger')
+            return render_template('admin/curriculum/create_lesson.html', form=form), 409
+
         # Проверяем, не существует ли уже урок с таким номером для этого модуля
         existing_lesson = Lessons.query.filter_by(
             module_id=form.module_id.data,
@@ -361,14 +410,19 @@ def create_lesson():
         ).first()
 
         if existing_lesson:
+            db.session.rollback()
             flash(_('Урок с таким номером уже существует для этого модуля.'), 'danger')
-            return render_template('admin/curriculum/create_lesson.html', form=form)
+            return render_template('admin/curriculum/create_lesson.html', form=form), 409
 
         lesson = Lessons(
             module_id=form.module_id.data,
             number=form.number.data,
             title=form.title.data,
-            description=form.description.data
+            type=form.type.data,
+            order=form.order.data if form.order.data is not None else form.number.data,
+            description=form.description.data,
+            collection_id=(form.collection_id.data or None) if form.type.data in ('card', 'vocabulary') else None,
+            book_id=(form.book_id.data or None) if form.type.data == 'text' else None,
         )
 
         db.session.add(lesson)
@@ -379,16 +433,15 @@ def create_lesson():
         except IntegrityError:
             db.session.rollback()
             flash(_('Урок с таким номером уже существует для этого модуля.'), 'danger')
-            return render_template('admin/curriculum/create_lesson.html', form=form, module_id=module_id)
+            return render_template('admin/curriculum/create_lesson.html', form=form), 409
 
         flash(_('Урок успешно создан!'), 'success')
-        return redirect(url_for('admin.edit_lesson', lesson_id=lesson.id))
+        return redirect(url_for('curriculum_admin.edit_lesson', lesson_id=lesson.id))
 
     return render_template(
         'admin/curriculum/create_lesson.html',
         form=form,
-        module_id=module_id
-    )
+    ), 422 if request.method == 'POST' else 200
 
 
 @admin.route('/curriculum/lessons/<int:lesson_id>/edit', methods=['GET', 'POST'])

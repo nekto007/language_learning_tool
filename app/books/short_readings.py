@@ -1,4 +1,5 @@
 """Reviewed original A1 reading pack and repeatable, non-destructive install."""
+# ruff: noqa: RUF001 -- Russian validation messages for authors.
 
 import json
 import re
@@ -14,8 +15,69 @@ PERMISSION = 'LLT original A1 reading pack v1; full-text use inside LLT is grant
 FORMATS = {'short_text', 'dialogue', 'story'}
 
 
+class InvalidFormativeQuestion(ValueError):
+    """An invalid practice question in a short reading."""
+
+
 def words(text):
     return re.findall(r"[A-Za-z]+(?:'[A-Za-z]+)?", text)
+
+
+def _valid_text(value: object, limit: int) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and len(value) <= limit and '\0' not in value
+
+
+def validate_reading_item(item: dict) -> None:
+    """Validate a single authored reading, shared by the pack and the editor."""
+    if not isinstance(item, dict):
+        raise ValueError('Ожидаются данные одного короткого чтения.')
+    slug = item.get('slug')
+    reading = item.get('reading')
+    if (slug is not None and not _valid_text(slug, 100)) or not isinstance(reading, dict):
+        raise ValueError('Проверьте адрес и настройки короткого чтения.')
+    if not isinstance(reading.get('format'), str) or reading['format'] not in FORMATS:
+        raise ValueError('Неизвестный формат короткого чтения.')
+    eta = reading.get('estimated_minutes', 3)
+    if type(eta) is not int or not 1 <= eta <= 120:
+        raise ValueError('Укажите время чтения от 1 до 120 минут.')
+    text = item.get('text')
+    if not _valid_text(text, 8000) or not 30 <= len(words(text)) <= 200 or '<' in text or '>' in text:
+        raise ValueError('Введите от 30 до 200 слов обычным текстом, без HTML.')
+    if not _valid_text(item.get('title'), 255) or not _valid_text(reading.get('focus'), 1000):
+        raise ValueError('Проверьте название чтения и его учебную цель.')
+    glossary = reading.get('glossary')
+    if not isinstance(glossary, list) or not 3 <= len(glossary) <= 5 or not all(
+        isinstance(row, dict) and _valid_text(row.get('english'), 255) and _valid_text(row.get('translation'), 255)
+        for row in glossary
+    ):
+        raise ValueError('Заполните от трёх до пяти пар слово — перевод.')
+    topics = reading.get('after_topics', [])
+    if not isinstance(topics, list) or any(
+        not isinstance(topic, str) or not re.fullmatch(r'[a-z0-9-]+', topic) or not (TOPICS / f'{topic}.json').is_file()
+        for topic in topics
+    ):
+        raise ValueError('В настройках указана неизвестная предварительная тема.')
+    questions = reading.get('questions')
+    if not isinstance(questions, list) or not 2 <= len(questions) <= 3:
+        raise ValueError('Заполните два или три вопроса с разными идентификаторами.')
+    question_ids = set()
+    for question in questions:
+        if not isinstance(question, dict) or not _valid_text(question.get('id'), 100) or question['id'] in question_ids:
+            raise ValueError('Проверьте идентификаторы вопросов. Они должны различаться.')
+        question_ids.add(question['id'])
+        options = question.get('options')
+        if not isinstance(options, list) or len(options) != 3 or not all(
+            isinstance(option, dict) and _valid_text(option.get('id'), 100) and _valid_text(option.get('text'), 500)
+            for option in options
+        ):
+            raise InvalidFormativeQuestion(f'Вопрос {len(question_ids)} — заполните три варианта.')
+        ids = {option['id'] for option in options}
+        correct = question.get('correct_option')
+        if (len(ids) != 3 or not isinstance(correct, str) or correct not in ids
+                or len({option['text'].strip().casefold() for option in options}) != 3
+                or not all(_valid_text(question.get(key), 2000)
+                           for key in ('instruction', 'prompt', 'prompt_translation', 'explanation'))):
+            raise InvalidFormativeQuestion(f'Вопрос {len(question_ids)} — проверьте поля, варианты и ключ.')
 
 
 def load_pack(path=None):
@@ -25,39 +87,19 @@ def load_pack(path=None):
         raise ValueError('Expected the reviewed 15-material A1 pack, version 1')
     slugs, orders = set(), set()
     for item in items:
-        slug = item['slug']
-        reading = item['reading']
-        if not re.fullmatch(r'llt-a1-reading-\d{2}', slug) or slug in slugs:
-            raise ValueError('Duplicate or invalid reading identity')
+        try:
+            validate_reading_item(item)
+        except InvalidFormativeQuestion as exc:
+            raise ValueError(f'Invalid formative question: {item.get("slug")}') from exc
+        slug, order = item.get('slug'), item['reading'].get('order')
+        if (not isinstance(slug, str) or not re.fullmatch(r'llt-a1-reading-\d{2}', slug)
+                or type(order) is not int or not 1 <= order <= 15
+                or item['reading'].get('stage') not in ('start', 'growing', 'confident')):
+            raise ValueError('Invalid A1 pack identity, order or stage')
+        if slug in slugs or order in orders:
+            raise ValueError(f'Duplicate reading identity or order: {slug}')
         slugs.add(slug)
-        order = reading['order']
-        if type(order) is not int or not 1 <= order <= 15 or order in orders:
-            raise ValueError('Duplicate or invalid reading order')
         orders.add(order)
-        if reading.get('format') not in FORMATS or reading.get('stage') not in {'start', 'growing', 'confident'}:
-            raise ValueError(f'Invalid reading format/stage: {slug}')
-        if not 30 <= len(words(item['text'])) <= 200 or '<' in item['text'] or '>' in item['text']:
-            raise ValueError(f'Invalid plain reading text: {slug}')
-        if not item['title'].strip() or not reading.get('focus'):
-            raise ValueError(f'Missing title/focus: {slug}')
-        if not 3 <= len(reading['glossary']) <= 5:
-            raise ValueError(f'Expected 3-5 vocabulary hints: {slug}')
-        if any(not row.get('english') or not row.get('translation') for row in reading['glossary']):
-            raise ValueError(f'Invalid vocabulary hint: {slug}')
-        for topic in reading['after_topics']:
-            if not (TOPICS / f'{topic}.json').is_file():
-                raise ValueError(f'Unknown prerequisite: {topic}')
-        questions = reading['questions']
-        if not 2 <= len(questions) <= 3 or len({q['id'] for q in questions}) != len(questions):
-            raise ValueError(f'Expected 2-3 distinct questions: {slug}')
-        for question in questions:
-            options = question['options']
-            ids = {option['id'] for option in options}
-            if (len(options) != 3 or len(ids) != 3 or question['correct_option'] not in ids
-                    or any(not option['text'].strip() for option in options)
-                    or len({option['text'].casefold() for option in options}) != len(options)
-                    or not all(question.get(k) for k in ('instruction', 'prompt', 'prompt_translation', 'explanation'))):
-                raise ValueError(f'Invalid formative question: {slug}')
     return data
 
 

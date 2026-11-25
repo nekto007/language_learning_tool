@@ -30,7 +30,7 @@ def _validate_import_id(import_id):
         return None
 
 
-def save_import_data(data: dict, *, prefix: str = '') -> str:
+def save_import_data(data: dict, *, prefix: str = '', private: bool = False) -> str:
     """
     Сохраняет данные импорта во временный файл
 
@@ -43,7 +43,10 @@ def save_import_data(data: dict, *, prefix: str = '') -> str:
     import_id = str(uuid.uuid4())
     file_path = os.path.join(IMPORT_TEMP_DIR, f"{prefix}{import_id}.json")
 
-    with open(file_path, 'w', encoding='utf-8') as f:
+    def open_private(path: str, flags: int) -> int:
+        return os.open(path, flags | os.O_EXCL, 0o600)
+
+    with open(file_path, 'w', encoding='utf-8', opener=open_private if private else None) as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     # Удаляем старые файлы (старше 1 часа)

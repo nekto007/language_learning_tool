@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from functools import wraps
 
 from flask import flash, jsonify, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
@@ -838,18 +839,23 @@ def register_book_course_routes(admin_bp):
     @admin_bp.route('/book-courses/analytics')
     @admin_required
     @handle_admin_errors(return_json=False)
-    def book_courses_analytics():
+    def book_courses_analytics() -> ResponseReturnValue:
         """Book courses analytics and statistics"""
-
-        # Overall statistics
-        total_courses = BookCourse.query.count()
-        active_courses = BookCourse.query.filter_by(is_active=True).count()
-        total_enrollments = BookCourseEnrollment.query.count()
+        course_id = request.args.get('course_id', type=int)
+        course = BookCourse.query.get_or_404(course_id) if course_id is not None else None
+        courses = BookCourse.query
+        enrollments = BookCourseEnrollment.query
+        if course is not None:
+            courses = courses.filter_by(id=course.id)
+            enrollments = enrollments.filter_by(course_id=course.id)
+        total_courses = courses.count()
+        active_courses = courses.filter_by(is_active=True).count()
+        total_enrollments = enrollments.count()
 
         # Enrollment trends (last 30 days)
         # Use datetime.now(UTC) and convert to naive for DB compatibility
         thirty_days_ago = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)
-        daily_enrollments = db.session.query(
+        daily_enrollments = enrollments.with_entities(
             func.date(BookCourseEnrollment.enrolled_at).label('date'),
             func.count(BookCourseEnrollment.id).label('count')
         ).filter(
@@ -859,18 +865,18 @@ def register_book_course_routes(admin_bp):
         ).order_by('date').all()
 
         # Most popular courses
-        popular_courses = db.session.query(
+        popular_courses = courses.with_entities(
             BookCourse,
             func.count(BookCourseEnrollment.id).label('enrollment_count'),
             func.avg(BookCourseEnrollment.progress_percentage).label('avg_progress')
         ).outerjoin(
             BookCourseEnrollment, BookCourse.id == BookCourseEnrollment.course_id
         ).group_by(BookCourse.id).order_by(
-            desc('enrollment_count')
+            desc('enrollment_count'), BookCourse.id
         ).limit(10).all()
 
         # User engagement
-        engagement_stats = db.session.query(
+        engagement_stats = enrollments.with_entities(
             func.avg(BookCourseEnrollment.progress_percentage).label('avg_progress'),
             func.count(
                 BookCourseEnrollment.id.distinct()
@@ -886,6 +892,7 @@ def register_book_course_routes(admin_bp):
 
         return render_template(
             'admin/book_courses/analytics.html',
+            course=course,
             total_courses=total_courses,
             active_courses=active_courses,
             total_enrollments=total_enrollments,

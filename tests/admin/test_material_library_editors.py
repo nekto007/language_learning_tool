@@ -4,6 +4,7 @@
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from bs4 import BeautifulSoup
 from flask import Flask, g
 from flask.testing import FlaskClient
 from sqlalchemy import func
@@ -49,7 +50,7 @@ def library(db_session: scoped_session, test_user: User) -> tuple:
     return book, chapter, bookmark, progress, words, word_set, collection
 
 
-def _field(page, name: str) -> str:
+def _field(page: BeautifulSoup, name: str) -> str:
     return str(page.select_one(f'input[name="{name}"]')['value'])
 
 
@@ -161,7 +162,7 @@ def test_chapter_preview_apply_keeps_identity_progress_bookmarks_and_links(
     analysed = []
     original_process = chapter_editor.process_text
 
-    def record(text: str, *args) -> list[str]:
+    def record(text: str, *args: str) -> list[str]:
         assert 'distant hillside' not in text
         result = original_process(text, *args)
         analysed.append(result)
@@ -265,7 +266,7 @@ def test_short_reading_keeps_installer_text_even_for_formatting_changes(
     revision = _field(_page(admin_client.get(path)), 'revision')
     common = {'title': 'New chapter heading', 'revision': revision, 'action': 'preview'}
     formatted = admin_client.post(path, data={**common, 'text': '<em>Just</em> words.'})
-    assert formatted.status_code == 422 and 'исходный пакет' in formatted.text
+    assert formatted.status_code == 422 and 'редактор короткого чтения' in formatted.text
     preview = _page(admin_client.post(path, data={**common, 'text': chapter.text_raw}))
     assert admin_client.post(path, data={**common, 'text': chapter.text_raw, 'action': 'apply',
                                        'preview_token': _field(preview, 'preview_token')}).status_code == 303
