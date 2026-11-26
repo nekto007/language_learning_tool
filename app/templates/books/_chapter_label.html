@@ -1,0 +1,3 @@
+{% macro chapter_label(chapter, is_short_reading) -%}
+{{ (chapter.title or '').strip() or ('Текст' if is_short_reading else 'Часть ' ~ chapter.chap_num) }}
+{%- endmacro %}

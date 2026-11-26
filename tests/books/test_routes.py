@@ -1,8 +1,13 @@
 """Tests for book catalog access control and edge cases (Task 16)."""
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 import pytest
+from bs4 import BeautifulSoup
+from flask.testing import FlaskClient
+
+from app.auth.models import User
 
 from app.books.models import Book, Chapter, UserChapterProgress
 
@@ -89,12 +94,31 @@ class TestUnauthorizedAccess:
 
 
 class TestReaderFinishAction:
-    def test_finish_reading_uses_server_post_action(self):
-        source = Path('app/templates/books/reader_simple.html').read_text()
+    def test_reader_marks_only_the_open_chapter(
+        self, authenticated_client: FlaskClient,
+        test_user: User, published_book: Book,
+    ) -> None:
+        chapter = Chapter.query.filter_by(book_id=published_book.id, chap_num=3).one()
+        url = f'/read/{published_book.id}/chapters?chapter=3'
+        response = authenticated_client.get(url)
+        assert response.status_code == 200
+        html = BeautifulSoup(response.get_data(as_text=True), 'html.parser')
+        assert html.select_one('#reader-mark-read')
+        assert not html.select_one('form[action$="/finish-reading"]')
+        assert not html.select_one('#next-chapter-link')
+        assert UserChapterProgress.query.filter_by(user_id=test_user.id).count() == 0
 
-        assert 'action="{{ url_for(\'books.finish_book_reading\', book_id=book.id) }}"' in source
-        assert 'name="chapter_id" value="{{ current_chapter.id }}"' in source
-        assert 'name="csrf_token" value="{{ csrf_token() }}"' in source
+        result = authenticated_client.patch('/api/progress', json={
+            'book_id': published_book.id, 'chapter_id': chapter.id, 'offset_pct': 1,
+        })
+        assert result.status_code == 200
+        assert result.json['chapter_completed'] is True
+        assert result.json['book_completed'] is False
+        assert result.json['completed_chapters'] == 1
+        progress = UserChapterProgress.query.filter_by(user_id=test_user.id).one()
+        assert (progress.chapter_id, progress.offset_pct) == (chapter.id, 1)
+        reloaded = BeautifulSoup(authenticated_client.get(url).get_data(as_text=True), 'html.parser')
+        assert reloaded.select_one('#reader-mark-read').has_attr('disabled')
 
     def test_finish_reading_post_marks_chapter_complete(
         self, authenticated_client, db_session, test_user, published_book,
@@ -230,12 +254,44 @@ class TestChapterPagination:
             return_value=True,
         ):
             response = authenticated_client.get(
-                f'/read/{published_book.id}/chapters?chapter=1'
+                f'/read/{published_book.id}/chapters?chapter=1&from=linear_plan&slot=reading'
             )
         assert response.status_code == 200
         html = response.get_data(as_text=True)
         assert 'id="reading-timer-target"' in html
         assert 'targetEl.textContent = _formatTime(dailyTargetSeconds)' in html
+
+    def test_catalog_reader_keeps_return_context_without_session_code(
+        self, authenticated_client: FlaskClient, published_book: Book,
+    ) -> None:
+        url = f'/read/{published_book.id}/chapters?chapter=1'
+        back = '/books?level=A1'
+        response = authenticated_client.get(url, headers={'Referer': f'http://localhost{back}'})
+        assert response.status_code == 200
+        page = BeautifulSoup(response.get_data(as_text=True), 'html.parser')
+        assert not page.select_one('#reading-timer-bar')
+        assert '/reading-session/' not in response.get_data(as_text=True)
+        assert page.select_one('.rdr-back-btn')['href'] == back
+        next_link = page.select_one('#next-chapter-link')['href']
+        assert parse_qs(urlsplit(next_link).query) == {'from': [back], 'chapter': ['2']}
+        chapter_two = authenticated_client.get(next_link)
+        assert chapter_two.status_code == 200
+        assert 'href="/books?level=A1"' in chapter_two.get_data(as_text=True)
+
+    def test_plan_reader_preserves_explicit_mode_in_chapter_links(
+        self, authenticated_client: FlaskClient, published_book: Book,
+    ) -> None:
+        url = f'/read/{published_book.id}?from=linear_plan&slot=reading&chapter=2'
+        response = authenticated_client.get(url, follow_redirects=True)
+        assert response.status_code == 200
+        page = BeautifulSoup(response.get_data(as_text=True), 'html.parser')
+        assert page.select_one('#reading-timer-bar')
+        assert page.select_one('.rdr-back-btn')['href'] == '/dashboard'
+        for link in page.select('#prev-chapter-link, #next-chapter-link, .rdr-toc a'):
+            query = parse_qs(urlsplit(link['href']).query)
+            assert query.get('from') == ['linear_plan']
+            assert query.get('slot') == ['reading']
+        assert page.select_one('.rdr-toc [aria-current]').get_text(strip=True) == 'Chapter 2'
 
     def test_reader_navigation_cta_requires_confirmed_completion_state(self):
         """Checkpoint-only timer pause must not offer dashboard navigation.

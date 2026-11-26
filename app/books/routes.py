@@ -4,6 +4,7 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
+from hashlib import sha256
 from urllib.parse import urlsplit
 
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
@@ -297,28 +298,46 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     back_url = request.args.get('from')
     if back_url in ('daily_plan', 'linear_plan'):
         back_url = None  # tracking flag, not a URL
-    if not back_url and request.endpoint != 'books.book_read':
-        referrer = request.referrer
+    if not back_url and request.endpoint != 'books.book_read' and request.referrer:
+        referrer = _same_host_path(request.referrer)
         if referrer:
-            # Check if referrer is from books list or book details
-            if '/books' in referrer and f'/books/{book_id}' not in referrer:
-                back_url = url_for('books.book_list')
-            elif 'curriculum' in referrer or 'module' in referrer:
-                back_url = _same_host_path(referrer)
-            else:
-                back_url = url_for('books.book_details', book_id=book_id)
-        else:
-            back_url = url_for('books.book_details', book_id=book_id)
+            referrer_path = urlsplit(referrer).path
+            if referrer_path in {url_for('books.book_list'), url_for('books.book_details', book_id=book_id)}:
+                back_url = referrer
+            elif 'curriculum' in referrer_path or 'module' in referrer_path:
+                back_url = referrer
     back_url = _safe_back_url(back_url, book_id)
 
     learner_preview = current_user.is_admin and request.args.get('preview') == 'learner'
+    source = request.args.get('from')
+    plan_mode = not learner_preview and (
+        source == 'daily_plan'
+        or (source == 'linear_plan' and request.args.get('slot') in ('reading', 'book'))
+    )
+    back_path = urlsplit(back_url).path
+    return_label = 'Назад'
+    if back_path == url_for('books.book_list'):
+        return_label = 'К книгам'
+    elif back_path == url_for('books.book_details', book_id=book_id):
+        return_label = 'К книге'
+    reader_query = {'from': back_url}
+    if plan_mode:
+        back_url = url_for('words.dashboard')
+        return_label = 'К плану'
+        reader_query = {'from': 'linear_plan', 'slot': 'reading'}
     if learner_preview:
         back_url = url_for('book_admin.edit_book', book_id=book_id)
+        return_label = 'К редактору'
+        reader_query = {'preview': 'learner'}
     chapter_text, text_truncated = visible_chapter_text(
         book, current_chapter.text_raw, admin=current_user.is_admin and not learner_preview,
     )
 
     index = chapters.index(current_chapter)
+    first_named_chapter = next((
+        chapter for chapter in chapters
+        if re.match(r'^chapter\s+(?:I|1)(?=$|[\s.:—–-])', (chapter.title or '').strip(), re.IGNORECASE)
+    ), None)
     return render_template(
         'books/reader_simple.html', book=book, chapters=chapters, current_chapter=current_chapter,
         previous_chapter=chapters[index - 1] if index else None,
@@ -326,6 +345,9 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         chapter_text=chapter_text, text_truncated=text_truncated,
         chapter_progress=None if learner_preview else chapter_progress,
         learner_preview=learner_preview, can_track_reading=bool(chapter_text) and not learner_preview, back_url=back_url,
+        plan_mode=plan_mode, reader_query=reader_query, return_label=return_label,
+        first_named_chapter=first_named_chapter,
+        chapter_revision=sha256(chapter_text.encode()).hexdigest() if chapter_text and not learner_preview else None,
     )
 
 

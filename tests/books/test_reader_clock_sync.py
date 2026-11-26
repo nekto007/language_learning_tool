@@ -32,9 +32,11 @@ let now = 100000;
 Date.now = () => now;
 const requests = [];
 const intervals = [];
+const timeouts = [];
+const readerEvents = {};
 global.setInterval = (fn, ms) => { intervals.push({fn, ms}); return intervals.length; };
 global.clearInterval = () => {};
-global.setTimeout = () => 1;
+global.setTimeout = (fn, ms) => { timeouts.push({fn, ms}); return timeouts.length; };
 global.clearTimeout = () => {};
 const makeElement = () => ({ hidden: true, textContent: '', children: [],
     classList: {toggle() {}}, setAttribute() {}, addEventListener() {},
@@ -50,7 +52,8 @@ elements['reading-completion-banner'] = {
 global.document = {hidden: false, addEventListener() {}, createElement: makeElement,
     getElementById: id => elements[id] || null};
 global.window = {addEventListener() {}};
-global.readerBody = {scrollTop: 0, scrollHeight: 100, clientHeight: 50};
+global.readerBody = {addEventListener: (type, fn) => { readerEvents[type] = fn; }};
+global.restoring = false;
 global.fetch = (url, options) => new Promise(resolve => requests.push({url, resolve}));
 async function reply(data, ok = true) {
     const request = requests.shift();
@@ -106,6 +109,16 @@ const startData = seconds => ({session_id: 1098, book_seconds_today: seconds,
     await reply(startData(261));
     assert.equal(reader.clock.seconds, 261);
     assert.equal(reader.clock.anchor, now);
+    """,
+    # Actual reader scrolling keeps the timer active; an appearance reflow does not.
+    """
+    reader.start(); await reply(startData(0));
+    const before = timeouts.length;
+    restoring = true; readerEvents.scroll();
+    assert.equal(timeouts.length, before);
+    restoring = false; readerEvents.scroll();
+    assert.equal(timeouts.length, before + 1);
+    assert.equal(timeouts.at(-1).ms, 60000);
     """,
     # Reconciliation must not replace an explicitly extended checkpoint.
     """

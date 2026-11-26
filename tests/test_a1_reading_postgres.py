@@ -66,7 +66,8 @@ def test_web_reader_uses_same_database_practice_and_hides_timer(app, authenticat
         assert 'short-reading-data' in html and 'short-reading-practice' in html
         assert first.reading['questions'][0]['prompt'] in html
         assert 'short_reading.js' in html and 'short-reading-finish' in html
-        assert 'id="reading-timer-bar" class="rdr-timer-bar" hidden' in html
+        assert 'id="reading-timer-bar"' not in html
+        assert '/reading-session/' not in html
         api = authenticated_client.get(f'/api/books/{first.id}/chapters/1')
         assert api.json['reading']['questions'] == first.reading['questions']
     finally:

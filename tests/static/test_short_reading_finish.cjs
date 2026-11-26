@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../../app/templates/books/reader_simple.html'), 'utf8');
 const start = source.indexOf("const shortFinish = document.getElementById('short-reading-finish');");
-const end = source.indexOf('// Compute reading progress', start);
+const end = source.indexOf('// Offsets belong to the chapter text', start);
 
 for (const [label, receipt, saved] of [
     ['fresh transition', {success: true, book_completed: true}, true],

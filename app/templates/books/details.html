@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from "books/_chapter_label.html" import chapter_label %}
 
 {% block title %}{{ book.title }} - {{ _('Изучение английского') }}{% endblock %}
 
@@ -350,7 +351,7 @@
                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                         {% endif %}
                             <div>
-                                <h6 class="mb-1">{{ _('Chapter') }} {{ chapter.chap_num }}: {{ chapter.title }}</h6>
+                                <h6 class="mb-1">{{ chapter_label(chapter, book.is_short_reading) }}</h6>
                                 <small class="text-muted">{{ chapter.words }} {{ _('words') }}</small>
                             </div>
                             <i class="fas fa-chevron-right"></i>
