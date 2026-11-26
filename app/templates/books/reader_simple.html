@@ -293,15 +293,19 @@ function showVisibleProgress() {
     }
     const viewport = readerBody.getBoundingClientRect();
     const first = chapterContent.getBoundingClientRect().top;
-    const ending = lastLine.getBoundingClientRect();
-    const last = ending.bottom;
+    const last = lastLine.getBoundingClientRect().bottom;
     if (last <= first || viewport.height <= 0) {
         progress.hidden = true;
         return;
     }
-    const percent = ending.top >= viewport.top - 0.5 && last <= viewport.bottom + 0.5
+    const scrolled = readerBody.scrollTop;
+    // Recover the scroll distance from the initial viewport to the last line.
+    // The line's measured position includes the chapter heading above it.
+    const distanceToEnd = Math.max(1, scrolled + last - viewport.bottom);
+    // The questions below the text can scroll the last line out at the top.
+    const percent = last <= viewport.bottom + 0.5
         ? 100
-        : Math.max(0, Math.min(99, Math.floor((viewport.bottom - first) * 100 / (last - first))));
+        : Math.max(0, Math.min(99, Math.floor(scrolled * 100 / distanceToEnd)));
     progress.hidden = false;
     progressBar.style.width = percent + '%';
     progressText.textContent = percent;
