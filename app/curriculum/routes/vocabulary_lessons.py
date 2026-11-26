@@ -18,6 +18,7 @@ from app.curriculum.models import (
     save_annotation,
 )
 from app.curriculum.constants import PASSING_SCORE_DEFAULT
+from app.curriculum.order_punctuation import legacy_order_display
 from app.curriculum.routes.lessons import (
     _process_reading_submission,
     lessons_bp,
@@ -400,7 +401,7 @@ def _prepare_reading_questions_for_display(cleaned_content: dict) -> None:
         for question in questions:
             if not isinstance(question, dict):
                 continue
-            copy = dict(question)
+            copy = legacy_order_display(dict(question))
             options = copy.get('options')
             if isinstance(options, list) and len(options) > 1:
                 perm = list(range(len(options)))

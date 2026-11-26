@@ -422,6 +422,7 @@
                 </div>
                 <div class="sentence-container">
                   <div class="sentence-display" id="sentence-{{ question_index }}"
+                       {% if question.automatic_order_mark %}data-order-terminal="{{ question.automatic_order_mark }}"{% endif %}
                        data-action="clear-sentence" data-question-index="{{ question_index }}">
                     <span class="placeholder-text">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
                   </div>
@@ -829,7 +830,15 @@ function submitReorderAnswer(questionIndex) {
   }
   
   // Get the formed sentence
-  const sentence = sentenceDiv.textContent.trim();
+  const tiles = sentenceDiv.querySelectorAll('.sentence-word');
+  const total = document.querySelectorAll('#words-container-' + questionIndex + ' .word-button').length;
+  const mark = tiles.length === total ? sentenceDiv.dataset.orderTerminal || '' : '';
+  const sentence = Array.from(tiles, tile => tile.textContent).join(' ').trim() + mark;
+  if (mark) {
+    const ending = document.createElement('span');
+    ending.textContent = mark;
+    sentenceDiv.appendChild(ending);
+  }
   
   // Store the answer in QuizApp state
   QuizApp.state.answers[questionIndex] = {

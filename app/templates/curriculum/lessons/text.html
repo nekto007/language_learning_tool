@@ -422,7 +422,8 @@
                   {% endfor %}
                 </div>
                 <div class="sentence-container">
-                  <div class="sentence-display" id="sentence-{{ question_index }}" data-action="clear-sentence" data-question-index="{{ question_index }}">
+                  <div class="sentence-display" id="sentence-{{ question_index }}" data-action="clear-sentence" data-question-index="{{ question_index }}"
+                       {% if question.automatic_order_mark %}data-order-terminal="{{ question.automatic_order_mark }}"{% endif %}>
                     <span class="placeholder-text">{{ _('Нажмите на слова выше, чтобы составить предложение') }}</span>
                   </div>
                 </div>
@@ -930,7 +931,17 @@ function submitOrderingAnswer(questionIndex) {
     if (sentenceDiv) { sentenceDiv.classList.add('error'); setTimeout(function() { sentenceDiv.classList.remove('error'); }, 1000); }
     return;
   }
-  const sentence = Array.from(sentenceDiv.querySelectorAll('.sentence-word')).map(function(w) { return w.textContent; }).join(' ').trim();
+  const words = Array.from(sentenceDiv.querySelectorAll('.sentence-word'));
+  const total = document.querySelectorAll('#words-container-' + questionIndex + ' .word-button').length;
+  const mark = words.length === total ? sentenceDiv.dataset.orderTerminal || '' : '';
+  const sentence = words.map(function(w) { return w.textContent; }).join(' ').trim() + mark;
+  sentenceDiv.querySelector('.automatic-order-ending')?.remove();
+  if (mark) {
+    const ending = document.createElement('span');
+    ending.className = 'automatic-order-ending';
+    ending.textContent = mark;
+    sentenceDiv.appendChild(ending);
+  }
   _answerReading(questionIndex, 'ordering', sentence);
 }
 

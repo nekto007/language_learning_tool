@@ -13,8 +13,18 @@ from app.curriculum.routes.lessons import lessons_bp
 from app.utils.rate_limit_helpers import get_authenticated_user_key
 
 
-def render_practice(lesson):
-    return render_template("curriculum/lessons/guided_practice.html", lesson=lesson)
+def render_practice(lesson: Lessons) -> str:
+    from app.curriculum.service import get_next_lesson
+
+    course = request.args.get('from') != 'linear_plan'
+    module = lesson.module
+    back = url_for('learn.learn_index')
+    if course and module and module.level:
+        back = url_for('learn.learn_by_module', level_code=module.level.code.lower(), module_number=module.number)
+    following = get_next_lesson(lesson.id) if course else None
+    return render_template("curriculum/lessons/guided_practice.html", lesson=lesson, course_practice=course,
+                           course_back=back, course_next=url_for('learn.lesson_by_id', lesson_id=following.id)
+                           if following else None)
 
 
 def uses_legacy_practice(lesson):
@@ -60,7 +70,7 @@ def practice_document(lesson_id):
 
     if request.args.get("result_identity") == "1":
         return _practice_result_identity(lesson_id)
-    value = course_document(lesson_id, deferred=True).get_json()
+    value = course_document(lesson_id, deferred=True, web_course=request.args.get('mode') == 'course').get_json()
     value["account_id"] = str(current_user.id)
     value["lesson"]["study_day"] = get_user_local_date(current_user.id).isoformat()
     if value["lesson"]["type"] == "final_test":
@@ -169,7 +179,7 @@ def _legacy_final_answers(questions: list[dict[str, Any]], progress: LessonProgr
 def practice_check(lesson_id):
     from app.api.native_lessons import course_answer_check
 
-    return course_answer_check(lesson_id)
+    return course_answer_check(lesson_id, allow_web_course=True)
 
 
 def _signed_attempt_id(value: object) -> str | None:
@@ -187,7 +197,7 @@ def practice_dispute(lesson_id: int) -> Any:
     from app.utils.db import db
 
     lesson, question, answer, feedback, sealed = checked_course_answer(
-        lesson_id, lesson_types=DISPUTABLE_LESSON_TYPES,
+        lesson_id, lesson_types=DISPUTABLE_LESSON_TYPES, allow_web_course=True,
     )
     if feedback["correct"] is not False:
         raise NativeLessonError("answer_not_rejected")
@@ -209,7 +219,7 @@ def practice_dispute(lesson_id: int) -> Any:
 def practice_submit(lesson_id):
     from app.api.native_lessons import course_submission
 
-    return course_submission(lesson_id)
+    return course_submission(lesson_id, allow_web_course=True)
 
 
 @lessons_bp.before_request

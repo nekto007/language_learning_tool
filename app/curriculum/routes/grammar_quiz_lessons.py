@@ -16,6 +16,7 @@ from app.curriculum.blank_answers import BLANK_TYPES, legacy_blank_row
 from app.curriculum.constants import PASSING_SCORE_DEFAULT, get_lesson_passing_score
 from app.curriculum.grading import _quiz_option_index, check_final_test_attempts_exhausted
 from app.curriculum.models import LessonProgress, Lessons, Module
+from app.curriculum.order_punctuation import legacy_order_display
 from app.curriculum.language_support import language_support_mode, localized_option, question_translation
 from app.curriculum.routes.lessons import (
     _grade_web_guided_grammar,
@@ -539,7 +540,7 @@ def render_grammar_lesson(lesson):
         grammar_rule=grammar_rule,
         grammar_description=grammar_description,
         examples=examples,
-        exercises=[legacy_blank_row(row) for row in exercises],
+        exercises=[legacy_order_display(legacy_blank_row(row)) for row in exercises],
         grammar_explanation=grammar_explanation,
         theory_topic=theory_topic,
         progress=retry_display_progress(progress, force=reset_progress),
@@ -681,7 +682,10 @@ def _sanitize_quiz_questions(cleaned_content: dict, lesson=None, *, shuffle_blan
             question['shuffled_right_items'] = right_items
 
         if question.get('type') in ['ordering', 'reorder'] and 'words' in question:
-            shuffled_words = question['words'][:]
+            display = legacy_order_display(question)
+            shuffled_words = display['words'][:]
+            if mark := display.get('automatic_order_mark'):
+                question['automatic_order_mark'] = mark
             random.shuffle(shuffled_words)
             question['shuffled_words'] = shuffled_words
 
@@ -1230,7 +1234,7 @@ def grammar_lesson(lesson_id):
         grammar_rule=grammar_rule,
         grammar_description=grammar_description,
         examples=examples,
-        exercises=[legacy_blank_row(row) for row in exercises],
+        exercises=[legacy_order_display(legacy_blank_row(row)) for row in exercises],
         grammar_explanation=grammar_explanation,
         theory_topic=theory_topic,
         progress=retry_display_progress(progress, force=reset_progress),

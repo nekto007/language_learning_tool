@@ -12,21 +12,30 @@
 {% endblock %}
 {% block content %}
 <main id="guided-practice" class="container py-4" style="max-width:800px"
-      data-endpoint="{{ url_for('curriculum_lessons.practice_document', lesson_id=lesson.id) }}"
-      data-result-plan="{{ url_for('words.daily_plan_next_step') }}"
+      data-endpoint="{{ reading_preview_endpoint or url_for('curriculum_lessons.practice_document', lesson_id=lesson.id) }}"
+      {% if reading_preview_endpoint %}data-reading-preview="true"
+      {% elif course_practice %}data-course-practice="true"{% if course_next %} data-course-next="{{ course_next }}"{% endif %}
+      {% else %}data-result-plan="{{ url_for('words.daily_plan_next_step') }}"{% endif %}
       data-account="{{ current_user.id }}" data-lesson="{{ lesson.id }}">
+  {% if reading_preview_endpoint %}
+  <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}" class="btn btn-outline-secondary mb-3">К карточке урока</a>
+  <p class="text-secondary small">Предпросмотр ученика. Ответы и результат не сохраняются.</p>
+  {% elif course_practice %}
+  <a href="{{ course_back }}" class="btn btn-outline-secondary mb-3">К урокам модуля</a>
+  {% else %}
   <a href="{{ url_for('words.dashboard') }}" class="btn btn-outline-secondary mb-3">К плану дня</a>
+  {% endif %}
   <h1 class="h3">{{ lesson.title }}</h1>
   <p id="practice-goal" class="text-secondary" hidden></p>
   <p id="practice-error" role="alert" class="text-danger" hidden></p>
   <p id="practice-storage-warning" role="status" class="alert alert-warning" hidden></p>
-  <p id="practice-draft-note" class="text-secondary small" role="status"></p>
-  <section id="practice-screen" aria-live="polite" aria-atomic="false"><p>Открываем занятие…</p></section>
+  {% if not reading_preview_endpoint %}<p id="practice-draft-note" class="text-secondary small" role="status"></p>{% endif %}
+  <section id="practice-screen" aria-live="polite" aria-atomic="false"><p data-practice-loading>Открываем занятие…</p></section>
   <noscript>Для пошаговой практики включи JavaScript.</noscript>
 </main>
 {% endblock %}
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/practice-drafts.js', v='20261124-resume') }}" defer></script>
-<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261124-result-history') }}" defer></script>
+<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261127-course-practice') }}" defer></script>
 {% endblock %}

@@ -15,6 +15,12 @@
 
 {% block content %}
 {% set actions %}
+{% if lesson.type == 'reading' and lesson.content and
+      (lesson.content.comprehension_questions or lesson.content.exercises or lesson.content.questions) %}
+<a href="{{ url_for('curriculum_admin.reading_preview', lesson_id=lesson.id) }}" class="btn btn-outline-primary">
+    Открыть как ученик
+</a>
+{% endif %}
 <a href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=lesson.id) }}" class="btn btn-primary">
     <i class="fas fa-edit me-2"></i>Редактировать
 </a>

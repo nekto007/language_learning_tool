@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.curriculum.models import Lessons
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
@@ -213,17 +213,10 @@ def get_native_lesson(lesson_id):
     return course_document(lesson_id)
 
 
-def course_document(lesson_id, *, deferred=False):
-    from app.api.native_content import NATIVE_PROJECTION_VERSION
+def project_course_document(lesson: 'Lessons', questions: list[dict], content: dict) -> dict:
+    """Project authored course material without consulting the learner's plan."""
     from app.curriculum.constants import get_lesson_passing_score
     from app.curriculum.language_support import language_support_mode
-    lesson, progress = _lesson_and_progress(lesson_id)
-    lesson._native_challenge = _guard_plan(lesson_id) == "challenge"
-    questions = project_questions(lesson)
-    content = _content(lesson)
-    sealed = {'user': current_user.id, 'lesson': lesson_id, 'lesson_type': lesson.type, 'revision': _digest(content),
-              'version': _version(progress), 'projection_version': NATIVE_PROJECTION_VERSION,
-              'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()}
     from app.api.native_content import is_extended, extras
     payload = {'id': lesson.id, 'title': plain(lesson.title), 'type': lesson.type,
                'content_revision': _digest(content),
@@ -245,6 +238,27 @@ def course_document(lesson_id, *, deferred=False):
         if not payload['theory']:
             payload['theory'] = lesson_reference(lesson)
     payload['immediate_feedback'] = bool(questions) and is_objective_practice(lesson)
+    return payload
+
+
+def course_document(lesson_id: int, *, deferred: bool = False, web_course: bool = False) -> Response:
+    from app.api.native_content import NATIVE_PROJECTION_VERSION
+    from app.curriculum.constants import is_objective_practice
+    from app.grammar_lab.guided_learning import lesson_reference
+
+    lesson, progress = _lesson_and_progress(lesson_id)
+    if web_course and lesson.type != 'final_test' and not is_objective_practice(lesson):
+        raise NativeLessonError('not_found', 404)
+    lesson._native_challenge = not web_course and _guard_plan(lesson_id) == "challenge"
+    questions = project_questions(lesson)
+    content = _content(lesson)
+    payload = project_course_document(lesson, questions, content)
+    sealed = {'user': current_user.id, 'lesson': lesson_id, 'lesson_type': lesson.type,
+              'revision': payload['content_revision'], 'version': _version(progress),
+              'projection_version': NATIVE_PROJECTION_VERSION,
+              'nonce': uuid4().hex, 'started_at': datetime.now(UTC).isoformat()}
+    if web_course:
+        sealed['web_course'] = True
     from app.api.quiz_corrections import FLOW, eligible, pending_state, project_correction
 
     if questions and eligible(lesson) and (deferred or request.args.get('quiz_flow') == FLOW or pending_state(progress)):
@@ -281,13 +295,13 @@ def check_native_learning_answer(lesson_id):
     return course_answer_check(lesson_id)
 
 
-def course_answer_check(lesson_id):
-    _, _, _, feedback, _ = checked_course_answer(lesson_id)
+def course_answer_check(lesson_id: int, *, allow_web_course: bool = False) -> Response:
+    _, _, _, feedback, _ = checked_course_answer(lesson_id, allow_web_course=allow_web_course)
     return jsonify(success=True, feedback=feedback)
 
 
 def checked_course_answer(
-    lesson_id: int, *, lesson_types: frozenset[str] | None = None,
+    lesson_id: int, *, lesson_types: frozenset[str] | None = None, allow_web_course: bool = False,
 ) -> tuple['Lessons', dict, str, dict, dict]:
     """Check a session-bound answer without writing attempts or progress."""
     from app.api.native_content import NATIVE_PROJECTION_VERSION, rows_for
@@ -303,8 +317,12 @@ def checked_course_answer(
         raise NativeLessonError('lesson_changed', 409) from None
     if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
         raise NativeLessonError('access_denied', 403)
+    web_course = sealed.get('web_course') is True
+    if web_course and not allow_web_course:
+        raise NativeLessonError('access_denied', 403)
     lesson, progress = _lesson_and_progress(lesson_id)
-    _guard_plan(lesson_id)
+    if not web_course:
+        _guard_plan(lesson_id)
     content = _content(lesson)
     from app.curriculum.dispute_credit import course_revision_matches
 
@@ -365,7 +383,7 @@ def submit_native_lesson(lesson_id):
     return course_submission(lesson_id)
 
 
-def course_submission(lesson_id):
+def course_submission(lesson_id: int, *, allow_web_course: bool = False) -> Response | tuple[Response, int]:
     from app.api.native_content import NATIVE_PROJECTION_VERSION
     from app.auth.models import User
     from app.curriculum.constants import get_lesson_passing_score
@@ -390,11 +408,14 @@ def course_submission(lesson_id):
         raise NativeLessonError('lesson_changed', 409)
     if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
         raise NativeLessonError('access_denied', 403)
+    web_course = sealed.get('web_course') is True
+    if web_course and not allow_web_course:
+        raise NativeLessonError('access_denied', 403)
     if expired and (not isinstance(sealed.get('nonce'), str) or not sealed['nonce'].strip()):
         raise NativeLessonError('lesson_changed', 409)
     plan_error = None
     plan_kind = None
-    if not expired:
+    if not expired and not web_course:
         try:
             plan_kind = _guard_plan(lesson_id)
         except NativeLessonError as error:

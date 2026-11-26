@@ -7,9 +7,13 @@
   const errorBox = root.querySelector('#practice-error');
   const storageWarning = root.querySelector('#practice-storage-warning');
   const endpoint = root.dataset.endpoint;
-  const drafts = window.LLTPracticeDrafts ? new window.LLTPracticeDrafts.Store(window, root.dataset.account, root.dataset.lesson) : null;
+  const readingPreview = root.dataset.readingPreview === 'true';
+  const coursePractice = root.dataset.coursePractice === 'true';
+  const drafts = !readingPreview && window.LLTPracticeDrafts ? new window.LLTPracticeDrafts.Store(window, root.dataset.account, root.dataset.lesson) : null;
   const draftStorage = () => drafts || window.sessionStorage;
-  const activeKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:active`;
+  const lessonKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:`;
+  const draftPrefix = coursePractice ? lessonKey + 'course:' : lessonKey;
+  const activeKey = draftPrefix + 'active';
   let lesson, state, busy = false, accountInvalid = false, storageKey, refreshButton, focusAfterDraw = false;
   let browserDraftAvailable = true, storageReadable = true, unloadGuarded = false;
   let resultPlan, resultActions;
@@ -37,7 +41,9 @@
     if (note) {
       note.hidden = Boolean(state?.result || accountInvalid);
       note.textContent = warn ? 'Текущие изменения остаются только в этой вкладке.' : drafts?.durable
-        ? 'Черновик сохраняется в этом браузере. Можно закрыть вкладку и продолжить через план дня.'
+        ? coursePractice
+          ? 'Черновик сохраняется в этом браузере. Чтобы продолжить, снова открой урок в модуле.'
+          : 'Черновик сохраняется в этом браузере. Можно закрыть вкладку и продолжить через план дня.'
         : 'Черновик сохраняется только в этой вкладке. Чтобы продолжить позже, оставь её открытой.';
     }
     if (storageWarning) {
@@ -52,10 +58,12 @@
     else if (!dirty && unloadGuarded) { window.removeEventListener('beforeunload', warnBeforeUnload); unloadGuarded = false; }
   };
   const stored = key => {
+    if (readingPreview) return null;
     try { const value = draftStorage().getItem(key); storageReadable = true; return value; }
     catch (_) { storageReadable = false; browserDraftAvailable = false; updateStorageWarning(); return null; }
   };
   const save = () => {
+    if (readingPreview) return;
     try {
       draftStorage().setItem(storageKey, JSON.stringify(state));
       draftStorage().setItem(activeKey, storageKey);
@@ -75,6 +83,7 @@
       if (['access_denied','authentication_required','csrf_error'].includes(error.code)) {
         lesson = null; state = null; accountInvalid = true; screen.replaceChildren();
       }
+      if (!lesson && error.code === 'lesson_locked') screen.querySelector('[data-practice-loading]')?.remove();
       errorBox.textContent = error.message; errorBox.hidden = false;
       errorBox.scrollIntoView({block: 'nearest'});
     } finally {
@@ -103,7 +112,10 @@
     }
     if (!response.ok || value.success === false) {
       const messages = {lesson_changed: 'Материал или попытка изменились. Открой актуальное задание.',
-        lesson_locked: 'Сначала заверши предыдущий шаг плана.', invalid_input: 'Проверь, что ответ заполнен полностью.',
+        lesson_locked: coursePractice
+          ? 'Этот урок пока недоступен. Проверь предыдущие уроки и условия доступа в модуле.'
+          : 'Сначала заверши предыдущий шаг плана.',
+        invalid_input: 'Проверь, что ответ заполнен полностью.',
         plan_paused: 'План на паузе. Вернись к плану дня, чтобы продолжить.',
         authentication_required: 'Сессия завершилась. Войди в аккаунт заново.',
         unsupported_lesson: 'Материал пока недоступен. Вернись к плану дня или попробуй открыть задание позже.',
@@ -134,10 +146,11 @@
     fields.filter(key => Object.hasOwn(source, key)).map(key => [key, source[key]])
   );
   const rememberResult = result => {
-    if (!canContinueFrom(result) || result.success !== true || String(result.lesson_id) !== root.dataset.lesson
+    if (!(canContinueFrom(result) || (coursePractice && (completedResult(result) || result?.correction_pending)))
+        || result.success !== true || String(result.lesson_id) !== root.dataset.lesson
         || !lesson.content_revision || (isCorrection() && !completedResult(result))) return;
     replaceHistoryResult({
-      account: root.dataset.account, lesson: root.dataset.lesson,
+      account: root.dataset.account, lesson: root.dataset.lesson, coursePractice,
       revision: lesson.content_revision, type: lesson.type,
       studyDay: lesson.study_day, phase: lesson.quiz_phase,
       correction: resultFields(lesson.correction || {}, ['first_score', 'first_units_correct', 'first_units_total', 'first_unit_label']),
@@ -151,6 +164,7 @@
     const saved = readHistoryResult();
     if (!saved) return false;
     if (saved.account !== root.dataset.account || saved.lesson !== root.dataset.lesson || !saved.revision
+        || Boolean(saved.coursePractice) !== coursePractice
         || !(completedResult(saved.result) || saved.result?.correction_pending === true)) {
       replaceHistoryResult(null);
       return false;
@@ -174,6 +188,18 @@
   };
   const renderResultActions = () => {
     if (!resultActions || !state?.result) return;
+    if (coursePractice) {
+      resultActions.replaceChildren();
+      if (completedResult(state.result) && root.dataset.courseNext) {
+        const next = node('a', 'Следующий урок', 'btn btn-primary me-2');
+        next.href = root.dataset.courseNext;
+        resultActions.append(next);
+      }
+      const back = node('a', 'К урокам модуля', 'btn btn-outline-secondary');
+      back.href = root.querySelector('a').href;
+      resultActions.append(back);
+      return;
+    }
     const plan = resultPlan?.result === state.result ? resultPlan : {};
     const showNext = plan.status === 'next' && typeof plan.title === 'string' && plan.title.trim()
       && typeof plan.url === 'string' && plan.url.startsWith('/') && !plan.url.startsWith('//')
@@ -264,10 +290,27 @@
   // Basic grammar and quiz documents can supply options without an input type.
   const isChoiceQuestion = q => q.input === 'choice' ||
     (q.input == null && Array.isArray(q.options) && q.options.length > 0);
+  const orderValues = answer => {
+    try { const ids = JSON.parse(answer || '[]'); return Array.isArray(ids) ? ids : []; }
+    catch (_) { return []; }
+  };
+  const orderTiles = (q, ids) => ids.filter(id => id !== q.order_terminal?.value);
+  const completeOrder = (q, ids) => {
+    const tiles = orderTiles(q, ids);
+    return tiles.length === q.options.length && new Set(tiles).size === tiles.length &&
+      tiles.every(id => q.options.some(option => option.value === id)) &&
+      ids.length - tiles.length <= 1;
+  };
   const display = (q, answer) => {
     if (isChoiceQuestion(q)) return q.options.find(o => o.value === answer)?.label || answer || '';
     if (q.input === 'order') {
-      try { return JSON.parse(answer || '[]').map(v => q.options.find(o => o.value === v)?.label || '').join(' '); } catch (_) { return ''; }
+      const ids = orderValues(answer);
+      const terminal = q.order_terminal;
+      const word = id => q.options.find(option => option.value === id)?.label ||
+        (id === terminal?.value ? terminal.label : '');
+      if (terminal && ids.at(-1) === terminal.value) return ids.slice(0, -1).map(word).join(' ') + terminal.label;
+      const assembled = ids.map(word).join(' ');
+      return terminal && !ids.includes(terminal.value) && completeOrder(q, ids) ? assembled + terminal.label : assembled;
     }
     if (q.input === 'match') {
       try { const pairs = JSON.parse(answer || '{}'); return (q.left_options || []).map(o => o.label + ' → ' + (q.options.find(r => r.value === pairs[o.value])?.label || '…')).join('\n'); } catch (_) { return ''; }
@@ -282,7 +325,7 @@
       return help.segments.every((segment, index) => !segment.editable || (values[index] || '').trim());
     }
     try {
-      if (q.input === 'order') return JSON.parse(answer).length === q.options.length;
+      if (q.input === 'order') return completeOrder(q, orderValues(answer));
       if (q.input === 'match') { const values = Object.values(JSON.parse(answer)); return values.length === q.options.length && new Set(values).size === values.length; }
     } catch (_) { return false; }
     return answer.trim().length > 0;
@@ -318,11 +361,23 @@
         label.append(field, document.createTextNode(' ' + option.label)); box.append(label);
       });
     } else if (q.input === 'order') {
-      let values; try { values = JSON.parse(state.answers[q.id] || '[]'); } catch (_) { values = []; }
+      const values = orderTiles(q, orderValues(state.answers[q.id]));
       box.append(node('p', display(q, state.answers[q.id]) || 'Нажимай слова в правильном порядке.', 'fw-bold'));
       q.options.forEach(option => {
-        const pick = button(option.label, () => { set(JSON.stringify([...values, option.value])); draw(); });
-        pick.classList.add('me-2'); pick.disabled = !!checked || values.includes(option.value); box.append(pick);
+        const pick = button(option.label, () => {
+          set(JSON.stringify([...values, option.value]));
+          draw();
+          if (q.order_terminal && !isFinal()) {
+            const check = screen.querySelector('[data-check]:enabled');
+            if (check) {
+              check.style.scrollMarginBottom = 'calc(6rem + env(safe-area-inset-bottom))';
+              check.scrollIntoView({block: 'nearest'});
+            }
+          }
+        });
+        pick.classList.add('me-2');
+        pick.disabled = !!checked || values.includes(option.value);
+        box.append(pick);
       });
       if (!checked) box.append(button('Убрать последнее слово', () => { set(JSON.stringify(values.slice(0, -1))); draw(); }));
     } else if (q.input === 'match') {
@@ -372,7 +427,7 @@
       }
       (r.feedback || []).forEach(f => {
         const card = node('article', null, 'card card-body my-3');
-        const answer = node('p', 'Твой ответ: ' + f.answer); answer.style.whiteSpace = 'pre-wrap';
+        const answer = node('p', 'Твой ответ: ' + (f.answer_display || f.answer)); answer.style.whiteSpace = 'pre-wrap';
         card.append(node('h3', f.correct ? 'Верно' : 'Разберём ответ', 'h5'), node('p', f.prompt), answer);
         if (!f.correct) {
           const expected = node('p', 'Образец: ' + f.expected); expected.style.whiteSpace = 'pre-wrap';
@@ -395,6 +450,13 @@
       screen.append(button(isFinal() ? 'Начать тест' : 'К заданиям', () => { state.intro = false; save(); draw(); }, true)); return;
     }
     if (state.index >= lesson.questions.length) {
+      if (readingPreview) {
+        const correct = Object.values(state.checks).filter(result => result.correct).length;
+        screen.append(node('h2', 'Предпросмотр завершён', 'h4'),
+          node('p', `Верных ответов: ${correct} из ${lesson.questions.length}`),
+          button('Начать сначала', () => perform(() => load(true)), true));
+        return;
+      }
       screen.append(node('h2', isFinal() ? 'Проверь ответы перед отправкой' : isCorrection() ? 'Сохраним исправления' : 'Первый круг завершён', 'h4'));
       if (state.pendingSubmission) screen.append(node('p', 'Отправка начата. Пока результат не подтверждён, повторяем ту же попытку без изменения ответов.'));
       lesson.questions.forEach((q, index) => {
@@ -542,7 +604,7 @@
     }
     const document = root.dataset.startId
       ? await request('/start', {item_id: root.dataset.startId, request_id: root.dataset.requestId})
-      : await request();
+      : await request(coursePractice ? '?mode=course' : '');
     if (String(document.account_id) !== root.dataset.account) {
       const error = new Error('Аккаунт изменился. Открой план заново.');
       error.code = 'access_denied'; throw error;
@@ -550,9 +612,16 @@
     lesson = document.lesson;
     const goal = root.querySelector('#practice-goal');
     if (goal) { goal.textContent = lesson.learning_goal ? 'Цель: ' + lesson.learning_goal : ''; goal.hidden = !lesson.learning_goal; }
-    storageKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:${lesson.correction?.attempt_id || 'first'}`;
+    const attempt = lesson.correction?.attempt_id || 'first';
+    storageKey = draftPrefix + attempt;
     const revision = lesson.content_revision || JSON.stringify(lesson.questions);
     let draft; try { draft = JSON.parse(stored(storageKey)); } catch (_) {}
+    if (!draft && !fresh && coursePractice) {
+      // Pre-upgrade browser drafts came from the plan-gated editor. Copy
+      // input, but replay any signed pending submission only in that mode.
+      let previous; try { previous = JSON.parse(stored(lessonKey + attempt)); } catch (_) {}
+      if (!previous?.pendingSubmission) draft = previous;
+    }
     if (!draft && !fresh && !browserDraftAvailable && !expiredDraft) draft = memoryDraft;
     const compatibleDraft = draft?.revision === revision && (!draft.lessonType || draft.lessonType === lesson.type)
       // This editor did not previously support finals. An untyped legacy

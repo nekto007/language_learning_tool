@@ -11,6 +11,7 @@ import re
 from urllib.parse import urlsplit
 
 from app.curriculum.blank_answers import BLANK_TYPES as FILL_BLANKS, blank_instruction
+from app.curriculum.order_punctuation import automatic_order_terminal
 
 QUIZZES = {
     "quiz",
@@ -355,6 +356,11 @@ def _question(lesson, row, index):
             _error()
         question["input"] = "order"
         question["options"] = [{"value": str(i), "label": _plain(w)} for i, w in enumerate(words)]
+        terminal = automatic_order_terminal(row)
+        if terminal is not None:
+            position, mark = terminal
+            question["order_terminal"] = {"value": str(position), "label": mark}
+            question["options"].pop(position)
         question["prompt"] = question["prompt"] or "Собери предложение"
     elif kind in TEXT or kind in ("dictation_gap", "dictation_full"):
         if kind == "dictation_full":
@@ -629,12 +635,14 @@ def _converted(row, q, value, grammar=False):
     if form == "order":
         indexes = _json_answer(value)
         words = row.get("words") or row.get("tokens") or []
-        if (
-            not isinstance(indexes, list)
-            or len(indexes) != len(words)
-            or not all(type(index) is str for index in indexes)
-            or set(indexes) != set(map(str, range(len(words))))
-        ):
+        if not isinstance(indexes, list) or not all(type(index) is str for index in indexes):
+            _error("invalid_input", 400)
+        terminal = q.get("order_terminal")
+        all_ids = set(map(str, range(len(words))))
+        if (terminal and len(indexes) == len(words) - 1
+                and set(indexes) == all_ids - {terminal["value"]}):
+            indexes.append(terminal["value"])
+        if len(indexes) != len(words) or set(indexes) != all_ids:
             _error("invalid_input", 400)
         if grammar and row.get("type") == "sentence_builder":
             expected = row.get("correct_order") or []
@@ -673,6 +681,9 @@ def display_answer(question, value):
         indexes = _json_answer(value)
         return "\n".join(f"{left[i]} → {options[indexes[i]]}" for i in left if i in indexes)
     if question.get("input") == "order":
+        terminal = question.get("order_terminal")
+        if terminal:
+            options[terminal["value"]] = terminal["label"]
         return " ".join(options[index] for index in _json_answer(value))
     # This is learner input in a JSON document, displayed as native Text.
     # Treating it as authored HTML drops e.g. the brackets in "<hello>" and
@@ -682,6 +693,25 @@ def display_answer(question, value):
 
 def matching_answer(row):
     return "\n".join(f"{_plain(a)} → {_plain(b)}" for a, b in map(_pair, row.get("pairs") or []))
+
+
+def _order_feedback(question: dict, value: str, feedback: dict) -> dict:
+    terminal = question.get("order_terminal")
+    if terminal is None:
+        return feedback
+    mark = terminal["label"]
+    indexes = _json_answer(value)
+    echo = feedback["answer"]
+    # Older clients correlate feedback with the join of visible labels.
+    # Keep that echo and return a punctuated presentation separately.
+    if terminal["value"] not in indexes:
+        feedback["answer_display"] = echo + mark
+    elif indexes[-1] == terminal["value"]:
+        feedback["answer_display"] = echo[:-len(mark)].rstrip() + mark
+    expected = feedback["expected"].rstrip()
+    if expected:
+        feedback["expected"] = expected.removesuffix(mark).rstrip() + mark
+    return feedback
 
 
 def check_course_answer(lesson, question, answer):
@@ -703,7 +733,7 @@ def check_course_answer(lesson, question, answer):
         raise NativeLessonError("invalid_input") from None
     if lesson.type == 'grammar' or lesson.type in QUIZZES:
         from app.grammar_lab.guided_learning import check_answer
-        return check_answer(row, question, answer, grammar=lesson.type == 'grammar')
+        return _order_feedback(question, answer, check_answer(row, question, answer, grammar=lesson.type == 'grammar'))
     _, feedback, _, _ = grade(lesson, [question], {question['id']: answer}, 50,
                              selected_rows=[row])
     result = feedback[0]
@@ -762,6 +792,8 @@ def grade(lesson, questions, answers, passing, *, selected_rows=None):
             elif isinstance(expected, list):
                 if q.get("input") == "order":
                     labels = {option["value"]: option["label"] for option in q["options"]}
+                    if terminal := q.get("order_terminal"):
+                        labels[terminal["value"]] = terminal["label"]
                     expected = " ".join(labels.get(str(value), str(value)) for value in expected)
                 else:
                     expected = " / ".join(map(str, expected))
@@ -777,13 +809,13 @@ def grade(lesson, questions, answers, passing, *, selected_rows=None):
                 ):
                     expected = row["options"][int(str(expected))]
             feedback.append(
-                fb(
+                _order_feedback(q, answers[q["id"]], fb(
                     q,
                     checked.get("status") == "correct" or checked.get("is_correct") is True,
                     given,
                     expected,
                     checked.get("explanation") or row.get("explanation"),
-                )
+                ))
             )
     elif t in (
         "dictation",
@@ -1224,7 +1256,7 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
         if telemetry.get("writing_text"):
             maybe_award_writing_xp(current_user.id, lesson.id, db_session=db)
     db.session.flush()
-    if completed:
+    if completed and not sealed.get('web_course'):
         from app.daily_plan.challenge import maybe_auto_complete_challenge
 
         maybe_auto_complete_challenge(

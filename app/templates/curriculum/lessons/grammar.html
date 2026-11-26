@@ -356,7 +356,8 @@
                     
                     <div class="selected-words-container mt-3">
                       <small class="text-muted">{{ _('Ваше предложение:') }}</small>
-                      <div class="selected-words" id="selected-words-{{ loop.index0 }}">
+                      <div class="selected-words" id="selected-words-{{ loop.index0 }}"
+                           {% if exercise.automatic_order_mark %}data-order-terminal="{{ exercise.automatic_order_mark }}"{% endif %}>
                         <!-- Selected words will appear here -->
                       </div>
                     </div>
@@ -789,7 +790,9 @@ function initializeReorderExercises() {
       
       // Если есть предыдущий ответ, восстанавливаем его
       if (answerInput.value) {
-        const words = answerInput.value.split(' ');
+        const mark = selectedWordsEl.dataset.orderTerminal;
+        const restored = mark && answerInput.value.endsWith(mark) ? answerInput.value.slice(0, -1).trimEnd() : answerInput.value;
+        const words = restored.split(' ');
         words.forEach(word => {
           const chip = availableWordsEl.querySelector(`[data-word="${word}"]:not(.used)`);
           if (chip) {
@@ -857,7 +860,9 @@ function updateReorderAnswer(exerciseIndex) {
     words.push(word);
   });
   
-  answerInput.value = words.join(' ');
+  const total = document.querySelectorAll('#available-words-' + exerciseIndex + ' .word-chip').length;
+  const mark = words.length === total ? selectedWordsEl.dataset.orderTerminal || '' : '';
+  answerInput.value = words.join(' ') + mark;
 }
 
 function clearReorderExercise(exerciseIndex) {

@@ -4,8 +4,9 @@ import json
 import logging
 from datetime import UTC, datetime
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from itsdangerous import BadData, URLSafeTimedSerializer
 from sqlalchemy import or_
 
 from app.admin.audit import log_admin_action
@@ -405,6 +406,85 @@ def view_lesson(lesson_id):
         progress_stats=progress_stats,
         recent_progress=recent_progress
     )
+
+
+def _reading_preview_lesson(lesson_id: int) -> Lessons:
+    from app.curriculum.constants import is_objective_practice
+
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'reading' or not is_objective_practice(lesson):
+        abort(404)
+    return lesson
+
+
+_READING_PREVIEW_SECONDS = 6 * 60 * 60
+
+
+def _reading_preview_signer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(current_app.secret_key, salt='admin-reading-preview-v1')
+
+
+def _reading_preview_response(payload: dict, status: int = 200) -> tuple[Response, int]:
+    from app.api.native_lessons import private_response
+
+    return private_response(jsonify(payload)), status
+
+
+@admin_bp.get('/admin/lesson/<int:lesson_id>/reading-preview')
+@admin_required
+def reading_preview(lesson_id: int) -> Response:
+    lesson = _reading_preview_lesson(lesson_id)
+    response = make_response(render_template('curriculum/lessons/guided_practice.html',
+        lesson=lesson, reading_preview_endpoint=url_for('.reading_preview_document', lesson_id=lesson.id)))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@admin_bp.get('/admin/lesson/<int:lesson_id>/reading-preview/practice')
+@admin_required
+def reading_preview_document(lesson_id: int) -> tuple[Response, int]:
+    from app.api.native_lessons import NativeLessonError, _content, project_course_document, project_questions
+
+    lesson = _reading_preview_lesson(lesson_id)
+    try:
+        payload = project_course_document(lesson, project_questions(lesson), _content(lesson))
+    except NativeLessonError as error:
+        return _reading_preview_response({'success': False, 'error': error.code}, error.status)
+    payload['session_token'] = _reading_preview_signer().dumps(
+        [current_user.id, lesson.id, payload['content_revision']],
+    )
+    return _reading_preview_response({'success': True, 'account_id': str(current_user.id), 'lesson': payload})
+
+
+@admin_bp.post('/admin/lesson/<int:lesson_id>/reading-preview/practice/check')
+@admin_required
+def reading_preview_check(lesson_id: int) -> tuple[Response, int]:
+    from app.api.native_content import check_course_answer
+    from app.api.native_lessons import NativeLessonError, _content, _digest
+    from app.api.native_lessons import project_course_document, project_questions
+
+    lesson = _reading_preview_lesson(lesson_id)
+    body = request.get_json(silent=True)
+    fields = {'session_token', 'question_id', 'answer'}
+    try:
+        if not isinstance(body, dict) or body.keys() != fields or not all(isinstance(body[key], str) for key in fields):
+            raise NativeLessonError('invalid_input')
+        content = _content(lesson)
+        if _reading_preview_signer().loads(body['session_token'], max_age=_READING_PREVIEW_SECONDS) != [
+            current_user.id, lesson.id, _digest(content),
+        ]:
+            raise NativeLessonError('lesson_changed', 409)
+        questions = project_questions(lesson)
+        project_course_document(lesson, questions, content)
+        question = next((item for item in questions if item['id'] == body['question_id']), None)
+        if question is None:
+            raise NativeLessonError('invalid_input')
+        feedback = check_course_answer(lesson, question, body['answer'])
+    except BadData:
+        return _reading_preview_response({'success': False, 'error': 'lesson_changed'}, 409)
+    except NativeLessonError as error:
+        return _reading_preview_response({'success': False, 'error': error.code}, error.status)
+    return _reading_preview_response({'success': True, 'feedback': feedback})
 
 
 @admin_bp.route('/admin/lesson/<int:lesson_id>/delete', methods=['POST'])
