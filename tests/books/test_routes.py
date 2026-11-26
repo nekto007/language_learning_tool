@@ -118,7 +118,8 @@ class TestReaderFinishAction:
         progress = UserChapterProgress.query.filter_by(user_id=test_user.id).one()
         assert (progress.chapter_id, progress.offset_pct) == (chapter.id, 1)
         reloaded = BeautifulSoup(authenticated_client.get(url).get_data(as_text=True), 'html.parser')
-        assert reloaded.select_one('#reader-mark-read').has_attr('disabled')
+        assert not reloaded.select_one('#reader-mark-read')
+        assert reloaded.select_one('[aria-current] .rdr-toc-read')
 
     def test_finish_reading_post_marks_chapter_complete(
         self, authenticated_client, db_session, test_user, published_book,
@@ -291,7 +292,11 @@ class TestChapterPagination:
             query = parse_qs(urlsplit(link['href']).query)
             assert query.get('from') == ['linear_plan']
             assert query.get('slot') == ['reading']
-        assert page.select_one('.rdr-toc [aria-current]').get_text(strip=True) == 'Chapter 2'
+        assert page.select_one('.rdr-toc [aria-current] > span:first-child').get_text(strip=True) == 'Chapter 2'
+        mark = page.select_one('#reader-mark-read')
+        assert mark['data-next-url'] == page.select_one('#next-chapter-link')['href']
+        assert mark.find_parent('footer')
+        assert not page.select_one('.rdr-toc-read:not([hidden])')
 
     def test_reader_navigation_cta_requires_confirmed_completion_state(self):
         """Checkpoint-only timer pause must not offer dashboard navigation.

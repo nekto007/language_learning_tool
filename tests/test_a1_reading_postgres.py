@@ -70,6 +70,15 @@ def test_web_reader_uses_same_database_practice_and_hides_timer(app, authenticat
         assert '/reading-session/' not in html
         api = authenticated_client.get(f'/api/books/{first.id}/chapters/1')
         assert api.json['reading']['questions'] == first.reading['questions']
+
+        first.rights_status = 'licensed'
+        first.is_free_access = True
+        first.allowed_text_percent = 25
+        db.session.commit()
+        fragment = authenticated_client.get(f'/read/{first.id}/chapters')
+        assert fragment.status_code == 200
+        assert 'id="short-reading-finish"' not in fragment.get_data(as_text=True)
+        assert 'short-reading-practice' not in fragment.get_data(as_text=True)
     finally:
         # Only installer-owned test rows; no production connection is used.
         Book.query.filter(Book.slug.like('llt-a1-reading-%')).delete(synchronize_session=False)

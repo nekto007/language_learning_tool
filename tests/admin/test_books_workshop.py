@@ -226,8 +226,12 @@ def test_reader_applies_percent_on_both_web_and_api_entries(
     chapter_id = book.chapters[0].id
     chapter = f'/api/books/{book.id}/chapters/1'
     response = student.get(chapter, headers={'Accept-Encoding': 'gzip'})
-    actual = loads(decompress(response.data))['text']
-    assert actual == student.get(f'/api/chapters/{chapter_id}').json['chapter']['text_raw']
+    chapter_data = loads(decompress(response.data))
+    actual = chapter_data['text']
+    by_id = student.get(f'/api/chapters/{chapter_id}').json['chapter']
+    assert actual == by_id['text_raw']
+    assert chapter_data['text_truncated'] is (percent < 100)
+    assert by_id['text_truncated'] is (percent < 100)
     if percent == 0:
         assert actual == ''
     elif percent == 100:
@@ -240,7 +244,10 @@ def test_reader_applies_percent_on_both_web_and_api_entries(
     admin_client = _login(app, admin_user)
     preview = admin_client.get(f'/read/{book.id}/chapters?preview=learner')
     assert BeautifulSoup(preview.data, 'html.parser').select_one('#chapterContent').get_text(strip=True) == actual
-    assert admin_client.get(chapter).json['text'] == text
+    admin_chapter = admin_client.get(chapter).json
+    admin_by_id = admin_client.get(f'/api/chapters/{chapter_id}').json['chapter']
+    assert admin_chapter['text'] == admin_by_id['text_raw'] == text
+    assert admin_chapter['text_truncated'] is admin_by_id['text_truncated'] is False
     assert admin_client.post(f'/admin/books/{book.id}/edit', data={'title': 'Edited metadata', 'level': 'C2'}).status_code == 302
     db_session.refresh(book)
     assert book.allowed_text_percent == percent and book.level == 'C2'

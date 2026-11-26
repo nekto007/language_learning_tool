@@ -102,6 +102,13 @@ class DeckService:
         if cls.is_auto_deck(deck.title):
             return None, "Нельзя редактировать автоматическую колоду"
 
+        if is_public:
+            from app.study.models import NativeReaderVocabulary
+
+            reader_vocab = db.session.get(NativeReaderVocabulary, user_id)
+            if reader_vocab and reader_vocab.payload.get('deck') == deck.id:
+                return None, "Колода из читалки доступна только её владельцу"  # noqa: RUF001 -- Russian UI
+
         was_public = deck.is_public
 
         if title:

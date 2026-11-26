@@ -274,6 +274,19 @@ def quiz_deck(deck_id):
         flash('В колоде нет слов', 'warning')
         return redirect(url_for('study.quiz'))
 
+    reader_card = request.args.get('reader_card')
+    reader_return = None
+    if reader_card:
+        from app.api.native_reader import _context_key, reader_quiz_card
+        word, _ = reader_quiz_card(reader_card, deck.id)
+        context_id = request.args.get('reader_context')
+        if context_id and not any(_context_key(context) == context_id for context in word['contexts']):
+            abort(404)
+        reader_return = url_for(
+            'reader_words.open_context', word_id=reader_card, context_id=context_id,
+            plan=request.args.get('reader_plan'), back=request.args.get('reader_back'),
+        ) if context_id else url_for('reader_words.collection')
+
     settings = StudySettings.get_settings(current_user.id)
     word_limit = request.args.get('limit', type=int)
 
@@ -289,7 +302,7 @@ def quiz_deck(deck_id):
         word_source='deck',
         deck_id=deck_id,
         deck_title=deck.title,
-        word_limit=word_limit
+        word_limit=word_limit, reader_card=reader_card, reader_return=reader_return
     )
 
 
@@ -473,6 +486,9 @@ def get_quiz_questions():
     else:
         question_count = min(max(requested_count or 20, 1), 200)
     deck_id = request.args.get('deck_id', type=int)
+    reader_card = request.args.get('reader_card')
+    if reader_card and (source != 'deck' or not deck_id):
+        abort(400)
 
     words = []
     distractor_pool = None
@@ -541,7 +557,12 @@ def get_quiz_questions():
                 'questions': []
             }), 403
 
-        deck_words = deck.words.order_by(QuizDeckWord.order_index).all()
+        deck_words_query = deck.words.order_by(QuizDeckWord.order_index)
+        if reader_card:
+            from app.api.native_reader import reader_quiz_card
+            _, entry_id = reader_quiz_card(reader_card, deck.id)
+            deck_words_query = deck_words_query.filter(QuizDeckWord.id == entry_id)
+        deck_words = deck_words_query.all()
 
         if not deck_words:
             return jsonify({

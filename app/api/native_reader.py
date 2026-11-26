@@ -5,9 +5,10 @@ import json
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from flask import Blueprint, jsonify, request, render_template, redirect, url_for
+from flask import Blueprint, abort, flash, jsonify, request, render_template, redirect, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
@@ -22,6 +23,7 @@ api_native_reader.after_request(private_response)
 api_native_reader.register_error_handler(NativeLessonError, native_error)
 reader_words = Blueprint('reader_words', __name__)
 reader_words.after_request(private_response)
+reader_words.register_error_handler(NativeLessonError, native_error)
 
 
 def _key(text):
@@ -83,9 +85,8 @@ def _context(context):
         book = db.session.get(Book, clean['bookID'])
         # Keep only an accessible book identity; saving a user supplied excerpt
         # never grants access to a private or licensed book.
-        if (book is None or not book.is_published or not (
-            book.rights_status == 'public_domain' or (book.is_free_access and book.rights_status == 'licensed' and not book.license_is_expired)
-        )):
+        from app.books.reader_vocabulary import book_context_allowed
+        if not book_context_allowed(book):
             clean.pop('bookID')
     result = {'sentence': _text(context.get('sentence'), 1200), 'location': clean,
               'date': _date(context.get('date'))}
@@ -194,6 +195,9 @@ def _mirror(state, payload, word):
     if deck is None or deck.user_id != current_user.id:
         deck = QuizDeck(user_id=current_user.id, title='Слова из книг', description='Личные слова и контексты из читалки LLT', is_public=False)
         db.session.add(deck); db.session.flush(); payload['deck'] = deck.id
+    elif deck.is_public or deck.share_code:
+        deck.is_public = False
+        deck.share_code = None
     if entry is None:
         entry = QuizDeckWord(deck_id=deck.id, custom_english=english, custom_russian=meaning, order_index=0)
         db.session.add(entry); db.session.flush(); word['_deckWord'] = entry.id
@@ -328,8 +332,14 @@ def reader_dictionary():
 def collection():
     from app.study.models import NativeReaderVocabulary
     state = db.session.get(NativeReaderVocabulary, current_user.id)
-    words = [] if state is None else [_public(w) for w in state.payload.get('words', {}).values() if not w.get('deletedAt')]
-    return render_template('words/reader_vocabulary.html', words=sorted(words, key=lambda w:w['addedAt'], reverse=True))
+    words = state.payload.get('words', {}).values() if state else ()
+    active_words = [_public(word) for word in words if not word.get('deletedAt')]
+    mirrored = {word['id'] for word in words if word.get('_deckWord')}
+    deck_id = state.payload.get('deck') if state else None
+    return render_template(
+        'words/reader_vocabulary.html', words=sorted(active_words, key=lambda w: w['addedAt'], reverse=True),
+        context_key=_context_key, reader_deck_id=deck_id, mirrored=mirrored,
+    )
 
 
 @reader_words.post('/reading-vocabulary/<word_id>')
@@ -355,3 +365,189 @@ def update_word(word_id):
     except Exception:
         db.session.rollback();raise
     return redirect(url_for('reader_words.collection'))
+
+
+def _require_reader_study() -> None:
+    from app.modules.service import ModuleService
+
+    if not ModuleService.is_module_enabled_for_user(current_user.id, 'study'):
+        raise NativeLessonError('access_denied', 403)
+
+
+def _context_key(context: dict) -> str:
+    fields = [context['sentence'], context['location']]
+    return hashlib.sha256(json.dumps(fields, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def _selection(book_id: int, chapter: int, data: dict) -> tuple[str, dict, dict]:
+    from app.books.reader_vocabulary import (
+        paragraph_digest, plain_paragraphs, reader_source, selection_context, source_paragraph,
+    )
+
+    source = reader_source(book_id, chapter, current_user)
+    if source is None:
+        raise NativeLessonError('access_denied', 403)
+    book, text = source
+    if data.get('revision') != hashlib.sha256(text.encode()).hexdigest():
+        raise NativeLessonError('chapter_changed', 409)
+    index = _integer(data.get('paragraph'))
+    start = _integer(data.get('start'))
+    end = _integer(data.get('end'))
+    paragraphs = plain_paragraphs(text)
+    if index >= len(paragraphs):
+        raise NativeLessonError('invalid_input')
+    paragraph = paragraphs[index]
+    if not start < end <= len(paragraph):
+        raise NativeLessonError('invalid_input')
+    phrase = _text(paragraph[start:end], 200)
+    if not re.search('[A-Za-z]', phrase):
+        raise NativeLessonError('invalid_input')
+
+    now = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    context = {
+        'sentence': selection_context(paragraph, start, end),
+        'location': {
+            'bookID': book_id, 'title': book.title[:300], 'chapter': chapter,
+            'paragraph': source_paragraph(text, index, start, paragraph),
+        },
+        'date': now,
+    }
+    digest = paragraph_digest(paragraph)
+    anchor = {
+        'digest': digest, 'offset': start,
+        'revision': data['revision'] if sum(paragraph_digest(item) == digest for item in paragraphs) > 1 else None,
+    }
+    return phrase, context, anchor
+
+
+@reader_words.post('/reading-vocabulary/selection/<int:book_id>/<int:chapter>')
+@login_required
+@limiter.limit('60 per minute', key_func=get_authenticated_user_key)
+def save_selection(book_id: int, chapter: int) -> ResponseReturnValue:
+    from app.auth.routes import get_safe_redirect_url
+    from app.study.models import QuizDeck
+    from app.words.models import CollectionWords
+
+    _require_reader_study()
+    if (request.content_length or 0) > 8192:
+        raise NativeLessonError('invalid_input', 413)
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        raise NativeLessonError('invalid_input')
+    phrase, context, anchor = _selection(book_id, chapter, data)
+    if 'translation' not in data:
+        suggested = db.session.query(CollectionWords.russian_word).filter(
+            func.lower(CollectionWords.english_word) == _key(phrase),
+        ).order_by(CollectionWords.id).limit(1).scalar()
+        return jsonify(english=phrase, context=context['sentence'], translation=(suggested or '')[:200])
+
+    meaning = _text(data['translation'], 200)
+    try:
+        state = _state()
+        payload = copy.deepcopy(state.payload)
+        now = context['date']
+        semantic = _semantic({'lemma': phrase, 'translation': meaning})
+        existing = next((
+            item for item in payload['words'].values()
+            if not item.get('deletedAt') and _semantic(item) == semantic
+        ), None)
+        context_id = _context_key(context)
+        if existing and any(_context_key(old) == context_id for old in existing['contexts']):
+            word = existing
+        else:
+            incoming = _public(existing) if existing else {
+                'id': str(uuid4()), 'english': phrase, 'lemma': _key(phrase), 'translation': meaning,
+                'sentence': context['sentence'], 'book': context['location']['title'],
+                'status': 'studying', 'addedAt': now, 'dueAt': now, 'repetitions': 0,
+                'intervalDays': 0, 'serverRevision': 0, 'alternateMeanings': [],
+            }
+            revision = existing.get('_receipts', {}).get('web-selection', 0) + 1 if existing else 1
+            incoming.update(contexts=[context], updatedAt=now, revision=revision)
+            word, _ = _merge(state, payload, _word(incoming), 'web-selection')
+            metadata = word.setdefault('_webContextAnchors', {})
+            metadata[context_id] = anchor
+            word['_webContextAnchors'] = {
+                key: metadata[key] for item in word['contexts'] if (key := _context_key(item)) in metadata
+            }
+            if len(json.dumps(payload, ensure_ascii=False).encode()) > 15000000:
+                raise NativeLessonError('invalid_input', 422)
+            state.payload = payload
+            state.updated_at = datetime.now(timezone.utc)
+        deck_id = payload.get('deck')
+        deck = db.session.get(QuizDeck, deck_id) if deck_id else None
+        review_url = None
+        if word.get('_deckWord') and deck and deck.user_id == current_user.id and not deck.is_public:
+            back = data.get('back')
+            try:
+                back = get_safe_redirect_url(back, 'books.book_list') if isinstance(back, str) else None
+            except ValueError:
+                back = None
+            review_url = url_for(
+                'study.quiz_deck', deck_id=deck.id, reader_card=word['id'],
+                reader_context=context_id, reader_plan=1 if data.get('plan') is True else None,
+                reader_back=back,
+            )
+        db.session.commit()
+        return jsonify(success=True, review_url=review_url, collection_url=url_for('reader_words.collection'))
+    except Exception:
+        db.session.rollback()
+        raise
+
+
+def reader_quiz_card(word_id: str, deck_id: int) -> tuple[dict, int]:
+    """Resolve an owned mirror item for the ordinary deck quiz."""
+    from app.study.models import NativeReaderVocabulary, QuizDeckWord
+
+    try:
+        _require_reader_study()
+    except NativeLessonError:
+        abort(403)
+    state = db.session.get(NativeReaderVocabulary, current_user.id)
+    word = state.payload.get('words', {}).get(word_id) if state else None
+    if not word or word.get('deletedAt') or word['status'] != 'studying':
+        abort(404)
+    entry = db.session.get(QuizDeckWord, word.get('_deckWord')) if word.get('_deckWord') else None
+    if entry is None or entry.deck_id != deck_id or entry.deck.user_id != current_user.id:
+        abort(404)
+    return word, entry.id
+
+
+@reader_words.get('/reading-vocabulary/<word_id>/context/<context_id>')
+@login_required
+def open_context(word_id: str, context_id: str) -> ResponseReturnValue:
+    from app.auth.routes import get_safe_redirect_url
+    from app.books.reader_vocabulary import find_context_paragraph, reader_source
+    from app.study.models import NativeReaderVocabulary
+
+    state = db.session.get(NativeReaderVocabulary, current_user.id)
+    word = state.payload.get('words', {}).get(word_id) if state else None
+    context = next((
+        item for item in word['contexts'] if _context_key(item) == context_id
+    ), None) if word and not word.get('deletedAt') else None
+    if context is None:
+        abort(404)
+    location = context['location']
+    book_id, chapter = location.get('bookID'), location.get('chapter')
+    source = reader_source(book_id, chapter, current_user) if book_id and chapter else None
+    if source is None:
+        flash('Источник цитаты сейчас недоступен.', 'warning')
+        return redirect(url_for('reader_words.collection'))
+    _, text = source
+    revision = hashlib.sha256(text.encode()).hexdigest()
+    anchor = word.get('_webContextAnchors', {}).get(context_id, {})
+    index = None
+    if not anchor.get('revision') or anchor['revision'] == revision:
+        index = find_context_paragraph(text, context['sentence'], location.get('paragraph'), anchor.get('digest'))
+    args = {'book_id': book_id, 'chapter': chapter}
+    if request.args.get('plan') == '1':
+        args.update({'from': 'linear_plan', 'slot': 'reading'})
+    elif request.args.get('back'):
+        try:
+            args['from'] = get_safe_redirect_url(request.args['back'], 'books.book_list')
+        except ValueError:
+            pass
+    if index is not None:
+        args.update(reader_paragraph=index, reader_revision=revision, reader_offset=anchor.get('offset'))
+    else:
+        args['reader_quote_missing'] = 1
+    return redirect(url_for('books.read_book_chapters', **args))

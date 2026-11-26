@@ -11,7 +11,7 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from wtforms.fields.choices import SelectField
 from wtforms.fields.simple import StringField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional
@@ -25,6 +25,7 @@ from app.books.access import (
 from app.books.forms import BookContentForm
 from app.books.models import Book, Chapter, UserChapterProgress
 from app.books.readability import book_has_text, chapter_has_text
+from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
 from app.books.text_access import book_allows_text, visible_chapter_text
 from app.study.models import UserWord
 from app.utils.db import db
@@ -290,10 +291,22 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
 
     current_chapter = next((chapter for chapter in chapters if chapter.chap_num == chapter_num), chapters[0])
 
-    chapter_progress = UserChapterProgress.query.filter_by(
-        user_id=current_user.id,
-        chapter_id=current_chapter.id
-    ).first()
+    learner_preview = current_user.is_admin and request.args.get('preview') == 'learner'
+    progress_by_chapter = {}
+    if not learner_preview:
+        progress_rows = db.session.query(UserChapterProgress).join(Chapter).filter(
+            Chapter.book_id == book_id,
+            UserChapterProgress.user_id == current_user.id,
+            or_(
+                UserChapterProgress.chapter_id == current_chapter.id,
+                UserChapterProgress.offset_pct >= CHAPTER_COMPLETION_THRESHOLD,
+            ),
+        )
+        progress_by_chapter = {row.chapter_id: row for row in progress_rows}
+    completed_ids = {
+        chapter_id for chapter_id, row in progress_by_chapter.items()
+        if row.offset_pct is not None and row.offset_pct >= CHAPTER_COMPLETION_THRESHOLD
+    }
 
     back_url = request.args.get('from')
     if back_url in ('daily_plan', 'linear_plan'):
@@ -308,7 +321,6 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
                 back_url = referrer
     back_url = _safe_back_url(back_url, book_id)
 
-    learner_preview = current_user.is_admin and request.args.get('preview') == 'learner'
     source = request.args.get('from')
     plan_mode = not learner_preview and (
         source == 'daily_plan'
@@ -333,6 +345,23 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         book, current_chapter.text_raw, admin=current_user.is_admin and not learner_preview,
     )
 
+    from app.books.reader_vocabulary import book_context_allowed
+    from app.modules.service import ModuleService
+
+    chapter_revision = sha256(chapter_text.encode()).hexdigest() if chapter_text and not learner_preview else None
+    phrase_url = None
+    if chapter_revision and book_context_allowed(book) and ModuleService.is_module_enabled_for_user(current_user.id, 'study'):
+        study_text, _ = visible_chapter_text(book, current_chapter.text_raw)
+        if study_text == chapter_text:
+            phrase_url = url_for('reader_words.save_selection', book_id=book.id, chapter=current_chapter.chap_num)
+
+    requested_revision = request.args.get('reader_revision')
+    requested_paragraph = request.args.get('reader_paragraph', type=int)
+    context_paragraph = requested_paragraph if chapter_revision and requested_revision == chapter_revision else None
+    context_missing = request.args.get('reader_quote_missing') == '1' or (
+        requested_paragraph is not None and context_paragraph is None
+    )
+
     index = chapters.index(current_chapter)
     first_named_chapter = next((
         chapter for chapter in chapters
@@ -343,11 +372,14 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         previous_chapter=chapters[index - 1] if index else None,
         next_chapter=chapters[index + 1] if index + 1 < len(chapters) else None,
         chapter_text=chapter_text, text_truncated=text_truncated,
-        chapter_progress=None if learner_preview else chapter_progress,
+        chapter_progress=progress_by_chapter.get(current_chapter.id), completed_ids=completed_ids,
+        part_number=index + 1,
         learner_preview=learner_preview, can_track_reading=bool(chapter_text) and not learner_preview, back_url=back_url,
         plan_mode=plan_mode, reader_query=reader_query, return_label=return_label,
         first_named_chapter=first_named_chapter,
-        chapter_revision=sha256(chapter_text.encode()).hexdigest() if chapter_text and not learner_preview else None,
+        chapter_revision=chapter_revision, phrase_url=phrase_url,
+        context_paragraph=context_paragraph, context_missing=context_missing,
+        context_offset=request.args.get('reader_offset', type=int) if context_paragraph is not None else None,
     )
 
 

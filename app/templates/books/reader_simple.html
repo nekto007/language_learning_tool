@@ -1,7 +1,7 @@
 {% extends "books/reader_base.html" %}
 {% from "books/_chapter_label.html" import chapter_label %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/books/reader_simple.css', v='reader-20261126') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/books/reader_simple.css', v='reader-20261126-nav2') }}">
 {% if book.is_short_reading %}<link rel="stylesheet" href="{{ url_for('static', filename='css/books/short_reading.css') }}">{% endif %}
 {% endblock %}
 {% block title %}{{ current_chapter.title or book.title }} · {{ book.title }}{% endblock %}
@@ -9,16 +9,20 @@
 {% macro chapter_url(number) -%}
 {{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=number, **reader_query) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=number, **reader_query) }}
 {%- endmacro %}
+{% set can_mark_read = can_track_reading and not book.is_short_reading and not text_truncated %}
+{% set can_practice = book.is_short_reading and can_track_reading and not text_truncated %}
+{% set part_read = current_chapter.id in completed_ids %}
 {% set known_offset = chapter_progress.offset_pct if chapter_progress and chapter_progress.offset_pct else 0 %}
 
 <div class="rdr-wrap">
+    <div class="rdr-top">
     <header class="rdr-toolbar">
         <a href="{{ back_url }}" class="rdr-back-btn" aria-label="{{ return_label }}" title="{{ return_label }}">
             <span aria-hidden="true">←</span><span class="rdr-back-label">{{ return_label }}</span>
         </a>
         <div class="rdr-book-meta">
-            <span class="rdr-book-name" title="{{ book.title }}">{{ book.title }}</span>
-            <span class="rdr-progress-text"><span id="readingProgress">{{ (known_offset * 100)|round|int }}</span>% части <span id="savingIndicator" aria-hidden="true">✓</span></span>
+            <span class="rdr-book-name" title="{{ chapter_label(current_chapter, book.is_short_reading) }}">{{ chapter_label(current_chapter, book.is_short_reading) }}</span>
+            <span class="rdr-progress-text"><span aria-label="Часть {{ part_number }} из {{ chapters|length }}">{{ part_number }}/{{ chapters|length }}</span><span id="rdr-visible-progress" hidden> · <span id="readingProgress"></span>% {{ 'фрагмента' if text_truncated else 'части' }}</span><span id="savingIndicator" aria-hidden="true">✓</span></span>
         </div>
         <div class="rdr-toolbar-actions">
             <button type="button" class="rdr-control" data-reader-panel="readerToc" aria-haspopup="dialog">Оглавление</button>
@@ -77,12 +81,15 @@
 
 {% endif %}
 
+    </div>
+    <div class="rdr-reading">
     <main class="rdr-body" id="readerBody" tabindex="0" aria-label="Область чтения"
           data-saved-offset="{{ known_offset }}"{% if not can_track_reading %} data-disable-reading="true"{% endif %}
           {% if chapter_revision %}data-revision="{{ chapter_revision }}"{% endif %}>
         <article class="rdr-content">
             {% if learner_preview %}<p class="rdr-license-notice">Предпросмотр для ученика. Прогресс не сохраняется.</p>{% endif %}
             <h1>{{ chapter_label(current_chapter, book.is_short_reading) }}</h1>
+            {% if context_missing %}<p class="rdr-license-notice" role="status">Исходную цитату в этой редакции главы найти не удалось.</p>{% endif %}
       {% if book.is_short_reading %}
       <p>{{ book.reading.focus }} · {{ book.words_total }} слов</p>
       <details class="short-reading-hints"><summary>Слова-подсказки</summary><ul>
@@ -94,36 +101,68 @@
         {{ (chapter_text if chapter_text is defined else current_chapter.text_raw) | format_chapter_text }}
       </div>
 
-      {% if text_truncated %}
-      <div class="rdr-license-notice">
-        Показан ознакомительный фрагмент главы согласно лицензии на эту книгу.
-      </div>
+      {% if not chapter_text %}
+      <p class="rdr-license-notice">Текст этой части недоступен.</p>
+      {% elif text_truncated %}
+      <p class="rdr-license-notice">Показан ознакомительный фрагмент главы согласно лицензии на эту книгу.</p>
       {% endif %}
 
-      {% if book.is_short_reading and can_track_reading %}
+      {% if can_practice %}
       <section id="short-reading-practice" class="short-reading-practice" aria-label="Проверка понимания"
                data-account="{{ current_user.id }}" data-book="{{ book.id }}" data-chapter="{{ current_chapter.id }}"></section>
-      <button id="short-reading-finish" type="button" class="rdr-bottom-btn rdr-bottom-btn--primary" disabled>Завершить чтение текста</button>
-      <p id="short-reading-save-status" role="status" aria-live="polite"></p>
       <script id="short-reading-data" type="application/json" nonce="{{ csp_nonce }}">{{ book.reading | tojson }}</script>
       {% endif %}
 
-            <nav class="rdr-bottom-nav" aria-label="Переход между частями">
-                {% if previous_chapter %}<a href="{{ chapter_url(previous_chapter.chap_num) }}" class="rdr-bottom-btn" id="prev-chapter-link">← Предыдущая часть</a>{% endif %}
-                {% if next_chapter %}<a href="{{ chapter_url(next_chapter.chap_num) }}" class="rdr-bottom-btn rdr-bottom-btn--primary" id="next-chapter-link"><span>Следующая часть →<strong>{{ chapter_label(next_chapter, book.is_short_reading) }}</strong></span></a>{% endif %}
-                {% if not next_chapter %}<a href="{{ back_url }}" class="rdr-bottom-btn">{{ return_label }}</a>{% endif %}
-                {% if first_named_chapter and current_chapter.chap_num < first_named_chapter.chap_num and next_chapter != first_named_chapter %}
-                <a href="{{ chapter_url(first_named_chapter.chap_num) }}" class="rdr-bottom-btn" id="first-chapter-link">К первой главе</a>
-                {% endif %}
-            </nav>
-            {% if can_track_reading and not book.is_short_reading and not text_truncated %}
-            <div class="rdr-mark">
-                <button type="button" id="reader-mark-read" class="rdr-bottom-btn"{% if known_offset >= 0.99 %} disabled{% endif %}>{{ 'Часть прочитана' if known_offset >= 0.99 else 'Отметить прочитанной' }}</button>
-                <p id="reader-mark-status" role="status" aria-live="polite"></p>
-            </div>
-            {% endif %}
         </article>
     </main>
+    {% if phrase_url %}
+    <button type="button" class="rdr-bottom-btn rdr-bottom-btn--primary rdr-phrase-trigger" id="reader-phrase-trigger" hidden>Сохранить фразу</button>
+    {% endif %}
+    <!-- Translation popup -->
+<div id="translationPopup" tabindex="-1" role="dialog" aria-labelledby="popupWord" aria-modal="false">
+  <div class="rdr-word-heading">
+    <div><span class="rdr-word-eyebrow">Слово из текста</span><div class="word-title" id="popupWord"></div></div>
+    <button type="button" class="rdr-word-close" data-action="close-word-panel" aria-label="Закрыть перевод">&times;</button>
+  </div>
+  <div class="word-translation" id="popupTranslation">
+    <div class="spinner-border spinner-border-sm" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+  <div class="word-actions" id="popupActions"></div>
+  <p id="popupStatus" class="rdr-word-status" role="status" aria-live="polite"></p>
+</div>
+    </div>
+
+    <footer class="rdr-footer">
+        <p id="reader-mark-status" role="status"></p>
+        {% if can_practice %}
+        <p id="short-reading-save-status" role="status"></p>
+        {% endif %}
+        <nav class="rdr-bottom-nav" aria-label="Переход между частями">
+            {% if previous_chapter %}
+            <a href="{{ chapter_url(previous_chapter.chap_num) }}" class="rdr-bottom-btn rdr-prev" id="prev-chapter-link" aria-label="Предыдущая часть" title="Предыдущая часть">← <span>Предыдущая</span></a>
+            {% endif %}
+            {% if can_practice %}
+            <button id="short-reading-finish" type="button" class="rdr-bottom-btn rdr-bottom-btn--primary" disabled>Завершить чтение текста</button>
+            {% elif can_mark_read and not part_read %}
+            <button type="button" id="reader-mark-read" class="rdr-bottom-btn rdr-bottom-btn--primary"{% if next_chapter %} data-next-url="{{ chapter_url(next_chapter.chap_num) }}"{% endif %}>
+                {% if next_chapter %}
+                <span class="rdr-forward-label">Прочитано, дальше<span class="rdr-next-title">{{ chapter_label(next_chapter, book.is_short_reading) }}</span></span>
+                {% else %}Отметить прочитанной{% endif %}
+            </button>
+            {% endif %}
+            {% if next_chapter %}
+            <a href="{{ chapter_url(next_chapter.chap_num) }}" class="rdr-bottom-btn{% if not can_mark_read or part_read %} rdr-bottom-btn--primary{% endif %}" id="next-chapter-link"
+               title="{{ chapter_label(next_chapter, book.is_short_reading) }}">{{ 'Пропустить' if can_mark_read and not part_read else 'Следующая часть' }} →{% if not can_mark_read or part_read %}<span class="rdr-next-title">{{ chapter_label(next_chapter, book.is_short_reading) }}</span>{% endif %}</a>
+            {% else %}
+            <a href="{{ back_url }}" class="rdr-bottom-btn">{{ return_label }}</a>
+            {% endif %}
+            {% if first_named_chapter and current_chapter.chap_num < first_named_chapter.chap_num and next_chapter != first_named_chapter %}
+            <a href="{{ chapter_url(first_named_chapter.chap_num) }}" class="rdr-first" id="first-chapter-link">К первой главе</a>
+            {% endif %}
+        </nav>
+    </footer>
 </div>
 
 <dialog class="rdr-panel" id="readerToc" aria-labelledby="readerTocTitle">
@@ -133,7 +172,7 @@
     </header>
     <ol class="rdr-toc">
         {% for ch in chapters %}
-        <li><a href="{{ chapter_url(ch.chap_num) }}"{% if ch.id == current_chapter.id %} aria-current="location"{% endif %}>{{ chapter_label(ch, book.is_short_reading) }}</a></li>
+        <li><a href="{{ chapter_url(ch.chap_num) }}"{% if ch.id == current_chapter.id %} aria-current="location"{% endif %}><span>{{ chapter_label(ch, book.is_short_reading) }}</span>{% if ch.id in completed_ids or ch.id == current_chapter.id %}<span class="rdr-toc-read"{% if ch.id not in completed_ids %} hidden{% endif %}>✓ <span class="visually-hidden">Прочитано</span></span>{% endif %}</a></li>
         {% endfor %}
     </ol>
 </dialog>
@@ -164,22 +203,30 @@
     </div>
 </dialog>
 
-<!-- Translation popup -->
-<div id="translationPopup" tabindex="-1" role="dialog" aria-labelledby="popupWord" aria-modal="false">
-  <div class="rdr-word-heading">
-    <div><span class="rdr-word-eyebrow">Слово из текста</span><div class="word-title" id="popupWord"></div></div>
-    <button type="button" class="rdr-word-close" data-action="close-word-panel" aria-label="Закрыть перевод">&times;</button>
-  </div>
-  <div class="word-translation" id="popupTranslation">
-    <div class="spinner-border spinner-border-sm" role="status">
-      <span class="visually-hidden">Loading...</span>
-    </div>
-  </div>
-  <div class="word-actions" id="popupActions"></div>
-  <p id="popupStatus" class="rdr-word-status" role="status" aria-live="polite"></p>
-</div>
-
-
+{% if phrase_url %}
+<dialog class="rdr-panel" id="readerPhrase" aria-labelledby="readerPhraseTitle"
+        data-endpoint="{{ phrase_url }}" data-back="{{ back_url }}" data-plan="{{ plan_mode|tojson }}">
+    <header class="rdr-panel-header">
+        <h2 id="readerPhraseTitle">Фраза из книги</h2>
+        <button type="button" class="rdr-control" data-phrase-close aria-label="Закрыть">×</button>
+    </header>
+    <form method="post" action="{{ phrase_url }}" class="rdr-phrase-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p id="reader-phrase-status" role="status"></p>
+        <div id="reader-phrase-fields" hidden>
+            <strong id="reader-phrase-text"></strong>
+            <blockquote id="reader-phrase-context"></blockquote>
+            <label for="reader-phrase-translation">Перевод</label>
+            <input id="reader-phrase-translation" name="translation" maxlength="200" required>
+            <button type="submit" class="rdr-bottom-btn rdr-bottom-btn--primary">Сохранить</button>
+        </div>
+        <div id="reader-phrase-result" hidden>
+            <a id="reader-phrase-review" class="rdr-bottom-btn rdr-bottom-btn--primary" hidden>Повторить фразу</a>
+            <a id="reader-phrase-collection" class="rdr-bottom-btn">Слова из книг</a>
+        </div>
+    </form>
+</dialog>
+{% endif %}
 
 <script nonce="{{ csp_nonce }}">
 const chapterContent = document.getElementById('chapterContent');
@@ -237,9 +284,40 @@ function chapterStart() {
         - readerBody.getBoundingClientRect().top;
 }
 
-function showProgress(offset) {
-    progressBar.style.width = (offset * 100) + '%';
-    progressText.textContent = Math.round(offset * 100);
+let lastLine;
+function showVisibleProgress() {
+    const progress = document.getElementById('rdr-visible-progress');
+    if (!lastLine) {
+        progress.hidden = true;
+        return;
+    }
+    const viewport = readerBody.getBoundingClientRect();
+    const first = chapterContent.getBoundingClientRect().top;
+    const ending = lastLine.getBoundingClientRect();
+    const last = ending.bottom;
+    if (last <= first || viewport.height <= 0) {
+        progress.hidden = true;
+        return;
+    }
+    const percent = ending.top >= viewport.top - 0.5 && last <= viewport.bottom + 0.5
+        ? 100
+        : Math.max(0, Math.min(99, Math.floor((viewport.bottom - first) * 100 / (last - first))));
+    progress.hidden = false;
+    progressBar.style.width = percent + '%';
+    progressText.textContent = percent;
+}
+
+function locateLastLine() {
+    const walker = document.createTreeWalker(chapterContent, NodeFilter.SHOW_TEXT);
+    let node;
+    while (walker.nextNode()) {
+        if (walker.currentNode.data.trim()) node = walker.currentNode;
+    }
+    if (!node) return;
+    const end = node.data.trimEnd().length;
+    lastLine = document.createRange();
+    lastLine.setStart(node, end - 1);
+    lastLine.setEnd(node, end);
 }
 
 function currentAnchor() {
@@ -268,7 +346,30 @@ function savedAnchor() {
     return null;
 }
 
-let anchor = savedAnchor();
+const requestedParagraph = {{ context_paragraph | tojson }};
+const requestedOffset = {{ context_offset | tojson }};
+let anchor = Number.isInteger(requestedParagraph) && chapterParagraphs[requestedParagraph]
+    ? {paragraph: requestedParagraph, fraction: 0, offset: requestedOffset}
+    : savedAnchor();
+
+function sourceLineOffset(paragraph, offset) {
+    if (!Number.isInteger(offset) || offset < 0) return 0;
+    const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const characters = [...node.data];
+        if (offset < characters.length) {
+            const start = characters.slice(0, offset).join('').length;
+            const range = document.createRange();
+            range.setStart(node, start);
+            range.setEnd(node, start + characters[offset].length);
+            const line = range.getBoundingClientRect();
+            return Math.max(0, line.top - paragraph.getBoundingClientRect().top - 14);
+        }
+        offset -= characters.length;
+    }
+    return 0;
+}
 
 function restorePosition(apply) {
     restoring = true;
@@ -279,15 +380,13 @@ function restorePosition(apply) {
         const paragraph = chapterParagraphs[anchor.paragraph];
         const box = paragraph?.getBoundingClientRect();
         readerBody.scrollTop = box
-            ? readerBody.scrollTop + box.top - readerBody.getBoundingClientRect().top + anchor.fraction * box.height
+            ? readerBody.scrollTop + box.top - readerBody.getBoundingClientRect().top + anchor.fraction * box.height + sourceLineOffset(paragraph, anchor.offset)
             : 0;
     } else if (storedOffset > 0) {
         readerBody.scrollTop = chapterStart() + Math.min(storedOffset, 0.98) * chapterContent.offsetHeight;
         anchor = currentAnchor();
     }
-    showProgress(storedOffset >= 0.99 ? 1 : guardedReadingOffset(
-        Math.max(0, readerBody.scrollTop - chapterStart()) / Math.max(1, chapterContent.offsetHeight)
-    ));
+    showVisibleProgress();
     requestAnimationFrame(() => requestAnimationFrame(() => { restoring = false; }));
 }
 
@@ -300,7 +399,6 @@ function updateProgress() {
     bookmarkDirty = true;
     const offset = Math.max(0, readerBody.scrollTop - chapterStart()) / chapterContent.offsetHeight;
     readingOffset = guardedReadingOffset(offset);
-    showProgress(storedOffset >= 0.99 ? 1 : readingOffset);
     if (readingOffset <= Math.max(storedOffset, pendingOffset ?? 0)) return;
     pendingOffset = readingOffset;
     clearTimeout(saveTimeout);
@@ -332,7 +430,6 @@ function saveProgress(offsetPct, explicitFinish = false, keepalive = false) {
         if (data.success !== true) return data;
         storedOffset = Math.max(Number(data.offset_pct ?? offsetPct), storedOffset);
         if (pendingOffset !== null && pendingOffset <= storedOffset) pendingOffset = null;
-        if (storedOffset >= 0.99) showProgress(1);
         const indicator = document.getElementById('savingIndicator');
         if (indicator) {
             indicator.style.display = 'inline';
@@ -367,7 +464,12 @@ if (markRead) markRead.addEventListener('click', async () => {
     status.textContent = 'Сохраняем…';
     const result = await saveProgress(1, true);
     if (result?.success === true) {
+        if (markRead.dataset.nextUrl) {
+            window.location.assign(markRead.dataset.nextUrl);
+            return;
+        }
         markRead.textContent = 'Часть прочитана';
+        document.querySelector('#readerToc [aria-current] .rdr-toc-read').hidden = false;
         status.textContent = result.book_completed === true ? 'Все части книги прочитаны.' : 'Отметка сохранена.';
     } else {
         status.textContent = 'Не удалось сохранить отметку. Попробуй ещё раз.';
@@ -375,10 +477,15 @@ if (markRead) markRead.addEventListener('click', async () => {
     }
 });
 
-showProgress(storedOffset);
+readerBody.addEventListener('scroll', showVisibleProgress, {passive: true});
+new ResizeObserver(() => {
+    if (readerBody.clientHeight !== layoutHeight || readerBody.clientWidth !== layoutWidth) {
+        window.readerReflow(() => {});
+    }
+}).observe(readerBody);
+
 {% if can_track_reading %}
 readerBody.addEventListener('scroll', updateProgress);
-window.addEventListener('resize', () => window.readerReflow(() => {}));
 window.addEventListener('llt:account-changed', () => {
     accountChanged = true;
     clearTimeout(saveTimeout);
@@ -1030,6 +1137,7 @@ function hideTranslationPopup(restoreFocus = false) {
 }
 function handleWordClick(e) {
     e.stopPropagation();
+    if (typeof window !== 'undefined' && window.getSelection?.()?.isCollapsed === false) return;
     const element = e.currentTarget || e.target;
     const word = element.dataset.word;
     hideTranslationPopup();
@@ -1111,6 +1219,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTranslat
 window.addEventListener('pagehide', () => hideTranslationPopup());
 
 makeWordsClickable();
+locateLastLine();
+showVisibleProgress();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
@@ -1133,6 +1243,7 @@ document.addEventListener('keydown', (e) => {
 {% if book.is_short_reading %}<script src="{{ url_for('static', filename='js/books/short_reading.js') }}?v=20261123-draft2"></script>{% endif %}
 {% if plan_mode %}<script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>{% endif %}
 <script src="{{ url_for('static', filename='js/books/reader_preferences.js', v='20261126') }}"></script>
+{% if phrase_url %}<script src="{{ url_for('static', filename='js/books/reader_selection.js', v='20261126') }}"></script>{% endif %}
 {% if current_chapter.audio_url %}
 <script nonce="{{ csp_nonce }}">
 (function() {

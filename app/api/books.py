@@ -236,11 +236,13 @@ def get_chapter_content(book_id, chapter_num):
         chap_num=chapter_num - 1
     ).first()
 
+    text, text_truncated = visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)
     response_data = {
         'id': chapter.id,
         'num': chapter.chap_num,
         'title': chapter.title,
-        'text': visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)[0],
+        'text': text,
+        'text_truncated': text_truncated,
         # Formative practice only, not an assessment: hints and model answers
         # deliberately travel with the text and remain available offline.
         'reading': book.reading if book.is_short_reading else None,
@@ -863,13 +865,15 @@ def get_chapter_by_id(chapter_id):
         if not can_user_access_book(current_user, book):
             return api_error('forbidden', 'Access denied', 403)
 
+        text, text_truncated = visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)
         return jsonify({
             'success': True,
             'chapter': {
                 'id': chapter.id,
                 'num': chapter.chap_num,
                 'title': chapter.title,
-                'text_raw': visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)[0],
+                'text_raw': text,
+                'text_truncated': text_truncated,
                 'audio_url': chapter.audio_url,
                 'words': chapter.words,
                 'book_id': chapter.book_id

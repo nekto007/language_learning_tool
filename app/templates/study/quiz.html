@@ -10,6 +10,8 @@
 {% endblock %}
 
 {% block content %}
+{% if reader_return %}<div class="container pt-2"><a href="{{ reader_return }}" class="btn btn-outline-secondary">Вернуться к чтению</a></div>{% endif %}
+
 <div class="qz-page" id="quiz-app">
     <!-- Progress bar and stats -->
     <div class="progress-container">
@@ -140,7 +142,9 @@
                 <a id="retry-quiz-btn" href="#" class="btn btn-primary">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Еще раз
                 </a>
-                {% if daily_plan_ctx and daily_plan_ctx.is_daily_plan %}
+                {% if reader_return %}
+                    <a href="{{ reader_return }}" class="btn btn-outline-secondary">Вернуться к чтению</a>
+                {% elif daily_plan_ctx and daily_plan_ctx.is_daily_plan %}
                     {# Plan-aware completion: dashboard + next-slot, same pattern
                        as components/_lesson_completion_actions.html on lessons. #}
                     <a href="{{ daily_plan_ctx.dashboard_url }}{% if daily_plan_ctx.day_secured %}?day_secured=1{% endif %}"
@@ -234,6 +238,8 @@
         const setSlug = {{ set_slug|default(None)|tojson }};
         // Get word limit from URL parameter if not set by server
         const urlParams = new URLSearchParams(window.location.search);
+        const readerCard = {{ reader_card|default(none)|tojson }};
+        const readerReturn = {{ reader_return|default(none)|tojson }};
         const wordLimit = {{ word_limit|tojson }} || parseInt(urlParams.get('limit')) || null;
         const planFrom = urlParams.get('from') || null;
         const planSlot = urlParams.get('slot') || null;
@@ -300,11 +306,14 @@
         async function fetchQuestions() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
-                const lang = urlParams.get('lang') || '{{ g.locale }}';
+                const lang = urlParams.get('lang') || {{ (g.locale or 'en') | tojson }};
 
-                let url = `/study/api/get-quiz-questions?source=${wordSource}&lang=${lang}`;
+                let url = `/study/api/get-quiz-questions?source=${wordSource}&lang=${encodeURIComponent(lang)}`;
                 if (deckId) {
                     url += `&deck_id=${deckId}`;
+                }
+                if (readerCard) {
+                    url += `&reader_card=${encodeURIComponent(readerCard)}`;
                 }
                 if (setSlug) {
                     url += `&set=${encodeURIComponent(setSlug)}`;
@@ -344,7 +353,9 @@
             // so without the slug every curated set would resume the previous
             // set's questions and post that run under the wrong set_slug.
             let quizKey;
-            if (deckId) {
+            if (readerCard) {
+                quizKey = `deck_${deckId}_reader_${readerCard}`;
+            } else if (deckId) {
                 quizKey = `deck_${deckId}`;
             } else if (setSlug) {
                 quizKey = `set_${setSlug}`;
@@ -877,7 +888,7 @@
                 }
 
                 const retryBtn = document.getElementById('retry-quiz-btn');
-                if (retryBtn && deckId) {
+                if (retryBtn && deckId && !readerCard) {
                     let retryUrl = `/study/quiz/deck/${deckId}?fresh=true`;
                     if (wordLimit && wordLimit > 0) {
                         retryUrl += `&limit=${wordLimit}`;
@@ -891,7 +902,7 @@
 
             } catch (error) {
                 console.error('Error completing quiz:', error);
-                window.location.href = '{{ url_for("study.index") }}';
+                window.location.href = readerReturn || '{{ url_for("study.index") }}';
             }
         }
 
