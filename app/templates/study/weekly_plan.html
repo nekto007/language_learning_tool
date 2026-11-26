@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/study/weekly_plan.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/study/weekly_plan.css') }}?v=2">
 {% endblock %}
 
 {% block title %}План на неделю{% endblock %}
@@ -40,10 +40,11 @@
         <div class="weekly-plan__day weekly-plan__day--{{ day.status }}{% if day.day_secured %} weekly-plan__day--secured{% endif %}"
              data-date="{{ day.date_str }}"
              data-status="{{ day.status }}"
+             {% if day.status == 'current' %}data-plan-state="{{ day.plan_state }}"{% endif %}
              data-secured="{{ 'true' if day.day_secured else 'false' }}">
 
             <div class="weekly-plan__day-header">
-                <span class="weekly-plan__weekday">{{ day.weekday_name }}</span>
+                <span class="weekly-plan__weekday">{{ 'Сегодня' if day.status == 'current' else day.weekday_name }}</span>
                 <span class="weekly-plan__date-label">{{ day.label }}</span>
                 {% if day.day_secured %}
                 <span class="weekly-plan__secured-badge" title="День выполнен">
@@ -67,20 +68,37 @@
                 {% endif %}
 
             {% elif day.status == 'current' %}
-                <div class="weekly-plan__slots">
-                    {% for kind in day.slot_kinds %}
-                    <span class="weekly-plan__slot-icon weekly-plan__slot-icon--{{ kind }}" title="{{ kind }}">
-                        {{ _slot_icon(kind) }}
-                    </span>
+                {% if day.plan_state == 'active' %}
+                {% set state_labels = {'completed': 'Выполнено', 'skipped': 'Пропущено', 'blocked': 'Недоступно', 'current': 'Готово к выполнению', 'locked': 'После предыдущих заданий'} %}
+                <ul class="weekly-plan__slots weekly-plan__actual" aria-label="Обязательные задания на сегодня">
+                    {% for item in day['items'] %}
+                    <li class="weekly-plan__slot-icon weekly-plan__slot-icon--{{ item.kind }}"
+                        data-item-id="{{ item.id }}" data-item-kind="{{ item.kind }}" data-item-state="{{ item.state }}"
+                        title="{{ item.title }} · {{ state_labels[item.state] }}">
+                        <span class="visually-hidden">{{ item.title }} · {{ state_labels[item.state] }}</span>
+                        <span aria-hidden="true">{{ _slot_icon(item.kind) }}</span>
+                        {% if item.state == 'completed' %}<span class="weekly-plan__slot-done" aria-hidden="true">✓</span>{% endif %}
+                    </li>
                     {% endfor %}
-                </div>
+                </ul>
                 {% if day.estimated_minutes > 0 %}
-                <p class="weekly-plan__time">≈ {{ day.estimated_minutes }} мин</p>
+                <p class="weekly-plan__time">Осталось ≈ {{ day.estimated_minutes }} мин</p>
                 {% endif %}
-                {% if day.total_slots > 0 %}
                 <p class="weekly-plan__progress">{{ day.completed_count }} / {{ day.total_slots }} выполнено</p>
+                {% elif day.plan_state == 'paused' %}
+                <p class="weekly-plan__progress">План на паузе</p>
+                {% if day.paused_until %}
+                <p class="weekly-plan__time">До <time datetime="{{ day.paused_until }}">{{ day.paused_until[8:10] }}.{{ day.paused_until[5:7] }}.{{ day.paused_until[:4] }}</time></p>
                 {% endif %}
-                <a href="{{ url_for('study.index') }}" class="weekly-plan__cta">Начать</a>
+                {% elif day.plan_state == 'empty' %}
+                <p class="weekly-plan__progress">Нет обязательных заданий</p>
+                {% else %}
+                <p class="weekly-plan__progress">Не удалось загрузить план</p>
+                <a href="{{ url_for('study.weekly_plan') }}" class="weekly-plan__cta">Повторить</a>
+                {% endif %}
+                {% if day.plan_state in ('active', 'empty') and has_module('words') %}
+                <a href="{{ url_for('words.dashboard') }}" class="weekly-plan__cta">Открыть план</a>
+                {% endif %}
 
             {% else %}
                 <div class="weekly-plan__slots weekly-plan__slots--projected">

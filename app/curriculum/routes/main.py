@@ -216,11 +216,8 @@ def error_review_session():
         item for item in breakdown.get('by_topic', []) if item.get('title')
     ][:3]
     topic_groups = []
-    all_error_ids: list[int] = []
-
     for group in raw_groups:
         topic = group['topic']
-        all_error_ids.extend(group['error_ids'])
 
         # Preprocess topic theory so template stays logic-free
         topic_title = None
@@ -304,6 +301,8 @@ def error_review_session():
                 'payload': {**p, 'correct_answer': formatted_correct, 'fill_word': fw},
             })
 
+        if not errors_display:
+            continue
         topic_groups.append({
             'topic_title': topic_title,
             'grammar_url': grammar_url,
@@ -312,14 +311,12 @@ def error_review_session():
             'topic_content': content,
             'lesson_titles': lesson_titles,
             'errors': errors_display,
-            'error_ids': group['error_ids'],
         })
 
     return render_template(
         'curriculum/error_review.html',
         topic_groups=topic_groups,
-        all_error_ids=all_error_ids,
-        total_errors=len(all_error_ids),
+        total_errors=sum(len(group['errors']) for group in topic_groups),
         top_lessons=top_lessons,
         top_topics=top_topics,
     )

@@ -5,16 +5,23 @@ import json
 from collections import Counter
 from collections.abc import Iterable
 
+from app.admin.services.content_package_rows import QuestionAnchorConflict
+
 _FIELDS = {
     'acceptable_answers': 'Допустимые ответы',
+    'answer': 'Правильный ответ',
     'audio': 'Аудиозапись',
     'audio_clip_url': 'Аудиозапись',
     'audio_text': 'Текст записи',
     'audio_translation': 'Перевод записи',
     'audio_url': 'Аудиозапись',
     'correct': 'Правильный ответ',
+    'correct_answer': 'Правильный ответ',
+    'correct_index': 'Правильный ответ',
+    'dialogue': 'Диалог',
     'example_response': 'Пример ответа',
     'explanation': 'Объяснение',
+    'hint': 'Подсказка',
     'hint_words': 'Подсказки',
     'instruction': 'Инструкция',
     'min_sentences': 'Минимум предложений',
@@ -23,11 +30,13 @@ _FIELDS = {
     'prompt_ru': 'Задание на русском',
     'question': 'Вопрос',
     'question_ru': 'Перевод вопроса',
+    'sentence': 'Предложение',
     'target_phrases': 'Опорные фразы',
     'template': 'Шаблон ответа',
     'transcript': 'Расшифровка записи',
     'translation': 'Перевод',
     'type': 'Тип задания',
+    'words': 'Слова и выражения',
 }
 _VALUES = {
     'type': {'listening_choice': 'Аудирование с выбором', 'multiple_choice': 'Выбор ответа'},
@@ -82,6 +91,30 @@ def _display_fields(before: dict, after: dict, fields: Iterable[str]) -> list[di
     } for field in fields]
 
 
+def _question_title(number: str, section: str = '') -> str:
+    title = f'Задание {number}' if number.isdecimal() else 'Задание'
+    return f'Раздел {section} · {title.lower()}' if section.isdecimal() else title
+
+
+def _display_position(index: str | int | None) -> str:
+    # An invalid archive address can contain an arbitrarily large integer.
+    return str(index + 1) if type(index) is int and 0 <= index < 1_000_000 else ''
+
+
+def display_question_conflict(error: QuestionAnchorConflict) -> dict:
+    file = error.target['file']
+    section = _display_position(error.path[1]) if len(error.path) == 4 else ''
+    fields = dict.fromkeys(_FIELDS.get(field, 'Другие исходные данные') for field in sorted(error.fields))
+    return {
+        **error.target,
+        'file': file if len(file) <= 200 else f'{file[:89]}…{file[-110:]}',
+        'question': _question_title(_display_position(error.path[-1]), section),
+        'moved_to': error.moved_index + 1 if error.moved_index is not None else None,
+        'fields': list(fields),
+        'reason': error.reason,
+    }
+
+
 def _display_change(change: dict) -> dict:
     path = change['path']
     parts = path.split(' / ')
@@ -95,9 +128,7 @@ def _display_change(change: dict) -> dict:
 
     before, after = json.loads(change['before']), json.loads(change['after'])
     fields = _display_fields(before, after, sorted(before.keys() | after.keys()))
-    title = f'Задание {parts[-1]}' if parts[-1].isdecimal() else 'Задание'
-    if len(parts) == 4 and parts[1].isdecimal():
-        title = f'Раздел {parts[1]} · {title.lower()}'
+    title = _question_title(parts[-1], parts[1] if len(parts) == 4 else '')
     if len(fields) == 1:
         title = f"{title} · {fields[0]['label']}"
     return {'title': title, 'fields': fields}

@@ -4,19 +4,27 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+import re
 from typing import Any
 
 from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from itsdangerous import BadData, URLSafeTimedSerializer
-from sqlalchemy import func, or_
+from sqlalchemy import exists, func, or_
 from sqlalchemy.orm import Query
 
+from app.admin.services.guided_disputes import guided_topic_for_dispute
 from app.admin.utils.decorators import content_editor_required
 from app.admin.utils.request_validators import escape_like
 from app.auth.models import User
 from app.curriculum.answer_review_ai import LABELS
-from app.curriculum.answer_disputes import AnswerDispute, AnswerDisputeReport
+from app.curriculum.answer_disputes import (
+    AnswerDispute,
+    AnswerDisputeReport,
+    NativeCourseDisputeReceipt,
+    course_dispute_channels,
+    course_report_channel_labels,
+)
 from app.curriculum.answer_review_edits import answer_aliases
 from app.curriculum.models import CEFRLevel, Lessons, Module
 from app.grammar_lab.models import GrammarExercise, GrammarTopic
@@ -37,6 +45,7 @@ _STATUS = {
 _PER_PAGE = 25
 _REPORTS_PER_PAGE = 50
 _PREVIEW_TTL = 1800
+_STRONG_REASON = re.compile(r'(?<!\*)\*\*(?![\s*])((?:[^*\r\n]|\*(?!\*))+?)(?<![\s*])\*\*(?!\*)')
 
 
 @answer_disputes_bp.after_request
@@ -65,6 +74,23 @@ def _display(value: Any) -> str:
     if isinstance(value, str):
         return value
     return json.dumps(value, ensure_ascii=False)
+
+
+def _reason_parts(value: object) -> list[tuple[str, bool]]:
+    """Keep legacy emphasis markers separate from text escaped by the template."""
+    if value is None:
+        return []
+    text = str(value)
+    parts = []
+    end = 0
+    for match in _STRONG_REASON.finditer(text):
+        if match.start() > end:
+            parts.append((text[end:match.start()], False))
+        parts.append((match[1], True))
+        end = match.end()
+    if end < len(text):
+        parts.append((text[end:], False))
+    return parts
 
 
 def _case_data(row: Any, *, is_admin: bool) -> dict:
@@ -198,20 +224,29 @@ def _detail(case_id: int, *, error: str | None = None, preview: dict | None = No
     dispute = row[0]
     is_admin = bool(current_user.is_admin)
     case = _case_data(row, is_admin=is_admin)
+    guided_topic = guided_topic_for_dispute(dispute)
+    case['guided_topic_id'] = guided_topic.id if guided_topic else None
+    case['ai_reason_parts'] = _reason_parts(case['ai_reason'])
+    case['processing_note_parts'] = _reason_parts(case['processing_note'])
     query = AnswerDisputeReport.query.filter_by(dispute_id=case_id)
     total = query.count()
     pages = max(1, (total + _REPORTS_PER_PAGE - 1) // _REPORTS_PER_PAGE)
     page = min(pages, max(1, request.args.get('reporters_page', default=1, type=int)))
+    native_reported = exists().where(NativeCourseDisputeReceipt.report_id == AnswerDisputeReport.id)
+    channels = course_dispute_channels(db.session, case_id) if dispute.lesson_id is not None else []
     reporters = []
     if is_admin:
-        people = query.join(User, User.id == AnswerDisputeReport.user_id).add_columns(User.username)
+        people = query.join(User, User.id == AnswerDisputeReport.user_id).add_columns(
+            User.username, native_reported.label('native_reported'),
+        )
         reporters = [dict(user_id=r.user_id, username=name, created_at=r.created_at, credited_at=r.credited_at,
-                          thanked_at=r.thanked_at, profile_url=url_for('user_admin.user_detail', user_id=r.user_id))
-                     for r, name in people.order_by(AnswerDisputeReport.id).limit(_REPORTS_PER_PAGE)
+                          thanked_at=r.thanked_at, profile_url=url_for('user_admin.user_detail', user_id=r.user_id),
+                          channels=course_report_channel_labels(r.course_web_reported, native))
+                     for r, name, native in people.order_by(AnswerDisputeReport.id).limit(_REPORTS_PER_PAGE)
                      .offset((page - 1) * _REPORTS_PER_PAGE)]
     version = editor_version(dispute)
     editable = dispute.status in EDITABLE
-    case.update(reporters=reporters, reporter_count=total, version=version, editable=editable,
+    case.update(reporters=reporters, reporter_count=total, channels=channels, version=version, editable=editable,
                 decided_by=_decision_author(dispute.review or {}) if is_admin else None)
     return render_template('admin/answer_disputes/detail.html', case=case, reporters=reporters,
                            reporters_page=page, reporters_pages=pages, version=version, can_see_reporters=is_admin,

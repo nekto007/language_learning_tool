@@ -89,24 +89,57 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Содержимое урока</h5>
                 <div>
+                    {% if content_revision is defined and lesson.type == 'quiz' %}
+                    <button type="button" class="btn btn-outline-info btn-sm" data-quiz-choice-open
+                            aria-expanded="false" aria-controls="quiz-choice-preview">Предпросмотр задания</button>
+                    {% else %}
                     <a href="{{ url_for('curriculum_api.api_get_lesson_info', lesson_id=lesson.id) }}" class="btn btn-outline-info btn-sm">
                         <i class="fas fa-eye me-1"></i>Просмотр
                     </a>
+                    {% endif %}
                 </div>
             </div>
             <div class="card-body">
-                <form method="POST" id="contentForm">
+                <form method="POST" id="contentForm"
+                      data-submitted-draft="{{ 'true' if submitted_draft else 'false' }}"
+                      data-draft-revision="{{ draft_revision if draft_revision is not none and draft_revision is defined else content_revision|default('') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    
-                    <div class="mb-3">
-                        <label for="content" class="form-label">JSON содержимое</label>
-                        <textarea name="content" id="content" class="form-control" rows="20" style="font-family: monospace;">{{ content_json if content_json else '{}' }}</textarea>
-                        <div class="form-text">
+                    {% if content_revision is defined %}
+                    <input type="hidden" name="content_revision" value="{{ content_revision }}">
+                    {% endif %}
+
+                    {% if conflict_json is defined and conflict_json is not none %}
+                    <div class="alert alert-warning" role="alert">
+                        <h6 class="alert-heading">Проверьте версию урока</h6>
+                        <p class="mb-0">Черновик сохранён в форме. Сравните его с текущим JSON и перенесите нужные изменения перед сохранением.</p>
+                    </div>
+                    {% endif %}
+                    <div class="row gy-3 mb-3">
+                        {% if conflict_json is defined and conflict_json is not none %}
+                        <div class="col-12 col-xl-6">
+                            <label for="published-content" class="form-label">Текущий сохранённый JSON</label>
+                            <textarea id="published-content" class="form-control font-monospace" rows="20" readonly>
+{{ conflict_json }}</textarea>
+                        </div>
+                        {% endif %}
+                        <div class="{{ 'col-12 col-xl-6' if conflict_json is defined and conflict_json is not none else 'col-12' }}">
+                            <label for="content" class="form-label">{{ 'Ваш черновик' if conflict_json is defined and conflict_json is not none else 'JSON содержимое' }}</label>
+                            <textarea name="content" id="content" class="form-control font-monospace" rows="20">
+{{ content_json|default('{}') }}</textarea>
+                            <div class="form-text">
                             Редактируйте содержимое урока в формате JSON. 
                             <a href="#" data-bs-toggle="modal" data-bs-target="#jsonHelpModal">Помощь по форматам</a>
+                            </div>
                         </div>
                     </div>
-                    
+
+                    {% if conflict_json is defined and conflict_json is not none %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="reviewed-content-conflict"
+                               name="reviewed_content_conflict" value="1" required>
+                        <label class="form-check-label" for="reviewed-content-conflict">Я сверил черновик с текущей версией</label>
+                    </div>
+                    {% endif %}
                     <div class="d-flex gap-2 flex-wrap">
                         <button type="button" class="btn btn-outline-secondary" onclick="validateJSON()">
                             <i class="fas fa-check me-2"></i>Проверить JSON
@@ -120,6 +153,25 @@
                         </button>
                     </div>
                 </form>
+                {% if content_revision is defined and lesson.type == 'quiz' %}
+                <section id="quiz-choice-preview" class="mt-4 border-top pt-3" hidden
+                         data-quiz-choice-preview="{{ url_for('curriculum_admin.preview_lesson_choice', lesson_id=lesson.id) }}"
+                         aria-labelledby="quiz-choice-title">
+                    <h2 class="h4" id="quiz-choice-title" tabindex="-1">Предпросмотр задания</h2>
+                    <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+                        <div>
+                            <label class="form-label" for="quiz-choice-number">Номер вопроса</label>
+                            <input type="number" id="quiz-choice-number" class="form-control" min="1" step="1" value="1">
+                        </div>
+                        <button type="button" id="quiz-choice-load" class="btn btn-outline-primary">Показать вопрос</button>
+                    </div>
+                    <p class="alert alert-danger" id="quiz-choice-error" role="alert" tabindex="-1" hidden></p>
+                    <div id="quiz-choice-screen"></div>
+                    <button type="button" id="quiz-choice-check" class="btn btn-primary my-2" hidden disabled>Проверить ответ</button>
+                    <div id="quiz-choice-result"></div>
+                    <button type="button" id="quiz-choice-close" class="btn btn-outline-secondary my-2">Продолжить редактирование</button>
+                </section>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -314,28 +366,65 @@ function showAlert(message, type) {
     }, 3000);
 }
 
-// Auto-save draft functionality
+// Keep the version the draft was based on, including when restoring it from storage.
+const contentForm = document.getElementById('contentForm');
+const contentField = document.getElementById('content');
+const revisionField = contentForm.elements.namedItem('content_revision');
+const draftKey = 'lesson_{{ lesson.id }}_draft';
+let draftRevision = contentForm.dataset.draftRevision;
 let autoSaveTimeout;
-document.getElementById('content').addEventListener('input', function() {
+
+function storedDraft() {
+    const stored = localStorage.getItem(draftKey);
+    if (stored === null) return null;
+    try {
+        const draft = JSON.parse(stored);
+        if (draft?.format === 'lesson-json-draft-v1' && typeof draft.text === 'string' &&
+            typeof draft.revision === 'string') return draft;
+    } catch (_) {
+        // Older drafts stored the raw text.
+    }
+    return {text: stored, revision: ''};
+}
+
+function persistDraft() {
+    try {
+        localStorage.setItem(draftKey, JSON.stringify({
+            format: 'lesson-json-draft-v1', text: contentField.value, revision: draftRevision,
+        }));
+    } catch (_) {
+        // Storage can be disabled. The form keeps working.
+    }
+}
+
+contentField.addEventListener('input', function() {
     clearTimeout(autoSaveTimeout);
-    autoSaveTimeout = setTimeout(() => {
-        localStorage.setItem('lesson_{{ lesson.id }}_draft', this.value);
-    }, 1000);
+    autoSaveTimeout = setTimeout(persistDraft, 1000);
 });
 
-// Load draft on page load
 window.addEventListener('load', function() {
-    const draft = localStorage.getItem('lesson_{{ lesson.id }}_draft');
-    if (draft && draft !== document.getElementById('content').value) {
-        if (confirm('Найден сохраненный черновик. Загрузить его?')) {
-            document.getElementById('content').value = draft;
+    try {
+        const draft = storedDraft();
+        if (contentForm.dataset.submittedDraft === 'true') {
+            if (!draft) persistDraft();
+        } else if (draft && draft.text !== contentField.value && confirm('Найден сохранённый черновик. Загрузить его?')) {
+            contentField.value = draft.text;
+            draftRevision = draft.revision;
+            if (revisionField) revisionField.value = draft.revision;
         }
+    } catch (_) {
+        // Storage is optional.
     }
 });
 
-// Clear draft on successful submit
-document.getElementById('contentForm').addEventListener('submit', function() {
-    localStorage.removeItem('lesson_{{ lesson.id }}_draft');
+contentForm.addEventListener('submit', function() {
+    clearTimeout(autoSaveTimeout);
+    try {
+        const draft = storedDraft();
+        if (draft?.text === contentField.value && draft.revision === draftRevision) localStorage.removeItem(draftKey);
+    } catch (_) {
+        // Storage is optional.
+    }
 });
 
 // Loading state for buttons
@@ -350,4 +439,11 @@ document.querySelectorAll('form').forEach(form => {
     });
 });
 </script>
+{% endblock %}
+
+{% block extra_js %}
+{% if content_revision is defined and lesson.type == 'quiz' %}
+<script src="{{ url_for('static', filename='js/practice-question-view.js', v='20261126-choice-preview') }}" defer></script>
+<script src="{{ url_for('static', filename='js/admin/quiz-choice-preview.js', v='20261126-choice-preview') }}" defer></script>
+{% endif %}
 {% endblock %}

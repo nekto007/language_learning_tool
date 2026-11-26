@@ -107,6 +107,10 @@
     <div class="lesson-shell__card writing-prompt-input-section">
       <p id="writing-draft-status" role="status" hidden></p>
       <p id="writing-storage-warning" class="alert alert-warning" role="status" hidden></p>
+      <p id="writing-context-warning" class="alert alert-warning" role="alert" hidden>
+        {{ _('Задание обновилось. Если нужно, скопируйте ответ, затем откройте актуальное задание и проверьте новые критерии.') }}
+        <a href="{{ url_for('curriculum_lessons.writing_prompt_lesson', lesson_id=lesson.id) }}">{{ _('Открыть актуальное задание') }}</a>
+      </p>
       <label class="writing-prompt-input-label" for="writing-response">
         <i class="fas fa-keyboard"></i>
         {{ _('Ваш ответ:') }}
@@ -206,11 +210,13 @@ const MIN_CHECKLIST = {{ min_checklist | default(2) | int }};
 const TARGET_PHRASES = {{ target_phrases | tojson }};
 const MODE_IS_GUIDED = {{ (mode == 'guided') | tojson }};
 const WRITING_DRAFT_KEY = 'llt:writing:{{ current_user.id }}:{{ lesson.id }}';
-const WRITING_DRAFT_REVISION = JSON.stringify({version: {{ lesson.content_version | default(0, true) | tojson }}, content: {{ lesson.content | tojson }}});
+const WRITING_CONTEXT = {{ writing_context | default(none) | tojson }};
+const WRITING_DRAFT_REVISION = JSON.stringify({version: {{ issued_writing_version | default(lesson.content_version) | default(0, true) | tojson }}, content: {{ issued_writing_content | default(lesson.content) | tojson }}});
 // The lesson shell removes the one-shot retry query before DOMContentLoaded.
 const WRITING_RETRY_REQUESTED = new URLSearchParams(location.search).get('retry') === 'true';
 let writingDraftReady = false;
 let writingFinished = {{ is_completed | default(false) | tojson }};
+let writingContextStale = false;
 let writingStorageAvailable = true;
 let writingStorageReadable = true;
 let writingUnloadGuarded = false;
@@ -243,6 +249,7 @@ function saveWritingDraft() {
   try {
     sessionStorage.setItem(WRITING_DRAFT_KEY, JSON.stringify({
       revision: WRITING_DRAFT_REVISION,
+      stale: writingContextStale,
       text: document.getElementById('writing-response').value,
       checked: Array.from(document.querySelectorAll('.writing-prompt-checkbox:checked')).map(cb => cb.value),
       manual: Array.from(document.querySelectorAll('.writing-prompt-checkbox[data-manual="true"]')).map(cb => cb.value),
@@ -263,12 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const retryRequested = WRITING_RETRY_REQUESTED;
     if (writingFinished || retryRequested) {
+      if (draft?.stale) showPreviousWritingDraft(draft);
       if (retryRequested && !writingFinished) {
         document.getElementById('writing-response').value = '';
         document.querySelectorAll('.writing-prompt-checkbox').forEach(cb => { cb.checked = false; });
       }
-      sessionStorage.removeItem(WRITING_DRAFT_KEY);
-    } else if (draft && draft.revision === WRITING_DRAFT_REVISION) {
+      if (!writingFinished || !draft?.stale) sessionStorage.removeItem(WRITING_DRAFT_KEY);
+    } else if (draft && !draft.stale && draft.revision === WRITING_DRAFT_REVISION) {
       document.getElementById('writing-response').value = typeof draft.text === 'string' ? draft.text : '';
       const checked = new Set(Array.isArray(draft.checked) ? draft.checked : []);
       const manual = new Set(Array.isArray(draft.manual) ? draft.manual : []);
@@ -460,6 +468,11 @@ function _renderReadiness(text, count) {
   const wrap = document.getElementById('wp-readiness');
   const submitBtn = document.getElementById('submit-btn');
   if (!list || !title || !wrap || !submitBtn) return;
+  if (writingContextStale) {
+    submitBtn.disabled = true;
+    wrap.hidden = true;
+    return;
+  }
   const missing = _writingReadiness(text, count);
   list.innerHTML = '';
   if (missing.length === 0) {
@@ -500,6 +513,7 @@ function _setResultBadge(kind, iconHtml, message, statTextOrNull) {
 }
 
 async function submitWriting() {
+  if (writingContextStale) return;
   const text = document.getElementById('writing-response').value.trim();
   const wordCount = countWords(text);
   const sentenceCount = countSentences(text);
@@ -534,9 +548,26 @@ async function submitWriting() {
         checklist_completed: true,
         checked_items: checkedItems,
         lesson_type: 'writing_prompt',
+        ...(WRITING_CONTEXT ? {writing_context: WRITING_CONTEXT} : {}),
       }),
     });
 
+    if (resp.status === 409) {
+      const error = await resp.json();
+      if (error.error === 'lesson_changed') {
+        writingContextStale = true;
+        saveWritingDraft();
+        submitBtn.classList.remove('btn--loading');
+        submitBtn.innerHTML = '<i class="fas fa-check"></i> {{ _("Завершить") }}';
+        document.getElementById('wp-readiness').hidden = true;
+        const warning = document.getElementById('writing-context-warning');
+        warning.hidden = false;
+        const refresh = warning.querySelector('a');
+        refresh.href = window.location.href;
+        refresh.focus();
+        return;
+      }
+    }
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     showResult(data);

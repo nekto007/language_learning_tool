@@ -451,7 +451,7 @@ def _render_lesson_by_type(ctx):
             'curriculum/book_courses/lessons/vocabulary.html',
             **common, vocabulary_data=vocabulary_data,
             total_words=len(vocabulary_data), daily_lesson=daily_lesson,
-            book_deck=book_deck, **fc_vars,
+            book_deck=book_deck, fc_require_completion_receipt=bool(daily_lesson), **fc_vars,
         )
 
     if lesson_type in ['grammar', 'language_focus']:

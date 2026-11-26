@@ -82,7 +82,10 @@ def test_row_package_stops_on_drift_and_rolls_back_when_audit_fails(
     pending = _preview_id(_page(admin_client, _upload(admin_client, zip_entries)))
     second.content = {**second_old, 'exercises': [{**second_old['exercises'][0], 'extra': 0}, second_old['exercises'][1]]}
     db_session.commit()
-    _page(admin_client, admin_client.post(APPLY, data={'preview_id': pending}))
+    page = _page(admin_client, admin_client.post(APPLY, data={'preview_id': pending}))
+    conflict = page.select_one('[aria-labelledby=package-conflict]')
+    assert 'Задание 1 · Другие исходные данные' in conflict.get_text(' ', strip=True)
+    assert conflict.select_one('a')['href'] == f'/curriculum/admin/lesson/{second.id}/edit'
     db_session.refresh(first)
     db_session.refresh(second)
     assert first.content == first_old and second.content['exercises'][0]['extra'] == 0
@@ -101,6 +104,46 @@ def test_row_package_stops_on_drift_and_rolls_back_when_audit_fails(
     db_session.refresh(second)
     assert first.content == first_old and second.content['exercises'][0]['options'] == ['Yes, I do.', 'Not really.']
     assert _audit_count(admin_user) == 0
+
+
+@pytest.mark.parametrize(('reason', 'message'), [
+    ('changed', 'Задание 1 · Варианты ответа'),
+    ('moved', 'Исходное задание теперь на позиции 2'),
+    ('ambiguous', 'Исходные данные совпадают у нескольких заданий'),  # noqa: RUF001 -- Russian UI message.
+    ('missing', 'На указанном месте больше нет задания'),  # noqa: RUF001 -- Russian UI message.
+])
+def test_conflict_names_source_and_keeps_current_rows(
+    admin_client: FlaskClient, admin_user: User, db_session: scoped_session, test_module: Module,
+    reason: str, message: str,
+) -> None:
+    lesson = _lesson(db_session, test_module, 13)
+    archive = {'rows/dialogue.json': _patch(lesson)}
+    preview_id = _preview_id(_page(admin_client, _upload(admin_client, archive)))
+    first, second = lesson.content['exercises']
+    current = {
+        'changed': [{**first, 'options': [first['correct'], 'Not today.']}, second],
+        'moved': [second, first],
+        'ambiguous': [first, second, first],
+        'missing': [],
+    }[reason]
+    lesson.content = {**lesson.content, 'exercises': current}
+    db_session.commit()
+    for rejected in (
+        _page(admin_client, admin_client.post(APPLY, data={'preview_id': preview_id})),
+        _page(admin_client, _upload(admin_client, archive)),
+    ):
+        conflict = rejected.select_one('[aria-labelledby=package-conflict]')
+        assert conflict is not None
+        text = conflict.get_text(' ', strip=True)
+        assert f'Урок 13 «{lesson.title}»' in text and message in text
+        assert 'Пакет не применён' in text and 'rows/dialogue.json' in text
+        assert 'проверить ZIP с актуальными исходными данными' in text  # noqa: RUF001 -- Russian UI message.
+        assert 'exercises' not in text
+        assert rejected.select_one('input[name=preview_id]') is None
+    replay = _page(admin_client, admin_client.post(APPLY, data={'preview_id': preview_id}))
+    assert 'Предпросмотр устарел' in replay.get_text(' ', strip=True)
+    db_session.refresh(lesson)
+    assert lesson.content['exercises'] == current and _audit_count(admin_user) == 0
 
 
 def test_rejects_other_module_and_ambiguous_anchor(

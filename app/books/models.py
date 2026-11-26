@@ -3,10 +3,10 @@
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlalchemy import CheckConstraint, Column, Date, DateTime
+from sqlalchemy import BigInteger, CheckConstraint, Column, Date, DateTime, FetchedValue
 from sqlalchemy import Enum as SQLAEnum
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Float, ForeignKey, Index, Integer, SmallInteger, String, Text, UniqueConstraint, text
+from sqlalchemy.orm import deferred, relationship
 
 from app.utils.db import db
 from app.utils.types import JSONBCompat, TSVectorCompat
@@ -74,6 +74,8 @@ class Book(db.Model):
         server_default='worldwide',
     )
     expiration_date = Column(Date, nullable=True)
+    # The PostgreSQL trigger advances this together with the fields that govern text access.
+    text_policy_revision = Column(BigInteger, nullable=False, server_default='1', server_onupdate=FetchedValue())
 
     words = relationship("CollectionWords", secondary="word_book_link", back_populates="books")
     chapters = relationship("Chapter", back_populates="book", cascade="all, delete-orphan")
@@ -138,6 +140,8 @@ class Chapter(db.Model):
     title = Column(String(255), nullable=False)
     words = Column(Integer, nullable=False)
     text_raw = Column(Text, nullable=False)  # Full chapter text
+    # PostgreSQL advances this on committed text changes. Ordinary readers do not select it.
+    text_generation = deferred(Column(BigInteger, nullable=False, server_default='1'))
     audio_url = Column(Text)  # Optional S3 URL for audio
     ts_idx = Column(TSVectorCompat)  # Full-text search index
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -154,6 +158,18 @@ class Chapter(db.Model):
 
     def __repr__(self):
         return f"<Chapter {self.chap_num} of Book {self.book_id}>"
+
+
+chapter_text_revision_cache = db.Table(
+    'chapter_text_revision_cache',
+    Column('chapter_id', Integer, ForeignKey('chapter.id', ondelete='CASCADE'), primary_key=True),
+    Column('effective_percent', SmallInteger, primary_key=True),
+    Column('projection', String(6), primary_key=True),
+    Column('generation', BigInteger, nullable=False),
+    Column('revision', String(67), nullable=False),
+    CheckConstraint('effective_percent BETWEEN 1 AND 100', name='ck_chapter_revision_percent'),
+    CheckConstraint("projection IN ('reader', 'admin')", name='ck_chapter_revision_projection'),
+)
 
 
 # Модель для отслеживания прогресса чтения

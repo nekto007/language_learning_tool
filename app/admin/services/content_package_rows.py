@@ -28,6 +28,21 @@ _WRITING_FIELDS = frozenset({'prompt', 'prompt_ru', 'mode', 'checklist', 'target
                             'example_response', 'hint_words', 'hint', 'hints'})
 
 
+class QuestionAnchorConflict(ValueError):
+    """The exact source row cannot be uniquely confirmed at its archive position."""
+
+    def __init__(
+        self, reason: str, path: tuple[str | int, ...], *, fields: set[str] | None = None,
+        moved_index: int | None = None,
+    ) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.path = path
+        self.fields = fields or set()
+        self.moved_index = moved_index
+        self.target: dict = {}
+
+
 def writing_guard(content: dict) -> str:
     """Bind an editorial change to the current writing directions and rubric."""
     return content_digest({key: value for key, value in content.items()
@@ -98,6 +113,11 @@ def _check_row(kind: str, previous: dict, updated: dict, fields: set[str]) -> No
                     raise ValueError('Вариант порядка должен собираться из исходных плиток.')
 
 
+def _different_fields(before: dict, after: dict) -> set[str]:
+    return {key for key in before.keys() | after.keys()
+            if key not in before or key not in after or _ordered_json(before[key]) != _ordered_json(after[key])}
+
+
 def _plan_changes(lesson: Lessons, changes: list) -> tuple[dict, list[dict]]:
     content = deepcopy(lesson.content)
     slots = _slots(content, lesson.type)
@@ -134,13 +154,23 @@ def _plan_changes(lesson: Lessons, changes: list) -> tuple[dict, list[dict]]:
         address = tuple(path)
         rows = slots.get(address[:-1])
         index = address[-1]
-        if rows is None or address in used or not 0 <= index < len(rows):
+        if address in used or index < 0:
             raise ValueError('Путь к заданию отсутствует или повторяется.')
+        if rows is None:
+            raise QuestionAnchorConflict('missing', address)
         anchor = _ordered_json(before)
-        if _ordered_json(rows[index]) != anchor or sum(_ordered_json(row) == anchor for row in rows) != 1:
-            raise ValueError(f'Исходное задание по пути {path} изменилось или неоднозначно.')
-        fields = {key for key in before.keys() | after.keys()
-                  if key not in before or key not in after or _ordered_json(before[key]) != _ordered_json(after[key])}
+        matches = [position for position, row in enumerate(rows) if _ordered_json(row) == anchor]
+        if len(matches) > 1:
+            raise QuestionAnchorConflict('ambiguous', address)
+        if matches and matches[0] != index:
+            raise QuestionAnchorConflict('moved', address, moved_index=matches[0])
+        if index >= len(rows):
+            raise QuestionAnchorConflict('missing', address)
+        if not matches:
+            current = rows[index]
+            raise QuestionAnchorConflict('changed', address, fields=_different_fields(before, current)
+                                         if isinstance(current, dict) else set())
+        fields = _different_fields(before, after)
         _check_row(lesson.type, before, after, fields)
         seen_fields = sorted(fields)
         summaries.append({'path': ' / '.join(str(value + 1 if type(value) is int else value) for value in address),
@@ -208,6 +238,10 @@ def plan_row_package(entries: list[dict], *, lock: bool = False) -> tuple[list[d
             if AnswerDispute.query.filter_by(lesson_id=lesson.id, status='applied').first() is not None:
                 raise ValueError('Есть применённое решение спора. Сверьте его перед точечной правкой.')
             content, changes_summary = _plan_changes(lesson, changes)
+        except QuestionAnchorConflict as error:
+            error.target = {'file': name, 'level': level, 'module': number, 'lesson': lesson.title,
+                            'lesson_id': lesson.id, 'lesson_number': lesson.number}
+            raise
         except ValueError as error:
             raise ValueError(f'{level} М{number} · {lesson.title}: {error}') from error
         summaries.append({'name': name, 'title': f'{level} · Модуль {number} · {lesson.title}', 'kind': 'lesson_rows',

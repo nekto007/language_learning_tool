@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname,'../../app/static/js/guided-practice.js'),'utf8');
+const source = ['practice-question-view.js', 'guided-practice.js']
+  .map(file => fs.readFileSync(path.join(__dirname, '../../app/static/js', file), 'utf8')).join('\n');
 const flush = () => new Promise(resolve=>setImmediate(resolve));
 
 async function editor(options={}) {
@@ -133,6 +134,7 @@ test('result appears before plan lookup, links to same-lesson correction, and dr
   const p=await editor({result:{completed:false,correction_pending:true,score:50},plan:()=>planned});
   await p.click('Сохранить результат');
   assert.match(p.screen.textContent,/Результат первой попытки: 50%/);
+  assert.match(p.screen.textContent,/В первой попытке были ошибки\./);
   assert.match(p.screen.textContent,/Уточняем следующий шаг/);
   assert.deepEqual(p.planRequests,['/api/daily-plan/next-step?result_day=2026-11-24']);
   resolve({status:'next',title:'Работа над ошибками',url:'/learn/42/?quiz_phase=correction',lesson_id:42,quiz_phase:'correction'});
@@ -144,7 +146,25 @@ test('result appears before plan lookup, links to same-lesson correction, and dr
   await p.events.pageshow({persisted:true});await flush();
   assert.match(p.screen.textContent,/Начался новый учебный день/);
   assert.match(p.screen.textContent,/Результат первой попытки: 50%/);
+  assert.match(p.screen.textContent,/В первой попытке были ошибки\./);
   assert.equal(p.screen.querySelectorAll('a').length,1);
+});
+
+test('restoring the first receipt leaves the correction link to the live plan', async () => {
+  const result = {completed: false, correction_pending: true, score: 50};
+  const first = await editor({history: {}, result, plan: () => ({status: 'next',
+    title: 'Работа над ошибками', url: '/learn/42/?quiz_phase=correction', lesson_id: 42, quiz_phase: 'correction'})});
+  await first.click('Сохранить результат');
+  assert.equal(first.screen.querySelectorAll('a').length, 2);
+
+  for (const plan of [() => ({status: 'secured'}), () => { throw Error('offline'); }]) {
+    const restored = await editor({history: first.history.state, clean: true, plan});
+    assert.match(restored.screen.textContent, /Результат первой попытки: 50%/);
+    assert.match(restored.screen.textContent, /В первой попытке были ошибки\./);
+    assert.doesNotMatch(restored.screen.textContent, /назначена отдельным заданием/);
+    assert.deepEqual(restored.screen.querySelectorAll('a').map(a => a.textContent), ['К плану дня']);
+    assert.equal(restored.writes.length, 0);
+  }
 });
 
 test('review and failed results skip lookup; plan failure or a repeated lesson preserves the score and exit',async()=>{

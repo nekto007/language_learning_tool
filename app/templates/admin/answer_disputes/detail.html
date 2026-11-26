@@ -1,12 +1,17 @@
 {% extends 'admin/base.html' %}
 {% from 'admin/components.html' import breadcrumb %}
 {% block title %}Спор №{{ case.id }}{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/answer-disputes.css') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/answer-disputes.css', v='20261126-1') }}">{% endblock %}
 {% block breadcrumb %}
 {{ breadcrumb(([('Админка', url_for('dashboard_admin.dashboard'))] if can_see_reporters else []) + [('Спорные ответы', url_for('.index')), ('Спор №' ~ case.id, '')]) }}
 {% endblock %}
 {% macro value_text(value) -%}
 {% if value is none or value == '' %}—{% elif value is mapping %}{% for key, item in value.items() %}{{ key }} → {{ item }}{% if not loop.last %}, {% endif %}{% endfor %}{% elif value is sequence and value is not string %}{{ value|join(' · ') }}{% else %}{{ value }}{% endif %}
+{%- endmacro %}
+{% macro review_reason(parts) -%}
+{% for text, emphasized in parts -%}
+{% if emphasized %}<strong>{{ text }}</strong>{% else %}{{ text }}{% endif %}
+{%- endfor %}
 {%- endmacro %}
 {% set decisions = {'add': 'Добавить допустимый ответ', 'replace': 'Заменить ключ', 'reject': 'Отклонить', 'revise': 'На доработку'} %}
 {% set labels = {'valid_variant': 'Возможен второй верный ответ', 'wrong_key': 'Возможная ошибка в ключе', 'grader_issue': 'Возможная ошибка проверки', 'learner_error': 'Вероятная ошибка ученика', 'insufficient_context': 'Недостаточно контекста', 'manual': 'Требуется ручной разбор', 'stale': 'Материал изменился'} %}
@@ -17,6 +22,10 @@
             <div class="disputes-title-line"><h1 class="page-title">Спор №{{ case.id }}</h1>
                 <span class="disputes-status" data-status="{{ case.status }}">{{ case.status_label }}</span></div>
             {% if case.source_url %}<a href="{{ case.source_url }}">{{ case.source_title }}</a>{% else %}{{ case.source_title }}{% endif %}
+            {% if case.guided_topic_id %}
+            <p class="disputes-note"><a id="dispute-guided-topic" href="{{ url_for('guided_topics_admin.edit', topic_id=case.guided_topic_id, from_dispute=case.id) }}">Открыть пошаговую тему</a></p>
+            {% endif %}
+            {% if case.channels %}<p class="disputes-note" id="dispute-report-channels">Источники обращений — {{ case.channels|join(' · ') }}</p>{% endif %}
         </div>
         {% if next_case_id %}<a href="{{ url_for('.detail', case_id=next_case_id) }}">Следующий спор →</a>{% endif %}
     </header>
@@ -69,10 +78,10 @@
         {% if case.ai_reason or case.ai_label %}
         <div class="disputes-ai"><h3>Разбор ИИ</h3>
             {% if case.ai_label %}<strong>{{ labels.get(case.ai_label, case.ai_label) }}</strong>{% endif %}
-            {% if case.ai_reason %}<p>{{ case.ai_reason }}</p>{% endif %}
+            {% if case.ai_reason_parts %}<p>{{ review_reason(case.ai_reason_parts) }}</p>{% endif %}
         </div>
         {% endif %}
-        {% if case.processing_note %}<div class="disputes-ai"><h3>Причина ручного разбора</h3><p>{{ case.processing_note }}</p></div>{% endif %}
+        {% if case.processing_note_parts %}<div class="disputes-ai"><h3>Причина ручного разбора</h3><p>{{ review_reason(case.processing_note_parts) }}</p></div>{% endif %}
     </section>
 
     {% if can_see_reporters %}
@@ -80,6 +89,7 @@
         <h2 id="learners-heading">Кто сообщил{% if case.reporter_count > 1 %} · {{ case.reporter_count }}{% endif %}</h2>
         {% if reporters %}<ul class="disputes-reporters">
             {% for who in reporters %}<li><div>{% if who.profile_url %}<a href="{{ who.profile_url }}">{{ who.username or 'Ученик' }} · ID {{ who.user_id }}</a>{% else %}{{ who.username or 'Ученик' }} · ID {{ who.user_id }}{% endif %}</div>
+                {% if who.channels %}<small class="disputes-reporter-channels">{{ who.channels|join(' · ') }}</small>{% endif %}
                 {% if who.credited_at or who.thanked_at %}<small>{% if who.credited_at %}Ответ зачтён{% endif %}{% if who.credited_at and who.thanked_at %} · {% endif %}{% if who.thanked_at %}Благодарность отправлена{% endif %}</small>
                 {% elif who.created_at %}<small>Обращение от {{ who.created_at.strftime('%d.%m.%Y · %H:%M') }} UTC</small>{% endif %}
             </li>{% endfor %}

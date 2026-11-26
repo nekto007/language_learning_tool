@@ -1,12 +1,14 @@
 # app/curriculum/routes/admin.py
 
+import hashlib
 import json
 import logging
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 from flask import Blueprint, Response, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from itsdangerous import BadData, URLSafeTimedSerializer
+from itsdangerous import BadData, URLSafeSerializer, URLSafeTimedSerializer
 from sqlalchemy import or_
 
 from app.admin.audit import log_admin_action
@@ -274,6 +276,100 @@ def edit_module(module_id):
     return render_template('admin/curriculum/edit_module.html', module=module)
 
 
+def _quiz_choice_error(content: dict | list) -> str | None:
+    """Run the learner projection on each choice row without changing stored content."""
+    from app.api.native_content import is_extended, project
+    from app.api.native_lessons import NativeLessonError, project_questions
+
+    questions = content.get('questions') if isinstance(content, dict) else None
+    if not isinstance(questions, list):
+        return None
+    choice_rows = [
+        (number, question) for number, question in enumerate(questions, start=1)
+        if isinstance(question, dict) and question.get('type', 'multiple_choice') == 'multiple_choice'
+    ]
+    if not choice_rows:
+        return None
+    candidate = SimpleNamespace(type='quiz', content=content)
+    extended = is_extended(candidate)
+    project_rows = project if extended else project_questions
+    maximum = 30 if extended else 12
+    for number, question in choice_rows:
+        candidate.content = {'questions': [question]}
+        try:
+            project_rows(candidate)
+        except NativeLessonError:
+            return (
+                f'Вопрос №{number} не откроется при прохождении теста. '
+                f'Проверьте текст вопроса и укажите от 2 до {maximum} непустых вариантов и ключ ответа.'
+            )
+    return None
+
+
+def _lesson_content_revision(lesson: Lessons) -> str:
+    data = [lesson.id, lesson.type, lesson.grammar_topic_id, lesson.content]
+    encoded = json.dumps(data, ensure_ascii=True, sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(encoded.encode('ascii')).hexdigest()
+
+
+def _choice_preview_response(payload: dict, status: int = 200) -> tuple[Response, int]:
+    response = jsonify(payload)
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response, status
+
+
+@admin_bp.post('/admin/lesson/<int:lesson_id>/preview-choice')
+@login_required
+@admin_required
+def preview_lesson_choice(lesson_id: int) -> tuple[Response, int]:
+    """Project and grade one choice question from the editor's in-memory draft."""
+    from app.api.native_content import check_course_answer
+    from app.api.native_lessons import NativeLessonError, project_questions
+    from app.curriculum.language_support import language_support_mode
+
+    lesson = Lessons.query.get_or_404(lesson_id)
+    if lesson.type != 'quiz':
+        return _choice_preview_response({'error': 'Предпросмотр доступен для обычного квиза.'}, 404)
+    body = request.get_json(silent=True)
+    if (not isinstance(body, dict) or not isinstance(body.get('content'), str)
+            or type(body.get('question_number')) is not int or body['question_number'] < 1):
+        return _choice_preview_response({'error': 'Укажите номер вопроса и содержимое черновика.'}, 400)
+    try:
+        content = json.loads(body['content'])
+    except (ValueError, RecursionError):
+        return _choice_preview_response({'error': 'Исправьте формат JSON и обновите предпросмотр.'}, 422)
+    rows = content.get('questions') if isinstance(content, dict) else None
+    index = body['question_number'] - 1
+    if not isinstance(rows, list) or index >= len(rows):
+        return _choice_preview_response({'error': 'Проверьте номер вопроса. Такого задания нет.'}, 422)
+    row = rows[index]
+    if not isinstance(row, dict) or row.get('type', 'multiple_choice') != 'multiple_choice':
+        return _choice_preview_response({'error': 'Выберите вопрос формата multiple_choice.'}, 422)
+    media_error = {'error': 'Предпросмотр поддерживает выбор текстового варианта без медиа.'}
+    if any(content.get(key) for key in ('audio', 'audio_url', 'video', 'video_url', 'transcript')):
+        return _choice_preview_response(media_error, 422)
+
+    candidate = SimpleNamespace(id=lesson.id, type=lesson.type, module=lesson.module, content=content)
+    try:
+        question = project_questions(candidate)[index]
+        if question.get('input') != 'choice' or any(
+            question.get(key) for key in ('audio_url', 'image_url', 'video_url')
+        ):
+            return _choice_preview_response(media_error, 422)
+    except (NativeLessonError, TypeError, ValueError, RecursionError, IndexError):
+        return _choice_preview_response(
+            {'error': 'Проверьте текст, варианты и ключ ответа. Черновик не открывается в ученической практике.'}, 422,
+        )
+
+    payload = {'question': question, 'support_mode': language_support_mode(candidate)}
+    if 'answer' in body:
+        try:
+            payload['feedback'] = check_course_answer(candidate, question, body['answer'])
+        except NativeLessonError:
+            return _choice_preview_response({'error': 'Выберите один из вариантов в предпросмотре.'}, 422)
+    return _choice_preview_response(payload)
+
+
 @admin_bp.route('/admin/lesson/<int:lesson_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -285,36 +381,53 @@ def edit_lesson(lesson_id):
     if guided_editor := managed_lesson_editor(lesson):
         return guided_editor
 
+    signer = URLSafeSerializer(current_app.secret_key, salt='admin-lesson-content-v1')
+    submitted_json = None
+    submitted_revision = ''
+    response_status = 200
     if request.method == 'POST':
         # Check if it's the JSON content form
         if 'content' in request.form:
+            submitted_json = request.form['content']
+            submitted_revision = request.form.get('content_revision', '')
             try:
-                # Parse and validate content
-                content_str = request.form.get('content', '{}')
+                # The guided-topic guard above takes its topic lock first.
+                lesson = (Lessons.query.filter_by(id=lesson_id).populate_existing()
+                          .with_for_update().first_or_404())
+                revision = _lesson_content_revision(lesson)
                 try:
-                    content = json.loads(content_str)
-                except json.JSONDecodeError:
-                    flash('Неверный формат JSON в содержимом', 'error')
-                    return redirect(request.url)
-
-                # Basic content validation
-                if not isinstance(content, (dict, list)):
-                    flash('Содержимое должно быть объектом или массивом JSON', 'error')
-                    return redirect(request.url)
-
-                # Update lesson content
-                lesson.content = content
-                lesson.updated_at = datetime.now(UTC)
-
-                log_admin_action(
-                    current_user.id,
-                    'curriculum.lesson.update_content',
-                    target_type='lesson',
-                    target_id=lesson_id,
-                )
-                db.session.commit()
-                flash('Содержимое урока успешно обновлено', 'success')
-                return redirect(materials_return_url() or url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
+                    form_revision = signer.loads(submitted_revision)
+                except BadData:
+                    form_revision = None
+                confirmed = request.form.get('reviewed_content_conflict') == '1'
+                if form_revision != [revision, False] and not (confirmed and form_revision == [revision, True]):
+                    response_status = 409
+                else:
+                    try:
+                        content = json.loads(submitted_json)
+                    except (ValueError, RecursionError):
+                        flash('Неверный формат JSON в содержимом', 'danger')
+                        response_status = 422
+                    else:
+                        if not isinstance(content, (dict, list)):
+                            error = 'Содержимое должно быть объектом или массивом JSON'
+                        else:
+                            error = _quiz_choice_error(content) if lesson.type == 'quiz' else None
+                        if error:
+                            flash(error, 'danger')
+                            response_status = 422
+                        else:
+                            lesson.content = content
+                            lesson.updated_at = datetime.now(UTC)
+                            log_admin_action(
+                                current_user.id,
+                                'curriculum.lesson.update_content',
+                                target_type='lesson',
+                                target_id=lesson_id,
+                            )
+                            db.session.commit()
+                            flash('Содержимое урока успешно обновлено', 'success')
+                            return redirect(materials_return_url() or url_for('curriculum_admin.view_lesson', lesson_id=lesson.id))
 
             except Exception as e:
                 db.session.rollback()
@@ -365,13 +478,18 @@ def edit_lesson(lesson_id):
 
     # Get data for template
     modules = Module.query.order_by(Module.level_id, Module.number).all()
-    
+    published_json = json.dumps(lesson.content or {}, ensure_ascii=False, indent=2)
+    content_conflict = response_status == 409
     return render_template(
         'admin/curriculum/edit_lesson.html',
         lesson=lesson,
         modules=modules,
-        content_json=json.dumps(lesson.content, ensure_ascii=False, indent=2) if lesson.content else '{}'
-    )
+        content_json=published_json if submitted_json is None else submitted_json,
+        submitted_draft=submitted_json is not None,
+        content_revision=signer.dumps([_lesson_content_revision(lesson), content_conflict]),
+        conflict_json=published_json if content_conflict else None,
+        draft_revision=submitted_revision if content_conflict else None,
+    ), response_status
 
 
 @admin_bp.route('/admin/lesson/<int:lesson_id>/view')

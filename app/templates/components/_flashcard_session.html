@@ -32,14 +32,14 @@
 #}
 
 <!-- Flashcard Session CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcard-session.css', v='reading-cards-20261125') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcard-session.css', v='vocabulary-receipt-20261126') }}">
 <style nonce="{{ csp_nonce }}">
 .cards-page { overflow-wrap: anywhere; }
 .cards-page button, .cards-page h1 { max-width: 100%; min-width: 0; white-space: normal; }
 .cards-header { flex-wrap: wrap; }
 </style>
 
-<div class="cards-page" id="flashcard-app">
+<div class="cards-page" id="flashcard-app"{% if fc_require_completion_receipt %} data-book-vocabulary-receipt{% endif %}>
     <!-- Header strip -->
     <div class="cards-header">
         <div class="cards-header__left">
@@ -377,9 +377,17 @@
                    daily_plan_ctx). В каталоге — стандартный fallback с back-url
                    и «Следующий урок». Retry-кнопка показывается ТОЛЬКО в
                    каталоге (в плане она уводит от цели). #}
+                {% if fc_require_completion_receipt and not fc_is_completed %}
+                <div class="book-vocabulary-save">
+                    <p id="book-vocabulary-save-status" role="status" tabindex="-1">Сохраняем урок…</p>
+                    <button type="button" id="book-vocabulary-save-retry" class="btn btn-primary" hidden>
+                        Повторить сохранение
+                    </button>
+                </div>
+                {% endif %}
                 <div class="celebration-actions celebration-actions--unified"
                      data-celebration-actions
-                     data-completion-mode="standalone">
+                     data-completion-mode="standalone"{% if fc_require_completion_receipt and not fc_is_completed %} hidden{% endif %}>
 
                     {% if not (daily_plan_ctx and daily_plan_ctx.is_daily_plan) %}
                     <a href="#" id="session-extra-study-link" class="btn-extra-study" style="display: none;">
@@ -445,7 +453,7 @@
 <script src="{{ url_for('static', filename='js/linear-plan-context.js', v='reading-cards-20261125') }}"></script>
 
 <!-- Flashcard Session JS -->
-<script src="{{ url_for('static', filename='js/flashcard-session.js', v='reading-cards-20261125') }}"></script>
+<script src="{{ url_for('static', filename='js/flashcard-session.js', v='vocabulary-receipt-20261126') }}"></script>
 <script nonce="{{ csp_nonce }}">
     (function() {
         var url = new URL(window.location.href);
@@ -499,6 +507,7 @@
     var container = document.querySelector('[data-celebration-actions]');
     var screen = document.getElementById('session-complete');
     if (!container || !screen) { return; }
+    if (document.getElementById('book-vocabulary-save-status')) { return; }
     var ctx = window.linearPlanContext;
     if (!ctx || typeof ctx.applySrsPlanAwareCompletion !== 'function') { return; }
     if (typeof ctx.getSlotKind === 'function') {

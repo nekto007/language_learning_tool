@@ -1,5 +1,16 @@
 {% extends 'admin/base.html' %}
 {% block title %}Глава {{ chapter.chap_num }} · {{ book.title }}{% endblock %}
+{% macro chapter_paragraphs(impact) %}
+{% if impact.status == 'unchanged' %}
+Состав и номера абзацев те же.
+{% elif impact.status == 'same_numbers' %}
+Номера изменённых абзацев сохранены{% if impact.numbers %} · {{ impact.numbers[:6] | join(', ') }}{% if impact.numbers | length > 6 %} и ещё {{ impact.numbers | length - 6 }}{% endif %}{% endif %}.
+{% elif impact.status == 'shift' %}
+Изменились границы или порядок абзацев.
+{% else %}
+Число абзацев совпадает, порядок изменённых абзацев подтвердить не удалось.
+{% endif %}
+{% endmacro %}
 {% block content %}
 <p><a href="{{ url_for('.chapter_list', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Главы книги</a></p>
 <h1 class="h3">{{ book.title }} · глава {{ chapter.chap_num }}</h1>
@@ -7,6 +18,40 @@
 <p><a href="{{ url_for('short_reading_admin.edit', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Редактировать текст, словарь и вопросы</a></p>
 {% endif %}
 {% if error %}<p class="alert alert-warning" role="alert">{{ error }}</p>{% endif %}
+{% if impact %}
+<section class="card mb-3" aria-labelledby="chapter-impact"
+         data-text-revision-changed="{{ 'true' if impact.revision_changed else 'false' }}">
+    <div class="card-body text-break">
+        <h2 class="h5" id="chapter-impact">Влияние правки на чтение</h2>
+        <p class="mb-2">Глава {{ chapter.chap_num }} · {{ title or chapter.title }}</p>
+        {% if not impact.available_to_readers %}
+        <p class="mb-0">Издание сейчас закрыто для учеников.</p>
+        {% elif not impact.text_available %}
+        <p class="mb-0">В ученической версии текст главы недоступен.</p>
+        {% else %}
+        <dl class="row mb-2">
+            <dt class="col-sm-3">Веб</dt>
+            <dd class="col-sm-9">{{ chapter_paragraphs(impact.web) }}</dd>
+            <dt class="col-sm-3">Приложения</dt>
+            <dd class="col-sm-9">{{ chapter_paragraphs(impact.mobile) }}</dd>
+            <dt class="col-sm-3">Версия текста</dt>
+            <dd class="col-sm-9">
+                {% if impact.revision_changed %}Изменится для доступных {{ impact.reader_percent }}% текста.
+                {% else %}Для доступных {{ impact.reader_percent }}% текста останется прежней.{% endif %}
+            </dd>
+        </dl>
+        {% if impact.web.status in ('shift', 'uncertain') or impact.mobile.status in ('shift', 'uncertain') %}
+        <p class="mb-2">Закладки, сохранённые только на устройстве, могут вести к другому месту, если они опираются на номер абзаца.</p>
+        {% elif impact.revision_changed %}
+        <p class="mb-2">Номер абзаца сохраняется. Если устройство запомнило строку или символ внутри абзаца, точная позиция может сдвинуться.</p>
+        {% endif %}
+        {% if impact.revision_changed %}
+        <p class="mb-0">Если у ученика есть загруженная копия, она может показывать прежний текст до обновления в приложении.</p>
+        {% endif %}
+        {% endif %}
+    </div>
+</section>
+{% endif %}
 <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="revision" value="{{ revision }}">
@@ -25,9 +70,6 @@
     <section class="card mb-3" aria-labelledby="chapter-preview">
         <div class="card-body text-break">
             <h2 class="h5" id="chapter-preview">Предпросмотр изменений</h2>
-            {% if preview.structure_changed and book.is_published %}
-            <p class="alert alert-warning">Изменились границы или порядок абзацев. Закладки, сохранённые только на устройстве, могут вести к другому месту. Уже загруженная копия сохранит прежний текст до обновления в приложении.</p>
-            {% endif %}
             {% if title != chapter.title %}
             <p><strong>Название</strong> · {{ chapter.title }} → {{ title }}</p>
             {% endif %}

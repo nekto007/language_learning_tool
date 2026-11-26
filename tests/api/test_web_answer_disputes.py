@@ -187,11 +187,12 @@ def test_dispute_does_not_grade_final_answers(course: tuple, monkeypatch: pytest
     assert AnswerDispute.query.filter_by(lesson_id=lesson.id).count() == 0
 
 
-def test_postgresql_migration_and_concurrent_browsers() -> None:
+def test_postgresql_migration_and_concurrent_browsers(request: pytest.FixtureRequest) -> None:
     """Use a throwaway schema, leaving the configured test database untouched."""
     raw_url = os.getenv("LLT_DISPUTE_TEST_DATABASE_URL")
     if not raw_url:
         pytest.skip("Set LLT_DISPUTE_TEST_DATABASE_URL to a disposable local PostgreSQL test database")
+    request.getfixturevalue("app")  # Load the full ORM registry before the independent sessions.
     url = make_url(raw_url)
     assert url.get_backend_name() == "postgresql" and "_test" in (url.database or "")
     assert url.host in (None, "localhost", "127.0.0.1")
@@ -201,6 +202,7 @@ def test_postgresql_migration_and_concurrent_browsers() -> None:
     migration = import_module("migrations.versions.20261124_answer_disputes")
     lab_migration = import_module("migrations.versions.20261124_lab_disputes")
     reports_migration = import_module("migrations.versions.20261125_answer_dispute_reports")
+    native_migration = import_module("migrations.versions.20261126_native_quiz_disputes")
     try:
         with admin.begin() as conn:
             conn.execute(text(f"CREATE SCHEMA {schema}"))
@@ -227,6 +229,14 @@ def test_postgresql_migration_and_concurrent_browsers() -> None:
                 conn.execute(text("CREATE TABLE grammar_attempts (id INTEGER PRIMARY KEY)"))
                 reports_migration.upgrade()
                 assert conn.execute(text("SELECT COUNT(*) FROM answer_dispute_reports")).scalar_one() == 0
+                conn.execute(text("""
+                    INSERT INTO answer_dispute_reports (dispute_id, user_id)
+                    SELECT id, 1 FROM answer_disputes WHERE lesson_id = 1
+                """))
+                native_migration.upgrade()
+                assert conn.execute(text("""
+                    SELECT course_web_reported, course_web_answer FROM answer_dispute_reports
+                """)).one() == (True, None)
 
         barrier = Barrier(6)
         exercise = SimpleNamespace(id=1, topic_id=3, exercise_type="fill_blank", content={
@@ -264,6 +274,7 @@ def test_postgresql_migration_and_concurrent_browsers() -> None:
             assert conn.execute(text("SELECT COUNT(*) FROM answer_disputes")).scalar() == 1
             assert conn.execute(text("SELECT COUNT(*) FROM answer_dispute_reports")).scalar_one() == 2
             with Operations.context(MigrationContext.configure(conn)):
+                native_migration.downgrade()
                 reports_migration.downgrade()
                 lab_migration.downgrade()
             remaining = conn.execute(text("SELECT lesson_id, evidence FROM answer_disputes")).one()

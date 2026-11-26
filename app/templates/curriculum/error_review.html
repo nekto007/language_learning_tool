@@ -181,6 +181,9 @@
       </div>
       <button id="error-review-complete-btn" class="btn btn--primary btn--lg">Завершить разбор</button>
       <p id="error-review-status" class="er-results-status"></p>
+      <div id="error-review-retry" hidden>
+        <a class="btn btn--outline" href="{{ request.full_path }}">К очереди разбора</a>
+      </div>
       {# После «Завершить разбор» бэкенд (er_complete) выставит resolved_at и
          клиент покажет дашборд-CTA через включённый ниже партиал. Если
          пользователь зашёл из плана дня, тут будут «Дальше: <слот>» и
@@ -199,8 +202,6 @@
 <script nonce="{{ csp_nonce }}">
 (function () {
   'use strict';
-
-  var ALL_ERROR_IDS = {{ all_error_ids | tojson }};
 
   var QUESTIONS = [
     {% for group in topic_groups %}{% for e in group.errors %}
@@ -225,7 +226,7 @@
   ];
 
   var currentQ    = 0;
-  var correctCount = 0;
+  var answers = new Map();
   var total       = QUESTIONS.length;
 
   /* ── Screen switching ── */
@@ -312,8 +313,7 @@
       if (norm(b.dataset.value) === norm(q.correct)) b.classList.add('is-correct');
       else if (b === btn && !ok)                      b.classList.add('is-wrong');
     });
-    if (ok) correctCount++;
-    erShowFB(ok);
+    recordAnswer(q, ok);
   };
 
   /* ── Fill blank ── */
@@ -326,17 +326,21 @@
     if (checkBtn) checkBtn.disabled = true;
     var ok = norm(inp.value) === norm(q.correct);
     inp.classList.add(ok ? 'is-correct' : 'is-wrong');
-    if (ok) correctCount++;
-    erShowFB(ok, q.correct);
+    recordAnswer(q, ok, q.correct);
   };
 
   /* ── Self-check (pairs / reveal) ── */
   window.erSelfOk = function () {
-    correctCount++;
-    erShowFB(true);
+    recordAnswer(QUESTIONS[currentQ], true);
   };
 
   /* ── Feedback ── */
+  function recordAnswer(q, ok, correctStr) {
+    if (answers.has(q.id)) return;
+    answers.set(q.id, ok);
+    erShowFB(ok, correctStr);
+  }
+
   function erShowFB(ok, correctStr) {
     var q        = QUESTIONS[currentQ];
     var fb       = document.getElementById('erQFeedback');
@@ -369,6 +373,7 @@
 
   /* ── Next question ── */
   window.erNextQ = function () {
+    if (!answers.has(QUESTIONS[currentQ].id)) return;
     var next = currentQ + 1;
     if (next >= total) {
       erShowResults();
@@ -380,6 +385,7 @@
   /* ── Results ── */
   function erShowResults() {
     show('er-screen-results');
+    var correctCount = resolvedIds().length;
     var pct = total > 0 ? Math.round(correctCount / total * 100) : 100;
     var resEl = document.getElementById('erResPct');
     var detEl = document.getElementById('erResDetail');
@@ -406,9 +412,33 @@
   var completeBtn = document.getElementById('error-review-complete-btn');
   var statusEl    = document.getElementById('error-review-status');
   var container   = document.getElementById('error-review-container');
+  var retryAction = document.getElementById('error-review-retry');
+
+  function resolvedIds() {
+    return QUESTIONS.filter(function (q) { return answers.get(q.id) === true; })
+      .map(function (q) { return q.id; });
+  }
+
+  function revealFallback() {
+    var actions = document.getElementById('error-review-results-actions');
+    actions.hidden = false;
+    actions.style.display = 'flex';
+  }
+
+  function revealRetry() {
+    retryAction.hidden = false;
+  }
 
   if (completeBtn) {
     completeBtn.addEventListener('click', function () {
+      var reviewed = resolvedIds();
+      if (reviewed.length === 0) {
+        completeBtn.style.display = 'none';
+        if (statusEl) statusEl.textContent = 'Ни один ответ не засчитан. Можно вернуться к очереди разбора.';
+        revealRetry();
+        revealFallback();
+        return;
+      }
       completeBtn.disabled = true;
       completeBtn.classList.add('btn--loading');
 
@@ -420,7 +450,7 @@
         method: 'POST',
         credentials: 'same-origin',
         headers: headers,
-        body: JSON.stringify({ error_ids: ALL_ERROR_IDS }),
+        body: JSON.stringify({ error_ids: reviewed }),
       })
         .then(function (r) {
           if (r.ok) return r.json();
@@ -436,16 +466,7 @@
         .then(function () {
           completeBtn.style.display = 'none';
           if (statusEl) statusEl.textContent = '';
-
-          function revealFallback() {
-            var actions = document.getElementById('error-review-results-actions');
-            if (actions) {
-              actions.hidden = false;
-              actions.style.display = 'flex';
-            } else {
-              window.location.href = '/dashboard';
-            }
-          }
+          if (reviewed.length < total) revealRetry();
 
           // Plan-aware CTA swap: when we arrived via `?from=linear_plan&slot=error_review`
           // the helper queries `/api/daily-plan/next-slot` and either points
@@ -483,11 +504,8 @@
           }
           if (terminal) {
             completeBtn.style.display = 'none';
-            var actions = document.getElementById('error-review-results-actions');
-            if (actions) {
-              actions.hidden = false;
-              actions.style.display = 'flex';
-            }
+            revealRetry();
+            revealFallback();
             return;
           }
           completeBtn.disabled = false;

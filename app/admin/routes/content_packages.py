@@ -8,8 +8,9 @@ from flask_login import current_user
 
 from app.admin.audit import log_admin_action
 from app.admin.services.content_package import read_content_package
-from app.admin.services.content_package_display import display_rows, package_totals
+from app.admin.services.content_package_display import display_question_conflict, display_rows, package_totals
 from app.admin.services.content_package_import import apply_package, preview_package
+from app.admin.services.content_package_rows import QuestionAnchorConflict
 from app.admin.utils.decorators import content_editor_required
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.auth.models import User
@@ -19,6 +20,7 @@ from app.utils.db import db
 logger = logging.getLogger(__name__)
 content_packages_bp = Blueprint('content_packages_admin', __name__)
 _SESSION_KEY = 'content_package_preview'
+_CONFLICT_KEY = 'content_package_question_conflict'
 _FILE_PREFIX = 'curriculum-'
 _PREVIEW_LIFETIME = 3600
 
@@ -52,7 +54,8 @@ def index() -> str | Response:
         rows = preview['summary'] if preview else []
         return render_template('admin/content_packages.html', preview=preview, rows=display_rows(rows),
                                totals=package_totals(rows) if preview else [],
-                               preview_id=session.get(_SESSION_KEY))
+                               preview_id=session.get(_SESSION_KEY), conflict=session.pop(_CONFLICT_KEY, None))
+    session.pop(_CONFLICT_KEY, None)
     _discard()
     upload = request.files.get('file')
     try:
@@ -64,6 +67,8 @@ def index() -> str | Response:
             'owner': current_user.id, 'expires': time() + _PREVIEW_LIFETIME,
             'filename': upload.filename[:160], 'summary': summary, 'entries': entries,
         }, prefix=_FILE_PREFIX)
+    except QuestionAnchorConflict as error:
+        session[_CONFLICT_KEY] = display_question_conflict(error)
     except ValueError as error:
         # Flash messages travel in the session cookie. A schema can report an error for every row.
         flash(str(error)[:350], 'danger')
@@ -82,6 +87,7 @@ def apply() -> Response:
     editor = User.query.filter_by(id=current_user.id).populate_existing().with_for_update(read=True).one_or_none()
     if editor is None or not editor.can_edit_content:
         abort(403)
+    session.pop(_CONFLICT_KEY, None)
     preview_id = request.form.get('preview_id')
     if not preview_id or preview_id != session.get(_SESSION_KEY) or not (data := _preview()):
         flash('Предпросмотр устарел. Проверьте архив ещё раз.', 'warning')
@@ -96,6 +102,9 @@ def apply() -> Response:
         log_admin_action(current_user.id, 'content_package.apply', target_type='curriculum',
                          required=any(row['kind'] == 'lesson_rows' for row in data['summary']))
         db.session.commit()
+    except QuestionAnchorConflict as error:
+        db.session.rollback()
+        session[_CONFLICT_KEY] = display_question_conflict(error)
     except ValueError as error:
         db.session.rollback()
         flash(str(error)[:350], 'danger')

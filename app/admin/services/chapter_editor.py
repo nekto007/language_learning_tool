@@ -6,12 +6,14 @@ from collections import Counter
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from hashlib import sha256
+from typing import Literal
 
 from bs4 import BeautifulSoup
 from sqlalchemy import func, select
 
 from app.books.models import Book, Bookmark, Chapter, UserChapterProgress
 from app.books.reading_session import UserReadingSession
+from app.books.text_access import chapter_text_revision, chapter_text_with_access
 from app.nlp.processor import process_text
 from app.nlp.setup import initialize_nltk
 from app.utils.db import db
@@ -31,6 +33,22 @@ class ChapterPreview:
     text_changed: bool
     index: 'BookIndex | None' = None
     structure_changed: bool = False
+
+
+@dataclass(frozen=True)
+class ParagraphImpact:
+    status: Literal['unchanged', 'same_numbers', 'shift', 'uncertain']
+    numbers: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class ChapterImpact:
+    web: ParagraphImpact
+    mobile: ParagraphImpact
+    reader_percent: int
+    revision_changed: bool
+    text_available: bool
+    available_to_readers: bool
 
 
 @dataclass(frozen=True)
@@ -75,6 +93,50 @@ def _positions(paragraphs: tuple[str, ...], excerpt: str) -> tuple[int, ...]:
 def _changes(before: tuple[str, ...], after: tuple[str, ...]) -> tuple:
     return tuple((before[i:j], after[k:m]) for action, i, j, k, m in
                  SequenceMatcher(None, before, after, autojunk=False).get_opcodes() if action != 'equal')
+
+
+def _validate_edit_text(text: str) -> None:
+    if not text.strip() or '\0' in text or len(text.encode()) > 2_000_000:
+        raise ValueError('Введите текст главы. Максимальный размер — 2 МБ.')
+    if any(tag.name not in _MARKUP or tag.attrs for tag in BeautifulSoup(text, 'html.parser').find_all()):
+        raise ValueError('Используйте обычный текст или простое выделение. HTML с атрибутами не поддерживается.')
+
+
+def _paragraph_impact(before: tuple[str, ...], after: tuple[str, ...]) -> ParagraphImpact:
+    if before == after:
+        return ParagraphImpact('unchanged')
+    edits = [(i, j, k, m) for op, i, j, k, m in
+             SequenceMatcher(None, before, after, autojunk=False).get_opcodes() if op != 'equal']
+    if any(j - i != m - k or i != k for i, j, k, m in edits):
+        return ParagraphImpact('shift')
+    if any(j - i != 1 for i, j, _, _ in edits):
+        return ParagraphImpact('uncertain')
+    return ParagraphImpact('same_numbers', tuple(i + 1 for i, _, _, _ in edits))
+
+
+def chapter_preview_impact(book: Book, chapter: Chapter, text: str) -> ChapterImpact | None:
+    """Compare the learner projection without changing the edition or cache."""
+    stored = chapter.text_raw
+    if text == text_for_edit(stored):
+        # Saving a title-only edit leaves the raw legacy line endings in place.
+        text = stored
+    else:
+        try:
+            _validate_edit_text(text)
+        except ValueError:
+            return None
+        if not any(_paragraphs(text)):
+            return None
+    before, _, access = chapter_text_with_access(book, stored)
+    after, _, new_access = chapter_text_with_access(book, text)
+    return ChapterImpact(
+        web=_paragraph_impact(_paragraphs(before), _paragraphs(after)),
+        mobile=_paragraph_impact(_paragraphs(before, native=True), _paragraphs(after, native=True)),
+        reader_percent=int(access['effective_percent']),
+        revision_changed=chapter_text_revision(before, access) != chapter_text_revision(after, new_access),
+        text_available=bool(before or after),
+        available_to_readers=bool(book.is_published and not book.license_is_expired),
+    )
 
 
 def _indexed_changes(book: Book, before: tuple[str, ...], after: tuple[str, ...]) -> BookIndex | None:
@@ -136,10 +198,7 @@ def review_chapter(
         raise ValueError('Введите название главы одной строкой, до 255 символов.')
     if not changed:
         return ChapterPreview((), chapter.words, False)
-    if not text.strip() or '\0' in text or len(text.encode()) > 2_000_000:
-        raise ValueError('Введите текст главы. Максимальный размер — 2 МБ.')
-    if any(tag.name not in _MARKUP or tag.attrs for tag in BeautifulSoup(text, 'html.parser').find_all()):
-        raise ValueError('Используйте обычный текст или простое выделение. HTML с атрибутами не поддерживается.')
+    _validate_edit_text(text)
 
     before, after = _paragraphs(current_text), _paragraphs(text)
     if not after or not any(after):

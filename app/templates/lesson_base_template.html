@@ -481,7 +481,7 @@
           {% endif %}
           {{ component_name|default(translate_lesson_type(lesson.type)) }}
         </span>
-        <h1 class="lsn-title">{{ lesson.title }}</h1>
+        <h1 class="lsn-title">{{ issued_writing_title if issued_writing_title is defined else lesson.title }}</h1>
       </div>
       {# Derive the module's lesson count from the lesson's parent module
          when the calling route does not pass ``total_lessons``. The legacy

@@ -5,6 +5,7 @@ import json
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from flask import Blueprint, abort, flash, jsonify, request, render_template, redirect, url_for
@@ -18,12 +19,16 @@ from app.api.native_lessons import NativeLessonError, native_error, private_resp
 from app.utils.db import db
 from app.utils.rate_limit_helpers import get_authenticated_user_key
 
+if TYPE_CHECKING:
+    from app.study.models import NativeReaderVocabulary, QuizDeckWord
+
 api_native_reader = Blueprint('api_native_reader', __name__)
 api_native_reader.after_request(private_response)
 api_native_reader.register_error_handler(NativeLessonError, native_error)
 reader_words = Blueprint('reader_words', __name__)
 reader_words.after_request(private_response)
 reader_words.register_error_handler(NativeLessonError, native_error)
+_WEB_SELECTION_DEVICE = 'web-selection'
 
 
 def _key(text):
@@ -150,12 +155,25 @@ def _state():
     return state
 
 
+def _owned_mirror_entry(word: dict) -> 'QuizDeckWord | None':
+    from app.study.models import QuizDeckWord
+
+    entry = db.session.get(QuizDeckWord, word['_deckWord']) if word.get('_deckWord') else None
+    return entry if entry is not None and entry.deck.user_id == current_user.id else None
+
+
+def _mirror_contexts(entry: 'QuizDeckWord', word: dict) -> None:
+    from bleach import clean
+
+    sentences = '\n\n'.join(c['sentence'] + ('\n' + c['translation'] if c.get('translation') else '')
+                            for c in word['contexts'])
+    entry.custom_sentences = clean(sentences, tags=[], strip=True)
+
+
 def _mirror(state, payload, word):
     from app.study.models import QuizDeck, QuizDeckWord, UserWord, UserCardDirection
     from app.words.models import CollectionWords
-    entry = db.session.get(QuizDeckWord, word.get('_deckWord')) if word.get('_deckWord') else None
-    if entry is not None and entry.deck.user_id != current_user.id:
-        entry = None
+    entry = _owned_mirror_entry(word)
     if word.get('deletedAt') or word['status'] == 'known':
         if entry is not None:
             db.session.delete(entry)
@@ -202,14 +220,55 @@ def _mirror(state, payload, word):
         entry = QuizDeckWord(deck_id=deck.id, custom_english=english, custom_russian=meaning, order_index=0)
         db.session.add(entry); db.session.flush(); word['_deckWord'] = entry.id
     entry.custom_english = english; entry.custom_russian = meaning
-    entry.custom_sentences = bleach.clean('\n\n'.join(c['sentence'] + ('\n' + c['translation'] if c.get('translation') else '') for c in word['contexts']),tags=[],strip=True)
+    _mirror_contexts(entry, word)
+
+
+def _merge_alias(
+    state: 'NativeReaderVocabulary', target: dict, incoming: dict, receipt_key: str,
+) -> tuple[dict, bool]:
+    receipts = target.setdefault('_aliasReceipts', {})
+    if receipts.get(receipt_key, -1) >= incoming['revision']:
+        return target, False
+    if receipt_key not in receipts and len(receipts) >= 100:
+        raise NativeLessonError('invalid_input', 422)
+    receipts[receipt_key] = incoming['revision']
+
+    # An aliased UUID supplies places. Card edits, deletes and Undo address
+    # the canonical UUID returned in the sync response.
+    if target.get('deletedAt') or incoming.get('deletedAt'):
+        return target, False
+    contexts = {_context_key(context): context for context in target['contexts']}
+    for context in incoming['contexts']:
+        contexts.setdefault(_context_key(context), context)
+    merged = sorted(contexts.values(), key=lambda context: context['date'])[-30:]
+    if merged == target['contexts']:
+        return target, False
+    target['contexts'] = merged
+    state.version += 1
+    target['serverRevision'] = state.version
+    entry = _owned_mirror_entry(target)
+    if entry is not None:
+        _mirror_contexts(entry, target)
+    return target, True
 
 
 def _merge(state, payload, incoming, device):
     words = payload['words']
     target = words.get(incoming['id'])
-    if target is None and not incoming.get('deletedAt'):
-        target = next((w for w in words.values() if not w.get('deletedAt') and _semantic(w) == _semantic(incoming)), None)
+    if target is None:
+        receipt_key = f"{device}:{incoming['id']}"
+        alias = next((w for w in words.values() if receipt_key in w.get('_aliasReceipts', {})), None)
+        if alias is None and not incoming.get('deletedAt'):
+            meaning = _semantic(incoming)
+            matching = [w for w in words.values() if _semantic(w) == meaning]
+            alias = next((w for w in matching if not w.get('deletedAt')), None)
+            if alias is None and matching and device != _WEB_SELECTION_DEVICE:
+                # An unknown offline UUID cannot prove it was created after
+                # removal. Web selection validates the live chapter and
+                # explicitly saves a new selection in the current request.
+                alias = max(matching, key=lambda w: w.get('serverRevision', 0))
+        if alias is not None:
+            return _merge_alias(state, alias, incoming, receipt_key)
     if target is None:
         if len(words) >= 4000:
             raise NativeLessonError('invalid_input', 422)
@@ -461,9 +520,9 @@ def save_selection(book_id: int, chapter: int) -> ResponseReturnValue:
                 'status': 'studying', 'addedAt': now, 'dueAt': now, 'repetitions': 0,
                 'intervalDays': 0, 'serverRevision': 0, 'alternateMeanings': [],
             }
-            revision = existing.get('_receipts', {}).get('web-selection', 0) + 1 if existing else 1
+            revision = existing.get('_receipts', {}).get(_WEB_SELECTION_DEVICE, 0) + 1 if existing else 1
             incoming.update(contexts=[context], updatedAt=now, revision=revision)
-            word, _ = _merge(state, payload, _word(incoming), 'web-selection')
+            word, _ = _merge(state, payload, _word(incoming), _WEB_SELECTION_DEVICE)
             metadata = word.setdefault('_webContextAnchors', {})
             metadata[context_id] = anchor
             word['_webContextAnchors'] = {

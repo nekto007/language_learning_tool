@@ -24,7 +24,7 @@ from app.admin.services.book_processing_service import (
     BookUploadError,
     save_uploaded_book_file,
 )
-from app.admin.services.chapter_editor import apply_chapter, chapter_revision, review_chapter, text_for_edit
+from app.admin.services.chapter_editor import apply_chapter, chapter_preview_impact, chapter_revision, review_chapter, text_for_edit
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.decorators import admin_required, handle_admin_errors
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
@@ -527,8 +527,11 @@ def edit_chapter(book_id: int, chapter_id: int) -> ResponseReturnValue:
             error, status = 'Глава или черновик изменились. Сверьте данные и заново откройте предпросмотр.', 409
         except ValueError as exc:
             error, status = str(exc), 422
+    impact = None
+    if (action == 'preview' and status == 200) or (action in ('preview', 'apply') and status == 422):
+        impact = chapter_preview_impact(book, chapter, text)
     return render_template('admin/books/edit_chapter.html', book=book, chapter=chapter, title=title, text=text,
-                           revision=revision, preview=preview, token=token, error=error), status
+                           revision=revision, preview=preview, impact=impact, token=token, error=error), status
 
 
 # ---------------------------------------------------------------------------

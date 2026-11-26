@@ -22,6 +22,7 @@ from app.utils.rate_limit_helpers import get_authenticated_user_key
 api_native_lessons = Blueprint('api_native_lessons', __name__)
 logger = logging.getLogger(__name__)
 MAX_QUESTIONS = 100
+COURSE_SESSION_SECONDS = 6 * 60 * 60
 
 
 class NativeLessonError(Exception):
@@ -283,6 +284,11 @@ def course_document(lesson_id: int, *, deferred: bool = False, web_course: bool 
                     payload['theory'] = list({b['body']: b for b in blocks}.values())
             sealed['quiz_phase'] = 'correction'
             sealed['correction_attempt'] = correction['correction']['attempt_id']
+    if lesson.type == 'writing_prompt':
+        from app.curriculum.writing_context import writing_snapshot
+
+        question = questions[0]
+        sealed['writing_prompt_snapshot'] = writing_snapshot(payload['title'], question['prompt'], question.get('translation'))
     payload['session_token'] = _signer().dumps(sealed)
     return jsonify(success=True, lesson=payload)
 
@@ -291,8 +297,28 @@ def course_document(lesson_id: int, *, deferred: bool = False, web_course: bool 
 @csrf.exempt
 @api_bearer_required
 @limiter.limit('90 per minute', key_func=get_authenticated_user_key)
-def check_native_learning_answer(lesson_id):
-    return course_answer_check(lesson_id)
+def check_native_learning_answer(lesson_id: int) -> Response:
+    from app.api.native_quiz_disputes import issue_quiz_dispute_receipt
+
+    body = request.get_json(silent=True)
+    lesson, question, answer, feedback, sealed = checked_course_answer(lesson_id, body=body)
+    response = {'success': True, 'feedback': feedback}
+    if feedback['correct'] is False:
+        token = issue_quiz_dispute_receipt(lesson, question, answer, sealed, body['session_token'])
+        if token is not None:
+            response['dispute_token'] = token
+    return jsonify(response)
+
+
+@api_native_lessons.post('/lessons/<int:lesson_id>/dispute')
+@csrf.exempt
+@api_bearer_required
+@limiter.limit('10 per minute', key_func=get_authenticated_user_key)
+def dispute_native_quiz_answer(lesson_id: int) -> Response:
+    from app.api.native_quiz_disputes import register_quiz_dispute
+
+    dispute_id = register_quiz_dispute(lesson_id, current_user.id, request.get_json(silent=True))
+    return jsonify(success=True, dispute_id=dispute_id)
 
 
 def course_answer_check(lesson_id: int, *, allow_web_course: bool = False) -> Response:
@@ -301,18 +327,21 @@ def course_answer_check(lesson_id: int, *, allow_web_course: bool = False) -> Re
 
 
 def checked_course_answer(
-    lesson_id: int, *, lesson_types: frozenset[str] | None = None, allow_web_course: bool = False,
+    lesson_id: int, *, lesson_types: frozenset[str] | None = None, body: object = None,
+    strict_dispute_revision: bool = False,
+    allow_web_course: bool = False,
 ) -> tuple['Lessons', dict, str, dict, dict]:
     """Check a session-bound answer without writing attempts or progress."""
     from app.api.native_content import NATIVE_PROJECTION_VERSION, rows_for
 
-    body = request.get_json(silent=True)
+    if body is None:
+        body = request.get_json(silent=True)
     if (not isinstance(body, dict) or set(body) - {'session_token', 'question_id', 'answer', 'help_level'}
             or not {'session_token', 'question_id', 'answer'} <= set(body)
             or not isinstance(body['session_token'], str) or not isinstance(body['question_id'], str)):
         raise NativeLessonError('invalid_input')
     try:
-        sealed = _signer().loads(body['session_token'], max_age=21600)
+        sealed = _signer().loads(body['session_token'], max_age=COURSE_SESSION_SECONDS)
     except (BadSignature, SignatureExpired):
         raise NativeLessonError('lesson_changed', 409) from None
     if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
@@ -328,10 +357,15 @@ def checked_course_answer(
     content = _content(lesson)
     from app.curriculum.dispute_credit import course_revision_matches
 
-    if (not _session_type_matches(sealed, lesson)
-            or not course_revision_matches(sealed, lesson, _digest(content)) or sealed.get('version') != _version(progress)
+    revision = _digest(content)
+    revision_matches = (sealed.get('revision') == revision if strict_dispute_revision
+                        else course_revision_matches(sealed, lesson, revision))
+    if (not _session_type_matches(sealed, lesson) or not revision_matches
             or sealed.get('projection_version') != NATIVE_PROJECTION_VERSION):
         raise NativeLessonError('lesson_changed', 409)
+    if sealed.get('version') != _version(progress):
+        error = 'dispute_session_closed' if strict_dispute_revision else 'lesson_changed'
+        raise NativeLessonError(error, 409)
     if lesson_types is not None and lesson.type not in lesson_types:
         raise NativeLessonError('not_found', 404)
     questions = project_questions(lesson)
@@ -397,7 +431,7 @@ def course_submission(lesson_id: int, *, allow_web_course: bool = False) -> Resp
         raise NativeLessonError('invalid_input')
     expired = False
     try:
-        sealed = _signer().loads(data['session_token'], max_age=21600)
+        sealed = _signer().loads(data['session_token'], max_age=COURSE_SESSION_SECONDS)
     except SignatureExpired:
         # Expiry still forbids grading. A verified old nonce may only read its
         # committed receipt, after the same account and lesson access checks.
@@ -524,7 +558,7 @@ def review_native_translation(lesson_id):
     data = request.get_json(silent=True)
     if not isinstance(data,dict) or not {'session_token','index','answer'} <= set(data) or set(data)-{'session_token','index','answer','review_token','confirm'}:
         raise NativeLessonError('invalid_input')
-    try: sealed = _signer().loads(data['session_token'],max_age=21600)
+    try: sealed = _signer().loads(data['session_token'],max_age=COURSE_SESSION_SECONDS)
     except (BadSignature,SignatureExpired,TypeError): raise NativeLessonError('lesson_changed',409)
     if sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:raise NativeLessonError('access_denied',403)
     lesson, _ = _lesson_and_progress(lesson_id)

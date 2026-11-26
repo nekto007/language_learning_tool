@@ -879,18 +879,24 @@ def writing_history():
     page = request.args.get('page', 1, type=int)
     type_filter = request.args.get('type', '')
     per_page = 20
+    # The importer can reuse a lesson ID for another type. A bound snapshot
+    # establishes the type of that attempt independently of today's lesson.
+    history_type = case(
+        (UserWritingAttempt.prompt_snapshot.isnot(None), 'writing_prompt'),
+        else_=Lessons.type,
+    )
 
     query = (
-        db.session.query(UserWritingAttempt, Lessons)
+        db.session.query(UserWritingAttempt, Lessons, history_type)
         .join(Lessons, UserWritingAttempt.lesson_id == Lessons.id)
         .filter(
             UserWritingAttempt.user_id == current_user.id,
-            Lessons.type.in_(_WRITING_TYPES),
+            history_type.in_(_WRITING_TYPES),
         )
     )
 
     if type_filter in _WRITING_TYPES:
-        query = query.filter(Lessons.type == type_filter)
+        query = query.filter(history_type == type_filter)
 
     query = query.order_by(UserWritingAttempt.created_at.desc())
 
@@ -898,20 +904,24 @@ def writing_history():
     rows = query.offset((page - 1) * per_page).limit(per_page).all()
 
     items = []
-    for attempt, lesson in rows:
+    for attempt, lesson, lesson_type in rows:
         content = lesson.content or {}
-        if lesson.type == 'writing_prompt':
-            prompt = content.get('prompt', '')
-        elif lesson.type == 'translation':
+        snapshot = attempt.prompt_snapshot
+        if lesson_type == 'writing_prompt':
+            prompt = snapshot['prompt'] if snapshot else content.get('prompt', '')
+        elif lesson_type == 'translation':
             prompt = content.get('russian', '')
-        elif lesson.type == 'sentence_correction':
+        elif lesson_type == 'sentence_correction':
             prompt = content.get('incorrect_sentence', '')
         else:
             prompt = ''
         items.append({
             'attempt': attempt,
-            'lesson': lesson,
+            'lesson_type': lesson_type,
             'prompt': prompt,
+            'prompt_translation': snapshot['translation'] if snapshot else None,
+            'lesson_title': snapshot['title'] if snapshot else lesson.title,
+            'current_prompt': lesson_type == 'writing_prompt' and not snapshot,
         })
 
     total_pages = max(1, (total + per_page - 1) // per_page)
@@ -1003,16 +1013,57 @@ def plan_calendar():
     )
 
 
+def _weekly_today(user_id: int, tz: str) -> dict:
+    from app.achievements.streak_service import compute_plan_steps
+    from app.daily_plan.service import compute_day_secured_from_activity, get_daily_plan_unified
+    from app.telegram.queries import get_daily_summary
+
+    plan = get_daily_plan_unified(user_id, tz=tz)
+    if (plan.get('_plan_meta') or {}).get('fallback_reason'):
+        return {'plan_state': 'unavailable', 'day_secured': False}
+    if plan.get('mode') == 'paused':
+        return {'plan_state': 'paused', 'paused_until': plan.get('paused_until'),
+                'day_secured': bool(plan.get('day_secured'))}
+
+    required = plan['required']
+    summary = get_daily_summary(user_id, tz=tz) if required else {}
+    completion, _, done, total = compute_plan_steps(plan, summary)
+    items = []
+    remaining_minutes = 0
+    current_found = False
+    for item in required:
+        completed = completion.get(item['id'], False) or item.get('completed')
+        if completed:
+            state = 'completed'
+        elif item.get('skipped'):
+            state = 'skipped'
+        elif item.get('blocked'):
+            state = 'blocked'
+        elif not current_found:
+            state = 'current'
+            current_found = True
+        else:
+            state = 'locked'
+        items.append({'id': item['id'], 'kind': item['kind'], 'title': item['title'], 'state': state})
+        if not completed:
+            remaining_minutes += int(item.get('eta_minutes') or 0)
+    return {
+        'plan_state': 'active' if required else 'empty',
+        'day_secured': compute_day_secured_from_activity(plan, completion),
+        'items': items, 'estimated_minutes': remaining_minutes, 'completed_count': done, 'total_slots': total,
+    }
+
+
 @study.route('/weekly')
 @login_required
 @module_required('study')
 def weekly_plan():
-    """Weekly plan overview: current week Mon-Sun with today's actual plan and projections."""
+    """Show the study day between three past days and three forecast days."""
     from datetime import timedelta
 
     from app.daily_plan.linear.plan import SLOT_ESTIMATED_MINUTES
     from app.daily_plan.models import DailyPlanLog
-    from app.utils.time_utils import get_user_local_date
+    from app.utils.time_utils import get_user_local_date, get_user_timezone_name
 
     today = get_user_local_date(current_user.id, db)
     # Always show 3 past days + today + 3 future days (7 days total)
@@ -1026,66 +1077,46 @@ def weekly_plan():
     ).all()
     by_date = {row.plan_date: row for row in logs}
 
-    today_plan = None
     try:
-        from app.daily_plan.plan import get_daily_plan as get_unified_plan
-        today_plan = get_unified_plan(current_user.id, db.session)
+        current = _weekly_today(current_user.id, get_user_timezone_name(current_user.id, db))
+        if current['plan_state'] == 'unavailable':
+            db.session.rollback()
+        elif current['plan_state'] != 'paused':
+            # Keep the same frozen composition on the next dashboard visit.
+            db.session.commit()
     except Exception:
-        pass
+        db.session.rollback()
+        logger.exception('Weekly overview could not load today for user %s', current_user.id)
+        current = {'plan_state': 'unavailable', 'day_secured': False}
 
-    slot_priority = ['curriculum', 'srs', 'reading', 'listening', 'writing', 'error_review']
     default_slot_kinds = ['curriculum', 'srs', 'reading']
     default_estimated = sum(SLOT_ESTIMATED_MINUTES.get(k, 10) for k in default_slot_kinds)
 
     days = []
     for d in week_days:
-        is_today = d == today
-        is_past = d < today
+        date_fields = {
+            'date': d, 'date_str': d.isoformat(), 'label': d.strftime('%-d %b'), 'weekday_name': d.strftime('%a'),
+        }
+        if d == today:
+            days.append({**date_fields, 'status': 'current', **current})
+            continue
+
         log = by_date.get(d)
         day_secured = log.secured_at is not None if log else False
-
-        if is_today:
-            if today_plan and today_plan.get('slots'):
-                seen = set()
-                slot_kinds = []
-                for s in today_plan['slots']:
-                    k = s['kind']
-                    if k not in seen:
-                        seen.add(k)
-                        slot_kinds.append(k)
-                slot_kinds.sort(key=lambda k: slot_priority.index(k) if k in slot_priority else 99)
-                estimated_minutes = today_plan.get('total_estimated_minutes', 0)
-                completed_count = sum(1 for s in today_plan['slots'] if s.get('completed'))
-                total_slots = len(today_plan['slots'])
-            else:
-                slot_kinds = list(default_slot_kinds)
-                estimated_minutes = default_estimated
-                completed_count = 0
-                total_slots = len(default_slot_kinds)
-            status = 'current'
-        elif is_past:
+        if d < today:
             slot_kinds = list(default_slot_kinds) if log is not None else []
             estimated_minutes = 0
-            completed_count = 0
-            total_slots = 0
             status = 'past'
         else:
             slot_kinds = list(default_slot_kinds)
             estimated_minutes = default_estimated
-            completed_count = 0
-            total_slots = len(default_slot_kinds)
             status = 'future'
 
         days.append({
-            'date': d,
-            'date_str': d.strftime('%Y-%m-%d'),
-            'label': d.strftime('%-d %b'),
-            'weekday_name': d.strftime('%a'),
+            **date_fields,
             'status': status,
             'slot_kinds': slot_kinds,
             'estimated_minutes': estimated_minutes,
-            'completed_count': completed_count,
-            'total_slots': total_slots,
             'day_secured': day_secured,
         })
 

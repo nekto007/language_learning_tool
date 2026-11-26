@@ -679,6 +679,18 @@ def submit_lesson(lesson_id):
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return jsonify(success=False, error='invalid_input'), 400
+        prompt_snapshot = None
+        if 'writing_context' in data:
+            from app.curriculum.writing_context import resolve_web_context
+
+            lesson = Lessons.query.filter_by(id=lesson_id).with_for_update(read=True).populate_existing().first_or_404()
+            prompt_snapshot, error = resolve_web_context(
+                data['writing_context'], lesson, current_user.id, words_required=_writing_words_required(lesson),
+            )
+            if error:
+                return jsonify(success=False, error=error), {
+                    'invalid_writing_context': 400, 'access_denied': 403, 'lesson_changed': 409,
+                }[error]
         from app.curriculum.constants import is_objective_practice
         if is_objective_practice(lesson):
             from app.curriculum.services.progress_service import _lock_progress_writer, _require_versioned_objective_write
@@ -786,7 +798,7 @@ def submit_lesson(lesson_id):
             if result.get('error') == 'payload_shape_mismatch':
                 return jsonify(result), 400
         elif lesson.type == 'writing_prompt':
-            result = _process_writing_prompt_submission(lesson, current_user.id, data)
+            result = _process_writing_prompt_submission(lesson, current_user.id, data, prompt_snapshot=prompt_snapshot)
         elif lesson.type == 'sentence_completion':
             result = _process_sentence_completion_submission(lesson, current_user.id, data)
         elif lesson.type == 'collocation_matching':
@@ -2084,7 +2096,35 @@ def writing_prompt_lesson(lesson_id: int):
         flash('Неверный тип урока', 'error')
         return redirect('/learn/')
 
+    progress = LessonProgress.query.filter_by(
+        user_id=current_user.id,
+        lesson_id=lesson.id
+    ).first()
+
+    maybe_reset_lesson_progress(progress)
+
+    if not progress:
+        try:
+            progress = LessonProgress(
+                user_id=current_user.id,
+                lesson_id=lesson.id,
+                status='in_progress',
+                started_at=datetime.now(UTC),
+                last_activity=datetime.now(UTC),
+            )
+            db.session.add(progress)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error creating writing_prompt progress: {e}")
+            db.session.rollback()
+
+    # The initial progress commit expires ORM attributes. Capture and sign the
+    # same lesson revision only after that commit has finished.
+    if lesson.type != 'writing_prompt':
+        return redirect('/learn/')
     content = lesson.content or {}
+    issued_title = lesson.title
+    issued_version = lesson.content_version
     prompt = content.get('prompt', '')
     prompt_ru = content.get('prompt_ru') or None
     min_words = content.get('min_words')
@@ -2106,7 +2146,8 @@ def writing_prompt_lesson(lesson_id: int):
     # Below B1 we drop the word-count gate — sentences + checklist + phrases
     # are enough for elementary learners. The UI still surfaces the gate when
     # it IS in effect (B1+), so the requirement is never hidden.
-    if not _writing_words_required(lesson):
+    words_required = _writing_words_required(lesson)
+    if not words_required:
         min_words = 0
     example_response = content.get('example_response') or None
     template_text = content.get('template') or None
@@ -2132,32 +2173,15 @@ def writing_prompt_lesson(lesson_id: int):
     # пунктов, чем существует.
     min_checklist = min(min_checklist, max(len(checklist), 2))
 
-    progress = LessonProgress.query.filter_by(
-        user_id=current_user.id,
-        lesson_id=lesson.id
-    ).first()
-
-    maybe_reset_lesson_progress(progress)
-    display_progress = retry_display_progress(progress)
-
-    if not progress:
-        try:
-            progress = LessonProgress(
-                user_id=current_user.id,
-                lesson_id=lesson.id,
-                status='in_progress',
-                started_at=datetime.now(UTC),
-                last_activity=datetime.now(UTC),
-            )
-            db.session.add(progress)
-            db.session.commit()
-        except Exception as e:
-            logger.error(f"Error creating writing_prompt progress: {e}")
-            db.session.rollback()
-
     display_progress = retry_display_progress(progress)
     is_completed = bool(display_progress and display_progress.status == 'completed')
     next_lesson = _get_next_lesson_for_completion(lesson)
+    from app.curriculum.writing_context import issue_web_context, writing_snapshot
+
+    writing_context = issue_web_context(
+        lesson, current_user.id, words_required=words_required,
+        snapshot=writing_snapshot(issued_title, prompt, prompt_ru),
+    )
 
     return render_template(
         'curriculum/lessons/writing_prompt.html',
@@ -2174,12 +2198,18 @@ def writing_prompt_lesson(lesson_id: int):
         mode=mode,
         checklist=checklist,
         min_checklist=min_checklist,
+        writing_context=writing_context,
+        issued_writing_title=issued_title,
+        issued_writing_content=content,
+        issued_writing_version=issued_version,
         is_completed=is_completed,
         next_lesson=next_lesson,
     )
 
 
-def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: dict) -> dict:
+def _process_writing_prompt_submission(
+    lesson: 'Lessons', user_id: int, data: dict, *, prompt_snapshot: dict[str, str | None] | None = None,
+) -> dict:
     """Save a writing prompt attempt, mark lesson complete, award XP, return result."""
     from app.curriculum.models import save_writing_attempt
 
@@ -2271,6 +2301,7 @@ def _process_writing_prompt_submission(lesson: 'Lessons', user_id: int, data: di
                 save_writing_attempt(
                     user_id, lesson.id, response_text, checklist_completed, db,
                     grammar_check=grammar_check,
+                    prompt_snapshot=prompt_snapshot,
                 )
                 db.session.flush()
         except Exception as save_err:

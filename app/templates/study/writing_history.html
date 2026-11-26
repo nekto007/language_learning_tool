@@ -44,11 +44,11 @@
         {% for item in items %}
         <div class="writing-history__item">
             <div class="writing-history__item-meta">
-                <span class="writing-history__type-badge writing-history__type-badge--{{ item.lesson.type }}">
-                    {% if item.lesson.type == 'writing_prompt' %}Сочинение
-                    {% elif item.lesson.type == 'translation' %}Перевод
-                    {% elif item.lesson.type == 'sentence_correction' %}Исправление
-                    {% else %}{{ item.lesson.type }}
+                <span class="writing-history__type-badge writing-history__type-badge--{{ item.lesson_type }}">
+                    {% if item.lesson_type == 'writing_prompt' %}Сочинение
+                    {% elif item.lesson_type == 'translation' %}Перевод
+                    {% elif item.lesson_type == 'sentence_correction' %}Исправление
+                    {% else %}{{ item.lesson_type }}
                     {% endif %}
                 </span>
                 <span class="writing-history__date">{{ item.attempt.created_at.strftime('%d.%m.%Y') }}</span>
@@ -56,7 +56,7 @@
                 {% if item.attempt.checklist_completed %}
                 <span class="writing-history__checked">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    {% if item.lesson.type == 'writing_prompt' %}чеклист{% else %}сдано{% endif %}
+                    {% if item.lesson_type == 'writing_prompt' %}чеклист{% else %}сдано{% endif %}
                 </span>
                 {% endif %}
                 {% if item.attempt.grammar_error_count is not none %}
@@ -68,9 +68,15 @@
                 {% endif %}
             </div>
             {% if item.prompt %}
+            {% if item.current_prompt %}
+            <div class="writing-history__prompt-source text-secondary small">{{ _('Текущее условие урока') }}</div>
+            {% endif %}
             <div class="writing-history__prompt">{{ item.prompt }}</div>
             {% endif %}
-            <div class="writing-history__lesson-title">{{ item.lesson.title }}</div>
+            {% if item.prompt_translation %}
+            <div class="writing-history__prompt" lang="ru">{{ item.prompt_translation }}</div>
+            {% endif %}
+            <div class="writing-history__lesson-title">{{ item.lesson_title }}</div>
             <div class="writing-history__preview">{{ item.attempt.response_text[:100] }}{% if item.attempt.response_text|length > 100 %}…{% endif %}</div>
         </div>
         {% endfor %}

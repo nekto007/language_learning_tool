@@ -7,7 +7,8 @@ import pytest
 from bs4 import BeautifulSoup
 from flask import Flask, g
 from flask.testing import FlaskClient
-from sqlalchemy import func
+from sqlalchemy import event, func
+from sqlalchemy.engine import Connection
 from sqlalchemy.orm import scoped_session
 
 from app.admin.audit import AdminAuditLog
@@ -248,9 +249,95 @@ def test_published_structure_without_server_anchors_warns_before_apply(
     preview = _page(admin_client.post(path, data={**data, 'action': 'preview'}))
     assert 'Закладки, сохранённые только на устройстве' in preview.text
     assert 'загруженная копия' in preview.text
+    impact = preview.select_one('[aria-labelledby=chapter-impact]')
+    rows = {dt.get_text(strip=True): dt.find_next_sibling('dd').get_text(strip=True)
+            for dt in impact.select('dt')}
+    assert 'номера абзацев те же' in rows['Веб']
+    assert 'Изменились границы' in rows['Приложения']
     assert admin_client.post(path, data={**data, 'action': 'apply',
                                        'preview_token': _field(preview, 'preview_token')}).status_code == 303
     assert chapter.text_raw == data['text']
+
+
+def test_chapter_impact_matches_real_learner_projection_without_writes(
+    app: Flask, admin_client: FlaskClient, db_session: scoped_session, test_user: User,
+) -> None:
+    book = Book(title='Licensed projection', author='Proof', chapters_cnt=4,
+                rights_status='licensed', is_free_access=True, allowed_text_percent=25)
+    raw = 'A lantern glaws by the door. ' * 12 + r'\n\nA fox waits.'
+    normalized = chapter_editor.text_for_edit(raw)
+    hidden_edit = normalized.replace('fox', 'cat')
+    # Compare with another chapter containing the proposed text. The production
+    # GET uses the same reader permissions; no preview is published.
+    chapters = [Chapter(book=book, chap_num=i, title='Opening', words=12, text_raw=text)
+                for i, text in enumerate((raw, hidden_edit, normalized, raw.replace('glaws', 'glows', 1)), 1)]
+    db_session.add_all(chapters)
+    db_session.commit()
+    reader, _ = browser(app, test_user)
+    g.pop('_login_user', None)
+    documents = [reader.get(f'/api/books/{book.id}/chapters/{row.chap_num}') for row in chapters]
+    assert all(response.status_code == 200 for response in documents)
+    old, hidden, normalized_copy, corrected = [response.json for response in documents]
+    assert old['text_access']['effective_percent'] == 25 and 'fox' not in old['text']
+    assert old['text_revision'] == hidden['text_revision'] == normalized_copy['text_revision']
+    assert old['text_revision'] != corrected['text_revision']
+
+    path = f'/admin/books/{book.id}/chapters/{chapters[0].id}/edit'
+    g.pop('_login_user', None)
+    revision = _field(_page(admin_client.get(path)), 'revision')
+    writes = []
+
+    def record_write(connection: Connection, cursor: object, statement: str, parameters: object,
+                     execution_context: object, executemany: bool) -> None:
+        if statement.lstrip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')):
+            writes.append(statement.split()[0])
+
+    connection = db_session.connection()
+    event.listen(connection, 'before_cursor_execute', record_write)
+    try:
+        for text, title, changed in [(normalized, 'New title', False), (hidden_edit, 'Opening', False),
+                                     (normalized.replace('glaws', 'glows', 1), 'Opening', True)]:
+            preview = _page(admin_client.post(path, data={
+                'text': text, 'title': title, 'revision': revision, 'action': 'preview',
+            }))
+            impact = preview.select_one('[aria-labelledby=chapter-impact]')
+            assert impact['data-text-revision-changed'] == str(changed).lower()
+            assert ('загруженная копия' in impact.get_text()) is changed
+            if changed:
+                assert 'Номера изменённых абзацев сохранены' in impact.get_text()
+                assert 'точная позиция может сдвинуться' in impact.get_text()
+    finally:
+        event.remove(connection, 'before_cursor_execute', record_write)
+    assert not writes
+    assert chapters[0].text_raw == raw and chapters[0].title == 'Opening'
+    assert AdminAuditLog.query.filter_by(action='book.chapter.update', target_id=str(chapters[0].id)).count() == 0
+
+
+def test_chapter_impact_on_refused_preview_and_previously_signed_apply(
+    admin_client: FlaskClient, db_session: scoped_session, test_user: User,
+) -> None:
+    book = Book(title='Published chapter', author='Proof', chapters_cnt=1, rights_status='public_domain')
+    chapter = Chapter(book=book, chap_num=1, title='Opening', words=3, text_raw='The river runs.')
+    db_session.add(chapter)
+    db_session.commit()
+    path = f'/admin/books/{book.id}/chapters/{chapter.id}/edit'
+    data = {'revision': _field(_page(admin_client.get(path)), 'revision'), 'title': chapter.title,
+            'text': 'Another line.\n\nThe river runs.'}
+    preview = _page(admin_client.post(path, data={**data, 'action': 'preview'}))
+    db_session.add(Bookmark(user_id=test_user.id, book_id=book.id, name='Private position',
+                            context='The river runs.', position=30))
+    db_session.commit()
+    for request_data in [{'action': 'preview'},
+                         {'action': 'apply', 'preview_token': _field(preview, 'preview_token')}]:
+        response = admin_client.post(path, data=data | request_data)
+        assert response.status_code == 422
+        page = BeautifulSoup(response.text, 'html.parser')
+        assert 'контекст закладки' in page.select_one('[role=alert]').get_text()
+        assert page.select_one('[aria-labelledby=chapter-impact]')['data-text-revision-changed'] == 'true'
+        assert not page.select_one('button[value=apply]')
+        assert _field(page, 'preview_token') == ''
+    assert chapter.text_raw == 'The river runs.'
+    assert AdminAuditLog.query.filter_by(action='book.chapter.update', target_id=str(chapter.id)).count() == 0
 
 
 def test_short_reading_keeps_installer_text_even_for_formatting_changes(

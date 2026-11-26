@@ -65,7 +65,10 @@ def test_create_lesson_types_conflict_and_editor(
     assert Lessons.query.count() == len(supported)
     lesson = Lessons.query.filter_by(type='grammar').one()
     editor_url = f'/curriculum/admin/lesson/{lesson.id}/edit'
-    assert admin_client.post(editor_url, data={'content': '{"rule": "Synthetic proof."}'}).status_code == 302
+    revision = _page(admin_client.get(editor_url)).select_one('input[name=content_revision]')['value']
+    assert admin_client.post(editor_url, data={
+        'content_revision': revision, 'content': '{"rule": "Synthetic proof."}',
+    }).status_code == 302
     assert lesson.content == {'rule': 'Synthetic proof.'}
     assert AdminAuditLog.query.filter_by(action='curriculum.lesson.create').count() == len(supported)
 

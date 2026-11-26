@@ -7,6 +7,7 @@ from copy import deepcopy
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -72,9 +73,37 @@ class AnswerDisputeReport(db.Model):
     grammar_attempt_id = db.Column(db.Integer, db.ForeignKey("grammar_attempts.id", ondelete="SET NULL"))
     course_nonce = db.Column(db.String(32))
     course_correction_id = db.Column(db.String(32))
+    course_web_reported = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    course_web_answer = db.Column(db.JSON(none_as_null=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, server_default=db.func.now())
     credited_at = db.Column(db.DateTime(timezone=True))
     thanked_at = db.Column(db.DateTime(timezone=True))
+
+
+class NativeCourseDisputeReceipt(db.Model):
+    """An accepted check, separate from the shared case and its per-learner report."""
+
+    __tablename__ = "native_course_dispute_receipts"
+
+    id = db.Column(db.String(64), primary_key=True)
+    report_id = db.Column(db.Integer, db.ForeignKey("answer_dispute_reports.id", ondelete="CASCADE"),
+                          nullable=False, index=True)
+    nonce = db.Column(db.String(32), nullable=False)
+    input_kind = db.Column(db.String(8), nullable=False)
+    answer = db.Column(db.Text, nullable=False)
+
+
+def course_report_channel_labels(web: bool, native: bool) -> list[str]:
+    return [label for used, label in ((web, 'Веб'), (native, 'Мобильный квиз')) if used]  # noqa: RUF001 -- Russian UI label.
+
+
+def course_dispute_channels(session: Session, case_id: int) -> list[str]:
+    """Read only channels confirmed by reports at the time of display."""
+    reports = select(AnswerDisputeReport.id).where(AnswerDisputeReport.dispute_id == case_id)
+    web = reports.where(AnswerDisputeReport.course_web_reported.is_(True)).exists()
+    native = reports.join(NativeCourseDisputeReceipt, NativeCourseDisputeReceipt.report_id == AnswerDisputeReport.id)
+    web_reported, native_reported = session.execute(select(web, native.exists())).one()
+    return course_report_channel_labels(web_reported, native_reported)
 
 
 def _hash(value: object) -> str:
@@ -85,23 +114,32 @@ def _hash(value: object) -> str:
 def _record_report(
     session: Session, identity: tuple[str, ...], values: dict, *, user_id: int | None,
     course_nonce: str | None = None, course_correction_id: str | None = None, grammar_attempt_id: int | None = None,
+    course_web_answer: str | None = None,
 ) -> set[int]:
+    case = _record_case(session, identity, values, lock=user_id is not None)
+    if user_id is None:
+        return set()
+    assert case is not None
+    return _attribute_report(session, case, user_id, course_nonce=course_nonce,
+                             course_correction_id=course_correction_id, grammar_attempt_id=grammar_attempt_id,
+                             course_web_answer=course_web_answer)
+
+
+def _record_case(session: Session, identity: tuple[str, ...], values: dict, *, lock: bool) -> AnswerDispute | None:
     dialect = session.get_bind().dialect.name
     insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[dialect]
     session.execute(insert(AnswerDispute).values(**values).on_conflict_do_nothing(index_elements=identity))
-    if user_id is None:
-        return set()
-    # The approval handler also locks the case before reading its reporters.
-    # A report racing approval is either included there or settled here.
-    case = (session.query(AnswerDispute).filter_by(**{field: values[field] for field in identity})
+    if not lock:
+        return None
+    return (session.query(AnswerDispute).filter_by(**{field: values[field] for field in identity})
             .populate_existing().with_for_update().one())
-    return _attribute_report(session, case, user_id, course_nonce=course_nonce,
-                             course_correction_id=course_correction_id, grammar_attempt_id=grammar_attempt_id)
 
 
 def _attribute_report(
     session: Session, case: AnswerDispute, user_id: int, *,
     course_nonce: str | None = None, course_correction_id: str | None = None, grammar_attempt_id: int | None = None,
+    native_receipt: NativeCourseDisputeReceipt | None = None,
+    course_web_answer: str | None = None,
 ) -> set[int]:
     report = session.query(AnswerDisputeReport).filter_by(dispute_id=case.id, user_id=user_id).one_or_none()
     if report is None:
@@ -112,6 +150,14 @@ def _attribute_report(
         report.course_correction_id = course_correction_id
     if report.grammar_attempt_id is None and grammar_attempt_id is not None:
         report.grammar_attempt_id = grammar_attempt_id
+    if course_web_answer is not None:
+        report.course_web_reported = True
+        if report.course_web_answer is None:
+            report.course_web_answer = course_web_answer
+    if native_receipt is not None:
+        session.flush()
+        native_receipt.report_id = report.id
+        session.add(native_receipt)
     if case.status == "applied":
         from app.curriculum.dispute_credit import credit_approved_reports
 
@@ -186,15 +232,33 @@ def record_rejected_answer(
     user_id: int | None = None, course_nonce: str | None = None, course_correction_id: str | None = None,
 ) -> set[int]:
     """Insert a graded rejection once, retaining the first evidence and review."""
+    return _record_report(session, DISPUTE_IDENTITY, _course_rejection(lesson, question, answer),
+                          user_id=user_id, course_nonce=course_nonce, course_correction_id=course_correction_id,
+                          course_web_answer=answer)
+
+
+def _course_rejection(lesson: "Lessons", question: dict, answer: str) -> dict:
     row, context = _question_evidence(lesson, question)
-    return _record_report(session, DISPUTE_IDENTITY, {
+    return {
         "lesson_id": lesson.id,
         "question_id": question["id"],
         "question_revision": _question_revision(lesson, row, context),
         "grader_version": GRADER_VERSION,
         "normalized_answer_hash": course_answer_hash(question, answer),
         "evidence": {"row": row, "answer": answer, "question": context},
-    }, user_id=user_id, course_nonce=course_nonce, course_correction_id=course_correction_id)
+    }
+
+
+def lock_native_course_dispute(session: Session, lesson: "Lessons", question: dict, answer: str) -> AnswerDispute:
+    case = _record_case(session, DISPUTE_IDENTITY, _course_rejection(lesson, question, answer), lock=True)
+    assert case is not None
+    return case
+
+
+def attach_native_course_dispute(
+    session: Session, case: AnswerDispute, user_id: int, receipt: NativeCourseDisputeReceipt,
+) -> set[int]:
+    return _attribute_report(session, case, user_id, course_nonce=receipt.nonce, native_receipt=receipt)
 
 
 def record_lab_rejected_answer(

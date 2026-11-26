@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
+from bs4 import BeautifulSoup
 
 from app.daily_plan.models import DailyPlanLog
 from app.utils.db import db
@@ -87,11 +88,13 @@ class TestWeeklyPlanRoute:
         assert 'weekly-plan__slot-icon--curriculum' in html
         assert 'weekly-plan__slot-icon--srs' in html
 
-    def test_today_shows_estimated_time(self, app, db_session, test_user, client):
+    def test_forecasts_keep_estimated_time(self, app, db_session, test_user, client):
         _login(client, test_user)
         resp = client.get('/study/weekly')
-        html = resp.get_data(as_text=True)
-        assert 'мин' in html
+        html = BeautifulSoup(resp.data, 'html.parser')
+        times = html.select('[data-status=future] .weekly-plan__time')
+        assert len(times) == 3
+        assert all('40 мин' in time.get_text() for time in times)
 
     def test_only_current_user_logs_shown(self, app, db_session, test_user, client):
         from app.auth.models import User
@@ -114,11 +117,12 @@ class TestWeeklyPlanRoute:
         # Other user's secured day should not count — test_user has no logs so no data-secured="true"
         assert 'data-secured="true"' not in html
 
-    def test_today_cta_link_present(self, app, db_session, test_user, client):
+    def test_study_only_profile_has_no_dashboard_link_for_today(self, app, db_session, test_user, client):
         _login(client, test_user)
         resp = client.get('/study/weekly')
-        html = resp.get_data(as_text=True)
-        assert 'weekly-plan__cta' in html
+        html = BeautifulSoup(resp.data, 'html.parser')
+        assert html.select_one('[data-status=current][data-plan-state=empty]')
+        assert not html.select_one('[data-status=current] a[href="/dashboard"]')
 
     def test_weekly_link_on_study_index(self, app, db_session, test_user, client):
         _login(client, test_user)

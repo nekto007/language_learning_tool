@@ -76,7 +76,11 @@
         </div>
         <p class="land-hero__direct land-anim land-anim--d3">
             {% if current_user.is_authenticated %}
+            {% if has_module('words') %}
             <a href="{{ url_for('words.dashboard') }}">Перейти к своему плану</a>
+            {% else %}
+            <a href="{{ url_for('auth.profile') }}">Открыть кабинет</a>
+            {% endif %}
             {% else %}
             Уже знаете свой уровень? <a href="{{ url_for('auth.register') }}">Зарегистрироваться</a>
             {% endif %}

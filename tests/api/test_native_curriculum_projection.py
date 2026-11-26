@@ -8,10 +8,11 @@ from collections import Counter
 from copy import deepcopy
 import json
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
-from app.api.native_content import _question, extras, grade, project
+from app.api.native_content import _question, check_course_answer, extras, grade, project
 from app.api.native_lessons import NativeLessonError
 
 
@@ -234,6 +235,47 @@ def test_listening_choice_never_uses_transcript_fields_as_visible_prompt():
     assert result["score"] == 100 and completed
     reading = _question(lesson("reading", {}), {**row, "type": "reading_comprehension"}, 0)
     assert transcript in reading["prompt"]  # Explicit reading material stays readable.
+
+
+@pytest.mark.parametrize("level", ["A1", "A2"])
+@pytest.mark.parametrize(("authored", "expected"), [
+    ({"question_ru": "Что слышно?"}, None),
+    ({"question_ru": "Что слышно"}, "Что слышно"),
+    ({"question_ru": "Что слышно?", "prompt": "Choose one word."}, "Что слышно?"),
+    ({}, ""),
+])
+def test_listening_translation_compares_exactly_to_the_final_prompt(
+    level: str, authored: dict[str, str], expected: str | None,
+) -> None:
+    row = {
+        "type": "listening_choice", "question": "<strong>Что слышно?</strong>",
+        "audio": "[sound:synthetic.mp3]", "audio_text": "bus", "audio_translation": "автобус",
+        "options": ["bus", "train"], "correct": "bus",
+        **authored,
+    }
+    value = lesson("listening_quiz", {"exercises": [row]})
+    value.module.level.code = level
+    [question] = project(value)
+    assert question["prompt"] == "\n".join(filter(None, ("Что слышно?", authored.get("prompt"))))
+    assert question["translation"] == expected
+    assert question["audio_url"] == "/static/audio/synthetic.mp3"
+    assert {item["value"]: item["label"] for item in question["options"]} == {"0": "bus", "1": "train"}
+    assert check_course_answer(value, question, "0")["correct"] is True
+    assert check_course_answer(value, question, "1")["correct"] is False
+    assert value.content["exercises"] == [row]
+
+
+@pytest.mark.parametrize(("lesson_type", "row_type"), [
+    ("listening_quiz", "multiple_choice"), ("listening_immersion", "listening_choice"),
+])
+def test_equal_translation_kept_outside_the_target_listening_format(lesson_type: str, row_type: str) -> None:
+    row: dict[str, Any] = {
+        "type": row_type, "question": "Что слышно?", "question_ru": "Что слышно?",
+        "options": ["bus", "train"], "correct": "bus",
+    }
+    value = lesson(lesson_type, {"questions": [row]})
+    value.module.level.code = "A2"
+    assert _question(value, row, 0)["translation"] == "Что слышно?"
 
 
 @pytest.mark.parametrize("rows_key", ["questions", "exercises", "comprehension_questions"])

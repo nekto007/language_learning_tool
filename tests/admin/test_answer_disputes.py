@@ -148,6 +148,37 @@ def test_guest_and_learner_cannot_read_or_decide(
             assert 'Pretty shoes' not in response.text
 
 
+@pytest.mark.parametrize('label', ['valid_variant', 'manual'])
+@pytest.mark.parametrize(('reason', 'visible', 'emphasized'), [
+    ('Plain phrase with 2 * 3, an open ** and ***three***.',
+     'Plain phrase with 2 * 3, an open ** and ***three***.', []),
+    ('Keep **this phrase** and **2 * 3**; then **<em>literal</em> & text**. End with **unfinished.',
+     'Keep this phrase and 2 * 3; then <em>literal</em> & text. End with **unfinished.',
+     ['this phrase', '2 * 3', '<em>literal</em> & text']),
+])
+def test_legacy_dispute_reason_renders_only_paired_emphasis(
+    app: Flask, admin_user: User, db_session: scoped_session,
+    lab_case: tuple[AnswerDispute, GrammarExercise], label: str, reason: str, visible: str, emphasized: list[str],
+) -> None:
+    case, _ = lab_case
+    moderator = User(username=f'mod-{uuid4().hex[:10]}', active=True, is_admin=False, is_moderator=True,
+                     onboarding_completed=True)
+    moderator.email = f'{moderator.username}@example.invalid'
+    moderator.set_password('synthetic local password')
+    db_session.add(moderator)
+    case.review = {'label': label, 'reason': reason}
+    db_session.commit()
+    client = app.test_client()
+    for user in (moderator, admin_user):
+        _login(client, user)
+        page = _page(client.get(f'{INDEX}/{case.id}'))
+        result = page.select_one('.disputes-ai p')
+        assert result.get_text() == visible
+        assert [part.get_text() for part in result.select('strong')] == emphasized
+        assert not result.select('em')
+    assert case.review['reason'] == reason
+
+
 def test_history_shows_editors_variant_and_preserves_reported_answer(
     admin_client: FlaskClient, admin_user: User, lab_case: tuple[AnswerDispute, GrammarExercise],
 ) -> None:

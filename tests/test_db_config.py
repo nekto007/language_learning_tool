@@ -15,40 +15,39 @@ from app.utils.db_config import (
 class TestGetDatabaseType:
     """Тесты определения типа базы данных"""
 
-    def test_get_database_type_postgresql(self, app):
+    def test_get_database_type_postgresql(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест определения PostgreSQL"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/testdb'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'postgresql://localhost/testdb')
         result = get_database_type(app)
         assert result == 'postgresql'
 
-    def test_get_database_type_sqlite(self, app):
+    def test_get_database_type_sqlite(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест определения SQLite"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'sqlite:///test.db')
         result = get_database_type(app)
         assert result == 'sqlite'
 
-    def test_get_database_type_mysql(self, app):
+    def test_get_database_type_mysql(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест определения MySQL"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://localhost/testdb'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'mysql://localhost/testdb')
         result = get_database_type(app)
         assert result == 'mysql'
 
-    def test_get_database_type_unknown(self, app):
+    def test_get_database_type_unknown(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест определения неизвестного типа БД"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'mongodb://localhost/testdb'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'mongodb://localhost/testdb')
         result = get_database_type(app)
         assert result == 'unknown'
 
-    def test_get_database_type_empty_uri(self, app):
+    def test_get_database_type_empty_uri(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест когда URI пустой"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = ''
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', '')
         result = get_database_type(app)
         assert result == 'unknown'
 
-    def test_get_database_type_missing_config(self, app):
+    def test_get_database_type_missing_config(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест когда конфигурация отсутствует"""
-        if 'SQLALCHEMY_DATABASE_URI' in app.config:
-            del app.config['SQLALCHEMY_DATABASE_URI']
+        monkeypatch.delitem(app.config, 'SQLALCHEMY_DATABASE_URI', raising=False)
         result = get_database_type(app)
         assert result == 'unknown'
 
@@ -56,9 +55,9 @@ class TestGetDatabaseType:
 class TestConfigureDatabaseEngine:
     """Тесты главной функции конфигурации"""
 
-    def test_configure_database_engine_postgresql(self, app):
+    def test_configure_database_engine_postgresql(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест что PostgreSQL конфигурация вызывается"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/testdb'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'postgresql://localhost/testdb')
         mock_db = MagicMock()
 
         with patch('app.utils.db_config.configure_postgresql') as mock_pg, \
@@ -66,9 +65,9 @@ class TestConfigureDatabaseEngine:
             configure_database_engine(app, mock_db)
             mock_pg.assert_called_once_with(app, mock_db)
 
-    def test_configure_database_engine_sqlite(self, app):
+    def test_configure_database_engine_sqlite(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест что SQLite конфигурация вызывается"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'sqlite:///test.db')
         mock_db = MagicMock()
 
         with patch('app.utils.db_config.configure_sqlite') as mock_sqlite, \
@@ -76,9 +75,9 @@ class TestConfigureDatabaseEngine:
             configure_database_engine(app, mock_db)
             mock_sqlite.assert_called_once_with(app, mock_db)
 
-    def test_configure_database_engine_unknown_does_not_crash(self, app):
+    def test_configure_database_engine_unknown_does_not_crash(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест что неизвестная БД не вызывает ошибку"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'mongodb://localhost/testdb'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'mongodb://localhost/testdb')
         mock_db = MagicMock()
 
         with patch('app.utils.db_config.configure_slow_query_logging'):
@@ -89,9 +88,9 @@ class TestConfigureDatabaseEngine:
 class TestConfigurePostgresql:
     """Тесты конфигурации PostgreSQL"""
 
-    def test_configure_postgresql_sets_up_event_listener(self, app):
+    def test_configure_postgresql_sets_up_event_listener(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест что настраивается event listener для PostgreSQL"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/testdb'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'postgresql://localhost/testdb')
         mock_db = MagicMock()
         mock_engine = MagicMock()
         mock_db.engine = mock_engine
@@ -108,9 +107,9 @@ class TestConfigurePostgresql:
 class TestConfigureSqlite:
     """Тесты конфигурации SQLite"""
 
-    def test_configure_sqlite_sets_up_event_listener(self, app):
+    def test_configure_sqlite_sets_up_event_listener(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест что настраивается event listener для SQLite"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'sqlite:///test.db')
         mock_db = MagicMock()
         mock_engine = MagicMock()
         mock_db.engine = mock_engine
@@ -126,9 +125,9 @@ class TestConfigureSqlite:
 class TestIntegration:
     """Интеграционные тесты"""
 
-    def test_full_postgresql_configuration_flow(self, app):
+    def test_full_postgresql_configuration_flow(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест полного потока конфигурации для PostgreSQL"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/testdb'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'postgresql://localhost/testdb')
         mock_db = MagicMock()
         mock_engine = MagicMock()
         mock_db.engine = mock_engine
@@ -137,9 +136,9 @@ class TestIntegration:
              patch('app.utils.db_config.configure_slow_query_logging'):
             configure_database_engine(app, mock_db)
 
-    def test_full_sqlite_configuration_flow(self, app):
+    def test_full_sqlite_configuration_flow(self, app, monkeypatch: pytest.MonkeyPatch):
         """Тест полного потока конфигурации для SQLite"""
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+        monkeypatch.setitem(app.config, 'SQLALCHEMY_DATABASE_URI', 'sqlite:///test.db')
         mock_db = MagicMock()
         mock_engine = MagicMock()
         mock_db.engine = mock_engine

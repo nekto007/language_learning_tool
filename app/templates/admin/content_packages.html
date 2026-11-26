@@ -6,6 +6,27 @@
 {% endblock %}
 {% block content %}
 {{ page_header('Пакеты контента', 'Обновите модули, итоговые тесты или отдельные задания из ZIP.') }}
+{% if conflict %}
+<section class="alert alert-danger text-break" role="alert" aria-labelledby="package-conflict">
+    <h2 id="package-conflict" class="h6">Пакет не применён</h2>
+    <p class="mb-1">Файл {{ conflict.file }}</p>
+    <p class="mb-2">{{ conflict.level }} · Модуль {{ conflict.module }} · Урок {{ conflict.lesson_number }} «{{ conflict.lesson }}»</p>
+    <p class="mb-2">
+        <strong>{{ conflict.question }}{% if conflict.fields %} · {{ conflict.fields|join(', ') }}{% endif %}</strong>.
+        {% if conflict.reason == 'ambiguous' %}Исходные данные совпадают у нескольких заданий в этом списке.
+        {% elif conflict.reason == 'moved' %}Исходное задание теперь на позиции {{ conflict.moved_to }} в этом списке.
+        {% elif conflict.reason == 'missing' %}На указанном месте больше нет задания.
+        {% elif conflict.fields %}На указанной позиции эти поля отличаются от исходных данных пакета.
+        {% else %}На указанной позиции исходные данные задания изменились.
+        {% endif %}
+    </p>
+    {% if current_user.is_admin %}
+    <p class="mb-0"><a href="{{ url_for('curriculum_admin.edit_lesson', lesson_id=conflict.lesson_id) }}">Открыть редактор урока</a>, сверить текущие данные и проверить ZIP с актуальными исходными данными.</p>
+    {% else %}
+    <p class="mb-0">Передайте файл и номер задания администратору для сверки. Затем проверьте ZIP с актуальными исходными данными.</p>
+    {% endif %}
+</section>
+{% endif %}
 {% if preview %}
 <section class="card mb-4" aria-labelledby="package-preview">
     <div class="card-body">

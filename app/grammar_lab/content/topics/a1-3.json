@@ -73,7 +73,7 @@
         },
         {
           "type": "transformation",
-          "instruction": "Сделай фразу про несколько пальто далеко от тебя. Введи оба слова.",
+          "instruction": "Поставь оба слова во множественное число. Введи ровно два слова.",
           "question": "that coat",
           "correct_answer": "those coats",
           "explanation": "That меняется на those; к coat добавляем -s."

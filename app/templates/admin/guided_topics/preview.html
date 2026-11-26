@@ -3,7 +3,8 @@
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/guided-topics.css') }}">{% endblock %}
 {% block content %}
 <div class="guided-editor">
-    <a class="guided-return" href="{{ url_for('.edit', topic_id=topic.id, draft=token, materials_query=materials_query) }}">Продолжить редактирование</a>
+    {% if from_dispute %}<a class="guided-return me-3 fw-semibold" id="guided-dispute-back" href="{{ url_for('answer_disputes_admin.detail', case_id=from_dispute) }}">К спору №{{ from_dispute }}</a>{% endif %}
+    <a class="guided-return" href="{{ url_for('.edit', topic_id=topic.id, draft=token, materials_query=materials_query, from_dispute=from_dispute) }}">Продолжить редактирование</a>
     <header class="guided-heading"><h1>Предпросмотр</h1><p>{{ topic.title_ru }} · {{ topic.slug | upper }}</p></header>
     {% for label, before, after in changes %}
     <section class="guided-diff">
@@ -31,7 +32,7 @@
         </div>
         {% endif %}
     </section>
-    <form method="post" action="{{ url_for('.publish', topic_id=topic.id, materials_query=materials_query) }}">
+    <form method="post" action="{{ url_for('.publish', topic_id=topic.id, materials_query=materials_query, from_dispute=from_dispute) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="preview_id" value="{{ token }}">
         {% if report.inactive_decisions %}

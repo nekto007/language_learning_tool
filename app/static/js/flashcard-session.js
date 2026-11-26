@@ -132,6 +132,7 @@ class FlashcardSession {
         this._cacheDom();
         this._bindEvents();
         this._bindRetryModal();
+        this.els.bookSaveRetry?.addEventListener('click', () => this._saveBookVocabulary());
         this._removeTapDelay();
 
         // If lesson already completed — skip loading the flashcard flow
@@ -282,6 +283,8 @@ class FlashcardSession {
             noCardsMessage: document.getElementById('no-cards-message'),
             dailyLimitMessage: document.getElementById('daily-limit-message'),
             sessionComplete: document.getElementById('session-complete'),
+            bookSaveStatus: document.getElementById('book-vocabulary-save-status'),
+            bookSaveRetry: document.getElementById('book-vocabulary-save-retry'),
             wordAudio: document.getElementById('word-audio'),
             endSessionBtn: document.getElementById('end-session-btn'),
             newCardsStats: document.getElementById('new-cards-stats'),
@@ -1194,7 +1197,11 @@ class FlashcardSession {
 
             // Mark lesson complete if URL provided
             if (this.config.markLessonCompleteUrl) {
-                this._markLessonComplete();
+                if (this.els.bookSaveStatus) {
+                    await this._saveBookVocabulary();
+                } else {
+                    this._markLessonComplete();
+                }
             }
 
             // Callback
@@ -1339,21 +1346,52 @@ class FlashcardSession {
     /**
      * Mark lesson as complete via API.
      */
-    async _markLessonComplete() {
+    async _markLessonComplete(signal) {
         try {
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfMeta && csrfMeta.content;
 
-            await fetch(this.config.markLessonCompleteUrl, {
+            return await fetch(this.config.markLessonCompleteUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     ...(csrfToken && { 'X-CSRFToken': csrfToken })
                 },
                 body: JSON.stringify({}),
+                signal,
             });
         } catch (error) {
             console.error('Error marking lesson complete:', error);
+        }
+    }
+
+    async _saveBookVocabulary() {
+        if (this._bookSaveInFlight || this._bookSaveConfirmed) return;
+        const { bookSaveStatus: status, bookSaveRetry: retry, sessionComplete } = this.els;
+        const actions = sessionComplete.querySelector('[data-celebration-actions]');
+        const focusWasOnRetry = document.activeElement === retry;
+        this._bookSaveInFlight = true;
+        status.textContent = 'Сохраняем урок…';
+        if (focusWasOnRetry) status.focus();
+        retry.hidden = true;
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12000);
+        try {
+            const response = await this._markLessonComplete(controller.signal);
+            if (!response?.ok || response.redirected || (await response.json()).success !== true) {
+                throw new Error('Lesson completion not confirmed');
+            }
+            this._bookSaveConfirmed = true;
+            status.textContent = 'Урок сохранён.';
+            actions.hidden = false;
+        } catch {
+            status.textContent = 'Не удалось сохранить урок. Ответы карточек уже записаны.';
+            retry.hidden = false;
+            if (focusWasOnRetry && document.activeElement === status) retry.focus();
+        } finally {
+            clearTimeout(timer);
+            this._bookSaveInFlight = false;
         }
     }
 
@@ -1531,7 +1569,8 @@ class FlashcardSession {
         const el = document.getElementById(elementId);
         if (!el) return;
 
-        if (this.config.planSrs) {
+        if (this.config.planSrs || (this.els.bookSaveStatus
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
             el.textContent = end;
             return;
         }

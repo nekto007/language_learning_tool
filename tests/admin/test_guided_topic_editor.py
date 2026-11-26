@@ -255,8 +255,11 @@ def test_moderator_exact_source_recovery_and_generic_final_form_still_works(
 
     g.pop('_login_user', None)
     final_path = f'/curriculum/admin/lesson/{final.id}/edit'
-    _page(admin_client.get(final_path))
-    posted = admin_client.post(final_path, data={'content': '{"description":"Final form remains independent"}'})
+    page = _page(admin_client.get(final_path))
+    posted = admin_client.post(final_path, data={
+        'content_revision': _field(page, 'content_revision'),
+        'content': '{"description":"Final form remains independent"}',
+    })
     assert posted.status_code == 302 and posted.location.endswith(f'/lesson/{final.id}/view')
     assert final.content['description'] == 'Final form remains independent' and final.grammar_topic_id == topic.id
     for target in [f'/curriculum/admin/lesson/{lesson.id}/edit',

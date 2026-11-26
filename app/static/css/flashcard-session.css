@@ -823,6 +823,30 @@
     flex-wrap: wrap;
     justify-content: center;
 }
+[data-book-vocabulary-receipt] [data-celebration-actions][hidden] {
+    display: none;
+}
+
+.book-vocabulary-save {
+    margin-bottom: 1rem;
+}
+
+.book-vocabulary-save button {
+    min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-book-vocabulary-receipt] :is(.celebration-icon, .celebration-title, .celebration-stats,
+        .xp-reward, .celebration-streak, .celebration-actions) {
+        opacity: 1;
+        transform: none;
+    }
+
+    [data-book-vocabulary-receipt] .checkmark-path {
+        stroke-dashoffset: 0;
+    }
+}
+
 .celebration-actions .lsn-btn,
 .celebration-actions .lsn-btn:link,
 .celebration-actions .lsn-btn:visited {

@@ -8,6 +8,7 @@
 {% endmacro %}
 {% block content %}
 <div class="guided-editor">
+    {% if from_dispute %}<a class="guided-return me-3 fw-semibold" id="guided-dispute-back" href="{{ url_for('answer_disputes_admin.detail', case_id=from_dispute) }}">К спору №{{ from_dispute }}</a>{% endif %}
     <a class="guided-return" href="{{ url_for('.index') }}">Все пошаговые темы</a>
     <header class="guided-heading">
         <h1>{{ topic.title_ru }}</h1>
@@ -15,7 +16,7 @@
     </header>
     {% if error %}<div class="alert alert-warning" role="alert">{{ error }}</div>{% endif %}
     {% if document %}
-    <form class="guided-main-form" method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query) }}">
+    <form class="guided-main-form" method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query, from_dispute=from_dispute) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {{ form_state() }}
         <input type="hidden" name="mode" value="fields">
@@ -45,7 +46,7 @@
     </form>
     <details class="guided-source">
         <summary>Авторский JSON и упражнения</summary>
-        <form method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query) }}">
+        <form method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query, from_dispute=from_dispute) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {{ form_state() }}
             <input type="hidden" name="mode" value="source">
@@ -56,7 +57,7 @@
     </details>
     {% else %}
     <p>Исходник установленной темы не совпал с восстановленным документом. Вставьте точный авторский JSON этой версии, чтобы открыть поля редактирования.</p>
-    <form method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query) }}">
+    <form method="post" action="{{ url_for('.preview', topic_id=topic.id, materials_query=materials_query, from_dispute=from_dispute) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {{ form_state() }}
         <input type="hidden" name="mode" value="recover">

@@ -11,7 +11,12 @@ from app.api.native_content import content_for
 from app.api.native_lessons import NativeLessonError, _digest, project_questions
 from app.auth.models import User
 from app.curriculum import answer_review_ai as ai
-from app.curriculum.answer_disputes import AnswerDispute, AnswerDisputeReport, current_dispute_row
+from app.curriculum.answer_disputes import (
+    AnswerDispute,
+    AnswerDisputeReport,
+    course_dispute_channels,
+    current_dispute_row,
+)
 from app.curriculum.answer_review_edits import replace_text_key
 from app.curriculum.models import Lessons
 from app.grammar_lab import answer_review as lab
@@ -182,7 +187,7 @@ def _card_source(case: AnswerDispute) -> str:
         path = f'/admin/grammar-lab/exercises/{case.grammar_exercise_id}/edit'
     else:
         lesson = db.session.get(Lessons, case.lesson_id)
-        heading = 'Сайт · Курс'
+        heading = ' · '.join(('Курс', *course_dispute_channels(db.session, case.id)))  # noqa: RUF001 -- Russian card title.
         if lesson:
             heading += f' · {lesson.module.level.code} · Модуль {lesson.module.number} «{lesson.module.title}»'
         title = f' «{lesson.title}»' if lesson else ''

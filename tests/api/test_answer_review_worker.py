@@ -63,7 +63,7 @@ def test_admin_card_shows_server_source_and_learner_only_to_admins(flow: SimpleN
     user = db.session.get(User, report.user_id)
     assert worker.process_one() and worker.process_one()
     card = flow.send.call_args.args[1]
-    assert f'Сайт · Курс · {flow.lesson.module.level.code} · Модуль 1' in card
+    assert f'Курс · Веб · {flow.lesson.module.level.code} · Модуль 1' in card  # noqa: RUF001 -- Russian card label.
     assert f'Урок {case.lesson_id} «{flow.lesson.title}», вопрос 1' in card
     assert f'/curriculum/admin/lesson/{case.lesson_id}/view' in card
     assert f'{user.username} (ID {user.id})' in card

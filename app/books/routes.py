@@ -796,7 +796,7 @@ def book_details(book_id):
 
     from app.curriculum.book_courses import BookCourse
 
-    book_courses = BookCourse.query.filter_by(book_id=book.id, is_active=True).order_by(BookCourse.id).all()
+    book_courses = BookCourse.active_for_books([book.id]).all()
     template = 'books/details_optimized.html' if use_optimized else 'books/details.html'
 
     return render_template(

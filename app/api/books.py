@@ -4,16 +4,18 @@ import logging
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, make_response, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.books.access import can_user_access_book
+from app.books.chapter_revisions import ChapterRevisionRace, chapter_toc_query, confirmed_chapter_revisions
 from app.books.models import Block, Book, Chapter, Task, UserChapterProgress
 from app.books.short_readings import reading_summary
-from app.books.text_access import visible_chapter_text
+from app.books.text_access import chapter_text_revision, chapter_text_with_access
 from app.curriculum.cache import cached
 from app.study.models import QuizDeck, QuizDeckWord
 from app.utils.db import db
@@ -167,45 +169,50 @@ def get_book(book_id):
 # Chapter-based Reading API
 # ============================================================================
 
-def _chapter_list_payload(book_id: int) -> list[dict]:
-    # A chapter publication must reach every worker immediately. Select just
-    # the TOC columns, without loading the chapter bodies.
-    chapters = db.session.execute(db.select(
-        Chapter.id, Chapter.chap_num.label('num'), Chapter.title, Chapter.words, Chapter.audio_url,
-    ).where(Chapter.book_id == book_id).order_by(Chapter.chap_num)).mappings()
-    return [dict(chapter) for chapter in chapters]
+def _chapter_list_response(book: Book, *, confirmed: bool) -> ResponseReturnValue:
+    if denial := _book_gate(book, 'Book not found'):
+        return denial
+    if not confirmed:
+        chapters = db.session.execute(chapter_toc_query(book.id)).mappings()
+        return jsonify([dict(chapter) for chapter in chapters])
+    if db.session.get_bind().dialect.name != 'postgresql':
+        return api_error('chapter_revisions_unavailable', 'Chapter revisions are temporarily unavailable', 503)
+    try:
+        chapters = confirmed_chapter_revisions(book, admin=current_user.is_admin)
+    except ChapterRevisionRace:
+        return api_error('chapter_revision_race', 'Chapter revisions changed; retry', 503)
+    except ProgrammingError as exc:
+        if getattr(exc.orig, 'pgcode', None) not in {'42P01', '42703'}:
+            raise
+        # The optional projection may hit a worker ahead of the schema rollout.
+        db.session.rollback()
+        logger.warning('Confirmed chapter revisions requested before their schema is available')
+        return api_error('chapter_revisions_unavailable', 'Chapter revisions are temporarily unavailable', 503)
+    response = jsonify(chapters)
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @api_books.route('/books/<slug>/chapters', methods=['GET'])
 @api_auth_required
-def get_book_chapters_by_slug(slug):
-    """
-    Get all chapters for a book by slug
-    Returns: [{"id": 12, "num": 1, "title": "The Boy...", "words": 4526, "audio_url": null}, ...]
-    """
-    book = Book.query.filter_by(slug=slug).first_or_404()
-    if _draft_hidden(book):
-        return api_error('not_found', 'Book not found', 404)
-    if not can_user_access_book(current_user, book):
-        return api_error('forbidden', 'Access denied', 403)
-
-    return jsonify(_chapter_list_payload(book.id))
+def get_book_chapters_by_slug(slug: str) -> ResponseReturnValue:
+    confirmed = request.args.get('text_revisions') == 'confirmed'
+    query = Book.query.filter_by(slug=slug)
+    if confirmed and db.session.get_bind().dialect.name == 'postgresql':
+        # Hold the book policy stable until the projected revisions are resolved.
+        query = query.with_for_update(read=True).populate_existing()
+    return _chapter_list_response(query.first_or_404(), confirmed=confirmed)
 
 
 @api_books.route('/books/<int:book_id>/chapters', methods=['GET'])
 @api_auth_required
-def get_book_chapters(book_id):
-    """
-    Get all chapters for a book
-    Returns: [{"id": 12, "num": 1, "title": "The Boy...", "words": 4526, "audio_url": null}, ...]
-    """
-    book = Book.query.get_or_404(book_id)
-    if _draft_hidden(book):
-        return api_error('not_found', 'Book not found', 404)
-    if not can_user_access_book(current_user, book):
-        return api_error('forbidden', 'Access denied', 403)
-
-    return jsonify(_chapter_list_payload(book_id))
+def get_book_chapters(book_id: int) -> ResponseReturnValue:
+    confirmed = request.args.get('text_revisions') == 'confirmed'
+    if confirmed and db.session.get_bind().dialect.name == 'postgresql':
+        book = Book.query.filter_by(id=book_id).with_for_update(read=True).populate_existing().first_or_404()
+    else:
+        book = Book.query.get_or_404(book_id)
+    return _chapter_list_response(book, confirmed=confirmed)
 
 
 @api_books.route('/books/<int:book_id>/chapters/<int:chapter_num>', methods=['GET'])
@@ -219,7 +226,10 @@ def get_chapter_content(book_id, chapter_num):
     if _draft_hidden(book):
         return api_error('not_found', 'Book not found', 404)
     if not can_user_access_book(current_user, book):
-        return api_error('forbidden', 'Access denied', 403)
+        response, status = api_error('forbidden', 'Access denied', 403)
+        return jsonify(response.get_json() | {'text_access': {
+            'book_id': book.id, 'policy_revision': str(book.text_policy_revision), 'decision': 'denied',
+        }}), status
     chapter = Chapter.query.filter_by(
         book_id=book_id,
         chap_num=chapter_num
@@ -236,13 +246,15 @@ def get_chapter_content(book_id, chapter_num):
         chap_num=chapter_num - 1
     ).first()
 
-    text, text_truncated = visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)
+    text, text_truncated, text_access = chapter_text_with_access(book, chapter.text_raw, admin=current_user.is_admin)
     response_data = {
         'id': chapter.id,
         'num': chapter.chap_num,
         'title': chapter.title,
         'text': text,
         'text_truncated': text_truncated,
+        'text_access': text_access,
+        'text_revision': chapter_text_revision(text, text_access),
         # Formative practice only, not an assessment: hints and model answers
         # deliberately travel with the text and remain available offline.
         'reading': book.reading if book.is_short_reading else None,
@@ -865,7 +877,7 @@ def get_chapter_by_id(chapter_id):
         if not can_user_access_book(current_user, book):
             return api_error('forbidden', 'Access denied', 403)
 
-        text, text_truncated = visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)
+        text, text_truncated, text_access = chapter_text_with_access(book, chapter.text_raw, admin=current_user.is_admin)
         return jsonify({
             'success': True,
             'chapter': {
@@ -874,6 +886,8 @@ def get_chapter_by_id(chapter_id):
                 'title': chapter.title,
                 'text_raw': text,
                 'text_truncated': text_truncated,
+                'text_access': text_access,
+                'text_revision': chapter_text_revision(text, text_access),
                 'audio_url': chapter.audio_url,
                 'words': chapter.words,
                 'book_id': chapter.book_id

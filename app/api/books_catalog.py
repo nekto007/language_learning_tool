@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, url_for
 from flask_login import current_user
 from sqlalchemy import exists, func, or_, select
 
@@ -85,9 +85,30 @@ def get_books_catalog():
     result = {'user_level': user_level, 'books': [_book_payload(book) for book in books]}
     if request.args.get('include_library') == '1':
         result['library_books'] = _account_library(current_user)
+    shelf_books = result['books'] + [item['book'] for item in result.get('library_books', [])]
+    _add_book_courses(shelf_books)
     response = jsonify(result)
     response.headers["Cache-Control"] = "private, no-store"
     return response
+
+
+def _add_book_courses(books: list[dict]) -> None:
+    from app.curriculum.book_courses import BookCourse
+
+    if not books:
+        return
+    # Both catalog shelves have already applied the user's book access policy.
+    # Even an administrator's draft reading history gets no public course links.
+    rows = (BookCourse.active_for_books({book['id'] for book in books})
+            .join(Book, Book.id == BookCourse.book_id).filter(Book.is_published.is_(True))
+            .with_entities(BookCourse.book_id, BookCourse.id, BookCourse.title).all())
+    by_book: dict[int, list[dict[str, str]]] = {}
+    for book_id, course_id, title in rows:
+        by_book.setdefault(book_id, []).append({
+            'title': title, 'path': url_for('book_courses.view_course', course_id=course_id),
+        })
+    for book in books:
+        book['book_courses'] = by_book.get(book['id'], [])
 
 
 def _book_payload(book):

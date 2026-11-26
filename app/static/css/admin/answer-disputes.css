@@ -55,7 +55,7 @@
 .disputes-comparison > div { background: #f1f5fa; padding: .9rem; border-radius: .35rem; }
 .disputes-comparison p, .disputes-question { white-space: pre-line; }
 .disputes-ai { border-top: 1px solid var(--dispute-rule); padding-top: 1rem; }
-.disputes-ai strong { display: block; font-weight: 600; margin-bottom: .25rem; }
+.disputes-ai > strong { display: block; font-weight: 600; margin-bottom: .25rem; }
 .disputes-choices { margin-bottom: 1rem; }
 .disputes-choices label { display: flex; align-items: center; gap: .55rem; min-height: 48px; padding: .6rem .8rem; border: 1px solid var(--dispute-rule); border-radius: .4rem; cursor: pointer; }
 .disputes-choices label:has(:checked) { background: #eef3fb; border-color: var(--dispute-accent); }

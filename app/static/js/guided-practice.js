@@ -560,7 +560,7 @@
         : {correct: r.units_correct, total: r.units_total, label: r.unit_label};
       if (units.total != null) screen.append(node('p', `${units.label}: ${units.correct} из ${units.total}`));
       if (isCorrection()) screen.append(node('p', `Исправлено: ${r.correct_count} из ${r.total_count}. Исходный результат ${Math.trunc(first.first_score)}% сохранён.`));
-      if (r.correction_pending) screen.append(node('p', 'Работа над ошибками назначена отдельным заданием.'));
+      if (r.correction_pending) screen.append(node('p', 'В первой попытке были ошибки.'));
       resultActions = node('div', null, 'practice-result-actions');
       screen.append(resultActions);
       if (readingLayout && r.correction_pending) {

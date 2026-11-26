@@ -14,13 +14,14 @@
             <h1 class="mb-2">📚 {{ _('Тексты и книги') }}</h1>
             <p class="mb-0 opacity-75">{{ _('Читайте короткие тексты и книги на английском. Материалы A1 идут от простого к сложному.') }}</p>
         </div>
-        {% if current_user.is_authenticated and current_user.is_admin %}
-        <div class="col-md-4 text-end">
+        <div class="col-md-4 d-flex flex-wrap justify-content-md-end gap-2 mt-3 mt-md-0">
+            {% include 'books/_course_catalog_link.html' %}
+            {% if current_user.is_admin %}
             <a href="{{ url_for('books.add_book_redirect') }}" class="btn btn-light">
                 <i class="fas fa-plus"></i> {{ _('Добавить книгу') }}
             </a>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
     
     <!-- Quick Search -->

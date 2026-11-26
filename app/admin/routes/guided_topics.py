@@ -9,6 +9,7 @@ from flask import Blueprint, Response, abort, flash, make_response, redirect, re
 from flask_login import current_user
 
 from app.admin.audit import log_admin_action
+from app.admin.services.guided_disputes import guided_topic_for_dispute
 from app.admin.utils.decorators import content_editor_required
 from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.auth.models import User
@@ -35,14 +36,26 @@ def _topic(topic_id: int) -> GrammarTopic:
 
 
 def _private(template: str, status: int = 200, **context: Any) -> Response:
+    topic = context.get('topic')
     response = make_response(render_template(f'admin/guided_topics/{template}.html',
-                                             materials_query=_materials_query(), **context), status)
+                                             materials_query=_materials_query(),
+                                             from_dispute=_from_dispute(topic) if topic is not None else None,
+                                             **context), status)
     response.headers['Cache-Control'] = 'private, no-store'
     return response
 
 
 def _materials_query() -> str | None:
     return request.args.get('materials_query') if current_user.is_admin else None
+
+
+def _from_dispute(topic: GrammarTopic) -> int | None:
+    case_id = request.args.get('from_dispute', type=int)
+    if case_id is None or not 0 < case_id <= 2**31 - 1:
+        return None
+    case = db.session.get(AnswerDispute, case_id)
+    linked = guided_topic_for_dispute(case) if case is not None else None
+    return case_id if linked is not None and linked.id == topic.id else None
 
 
 def _stage(topic: GrammarTopic, kind: str, payload: dict) -> str:
@@ -246,4 +259,5 @@ def publish(topic_id: int) -> Response:
 
     cache.clear()
     flash('Пошаговая тема опубликована.', 'success')
-    return redirect(url_for('.edit', topic_id=topic_id, materials_query=_materials_query()), code=303)
+    return redirect(url_for('.edit', topic_id=topic_id, materials_query=_materials_query(),
+                            from_dispute=_from_dispute(topic)), code=303)

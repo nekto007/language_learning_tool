@@ -8,7 +8,9 @@ from urllib.parse import quote
 from sqlalchemy import or_
 
 from app.auth.models import User
-from app.curriculum.answer_disputes import AnswerDispute, AnswerDisputeReport, course_answer_hash
+from app.curriculum.answer_disputes import (
+    AnswerDispute, AnswerDisputeReport, NativeCourseDisputeReceipt, _hash, course_answer_hash,
+)
 from app.curriculum.constants import get_lesson_passing_score
 from app.curriculum.models import LessonAttempt, LessonProgress, Lessons
 from app.daily_plan.linear.models import QuizErrorLog
@@ -37,7 +39,8 @@ def submitted_mistakes(questions: list[dict], feedback: list[dict], answers: dic
     by_id = {q['id']: q for q in questions}
     return [
         {'question': row['prompt'], 'answer': row['answer'], 'question_id': row['id'],
-         'answer_hash': course_answer_hash(by_id[row['id']], answers[row['id']])}
+         'answer_hash': course_answer_hash(by_id[row['id']], answers[row['id']]),
+         'answer_value_hash': _hash(answers[row['id']])}
         for row in feedback if not row['correct']
     ]
 
@@ -142,6 +145,11 @@ def _credit_course(report: AnswerDisputeReport, case: AnswerDispute, lesson: Les
                 and m.get('answer_hash') == case.normalized_answer_hash]
     if (len(matching) != 1 or not attempt.completed_at or not attempt.total_questions
             or attempt.correct_answers is None or not 0 <= attempt.correct_answers < attempt.total_questions):
+        return None
+    proofs = db.session.query(NativeCourseDisputeReceipt.answer).filter_by(
+        report_id=report.id, nonce=report.course_nonce,
+    ).all()
+    if proofs and matching[0].get('answer_value_hash') not in {_hash(proof.answer) for proof in proofs}:
         return None
     attempt.mistakes = [mistake for mistake in mistakes if mistake is not matching[0]]
     attempt.correct_answers += 1

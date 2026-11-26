@@ -22,4 +22,10 @@
 </main>
 {% endif %}
 {% endblock %}
-{% block scripts %}{{ super() }}{% if not review_completed %}<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261127-course-practice') }}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}
+{{ super() }}
+{% if not review_completed %}
+<script src="{{ url_for('static', filename='js/practice-question-view.js', v='20261126-choice-preview') }}" defer></script>
+<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261127-course-practice') }}" defer></script>
+{% endif %}
+{% endblock %}

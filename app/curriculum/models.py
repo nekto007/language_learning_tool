@@ -531,6 +531,7 @@ class UserWritingAttempt(db.Model):
     # 0 = проверено и чисто. matches — упрощённый список из app/utils/languagetool.py.
     grammar_error_count = Column(Integer, nullable=True)
     grammar_matches = Column(db.JSON, nullable=True)
+    prompt_snapshot = Column(db.JSON(none_as_null=True), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     __table_args__ = (
@@ -552,6 +553,8 @@ def save_writing_attempt(
     checklist_completed: bool,
     db_session,
     grammar_check: 'Optional[dict]' = None,
+    *,
+    prompt_snapshot: dict[str, str | None] | None = None,
 ) -> 'UserWritingAttempt':
     """Persist a writing attempt and return the new row.
 
@@ -570,6 +573,7 @@ def save_writing_attempt(
         response_text=text,
         word_count=word_count,
         checklist_completed=checklist_completed,
+        prompt_snapshot=prompt_snapshot,
     )
     if grammar_check is not None:
         attempt.grammar_error_count = grammar_check.get('error_count', 0)

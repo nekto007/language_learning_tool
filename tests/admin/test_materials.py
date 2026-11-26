@@ -130,6 +130,8 @@ def test_admin_gate_and_safe_return(
     editor = f'/curriculum/admin/lesson/{lesson.id}/edit'
     page = _page(admin_client.get(editor, query_string={'materials_query': 'next=https://example.invalid/'}))
     assert page.find('a', string='К результатам поиска')['href'] == INDEX  # noqa: RUF001 -- Exact Russian link text.
-    assert not _page(admin_client.get(editor)).find('a', string='К результатам поиска')  # noqa: RUF001 -- Exact Russian link text.
-    saved = admin_client.post(editor, data={'content': '{}'})
+    editor_page = _page(admin_client.get(editor))
+    assert not editor_page.find('a', string='К результатам поиска')  # noqa: RUF001 -- Exact Russian link text.
+    revision = editor_page.select_one('input[name=content_revision]')['value']
+    saved = admin_client.post(editor, data={'content_revision': revision, 'content': '{}'})
     assert saved.status_code == 302 and saved.location == f'/curriculum/admin/lesson/{lesson.id}/view'

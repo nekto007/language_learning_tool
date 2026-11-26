@@ -1,10 +1,12 @@
 # app/curriculum/models/book_courses.py
 
 import re
+from collections.abc import Collection
 from datetime import datetime, timezone
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.ext.mutable import MutableDict, MutableList
+from sqlalchemy.orm import Query
 from sqlalchemy.orm import backref as sa_backref
 from sqlalchemy.orm import relationship
 
@@ -125,6 +127,10 @@ class BookCourse(db.Model):
         Index('idx_book_courses_active', 'is_active'),
         Index('idx_book_courses_featured', 'is_featured'),
     )
+
+    @classmethod
+    def active_for_books(cls, book_ids: Collection[int]) -> Query:
+        return cls.query.filter(cls.book_id.in_(book_ids), cls.is_active.is_(True)).order_by(cls.id)
 
     def __repr__(self):
         return f"<BookCourse {self.id}: {self.title} ({self.level})>"

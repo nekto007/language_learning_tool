@@ -315,6 +315,9 @@ def _question(lesson, row, index):
         "video_url": media_url(row.get("video_url") or row.get("video"), "video"),
         "section": row.get("_section_label"),
     }
+    if (lesson.type == "listening_quiz" and kind == "listening_choice"
+            and question["translation"] and question["translation"] == question["prompt"]):
+        question["translation"] = None
     if kind in CHOICE or (kind in FILL_BLANKS and row.get("options")):
         choices = row.get("options")
         if (
@@ -1227,6 +1230,7 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
             bool(completed),
             db,
             grammar_check=grammar_check,
+            prompt_snapshot=sealed.get('writing_prompt_snapshot') if lesson.type == 'writing_prompt' else None,
         )
     if telemetry.get("listening"):
         # Legacy self-assessed listening logs completion, not an exam score.

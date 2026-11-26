@@ -246,10 +246,14 @@ def complete_lesson_api_v1(lesson_id):
         if not module:
             return jsonify({'error': 'Not found'}), 404
 
-        enrollment = BookCourseEnrollment.query.filter_by(
+        vocabulary = daily_lesson.lesson_type == 'vocabulary'
+        enrollment_query = BookCourseEnrollment.query.filter_by(
             course_id=module.course_id,
             user_id=current_user.id
-        ).first()
+        )
+        if vocabulary:
+            enrollment_query = enrollment_query.with_for_update()
+        enrollment = enrollment_query.first()
 
         if not enrollment:
             return jsonify({'error': 'Not found'}), 404
@@ -259,6 +263,14 @@ def complete_lesson_api_v1(lesson_id):
             daily_lesson_id=lesson_id,
             enrollment_id=enrollment.id
         ).first()
+        if vocabulary and progress and progress.status == 'completed':
+            return jsonify({'success': True, 'message': 'Lesson completed'}), 201
+
+        previous_event = None
+        if vocabulary:
+            previous_event = LessonCompletionEvent.query.filter_by(
+                daily_lesson_id=lesson_id, user_id=current_user.id, event_type='lesson_completed',
+            ).order_by(LessonCompletionEvent.id).first()
 
         if not progress:
             progress = UserLessonProgress(
@@ -271,7 +283,12 @@ def complete_lesson_api_v1(lesson_id):
             db.session.add(progress)
 
         progress.status = 'completed'
-        progress.completed_at = datetime.now(UTC)
+        if vocabulary:
+            progress.completed_at = progress.completed_at or (
+                previous_event.created_at if previous_event else datetime.now(UTC)
+            )
+        else:
+            progress.completed_at = datetime.now(UTC)
 
         module_progress = BookModuleProgress.query.filter_by(
             enrollment_id=enrollment.id,
@@ -329,15 +346,15 @@ def complete_lesson_api_v1(lesson_id):
                     if not enrollment.completed_at:
                         enrollment.completed_at = datetime.now(UTC)
 
-        completion_event = LessonCompletionEvent(
-            daily_lesson_id=lesson_id,
-            user_id=current_user.id,
-            event_type='lesson_completed',
-            event_data={'lesson_type': daily_lesson.lesson_type}
-        )
-        db.session.add(completion_event)
+        if previous_event is None:
+            db.session.add(LessonCompletionEvent(
+                daily_lesson_id=lesson_id,
+                user_id=current_user.id,
+                event_type='lesson_completed',
+                event_data={'lesson_type': daily_lesson.lesson_type}
+            ))
 
-        if daily_lesson.lesson_type == 'vocabulary':
+        if vocabulary and previous_event is None:
             try:
                 srs_integration = BookSRSIntegration()
                 srs_integration.auto_create_srs_cards_from_vocabulary_lesson(
