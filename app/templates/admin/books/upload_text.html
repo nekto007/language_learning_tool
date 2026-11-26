@@ -1,0 +1,39 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header %}
+{% block title %}Загрузить текст · {{ book.title }}{% endblock %}
+{% block content %}
+{{ page_header('Загрузить текст', book.title) }}
+<p><a href="{{ url_for('.edit_book', book_id=book.id) }}">Карточка книги</a></p>
+{% if token %}
+<section class="card card-body mb-3" aria-labelledby="book-text-preview">
+    <h2 id="book-text-preview" class="h5">Предпросмотр</h2>
+    <p>Главы: {{ chapters|length }}. Текст ещё не сохранён.</p>
+    <ol>
+        {% for chapter in chapters %}
+        <li class="pb-2">
+            <details>
+                <summary>{{ chapter.title }}</summary>
+                <p class="mt-2 text-break">{{ chapter.text|truncate(400, true) }}</p>
+            </details>
+        </li>
+        {% endfor %}
+    </ol>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="preview_token" value="{{ token }}">
+        <button class="btn btn-primary" type="submit" name="action" value="apply">Сохранить текст</button>
+        <a href="{{ url_for('.upload_book_text', book_id=book.id) }}" class="btn btn-link">Отмена</a>
+    </form>
+</section>
+{% else %}
+<form class="card card-body" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="book-text-file" class="form-label">Файл книги</label>
+    <input class="form-control" type="file" name="file" id="book-text-file" accept=".txt,.epub,.fb2,.docx,.pdf">
+    <p class="form-text">TXT, EPUB, FB2, DOCX или PDF с выделяемым текстом.</p>
+    <label for="book-content" class="form-label">Или вставьте текст</label>
+    <textarea class="form-control mb-3" name="content" id="book-content" rows="8">{{ content or '' }}</textarea>
+    <div><button class="btn btn-primary" type="submit" name="action" value="preview">Предпросмотр</button></div>
+</form>
+{% endif %}
+{% endblock %}

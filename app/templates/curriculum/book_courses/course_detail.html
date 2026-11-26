@@ -61,6 +61,9 @@
         <div class="cd-hero__info">
           <h1 class="cd-hero__title">{{ course.title }}</h1>
           <p class="cd-hero__author">{{ book.author }}</p>
+          {% if show_book_link %}
+          <p><a class="btn btn-sm btn-light" href="{{ url_for('books.book_details', book_id=book.id) }}">{{ 'Карточка книги' if nav_lang == 'ru' else 'Book details' }}</a></p>
+          {% endif %}
           <div class="cd-hero__badges">
             <span class="cd-hero__level-pill">{{ course.level }}</span>
             {% if course.is_featured %}

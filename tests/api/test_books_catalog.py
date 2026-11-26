@@ -97,6 +97,8 @@ class TestCatalogEndpoint:
         b1 = _make_book(db_session, 'B1')
         b2 = _make_book(db_session, 'B2')
 
+        for book in (a1, a2, b1, b2):
+            _add_chapters(db_session, book)
         test_user.onboarding_level = 'A2'
         db_session.commit()
 
@@ -114,6 +116,8 @@ class TestCatalogEndpoint:
         b1 = _make_book(db_session, 'B1')
         b2 = _make_book(db_session, 'B2')
         a0 = _make_book(db_session, 'A0')
+        for book in (a0, b1, b2):
+            _add_chapters(db_session, book)
 
         resp = authenticated_client.get('/api/books/catalog?level=B1')
         assert resp.status_code == 200
@@ -126,8 +130,9 @@ class TestCatalogEndpoint:
         assert data['user_level'] == 'B1'
 
     def test_skips_books_with_zero_chapters(self, authenticated_client, db_session, cefr_levels, test_user):
-        empty = _make_book(db_session, 'A2', chapters=0)
-        good = _make_book(db_session, 'A2', chapters=2)
+        empty = _make_book(db_session, 'A2', chapters=2)
+        good = _make_book(db_session, 'A2', chapters=0)
+        _add_chapters(db_session, good, 2)
         test_user.onboarding_level = 'A2'
         db_session.commit()
 
@@ -138,6 +143,7 @@ class TestCatalogEndpoint:
 
     def test_response_includes_metadata_fields(self, authenticated_client, db_session, cefr_levels):
         book = _make_book(db_session, 'A2')
+        _add_chapters(db_session, book)
         resp = authenticated_client.get('/api/books/catalog?level=A2')
         data = resp.get_json()
         match = next(b for b in data['books'] if b['id'] == book.id)
@@ -215,6 +221,8 @@ class TestSelectEndpoint:
     ):
         book_a = _make_book(db_session, 'A2')
         book_b = _make_book(db_session, 'A2')
+        _add_chapters(db_session, book_a)
+        _add_chapters(db_session, book_b)
 
         resp1 = authenticated_client.post('/api/books/select', json={'book_id': book_a.id})
         assert resp1.status_code == 200

@@ -50,6 +50,8 @@ AUDIT_LOG_WHITELIST = frozenset({
     # Preview only stores a temporary, admin-bound upload. The separate apply
     # route commits the curriculum changes and the audit entry together.
     'content_packages_admin.index',
+    # Retired endpoint always returns 410 and a link to the file upload.
+    'book_admin.scrape_website',
     # The signed review preview has no persistent side effects.
     'answer_disputes_admin.preview',
     # Stages an authored document and a database fingerprint for confirmation.

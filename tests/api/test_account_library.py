@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import pytest
@@ -83,7 +84,11 @@ def test_history_sort_uses_last_read_and_query_count_does_not_grow_per_book(nati
         try:
             response=client.get('/api/books/catalog?include_library=1',headers=headers)
             assert response.status_code==200,response.get_json()
-            assert all('chapter.text_raw' not in sql.lower() for sql in statements)
+            # A readability predicate can inspect text in WHERE. The projection
+            # must still avoid loading chapter bodies into Python.
+            projections = [re.split(r'\bfrom\b', sql.lower(), maxsplit=1)[0] for sql in statements]
+            assert all('chapter.text_raw' not in projection for projection in projections)
+            assert all('text_raw' not in row['book'] for row in response.get_json()['library_books'])
             return response.get_json(),len(statements)
         finally:event.remove(db.engine,'before_cursor_execute',record)
     _,before=query()

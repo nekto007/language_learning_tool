@@ -3,10 +3,11 @@
 import logging
 import os
 import re
-import threading
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import desc, func
@@ -21,9 +22,9 @@ from app.books.access import (
     can_user_access_book,
 )
 from app.books.forms import BookContentForm
-from app.books.models import Book, Chapter
-from app.books.parsers import process_uploaded_book
-from app.books.processors import enqueue_book_processing
+from app.books.models import Book, Chapter, UserChapterProgress
+from app.books.readability import book_has_text, chapter_has_text
+from app.books.text_access import book_allows_text, visible_chapter_text
 from app.study.models import UserWord
 from app.utils.db import db
 from app.words.models import CollectionWords, word_book_link
@@ -86,158 +87,43 @@ def save_cover_image(file):
 @login_required
 @admin_required
 def add_book_redirect():
-    flash('Функция добавления книг перенесена в админку', 'info')
-    return redirect(url_for('admin.add_book'))
+    return redirect(url_for('book_admin.add_book'), code=303 if request.method == 'POST' else 302)
 
 
 @books.route('/content/<int:book_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
-def edit_book_content(book_id):
+def edit_book_content(book_id: int) -> ResponseReturnValue:
     book = Book.query.get_or_404(book_id)
-    form = BookContentForm(obj=book)
-    # Preserve legacy CEFR values (e.g. C2) so unrelated edits don't downgrade them.
-    canonical_level_values = {choice[0] for choice in form.level.choices}
-    if book.level and book.level not in canonical_level_values:
-        form.level.choices = [(book.level, f'{book.level} (legacy)')] + list(form.level.choices)
-
-    if form.validate_on_submit():
-        try:
-            # Обновляем основные данные книги
-            book.title = form.title.data
-            book.author = form.author.data
-            book.level = form.level.data
-
-            # Процесс обложки книги
-            if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):
-                cover_filename = save_cover_image(form.cover_image.data)
-                if cover_filename:
-                    # Удаляем старую обложку, если она существует
-                    if book.cover_image:
-                        old_cover_path = os.path.join(COVER_UPLOAD_FOLDER, book.cover_image)
-                        if os.path.exists(old_cover_path):
-                            try:
-                                os.remove(old_cover_path)
-                            except Exception as e:
-                                logger.error(f"Error removing old cover: {str(e)}")
-
-                    book.cover_image = cover_filename
-
-            # Обработка файла содержимого книги
-            content_changed = False
-            old_content = book.content
-
-            if form.file.data and hasattr(form.file.data, 'filename'):
-                try:
-                    # Обрабатываем файл
-                    result = process_uploaded_book(
-                        file=form.file.data,
-                        title=form.title.data,
-                        format_type=form.format_type.data
-                    )
-
-                    # Сохраняем результаты
-                    book.content = result['content']
-                    book.words_total = result['word_count']
-                    book.unique_words = result['unique_words']
-                    content_changed = True
-
-                except Exception as e:
-                    flash(f'Ошибка обработки файла: {str(e)}', 'danger')
-                    return render_template('books/add.html', form=form, book=book)
-
-            elif form.content.data:
-                # Если контент был отредактирован вручную
-                content = form.content.data
-
-                # Проверяем, изменился ли контент
-                if content != old_content:
-                    # Преобразуем простой текст в HTML с форматированием абзацев, если это не HTML
-                    if not content.strip().startswith('<'):
-                        content_html = '<p>' + '</p><p>'.join(content.split('\n\n')) + '</p>'
-                        content_html = content_html.replace('\n', '<br>')
-                    else:
-                        content_html = content
-
-                    # Подсчитываем статистику слов
-                    words = re.findall(r'\b[a-zA-Z]+\b', re.sub(r'<[^>]+>', '', content).lower())
-                    book.content = content_html
-                    book.words_total = len(words)
-                    book.unique_words = len(set(words))
-                    content_changed = True
-
-            # Sync linked BookCourse rows when book opts into course generation
-            if book.create_course:
-                try:
-                    from app.curriculum.book_courses import sync_book_course_from_book
-                    sync_book_course_from_book(book.id, db.session)
-                except Exception as sync_err:
-                    logger.error(f"BookCourse sync failed for book {book.id}: {sync_err}")
-
-            # Сохраняем изменения
-            db.session.commit()
-
-            # ВАЖНО: Теперь запускаем обработку слов в отдельном потоке без ожидания
-            if content_changed and book.content:
-                # Запускаем обработку асинхронно в отдельном потоке
-                book_content = book.content  # Сохраняем копию контента
-
-                def start_processing():
-                    try:
-                        # Используем простую постановку в очередь
-                        enqueue_book_processing(book_id, book_content)
-                    except Exception as e:
-                        logger.error(f"Ошибка при запуске обработки слов: {str(e)}")
-
-                # Запускаем поток и не ждем его завершения
-                processing_thread = threading.Thread(target=start_processing)
-                processing_thread.daemon = True
-                processing_thread.start()
-
-                # Сразу возвращаем ответ пользователю
-                flash('Содержимое книги успешно обновлено! Обработка слов запущена в фоновом режиме.',
-                      'success')
-            else:
-                flash('Содержимое книги успешно обновлено!', 'success')
-
-            return redirect(url_for('books.book_details', book_id=book.id))
-
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Ошибка обновления книги: {str(e)}', 'danger')
-
-    if not form.content.data and book.content:
-        form.content.data = book.content
-
-    use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']
-
-    template = 'books/content_editor_optimized.html' if use_optimized else 'books/add.html'
-
-    return render_template(template, form=form, book=book, is_edit=True)
+    if request.method == 'POST':
+        flash('Откройте нужный редактор и внесите изменения заново.', 'warning')
+    if book.is_short_reading:
+        endpoint = 'short_reading_admin.edit'
+    elif Chapter.query.filter_by(book_id=book_id).first() is None:
+        endpoint = 'book_admin.upload_book_text'
+    else:
+        endpoint = 'book_admin.chapter_list'
+    return redirect(url_for(endpoint, book_id=book_id), code=303 if request.method == 'POST' else 302)
 
 
 @books.route('/reprocess-words/<int:book_id>', methods=['POST'])
 @login_required
 @admin_required
-def reprocess_book_words(book_id):
-    book = Book.query.get_or_404(book_id)
+def reprocess_book_words(book_id: int) -> ResponseReturnValue:
+    from app.admin.services.book_processing_service import BookProcessingService
 
-    if not book.content:
-        flash('В этой книге нет содержимого для обработки.', 'warning')
-        return redirect(url_for('books.book_details', book_id=book_id))
-
-    processing_result = enqueue_book_processing(book.id, book.content)
-
-    if processing_result.get("status") == "already_processing":
-        flash('Эта книга уже обрабатывается.', 'info')
-    elif processing_result.get("async", False):
-        flash('Обработка слов поставлена в очередь в фоновом режиме.', 'success')
-    elif processing_result.get("sync", False) and processing_result.get("status") == "success":
-        flash('Слова были успешно обработаны!', 'success')
+    Book.query.get_or_404(book_id)
+    if db.session.query(book_has_text(book_id)).scalar():
+        try:
+            BookProcessingService.start_background_chapter_processing(current_app._get_current_object(), book_id)
+        except Exception:
+            logger.exception('Could not start chapter indexing for book %s', book_id)
+            flash('Не удалось запустить обработку слов.', 'danger')
+        else:
+            flash('Обработка слов запущена. Результат появится после её завершения.', 'info')
     else:
-        flash(f'Word processing: {processing_result.get("message", "started")}', 'info')
-
-    return redirect(url_for('books.book_details', book_id=book_id))
+        flash('В книге пока нет текста для обработки.', 'warning')
+    return redirect(url_for('books.book_details', book_id=book_id), code=303)
 
 
 @books.route('/upload-cover/<int:book_id>', methods=['POST'])
@@ -365,32 +251,11 @@ def read_book(book_id):
     return redirect(url_for('books.read_book_chapters', book_id=book_id, **forwarded_args))
 
 
-def _apply_allowed_text_percent(book, text):
-    """Truncate ``text`` to ``book.allowed_text_percent`` of its length.
-
-    Returns ``(text, was_truncated)``. Backs off to a paragraph or whitespace
-    boundary near the cut so a word isn't split. Enforces the licensed text
-    allowance for non-public-domain books (audit E-047).
-    """
-    pct = getattr(book, 'allowed_text_percent', None)
-    if pct is None or pct >= 100 or not text:
-        return text, False
-    pct = max(0, min(100, int(pct)))
-    cut = max(1, int(len(text) * pct / 100))
-    if cut >= len(text):
-        return text, False
-    truncated = text[:cut]
-    boundary = truncated.rfind('\n\n')
-    if boundary <= cut * 0.5:
-        sp = truncated.rfind(' ')
-        boundary = sp if sp > 0 else cut
-    return truncated[:boundary], True
-
-
 @books.route('/books/<string:book_slug>/chapter/<int:chapter_num>')
 @books.route('/books/<string:book_slug>/reader')
 @books.route('/reader/<string:book_slug>/<int:chapter_num>')
 @books.route('/read/<int:book_id>/chapters')
+@books.route('/books/<int:book_id>/read', endpoint='book_read')
 @login_required
 def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     if book_slug:
@@ -406,38 +271,24 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         flash('У вас нет доступа к этой книге. Обратитесь к администратору.', 'error')
         abort(403)
 
-    chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
+    chapters = Chapter.query.filter(Chapter.book_id == book_id, chapter_has_text()).order_by(Chapter.chap_num).all()
 
     if not chapters:
-        flash('В этой книге пока нет глав для чтения.', 'warning')
-        return redirect(url_for('books.book_list'))
+        return redirect(url_for('books.book_details', book_id=book_id))
 
     if not chapter_num:
         chapter_num = request.args.get('chapter', type=int)
 
     if not chapter_num:
-        # Try to get from user progress
-        from app.books.models import UserChapterProgress
         latest_progress = UserChapterProgress.query.filter_by(
             user_id=current_user.id
         ).join(Chapter).filter(
-            Chapter.book_id == book_id
+            Chapter.book_id == book_id, chapter_has_text()
         ).order_by(UserChapterProgress.updated_at.desc()).first()
+        chapter_num = latest_progress.chapter.chap_num if latest_progress else 1
 
-        if latest_progress:
-            chapter_num = latest_progress.chapter.chap_num
-        else:
-            chapter_num = 1
+    current_chapter = next((chapter for chapter in chapters if chapter.chap_num == chapter_num), chapters[0])
 
-    current_chapter = Chapter.query.filter_by(
-        book_id=book_id,
-        chap_num=chapter_num
-    ).first()
-
-    if not current_chapter:
-        current_chapter = chapters[0]  # Default to first chapter
-
-    from app.books.models import UserChapterProgress
     chapter_progress = UserChapterProgress.query.filter_by(
         user_id=current_user.id,
         chapter_id=current_chapter.id
@@ -446,7 +297,7 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     back_url = request.args.get('from')
     if back_url in ('daily_plan', 'linear_plan'):
         back_url = None  # tracking flag, not a URL
-    if not back_url:
+    if not back_url and request.endpoint != 'books.book_read':
         referrer = request.referrer
         if referrer:
             # Check if referrer is from books list or book details
@@ -460,24 +311,22 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
             back_url = url_for('books.book_details', book_id=book_id)
     back_url = _safe_back_url(back_url, book_id)
 
-    # Enforce per-book licensed text allowance (audit E-047): a licensed /
-    # companion_only book with allowed_text_percent < 100 serves only that
-    # fraction of each chapter to non-admins. Public-domain books and admins
-    # always get the full text.
-    chapter_text = current_chapter.text_raw
-    text_truncated = False
-    if not current_user.is_admin and getattr(book, 'rights_status', None) != 'public_domain':
-        chapter_text, text_truncated = _apply_allowed_text_percent(book, chapter_text)
+    learner_preview = current_user.is_admin and request.args.get('preview') == 'learner'
+    if learner_preview:
+        back_url = url_for('book_admin.edit_book', book_id=book_id)
+    chapter_text, text_truncated = visible_chapter_text(
+        book, current_chapter.text_raw, admin=current_user.is_admin and not learner_preview,
+    )
 
-    return render_template('books/reader_simple.html',
-                           book=book,
-                           chapters=chapters,
-                           current_chapter=current_chapter,
-                           chapter_text=chapter_text,
-                           text_truncated=text_truncated,
-                           chapter_progress=chapter_progress,
-                           back_url=back_url
-                           )
+    index = chapters.index(current_chapter)
+    return render_template(
+        'books/reader_simple.html', book=book, chapters=chapters, current_chapter=current_chapter,
+        previous_chapter=chapters[index - 1] if index else None,
+        next_chapter=chapters[index + 1] if index + 1 < len(chapters) else None,
+        chapter_text=chapter_text, text_truncated=text_truncated,
+        chapter_progress=None if learner_preview else chapter_progress,
+        learner_preview=learner_preview, can_track_reading=bool(chapter_text) and not learner_preview, back_url=back_url,
+    )
 
 
 @books.route('/books/<int:book_id>/finish-reading', methods=['POST'])
@@ -707,7 +556,7 @@ def book_list():
             Chapter.book_id,
             func.count(Chapter.id).label('chapter_count')
         ).where(
-            Chapter.book_id.in_(book_ids)
+            Chapter.book_id.in_(book_ids), chapter_has_text()
         ).group_by(Chapter.book_id)
 
         chapter_results = db.session.execute(chapter_count_query).all()
@@ -880,8 +729,20 @@ def book_details(book_id):
 
     use_optimized = request.args.get('optimized', 'true').lower() in ['true', '1', 'yes']
 
-    chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
+    chapters = Chapter.query.filter(Chapter.book_id == book_id, chapter_has_text()).order_by(Chapter.chap_num).all()
 
+    source_url = None
+    if book.source_url:
+        try:
+            source = urlsplit(book.source_url)
+            if source.scheme in ('http', 'https') and source.netloc:
+                source_url = book.source_url
+        except ValueError:
+            pass
+
+    from app.curriculum.book_courses import BookCourse
+
+    book_courses = BookCourse.query.filter_by(book_id=book.id, is_active=True).order_by(BookCourse.id).all()
     template = 'books/details_optimized.html' if use_optimized else 'books/details.html'
 
     return render_template(
@@ -895,6 +756,9 @@ def book_details(book_id):
         chapters=chapters,
         last_read_chapter=last_read_chapter,
         book_completed=book_completed,
+        can_read_text=bool(chapters) and book_allows_text(book, admin=current_user.is_admin),
+        source_url=source_url,
+        book_courses=book_courses,
     )
 
 
@@ -1166,74 +1030,6 @@ def edit_book_info_with_cover(book_id):
             flash(f'Ошибка обновления информации о книге: {str(e)}', 'danger')
 
     return render_template('books/edit_info_with_cover.html', form=form, book=book)
-
-
-@books.route('/books/<int:book_id>/read')
-@login_required
-def book_read(book_id):
-    book = Book.query.get_or_404(book_id)
-
-    if not book.is_published and not current_user.is_admin:
-        abort(404)
-
-    if not can_user_access_book(current_user, book):
-        flash('У вас нет доступа к этой книге. Обратитесь к администратору.', 'error')
-        abort(403)
-
-    has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
-
-    if has_chapters:
-        from app.books.models import UserChapterProgress
-
-        # Render chapter-based reader directly
-        chapters = Chapter.query.filter_by(book_id=book_id).order_by(Chapter.chap_num).all()
-
-        # Get chapter number from query params or user progress
-        chapter_num = request.args.get('chapter', type=int)
-
-        if not chapter_num:
-            # Try to get from user progress
-            latest_progress = UserChapterProgress.query.filter_by(
-                user_id=current_user.id
-            ).join(Chapter).filter(
-                Chapter.book_id == book_id
-            ).order_by(UserChapterProgress.updated_at.desc()).first()
-
-            if latest_progress:
-                chapter_num = latest_progress.chapter.chap_num
-            else:
-                chapter_num = 1
-
-        # Get current chapter
-        current_chapter = Chapter.query.filter_by(
-            book_id=book_id,
-            chap_num=chapter_num
-        ).first()
-
-        if not current_chapter:
-            current_chapter = chapters[0]
-
-        # Get chapter progress
-        chapter_progress = UserChapterProgress.query.filter_by(
-            user_id=current_user.id,
-            chapter_id=current_chapter.id
-        ).first()
-
-        # Determine back URL
-        back_url = request.args.get('from')
-        if back_url in ('daily_plan', 'linear_plan'):
-            back_url = None  # tracking flag, not a URL
-        back_url = _safe_back_url(back_url, book_id)
-
-        return render_template('books/reader_simple.html',
-                             book=book,
-                             chapters=chapters,
-                             current_chapter=current_chapter,
-                             chapter_progress=chapter_progress,
-                             back_url=back_url)
-
-    flash('Этот формат книги не поддерживается. Пожалуйста, используйте книги с главами.', 'warning')
-    return redirect(url_for('books.book_details', book_id=book_id))
 
 
 @books.route('/books/<int:book_id>/edit')

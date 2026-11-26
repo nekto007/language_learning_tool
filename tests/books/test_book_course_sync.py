@@ -70,19 +70,19 @@ class TestSyncBookCourseFromBook:
         assert sync_book_course_from_book(book.id, db_session) == 0
 
 
-class TestEditBookContentTriggersSync:
-    """Pin the wiring contract: edit_book_content must invoke
+class TestEditBookTriggersSync:
+    """Pin the wiring contract: edit_book must invoke
     sync_book_course_from_book when the source Book has create_course=True.
     Source-level assertion avoids the heavy WTForms + FileField + onboarding
     redirect chain that is orthogonal to the sync behavior we care about
     (which is exhaustively unit-tested above).
     """
 
-    def test_edit_book_content_calls_sync_for_create_course_books(self):
+    def test_edit_book_calls_sync_for_create_course_books(self):
         import inspect
-        from app.books import routes
+        from app.admin.routes import book_routes
 
-        src = inspect.getsource(routes.edit_book_content)
+        src = inspect.getsource(book_routes.edit_book)
         assert 'sync_book_course_from_book' in src
         assert 'book.create_course' in src
         # Sync must be invoked before the final commit so its writes

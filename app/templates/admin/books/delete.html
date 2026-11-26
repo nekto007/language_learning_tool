@@ -1,0 +1,16 @@
+{% extends 'admin/base.html' %}
+{% from 'admin/components.html' import page_header %}
+{% block title %}Удаление · {{ book.title }}{% endblock %}
+{% block content %}
+{{ page_header('Удаление книги', book.title) }}
+{% if blocked %}
+<p role="alert">Удалить можно черновик без связанного курса, уроков и данных чтения.</p>
+{% else %}
+<p>Будут удалены книга и её главы. Это действие нельзя отменить.</p>
+<form method="post" class="d-inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-danger" name="confirm" value="yes" type="submit">Удалить книгу</button>
+</form>
+{% endif %}
+<a class="btn btn-link" href="{{ url_for('.edit_book', book_id=book.id) }}">К карточке книги</a>
+{% endblock %}

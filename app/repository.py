@@ -870,7 +870,7 @@ class DatabaseRepository:
         """
         query = """
             UPDATE book
-            SET words_total = %s, unique_words = %s, created_at = NOW()
+            SET words_total = %s, unique_words = %s
             WHERE id = %s
         """
         try:

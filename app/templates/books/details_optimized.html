@@ -46,8 +46,23 @@
                     </div>
                 </div>
                 
+                {% if source_url or book.license_type %}
+                <p class="small mb-2">
+                    {% if source_url %}<a class="text-light" href="{{ source_url }}">Источник издания</a>{% endif %}
+                    {% if book.license_type %}<span>{{ book.license_type }}</span>{% endif %}
+                </p>
+                {% endif %}
+                {% if book_courses %}
+                <ul class="list-unstyled small mb-2">
+                    {% for course in book_courses %}
+                    <li><a class="text-light" href="{{ url_for('book_courses.view_course', course_id=course.id) }}">Книжный курс · {{ course.title }}</a></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
                 <div class="action-buttons mt-1">
-                    {% if book_completed %}
+                    {% if not can_read_text %}
+                    <span class="text-light">Текст пока недоступен</span>
+                    {% elif book_completed %}
                     <a href="{{ url_for('books.book_list') }}"
                        class="btn-action btn-primary-gradient">
                         <i class="fas fa-check"></i>

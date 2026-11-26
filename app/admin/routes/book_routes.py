@@ -7,16 +7,17 @@ Book Management Routes для административной панели
 import logging
 import os
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy import func
-from werkzeug.utils import secure_filename
 
 from app.admin.audit import log_admin_action
+from app.admin.services.book_import import ImportedChapter, install_chapters, prepare_chapters
 from app.admin.services.book_processing_service import (
     BOOK_TEMP_DIR,
     BookProcessingService,
@@ -26,9 +27,11 @@ from app.admin.services.book_processing_service import (
 from app.admin.services.chapter_editor import apply_chapter, chapter_revision, review_chapter, text_for_edit
 from app.admin.utils.cache import clear_admin_cache
 from app.admin.utils.decorators import admin_required, handle_admin_errors
+from app.admin.utils.import_helpers import delete_import_data, load_import_data, save_import_data
 from app.books.forms import BookContentForm
 from app.books.models import Book, Chapter
-from app.books.parsers import extract_file_metadata, process_uploaded_book
+from app.books.parsers import extract_file_metadata
+from app.books.readability import book_has_text, chapter_has_text
 from app.utils.audio import get_clean_audio_filename
 from app.utils.db import db
 from app.words.models import CollectionWords
@@ -41,184 +44,91 @@ logger = logging.getLogger(__name__)
 
 @book_bp.route('/books')
 @admin_required
-def books():
-    """Главная страница управления книгами"""
-    try:
-        # Статистика по книгам
-        total_books = Book.query.count()
-
-        # Книги с обработанными данными
-        books_with_stats = Book.query.filter(
-            Book.words_total.isnot(None),
-            Book.words_total > 0
-        ).count()
-
-        # Книги без статистики
-        books_without_stats = total_books - books_with_stats
-
-        # Общая статистика слов во всех книгах
-        words_total_all = db.session.query(func.sum(Book.words_total)).scalar() or 0
-        unique_words_all = db.session.query(func.sum(Book.unique_words)).scalar() or 0
-
-        # Недавно добавленные книги
-        recent_books = Book.query.order_by(
-            Book.created_at.desc().nullslast()
-        ).limit(10).all()
-
-        # Топ книг по количеству слов
-        top_books = Book.query.filter(
-            Book.words_total.isnot(None)
-        ).order_by(Book.words_total.desc()).limit(5).all()
-
-        return render_template(
-            'admin/books/index.html',
-            total_books=total_books,
-            books_with_stats=books_with_stats,
-            books_without_stats=books_without_stats,
-            words_total_all=words_total_all,
-            unique_words_all=unique_words_all,
-            recent_books=recent_books,
-            top_books=top_books
-        )
-    except Exception as e:
-        logger.error(f"Error in book management: {str(e)}")
-        flash(f'Ошибка при загрузке данных: {str(e)}', 'danger')
-        return redirect(url_for('dashboard_admin.dashboard'))
+@handle_admin_errors(return_json=False)
+def books() -> ResponseReturnValue:
+    """Search the full book catalogue and show its actual reading availability."""
+    search = request.args.get('q', '').strip()[:255]
+    text = request.args.get('text', '')
+    publication = request.args.get('publication', '')
+    level = request.args.get('level', '')
+    has_text = book_has_text(Book.id)
+    chapter_count = (db.select(func.count(Chapter.id)).where(Chapter.book_id == Book.id)
+                     .correlate(Book).scalar_subquery())
+    query = Book.query.add_columns(has_text.label('has_text'), chapter_count.label('chapter_count'))
+    if search:
+        clauses = [func.lower(Book.title).contains(search.lower(), autoescape=True),
+                   func.lower(Book.author).contains(search.lower(), autoescape=True)]
+        if re.fullmatch(r'[0-9]{1,10}', search) and int(search) < 2**31:
+            clauses.append(Book.id == int(search))
+        query = query.filter(db.or_(*clauses))
+    if text in ('available', 'missing'):
+        query = query.filter(has_text if text == 'available' else ~has_text)
+    if publication in ('published', 'draft'):
+        query = query.filter(Book.is_published.is_(publication == 'published'))
+    if level in ('A1', 'A2', 'B1', 'B2', 'C1', 'C2'):
+        query = query.filter(Book.level == level)
+    pagination = query.order_by(Book.title, Book.id).paginate(per_page=20, error_out=False)
+    return render_template('admin/books/index.html', pagination=pagination,
+                           search=search, text=text, publication=publication, level=level)
 
 
 @book_bp.route('/books/scrape-website', methods=['POST'])
 @admin_required
-def scrape_website():
-    """Web scraping для добавления новых книг"""
-    from flask_login import current_user
-
-    try:
-        _raw = request.get_json(silent=True)
-        data = _raw if isinstance(_raw, dict) else {}
-        url = data.get('url')
-        max_pages = data.get('max_pages', 10)
-
-        if not url:
-            return jsonify({
-                'success': False,
-                'error': 'URL не указан'
-            }), 400
-
-        # Импортируем и используем web scraper
-        from app.web.scraper import WebScraper
-        from config.settings import MAX_RETRIES, REQUEST_TIMEOUT, USER_AGENT
-
-        scraper = WebScraper(
-            user_agent=USER_AGENT,
-            timeout=REQUEST_TIMEOUT,
-            max_retries=MAX_RETRIES
-        )
-
-        # Запускаем scraping
-        results = scraper.scrape_website(url, max_pages)
-
-        if results:
-            log_admin_action(current_user.id, 'book.scrape_website', target_type='book')
-            db.session.commit()
-        logger.info(f"Website scraping completed by {current_user.username}: {len(results)} books processed")
-
-        return jsonify({
-            'success': True,
-            'scraped_count': len(results),
-            'results': results[:10]  # Возвращаем первые 10 для предварительного просмотра
-        })
-
-    except Exception as e:
-        logger.error(f"Error scraping website: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+def scrape_website() -> ResponseReturnValue:
+    """Explain the remaining import path to old callers of this URL."""
+    return jsonify({
+        'success': False,
+        'error': 'Импорт книг по URL недоступен. Загрузите файл в форме добавления книги.',
+        'upload_url': url_for('.add_book'),
+    }), 410
 
 
 @book_bp.route('/books/update-statistics', methods=['POST'])
 @admin_required
 @handle_admin_errors(return_json=True)
-def update_book_statistics():
-    """Обновление статистики всех книг"""
-    from flask_login import current_user
+def update_book_statistics() -> ResponseReturnValue:
+    """Recount readable chapters and refresh words from the stored index if present."""
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if data is None or not hasattr(data, 'get'):
+        return jsonify({'success': False, 'error': 'invalid_request'}), 400
+    book_id = data.get('book_id')
+    query = Book.query
+    if book_id is not None:
+        if not isinstance(book_id, (int, str)) or isinstance(book_id, bool) or not re.fullmatch(r'[0-9]{1,10}', str(book_id)):
+            return jsonify({'success': False, 'error': 'invalid_book_id'}), 400
+        if not 0 < int(book_id) < 2**31:
+            return jsonify({'success': False, 'error': 'invalid_book_id'}), 400
+        query = query.filter(Book.id == int(book_id))
+    targets = query.order_by(Book.id).with_for_update().all()
+    if book_id is not None and not targets:
+        return jsonify({'success': False, 'error': 'Книга не найдена.'}), 404
+    ids = [book.id for book in targets]
+    chapters = dict(db.session.query(Chapter.book_id, func.count(Chapter.id))
+                    .filter(Chapter.book_id.in_(ids), chapter_has_text()).group_by(Chapter.book_id))
+    from app.words.models import word_book_link
 
-    try:
-        _raw = request.get_json(silent=True)
-        if request.is_json and _raw is None:
-            return jsonify({'success': False, 'error': 'invalid_request'}), 400
-        if _raw is not None and not isinstance(_raw, dict):
-            return jsonify({'success': False, 'error': 'invalid_request'}), 400
-        data = _raw or {}
-        book_id = data.get('book_id')  # Опционально для конкретной книги
+    indexed = {row.book_id: row for row in db.session.query(
+        word_book_link.c.book_id, func.count().label('unique_count'),
+        func.sum(word_book_link.c.frequency).label('words_total'),
+    ).filter(word_book_link.c.book_id.in_(ids)).group_by(word_book_link.c.book_id)}
+    changed = 0
+    for book in targets:
+        counts = indexed.get(book.id)
+        chapter_count = chapters.get(book.id, 0)
+        previous = (book.chapters_cnt, book.words_total, book.unique_words)
+        book.chapters_cnt = chapter_count
+        if counts is not None and chapter_count:
+            book.words_total = counts.words_total or 0
+            book.unique_words = counts.unique_count
+        changed += previous != (book.chapters_cnt, book.words_total, book.unique_words)
+    if changed:
+        log_admin_action(current_user.id, 'book.update_statistics', target_type='book', required=True)
+    db.session.commit()
+    if not request.is_json:
+        flash(f'Проверено книг: {len(targets)}. Обновлено: {changed}.', 'success')
+        return redirect(url_for('.book_statistics'), code=303)
+    return jsonify({'success': True, 'updated_count': changed, 'total_books': len(targets)})
 
-        if book_id:
-            # Обновляем статистику одной книги
-            book = Book.query.get_or_404(book_id)
-            books_to_update = [book]
-        else:
-            # Обновляем статистику всех книг
-            books_to_update = Book.query.all()
-
-        updated_count = 0
-        stat_errors = []
-
-        for book in books_to_update:
-            try:
-                # Используем DatabaseRepository для получения статистики
-                from app.repository import DatabaseRepository
-                repo = DatabaseRepository()
-
-                # Получаем уникальные слова для книги
-                unique_words_result = repo.execute_query(
-                    "SELECT COUNT(DISTINCT word_id) FROM word_book_link WHERE book_id = %s",
-                    (book.id,),
-                    fetch=True
-                )
-                unique_words = unique_words_result[0][0] if unique_words_result else 0
-
-                # Получаем общее количество слов (сумма частот)
-                words_total_result = repo.execute_query(
-                    "SELECT SUM(frequency) FROM word_book_link WHERE book_id = %s",
-                    (book.id,),
-                    fetch=True
-                )
-                words_total = words_total_result[0][0] if words_total_result else 0
-
-                # Обновляем статистику книги
-                book.unique_words = unique_words or 0
-                book.words_total = words_total or 0
-                # Use datetime.now(UTC) and convert to naive for DB compatibility
-                book.created_at = datetime.now(UTC).replace(tzinfo=None)
-                updated_count += 1
-
-            except Exception as e:
-                logger.warning(f"Error updating stats for book {book.id}: {str(e)}")
-                stat_errors.append({'book_id': book.id, 'title': book.title, 'error': str(e)})
-                continue
-
-        admin_name = current_user.username
-        if updated_count > 0:
-            log_admin_action(current_user.id, 'book.update_statistics', target_type='book')
-        db.session.commit()
-
-        logger.info(f"Book statistics updated by {admin_name}: {updated_count} books")
-
-        response = {
-            'success': True,
-            'updated_count': updated_count,
-            'total_books': len(books_to_update),
-        }
-        if stat_errors:
-            response['errors'] = stat_errors
-        return jsonify(response)
-
-    except Exception as e:
-        logger.error(f"Error updating book statistics: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
 
 @book_bp.route('/books/process-phrasal-verbs', methods=['POST'])
 @admin_required
@@ -416,75 +326,36 @@ def extract_book_metadata():
 @book_bp.route('/books/cleanup', methods=['GET', 'POST'])
 @admin_required
 @handle_admin_errors(return_json=False)
-def cleanup_books():
-    """Очистка и оптимизация данных раздела Books"""
-    if request.method == 'GET':
-        cleanup_stats = {}
-        try:
-            # Count books without chapters (no content)
-            books_no_content = db.session.execute(
-                db.text("SELECT COUNT(*) FROM book WHERE chapters_cnt = 0 OR chapters_cnt IS NULL")
-            ).scalar()
-            books_no_stats = db.session.execute(
-                db.text("SELECT COUNT(*) FROM book WHERE words_total = 0 OR words_total IS NULL")
-            ).scalar()
-            total_books = Book.query.count()
-
-            cleanup_stats = {
-                'books_no_content': books_no_content,
-                'books_no_stats': books_no_stats,
-                'total_books': total_books
-            }
-        except Exception as e:
-            logger.error(f"Error analyzing books data: {str(e)}")
-            cleanup_stats = {'error': str(e)}
-
-        return render_template('admin/books/cleanup.html', stats=cleanup_stats)
-
-    elif request.method == 'POST':
+def cleanup_books() -> ResponseReturnValue:
+    """List books to review individually and clean expired upload files."""
+    if request.method == 'POST':
         action = request.form.get('action')
-        results = {'success': True, 'message': '', 'details': []}
+        if action != 'clean_temp_files':
+            flash('Откройте нужную книгу из каталога для проверки и удаления.', 'warning')
+            return redirect(url_for('.cleanup_books'), code=303)
+        cutoff = (datetime.now(UTC) - timedelta(days=1)).timestamp()
+        removed = failed = 0
+        for path in Path(BOOK_TEMP_DIR).glob('book-*'):
+            try:
+                if path.is_file() and not path.is_symlink() and path.stat().st_mtime < cutoff:
+                    path.unlink()
+                    removed += 1
+            except FileNotFoundError:
+                continue
+            except OSError:
+                logger.exception('Could not remove expired book upload')
+                failed += 1
+        if removed:
+            log_admin_action(current_user.id, 'book.cleanup_temp_files', target_type='book')
+            db.session.commit()
+        message = f'Удалено просроченных временных файлов: {removed}.'
+        if failed:
+            message += f' Не удалось удалить: {failed}.'
+        flash(message, 'warning' if failed else 'success')
+        return redirect(url_for('.cleanup_books'), code=303)
 
-        try:
-            if action == 'remove_empty_books':
-                empty_books = Book.query.filter(
-                    db.or_(Book.content.is_(None), Book.content == '')
-                ).all()
-                count = len(empty_books)
-                removed_ids = [b.id for b in empty_books]
-                for book in empty_books:
-                    db.session.delete(book)
-                for removed_id in removed_ids:
-                    log_admin_action(current_user.id, 'book.cleanup_empty', target_type='book', target_id=removed_id)
-                db.session.commit()
-                results['details'].append(f"Удалено {count} книг без содержания")
-
-            elif action == 'clean_temp_files':
-                temp_dir = BOOK_TEMP_DIR
-                removed_files = 0
-                if os.path.exists(temp_dir):
-                    for filename in os.listdir(temp_dir):
-                        try:
-                            os.remove(os.path.join(temp_dir, filename))
-                            removed_files += 1
-                        except Exception:
-                            logger.exception("Failed to remove temp file: %s", filename)
-                log_admin_action(current_user.id, 'book.cleanup_temp_files', target_type='book')
-                db.session.commit()
-                results['details'].append(f"Удалено {removed_files} временных файлов")
-
-            results['message'] = 'Очистка выполнена успешно'
-
-        except Exception as e:
-            db.session.rollback()
-            results['success'] = False
-            results['message'] = f'Ошибка при очистке: {str(e)}'
-            logger.error(f"Error in books cleanup: {str(e)}")
-
-        flash(results['message'], 'success' if results['success'] else 'danger')
-        for detail in results['details']:
-            flash(detail, 'info')
-        return redirect(url_for('book_admin.cleanup_books'))
+    stats = {'books_no_content': Book.query.filter(~book_has_text(Book.id)).count()}
+    return render_template('admin/books/cleanup.html', stats=stats)
 
 
 @book_bp.route('/books/<int:book_id>/edit', methods=['GET', 'POST'])
@@ -495,31 +366,111 @@ def edit_book(book_id):
     from app.admin.routes.materials import materials_return_url
 
     book = Book.query.get_or_404(book_id)
+    has_text = bool(db.session.query(book_has_text(book_id)).scalar())
+    has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
 
     if request.method == 'POST':
         book.title = request.form.get('title', book.title).strip()
         book.author = request.form.get('author', book.author).strip()
         submitted_level = request.form.get('level', book.level)
-        allowed_levels = (None, '', 'A1', 'A2', 'B1', 'B2', 'C1')
+        allowed_levels = (None, '', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2')
         # Preserve legacy CEFR values (e.g. C2) when admin saves an unrelated
         # edit without touching the level dropdown.
         if submitted_level not in allowed_levels and submitted_level != book.level:
             flash(f'Недопустимый уровень "{submitted_level}".', 'danger')
-            return render_template('admin/books/edit.html', book=book)
+            return render_template('admin/books/edit.html', book=book, has_text=has_text, has_chapters=has_chapters)
         book.level = submitted_level
         book.summary = request.form.get('description', book.summary)
 
         rights_error = _apply_book_rights_form(book, request.form)
         if rights_error:
             flash(rights_error, 'danger')
-            return render_template('admin/books/edit.html', book=book)
+            return render_template('admin/books/edit.html', book=book, has_text=has_text, has_chapters=has_chapters)
 
+        if book.create_course:
+            from app.curriculum.book_courses import sync_book_course_from_book
+
+            sync_book_course_from_book(book.id, db.session)
         log_admin_action(current_user.id, 'book.update', target_type='book', target_id=book_id)
         db.session.commit()
         flash(f'Книга "{book.title}" обновлена', 'success')
         return redirect(materials_return_url() or url_for('book_admin.books'))
 
-    return render_template('admin/books/edit.html', book=book)
+    return render_template('admin/books/edit.html', book=book, has_text=has_text, has_chapters=has_chapters)
+
+
+_BOOK_TEXT_PREFIX = 'book-text-'
+
+
+@book_bp.route('/books/<int:book_id>/text', methods=['GET', 'POST'])
+@admin_required
+def upload_book_text(book_id: int) -> ResponseReturnValue:
+    """Attach a source to an existing ordinary book with no chapter rows."""
+    query = Book.query.filter_by(id=book_id)
+    applying = request.method == 'POST' and request.form.get('action') == 'apply'
+    if applying:
+        query = query.with_for_update().populate_existing()
+    book = query.first_or_404()
+    if book.is_short_reading or Chapter.query.filter_by(book_id=book_id).first():
+        abort(409, 'В карточке уже есть главы или используется редактор короткого чтения.')
+    if request.method == 'GET':
+        return render_template('admin/books/upload_text.html', book=book)
+
+    signer = URLSafeTimedSerializer(current_app.secret_key, salt='book-text-preview')
+    revision = [current_user.id, book.id, book.title, book.author, book.is_published]
+    if applying:
+        try:
+            binding, preview_id = signer.loads(request.form.get('preview_token', ''), max_age=1800)
+            staged = load_import_data(preview_id, prefix=_BOOK_TEXT_PREFIX)
+            if (binding != revision or not staged or staged['binding'] != revision
+                    or not delete_import_data(preview_id, prefix=_BOOK_TEXT_PREFIX)):
+                raise BadSignature('stale book text')
+        except BadSignature:
+            flash('Предпросмотр устарел. Загрузите источник заново.', 'warning')
+            return render_template('admin/books/upload_text.html', book=book), 409
+        chapters = [ImportedChapter(title, text) for title, text in staged['chapters']]
+        install_chapters(book, chapters)
+        log_admin_action(current_user.id, 'book.text.attach', target_type='book', target_id=book.id, required=True)
+        db.session.commit()
+        _finish_book_import(book.id, f'Текст сохранён. Главы: {len(chapters)}.')
+        return redirect(url_for('.chapter_list', book_id=book.id), code=303)
+
+    if request.form.get('action') != 'preview':
+        abort(400)
+    text = request.form.get('content', '')
+    try:
+        chapters = prepare_chapters(request.files.get('file'), text, book.title)
+    except BookUploadError as exc:
+        flash(str(exc), 'danger')
+        return render_template('admin/books/upload_text.html', book=book, content=text), 422
+    except Exception:
+        logger.warning('Could not read source for existing book %s', book.id, exc_info=True)
+        flash('Не удалось получить текст книги. Проверьте файл или вставьте текст.', 'danger')
+        return render_template('admin/books/upload_text.html', book=book, content=text), 422
+    preview_id = save_import_data({'binding': revision, 'chapters': [[ch.title, ch.text] for ch in chapters]},
+                                  prefix=_BOOK_TEXT_PREFIX, private=True)
+    token = signer.dumps([revision, preview_id])
+    return render_template('admin/books/upload_text.html', book=book, chapters=chapters, token=token)
+
+
+@book_bp.post('/books/<int:book_id>/publication')
+@admin_required
+def book_publication(book_id: int) -> ResponseReturnValue:
+    action = request.form.get('action')
+    if action not in ('publish', 'unpublish'):
+        abort(400)
+    book = Book.query.filter_by(id=book_id).with_for_update().populate_existing().first_or_404()
+    publish = action == 'publish'
+    if publish and not db.session.query(book_has_text(book_id)).scalar():
+        flash('Сначала добавьте текст, пригодный для чтения.', 'warning')
+        return redirect(url_for('.edit_book', book_id=book_id), code=303)
+    if book.is_published != publish:
+        book.is_published = publish
+        log_admin_action(current_user.id, f'book.{action}', target_type='book', target_id=book.id, required=True)
+        db.session.commit()
+        clear_admin_cache()
+        flash('Книга опубликована.' if publish else 'Книга снята с публикации.', 'success')
+    return redirect(url_for('.edit_book', book_id=book_id), code=303)
 
 
 @book_bp.get('/books/<int:book_id>/chapters')
@@ -527,7 +478,8 @@ def edit_book(book_id):
 def chapter_list(book_id: int):
     book = Book.query.get_or_404(book_id)
     chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chap_num).all()
-    return render_template('admin/books/chapters.html', book=book, chapters=chapters)
+    return render_template('admin/books/chapters.html', book=book, chapters=chapters,
+                           has_text=bool(db.session.query(book_has_text(book_id)).scalar()))
 
 
 @book_bp.route('/books/<int:book_id>/chapters/<int:chapter_id>/edit', methods=['GET', 'POST'])
@@ -605,7 +557,7 @@ def _apply_book_rights_form(book, form) -> str | None:
 
     raw_pct = form.get('allowed_text_percent')
     if raw_pct is None or raw_pct == '':
-        allowed_pct = book.allowed_text_percent or 100
+        allowed_pct = 100 if book.allowed_text_percent is None else book.allowed_text_percent
     else:
         try:
             allowed_pct = int(raw_pct)
@@ -614,7 +566,7 @@ def _apply_book_rights_form(book, form) -> str | None:
         if not 0 <= allowed_pct <= 100:
             return 'allowed_text_percent должен быть в диапазоне 0–100'
 
-    expiration_raw = (form.get('expiration_date') or '').strip()
+    expiration_raw = (form.get('expiration_date', book.expiration_date.isoformat() if book.expiration_date else '') or '').strip()
     if expiration_raw:
         try:
             expiration = _date.fromisoformat(expiration_raw)
@@ -627,257 +579,132 @@ def _apply_book_rights_form(book, form) -> str | None:
     book.audio_rights_status = audio_rights
     book.allowed_text_percent = allowed_pct
     book.expiration_date = expiration
-    book.source_url = (form.get('source_url') or '').strip() or None
-    book.license_type = (form.get('license_type') or '').strip() or None
-    book.permission_document = (form.get('permission_document') or '').strip() or None
-    book.territory = (form.get('territory') or 'worldwide').strip() or 'worldwide'
-    book.commercial_use_allowed = form.get('commercial_use_allowed') == 'on'
+    book.source_url = (form.get('source_url', book.source_url) or '').strip() or None
+    book.license_type = (form.get('license_type', book.license_type) or '').strip() or None
+    book.permission_document = (form.get('permission_document', book.permission_document) or '').strip() or None
+    book.territory = (form.get('territory', book.territory) or 'worldwide').strip() or 'worldwide'
+    if 'rights_status' in form or 'commercial_use_allowed' in form:
+        book.commercial_use_allowed = form.get('commercial_use_allowed') == 'on'
     return None
 
 
-@book_bp.route('/books/<int:book_id>/delete', methods=['POST'])
+def _book_has_dependents(book_id: int) -> bool:
+    from app.books.models import Block, Bookmark, UserChapterProgress
+    from app.books.reading_session import UserReadingSession
+    from app.curriculum.book_courses import BookCourse
+    from app.curriculum.daily_lessons import DailyLesson
+    from app.curriculum.models import Lessons
+    from app.daily_plan.linear.models import UserReadingPreference
+
+    chapter_ids = db.select(Chapter.id).where(Chapter.book_id == book_id)
+    references = (
+        Block.book_id == book_id,
+        Bookmark.book_id == book_id,
+        BookCourse.book_id == book_id,
+        Lessons.book_id == book_id,
+        UserReadingPreference.book_id == book_id,
+        DailyLesson.chapter_id.in_(chapter_ids),
+        UserChapterProgress.chapter_id.in_(chapter_ids),
+        UserReadingSession.chapter_id.in_(chapter_ids),
+    )
+    return bool(db.session.query(db.or_(*(db.exists().where(reference) for reference in references))).scalar())
+
+
+@book_bp.route('/books/<int:book_id>/delete', methods=['GET', 'POST'])
 @admin_required
-@handle_admin_errors(return_json=True)
-def delete_book(book_id):
-    """Удаление книги"""
-    book = Book.query.get_or_404(book_id)
-    book_title = book.title
+def delete_book(book_id: int) -> ResponseReturnValue:
+    query = Book.query.filter_by(id=book_id)
+    if request.method == 'POST':
+        query = query.with_for_update().populate_existing()
+    book = query.first_or_404()
+    if request.method == 'POST':
+        if request.form.get('confirm') != 'yes':
+            return jsonify({'success': False, 'error': 'Подтвердите удаление в карточке книги.'}), 400
+        db.session.query(Chapter.id).filter_by(book_id=book_id).with_for_update().all()
+    blocked = book.is_published or _book_has_dependents(book.id)
+    if request.method == 'GET' or blocked:
+        return render_template('admin/books/delete.html', book=book, blocked=blocked), 409 if blocked else 200
 
+    db.session.delete(book)
+    log_admin_action(current_user.id, 'book.delete', target_type='book', target_id=book_id, required=True)
+    db.session.commit()
+    clear_admin_cache()
+    flash('Книга удалена.', 'success')
+    return redirect(url_for('.books'), code=303)
+
+
+def _finish_book_import(book_id: int, message: str) -> None:
+    clear_admin_cache()
     try:
-        # Delete chapters first
-        Chapter.query.filter_by(book_id=book_id).delete()
-
-        # Delete the book
-        db.session.delete(book)
-        log_admin_action(current_user.id, 'book.delete', target_type='book', target_id=book_id)
-        db.session.commit()
-
-        logger.info(f"Book deleted: {book_title} (ID: {book_id})")
-
-        return jsonify({
-            'success': True,
-            'message': f'Книга "{book_title}" удалена'
-        })
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error deleting book {book_id}: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        BookProcessingService.start_background_chapter_processing(current_app._get_current_object(), book_id)
+    except Exception:
+        logger.exception('Could not start chapter indexing for book %s', book_id)
+        flash(f'{message} Обработку слов не удалось запустить.', 'warning')
+    else:
+        flash(message, 'success')
 
 
 @book_bp.route('/books/add', methods=['GET', 'POST'])
 @admin_required
 @handle_admin_errors(return_json=False)
-def add_book():
-    """Добавление новой книги через админку"""
-    from flask_login import current_user
-    
-    logger.info("[BOOK_ADD] Starting book addition process")
+def add_book() -> ResponseReturnValue:
+    """Prepare a readable book before writing its catalogue and chapter rows."""
     form = BookContentForm()
+    if request.method == 'GET':
+        return render_template('admin/books/add.html', form=form)
 
-    if form.validate_on_submit():
-        logger.info(f"[BOOK_ADD] Form validated - Title: '{form.title.data}', Author: '{form.author.data}'")
-        
-        # Проверяем существующую книгу
-        existing_book = Book.query.filter(
-            func.lower(Book.title) == func.lower(form.title.data),
-            func.lower(Book.author) == func.lower(form.author.data)
-        ).first()
+    if not form.validate_on_submit():
+        return render_template('admin/books/add.html', form=form), 400
 
-        overwrite = request.form.get('overwrite') == 'true'
+    title = form.title.data.strip()
+    author = (form.author.data or '').strip()
+    book = Book(title=title, author=author, level=form.level.data,
+                created_at=datetime.now(UTC).replace(tzinfo=None), is_published=False)
+    if rights_error := _apply_book_rights_form(book, request.form):
+        flash(rights_error, 'danger')
+        return render_template('admin/books/add.html', form=form), 422
 
-        if existing_book and not overwrite:
-            logger.warning(f"[BOOK_ADD] Duplicate book detected - ID: {existing_book.id}")
-            return jsonify({
-                'success': False,
-                'duplicate': True,
-                'existing_book': {
-                    'id': existing_book.id,
-                    'title': existing_book.title,
-                    'author': existing_book.author,
-                    'created_at': (
-                        existing_book.created_at.strftime('%Y-%m-%d %H:%M')
-                        if existing_book.created_at else 'Неизвестно'
-                    )
-                },
-                'message': 'Книга с таким названием и автором уже существует!'
-            })
+    try:
+        chapters = prepare_chapters(form.file.data, form.content.data or '', title)
+    except BookUploadError as exc:
+        flash(str(exc), 'danger')
+        return render_template('admin/books/add.html', form=form), 422
+    except Exception:
+        logger.warning('Book import could not read the submitted source', exc_info=True)
+        flash('Не удалось получить текст книги. Проверьте файл или вставьте текст.', 'danger')
+        return render_template('admin/books/add.html', form=form), 422
 
-        if existing_book and overwrite:
-            logger.info(f"[BOOK_ADD] Overwriting existing book - ID: {existing_book.id}")
-            new_book = existing_book
-            chapters_count = Chapter.query.filter_by(book_id=existing_book.id).count()
-            Chapter.query.filter_by(book_id=existing_book.id).delete()
-            new_book.content = None
-            new_book.words_total = 0
-            new_book.unique_words = 0
-            new_book.cover_image = None
-            db.session.flush()
-        else:
-            logger.info("[BOOK_ADD] Creating new book record")
-            new_book = Book(
-                title=form.title.data,
-                author=form.author.data,
-                level=form.level.data,
-                chapters_cnt=0,  # Initialize with 0, will be updated after chapter processing
-                # Use datetime.now(UTC) and convert to naive for DB compatibility
-                created_at=datetime.now(UTC).replace(tzinfo=None)
-            )
+    # Serialise matching uploads through this form even when the title is new.
+    if db.session.get_bind().dialect.name == 'postgresql':
+        db.session.execute(db.text(
+            'SELECT pg_advisory_xact_lock(624117066, hashtext(lower(:title) || chr(31) || lower(:author)))'
+        ), {'title': title, 'author': author})
+    existing = Book.query.filter(func.lower(Book.title) == func.lower(title),
+                                 func.lower(Book.author) == func.lower(author)).first()
+    if existing is not None:
+        flash('Книга с таким названием и автором уже существует.', 'danger')
+        return render_template('admin/books/add.html', form=form, existing_book=existing), 409
 
-        # Обновляем данные
-        new_book.title = form.title.data
-        new_book.author = form.author.data
-        new_book.level = form.level.data
-
-        # Применяем поля прав/лицензии перед сохранением. Невалидные
-        # значения откатывают всю форму — пользователь увидит ошибку без
-        # частично созданной книги.
-        rights_error = _apply_book_rights_form(new_book, request.form)
-        if rights_error:
-            logger.warning(f"[BOOK_ADD] Rights validation failed: {rights_error}")
-            if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                return jsonify({'success': False, 'error': rights_error}), 400
-            flash(rights_error, 'danger')
-            return render_template('admin/books/add.html', form=form)
-
-        # Обрабатываем обложку
-        if form.cover_image.data and hasattr(form.cover_image.data, 'filename'):
-            logger.info(f"[BOOK_ADD] Processing cover image")
-            cover_filename = BookProcessingService.save_cover_image(form.cover_image.data)
-            if cover_filename:
-                new_book.cover_image = cover_filename
-
-        # Обрабатываем файл контента
-        if form.file.data and hasattr(form.file.data, 'filename'):
-            logger.info(f"[BOOK_ADD] Processing book content file")
-
-            # Safe upload: extension + size + path-traversal validation in service.
+    if form.cover_image.data:
+        book.cover_image = BookProcessingService.save_cover_image(form.cover_image.data)
+        if not book.cover_image:
+            return render_template('admin/books/add.html', form=form), 422
+    try:
+        install_chapters(book, chapters)
+        db.session.add(book)
+        db.session.flush()
+        log_admin_action(current_user.id, 'book.create', target_type='book', target_id=book.id, required=True)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        if book.cover_image:
             try:
-                temp_file_path, filename, file_ext = save_uploaded_book_file(form.file.data)
-            except BookUploadError as e:
-                logger.warning(f"[BOOK_ADD] Upload rejected: {e}")
-                if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                    return jsonify({'success': False, 'error': str(e)}), 400
-                flash(str(e), 'danger')
-                return render_template('admin/books/add.html', form=form)
+                Path(book.cover_image).unlink(missing_ok=True)
+            except OSError:
+                logger.warning('Could not remove cover after failed book import', exc_info=True)
+        logger.exception('Could not save imported book')
+        flash('Не удалось сохранить книгу. Попробуйте ещё раз.', 'danger')
+        return render_template('admin/books/add.html', form=form), 500
 
-            chapter_formats = ['.fb2', '.txt']
-            use_chapters = file_ext in chapter_formats
-
-            if use_chapters:
-                logger.info("[BOOK_ADD] Using chapter-based processing")
-                if not existing_book or not overwrite:
-                    db.session.add(new_book)
-                db.session.flush()
-                log_admin_action(
-                    current_user.id,
-                    'book.update' if existing_book and overwrite else 'book.create',
-                    target_type='book',
-                    target_id=new_book.id,
-                )
-                db.session.commit()
-
-                try:
-                    success, message = BookProcessingService.process_book_into_chapters(
-                        new_book.id, temp_file_path, file_ext
-                    )
-
-                    action = "перезаписана" if existing_book and overwrite else "добавлена"
-                    message_text = f'Книга успешно {action}! {message}'
-
-                    if success:
-                        app = current_app._get_current_object()
-                        BookProcessingService.start_background_chapter_processing(app, new_book.id)
-
-                        if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                            return jsonify({'success': True, 'message': message_text})
-                        flash(message_text, 'success')
-                    else:
-                        error_text = f'Книга {action}, но ошибка при обработке глав: {message}'
-                        if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                            return jsonify({'success': False, 'message': error_text})
-                        flash(error_text, 'warning')
-                finally:
-                    if os.path.exists(temp_file_path):
-                        try:
-                            os.remove(temp_file_path)
-                        except OSError:
-                            logger.warning(f"[BOOK_ADD] Failed to remove temp file: {temp_file_path}")
-
-                clear_admin_cache()
-                action = "overwritten" if existing_book and overwrite else "added"
-                logger.info(f"Book {action} with chapters by admin {current_user.username}: {new_book.title}")
-                return redirect(url_for('book_admin.books'))
-            else:
-                # Для других форматов используем старую логику
-                try:
-                    form.file.data.seek(0)
-                    result = process_uploaded_book(
-                        file=form.file.data,
-                        title=form.title.data,
-                        format_type=form.format_type.data
-                    )
-                    new_book.content = result['content']
-                    new_book.words_total = result['word_count']
-                    new_book.unique_words = result['unique_words']
-                finally:
-                    if os.path.exists(temp_file_path):
-                        try:
-                            os.remove(temp_file_path)
-                        except OSError:
-                            logger.warning(f"[BOOK_ADD] Failed to remove temp file: {temp_file_path}")
-
-        elif form.content.data:
-            # Контент введен вручную
-            content = form.content.data
-            content = re.sub(r'\s+', ' ', content)
-            paragraphs = [p.strip() for p in content.split('\\n\\n') if p.strip()]
-            content_html = '<p>' + '</p><p>'.join(paragraphs) + '</p>'
-            words = re.findall(r'\b[a-zA-Z]+\b', content.lower())
-            new_book.content = content_html
-            new_book.words_total = len(words)
-            new_book.unique_words = len(set(words))
-
-        # Сохраняем книгу (если не была обработана по главам)
-        if not (form.file.data and hasattr(form.file.data, 'filename') and 
-                os.path.splitext(secure_filename(form.file.data.filename))[1].lower() in ['.fb2', '.txt']):
-            if not existing_book or not overwrite:
-                db.session.add(new_book)
-            db.session.flush()
-            log_admin_action(
-                current_user.id,
-                'book.update' if existing_book and overwrite else 'book.create',
-                target_type='book',
-                target_id=new_book.id,
-            )
-            db.session.commit()
-
-            clear_admin_cache()
-
-            # Запускаем обработку слов в фоне
-            if new_book.content:
-                app = current_app._get_current_object()
-                BookProcessingService.start_background_word_processing(
-                    app, new_book.id, new_book.content
-                )
-
-                book_action = "перезаписана" if existing_book and overwrite else "добавлена"
-                success_message = f'Книга успешно {book_action}! Обработка слов запущена в фоновом режиме.'
-            else:
-                book_action = "перезаписана" if existing_book and overwrite else "добавлена"
-                success_message = f'Книга успешно {book_action}!'
-
-            if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                return jsonify({'success': True, 'message': success_message})
-
-            flash(success_message, 'success')
-            action = "overwritten" if existing_book and overwrite else "added"
-            logger.info(f"Book {action} by admin {current_user.username}: {new_book.title}")
-            return redirect(url_for('book_admin.books'))
-        else:
-            logger.warning(f"[BOOK_ADD] Form validation failed - Errors: {form.errors}")
-
-    logger.info("[BOOK_ADD] Rendering add book form")
-    return render_template('admin/books/add.html', form=form)
+    _finish_book_import(book.id, f'Черновик сохранён. Главы: {len(chapters)}.')
+    return redirect(url_for('.chapter_list', book_id=book.id), code=303)

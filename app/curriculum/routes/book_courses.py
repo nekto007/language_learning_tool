@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from werkzeug.exceptions import HTTPException
 
+from app.books.access import can_user_access_book
 from app.curriculum.book_courses import (
     BookCourse,
     BookCourseEnrollment,
@@ -160,6 +161,7 @@ def view_course(course_id):
         return render_template(
             'curriculum/book_courses/course_detail.html',
             course=course, book=course.book, enrollment=enrollment,
+            show_book_link=can_user_access_book(current_user, course.book),
             modules=module_data, total_modules=len(modules),
             is_enrolled=enrollment is not None
         )

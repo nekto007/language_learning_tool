@@ -19,6 +19,8 @@ import logging
 from typing import Any, Optional
 
 from app.books.models import Book, Chapter, UserChapterProgress
+from app.books.readability import book_has_text, chapter_has_text
+from app.books.text_access import book_allows_text
 from app.daily_plan.items import PlanItem
 from app.daily_plan.linear.context import LinearSlotKind, build_slot_url
 from app.daily_plan.linear.models import UserReadingPreference
@@ -43,6 +45,7 @@ def _latest_chapter_progress(user_id: int, book_id: int, db: Any) -> Optional[Us
         .filter(
             UserChapterProgress.user_id == user_id,
             Chapter.book_id == book_id,
+            chapter_has_text(),
         )
         .order_by(UserChapterProgress.updated_at.desc())
         .first()
@@ -82,7 +85,9 @@ def book_access_ok_for_reading(user_id: int, book: Any, db: Any) -> bool:
         logger.info("reading_item user=%s book=%s access_denied", user_id, book.id)
         return False
 
-    return True
+    if not book_allows_text(book, admin=getattr(user, 'is_admin', False)):
+        return False
+    return bool(db.session.query(book_has_text(book.id)).scalar())
 
 
 def _book_is_actionable_for_reading(user_id: int, book_id: int, db: Any) -> bool:
@@ -93,15 +98,6 @@ def _book_is_actionable_for_reading(user_id: int, book_id: int, db: Any) -> bool
         return False
 
     if not book_access_ok_for_reading(user_id, book, db):
-        return False
-
-    has_chapter = (
-        db.session.query(Chapter.id)
-        .filter(Chapter.book_id == book.id)
-        .first()
-    )
-    if has_chapter is None:
-        logger.warning("reading_item user=%s book=%s has_no_chapters", user_id, book.id)
         return False
 
     from app.books.progress import get_book_completion_state

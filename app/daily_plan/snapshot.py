@@ -666,7 +666,7 @@ def _reading_book_unreachable(user_id: int, item: dict[str, Any], db: Any) -> bo
         )
         return False
     logger.warning(
-        "snapshot reading slot dropped user=%s book=%s reason=access_revoked",
+        "snapshot reading slot dropped user=%s book=%s reason=book_unreadable",
         user_id, book_id_int,
     )
     return True

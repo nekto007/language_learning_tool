@@ -13,6 +13,7 @@ from app.api.errors import api_error
 from app.books.access import can_user_access_book
 from app.books.models import Block, Book, Chapter, Task, UserChapterProgress
 from app.books.short_readings import reading_summary
+from app.books.text_access import visible_chapter_text
 from app.curriculum.cache import cached
 from app.study.models import QuizDeck, QuizDeckWord
 from app.utils.db import db
@@ -239,7 +240,7 @@ def get_chapter_content(book_id, chapter_num):
         'id': chapter.id,
         'num': chapter.chap_num,
         'title': chapter.title,
-        'text': chapter.text_raw,
+        'text': visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)[0],
         # Formative practice only, not an assessment: hints and model answers
         # deliberately travel with the text and remain available offline.
         'reading': book.reading if book.is_short_reading else None,
@@ -868,7 +869,7 @@ def get_chapter_by_id(chapter_id):
                 'id': chapter.id,
                 'num': chapter.chap_num,
                 'title': chapter.title,
-                'text_raw': chapter.text_raw,
+                'text_raw': visible_chapter_text(book, chapter.text_raw, admin=current_user.is_admin)[0],
                 'audio_url': chapter.audio_url,
                 'words': chapter.words,
                 'book_id': chapter.book_id

@@ -8,6 +8,11 @@
 {% endblock %}
 
 {% block content %}
+<form class="mb-3" method="post" action="{{ url_for('.update_book_statistics') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-outline-primary">Обновить сводную статистику</button>
+</form>
+
 {{ page_header('Статистика книг', 'Общая статистика и аналитика по книгам') }}
 
 <div class="container-fluid">
@@ -222,9 +227,11 @@
                                     <small class="text-muted">ID: {{ book.id }}</small><br>
                                     <strong>{{ book.title[:50] }}{% if book.title|length > 50 %}...{% endif %}</strong>
                                 </div>
-                                <button class="btn btn-sm btn-outline-warning" onclick="updateBookStatistics({{ book.id }})">
-                                    <i class="fas fa-sync-alt"></i>
-                                </button>
+                                <form method="post" action="{{ url_for('.update_book_statistics') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="book_id" value="{{ book.id }}">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">Обновить</button>
+                                </form>
                             </div>
                         </div>
                         {% endfor %}
@@ -233,7 +240,7 @@
                     {% if books_without_stats|length >= 50 %}
                     <div class="alert alert-info mt-3">
                         <i class="fas fa-info-circle"></i>
-                        Показаны первые 50 книг без статистики. Используйте кнопку "Обновить все" для обработки всех книг.
+                        Показаны первые 50 книг без статистики. Используйте «Обновить сводную статистику», чтобы проверить весь каталог.
                     </div>
                     {% endif %}
                 </div>
@@ -271,23 +278,6 @@
         {% endif %}
     </div>
 
-    <!-- Progress Modal -->
-    <div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Обновление статистики</h5>
-                </div>
-                <div class="modal-body">
-                    <div class="progress mb-3">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                             role="progressbar" style="width: 100%"></div>
-                    </div>
-                    <p id="progress-text">Обновление статистики книги...</p>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
@@ -390,44 +380,5 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 });
 
-function updateBookStatistics(bookId) {
-    showProgressModal('Обновление статистики книги...');
-    
-    fetch('{{ url_for("book_admin.update_book_statistics") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
-        },
-        body: JSON.stringify({ book_id: bookId })
-    })
-    .then(response => response.json())
-    .then(data => {
-        hideProgressModal();
-        
-        if (data.success) {
-            // Refresh page to show updated statistics
-            location.reload();
-        } else {
-            alert('Ошибка при обновлении статистики: ' + data.error);
-        }
-    })
-    .catch(error => {
-        hideProgressModal();
-        alert('Сетевая ошибка: ' + error.message);
-    });
-}
-
-function showProgressModal(text) {
-    document.getElementById('progress-text').textContent = text;
-    new bootstrap.Modal(document.getElementById('progressModal')).show();
-}
-
-function hideProgressModal() {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
-    if (modal) {
-        modal.hide();
-    }
-}
 </script>
 {% endblock %}

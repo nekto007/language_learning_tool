@@ -9,6 +9,21 @@
 
 {% block content %}
 {{ page_header('Редактирование книги', book.title) }}
+<div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+    <span class="badge {{ 'text-bg-success' if book.is_published else 'text-bg-secondary' }}">{{ 'Опубликована' if book.is_published else 'Черновик' }}</span>
+    {% if has_text %}
+    <a href="{{ url_for('books.read_book_chapters', book_id=book.id, preview='learner') }}">Предпросмотр для ученика</a>
+    {% elif not has_chapters and not book.is_short_reading %}
+    <a href="{{ url_for('.upload_book_text', book_id=book.id) }}">Загрузить текст</a>
+    {% endif %}
+    {% if has_text or book.is_published %}
+    <form method="post" action="{{ url_for('.book_publication', book_id=book.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline-primary" type="submit" name="action" value="{{ 'unpublish' if book.is_published else 'publish' }}">{{ 'Снять с публикации' if book.is_published else 'Опубликовать' }}</button>
+    </form>
+    {% endif %}
+    {% if not book.is_published %}<a class="text-danger" href="{{ url_for('.delete_book', book_id=book.id) }}">Удалить черновик</a>{% endif %}
+</div>
 
 <div class="container-fluid">
 
@@ -43,7 +58,7 @@
                         <div class="mb-3">
                             <label for="level" class="form-label">Уровень</label>
                             <select class="form-select" id="level" name="level">
-                                {% set canonical_levels = ['A1', 'A2', 'B1', 'B2', 'C1'] %}
+                                {% set canonical_levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] %}
                                 <option value="" {{ 'selected' if not book.level else '' }}>Не указан</option>
                                 {% if book.level and book.level not in canonical_levels %}
                                 <option value="{{ book.level }}" selected>{{ book.level }} (legacy)</option>

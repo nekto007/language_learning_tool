@@ -7,6 +7,9 @@
 {% block title %}{{ book.title }} - Глава {{ current_chapter.chap_num }}/{{ chapters|length }}{% endblock %}
 
 {% block content %}
+{% macro chapter_url(number) -%}
+{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=number, preview='learner' if learner_preview else none) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=number, preview='learner' if learner_preview else none) }}
+{%- endmacro %}
 
 <div class="rdr-wrap">
   <!-- Progress bar -->
@@ -21,8 +24,8 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
 
-      {% if current_chapter.chap_num > 1 %}
-      <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
+      {% if previous_chapter %}
+      <a href="{{ chapter_url(previous_chapter.chap_num) }}"
          class="rdr-nav-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Назад</span>
@@ -33,7 +36,7 @@
     <div class="rdr-header__center">
       <select class="rdr-chapter-select" onchange="window.location.href=this.value">
         {% for ch in chapters %}
-        <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
+        <option value="{{ chapter_url(ch.chap_num) }}"
                 {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
           {% if book.is_short_reading %}Текст{% else %}Глава {{ ch.chap_num }}{% endif %}
         </option>
@@ -81,7 +84,7 @@
   {% endif %}
 
   <!-- Reading timer + pause: always-visible bar between header and content -->
-  <div id="reading-timer-bar" class="rdr-timer-bar" {% if book.is_short_reading %}hidden{% endif %}>
+  <div id="reading-timer-bar" class="rdr-timer-bar" {% if book.is_short_reading or not can_track_reading %}hidden{% endif %}>
     <span class="rdr-timer-bar__icon" aria-hidden="true">📖</span>
     <span class="rdr-timer-bar__text">
       <span id="reading-timer-elapsed">00:00</span>
@@ -99,8 +102,9 @@
   </div>
 
   <!-- Scrollable content -->
-  <div class="rdr-body" id="readerBody">
+  <div class="rdr-body" id="readerBody"{% if not can_track_reading %} data-disable-reading="true"{% endif %}>
     <div class="rdr-content">
+      {% if learner_preview %}<p class="rdr-license-notice">Предпросмотр для ученика. Прогресс не сохраняется.</p>{% endif %}
       <h1>{% if not book.is_short_reading %}Глава {{ current_chapter.chap_num }}: {% endif %}{{ current_chapter.title }}</h1>
       {% if book.is_short_reading %}
       <p>{{ book.reading.focus }} · {{ book.words_total }} слов</p>
@@ -119,7 +123,7 @@
       </div>
       {% endif %}
 
-      {% if book.is_short_reading %}
+      {% if book.is_short_reading and can_track_reading %}
       <section id="short-reading-practice" class="short-reading-practice" aria-label="Проверка понимания"
                data-account="{{ current_user.id }}" data-book="{{ book.id }}" data-chapter="{{ current_chapter.id }}"></section>
       <button id="short-reading-finish" type="button" class="rdr-bottom-btn rdr-bottom-btn--primary" disabled>Завершить чтение текста</button>
@@ -130,8 +134,8 @@
 
       <!-- Chapter navigation at bottom -->
       <div class="rdr-bottom-nav">
-        {% if current_chapter.chap_num > 1 %}
-        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
+        {% if previous_chapter %}
+        <a href="{{ chapter_url(previous_chapter.chap_num) }}"
            class="rdr-bottom-btn" id="prev-chapter-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Предыдущая глава
@@ -145,13 +149,13 @@
           {% if book.is_short_reading %}К материалу{% else %}К книге{% endif %}
         </a>
 
-        {% if current_chapter.chap_num < chapters|length %}
-        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}"
+        {% if next_chapter %}
+        <a href="{{ chapter_url(next_chapter.chap_num) }}"
            class="rdr-bottom-btn rdr-bottom-btn--primary" id="next-chapter-link">
           Следующая глава
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
-        {% else %}
+        {% elif can_track_reading %}
         <form method="post" action="{{ url_for('books.finish_book_reading', book_id=book.id) }}" class="rdr-finish-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="chapter_id" value="{{ current_chapter.id }}">
@@ -227,21 +231,21 @@
     <div class="rdr-sidebar__section">
       <div class="rdr-sidebar__section-title">Навигация</div>
       <div class="rdr-sidebar-nav">
-        {% if current_chapter.chap_num > 1 %}
-        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}"
+        {% if previous_chapter %}
+        <a href="{{ chapter_url(previous_chapter.chap_num) }}"
            class="rdr-sidebar-nav-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
           Предыдущая глава
         </a>
         {% endif %}
 
-        {% if current_chapter.chap_num < chapters|length %}
-        <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}"
+        {% if next_chapter %}
+        <a href="{{ chapter_url(next_chapter.chap_num) }}"
            class="rdr-sidebar-nav-btn rdr-sidebar-nav-btn--primary">
           Следующая глава
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </a>
-        {% else %}
+        {% elif can_track_reading %}
         <form method="post" action="{{ url_for('books.finish_book_reading', book_id=book.id) }}" class="rdr-finish-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="chapter_id" value="{{ current_chapter.id }}">
@@ -264,7 +268,7 @@
       <div class="rdr-sidebar__section-title">Все главы</div>
       <select class="rdr-sidebar-chapters" onchange="window.location.href=this.value">
         {% for ch in chapters %}
-        <option value="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=ch.chap_num) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=ch.chap_num) }}"
+        <option value="{{ chapter_url(ch.chap_num) }}"
                 {% if ch.chap_num == current_chapter.chap_num %}selected{% endif %}>
           {% if book.is_short_reading %}Текст{% else %}Глава {{ ch.chap_num }}{% endif %}: {{ ch.title }}
         </option>
@@ -464,9 +468,11 @@ window.addEventListener('load', () => {
 });
 {% endif %}
 
+{% if can_track_reading %}
 readerBody.addEventListener('scroll', updateProgress);
 window.addEventListener('resize', updateProgress);
 setTimeout(updateProgress, 100);
+{% endif %}
 
 // Reading session — active-time tracking + daily-target banner.
 //
@@ -481,6 +487,7 @@ setTimeout(updateProgress, 100);
 // when it transitions to 'daily_target', 'chapter_completed' or 'both',
 // the client shows an inline banner with plan-aware CTAs.
 (function () {
+    if (document.getElementById('readerBody')?.dataset?.disableReading) return;
     const csrfToken = '{{ csrf_token() }}';
     const chapterId = {{ current_chapter.id }};
     const HEARTBEAT_INTERVAL_MS = 60000;        // close+reopen session every 60s
@@ -1129,7 +1136,7 @@ function playWordAudio(url) {
 function addToLearning(wordId, word) {
     const revision = wordPanelRevision;
     const button = document.querySelector('#popupActions [data-action="add-to-learning"]');
-    if (!button || button.disabled) return;
+    if (!button || button.disabled || document.getElementById('readerBody')?.dataset?.disableReading) return;
     button.disabled = true;
     button.textContent = 'Сохраняем…';
     fetch('/api/add-to-learning', {
@@ -1205,13 +1212,13 @@ document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     switch(e.key) {
         case 'ArrowLeft':
-            {% if current_chapter.chap_num > 1 %}
-            window.location.href = "{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num-1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num-1) }}";
+            {% if previous_chapter %}
+            window.location.href = document.getElementById('prev-chapter-link').href;
             {% endif %}
             break;
         case 'ArrowRight':
-            {% if current_chapter.chap_num < chapters|length %}
-            window.location.href = "{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=current_chapter.chap_num+1) if book.slug else url_for('books.read_book_chapters', book_id=book.id, chapter=current_chapter.chap_num+1) }}";
+            {% if next_chapter %}
+            window.location.href = document.getElementById('next-chapter-link').href;
             {% endif %}
             break;
         case '=':

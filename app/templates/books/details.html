@@ -89,7 +89,7 @@
                             </li>
                             {% endif %}
                             
-                            {% if chapters|length > 0 %}
+                            {% if can_read_text %}
                             <li class="list-group-item d-flex justify-content-between">
                                 <span>{{ _('Chapters') }}</span>
                                 <span>{{ chapters|length }}</span>
@@ -158,7 +158,7 @@
         <!-- Reading Progress - Added for book reading functionality -->
         {% if current_user.is_authenticated %}
             {% set latest_chapter_progress = current_user.chapter_progress | selectattr('chapter.book_id', 'equalto', book.id) | sort(attribute='updated_at', reverse=true) | first %}
-            {% if latest_chapter_progress and not book_completed %}
+            {% if latest_chapter_progress and not book_completed and can_read_text %}
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">{{ _('Your Reading Progress') }}</h5>
@@ -168,7 +168,7 @@
                         <i class="bi bi-clock"></i> {{ _('Last read') }}: {{ latest_chapter_progress.updated_at.strftime('%d %B %Y at %H:%M') }}
                     </p>
                     <div class="d-grid">
-                        {% if chapters|length > 0 %}
+                        {% if can_read_text %}
                             {% if book.slug %}
                             <a href="{{ url_for('books.read_book_chapters', book_slug=book.slug, chapter_num=(latest_chapter_progress.chapter.chap_num if latest_chapter_progress else 1)) }}" class="btn btn-primary">
                                 {{ _('Continue Reading') }}
@@ -189,6 +189,19 @@
             {% endif %}
         {% endif %}
 
+        {% if source_url or book.license_type %}
+        <p class="small">
+            {% if source_url %}<a href="{{ source_url }}">Источник издания</a>{% endif %}
+            {% if book.license_type %}<span>{{ book.license_type }}</span>{% endif %}
+        </p>
+        {% endif %}
+                {% if book_courses %}
+                <ul class="list-unstyled small mb-2">
+                    {% for course in book_courses %}
+                    <li><a href="{{ url_for('book_courses.view_course', course_id=course.id) }}">Книжный курс · {{ course.title }}</a></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
         <!-- Actions -->
         <div class="card">
             <div class="card-header">
@@ -204,7 +217,7 @@
                         <a href="{{ url_for('books.read_book_chapters', book_id=book.id) }}?chapter=1" class="btn btn-primary">{{ _('Read Book') }}</a>
                         {% endif %}
                     {% else %}
-                        <a href="{{ url_for('books.read_book', book_id=book.id) }}" class="btn btn-primary">{{ _('Read Book') }}</a>
+                        <p class="text-muted mb-0">Текст пока недоступен</p>
                     {% endif %}
 
                     <!-- Edit button only for admins -->
@@ -216,8 +229,9 @@
                     <a href="{{ url_for('books.book_words', book_id=book.id) }}" class="btn btn-outline-primary">{{ _('View All Words') }}</a>
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=0) }}" class="btn btn-outline-secondary">{{ _('View New Words') }}</a>
                     <a href="{{ url_for('books.book_words', book_id=book.id, status=1) }}" class="btn btn-outline-primary">{{ _('View Learning Words') }}</a>
-                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    {% if current_user.is_authenticated and current_user.is_admin and chapters %}
                     <form action="{{ url_for('books.reprocess_book_words', book_id=book.id) }}" method="POST" class="mt-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-secondary d-block w-100">
                             <i class="fas fa-sync-alt me-1"></i> {{ _('Reprocess Book Words') }}
                         </button>

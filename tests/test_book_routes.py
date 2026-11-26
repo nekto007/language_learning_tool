@@ -52,36 +52,12 @@ class TestBookRoutes:
         assert response.status_code == 200
         assert b'total_books' in response.data or b'Test Book' in response.data
 
-    @patch('app.web.scraper.WebScraper')
-    def test_scrape_website_success(self, mock_scraper, client, admin_user):
-        """Тест успешного scraping сайта"""
-        # Mock scraper results
-        mock_instance = Mock()
-        mock_instance.scrape_website.return_value = [
-            {'title': 'Book 1', 'author': 'Author 1'},
-            {'title': 'Book 2', 'author': 'Author 2'}
-        ]
-        mock_scraper.return_value = mock_instance
-
-        response = client.post('/admin/books/scrape-website',
-                                data=json.dumps({'url': 'http://example.com', 'max_pages': 5}),
-                                content_type='application/json')
-
-        assert response.status_code == 200
-        data = json.loads(response.data)
-        assert data['success'] is True
-        assert data['scraped_count'] == 2
-
-    def test_scrape_website_no_url(self, client, admin_user):
-        """Тест scraping без URL"""
-        response = client.post('/admin/books/scrape-website',
-                                data=json.dumps({'max_pages': 5}),
-                                content_type='application/json')
-
-        assert response.status_code == 400
-        data = json.loads(response.data)
-        assert data['success'] is False
-        assert 'URL не указан' in data['error']
+    @pytest.mark.parametrize('payload', [{'url': 'https://example.invalid'}, {}])
+    def test_legacy_url_import_returns_file_form(self, client, admin_user, payload):
+        response = client.post('/admin/books/scrape-website', json=payload)
+        assert response.status_code == 410
+        assert response.json['success'] is False
+        assert response.json['upload_url'] == '/admin/books/add'
 
     @patch('app.repository.DatabaseRepository')
     def test_update_book_statistics_single_book(self, mock_repo, client, admin_user, sample_book):
@@ -199,8 +175,8 @@ class TestBookRoutes:
         response = client.get('/admin/books/cleanup')
         assert response.status_code == 200
 
-    def test_cleanup_books_remove_empty(self, client, admin_user, db_session):
-        """Тест удаления пустых книг"""
+    def test_cleanup_books_refuses_bulk_delete(self, client, admin_user, db_session):
+        """The old bulk action leaves each row available for individual review."""
         # Создаем пустую книгу
         empty_book = Book(
             title='Empty Book',
@@ -213,7 +189,9 @@ class TestBookRoutes:
         response = client.post('/admin/books/cleanup',
                                 data={'action': 'remove_empty_books'})
 
-        assert response.status_code == 302  # Redirect after success
+        assert response.status_code == 303
+        assert response.location == '/admin/books/cleanup'
+        assert db_session.get(Book, empty_book.id) is not None
 
     def test_add_book_get_form(self, client, admin_user):
         """Тест отображения формы добавления книги"""
@@ -227,13 +205,14 @@ class TestBookRoutes:
                                     'title': 'Test Book',
                                     'author': 'Test Author',
                                     'level': 'B1',
-                                    'chapters_cnt': '1'
+                                    'content': 'A new text.',
+                                    'overwrite': 'true'
                                 },
                                 content_type='application/x-www-form-urlencoded')
 
-        # Должна быть проверка на дубликат
-        # В зависимости от реализации может быть 200 с JSON или redirect
-        assert response.status_code in [200, 302]
+        assert response.status_code == 409
+        assert f'/admin/books/{sample_book.id}/edit'.encode() in response.data
+        assert sample_book.chapters_cnt == 1 and sample_book.words_total == 10000
 
 
 class TestBookRoutesPermissions:
@@ -282,14 +261,12 @@ class TestBookRoutesPermissions:
 class TestBookRoutesErrorHandling:
     """Тесты обработки ошибок"""
 
-    @patch('app.admin.routes.book_routes.Book')
-    def test_books_index_database_error(self, mock_book, client, admin_user):
-        """Тест обработки ошибки базы данных на главной странице"""
-        mock_book.query.count.side_effect = Exception("Database connection failed")
-
-        response = client.get('/admin/books')
-        # Должен обработать ошибку и показать сообщение или redirect
-        assert response.status_code in [200, 302]
+    def test_books_index_database_error(self, client, admin_user, caplog):
+        with patch('flask_sqlalchemy.query.Query.paginate', side_effect=RuntimeError('Database connection failed')):
+            response = client.get('/admin/books')
+        assert response.status_code == 302
+        assert response.location == '/admin/'
+        assert 'Database connection failed' in caplog.text
 
     def test_update_statistics_invalid_book_id(self, client, admin_user):
         """Тест обновления статистики с несуществующим ID книги"""

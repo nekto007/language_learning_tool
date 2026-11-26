@@ -23,7 +23,9 @@ from app.api.decorators import api_auth_required
 from app.api.errors import api_error
 from app.books.access import accessible_books_filter, can_user_access_book
 from app.books.models import Book, Chapter, UserChapterProgress
-from app.books.progress import _progress_from_records, get_completed_book_ids, get_book_completion_state
+from app.books.progress import _progress_from_records, get_book_completion_state, get_completed_book_ids
+from app.books.readability import book_has_text, chapter_has_text
+from app.books.text_access import book_allows_learner_text, book_allows_text
 from app.curriculum.models import CEFRLevel
 from app.daily_plan.level_utils import _cefr_code_to_order, get_user_current_cefr_level
 from app.daily_plan.linear.models import UserReadingPreference
@@ -63,10 +65,12 @@ def get_books_catalog():
 
     query = (
         db.session.query(Book)
-        .filter(Book.chapters_cnt > 0)
+        .filter(book_has_text(Book.id))
         .filter(Book.is_published == True)
         .filter(accessible_books_filter(current_user))
     )
+    if not current_user.is_admin:
+        query = query.filter(book_allows_learner_text())
     if codes:
         query = query.filter(Book.level.in_(codes))
     books = query.order_by(Book.level.asc(), Book.title.asc()).all()
@@ -125,11 +129,11 @@ def _account_library(user):
     ids = [book.id for book in books]
     counts = {bid: (count, first) for bid, count, first in db.session.query(
         Chapter.book_id, func.count(Chapter.id), func.min(Chapter.chap_num),
-    ).filter(Chapter.book_id.in_(ids)).group_by(Chapter.book_id).all()}
+    ).filter(Chapter.book_id.in_(ids), chapter_has_text()).group_by(Chapter.book_id).all()}
     grouped = {}
     for record, book_id, chapter_num in db.session.query(UserChapterProgress, Chapter.book_id, Chapter.chap_num).join(
         Chapter, Chapter.id == UserChapterProgress.chapter_id,
-    ).filter(UserChapterProgress.user_id == user.id, Chapter.book_id.in_(ids)).all():
+    ).filter(UserChapterProgress.user_id == user.id, Chapter.book_id.in_(ids), chapter_has_text()).all():
         grouped.setdefault(book_id, []).append((record, chapter_num))
     result = []
     for book in books:
@@ -165,8 +169,8 @@ def _account_library(user):
 @api_auth_required
 def select_book():
     """Persist the user's chosen reading book and return the refreshed slot."""
-    data = request.get_json(silent=True) or {}
-    book_id = data.get('book_id')
+    data = request.get_json(silent=True)
+    book_id = data.get('book_id') if isinstance(data, dict) else None
     # ``isinstance(True, int)`` is True in Python — reject booleans explicitly.
     if not isinstance(book_id, int) or isinstance(book_id, bool):
         return api_error('invalid_book_id', 'book_id must be an integer', 400)
@@ -186,6 +190,9 @@ def select_book():
 
     if not can_user_access_book(current_user, book):
         return api_error('book_access_denied', 'Нет доступа к этой книге', 403)
+
+    if not book_allows_text(book, admin=current_user.is_admin) or not db.session.query(book_has_text(book.id)).scalar():
+        return api_error('book_not_readable', 'Текст книги пока недоступен', 409)
 
     if get_book_completion_state(current_user.id, book.id, db)['is_completed']:
         return api_error('book_already_completed', 'Эта книга уже прочитана', 409)

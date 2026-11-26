@@ -21,51 +21,10 @@ class TestBooksIndex:
     """Tests for books() - main books management page"""
 
     @pytest.mark.smoke
-    @patch('app.admin.routes.book_routes.render_template')
-    @patch('app.admin.routes.book_routes.db.session')
-    @patch('app.admin.routes.book_routes.Book')
-    def test_books_index_success(self, mock_book, mock_session, mock_render, admin_client, mock_admin_user):
-        """Test successful books index page load"""
-        # Setup mock Book model with proper attribute support
-        mock_book.query.count.return_value = 100
-
-        # Mock words_total attribute for filter operations
-        mock_words_total = MagicMock()
-        mock_words_total.isnot.return_value = MagicMock()
-        mock_words_total.__gt__ = MagicMock(return_value=MagicMock())  # Support > operator
-        mock_words_total.desc.return_value = MagicMock()
-        mock_book.words_total = mock_words_total
-
-        # Mock filter chains
-        mock_filter = MagicMock()
-        mock_filter.count.return_value = 80
-        mock_filter.order_by.return_value.limit.return_value.all.return_value = []
-        mock_book.query.filter.return_value = mock_filter
-
-        # Mock order_by chain for recent books
-        mock_book.query.order_by.return_value.nullslast.return_value.limit.return_value.all.return_value = []
-
-        # Mock db.session
-        mock_session.query.return_value.scalar.return_value = 50000
-
-        # Mock render_template to avoid caching MagicMock objects
-        mock_render.return_value = '<html>books index</html>'
-
-        # Execute
+    def test_books_index_success(self, admin_client, mock_admin_user):
         response = admin_client.get('/admin/books')
-
-        # Assert
         assert response.status_code == 200
-        mock_render.assert_called_once()
-
-    @patch('app.admin.routes.book_routes.Book')
-    def test_books_index_error(self, mock_book, admin_client, mock_admin_user):
-        """Test books index with database error"""
-        mock_book.query.count.side_effect = Exception("Database error")
-
-        response = admin_client.get('/admin/books', follow_redirects=False)
-
-        assert response.status_code == 302  # Redirects to dashboard
+        assert b'books-query' in response.data
 
     def test_books_index_requires_admin(self, client):
         """Test that books index requires admin authentication"""
@@ -76,49 +35,11 @@ class TestBooksIndex:
 class TestScrapeWebsite:
     """Tests for scrape_website() POST endpoint"""
 
-    @patch('app.web.scraper.WebScraper')
-    def test_scrape_website_success(self, mock_scraper_class, admin_client, mock_admin_user):
-        """Test successful website scraping"""
-        # Setup mock scraper instance
-        mock_scraper = MagicMock()
-        mock_scraper.scrape_website.return_value = [
-            {'title': 'Book 1', 'author': 'Author 1'},
-            {'title': 'Book 2', 'author': 'Author 2'}
-        ]
-        mock_scraper_class.return_value = mock_scraper
-
-        response = admin_client.post(
-            '/admin/books/scrape-website',
-            json={'url': 'https://example.com', 'max_pages': 10}
-        )
-
-        assert response.status_code == 200
-        json_data = response.get_json()
-        assert json_data['success'] is True
-        assert json_data['scraped_count'] == 2
-
-    def test_scrape_website_no_url(self, admin_client, mock_admin_user):
-        """Test scraping without URL"""
-        response = admin_client.post(
-            '/admin/books/scrape-website',
-            json={}
-        )
-
-        assert response.status_code == 400
-        json_data = response.get_json()
-        assert json_data['success'] is False
-
-    @patch('app.web.scraper.WebScraper')
-    def test_scrape_website_error(self, mock_scraper_class, admin_client, mock_admin_user):
-        """Test scraping with error"""
-        mock_scraper_class.side_effect = Exception("Scraping failed")
-
-        response = admin_client.post(
-            '/admin/books/scrape-website',
-            json={'url': 'https://example.com'}
-        )
-
-        assert response.status_code == 500
+    def test_legacy_scrape_points_at_working_file_import(self, admin_client, mock_admin_user):
+        response = admin_client.post('/admin/books/scrape-website', json={'url': 'https://example.invalid'})
+        assert response.status_code == 410
+        assert response.get_json()['upload_url'] == '/admin/books/add'
+        assert admin_client.get(response.get_json()['upload_url']).status_code == 200
 
     def test_scrape_website_requires_admin(self, client):
         """Test that scraping requires admin authentication"""
@@ -129,37 +50,30 @@ class TestScrapeWebsite:
 class TestUpdateBookStatistics:
     """Tests for update_book_statistics() POST endpoint"""
 
-    @patch('app.repository.DatabaseRepository')
-    @patch('app.admin.routes.book_routes.Book')
-    def test_update_statistics_success(self, mock_book, mock_repo_class, admin_client, mock_admin_user):
-        """Test successful statistics update"""
-        # Setup mock books
-        mock_book_obj = MagicMock()
-        mock_book_obj.id = 1
-        mock_book.query.all.return_value = [mock_book_obj]
+    def test_update_statistics_corrects_chapters_without_changing_date(
+        self, admin_client, db_session, mock_admin_user,
+    ):
+        from datetime import datetime
 
-        # Setup mock repository
-        mock_repo = MagicMock()
-        mock_repo.execute_query.return_value = [[100]]  # Mock word count result
-        mock_repo_class.return_value = mock_repo
+        from app.books.models import Book, Chapter
 
-        response = admin_client.post('/admin/books/update-statistics', json={})
+        legacy_date = datetime(2020, 1, 1)
+        book = Book(title='Statistics fixture', author='Test', chapters_cnt=70, created_at=legacy_date)
+        book.chapters.append(Chapter(chap_num=1, title='Chapter', text_raw='A story.', words=2))
+        db_session.add(book)
+        db_session.commit()
 
+        response = admin_client.post('/admin/books/update-statistics', json={'book_id': book.id})
         assert response.status_code == 200
-        json_data = response.get_json()
-        assert json_data['success'] is True
-        assert json_data['updated_count'] >= 0
+        assert response.get_json()['updated_count'] == 1
+        db_session.refresh(book)
+        assert book.chapters_cnt == 1
+        assert book.created_at.replace(tzinfo=None) == legacy_date
 
-    @patch('app.admin.routes.book_routes.Book')
-    def test_update_statistics_error(self, mock_book, admin_client, mock_admin_user):
-        """Test statistics update with error - DatabaseRepository error is caught per-book"""
-        # Setup mock to raise exception when querying books (outer try-except)
-        mock_book.query.all.side_effect = Exception("Database query failed")
-
-        response = admin_client.post('/admin/books/update-statistics', json={})
-
-        # Should return 500 when outer exception occurs
-        assert response.status_code == 500
+    def test_update_statistics_error(self, admin_client, mock_admin_user):
+        response = admin_client.post('/admin/books/update-statistics', json={'book_id': []})
+        assert response.status_code == 400
+        assert response.get_json()['success'] is False
 
     def test_update_statistics_requires_admin(self, client):
         """Test that update statistics requires admin authentication"""
@@ -356,43 +270,20 @@ class TestExtractBookMetadata:
 class TestCleanupBooks:
     """Tests for cleanup_books() GET/POST endpoint"""
 
-    @patch('app.admin.routes.book_routes.render_template')
-    @patch('app.admin.routes.book_routes.Book')
-    @patch('app.admin.routes.book_routes.db.session')
-    def test_cleanup_books_get(self, mock_session, mock_book, mock_render, admin_client, mock_admin_user):
-        """Test GET cleanup books page"""
-        # Mock database query results with regular int values (not MagicMock)
-        mock_session.execute.return_value.scalar.side_effect = [10, 5]
-
-        # Mock Book count
-        mock_book.query.count.return_value = 100
-
-        # Mock render_template to return a simple response (avoids caching issues)
-        mock_render.return_value = '<html>cleanup page</html>'
-
+    def test_cleanup_books_get(self, admin_client, mock_admin_user):
         response = admin_client.get('/admin/books/cleanup')
-
         assert response.status_code == 200
-        # Verify render_template was called with correct stats
-        mock_render.assert_called_once()
-        call_args = mock_render.call_args
-        assert call_args[0][0] == 'admin/books/cleanup.html'
-        assert 'stats' in call_args[1]
+        assert b'text=missing' in response.data
 
-    @patch('app.admin.routes.book_routes.Book')
-    @patch('app.admin.routes.book_routes.db.session')
-    def test_cleanup_books_post_success(self, mock_session, mock_book, admin_client, mock_admin_user):
-        """Test POST cleanup books - delete orphaned books"""
-        mock_book_obj = MagicMock()
-        mock_book_obj.id = 1
-        mock_book_obj.file_path = None
+    def test_cleanup_books_old_bulk_action_leaves_book(self, admin_client, db_session, mock_admin_user):
+        from app.books.models import Book
 
-        mock_book.query.filter.return_value.all.return_value = [mock_book_obj]
-
-        response = admin_client.post('/admin/books/cleanup', follow_redirects=False)
-
-        assert response.status_code == 302
-        assert response.location.endswith('/admin/books/cleanup')
+        book = Book(title='Empty cleanup fixture', author='Test', chapters_cnt=0)
+        db_session.add(book)
+        db_session.commit()
+        response = admin_client.post('/admin/books/cleanup', data={'action': 'remove_empty_books'})
+        assert response.status_code == 303
+        assert db_session.get(Book, book.id) is not None
 
     def test_cleanup_books_requires_admin(self, client):
         """Test that cleanup books requires admin authentication"""
@@ -409,39 +300,20 @@ class TestAddBook:
 
         assert response.status_code == 200
 
-    @patch('app.books.parsers.process_uploaded_book')
-    @patch('werkzeug.utils.secure_filename')
-    def test_add_book_post_success(self, mock_secure, mock_process, admin_client, mock_admin_user, tmp_path):
-        """Test POST add book with text content"""
-        mock_secure.return_value = 'test_book.txt'
-        mock_process.return_value = {
-            'content': '<p>Test content</p>',
-            'word_count': 100,
-            'unique_words': 50
-        }
+    def test_add_book_persists_an_unmarked_text_file(self, admin_client, db_session, mock_admin_user, monkeypatch):
+        from app.admin.services.book_processing_service import BookProcessingService
+        from app.books.models import Book
 
-        # Create a test file
-        test_file = tmp_path / "test.txt"
-        test_file.write_text("This is test content for the book")
-
-        with open(test_file, 'rb') as f:
-            data = {
-                'title': 'Test Book',
-                'author': 'Test Author',
-                'level': 'A1',
-                'file': (f, 'test.txt'),
-                'format_type': 'text'
-            }
-
-            response = admin_client.post(
-                '/admin/books/add',
-                data=data,
-                follow_redirects=False,
-                content_type='multipart/form-data'
-            )
-
-            # Should redirect after successful add
-            assert response.status_code in [200, 302]
+        monkeypatch.setattr(BookProcessingService, 'start_background_chapter_processing', MagicMock())
+        response = admin_client.post('/admin/books/add', data={
+            'title': 'Plain book', 'author': 'Test Author', 'level': 'A1',
+            'file': (io.BytesIO(b'A book starts here.\n\nIt ends here.'), 'story.txt'),
+        })
+        assert response.status_code == 303
+        book = db_session.query(Book).filter_by(title='Plain book').one()
+        assert response.location.endswith(f'/books/{book.id}/chapters')
+        assert not book.is_published
+        assert book.chapters[0].text_raw == 'A book starts here.\n\nIt ends here.'
 
     def test_add_book_requires_admin(self, client):
         """Test that add book requires admin authentication"""
