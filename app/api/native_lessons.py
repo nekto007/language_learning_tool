@@ -317,6 +317,8 @@ def checked_course_answer(
         raise NativeLessonError('lesson_changed', 409) from None
     if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
         raise NativeLessonError('access_denied', 403)
+    if sealed.get('web_round'):
+        raise NativeLessonError('lesson_changed', 409)
     web_course = sealed.get('web_course') is True
     if web_course and not allow_web_course:
         raise NativeLessonError('access_denied', 403)
@@ -408,6 +410,8 @@ def course_submission(lesson_id: int, *, allow_web_course: bool = False) -> Resp
         raise NativeLessonError('lesson_changed', 409)
     if not isinstance(sealed, dict) or sealed.get('user') != current_user.id or sealed.get('lesson') != lesson_id:
         raise NativeLessonError('access_denied', 403)
+    if sealed.get('web_round'):
+        raise NativeLessonError('lesson_changed', 409)
     web_course = sealed.get('web_course') is True
     if web_course and not allow_web_course:
         raise NativeLessonError('access_denied', 403)

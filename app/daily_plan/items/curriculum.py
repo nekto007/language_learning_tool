@@ -114,6 +114,9 @@ def _lesson_meets_passing(lesson: Any, score: Optional[float], progress_data: An
     from app.curriculum.constants import get_lesson_passing_score
     from app.daily_plan.quiz_corrections import correction_state_from_data
 
+    weighted = progress_data.get('web_weighted') if isinstance(progress_data, dict) else None
+    if isinstance(weighted, dict) and weighted.get('completed') is True and getattr(lesson, 'type', None) != 'final_test':
+        return True
     correction = correction_state_from_data(progress_data)
     if correction and correction['status'] == 'completed' and getattr(lesson, 'type', None) != 'final_test':
         # The independent score stays untouched. Assisted completion is a

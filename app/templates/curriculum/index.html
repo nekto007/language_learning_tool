@@ -221,8 +221,8 @@
                 <span>{{ activity.last_activity.strftime('%d.%m %H:%M') if activity.last_activity else '' }}</span>
               </div>
             </div>
-            {% if activity.score %}
-              <div class="activity-card__score">{{ activity.score|round(0)|int }}%</div>
+            {% if activity.score is not none %}
+              <div class="activity-card__score">{{ activity.score|int }}%</div>
             {% endif %}
             <div class="activity-card__arrow">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

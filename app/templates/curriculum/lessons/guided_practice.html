@@ -5,6 +5,33 @@
 <style nonce="{{ csp_nonce }}">
 #guided-practice button, #guided-practice .practice-result-actions .btn { max-width: 100%; min-height: 44px; white-space: normal; }
 #guided-practice { overflow-wrap: anywhere; }
+.practice-reading-header {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem;
+  padding-bottom: .8rem; margin-bottom: 1.25rem; border-bottom: 1px solid #cbd5e1;
+}
+.practice-reading-header a { display: inline-flex; align-items: center; min-height: 44px; }
+.practice-story { margin-block: 1.1rem; }
+.practice-story h2 { margin-bottom: .65rem; }
+.practice-story p {
+  white-space: pre-wrap; margin: 0 0 .55rem; padding: .7rem .9rem; border-inline-start: 4px solid var(--story-line);
+  border-radius: .35rem; background: var(--story-paper); color: #18263a; line-height: 1.6;
+  --story-line: #7c9ad9; --story-paper: #edf3ff;
+}
+.practice-story p:nth-of-type(3n+2) { --story-line: #6da888; --story-paper: #eaf5ef; }
+.practice-story p:nth-of-type(3n+3) { --story-line: #c39558; --story-paper: #fff4e2; }
+.practice-reading-choice {
+  display: flex; align-items: flex-start; gap: .65rem; padding: .62rem .75rem; min-height: 44px;
+  margin-bottom: .5rem; border: 1px solid #cbd5e1; border-radius: .55rem;
+}
+.practice-reading-choice input { flex: none; margin-top: .25em; width: 1.1rem; height: 1.1rem; }
+.practice-reading-choice:focus-within { outline: 2px solid #3454a5; outline-offset: 2px; }
+.practice-reading-choice[data-verdict="correct"] { border-color: #237447; background: #eaf5ef; color: #174d31; }
+.practice-reading-choice[data-verdict="incorrect"] { border-color: #a13b3b; background: #fff0ef; color: #782525; }
+.practice-reading-choice small { display: block; font-weight: 700; }
+.practice-reading-feedback { padding: .9rem 1rem; border: 1px solid #cbd5e1; border-radius: .6rem; margin-block: .85rem; }
+.practice-reading-feedback p:last-child { margin-bottom: 0; }
+.practice-reading-feedback p { white-space: pre-wrap; }
+.practice-reading-result { font-variant-numeric: tabular-nums; }
 @media (max-width: 480px) {
   #guided-practice .btn { padding-inline: 16px; }
 }
@@ -16,15 +43,19 @@
       {% if reading_preview_endpoint %}data-reading-preview="true"
       {% elif course_practice %}data-course-practice="true"{% if course_next %} data-course-next="{{ course_next }}"{% endif %}
       {% else %}data-result-plan="{{ url_for('words.daily_plan_next_step') }}"{% endif %}
+      {% if lesson.type in ('reading', 'text') %}data-reading-layout="true"{% endif %}
+      {% if not reading_preview_endpoint %}data-weighted-practice="true"{% endif %}
       data-account="{{ current_user.id }}" data-lesson="{{ lesson.id }}">
+  {% if lesson.type in ('reading', 'text') %}<header class="practice-reading-header">{% endif %}
   {% if reading_preview_endpoint %}
   <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}" class="btn btn-outline-secondary mb-3">К карточке урока</a>
-  <p class="text-secondary small">Предпросмотр ученика. Ответы и результат не сохраняются.</p>
   {% elif course_practice %}
   <a href="{{ course_back }}" class="btn btn-outline-secondary mb-3">К урокам модуля</a>
   {% else %}
   <a href="{{ url_for('words.dashboard') }}" class="btn btn-outline-secondary mb-3">К плану дня</a>
   {% endif %}
+  {% if lesson.type in ('reading', 'text') %}</header>{% endif %}
+  {% if reading_preview_endpoint %}<p class="text-secondary small">Предпросмотр ученика. Ответы и результат не сохраняются.</p>{% endif %}
   <h1 class="h3">{{ lesson.title }}</h1>
   <p id="practice-goal" class="text-secondary" hidden></p>
   <p id="practice-error" role="alert" class="text-danger" hidden></p>
@@ -37,5 +68,5 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/practice-drafts.js', v='20261124-resume') }}" defer></script>
-<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261127-course-practice') }}" defer></script>
+<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261127-weighted-practice') }}" defer></script>
 {% endblock %}

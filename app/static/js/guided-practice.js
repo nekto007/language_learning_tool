@@ -9,6 +9,7 @@
   const endpoint = root.dataset.endpoint;
   const readingPreview = root.dataset.readingPreview === 'true';
   const coursePractice = root.dataset.coursePractice === 'true';
+  const readingLayout = root.dataset.readingLayout === 'true';
   const drafts = !readingPreview && window.LLTPracticeDrafts ? new window.LLTPracticeDrafts.Store(window, root.dataset.account, root.dataset.lesson) : null;
   const draftStorage = () => drafts || window.sessionStorage;
   const lessonKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:`;
@@ -34,6 +35,23 @@
     const body = node('p', row.body || '', 'mb-0'); body.style.whiteSpace = 'pre-wrap';
     box.append(body); parent.append(box);
   });
+  const story = parent => {
+    let section, heading;
+    for (const row of lesson.theory || []) {
+      if (!section || row.title !== heading) {
+        heading = row.title;
+        section = node('section', null, 'practice-story');
+        if (heading) section.append(node('h2', heading, 'h5'));
+        parent.append(section);
+      }
+      if (row.body) section.append(node('p', row.body));
+      if (row.translation) {
+        const translation = node('details', null, 'mb-2');
+        translation.append(node('summary', 'Показать перевод'), node('p', row.translation));
+        section.append(translation);
+      }
+    }
+  };
   const warnBeforeUnload = event => { event.preventDefault(); event.returnValue = ''; };
   const updateStorageWarning = () => {
     const warn = !browserDraftAvailable && state && !state.result && !accountInvalid;
@@ -65,7 +83,10 @@
   const save = () => {
     if (readingPreview) return;
     try {
-      draftStorage().setItem(storageKey, JSON.stringify(state));
+      const storedState = state.roundView?.result
+        ? {revision: state.revision, lessonType: state.lessonType, roundId: state.roundId}
+        : state;
+      draftStorage().setItem(storageKey, JSON.stringify(storedState));
       draftStorage().setItem(activeKey, storageKey);
       browserDraftAvailable = storageReadable;
     } catch (_) { browserDraftAvailable = false; }
@@ -77,6 +98,7 @@
     if (busy) return;
     focusAfterDraw = screen.contains(document.activeElement);
     busy = true; errorBox.hidden = true;
+    if (readingLayout) refreshButton.hidden = true;
     screen.setAttribute('aria-busy', 'true');
     root.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try { await action(); } catch (error) {
@@ -85,6 +107,7 @@
       }
       if (!lesson && error.code === 'lesson_locked') screen.querySelector('[data-practice-loading]')?.remove();
       errorBox.textContent = error.message; errorBox.hidden = false;
+      if (readingLayout && !accountInvalid && !['lesson_locked', 'plan_paused'].includes(error.code)) refreshButton.hidden = false;
       errorBox.scrollIntoView({block: 'nearest'});
     } finally {
       busy = false; screen.setAttribute('aria-busy', 'false'); draw();
@@ -116,6 +139,7 @@
           ? 'Этот урок пока недоступен. Проверь предыдущие уроки и условия доступа в модуле.'
           : 'Сначала заверши предыдущий шаг плана.',
         invalid_input: 'Проверь, что ответ заполнен полностью.',
+        round_step_changed: 'Попытка уже продвинулась. Обнови задание, чтобы продолжить.',
         plan_paused: 'План на паузе. Вернись к плану дня, чтобы продолжить.',
         authentication_required: 'Сессия завершилась. Войди в аккаунт заново.',
         unsupported_lesson: 'Материал пока недоступен. Вернись к плану дня или попробуй открыть задание позже.',
@@ -146,6 +170,7 @@
     fields.filter(key => Object.hasOwn(source, key)).map(key => [key, source[key]])
   );
   const rememberResult = result => {
+    if (result.web_weighted) return; // Resumes with the server's round ID and full review.
     if (!(canContinueFrom(result) || (coursePractice && (completedResult(result) || result?.correction_pending)))
         || result.success !== true || String(result.lesson_id) !== root.dataset.lesson
         || !lesson.content_revision || (isCorrection() && !completedResult(result))) return;
@@ -156,7 +181,7 @@
       correction: resultFields(lesson.correction || {}, ['first_score', 'first_units_correct', 'first_units_total', 'first_unit_label']),
       result: resultFields(result, [
         'score', 'passed', 'completed', 'correction_pending', 'correct_count', 'total_count',
-        'units_correct', 'units_total', 'unit_label'
+        'units_correct', 'units_total', 'unit_label', 'web_weighted'
       ])
     });
   };
@@ -195,9 +220,11 @@
         next.href = root.dataset.courseNext;
         resultActions.append(next);
       }
-      const back = node('a', 'К урокам модуля', 'btn btn-outline-secondary');
-      back.href = root.querySelector('a').href;
-      resultActions.append(back);
+      if (!readingLayout) {
+        const back = node('a', 'К урокам модуля', 'btn btn-outline-secondary');
+        back.href = root.querySelector('a').href;
+        resultActions.append(back);
+      }
       return;
     }
     const plan = resultPlan?.result === state.result ? resultPlan : {};
@@ -220,9 +247,12 @@
       const next = node('a', plan.title, 'btn btn-primary');
       next.href = plan.url; controls.append(next);
     }
-    const exit = node('a', 'К плану дня', showNext ? 'btn btn-outline-secondary' : 'btn btn-primary');
-    exit.href = root.querySelector('a').href; controls.append(exit); resultActions.append(controls);
-    if (focused) exit.focus({preventScroll: true});
+    if (!readingLayout) {
+      const exit = node('a', 'К плану дня', showNext ? 'btn btn-outline-secondary' : 'btn btn-primary');
+      exit.href = root.querySelector('a').href; controls.append(exit);
+    }
+    resultActions.append(controls);
+    if (focused) (controls.querySelector('a') || root.querySelector('a')).focus({preventScroll: true});
   };
   const updateResultPlan = async (force = false) => {
     const result = state?.result;
@@ -274,7 +304,7 @@
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 15000);
       try {
-        const response = await request('/dispute', {session_token: lesson.session_token, question_id: q.id, answer}, controller.signal);
+        const response = await request(lesson.web_round ? '/dispute?weighted=1' : '/dispute', {session_token: lesson.session_token, question_id: q.id, answer}, controller.signal);
         if (response.success !== true) throw new Error('Unconfirmed dispute');
         record.status = 'sent';
       } catch (error) {
@@ -290,6 +320,64 @@
   // Basic grammar and quiz documents can supply options without an input type.
   const isChoiceQuestion = q => q.input === 'choice' ||
     (q.input == null && Array.isArray(q.options) && q.options.length > 0);
+  const readingBoolean = question => question?.options?.length === 2
+    && question.options.every(option => ['true', 'false'].includes(option.value));
+  const readingAnswerLabel = (question, answer) => {
+    if (!readingBoolean(question)) return answer;
+    if (['true', 'Правда', 'Верно / True'].includes(answer)) return 'Верно';
+    if (['false', 'Ложь', 'Неверно / False'].includes(answer)) return 'Неверно';
+    return answer;
+  };
+  const correctReadingOption = (question, answer, feedback) => {
+    if (!feedback) return undefined;
+    if (feedback.correct) return answer;
+    const expected = feedback.expected?.trim();
+    if (!expected) return undefined;
+    const matches = question.options.filter(option => option.label.trim() === expected);
+    if (matches.length === 1) return matches[0].value;
+    // The shared true/false grader reports «Правда» or «Ложь», while the
+    // two authored answer controls have stable wire IDs and bilingual labels.
+    if (readingBoolean(question)) {
+      if (expected === 'Правда') return 'true';
+      if (expected === 'Ложь') return 'false';
+    }
+    return undefined;
+  };
+  const appendReadingFeedback = (parent, question, feedback, {title, reference} = {}) => {
+    const box = node('section', null, 'practice-reading-feedback');
+    const checkedChoice = title == null && question && isChoiceQuestion(question);
+    if (title == null) box.setAttribute('role', 'status');
+    const verdict = checkedChoice
+      ? (feedback.correct ? 'Твой выбор верный' : 'Твой выбор неверный')
+      : (feedback.correct ? 'Верно' : 'Разберём ответ');
+    box.append(node('h3', title ?? verdict, 'h5'));
+    const answer = (feedback.answer_display || feedback.answer || '').trim();
+    const expected = (feedback.expected || '').trim();
+    const explanation = (feedback.explanation || '').trim();
+    if (!checkedChoice) {
+      const resolution = feedback.web_resolution;
+      if (answer) box.append(node('p', (resolution ? 'Первый ответ: ' : 'Мой ответ: ') + readingAnswerLabel(question, answer)));
+      if (resolution?.rank > 1) {
+        const of = resolution.rank === 2 ? 'со' : 'с';
+        box.append(node('p', `Исправлено ${of} ${resolution.rank}-й попытки`, 'fw-semibold'),
+          node('p', 'Верный ответ: ' + readingAnswerLabel(question, resolution.answer)));
+      } else if (expected && !feedback.correct && !resolution) {
+        box.append(node('p', 'Верный ответ: ' + readingAnswerLabel(question, expected)));
+      }
+    }
+    if (explanation && explanation !== expected && explanation !== answer
+        && explanation !== 'Сравни свой ответ с образцом: ' + expected) {
+      box.append(node('p', 'Пояснение: ' + explanation));
+    } else if (reference) {
+      box.append(button('Сверить с текстом урока', () => {
+        reference.open = true;
+        const summary = reference.querySelector('summary');
+        summary.focus({preventScroll: true});
+        summary.scrollIntoView({block: 'center'});
+      }));
+    }
+    parent.append(box);
+  };
   const orderValues = answer => {
     try { const ids = JSON.parse(answer || '[]'); return Array.isArray(ids) ? ids : []; }
     catch (_) { return []; }
@@ -336,7 +424,8 @@
     player.className = 'w-100 my-3'; screen.append(player);
   };
   const input = q => {
-    const box = node('div', null, 'my-3');
+    const box = node('div', null, 'my-3 practice-answer-input');
+    if (state.roundPending) box.inert = true;
     const checked = state.checks[q.id];
     const set = value => { state.answers[q.id] = value; save(); const check = screen.querySelector('[data-check]'); if (check) check.disabled = !accepted(q) || busy; };
     const help = state.help[q.id] || q.correction_help;
@@ -353,12 +442,27 @@
       });
       if (help.choices?.length) box.append(node('p', 'Варианты: ' + help.choices.join(' · '), 'text-secondary mt-2'));
     } else if (isChoiceQuestion(q)) {
+      const correctValue = readingLayout ? correctReadingOption(q, state.answers[q.id], checked) : undefined;
       q.options.forEach(option => {
-        const label = node('label', null, 'card card-body mb-2');
+        const label = node('label', null, readingLayout ? 'practice-reading-choice' : 'card card-body mb-2');
         const field = node('input'); field.type = 'radio'; field.name = 'answer'; field.value = option.value;
         field.checked = state.answers[q.id] === option.value; field.disabled = !!checked;
         field.addEventListener('change', () => set(option.value));
-        label.append(field, document.createTextNode(' ' + option.label)); box.append(label);
+        if (readingLayout) {
+          const content = node('span', readingAnswerLabel(q, readingBoolean(q) ? option.value : option.label));
+          if (checked) {
+            const correct = option.value === correctValue;
+            if (correct || field.checked) {
+              const status = correct ? (field.checked ? 'Мой ответ · верно' : 'Верный ответ') : 'Мой ответ · неверно';
+              label.dataset.verdict = correct ? 'correct' : 'incorrect';
+              content.append(node('small', status));
+            }
+          }
+          label.append(field, content);
+        } else {
+          label.append(field, document.createTextNode(' ' + option.label));
+        }
+        box.append(label);
       });
     } else if (q.input === 'order') {
       const values = orderTiles(q, orderValues(state.answers[q.id]));
@@ -399,6 +503,42 @@
     }
     screen.append(box);
   };
+  const advanceRound = round => {
+    state.roundId = round.id;
+    state.roundView = round;
+    state.roundPhase = round.phase;
+    state.roundRemaining = round.remaining;
+    state.checks = {};
+    if (round.result) {
+      state.result = round.result;
+      rememberResult(state.result);
+      return;
+    }
+    state.index = lesson.questions.findIndex(q => q.id === round.question_id);
+    state.intro &&= round.step === 0;
+  };
+  const nextRoundQuestion = () => {
+    const q = lesson.questions[state.index];
+    delete state.answers[q.id];
+    advanceRound(state.roundView);
+    save(); draw();
+    screen.scrollIntoView({block: 'start'});
+  };
+  const checkRoundAnswer = async q => {
+    state.roundPending ||= {
+      step: state.roundView.step, question_id: q.id, answer: state.answers[q.id]
+    };
+    screen.querySelector('.practice-answer-input').inert = true;
+    save();
+    const body = state.roundPending;
+    const response = await request('/round-check', {session_token: lesson.session_token, ...body});
+    delete state.roundPending;
+    state.answers[q.id] = body.answer;
+    state.checks[q.id] = response.feedback;
+    if (state.roundPhase === 'first') state.first[q.id] = body.answer;
+    state.roundView = response.round;
+    save();
+  };
   const drawContent = () => {
     if (!lesson || !state) return;
     resultActions = null;
@@ -407,17 +547,32 @@
       const r = state.result, first = lesson.correction;
       screen.append(node('h2', r.correction_pending ? 'Первая попытка сохранена'
         : completedResult(r) ? 'Занятие завершено' : 'Есть что повторить', 'h4'));
-      if (r.score != null) screen.append(node('p', (isFinal() ? 'Результат теста: ' : 'Результат первой попытки: ') + r.score + '%', 'fs-4 fw-bold'));
+      if (r.web_weighted) {
+        screen.append(node('p', `Итог: ${r.score}%`, 'fs-3 fw-bold practice-reading-result'));
+        screen.append(node('p', `С первого раза: ${r.web_weighted.first_correct_count} из ${r.total_count} · ${Math.trunc(r.web_weighted.first_score)}%`));
+        const corrected = r.total_count - r.web_weighted.first_correct_count;
+        if (corrected > 0) screen.append(node('p', `Исправлено: ${corrected}`));
+      } else if (readingLayout && !isCorrection() && r.total_count > 0) {
+        screen.append(node('p', `Верных ответов: ${r.correct_count}/${r.total_count}`, 'fs-4 fw-bold practice-reading-result'));
+      }
+      if (!r.web_weighted && r.score != null) screen.append(node('p', (isFinal() ? 'Результат теста: ' : 'Результат первой попытки: ') + Math.trunc(r.score) + '%', 'fs-4 fw-bold'));
       const units = isCorrection() ? {correct: first.first_units_correct, total: first.first_units_total, label: first.first_unit_label}
         : {correct: r.units_correct, total: r.units_total, label: r.unit_label};
       if (units.total != null) screen.append(node('p', `${units.label}: ${units.correct} из ${units.total}`));
-      if (isCorrection()) screen.append(node('p', `Исправлено: ${r.correct_count} из ${r.total_count}. Исходный результат ${first.first_score}% сохранён.`));
+      if (isCorrection()) screen.append(node('p', `Исправлено: ${r.correct_count} из ${r.total_count}. Исходный результат ${Math.trunc(first.first_score)}% сохранён.`));
       if (r.correction_pending) screen.append(node('p', 'Работа над ошибками назначена отдельным заданием.'));
       resultActions = node('div', null, 'practice-result-actions');
       screen.append(resultActions);
-      renderResultActions();
-      updateResultPlan();
-      if (!r.correction_pending && !isCorrection() && root.dataset.reviewOnly !== 'true') {
+      if (readingLayout && r.correction_pending) {
+        screen.append(button('Перейти к исправлению ошибок', () => perform(async () => {
+          await load();
+          replaceHistoryResult(null);
+        }), true));
+      } else {
+        renderResultActions();
+        updateResultPlan();
+      }
+      if ((!readingLayout || !completedResult(r)) && !r.web_weighted && !r.correction_pending && !isCorrection() && root.dataset.reviewOnly !== 'true') {
         screen.append(button('Повторить урок', () => perform(async () => {
           if (drafts && !await drafts.acquire()) throw new Error('Занятие открыто в другой вкладке.');
           replaceHistoryResult(null);
@@ -426,6 +581,10 @@
         })));
       }
       (r.feedback || []).forEach(f => {
+        if (readingLayout || r.web_weighted) {
+          appendReadingFeedback(screen, lesson.questions?.find(q => q.id === f.id), f, {title: f.prompt || 'Ответ к заданию'});
+          return;
+        }
         const card = node('article', null, 'card card-body my-3');
         const answer = node('p', 'Твой ответ: ' + (f.answer_display || f.answer)); answer.style.whiteSpace = 'pre-wrap';
         card.append(node('h3', f.correct ? 'Верно' : 'Разберём ответ', 'h5'), node('p', f.prompt), answer);
@@ -438,16 +597,29 @@
       return;
     }
     if (isCorrection() && lesson.correction.theory_required && !state.theoryRead) {
-      screen.append(node('h2', 'Повторим правило перед исправлениями', 'h4')); blocks(screen, lesson.theory);
-      screen.append(button('Правило повторил — к исправлениям', () => { state.theoryRead = true; save(); draw(); }, true)); return;
+      screen.append(node('h2', readingLayout ? 'Перечитай текст перед исправлениями' : 'Повторим правило перед исправлениями', 'h4'));
+      if (readingLayout) story(screen);
+      else blocks(screen, lesson.theory);
+      screen.append(button(readingLayout ? 'К исправлениям' : 'Правило повторил — к исправлениям', () => { state.theoryRead = true; save(); draw(); }, true)); return;
     }
     if (state.intro) {
       screen.append(node('p', isFinal()
         ? `Для зачёта — ${lesson.passing_score}%. Ответь на все вопросы. Ответы можно изменить до отправки. Результат и разбор появятся после завершения теста.`
+        : lesson.web_round ? 'Ответь на все вопросы, затем исправь ошибки в этом же уроке. Чем раньше дан верный ответ, тем выше итог.'
         : `Для зачёта — ${lesson.passing_score}%. Ответь на все вопросы. После проверки каждого ответа можно идти дальше. Результат — по первым ответам.`));
       if (lesson.instruction) screen.append(node('p', lesson.instruction)); audio(lesson.audio_url);
-      if (!isFinal()) blocks(screen, lesson.theory);
+      if (readingLayout) story(screen);
+      else if (!isFinal()) blocks(screen, lesson.theory);
       screen.append(button(isFinal() ? 'Начать тест' : 'К заданиям', () => { state.intro = false; save(); draw(); }, true)); return;
+    }
+    if (state.roundPhase === 'ready') {
+      screen.append(node('h2', 'Все ошибки исправлены', 'h4'),
+        button('К итогу', () => perform(async () => {
+          const response = await request('/round-check', {session_token: lesson.session_token,
+            step: state.roundView.step, question_id: '', answer: ''});
+          advanceRound(response.round); save();
+        }), true));
+      return;
     }
     if (state.index >= lesson.questions.length) {
       if (readingPreview) {
@@ -491,7 +663,9 @@
       screen.append(node('h2', step.title, 'h4')); blocks(screen, step.theory);
       screen.append(button('Правило понятно — к практике', () => { state.readSteps.push(step.id); save(); draw(); }, true)); return;
     }
-    screen.append(node('p', `${isCorrection() ? 'Исправление' : 'Вопрос'} ${state.index + 1} из ${lesson.questions.length}`, 'text-secondary'));
+    screen.append(node('p', state.roundPhase === 'correction'
+      ? `Исправление · осталось заданий: ${state.roundRemaining}`
+      : `${isCorrection() ? 'Исправление' : 'Вопрос'} ${state.index + 1} из ${lesson.questions.length}`, 'text-secondary'));
     screen.append(node('h2', q.instruction, 'h5'), node('p', q.prompt, 'fs-4 fw-bold'));
     if (q.context) screen.append(node('p', q.context)); audio(q.audio_url || lesson.audio_url);
     if (q.image_url) { const img = node('img'); img.src = q.image_url; img.alt = 'Иллюстрация к заданию'; img.className = 'img-fluid my-3'; screen.append(img); }
@@ -500,15 +674,20 @@
     if (!isFinal() && q.translation && lesson.support_mode === 'toggle') {
       const translation = node('details', null, 'my-2'); translation.append(node('summary', 'Показать перевод'), node('p', q.translation)); screen.append(translation);
     }
+    let reference;
     if (['reading','text','listening_immersion_quiz'].includes(lesson.type) && lesson.theory?.length) {
-      const reference = node('details', null, 'my-3'); reference.append(node('summary', 'Текст урока')); blocks(reference, lesson.theory); screen.append(reference);
+      reference = node('details', null, 'my-3'); reference.append(node('summary', 'Текст урока'));
+      if (readingLayout) story(reference);
+      else blocks(reference, lesson.theory);
+      screen.append(reference);
     }
     const helpBlocks = q.theory_help?.length ? q.theory_help : lesson.theory;
-    if (!isFinal() && ['inline', 'toggle'].includes(lesson.support_mode) && helpBlocks?.length) {
+    if (!isFinal() && (!readingLayout || q.theory_help?.length)
+        && ['inline', 'toggle'].includes(lesson.support_mode) && helpBlocks?.length) {
       const details = node('details', null, 'my-3'); details.append(node('summary', 'Правило к заданию')); blocks(details, helpBlocks); screen.append(details);
     }
     const help = state.help[q.id] || q.correction_help;
-    if (!isFinal() && help?.hint) screen.append(node('p', help.hint, 'text-secondary'));
+    if (!isFinal() && help?.hint && (!readingLayout || !state.checks[q.id])) screen.append(node('p', help.hint, 'text-secondary'));
     input(q);
     if (isFinal()) {
       const next = button(state.index === lesson.questions.length - 1 ? 'К проверке ответов' : 'Дальше', () => {
@@ -520,13 +699,21 @@
     }
     const feedback = state.checks[q.id];
     if (feedback) {
-      const box = node('div', null, feedback.correct ? 'alert alert-success' : 'alert alert-warning');
-      box.setAttribute('role', 'status');
-      box.append(node('h3', feedback.correct ? 'Верно' : 'Разберём ответ', 'h5'));
-      if (!feedback.correct) { if (!isCorrection()) box.append(node('p', 'Образец: ' + feedback.expected)); box.append(node('p', feedback.explanation)); }
-      dispute(box, q, feedback);
-      screen.append(box);
-      if ((isCorrection() || root.dataset.reviewOnly === 'true') && !feedback.correct) {
+      if (readingLayout) {
+        appendReadingFeedback(screen, q, feedback, {reference});
+      } else {
+        const box = node('div', null, feedback.correct ? 'alert alert-success' : 'alert alert-warning');
+        box.setAttribute('role', 'status');
+        box.append(node('h3', feedback.correct ? 'Верно' : 'Разберём ответ', 'h5'));
+        if (!feedback.correct) { if (!isCorrection()) box.append(node('p', 'Образец: ' + feedback.expected)); box.append(node('p', feedback.explanation)); }
+        dispute(box, q, feedback);
+        screen.append(box);
+      }
+      if (lesson.web_round) {
+        const label = state.roundView.result ? 'К итогу'
+          : state.roundPhase === 'first' && state.roundView.phase === 'correction' ? 'К исправлениям' : 'Дальше';
+        screen.append(button(label, nextRoundQuestion, true));
+      } else if ((isCorrection() || root.dataset.reviewOnly === 'true') && !feedback.correct) {
         screen.append(button('Попробовать ещё раз', () => { delete state.checks[q.id]; delete state.fragments[q.id]; if (help?.segments?.length) state.answers[q.id] = help.segments.map(s => s.text).join(' '); save(); draw(); }, true));
       } else screen.append(button('Дальше', () => { state.index += 1; save(); draw(); screen.scrollIntoView({block: 'start'}); }, true));
       // Keep the next action above the site's fixed mobile navigation.
@@ -535,6 +722,7 @@
       action.scrollIntoView({block: 'nearest'});
     } else {
       const check = button('Проверить ответ', () => perform(async () => {
+        if (lesson.web_round) return checkRoundAnswer(q);
         const body = {session_token: lesson.session_token, question_id: q.id, answer: state.answers[q.id]};
         if (isCorrection()) body.help_level = Math.min(3, (state.levels[q.id] || 0) + 1);
         const response = await request('/check', body); const f = response.feedback;
@@ -602,9 +790,21 @@
         }
       }
     }
+    const firstDraftKey = draftPrefix + 'first';
+    let browserFirst;
+    try { browserFirst = JSON.parse(stored(firstDraftKey)); } catch (_) {}
+    const existing = state?.roundId ? state : browserFirst;
+    const legacy = existing && !existing.roundId && (
+      Object.keys(existing.answers || {}).length || Object.keys(existing.checks || {}).length
+    );
+    const params = coursePractice ? ['mode=course'] : [];
+    if (root.dataset.weightedPractice === 'true' && root.dataset.reviewOnly !== 'true' && !legacy) {
+      params.push('weighted=1');
+      if (!fresh && existing?.roundId) params.push('round=' + encodeURIComponent(existing.roundId));
+    }
     const document = root.dataset.startId
       ? await request('/start', {item_id: root.dataset.startId, request_id: root.dataset.requestId})
-      : await request(coursePractice ? '?mode=course' : '');
+      : await request(params.length ? '?' + params.join('&') : '');
     if (String(document.account_id) !== root.dataset.account) {
       const error = new Error('Аккаунт изменился. Открой план заново.');
       error.code = 'access_denied'; throw error;
@@ -635,9 +835,22 @@
       revision, lessonType: lesson.type, index: 0, answers: {...(isFinal() && !fresh ? lesson.resume_answers : lesson.correction?.previous_answers || {})}, first: {}, checks: {},
       help: {}, fragments: {}, levels: {}, readSteps: [], theoryRead: false,
       intro: !isCorrection() && (isFinal() || !(lesson.learning_steps || []).length),
-      previousRevision: previous ? {questions: previous.draftQuestions || [], answers: {...previous.answers}}
+      previousRevision: previous ? {questions: previous.draftQuestions || [], answers: {...previous.first, ...previous.answers}}
         : !fresh ? draft?.previousRevision : undefined
     };
+    if (lesson.web_round) {
+      const round = lesson.web_round;
+      const sameCursor = state.roundId === round.id && state.roundView?.step === round.step
+        && state.roundView?.question_id === round.question_id && state.roundView?.phase === round.phase;
+      if (!sameCursor) {
+        const safeUnsent = round.step === 0 && state.roundView?.step === 0;
+        delete state.roundPending;
+        if (!safeUnsent) state.answers = {};
+        advanceRound(round);
+      } else if (round.result && !state.checks[lesson.questions[state.index]?.id]) {
+        advanceRound(round);
+      }
+    }
     state.lessonType = lesson.type;
     state.draftQuestions ||= lesson.questions.map(q => ({id: q.id, input: q.input, prompt: q.prompt, options: q.options, left_options: q.left_options}));
     if (isFinal() && !draft && !fresh && lesson.resume_answers && Object.keys(lesson.resume_answers).length) {
@@ -647,7 +860,13 @@
     save(); draw();
   };
   refreshButton = button('Обновить задание', () => openEditor());
-  root.prepend(refreshButton);
+  if (readingLayout) {
+    refreshButton.textContent = 'Повторить загрузку';
+    refreshButton.hidden = true;
+    root.querySelector('.practice-reading-header').append(refreshButton);
+  } else {
+    root.prepend(refreshButton);
+  }
   let opening = false;
   const openEditor = async (fromHistory = false) => {
     if (opening || accountInvalid || busy) return;

@@ -193,12 +193,14 @@ class CurriculumCacheService:
 
             recent_activity = []
             for progress in recent_progress:
+                weighted = progress.data.get('web_weighted') if isinstance(progress.data, dict) else None
+                score = progress.last_score if isinstance(weighted, dict) and weighted.get('completed') else progress.score
                 recent_activity.append({
                     'lesson': progress.lesson,
                     'module': progress.lesson.module,
                     'level': progress.lesson.module.level,
                     'status': progress.status,
-                    'score': progress.score,
+                    'score': score,
                     'last_activity': progress.last_activity
                 })
 

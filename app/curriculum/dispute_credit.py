@@ -103,6 +103,11 @@ def _credit_course(report: AnswerDisputeReport, case: AnswerDispute, lesson: Les
     # Course submission serializes on the same account. Acquire in user-id order
     # in the outer loop before reading a current receipt or historical attempt.
     db.session.query(User.id).filter_by(id=report.user_id).with_for_update(read=True, key_share=True).one()
+    from app.curriculum.web_practice_round import credit_report
+
+    matched_round, result = credit_report(report, case, lesson, previous_revision)
+    if matched_round:
+        return result
     progress = LessonProgress.query.filter_by(
         user_id=report.user_id, lesson_id=lesson.id,
     ).populate_existing().with_for_update().one_or_none()

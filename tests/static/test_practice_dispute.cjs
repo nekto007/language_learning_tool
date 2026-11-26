@@ -216,3 +216,11 @@ test('a retry receipt can restore a result; explicit repeat clears that history 
   assert.equal(p.writes.length,1);
   assert(p.buttons().some(button=>button.textContent==='К заданиям'));
 });
+
+
+test('an exam renders the whole part of the score and keeps its raw receipt',async()=>{
+  const p=await editor({type:'final_test', result:{score:42.86,passed:false,completed:false,correct_count:3,total_count:7}});
+  await p.click('Сохранить результат');
+  assert.match(p.screen.textContent,/Результат теста: 42%/);
+  assert.doesNotMatch(p.screen.textContent,/42[.,]86|Исправлено:/);
+});

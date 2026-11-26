@@ -10,6 +10,7 @@ from app import limiter
 from app.curriculum.models import Lessons, LessonProgress
 from app.curriculum.constants import is_objective_practice
 from app.curriculum.routes.lessons import lessons_bp
+from app.curriculum import web_practice_round
 from app.utils.rate_limit_helpers import get_authenticated_user_key
 
 
@@ -79,6 +80,8 @@ def practice_document(lesson_id):
         answers = _legacy_final_answers(value["lesson"]["questions"], progress, lesson=lesson)
         if answers:
             value["lesson"]["resume_answers"] = answers
+    if request.args.get("weighted") == "1":
+        web_practice_round.attach_round(value, lesson_id)
     return jsonify(value)
 
 
@@ -172,6 +175,20 @@ def _legacy_final_answers(questions: list[dict[str, Any]], progress: LessonProgr
     return result
 
 
+@lessons_bp.post("/api/lesson/<int:lesson_id>/practice/round-check")
+@login_required
+@limiter.limit("90 per minute", key_func=get_authenticated_user_key)
+@course_errors
+def practice_round_check(lesson_id: int) -> Any:
+    from app.utils.db import db
+
+    try:
+        return jsonify(web_practice_round.check_round(lesson_id, request.get_json(silent=True)))
+    except Exception:
+        db.session.rollback()
+        raise
+
+
 @lessons_bp.post("/api/lesson/<int:lesson_id>/practice/check")
 @login_required
 @limiter.limit("90 per minute", key_func=get_authenticated_user_key)
@@ -196,11 +213,17 @@ def practice_dispute(lesson_id: int) -> Any:
     from app.curriculum.services.progress_service import _invalidate_user_progress_cache
     from app.utils.db import db
 
-    lesson, question, answer, feedback, sealed = checked_course_answer(
-        lesson_id, lesson_types=DISPUTABLE_LESSON_TYPES, allow_web_course=True,
-    )
-    if feedback["correct"] is not False:
-        raise NativeLessonError("answer_not_rejected")
+    if request.args.get("weighted") == "1":
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            raise NativeLessonError("invalid_input")
+        lesson, question, answer, sealed = web_practice_round.rejected_round_answer(lesson_id, body)
+    else:
+        lesson, question, answer, feedback, sealed = checked_course_answer(
+            lesson_id, lesson_types=DISPUTABLE_LESSON_TYPES, allow_web_course=True,
+        )
+        if feedback["correct"] is not False:
+            raise NativeLessonError("answer_not_rejected")
     correction = sealed.get("correction_attempt") if sealed.get("quiz_phase") == "correction" else None
     updated_learners = record_rejected_answer(
         db.session, lesson, question, answer, user_id=current_user.id,

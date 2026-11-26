@@ -1086,7 +1086,8 @@ def _writing_requirements(lesson, c, value):
     }
 
 
-def persist(lesson, progress, grade, feedback, assessment, completed, sealed, passing, answers=None, questions=None):
+def persist(lesson, progress, grade, feedback, assessment, completed, sealed, passing,
+            answers=None, questions=None, *, xp_score: float | None = None, commit: bool = True):
     """Commit progress, attempt, diagnostics and repeat receipt atomically."""
     from datetime import datetime, UTC
     from flask_login import current_user
@@ -1141,6 +1142,7 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
     if correction:
         grade["quiz_correction"] = correction
         completed = False
+    was_completed = getattr(progress, "status", None) == "completed"
     if progress is None:
         progress = LessonProgress(
             user_id=current_user.id,
@@ -1169,6 +1171,8 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
         "total_count": len(feedback),
         "feedback": feedback,
     }
+    if weighted := grade.get("web_weighted"):
+        response["web_weighted"] = weighted
     if correction:
         response["correction_pending"] = True
     if grade.get("total_items") is not None and lesson.type in (
@@ -1233,7 +1237,7 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
         log_pronunciation_attempt(
             current_user.id, attempt["word"], attempt["recognized"], attempt["matched"], db
         )
-    if lesson.type in QUIZZES | {"grammar"}:
+    if lesson.type in QUIZZES | {"grammar"} and not weighted:
         from app.daily_plan.linear.errors import log_quiz_errors_from_result
 
         log_quiz_errors_from_result(
@@ -1245,7 +1249,7 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
             source="grammar" if lesson.type == "grammar" else "quiz",
         )
     if completed:
-        maybe_award_curriculum_xp(current_user.id, lesson, db_session=db, score=score)
+        maybe_award_curriculum_xp(current_user.id, lesson, db_session=db, score=score if xp_score is None else xp_score)
         if telemetry.get("listening"):
             maybe_award_listening_xp(
                 current_user.id,
@@ -1256,17 +1260,21 @@ def persist(lesson, progress, grade, feedback, assessment, completed, sealed, pa
         if telemetry.get("writing_text"):
             maybe_award_writing_xp(current_user.id, lesson.id, db_session=db)
     db.session.flush()
-    if completed and not sealed.get('web_course'):
+    deferred_web = weighted and not was_completed and response["correct_count"] < response["total_count"]
+    if completed and not sealed.get('web_course') and not deferred_web:
         from app.daily_plan.challenge import maybe_auto_complete_challenge
 
+        challenge_score = xp_score if weighted else score
+        challenge_passed = (challenge_score or 0) >= passing if weighted else bool(grade["passed"])
         maybe_auto_complete_challenge(
             current_user.id,
             lesson.id,
-            bool(grade["passed"]),
-            score,
+            challenge_passed,
+            challenge_score,
             max(0, int((now - datetime.fromisoformat(sealed["started_at"])).total_seconds())),
             db,
         )
-    db.session.commit()
-    _invalidate_user_progress_cache(current_user.id)
+    if commit:
+        db.session.commit()
+        _invalidate_user_progress_cache(current_user.id)
     return response
