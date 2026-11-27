@@ -89,9 +89,16 @@ def send_due_reminders(now=None, sender_factory=APNsClient):
             # this tick must take effect before the actual send.
             db.session.refresh(preference)
             db.session.refresh(user)
-            if not preference.enabled or not user.is_active or _eligible(user, now) is None:
+            if not preference.enabled or not user.is_active:
                 continue
-            if due_slot(preference.hours, local) != slot:
+            updated_eligibility = _eligible(user, now)
+            if updated_eligibility is None:
+                continue
+            local, updated_day = updated_eligibility
+            if updated_day != day or due_slot(preference.hours, local) != slot:
+                # Nothing was sent. A later valid window can use this key.
+                db.session.delete(claim)
+                db.session.commit()
                 continue
             for device in devices:
                 db.session.refresh(device)

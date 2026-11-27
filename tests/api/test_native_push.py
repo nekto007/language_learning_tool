@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from flask import Flask
 
 from tests.api.test_native_full_integration import learner
 
@@ -193,6 +194,46 @@ def test_timezone_study_day_and_no_backlog_outside_window(native_app):
     assert tick(sender, NOW.replace(hour=0)) == 1  # 09:05 local
     assert tick(sender, NOW.replace(hour=6, minute=30)) == 0  # 15:30, window over
     assert tick(sender, NOW.replace(hour=14)) == 0  # 23:05, quiet hours
+
+
+@pytest.mark.parametrize(('from_zone', 'to_zone', 'first_tick', 'valid_tick', 'study_date'), [
+    ('UTC', 'America/New_York', NOW, NOW.replace(hour=14), '2026-11-17'),
+    ('Pacific/Honolulu', 'Pacific/Kiritimati', NOW.replace(hour=19), NOW.replace(hour=19), '2026-11-18'),
+], ids=['same-key-later-window', 'same-hour-different-study-day'])
+def test_zone_change_before_send_releases_old_claim(
+    native_app: Flask, monkeypatch: pytest.MonkeyPatch, from_zone: str, to_zone: str,
+    first_tick: datetime, valid_tick: datetime, study_date: str,
+) -> None:
+    from app.auth.models import User
+    from app.notifications.push_models import PushDelivery
+    from app.utils.db import db
+
+    user, _, _, _ = enroll(native_app)
+    user.timezone = from_zone
+    db.session.commit()
+    refresh = db.session.refresh
+    changed = False
+
+    def refresh_after_zone_change(row: object) -> None:
+        nonlocal changed
+        if isinstance(row, User) and not changed:
+            assert PushDelivery.query.count() == 1
+            row.timezone = to_zone
+            db.session.flush()
+            changed = True
+        refresh(row)
+
+    monkeypatch.setattr(db.session, 'refresh', refresh_after_zone_change)
+    sender = Sender()
+    assert tick(sender, first_tick) == 0
+    assert changed and sender.sent == [] and PushDelivery.query.count() == 0
+
+    assert tick(sender, valid_tick) == 1
+    assert tick(sender, valid_tick + timedelta(minutes=5)) == 0
+    assert len(sender.sent) == 1
+    assert sender.sent[0][1]['collapse_id'] == f'study-{study_date}-0'
+    claim = PushDelivery.query.one()
+    assert (claim.study_date.isoformat(), claim.slot, claim.accepted) == (study_date, 0, 1)
 
 
 def test_invalid_apns_device_is_deactivated_and_failure_does_not_duplicate(native_app):
