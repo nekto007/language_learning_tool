@@ -1,6 +1,8 @@
 """Paths from the Materials index through the actual library admin forms."""
 # ruff: noqa: RUF001 -- Russian copy and test translations.
 
+import csv
+from io import StringIO
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -11,7 +13,7 @@ from sqlalchemy import event, func
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import scoped_session
 
-from app.admin.audit import AdminAuditLog
+from app.admin.audit import AdminAuditLog, ChapterEditAudit, log_admin_action
 from app.admin.services import chapter_editor
 from app.auth.models import User
 from app.books.models import Book, Bookmark, Chapter, UserChapterProgress
@@ -66,6 +68,108 @@ def _snapshot_link(book: Book, word: CollectionWords, db_session: scoped_session
         word_book_link.c.book_id == book.id, word_book_link.c.word_id == word.id,
     )).one_or_none()
     return (row.id, row.frequency) if row else None
+
+
+def _chapter_confirmation(client: FlaskClient, url: str, draft: str) -> dict[str, str]:
+    page = _page(client.get(url))
+    form = {'action': 'preview', 'revision': _field(page, 'revision'), 'csrf_token': _field(page, 'csrf_token'),
+            'title': page.select_one('#chapter-title')['value'], 'text': draft}
+    preview = _page(client.post(url, data=form))
+    return {**form, 'action': 'apply', 'preview_token': _field(preview, 'preview_token')}
+
+
+def test_chapter_audit_links_current_revision_and_preserves_legacy_rows(
+    app: Flask, admin_client: FlaskClient, admin_user: User, test_user: User,
+    db_session: scoped_session, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(app.config, 'WTF_CSRF_ENABLED', True)
+    book = Book(title='Synthetic edition', author='Test', chapters_cnt=2)
+    first = Chapter(book=book, chap_num=1, title='Opening', text_raw='The lamp glaws.\n\nThe clock ticks.', words=6)
+    second = Chapter(book=book, chap_num=2, title='Closing', text_raw='A door opens.', words=3)
+    db_session.add_all([first, second])
+    db_session.flush()
+    action = 'book.chapter.update'
+    log_admin_action(admin_user.id, action, 'chapter', first.id)
+    log_admin_action(admin_user.id, action, 'chapter', second.id)
+    log_admin_action(admin_user.id, 'book.update', 'book', first.id)
+    db_session.commit()
+    base = f'/admin/books/{book.id}/chapters/{first.id}/edit'
+    logs = AdminAuditLog.query.filter_by(action=action, target_type='chapter', target_id=first.id)
+    legacy = logs.one()
+
+    confirmation = _chapter_confirmation(admin_client, base, 'The lamp glows.\n\nThe clock ticks.')
+    assert logs.count() == 1
+    assert admin_client.post(base, data=confirmation).status_code == 303
+    assert admin_client.post(base, data=confirmation).status_code == 409
+    repair = logs.order_by(AdminAuditLog.id.desc()).first()
+    details = db_session.get(ChapterEditAudit, repair.id)
+    assert details.paragraph == 1
+    assert details.revision_before == confirmation['revision']
+    assert details.revision_after == chapter_editor.chapter_revision(first.title, first.text_raw)
+    repair_url = f'{base}?history={repair.id}'
+    current = _page(admin_client.get(repair_url))
+    assert current.select_one('#chapter-text')['data-history-paragraph'] == '1'
+    assert 'текущей версии' in current.select_one('#chapter-history-position').get_text()
+    audit_url = current.find('a', string='История правок главы')['href']
+    page = _page(admin_client.get(audit_url))
+    assert page.select_one('[name=chapter_id]')['value'] == str(first.id)
+    assert page.find('a', href=repair_url) and page.find('a', href=f'{base}?history={legacy.id}')
+
+    export_url = page.select_one('a[href*="/audit-log/export.csv"]')['href']
+    csv_rows = list(csv.reader(StringIO(admin_client.get(export_url).text)))
+    assert csv_rows[0] == ['ID', 'Timestamp', 'Admin Email', 'Action', 'Target Type', 'Target ID']
+    assert {int(row[0]) for row in csv_rows[1:]} == {legacy.id, repair.id}
+    assert admin_client.get(f'/admin/books/{book.id}/chapters/{second.id}/edit?history={repair.id}').status_code == 404
+    assert not _page(admin_client.get(f'{base}?history={legacy.id}')).select_one('[data-history-paragraph]')
+
+    newer = _chapter_confirmation(admin_client, base, 'The lamp shines.\n\nAn added paragraph.\n\nThe clock ticks.')
+    assert admin_client.post(base, data=newer).status_code == 303
+    stale = _page(admin_client.get(repair_url))
+    assert 'глава изменилась' in stale.select_one('#chapter-history-position').get_text()
+    assert not stale.select_one('[data-history-paragraph]')
+    latest = logs.order_by(AdminAuditLog.id.desc()).first()
+    assert db_session.get(ChapterEditAudit, latest.id).paragraph is None and logs.count() == 3
+    assert not _page(admin_client.get(f'{base}?history={latest.id}')).select_one('[data-history-paragraph]')
+    assert 'The lamp' not in _page(admin_client.get(audit_url)).select_one('tbody').get_text()
+
+    reader, _ = browser(app, test_user)
+    for path in (repair_url, audit_url, export_url):
+        g.pop('_login_user', None)
+        assert reader.get(path).status_code in (302, 403)
+
+    db_session.delete(first)
+    db_session.commit()
+    g.pop('_login_user', None)
+    deleted = _page(admin_client.get(audit_url))
+    assert not deleted.select_one('tbody a') and 'Opening' in deleted.select_one('tbody').get_text()
+
+
+def test_chapter_edit_rolls_back_content_and_metadata_if_audit_fails(
+    admin_client: FlaskClient, db_session: scoped_session, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    book = Book(title='Rollback edition', author='Test', chapters_cnt=1)
+    chapter = Chapter(book=book, chap_num=1, title='Opening', text_raw='The lamp glaws.', words=3)
+    db_session.add(chapter)
+    db_session.commit()
+    chapter_id = chapter.id
+    path = f'/admin/books/{book.id}/chapters/{chapter_id}/edit'
+    form = _chapter_confirmation(admin_client, path, 'The lamp glows.')
+
+    commit = db_session.commit
+
+    def fail_after_stage() -> None:
+        if any(isinstance(row, ChapterEditAudit) for row in db_session.new):
+            db_session.flush()
+            assert ChapterEditAudit.query.count() == 1
+            assert AdminAuditLog.query.filter_by(target_type='chapter', target_id=chapter_id).count() == 1
+            raise ValueError('Synthetic audit failure')
+        commit()
+
+    monkeypatch.setattr(db_session, 'commit', fail_after_stage)
+    assert admin_client.post(path, data=form).status_code == 422
+    assert db_session.get(Chapter, chapter_id).text_raw == 'The lamp glaws.'
+    assert not AdminAuditLog.query.filter_by(target_type='chapter', target_id=chapter_id).count()
+    assert not ChapterEditAudit.query.count()
 
 
 def test_catalog_filters_and_existing_editors(admin_client: FlaskClient, library: tuple) -> None:

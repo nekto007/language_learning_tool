@@ -16,7 +16,7 @@ from flask_login import current_user
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from sqlalchemy import func
 
-from app.admin.audit import log_admin_action
+from app.admin.audit import AdminAuditLog, ChapterEditAudit, log_admin_action
 from app.admin.services.book_import import ImportedChapter, install_chapters, prepare_chapters
 from app.admin.services.book_passport import (
     PASSPORT_FORMATS,
@@ -541,6 +541,19 @@ def chapter_list(book_id: int):
                            has_text=bool(db.session.query(book_has_text(book_id)).scalar()))
 
 
+def _chapter_history_location(chapter: Chapter, revision: str, entry_id: int) -> tuple[str, int | None]:
+    entry = AdminAuditLog.query.filter_by(id=entry_id, action='book.chapter.update',
+                                          target_type='chapter', target_id=chapter.id).first_or_404()
+    details = db.session.get(ChapterEditAudit, entry.id)
+    if details is None:
+        return 'legacy', None
+    if details.book_id != chapter.book_id:
+        abort(404)
+    if details.revision_after != revision or details.generation_after != chapter.text_generation:
+        return 'stale', None
+    return 'current', details.paragraph
+
+
 @book_bp.route('/books/<int:book_id>/chapters/<int:chapter_id>/edit', methods=['GET', 'POST'])
 @admin_required
 def edit_chapter(book_id: int, chapter_id: int) -> ResponseReturnValue:
@@ -557,6 +570,12 @@ def edit_chapter(book_id: int, chapter_id: int) -> ResponseReturnValue:
     title, text = chapter.title, text_for_edit(chapter.text_raw)
     revision = chapter_revision(title, text)
     preview, token, error, status = None, '', '', 200
+    history_status, history_paragraph = None, None
+    if request.method == 'GET' and 'history' in request.args:
+        entry_id = request.args.get('history', type=int)
+        if entry_id is None or not 0 < entry_id < 2**31:
+            abort(404)
+        history_status, history_paragraph = _chapter_history_location(chapter, revision, entry_id)
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         text = text_for_edit(request.form.get('text', ''))
@@ -576,9 +595,23 @@ def edit_chapter(book_id: int, chapter_id: int) -> ResponseReturnValue:
                 token = signer.dumps(binding)
             else:
                 if title != chapter.title or preview.text_changed:
-                    apply_chapter(book, chapter, title, text, preview)
-                    log_admin_action(current_user.id, 'book.chapter.update', 'chapter', chapter.id, required=True)
-                    db.session.commit()
+                    generation_before = chapter.text_generation
+                    try:
+                        apply_chapter(book, chapter, title, text, preview)
+                        db.session.flush()
+                        db.session.refresh(chapter, ['text_generation'])
+                        audit_id = log_admin_action(
+                            current_user.id, 'book.chapter.update', 'chapter', chapter.id, required=True,
+                        )
+                        db.session.add(ChapterEditAudit(
+                            audit_id=audit_id, book_id=book.id, chapter_number=chapter.chap_num, chapter_title=title,
+                            revision_before=revision, revision_after=binding[-1], generation_before=generation_before,
+                            generation_after=chapter.text_generation, paragraph=preview.history_paragraph,
+                        ))
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+                        raise
                     clear_admin_cache()
                     flash('Глава сохранена.', 'success')
                 return redirect(materials_return_url() or url_for('.chapter_list', book_id=book.id), code=303)
@@ -590,7 +623,8 @@ def edit_chapter(book_id: int, chapter_id: int) -> ResponseReturnValue:
     if (action == 'preview' and status == 200) or (action in ('preview', 'apply') and status == 422):
         impact = chapter_preview_impact(book, chapter, text)
     return render_template('admin/books/edit_chapter.html', book=book, chapter=chapter, title=title, text=text,
-                           revision=revision, preview=preview, impact=impact, token=token, error=error), status
+                           revision=revision, preview=preview, impact=impact, token=token, error=error,
+                           history_status=history_status, history_paragraph=history_paragraph), status
 
 
 # ---------------------------------------------------------------------------

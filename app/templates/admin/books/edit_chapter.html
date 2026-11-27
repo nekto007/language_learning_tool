@@ -12,8 +12,24 @@
 {% endif %}
 {% endmacro %}
 {% block content %}
-<p><a href="{{ url_for('.chapter_list', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Главы книги</a></p>
+<p class="d-flex flex-wrap gap-3">
+    <a href="{{ url_for('.chapter_list', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Главы книги</a>
+    <a href="{{ url_for('audit_admin.audit_index', action='book.chapter.update', chapter_id=chapter.id) }}">История правок главы</a>
+</p>
 <h1 class="h3">{{ book.title }} · глава {{ chapter.chap_num }}</h1>
+{% if history_status %}
+<p class="alert alert-info" id="chapter-history-position">
+    {% if history_status == 'stale' %}
+    После этой записи глава изменилась. Открыта текущая версия главы.
+    {% elif history_status == 'legacy' %}
+    Старая запись содержит действие и ID главы. Открыта текущая версия главы.
+    {% elif history_paragraph %}
+    Правка в текущей версии · абзац {{ history_paragraph }}.
+    {% else %}
+    Правка относится к текущей версии главы.
+    {% endif %}
+</p>
+{% endif %}
 {% if book.is_short_reading %}
 <p><a href="{{ url_for('short_reading_admin.edit', book_id=book.id, materials_query=request.args.get('materials_query')) }}">Редактировать текст, словарь и вопросы</a></p>
 {% endif %}
@@ -62,7 +78,8 @@
             <input class="form-control mb-3" id="chapter-title" name="title" maxlength="255" required value="{{ title }}">
             <label class="form-label" for="chapter-text">Текст главы</label>
             <textarea class="form-control" id="chapter-text" name="text" rows="12" required
-                      aria-describedby="chapter-edit-help">{{ text }}</textarea>
+                      aria-describedby="chapter-edit-help{% if history_status %} chapter-history-position{% endif %}"
+                      {% if history_paragraph %}data-history-paragraph="{{ history_paragraph }}"{% endif %}>{{ text }}</textarea>
             <p id="chapter-edit-help" class="form-text mb-0">Пустая строка отделяет абзацы. При замене текста сохранённый процент чтения остаётся прежним, а точная высота прокрутки зависит от экрана.</p>
         </div>
     </div>
@@ -100,4 +117,35 @@
         {% endif %}
     </div>
 </form>
+{% endblock %}
+
+{% block extra_js %}
+{% if history_paragraph %}
+<script nonce="{{ csp_nonce }}">
+(() => {
+    const editor = document.querySelector('#chapter-text[data-history-paragraph]');
+    const target = Number(editor.dataset.historyParagraph);
+    let offset = 0;
+    let number = 0;
+    for (const part of editor.value.split('\n\n')) {
+        if (part.trim() && ++number === target) {
+            editor.focus();
+            editor.setSelectionRange(offset, offset + part.length);
+            const measurement = editor.cloneNode(false);
+            measurement.removeAttribute('id');
+            measurement.removeAttribute('name');
+            measurement.setAttribute('aria-hidden', 'true');
+            Object.assign(measurement.style, {position: 'fixed', visibility: 'hidden',
+                width: editor.offsetWidth + 'px', height: '1px', minHeight: '0', overflowY: 'scroll'});
+            measurement.value = editor.value.slice(0, offset);
+            editor.after(measurement);
+            editor.scrollTop = measurement.scrollHeight - editor.clientHeight / 3;
+            measurement.remove();
+            break;
+        }
+        offset += part.length + 2;
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}

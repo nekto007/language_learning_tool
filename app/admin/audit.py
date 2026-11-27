@@ -27,14 +27,30 @@ class AdminAuditLog(db.Model):
         return f'<AdminAuditLog id={self.id} admin={self.admin_id} action={self.action}>'
 
 
+class ChapterEditAudit(db.Model):
+    """Revision and location metadata for one chapter edit."""
+
+    __tablename__ = 'admin_chapter_edit_audit'
+
+    audit_id = db.Column(db.Integer, db.ForeignKey('admin_audit_log.id', ondelete='CASCADE'), primary_key=True)
+    book_id = db.Column(db.Integer, nullable=False)
+    chapter_number = db.Column(db.Integer, nullable=False)
+    chapter_title = db.Column(db.String(255), nullable=False)
+    revision_before = db.Column(db.String(64), nullable=False)
+    revision_after = db.Column(db.String(64), nullable=False)
+    generation_before = db.Column(db.BigInteger, nullable=False)
+    generation_after = db.Column(db.BigInteger, nullable=False)
+    paragraph = db.Column(db.Integer, nullable=True)
+
+
 def log_admin_action(
     admin_id: int,
     action: str,
     target_type: Optional[str] = None,
     target_id: Optional[int] = None,
     *, required: bool = False,
-) -> None:
-    """Stage an audit log entry for a destructive admin action.
+) -> int | None:
+    """Stage an audit log entry and return its ID if staged successfully.
 
     The entry is added to the current session inside a SAVEPOINT so that
     a write failure does not poison the caller's transaction. The caller
@@ -54,7 +70,9 @@ def log_admin_action(
         )
         db.session.add(entry)
         db.session.flush()
+        entry_id = entry.id
         nested.commit()
+        return entry_id
     except Exception:
         if nested is not None:
             try:
@@ -64,3 +82,4 @@ def log_admin_action(
         logger.exception('Failed to write admin audit log entry: action=%s', action)
         if required:
             raise
+        return None

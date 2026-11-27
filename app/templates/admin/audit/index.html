@@ -2,6 +2,15 @@
 {% from 'admin/components.html' import page_header, breadcrumb %}
 
 {% block title %}Аудит-лог{% endblock %}
+{% block extra_css %}
+{% if filter_chapter_id %}
+<style nonce="{{ csp_nonce }}">
+@media (max-width: 767.98px) {
+    .audit-chapter-wide { display: none; }
+}
+</style>
+{% endif %}
+{% endblock %}
 
 {% block breadcrumb %}
 {{ breadcrumb([('Главная', url_for('dashboard_admin.dashboard')), ('Аудит-лог', '')]) }}
@@ -17,7 +26,7 @@
     </div>
     <div class="card-body">
         <form method="GET" action="{{ url_for('audit_admin.audit_index') }}" class="row g-3 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Администратор</label>
                 <select name="admin_id" class="form-select">
                     <option value="">Все администраторы</option>
@@ -28,7 +37,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Действие (поиск)</label>
                 <input type="text" name="action" class="form-control" placeholder="Например: delete_user"
                        value="{{ filter_action }}">
@@ -41,7 +50,12 @@
                 <label class="form-label">По дату</label>
                 <input type="date" name="date_to" class="form-control" value="{{ filter_date_to }}">
             </div>
-            <div class="col-md-2 d-flex gap-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label" for="audit-chapter-id">ID главы</label>
+                <input id="audit-chapter-id" type="number" name="chapter_id" min="1" max="2147483647"
+                       inputmode="numeric" class="form-control" value="{{ filter_chapter_id or '' }}">
+            </div>
+            <div class="col-md-2 d-flex flex-wrap gap-2 align-items-end">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-search me-1"></i>Применить
                 </button>
@@ -65,7 +79,7 @@
                     Нет записей
                 {% endif %}
             </span>
-            <a href="{{ url_for('audit_admin.audit_export_csv', admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to) }}"
+            <a href="{{ url_for('audit_admin.audit_export_csv', admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to, chapter_id=filter_chapter_id) }}"
                class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-download me-1"></i>CSV
             </a>
@@ -73,39 +87,67 @@
     </div>
     <div class="card-body p-0">
         {% if entries %}
+        {% set wide_only = 'audit-chapter-wide' if filter_chapter_id else '' %}
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th class="admin-audit-th--time">Время</th>
-                        <th class="admin-audit-th--admin">Администратор</th>
-                        <th class="admin-audit-th--action">Действие</th>
+                        <th class="admin-audit-th--time {{ wide_only }}">Время</th>
+                        <th class="admin-audit-th--admin {{ wide_only }}">Администратор</th>
+                        <th class="admin-audit-th--action {{ wide_only }}">Действие</th>
                         <th>Объект</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for entry in entries %}
                     <tr>
-                        <td class="text-muted small">
+                        <td class="text-muted small {{ wide_only }}">
                             {{ entry.timestamp.strftime('%d.%m.%Y %H:%M:%S') if entry.timestamp else '—' }}
                         </td>
-                        <td>
+                        <td class="{{ wide_only }}">
                             <span class="text-truncate d-inline-block admin-audit-admin-truncate"
                                   title="{{ entry.admin_email }}">
                                 {{ entry.admin_email }}
                             </span>
                         </td>
-                        <td>
+                        <td class="{{ wide_only }}">
                             <code class="small">{{ entry.action }}</code>
                         </td>
                         <td class="small">
-                            {% if entry.target_type %}
+                            {% if entry.chapter_entry %}
+                                {% set details = entry.chapter_details %}
+                                {% set title = details.chapter_title if details else (entry.chapter.title if entry.chapter else '') %}
+                                {% set number = details.chapter_number if details else (entry.chapter.chap_num if entry.chapter else none) %}
+                                {% if entry.chapter %}
+                                <a href="{{ url_for('book_admin.edit_chapter', book_id=entry.chapter.book_id, chapter_id=entry.target_id, history=entry.id) }}">
+                                    {% if number %}Глава {{ number }}{% else %}Глава{% endif %}{% if title %} · {{ title }}{% endif %}
+                                </a>
+                                {% else %}
+                                <span>{% if number %}Глава {{ number }}{% else %}Глава{% endif %}{% if title %} · {{ title }}{% endif %} · недоступна</span>
+                                {% endif %}
+                                <div class="text-muted">#{{ entry.target_id }}{% if details and details.paragraph %} · абзац {{ details.paragraph }}{% endif %}</div>
+                                {% if details %}
+                                <div class="text-muted">
+                                    Версия <code title="{{ details.revision_before }}">{{ details.revision_before[:10] }}</code>
+                                    → <code title="{{ details.revision_after }}">{{ details.revision_after[:10] }}</code>
+                                </div>
+                                {% endif %}
+                            {% elif entry.target_type %}
                                 <span class="badge bg-light text-dark border">{{ entry.target_type }}</span>
                                 {% if entry.target_id %}
                                     #{{ entry.target_id }}
                                 {% endif %}
                             {% else %}
                                 <span class="text-muted">—</span>
+                            {% endif %}
+                            {% if filter_chapter_id %}
+                            <div class="d-md-none mt-2 text-break">
+                                <code>{{ entry.action }}</code>
+                                <div class="text-muted">
+                                    {{ entry.timestamp.strftime('%d.%m.%Y %H:%M:%S') if entry.timestamp else '—' }}
+                                    · {{ entry.admin_email }}
+                                </div>
+                            </div>
                             {% endif %}
                         </td>
                     </tr>
@@ -127,7 +169,7 @@
             <ul class="pagination mb-0 justify-content-center">
                 {% if page > 1 %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('audit_admin.audit_index', page=page-1, admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to) }}">
+                    <a class="page-link" href="{{ url_for('audit_admin.audit_index', page=page-1, admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to, chapter_id=filter_chapter_id) }}">
                         <i class="fas fa-chevron-left"></i> Назад
                     </a>
                 </li>
@@ -137,7 +179,7 @@
                 </li>
                 {% if has_more %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('audit_admin.audit_index', page=page+1, admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to) }}">
+                    <a class="page-link" href="{{ url_for('audit_admin.audit_index', page=page+1, admin_id=filter_admin_id, action=filter_action, date_from=filter_date_from, date_to=filter_date_to, chapter_id=filter_chapter_id) }}">
                         Вперёд <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>

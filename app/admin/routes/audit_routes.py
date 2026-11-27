@@ -6,10 +6,12 @@ import logging
 from datetime import datetime, timedelta
 
 from flask import Blueprint, Response, render_template, request, stream_with_context
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from sqlalchemy import desc
+from sqlalchemy.orm import Query
 
-from app.admin.audit import AdminAuditLog, log_admin_action
+from app.admin.audit import AdminAuditLog, ChapterEditAudit, log_admin_action
 from app.admin.utils.decorators import admin_required
 from app.admin.utils.export_helpers import (
     MAX_EXPORT_ROWS,
@@ -18,6 +20,7 @@ from app.admin.utils.export_helpers import (
 )
 from app.admin.utils.request_validators import escape_like
 from app.auth.models import User
+from app.books.models import Chapter
 from app.utils.db import db
 
 audit_bp = Blueprint('audit_admin', __name__)
@@ -30,7 +33,7 @@ _MAX_PAGE = 1000
 
 @audit_bp.route('/audit-log')
 @admin_required
-def audit_index():
+def audit_index() -> ResponseReturnValue:
     page = request.args.get('page', 1, type=int)
     if page < 1:
         page = 1
@@ -43,6 +46,7 @@ def audit_index():
     action_filter = request.args.get('action', '').strip()[:200]
     date_from = _parse_date(request.args.get('date_from', ''))
     date_to = _parse_date(request.args.get('date_to', ''))
+    chapter_id = _chapter_filter()
 
     offset = (page - 1) * _PER_PAGE
 
@@ -54,6 +58,7 @@ def audit_index():
         action_filter=action_filter or None,
         date_from=date_from,
         date_to=date_to,
+        chapter_id=chapter_id,
     )
 
     admin_users = (
@@ -74,6 +79,7 @@ def audit_index():
         filter_action=action_filter,
         filter_date_from=request.args.get('date_from', ''),
         filter_date_to=request.args.get('date_to', ''),
+        filter_chapter_id=chapter_id,
     )
 
 
@@ -85,11 +91,12 @@ def _get_audit_entries(
     action_filter: str | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
+    chapter_id: int | None = None,
 ) -> tuple[list[dict], bool]:
     query = (
         db_session.query(AdminAuditLog, User)
         .outerjoin(User, AdminAuditLog.admin_id == User.id)
-        .order_by(desc(AdminAuditLog.created_at))
+        .order_by(desc(AdminAuditLog.created_at), desc(AdminAuditLog.id))
     )
 
     if admin_id is not None:
@@ -100,13 +107,29 @@ def _get_audit_entries(
         query = query.filter(AdminAuditLog.created_at >= date_from)
     if date_to:
         query = query.filter(AdminAuditLog.created_at < date_to + timedelta(days=1))
+    query = _filter_chapter(query, chapter_id)
 
     rows = query.limit(limit + 1).offset(offset).all()
     has_more = len(rows) > limit
     rows = rows[:limit]
 
+    chapter_targets = {log.id: log.target_id for log, _ in rows
+                       if log.target_type == 'chapter' and log.action == 'book.chapter.update'}
+    chapter_ids = set(chapter_targets.values()) - {None}
+    chapters = {
+        chapter.id: chapter for chapter in db_session.query(Chapter.id, Chapter.book_id, Chapter.chap_num, Chapter.title)
+        .filter(Chapter.id.in_(chapter_ids))
+    } if chapter_ids else {}
+    revisions = {
+        entry.audit_id: entry for entry in db_session.query(ChapterEditAudit)
+        .filter(ChapterEditAudit.audit_id.in_(chapter_targets))
+    } if chapter_targets else {}
     entries = []
     for log, user in rows:
+        chapter_details = revisions.get(log.id)
+        chapter = chapters.get(chapter_targets.get(log.id))
+        if chapter and chapter_details and chapter.book_id != chapter_details.book_id:
+            chapter = None
         entries.append({
             'id': log.id,
             'timestamp': log.created_at,
@@ -115,6 +138,9 @@ def _get_audit_entries(
             'action': log.action,
             'target_type': log.target_type,
             'target_id': log.target_id,
+            'chapter_entry': log.id in chapter_targets,
+            'chapter': chapter,
+            'chapter_details': chapter_details,
         })
 
     return entries, has_more
@@ -122,7 +148,7 @@ def _get_audit_entries(
 
 @audit_bp.route('/audit-log/export.csv')
 @admin_required
-def audit_export_csv():
+def audit_export_csv() -> ResponseReturnValue:
     """Export filtered audit log to CSV (max MAX_EXPORT_ROWS rows)."""
     # ADM-007: the export of the audit log used to leave no trace in the audit log.
     log_admin_action(current_user.id, 'audit_log.export_csv', target_type='audit_log')
@@ -137,7 +163,7 @@ def audit_export_csv():
     query = (
         db.session.query(AdminAuditLog, User)
         .outerjoin(User, AdminAuditLog.admin_id == User.id)
-        .order_by(desc(AdminAuditLog.created_at))
+        .order_by(desc(AdminAuditLog.created_at), desc(AdminAuditLog.id))
     )
     if admin_id is not None:
         query = query.filter(AdminAuditLog.admin_id == admin_id)
@@ -148,7 +174,7 @@ def audit_export_csv():
     if date_to:
         query = query.filter(AdminAuditLog.created_at < date_to + timedelta(days=1))
 
-    rows = query.limit(MAX_EXPORT_ROWS).all()
+    rows = _filter_chapter(query, _chapter_filter()).limit(MAX_EXPORT_ROWS).all()
 
     headers = ['ID', 'Timestamp', 'Admin Email', 'Action', 'Target Type', 'Target ID']
 
@@ -175,6 +201,17 @@ def audit_export_csv():
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     return response
+
+
+def _chapter_filter() -> int | None:
+    chapter_id = request.args.get('chapter_id', type=int)
+    return chapter_id if chapter_id is not None and 0 < chapter_id < 2**31 else None
+
+
+def _filter_chapter(query: Query, chapter_id: int | None) -> Query:
+    if chapter_id is None:
+        return query
+    return query.filter(AdminAuditLog.target_type == 'chapter', AdminAuditLog.target_id == chapter_id)
 
 
 def _parse_date(value: str) -> datetime | None:

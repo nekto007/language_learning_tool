@@ -33,6 +33,7 @@ class ChapterPreview:
     text_changed: bool
     index: 'BookIndex | None' = None
     structure_changed: bool = False
+    history_paragraph: int | None = None
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,10 @@ def _positions(paragraphs: tuple[str, ...], excerpt: str) -> tuple[int, ...]:
 def _changes(before: tuple[str, ...], after: tuple[str, ...]) -> tuple:
     return tuple((before[i:j], after[k:m]) for action, i, j, k, m in
                  SequenceMatcher(None, before, after, autojunk=False).get_opcodes() if action != 'equal')
+
+
+def _editor_paragraphs(text: str) -> tuple[str, ...]:
+    return tuple(' '.join(part.split()) for part in text.split('\n\n') if part.strip())
 
 
 def _validate_edit_text(text: str) -> None:
@@ -226,7 +231,14 @@ def review_chapter(
                        UserChapterProgress.query.filter_by(chapter_id=chapter.id).first() or
                        UserReadingSession.query.filter_by(chapter_id=chapter.id).first()):
         raise ValueError('Правка добавляет, убирает или переставляет абзацы при сохранённой позиции чтения.')
-    return ChapterPreview(changes, len(words), True, _indexed_changes(book, before, after), structural)
+    paragraph = None
+    if before == native_before == _editor_paragraphs(current_text) and after == native_after == _editor_paragraphs(text):
+        impact = _paragraph_impact(before, after)
+        if impact.status == 'same_numbers' and len(impact.numbers) == 1:
+            number = impact.numbers[0]
+            if before.count(before[number - 1]) == after.count(after[number - 1]) == 1:
+                paragraph = number
+    return ChapterPreview(changes, len(words), True, _indexed_changes(book, before, after), structural, paragraph)
 
 
 def apply_chapter(book: Book, chapter: Chapter, title: str, text: str, preview: ChapterPreview) -> None:
