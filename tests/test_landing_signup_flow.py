@@ -46,6 +46,28 @@ def test_failed_signup_keeps_preview_intent_and_level(client, db_session):
     assert params['entry'] == ['preview']
 
 
+def test_password_mismatch_uses_russian_message_and_preview_signup_can_retry(
+    client: FlaskClient, db_session: Session,
+) -> None:
+    path = '/register?level=A1&entry=preview'
+    data = registration()
+    russian = {'Accept-Language': 'ru-RU,ru;q=0.9'}
+    rejected = client.post(path, data={**data, 'password2': data['password2'] + 'X'}, headers=russian)
+    assert rejected.status_code == 200
+    error = BeautifulSoup(rejected.data, 'html.parser').select_one('#password2-errors')
+    assert error.get_text(strip=True) == 'Пароли не совпадают'
+    assert User.query.filter_by(username=data['username']).count() == 0
+    action = error.find_parent('form')['action']
+    params = parse_qs(urlparse(action).query)
+    assert params['level'] == ['A1'] and params['entry'] == ['preview']
+
+    accepted = client.post(action, data=data, headers=russian)
+    assert accepted.status_code == 302 and accepted.location.endswith('/onboarding')
+    learner = User.query.filter_by(username=data['username']).one()
+    assert learner.onboarding_level == 'A1'
+    assert learner.acquisition_meta['entry_point'] == 'landing_preview'
+
+
 @pytest.mark.parametrize('path, expected_subtitle', [
     ('/register?level=A1&entry=preview',
      'Создайте аккаунт, чтобы начать курс A1 и сохранять результаты будущих занятий. '
