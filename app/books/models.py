@@ -57,6 +57,8 @@ class Book(db.Model):
         server_default='companion_only',
     )
     source_url = Column(Text, nullable=True)
+    source_edition_id = Column(String(255), nullable=True)
+    source_format = Column(String(12), nullable=True)
     license_type = Column(String(100), nullable=True)
     permission_document = Column(Text, nullable=True)
     allowed_text_percent = Column(

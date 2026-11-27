@@ -139,6 +139,8 @@
                     </div>
                     {% endif %}
 
+                    {% include 'admin/books/_edition_passport.html' %}
+
                     {# === Права и лицензия === #}
                     <hr class="my-4">
                     <h5 class="text-primary mb-3"><i class="fas fa-shield-alt me-1"></i>Права и лицензия</h5>
@@ -193,18 +195,6 @@
                                    value="{{ request.form.get('territory', 'worldwide') }}">
                         </div>
                         <div class="col-12">
-                            <label for="source_url" class="form-label">URL источника</label>
-                            <input type="url" class="form-control" id="source_url" name="source_url"
-                                   placeholder="https://www.gutenberg.org/ebooks/12345"
-                                   value="{{ request.form.get('source_url', '') }}">
-                            <p class="form-text">Укажите адрес исходного издания, чтобы он был доступен читателям.</p>
-                        </div>
-                        <div class="col-12">
-                            <label for="permission_document" class="form-label">Документ-разрешение</label>
-                            <textarea class="form-control" id="permission_document" name="permission_document" rows="2"
-                                      placeholder="Путь к файлу, ссылка или краткое описание разрешения от правообладателя">{{ request.form.get('permission_document', '') }}</textarea>
-                        </div>
-                        <div class="col-12">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="commercial_use_allowed" name="commercial_use_allowed"
                                        {{ 'checked' if request.form.get('commercial_use_allowed') == 'on' else '' }}>
@@ -248,6 +238,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script defer src="{{ url_for('static', filename='js/admin/book-passport.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 // Form validation and user experience improvements
 document.addEventListener('DOMContentLoaded', function() {
@@ -317,8 +308,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             hideMetadataLoading();
             
+            if (fileInput.files[0] !== file) return;
             if (data.success && data.metadata) {
-                console.log('Metadata extracted:', data.metadata);
+                form.dispatchEvent(new CustomEvent('book:source-metadata', {detail: data.metadata}));
                 
                 let extractedFields = [];
                 

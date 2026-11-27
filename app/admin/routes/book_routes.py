@@ -18,6 +18,15 @@ from sqlalchemy import func
 
 from app.admin.audit import log_admin_action
 from app.admin.services.book_import import ImportedChapter, install_chapters, prepare_chapters
+from app.admin.services.book_passport import (
+    PASSPORT_FORMATS,
+    confirm_passport,
+    has_passport_form,
+    passport_changed,
+    passport_draft,
+    passport_revision,
+    passport_token,
+)
 from app.admin.services.book_processing_service import (
     BOOK_TEMP_DIR,
     BookProcessingService,
@@ -323,6 +332,39 @@ def extract_book_metadata():
                 logger.warning(f"[METADATA_EXTRACT] Failed to remove temp file: {temp_file_path}")
 
 
+@book_bp.route('/books/add/passport-preview', methods=['POST'])
+@book_bp.route('/books/<int:book_id>/passport-preview', methods=['POST'])
+@admin_required
+def preview_book_passport(book_id: int | None = None) -> ResponseReturnValue:
+    book = db.session.get(Book, book_id) if book_id is not None else None
+    if book_id is not None and book is None:
+        abort(404)
+    if request.form.get('passport_revision', '') != passport_revision(book):
+        return jsonify(error='Карточка изменилась. Сверьте черновик с текущими полями и повторите предпросмотр.',
+                       revision=passport_revision(book)), 409
+    try:
+        values, digest = passport_draft(book, request.form, request.files.get('file'))
+    except ValueError as error:
+        return jsonify(error=str(error)), 422
+    response = jsonify(values=values, token=passport_token(current_user.id, book, digest))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
+
+
+def _confirmed_book_passport(book: Book | None) -> dict[str, str | None]:
+    form = request.form
+    if not has_passport_form(form):
+        return {}
+    if form.get('passport_revision', '') != passport_revision(book):
+        raise BadSignature('stale book revision')
+    token = form.get('passport_token', '')
+    if not token and not passport_changed(book, form):
+        return {}
+    values, digest = passport_draft(book, form, request.files.get('file'))
+    confirm_passport(token, current_user.id, book, digest)
+    return values
+
+
 @book_bp.route('/books/cleanup', methods=['GET', 'POST'])
 @admin_required
 @handle_admin_errors(return_json=False)
@@ -361,15 +403,29 @@ def cleanup_books() -> ResponseReturnValue:
 @book_bp.route('/books/<int:book_id>/edit', methods=['GET', 'POST'])
 @admin_required
 @handle_admin_errors(return_json=False)
-def edit_book(book_id):
+def edit_book(book_id: int) -> ResponseReturnValue:
     """Редактирование книги"""
     from app.admin.routes.materials import materials_return_url
 
-    book = Book.query.get_or_404(book_id)
+    query = Book.query.filter_by(id=book_id)
+    if request.method == 'POST':
+        query = query.with_for_update().populate_existing()
+    book = query.first_or_404()
     has_text = bool(db.session.query(book_has_text(book_id)).scalar())
     has_chapters = Chapter.query.filter_by(book_id=book_id).first() is not None
+    context = {'book': book, 'has_text': has_text, 'has_chapters': has_chapters,
+               'edition_revision': passport_revision(book), 'edition_formats': PASSPORT_FORMATS}
 
     if request.method == 'POST':
+        try:
+            passport = _confirmed_book_passport(book)
+        except BadSignature:
+            return render_template(
+                'admin/books/edit.html', **context,
+                passport_error='Карточка или черновик изменились. Проверьте поля и повторите предпросмотр.',
+            ), 409
+        except ValueError as error:
+            return render_template('admin/books/edit.html', **context, passport_error=str(error)), 422
         book.title = request.form.get('title', book.title).strip()
         book.author = request.form.get('author', book.author).strip()
         submitted_level = request.form.get('level', book.level)
@@ -378,25 +434,28 @@ def edit_book(book_id):
         # edit without touching the level dropdown.
         if submitted_level not in allowed_levels and submitted_level != book.level:
             flash(f'Недопустимый уровень "{submitted_level}".', 'danger')
-            return render_template('admin/books/edit.html', book=book, has_text=has_text, has_chapters=has_chapters)
+            return render_template('admin/books/edit.html', **context)
         book.level = submitted_level
         book.summary = request.form.get('description', book.summary)
 
         rights_error = _apply_book_rights_form(book, request.form)
         if rights_error:
             flash(rights_error, 'danger')
-            return render_template('admin/books/edit.html', book=book, has_text=has_text, has_chapters=has_chapters)
+            return render_template('admin/books/edit.html', **context)
+        if passport:
+            book.source_edition_id = passport['source_edition_id']
+            book.source_format = passport['source_format']
 
         if book.create_course:
             from app.curriculum.book_courses import sync_book_course_from_book
 
             sync_book_course_from_book(book.id, db.session)
-        log_admin_action(current_user.id, 'book.update', target_type='book', target_id=book_id)
+        log_admin_action(current_user.id, 'book.update', target_type='book', target_id=book_id, required=bool(passport))
         db.session.commit()
         flash(f'Книга "{book.title}" обновлена', 'success')
         return redirect(materials_return_url() or url_for('book_admin.books'))
 
-    return render_template('admin/books/edit.html', book=book, has_text=has_text, has_chapters=has_chapters)
+    return render_template('admin/books/edit.html', **context)
 
 
 _BOOK_TEXT_PREFIX = 'book-text-'
@@ -582,9 +641,11 @@ def _apply_book_rights_form(book, form) -> str | None:
     book.audio_rights_status = audio_rights
     book.allowed_text_percent = allowed_pct
     book.expiration_date = expiration
-    book.source_url = (form.get('source_url', book.source_url) or '').strip() or None
+    if 'source_url' in form:
+        book.source_url = form['source_url'].strip() or None
     book.license_type = (form.get('license_type', book.license_type) or '').strip() or None
-    book.permission_document = (form.get('permission_document', book.permission_document) or '').strip() or None
+    if 'permission_document' in form:
+        book.permission_document = form['permission_document'].strip() or None
     book.territory = (form.get('territory', book.territory) or 'worldwide').strip() or 'worldwide'
     if 'rights_status' in form or 'commercial_use_allowed' in form:
         book.commercial_use_allowed = form.get('commercial_use_allowed') == 'on'
@@ -659,6 +720,16 @@ def add_book() -> ResponseReturnValue:
     if not form.validate_on_submit():
         return render_template('admin/books/add.html', form=form), 400
 
+    try:
+        passport = _confirmed_book_passport(None)
+    except BadSignature:
+        return render_template(
+            'admin/books/add.html', form=form,
+            passport_error='Предпросмотр устарел. Выберите тот же файл и повторите предпросмотр.',
+        ), 409
+    except ValueError as error:
+        return render_template('admin/books/add.html', form=form, passport_error=str(error)), 422
+
     title = form.title.data.strip()
     author = (form.author.data or '').strip()
     book = Book(title=title, author=author, level=form.level.data,
@@ -666,6 +737,9 @@ def add_book() -> ResponseReturnValue:
     if rights_error := _apply_book_rights_form(book, request.form):
         flash(rights_error, 'danger')
         return render_template('admin/books/add.html', form=form), 422
+    if passport:
+        book.source_edition_id = passport['source_edition_id']
+        book.source_format = passport['source_format']
 
     try:
         chapters = prepare_chapters(form.file.data, form.content.data or '', title)

@@ -71,6 +71,7 @@ AUDIT_LOG_WHITELIST = frozenset({
     # Read-only metadata extractor: saves an upload to a temp dir, returns
     # parsed fields, and removes the file in `finally`. No DB mutation.
     'book_admin.extract_book_metadata',
+    'book_admin.preview_book_passport',  # Signed editorial preview without writes.
 })
 
 ACTION_NAME_RE = re.compile(r'^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$')

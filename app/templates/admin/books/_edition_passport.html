@@ -1,0 +1,69 @@
+<fieldset class="border rounded p-3 my-4" data-book-passport
+          data-preview-url="{{ url_for('book_admin.preview_book_passport', book_id=book.id) if book else url_for('book_admin.preview_book_passport') }}">
+    <legend class="h6 float-none w-auto px-2">Паспорт издания</legend>
+    <input type="hidden" name="passport_revision" value="{{ edition_revision|default('') }}">
+    <input type="hidden" name="passport_token" value="">
+    {% if passport_error %}
+    <p class="alert alert-warning" role="alert" tabindex="-1" autofocus data-admin-focus>{{ passport_error }}</p>
+    {% endif %}
+    {% if book %}
+    <p data-passport-current {% if not passport_error %}hidden{% endif %}>
+        <a href="{{ url_for('book_admin.edit_book', book_id=book.id) }}" target="_blank" rel="noopener">Открыть сохранённую карточку в новой вкладке</a>
+    </p>
+    {% else %}
+    <div class="border rounded p-3 mb-3" data-passport-suggestions hidden>
+        <h6>Сведения из EPUB</h6>
+        <dl class="mb-2 text-break">
+            <dt>ID издания</dt><dd data-suggestion="source_edition_id"></dd>
+            <dt>URL источника</dt><dd data-suggestion="source_url"></dd>
+            <dt>Помета издателя</dt><dd data-suggestion="source_rights_note"></dd>
+        </dl>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-passport-use>Заполнить пустые поля ID и URL</button>
+    </div>
+    {% endif %}
+    <div class="row g-3">
+        <div class="col-md-7">
+            <label class="form-label" for="source_edition_id">ID издания</label>
+            <input class="form-control" id="source_edition_id" name="source_edition_id" maxlength="255"
+                   value="{{ request.form.get('source_edition_id', book.source_edition_id or '' if book else '') }}">
+        </div>
+        <div class="col-md-5">
+            {% if book %}
+            <label class="form-label" for="source_format">Формат источника</label>
+            {% set selected = request.form.get('source_format', book.source_format) %}
+            <select class="form-select" id="source_format" name="source_format">
+                <option value="">Не указан</option>
+                {% for format in edition_formats %}
+                <option value="{{ format }}"{% if format == selected %} selected{% endif %}>{{ 'Вставленный текст' if format == 'text' else format|upper }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <p class="mb-1 fw-semibold">Формат источника</p>
+            <p class="form-text mt-0">Определится по файлу или вставленному тексту.</p>
+            {% endif %}
+        </div>
+        <div class="col-12">
+            <label class="form-label" for="source_url">URL источника</label>
+            <input type="url" class="form-control" id="source_url" name="source_url" maxlength="2000"
+                   value="{{ request.form.get('source_url', book.source_url or '' if book else '') }}">
+            <p class="form-text">Доступен читателям в карточке книги.</p>
+        </div>
+        <div class="col-12">
+            <label class="form-label" for="permission_document">Основание публикации</label>
+            <textarea class="form-control" id="permission_document" name="permission_document" rows="3"
+                      maxlength="4000" aria-describedby="edition-basis-help">{{ request.form.get('permission_document', book.permission_document or '' if book else '') }}</textarea>
+            <p class="form-text mb-0" id="edition-basis-help">Укажите документ, ссылку или краткое обоснование для этого издания. Помета из файла не меняет права и статус публикации.</p>
+        </div>
+    </div>
+    <button class="btn btn-outline-primary mt-3" type="button" data-passport-preview>Предпросмотр паспорта</button>
+    <p class="small mt-2 mb-0" aria-live="polite" data-passport-status></p>
+    <section data-passport-summary class="border rounded mt-3 p-3" aria-labelledby="edition-preview-heading" hidden>
+        <h6 tabindex="-1" id="edition-preview-heading">Паспорт после сохранения</h6>
+        <dl class="mb-0 text-break">
+            <dt>ID издания</dt><dd data-preview-value="source_edition_id"></dd>
+            <dt>Формат</dt><dd data-preview-value="source_format"></dd>
+            <dt>URL источника</dt><dd data-preview-value="source_url"></dd>
+            <dt>Основание публикации</dt><dd class="text-pre-wrap" data-preview-value="permission_document"></dd>
+        </dl>
+    </section>
+</fieldset>

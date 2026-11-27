@@ -288,13 +288,13 @@ def extract_fb2_metadata(file_path):
         return {'title': '', 'author': ''}
 
 
-def extract_epub_metadata(file_path):
+def extract_epub_metadata(file_path: str | os.PathLike[str]) -> dict[str, str]:
     """Извлекает метаданные из EPUB файла"""
     try:
         import ebooklib  # noqa: F401
         from ebooklib import epub
 
-        book = epub.read_epub(file_path)
+        book = epub.read_epub(os.fspath(file_path), options={'ignore_ncx': True})
         metadata = {'title': '', 'author': ''}
 
         # Извлекаем заголовок
@@ -306,6 +306,17 @@ def extract_epub_metadata(file_path):
         author = book.get_metadata('DC', 'creator')
         if author:
             metadata['author'] = author[0][0]
+
+        identifiers = book.get_metadata('DC', 'identifier')
+        primary = next((value for value, attrs in identifiers if attrs.get('id') == book.IDENTIFIER_ID), None)
+        for field, value in (
+            ('source_edition_id', primary or next((value for value, _ in identifiers if value), None)),
+            ('source_url', next((value for value, _ in book.get_metadata('DC', 'source') if value), None)),
+            ('source_rights_note', next((value for value, _ in book.get_metadata('DC', 'rights') if value), None)),
+        ):
+            if isinstance(value, str) and value.strip():
+                metadata[field] = value.strip()[:2000]
+        metadata['source_format'] = 'epub'
 
         return metadata
     except Exception as e:
