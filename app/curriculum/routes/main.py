@@ -202,82 +202,61 @@ def error_review_session():
             pass
         return None
 
-    from app.daily_plan.linear.errors import (
-        get_review_pool_grouped,
-        get_unresolved_breakdown,
-    )
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+    from app.curriculum.security import check_lesson_access
+    from app.daily_plan.linear.errors import get_review_pool_grouped, get_unresolved_breakdown
+    from app.grammar_lab.models import GrammarTopic
 
     raw_groups = get_review_pool_grouped(current_user.id, db)
     breakdown = get_unresolved_breakdown(current_user.id, db)
     top_lessons = [
         item for item in breakdown.get('by_lesson', []) if item.get('title')
     ][:3]
-    top_topics = [
-        item for item in breakdown.get('by_topic', []) if item.get('title')
-    ][:3]
-    topic_groups = []
+    tagged_topics = breakdown.get('by_topic', [])
+    public_ids = {
+        topic_id for (topic_id,) in db.session.query(GrammarTopic.id).filter(
+            GrammarTopic.id.in_([item['id'] for item in tagged_topics if item.get('title')]),
+            GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+        )
+    } if tagged_topics else set()
+    top_topics = [item for item in tagged_topics if item['id'] in public_ids][:3]
+
+    # The unlinked bucket can span modules. Keep each inferred rule beside
+    # only its own module's errors and require a single linked topic there.
+    unlinked = {}
+    groups = []
     for group in raw_groups:
-        topic = group['topic']
+        if group['topic_id'] is not None:
+            groups.append((group['topic'], group['errors']))
+            continue
+        for error in group['errors']:
+            module_id = error.lesson.module_id if error.lesson else None
+            unlinked.setdefault(module_id, []).append(error)
+    fallback = {}
+    if module_ids := [module_id for module_id in unlinked if module_id is not None]:
+        for module_id, topic_id in db.session.query(Lessons.module_id, Lessons.grammar_topic_id).filter(
+            Lessons.module_id.in_(module_ids),
+            Lessons.type.in_(['grammar', 'language_focus']),
+            Lessons.grammar_topic_id.isnot(None),
+        ).distinct():
+            fallback.setdefault(module_id, []).append(topic_id)
+    for module_id, errors in unlinked.items():
+        ids = fallback.get(module_id, [])
+        groups.append((db.session.get(GrammarTopic, ids[0]) if len(ids) == 1 else None, errors))
 
-        # Preprocess topic theory so template stays logic-free
-        topic_title = None
-        grammar_url = None
-        theory_text = None
-        common_mistakes = None
-        content: dict = {}
-
-        if topic is not None:
-            topic_title = topic.title_ru or topic.title
-            grammar_url = f'/grammar/{topic.slug}'
-            content = topic.content or {}
-            if topic.telegram_summary:
-                theory_text = topic.telegram_summary
-            elif content.get('introduction'):
-                theory_text = content['introduction']
-            raw_mistakes = content.get('common_mistakes') or []
-            if raw_mistakes:
-                common_mistakes = raw_mistakes[:2]
-
-        # Fallback: infer grammar topic from the module's grammar/language_focus lesson
-        if topic is None:
-            module_ids: set[int] = set()
-            for e in group['errors']:
-                lesson_obj = getattr(e, 'lesson', None)
-                if lesson_obj and lesson_obj.module_id:
-                    module_ids.add(lesson_obj.module_id)
-            for mid in module_ids:
-                gl = Lessons.query.filter(
-                    Lessons.module_id == mid,
-                    Lessons.type.in_(['grammar', 'language_focus']),
-                    Lessons.grammar_topic_id.isnot(None),
-                ).first()
-                if gl and gl.grammar_topic:
-                    topic = gl.grammar_topic
-                    topic_title = topic.title_ru or topic.title
-                    grammar_url = f'/grammar/{topic.slug}'
-                    content = topic.content or {}
-                    if topic.telegram_summary:
-                        theory_text = topic.telegram_summary
-                    elif content.get('introduction'):
-                        theory_text = content['introduction']
-                    raw_mistakes = content.get('common_mistakes') or []
-                    if raw_mistakes:
-                        common_mistakes = raw_mistakes[:2]
-                    break
-
-        # Collect unique lesson titles for the theory card (needed when topic is None)
-        lesson_titles: list[str] = []
-        seen_lesson_ids: set[int] = set()
-        for e in group['errors']:
-            lesson_obj = getattr(e, 'lesson', None)
-            if lesson_obj and lesson_obj.id not in seen_lesson_ids:
-                seen_lesson_ids.add(lesson_obj.id)
-                if lesson_obj.title:
-                    lesson_titles.append(lesson_obj.title)
-        lesson_titles = list(dict.fromkeys(lesson_titles))[:3]
-
+    topic_groups = []
+    source_links = {}
+    for topic, errors in groups:
+        if topic is not None and topic.level not in PUBLIC_CEFR_CODES:
+            topic = None
+        content = (topic.content or {}) if topic is not None else {}
+        grammar_url = url_for('grammar_lab.topic_detail', slug=topic.slug) if topic is not None else None
+        theory_text = (topic.telegram_summary or content.get('introduction')) if topic is not None else None
+        topic_title = (topic.title_ru or topic.title) if topic is not None else None
+        common_mistakes = (content.get('common_mistakes') or [])[:2]
+        sources = {}
         errors_display = []
-        for e in group['errors']:
+        for e in errors:
             p = e.question_payload or {}
             user_ans = p.get('user_answer', '')
             correct_ans = p.get('correct_answer') or ''
@@ -296,6 +275,11 @@ def error_review_session():
             c_str = correct_ans if isinstance(correct_ans, str) else ''
             if '_' in q_text and c_str:
                 fw = _fill_word(q_text, c_str)
+            source = e.lesson
+            if source is not None and source.id not in sources and source.title:
+                if source.id not in source_links:
+                    source_links[source.id] = url_for('learn.lesson_by_id', lesson_id=source.id) if check_lesson_access(source.id) else None
+                sources[source.id] = {'title': source.title, 'url': source_links[source.id]}
             errors_display.append({
                 'id': e.id,
                 'payload': {**p, 'correct_answer': formatted_correct, 'fill_word': fw},
@@ -309,7 +293,7 @@ def error_review_session():
             'theory_text': theory_text,
             'common_mistakes': common_mistakes,
             'topic_content': content,
-            'lesson_titles': lesson_titles,
+            'sources': list(sources.values()),
             'errors': errors_display,
         })
 

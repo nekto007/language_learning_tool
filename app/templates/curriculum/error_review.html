@@ -18,7 +18,7 @@
   {# ── SCREEN 1: THEORY ── #}
   <div id="er-screen-theory">
     <div class="er-theory-header">
-      <h1 class="er-theory-header__title">Разбор ошибок</h1>
+      <h1 class="er-theory-header__title" tabindex="-1">Разбор ошибок</h1>
       <p class="er-theory-header__sub">{{ total_errors }} вопрос{{ 'а' if total_errors in [2,3,4] else ('ов' if total_errors > 4 else '') }} · Изучите теорию и пройдите квиз</p>
     </div>
 
@@ -48,11 +48,11 @@
     {% endif %}
 
     {% for group in topic_groups %}
-    {% if group.topic_title or group.lesson_titles %}
+    {% if group.topic_title or group.sources %}
     <div class="er-theory-card">
       <div class="er-theory-card__top">
         <div>
-          <h2 class="er-theory-card__title">{{ group.topic_title or 'Словарные упражнения' }}</h2>
+          <h2 class="er-theory-card__title">{{ group.topic_title or 'Задания уроков' }}</h2>
           <span class="er-theory-card__count">{{ group.errors|length }} вопрос{{ 'а' if group.errors|length in [2,3,4] else ('ов' if group.errors|length > 4 else '') }}</span>
         </div>
         {% if group.grammar_url %}
@@ -60,11 +60,14 @@
         {% endif %}
       </div>
 
-      {% if not group.topic_title and group.lesson_titles %}
-      {# Vocabulary errors — no grammar topic; show lesson context #}
-      <div class="er-theory-intro">Повторите слова и переводы. Теория недоступна — это лексические упражнения.</div>
+      {% if not group.topic_title %}
+      <div class="er-theory-intro">Для этих заданий полная теория недоступна.</div>
+      {% endif %}
+      {% if group.sources %}
       <ul class="er-theory-lesson-list">
-        {% for name in group.lesson_titles %}<li>📚 {{ name }}</li>{% endfor %}
+        {% for source in group.sources %}
+        <li>{% if source.url %}<a href="{{ source.url }}">К исходному уроку «{{ source.title }}»</a>{% else %}{{ source.title }}{% endif %}</li>
+        {% endfor %}
       </ul>
       {% endif %}
 
@@ -139,7 +142,7 @@
     {% endfor %}
 
     <div class="er-theory-cta">
-      <button class="btn btn--primary btn--lg" onclick="erStartQuiz()">Начать квиз →</button>
+      <button id="er-start-quiz" class="btn btn--primary btn--lg" type="button" onclick="erStartQuiz()">Начать квиз →</button>
     </div>
   </div>
 
@@ -154,6 +157,7 @@
       </div>
     </div>
 
+    <button id="er-back-theory" class="btn btn--outline btn--sm" type="button" onclick="erShowTheory()">К теории</button>
     <div id="erQCard" class="er-qcard"></div>
 
     <div id="erQFeedback" class="er-qfeedback" hidden>
@@ -237,11 +241,20 @@
     });
   }
 
-  /* ── Start button ── */
+  var quizStarted = false;
   window.erStartQuiz = function () {
     if (total === 0) { show('er-screen-results'); erShowResults(); return; }
     show('er-screen-quiz');
-    erRenderQ(0);
+    if (!quizStarted) {
+      quizStarted = true;
+      erRenderQ(0);
+    }
+    document.getElementById('er-back-theory').focus();
+  };
+  window.erShowTheory = function () {
+    show('er-screen-theory');
+    document.getElementById('er-start-quiz').textContent = 'Продолжить разбор →';
+    document.querySelector('.er-theory-header__title').focus();
   };
 
   /* ── Render one question ── */
@@ -357,7 +370,7 @@
       var shown = correctStr || q.correct || '';
       msg.textContent = '❌ Правильно: ' + shown;
       msg.className   = 'er-qfb-msg er-qfb-msg--err';
-      if (hint && hintText && q.theoryText) {
+      if (hint && hintText && (q.theoryText || q.grammarUrl)) {
         hintText.textContent = q.theoryText;
         if (hintLink) {
           hintLink.href   = q.grammarUrl || '#';

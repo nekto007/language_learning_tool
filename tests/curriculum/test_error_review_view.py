@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from bs4 import BeautifulSoup
 
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, Lessons, Module
@@ -186,8 +187,7 @@ def test_error_review_view_caps_at_three_chips_per_row(client, db_session):
     assert resp.status_code == 200
     body = _strip_style_blocks(resp.get_data(as_text=True))
 
-    # Top 3 lesson titles present, 4th excluded
-    assert 'Cap Lesson 0' in body  # 4 errors — top
-    assert 'Cap Lesson 1' in body  # 3 errors
-    assert 'Cap Lesson 2' in body  # 2 errors
-    assert 'Cap Lesson 3' not in body  # 1 error — capped out
+    chips = BeautifulSoup(body, 'html.parser').select('[data-chip-kind="lesson"]')
+    assert len(chips) == 3
+    for index, chip in enumerate(chips):
+        assert f'Cap Lesson {index}' in chip.get_text()
