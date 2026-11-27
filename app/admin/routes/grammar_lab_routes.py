@@ -599,6 +599,8 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
     difficulty = '' if exercise.difficulty is None else str(exercise.difficulty)
     order = '' if exercise.order is None else str(exercise.order)
     token, error, trial, status = '', '', '', 200
+    choice = exercise.exercise_type == 'multiple_choice'
+    before = effective_content(exercise)
     error_field = 'exercise-fields'
     preview = None
     trial_result = None
@@ -608,19 +610,26 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
         difficulty, order = request.form.get('difficulty', difficulty), request.form.get('order', order)
         trial = request.form.get('trial', '').strip()[:500]
         try:
+            if choice and not request.form.get('revision'):
+                raise BadSignature('obsolete choice form')
             if action not in ('preview', 'apply'):
                 return 'Откройте форму упражнения и выполните предпросмотр.', 400
             if request.form.get('revision') != revision:
                 raise BadSignature('stale exercise')
             planned = plan_edit(exercise, values, int(difficulty) if difficulty.strip() else None,
                                 int(order) if order.strip() else None)
-            before = effective_content(exercise)
+            answer: str | int = trial
+            if choice and trial:
+                row = planned.effective if planned else before
+                if trial not in {str(index) for index in range(1, len(row['options']) + 1)}:
+                    raise ExerciseFieldError('trial', 'Выберите пробный вариант из списка.')
+                answer = int(trial) - 1
             if planned is None:
                 if action == 'apply':
                     raise BadSignature('no changes to apply')
                 if not trial:
                     raise ExerciseFieldError('trial', 'Изменений нет. Введите пробный ответ для проверки.')
-                trial_result = grade_row(exercise, before, trial)['is_correct']
+                trial_result = grade_row(exercise, before, answer)['is_correct']
             else:
                 serializer = URLSafeTimedSerializer(current_app.secret_key, salt='admin-lab-exercise-edit')
                 binding = [current_user.id, exercise.id, revision, content_digest(asdict(planned))]
@@ -645,7 +654,7 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
                     error, status = 'Подтвердите сверку старых и новых ответов.', 422
                     error_field = 'decision-checked'
                 sides = [(caption, row, written_prompt(exercise.exercise_type, row), accepted_answers(exercise, row),
-                          grade_row(exercise, row, trial)['is_correct'] if trial else None)
+                          grade_row(exercise, row, answer)['is_correct'] if trial else None)
                          for caption, row in (('Сейчас', before), ('После сохранения', planned.effective))]
                 preview = {'sides': sides, 'needs_confirmation': planned.needs_confirmation}
                 token = serializer.dumps(binding)
@@ -666,6 +675,7 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
         'admin/grammar_lab/structured_exercise.html', exercise=exercise, topic=exercise.topic, values=values,
         difficulty=difficulty, order=order, revision=revision, preview=preview, token=token, trial=trial, error=error,
         trial_result=trial_result, error_field=error_field, decision=active_lab_override(exercise) is not None,
+        choice_answers=accepted_answers(exercise, before) if choice else [],
     ), status))
     response.headers['Cache-Control'] = 'private, no-store'
     return response

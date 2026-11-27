@@ -8,6 +8,7 @@ from functools import cache
 
 from app.curriculum.answer_review_edits import ALIAS_FIELDS, answer_aliases
 from app.curriculum.blank_answers import blank_instruction, has_blank_gap
+from app.curriculum.grading import _quiz_option_index
 from app.grammar_lab.answer_review import (
     active_lab_override,
     effective_content,
@@ -27,9 +28,10 @@ _FIELDS = {
     'error_correction': (*_COMMON, 'sentence', 'error_word', 'correct_sentence', 'full_correct', *ALIAS_FIELDS),
     'translation': (*_COMMON, 'sentence', *ALIAS_FIELDS),
     'fill_blank': (*_COMMON, *ALIAS_FIELDS),
+    'multiple_choice': ('question', 'instruction', 'hint', 'explanation', 'options'),
 }
 EDITABLE_TYPES = frozenset(_FIELDS)
-_LIST_FIELDS = frozenset(('words', *ALIAS_FIELDS))
+_LIST_FIELDS = frozenset(('words', 'options', *ALIAS_FIELDS))
 _PATCH_FIELDS = frozenset(('correct_answer', *ALIAS_FIELDS))
 _DIRECTIONS = {'ru-en': ('ru', 'en'), 'en-ru': ('en', 'ru')}
 _TRANSLATION_PREFIX = re.compile(r'^Переведите на (английский|русский):\s*', re.I)
@@ -73,6 +75,8 @@ def fields_for(exercise: GrammarExercise) -> dict[str, str]:
                 del fields[field]
     if exercise.exercise_type == 'translation':
         fields['direction'] = _translation_direction(current)
+    if exercise.exercise_type == 'multiple_choice':
+        fields['choice_key'] = ''
     return fields
 
 
@@ -107,6 +111,10 @@ def _tiles(row: dict) -> Counter:
 
 def accepted_answers(exercise: GrammarExercise, row: dict) -> list[str]:
     """List explicit configured answers which the real grader accepts."""
+    if exercise.exercise_type == 'multiple_choice':
+        options = row.get('options')
+        return [option for index, option in enumerate(options)
+                if grade_row(exercise, row, index)['is_correct']] if isinstance(options, list) else []
     configured = []
     for key in ('correct_answer', 'correct_sentence', 'full_correct'):
         value = row.get(key)
@@ -114,6 +122,52 @@ def accepted_answers(exercise: GrammarExercise, row: dict) -> list[str]:
     configured.extend(answer_aliases(row))
     candidates = dict.fromkeys(value for value in configured if isinstance(value, str) and value)
     return [value for value in candidates if grade_row(exercise, row, value)['is_correct']]
+
+
+def _choice_key(row: dict) -> tuple[str, object]:
+    key = 'correct_index' if 'correct_index' in row and 'correct_answer' not in row else 'correct_answer'
+    return key, row.get(key)
+
+
+def _choice_index(options: list[str], key: str, value: object) -> int:
+    return _quiz_option_index(options, value, prefer_literal=key == 'correct_answer')
+
+
+def _choice_change(exercise: GrammarExercise, before: dict, authored: dict, selection: str) -> dict:
+    options = authored.get('options')
+    if (not isinstance(options, list) or not 2 <= len(options) <= 12
+            or not all(isinstance(option, str) and option.strip() for option in options)
+            or len({option.strip() for option in options}) != len(options)):
+        raise ExerciseFieldError('options', 'Укажите от 2 до 12 разных непустых вариантов, по одному на строку.')
+
+    key, old_value = _choice_key(before)
+    old_options = before.get('options')
+    old_index = _choice_index(old_options, key, old_value) if isinstance(old_options, list) else -1
+    labels = [option.strip() for option in options]
+    if selection in {str(index) for index in range(1, len(options) + 1)}:
+        index = int(selection) - 1
+    elif not selection and old_index >= 0 and isinstance(old_options[old_index], str):
+        old_label = old_options[old_index].strip()
+        index = labels.index(old_label) if old_label in labels else -1
+    else:
+        index = -1
+    if index < 0:
+        raise ExerciseFieldError('choice_key', 'Выберите верный вариант из списка.')
+
+    if _choice_index(options, key, old_value) == index:
+        return {}
+    if type(old_value) is int or (key == 'correct_index' and not isinstance(old_value, str)):
+        value = index
+    elif isinstance(old_value, str) and old_value.isdigit() and (
+        key == 'correct_index' or not isinstance(old_options, list)
+        or not any(normalize_quiz_answer(label) == normalize_quiz_answer(old_value) for label in old_options)
+    ):
+        value = str(index)
+    else:
+        value = options[index]
+    if not grade_row(exercise, {**authored, key: value}, index)['is_correct']:
+        raise ExerciseFieldError('choice_key', 'Этот выбор неоднозначен для сохранённого формата ключа.')
+    return {key: value}
 
 
 def _tile_order(words: list[str], correct: str) -> list[int] | None:
@@ -157,6 +211,10 @@ def _field_value(key: str, text: str, previous: object) -> object:
 
 
 def _validate(exercise: GrammarExercise, row: dict) -> None:
+    if exercise.exercise_type == 'multiple_choice':
+        if not accepted_answers(exercise, row):
+            raise ExerciseFieldError('choice_key', 'Выберите вариант, который принимает проверка.')
+        return
     validate_exercise_content(exercise.exercise_type, row)
     if exercise.exercise_type in WRITTEN_TYPES:
         key = row['correct_answer']
@@ -203,6 +261,8 @@ def plan_edit(
     authored = exercise.content.copy()
     patch = {}
     for key, value in submitted.items():
+        if key == 'choice_key':
+            continue
         if key == 'direction':
             if value not in _DIRECTIONS:
                 raise ExerciseFieldError('direction', 'Выберите направление перевода.')
@@ -224,6 +284,9 @@ def plan_edit(
             authored[key] = new
         else:
             authored.pop(key, None)
+    if exercise.exercise_type == 'multiple_choice':
+        choice = _choice_change(exercise, before, authored, submitted.get('choice_key', ''))
+        (patch if active else authored).update(choice)
     override = rebased_lab_override(exercise, authored, patch)
     next_active = override if active else active_lab_override(exercise, authored)
     after = lab_content_with_patch(authored, next_active['patch']) if next_active else authored
@@ -240,6 +303,8 @@ def plan_edit(
             {normalize_quiz_answer(answer) for answer in accepted_answers(exercise, row)} for row in (before, after)
         )
         answer_change = before_answers != after_answers
+    elif exercise.exercise_type == 'multiple_choice':
+        answer_change = accepted_answers(exercise, before) != accepted_answers(exercise, after)
     else:
         answer_change = False
     semantic = answer_change or _tiles(before) != _tiles(after) or any(before.get(key) != after.get(key) for key in relevant)

@@ -1,6 +1,7 @@
 """Structured edits through the admin and ordinary learner endpoints."""
 
 from copy import deepcopy
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -153,11 +154,14 @@ def test_semantic_correction_from_dispute_requires_explicit_review(
     assert not submit(reader, headers, item, 'is')['is_correct']
 
 
-@pytest.mark.parametrize('kind', ['error_correction', 'fill_blank', 'translation'])
+@pytest.mark.parametrize('kind', ['error_correction', 'fill_blank', 'translation', 'multiple_choice'])
 def test_guided_exercise_still_goes_to_topic_publisher(
     admin_client: FlaskClient, db_session: scoped_session, kind: str,
 ) -> None:
-    item = exercise(kind, {'question': 'Fictional exercise.', 'correct_answer': 'Synthetic.'})
+    row = {'question': 'Fictional exercise.', 'correct_answer': 'Synthetic.'}
+    if kind == 'multiple_choice':
+        row['options'] = ['Synthetic.', 'Other.']
+    item = exercise(kind, row)
     item.topic.content = {'guided_catalog_digest': 'synthetic'}
     db_session.commit()
     path = f'/admin/grammar-lab/exercises/{item.id}/edit'
@@ -165,6 +169,138 @@ def test_guided_exercise_still_goes_to_topic_publisher(
         assert response.status_code == 303
         assert response.location.endswith(f'/admin/grammar-lab/guided/{item.topic_id}')
     assert item.content['question'] == 'Fictional exercise.'
+
+
+@pytest.mark.parametrize(('key', 'stored', 'value_after', 'position'), [
+    ('correct_answer', '1', '1', 2),
+    ('correct_answer', 0, 1, 1),
+    ('correct_answer', '0', '1', 1),
+    ('correct_index', 0, 1, 1),
+    ('correct_index', '0', '1', 1),
+])
+def test_choice_round_trip_preserves_key_format_and_option_identity(
+    app: Flask, admin_client: FlaskClient, test_user: User, db_session: scoped_session,
+    key: str, stored: Any, value_after: Any, position: int,
+) -> None:
+    raw = {'question': 'Synthetic question?', 'options': ['Amber', '1', 'Violet'], key: stored}
+    if stored == '0':
+        raw['options'][1] = 'Teal'
+    item = exercise('multiple_choice', {**raw, 'correct_answer': stored})
+    item.content = raw
+    item.order = item.difficulty = None
+    db_session.commit()
+    path = f'/admin/grammar-lab/exercises/{item.id}/edit'
+    _, fields = _form(_page(admin_client.get(path)))
+    caption = raw['options'][1 if stored == '1' else 0]
+    current = admin_client.post(path, data={**fields, 'action': 'preview', 'trial': '2' if stored == '1' else '1'})
+    assert current.status_code == 200
+    current_page = _page(current)
+    assert caption + ' · верно' in current_page.select_one('[aria-labelledby=exercise-trial-title]').get_text()
+    assert not current_page.select_one('[name=preview_token], [value=apply]')
+    assert not AdminAuditLog.query.filter_by(action='grammar_exercise.update', target_id=str(item.id)).count()
+    options = [raw['options'][2], raw['options'][0], raw['options'][1]]
+    preview = admin_client.post(path, data={**fields, 'options': '\n'.join(options), 'action': 'preview',
+                                            'trial': str(position + 1)})
+    assert preview.status_code == 200
+    _, draft = _form(_page(preview))
+    assert admin_client.post(path, data={**draft, 'action': 'apply'}).status_code == 303
+    assert item.content[key] == value_after and type(item.content[key]) is type(stored)
+    assert item.content['options'] == options and item.order is None and item.difficulty is None
+    g.pop('_login_user', None)
+    reader, headers = browser(app, test_user)
+    assert submit(reader, headers, item, str(position))['is_correct']
+    assert not submit(reader, headers, item, '0')['is_correct']
+
+
+def test_choice_decision_from_dispute_is_rebased_and_stale_tab_keeps_draft(
+    app: Flask, admin_client: FlaskClient, admin_user: User, test_user: User, db_session: scoped_session,
+) -> None:
+    raw = {'source': 'json_import', 'question': 'Original question?', 'options': ['Amber', '1', 'Violet'],
+           'correct_answer': 'Amber', 'alternatives': ['Retained A.'], 'alternative_answers': ['Retained B.'],
+           'acceptable_answers': ['Retained C.'], 'meta': {'keep': True}}
+    item = exercise('multiple_choice', raw)
+    reader, headers = browser(app, test_user)
+    rejected = submit(reader, headers, item, '1')
+    assert dispute(reader, headers, item, rejected['dispute_token'], '1').status_code == 200
+    case = AnswerDispute.query.filter_by(grammar_exercise_id=item.id).one()
+    case.status = 'applied'
+    case.review = {'label': 'wrong_key', 'patch': {'correct_answer': '1'}}
+    apply_lab_patch(item, {'correct_answer': '1', 'alternatives': ['Approved metadata.']})
+    db_session.commit()
+    prior = deepcopy(case.review), deepcopy(case.evidence), deepcopy(item.answer_review_override)
+
+    g.pop('_login_user', None)
+    dispute_page = _page(admin_client.get(f'/admin/answer-disputes/{case.id}'))
+    href = dispute_page.select_one(f'a[href="/admin/grammar-lab/exercises/{item.id}/edit"]')['href']
+    path, fields = _form(_page(admin_client.get(href)))
+    tab, tab_headers = browser(app, admin_user)
+    _, tab_fields = _form(_page(tab.get(path)))
+    g.pop('_login_user', None)
+    assert admin_client.post(path, data={'content': '{}', 'exercise_type': 'multiple_choice'}).status_code == 409
+    assert admin_client.post(path, data={**fields, 'options': 'Amber\nAmber', 'action': 'preview'}).status_code == 422
+    draft = {**fields, 'question': 'Updated question?', 'instruction': 'Choose one.', 'action': 'preview'}
+    preview = _page(admin_client.post(path, data=draft))
+    assert preview.select_one('#decision-checked')
+    for side in preview.select('[aria-labelledby=exercise-preview-title] h4 + ul'):
+        assert [entry.get_text() for entry in side.select('li')] == ['1']
+    _, ready = _form(preview)
+    g.pop('_login_user', None)
+    old_preview = _page(tab.post(path, headers=tab_headers, data={
+        **tab_fields, 'question': 'Other tab draft?', 'choice_key': '3', 'trial': '3', 'action': 'preview',
+    }))
+    sides = old_preview.select('[aria-labelledby=exercise-preview-title] .col-md-6')
+    assert '» · неверно' in sides[0].get_text()
+    assert '» · верно' in sides[1].get_text()
+    _, old_ready = _form(old_preview)
+    g.pop('_login_user', None)
+    assert item.content == raw and item.answer_review_override == prior[2]
+    assert GrammarAttempt.query.filter_by(exercise_id=item.id).count() == 1
+    assert not AdminAuditLog.query.filter_by(action='grammar_exercise.update', target_id=str(item.id)).count()
+    assert admin_client.post(path, data={**ready, 'action': 'apply'}).status_code == 422
+    assert admin_client.post(path, data={**ready, 'action': 'apply', 'decision_checked': 'yes'}).status_code == 303
+    assert admin_client.post(path, data={**ready, 'action': 'apply', 'decision_checked': 'yes'}).status_code == 409
+    g.pop('_login_user', None)
+    conflict = tab.post(path, headers=tab_headers, data={**old_ready, 'action': 'apply', 'decision_checked': 'yes'})
+    assert conflict.status_code == 409
+    _, restored = _form(BeautifulSoup(conflict.data, 'html.parser'))
+    assert restored['question'] == 'Other tab draft?' and restored['choice_key'] == restored['trial'] == '3'
+    assert 'preview_token' not in restored and restored['revision'] != old_ready['revision']
+    rebased = tab.post(path, headers=tab_headers, data={**restored, 'action': 'preview'})
+    assert rebased.status_code == 200 and _page(rebased).select_one('[name=preview_token]')
+    assert item.content == {**raw, 'question': 'Updated question?', 'instruction': 'Choose one.'}
+    assert active_lab_override(item)['patch'] == prior[2]['patch']
+    assert active_lab_override(item)['source_revision'] != prior[2]['source_revision']
+    assert (case.review, case.evidence) == prior[:2]
+    assert AdminAuditLog.query.filter_by(action='grammar_exercise.update', target_id=str(item.id)).count() == 1
+
+    g.pop('_login_user', None)
+    assert submit(reader, headers, item, '1')['is_correct']
+    assert not submit(reader, headers, item, '0')['is_correct']
+    g.pop('_login_user', None)
+    _, reviewed = _form(_page(rebased))
+    assert tab.post(path, headers=tab_headers, data={**reviewed, 'action': 'apply',
+                                                   'decision_checked': 'yes'}).status_code == 303
+    assert item.content['correct_answer'] == raw['correct_answer']
+    assert active_lab_override(item)['patch'] == {**prior[2]['patch'], 'correct_answer': 'Violet'}
+    assert (case.review, case.evidence) == prior[:2]
+    g.pop('_login_user', None)
+    assert submit(reader, headers, item, '2')['is_correct']
+    assert not submit(reader, headers, item, '1')['is_correct']
+
+
+def test_unconverted_grammar_exercise_still_saves_with_json(
+    admin_client: FlaskClient, db_session: scoped_session,
+) -> None:
+    item = exercise('transformation', {'question': 'Synthetic original.', 'correct_answer': 'Sample.'})
+    path = f'/admin/grammar-lab/exercises/{item.id}/edit'
+    page = _page(admin_client.get(path))
+    assert page.select_one('textarea[name=content]')
+    response = admin_client.post(path, data={
+        'content': '{"question":"Synthetic edit.","correct_answer":"Sample."}',
+        'difficulty': '2', 'order': '4', 'exercise_type': 'transformation',
+    })
+    assert response.status_code == 302
+    assert item.content['question'] == 'Synthetic edit.' and item.order == 4
 
 
 def test_new_approval_invalidates_an_older_editor_preview(admin_client: FlaskClient, db_session: scoped_session) -> None:

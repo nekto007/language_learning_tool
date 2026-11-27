@@ -9,17 +9,32 @@
 </div>
 {% endmacro %}
 
+{% macro choice_select(name, empty, value, options) %}
+<select class="form-select" id="{{ name }}" name="{{ name }}"{% if name == 'choice_key' %} aria-describedby="choice-key-help"{% endif %}>
+    <option value="">{{ empty }}</option>
+    {% for number in range(1, 13) %}
+    {% set number_text = number|string %}
+    <option value="{{ number }}"{% if value == number_text %} selected{% endif %}>
+        Вариант {{ number }}{% if number <= options|length %} · {{ options[number - 1] }}{% endif %}
+    </option>
+    {% endfor %}
+</select>
+{% endmacro %}
+
 {% block title %}Упражнение Grammar Lab{% endblock %}
 {% block content %}
 {% set kind = exercise.exercise_type %}
 {% set reorder = kind == 'reorder' %}
 {% set translation = kind == 'translation' %}
 {% set written = kind in ('translation', 'fill_blank') %}
+{% set choice = kind == 'multiple_choice' %}
+{% set options = values.options.splitlines() | map('trim') | reject('equalto', '') | list if choice else [] %}
 <p><a href="{{ url_for('.edit_topic', topic_id=topic.id) }}">К теме «{{ topic.title_ru or topic.title }}»</a></p>
 <h1 class="h3">{{ {'reorder': 'Собрать предложение', 'error_correction': 'Исправить ошибку',
-                   'translation': 'Перевод', 'fill_blank': 'Заполнить пропуск'}[kind] }}</h1>
+                   'translation': 'Перевод', 'fill_blank': 'Заполнить пропуск',
+                   'multiple_choice': 'Выбор ответа'}[kind] }}</h1>
 <p class="text-muted">Упражнение №{{ exercise.id }}</p>
-{% if written %}
+{% if written or choice %}
 {% set source = exercise.content.get('source') %}
 <p class="small text-muted">Тема {{ topic.slug }} · {% if source == 'json_import' %}Импорт JSON{% elif source == 'module_import' %}Импорт из модуля{% else %}Источник не указан{% endif %}</p>
 {% if source in ('json_import', 'module_import') %}
@@ -41,7 +56,7 @@
     <section class="card mb-3" aria-labelledby="exercise-trial-title">
         <div class="card-body text-break">
             <h2 class="h5" id="exercise-trial-title" tabindex="-1"{% if not error %} autofocus{% endif %} data-admin-focus>Проверка текущего ответа</h2>
-            <p><span{% if not translation %} lang="en"{% endif %}>{{ trial }}</span> · {{ 'верно' if trial_result else 'неверно' }}</p>
+            <p>{% if choice %}{{ options[trial|int - 1] }}{% else %}<span{% if not translation %} lang="en"{% endif %}>{{ trial }}</span>{% endif %} · {{ 'верно' if trial_result else 'неверно' }}</p>
             <p class="mb-0">Изменений в упражнении нет.</p>
         </div>
     </section>
@@ -68,6 +83,10 @@
                     {% if exercise.exercise_type == 'error_correction' and (row.sentence or row.question) %}
                     <p class="mb-1" lang="en">{{ row.sentence or row.question }}</p>
                     {% endif %}
+                    {% if choice %}
+                    <p class="mb-1 fw-semibold">{{ row.question or 'Выберите правильный ответ:' }}</p>
+                    <ol>{% for option in row.options %}<li>{{ option }}</li>{% endfor %}</ol>
+                    {% endif %}
                     {% endif %}
                     {% if row.hint %}<p class="mb-1"><strong>Подсказка</strong> · {{ row.hint }}</p>{% endif %}
                     {% if row.words %}
@@ -79,7 +98,9 @@
                     {% if accepted %}
                     <ul class="mb-2">{% for answer in accepted %}<li lang="{{ 'ru' if translation and prompt[2] == 'en' else 'en' }}">{{ answer }}</li>{% endfor %}</ul>
                     {% else %}<p class="mb-2">Среди заданных вариантов нет принимаемого ответа.</p>{% endif %}
-                    {% if trial %}<p><strong>Проверка «{{ trial }}»</strong> · {{ 'верно' if result else 'неверно' }}</p>{% endif %}
+                    {% if trial and (not choice or trial|int <= row.options|length) %}
+                    <p><strong>Проверка «{{ row.options[trial|int - 1] if choice else trial }}»</strong> · {{ 'верно' if result else 'неверно' }}</p>
+                    {% endif %}
                     {% if row.explanation %}<p class="mb-0"><strong>Объяснение</strong> · {{ row.explanation }}</p>{% endif %}
                 </div>
                 {% endfor %}
@@ -114,13 +135,15 @@
             {% endif %}
             <div class="mb-3">
                 <label class="form-label" for="question">{{ {'reorder': 'Справочный текст', 'error_correction': 'Запасная фраза с ошибкой',
-                                                            'translation': 'Текст задания', 'fill_blank': 'Фраза с пропуском'}[kind] }}</label>
+                                                            'translation': 'Текст задания', 'fill_blank': 'Фраза с пропуском',
+                                                            'multiple_choice': 'Вопрос'}[kind] }}</label>
                 <textarea class="form-control" id="question" name="question" rows="2" maxlength="500"
                           aria-describedby="{% if error and error_field == 'question' %}exercise-form-error {% endif %}exercise-question-help">{{ values.question }}</textarea>
                 <p class="form-text" id="exercise-question-help">
                     {% if reorder %}В практике ученик видит инструкцию.
                     {% elif translation %}Если отдельная исходная фраза пуста, этот текст показывается как фраза для перевода.
                     {% elif written %}Обозначьте пропуск двумя или более подчёркиваниями, например __.
+                    {% elif choice %}Вопрос отображается над вариантами ответа.
                     {% else %}Показывается, если поле «Фраза с ошибкой» пусто.{% endif %}
                 </p>
             </div>
@@ -160,6 +183,19 @@
     <div class="card mb-3"><div class="card-body">
         <h2 class="h5">Ответы и объяснение</h2>
         {% if decision %}<p>Показаны действующие ответы с учётом согласованного решения.</p>{% endif %}
+        {% if choice %}
+        <div class="mb-3">
+            <label class="form-label" for="options">Варианты ответа</label>
+            <textarea class="form-control" id="options" name="options" rows="5" maxlength="8000"
+                      aria-describedby="choice-options-help" required>{{ values.options }}</textarea>
+            <p class="form-text" id="choice-options-help">От 2 до 12 вариантов, по одному на строку. В практике варианты перемешиваются.</p>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="choice_key">Верный вариант</label>
+            {{ choice_select('choice_key', ('Оставить ответ «' ~ choice_answers[0] ~ '»') if choice_answers else 'Выберите вариант', values.choice_key, options) }}
+            <p class="form-text" id="choice-key-help">Если заменили текст верного ответа, выберите его заново.</p>
+        </div>
+        {% else %}
         <div class="mb-3">
             <label class="form-label" for="correct_answer">{{ 'Ключ' if exercise.exercise_type == 'reorder' else 'Основной ключ' }}</label>
             {% if written %}
@@ -200,6 +236,7 @@
             {{ alias_field(name, label, values[name], translation) }}
             {% endfor %}
         {% endif %}
+        {% endif %}
         <label class="form-label" for="explanation">Объяснение</label>
         <textarea class="form-control" id="explanation" name="explanation" rows="3" maxlength="4000">{{ values.explanation }}</textarea>
     </div></div>
@@ -219,7 +256,11 @@
         </div>
         <div class="col-12 col-md-6">
             <label class="form-label" for="trial">Проверить свой вариант в предпросмотре</label>
+            {% if choice %}
+            {{ choice_select('trial', 'Без пробного ответа', trial, options) }}
+            {% else %}
             <input class="form-control"{% if not translation %} lang="en"{% endif %} id="trial" name="trial" maxlength="500" value="{{ trial }}">
+            {% endif %}
         </div>
     </div>
     <button type="submit" class="btn {{ 'btn-outline-primary' if preview else 'btn-primary' }}" name="action" value="preview">Предпросмотр</button>
@@ -227,7 +268,27 @@
 {% endblock %}
 
 {% block scripts %}
-{% if exercise.exercise_type == 'reorder' %}
+{% if exercise.exercise_type == 'multiple_choice' %}
+<script nonce="{{ csp_nonce }}">
+    (() => {
+        const source = document.getElementById('options');
+        const selects = [document.getElementById('choice_key'), document.getElementById('trial')];
+        function updateChoices() {
+            const labels = source.value.split(/\r?\n/).map(label => label.trim()).filter(Boolean);
+            for (const select of selects) {
+                for (const option of Array.from(select.options).slice(1)) {
+                    const label = labels[Number(option.value) - 1];
+                    option.textContent = `Вариант ${option.value}${label ? ` · ${label}` : ''}`;
+                    option.hidden = !label && !option.selected;
+                }
+            }
+        }
+        source.addEventListener('input', updateChoices);
+        selects.forEach(select => select.addEventListener('change', updateChoices));
+        updateChoices();
+    })();
+</script>
+{% elif exercise.exercise_type == 'reorder' %}
 <script nonce="{{ csp_nonce }}">
     (() => {
         const source = document.getElementById('words');
