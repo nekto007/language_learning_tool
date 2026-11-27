@@ -11,17 +11,20 @@ consumers so course grammar is no longer invisible to them:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy.orm import scoped_session
 
+from app.auth.models import User
 from app.curriculum.models import LessonAttempt, Lessons
 from app.daily_plan.items.curriculum import _get_weak_grammar_topic_ids
 from app.daily_plan.items.grammar_review import (
     _grammar_reviewed_today,
     _stalest_practiced_topic,
+    build_grammar_review_item,
 )
-from app.grammar_lab.models import GrammarTopic
+from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
 from app.utils.db import db as app_db  # extension (has .session) — what the consumers expect
 
 
@@ -107,6 +110,31 @@ class TestStalestTopicUnion:
         topic = _stalest_practiced_topic(test_user.id, app_db)
         assert topic is not None
         assert topic.id == grammar_topic.id
+
+    @pytest.mark.parametrize('source', ['curriculum', 'standalone'])
+    def test_optional_history_requires_a_playable_topic(
+        self, db_session: scoped_session, test_user: User, grammar_lesson: Lessons, grammar_topic: GrammarTopic,
+        source: str,
+    ) -> None:
+        previous = _naive_utc_now() - timedelta(days=1)
+        retired = GrammarExercise(topic_id=grammar_topic.id, exercise_type='fill_blank',
+                                  content={'question': 'We ___ here.', 'correct_answer': 'are', 'guided_retired': True})
+        db_session.add(retired)
+        db_session.flush()
+        if source == 'standalone':
+            progress = UserGrammarExercise(user_id=test_user.id, exercise_id=retired.id)
+            progress.last_reviewed = previous
+            db_session.add(progress)
+        else:
+            _add_attempt(db_session, test_user.id, grammar_lesson.id, correct=2, total=5, when=previous)
+        db_session.commit()
+        assert build_grammar_review_item(test_user.id, app_db) is None
+
+        db_session.add(GrammarExercise(topic_id=grammar_topic.id, exercise_type='fill_blank',
+                                       content={'question': 'He ___ here.', 'correct_answer': 'is'}))
+        db_session.commit()
+        item = build_grammar_review_item(test_user.id, app_db)
+        assert item is not None and item.data['topic_id'] == grammar_topic.id
 
 
 class TestWeakHintUnion:

@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
+from sqlalchemy.orm import scoped_session
 
 from app.auth.models import User
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
@@ -653,8 +654,8 @@ class TestGetDailyPlanUnifiedEdgeCases:
 # ── Grammar review item (Task 3) ─────────────────────────────────────
 
 
-def _make_grammar_topic(db_session, level: str = 'A1', order: int = 1) -> Any:
-    from app.grammar_lab.models import GrammarTopic
+def _make_grammar_topic(db_session, level: str = 'A1', order: int = 1, *, retired: bool = False) -> Any:
+    from app.grammar_lab.models import GrammarExercise, GrammarTopic
 
     slug = f'test-topic-{uuid.uuid4().hex[:8]}'
     topic = GrammarTopic()
@@ -665,6 +666,11 @@ def _make_grammar_topic(db_session, level: str = 'A1', order: int = 1) -> Any:
     topic.order = order
     topic.content = {}
     db_session.add(topic)
+    db_session.flush()
+    content = {'question': 'The lamps ___ on.', 'correct_answer': 'are'}
+    if retired:
+        content['guided_retired'] = True
+    db_session.add(GrammarExercise(topic_id=topic.id, exercise_type='fill_blank', content=content))
     db_session.commit()
     return topic
 
@@ -737,6 +743,21 @@ class TestGrammarReviewItemBuilder:
         # Should pick the A1 topic because that's the user's level.
         assert item.data['topic_level'] == 'A1'
         assert item.data['topic_id'] == topic_a1.id
+
+    def test_optional_fallback_skips_retired_topic_without_changing_required_selection(
+        self, db_session: scoped_session,
+    ) -> None:
+        from app.daily_plan.items.grammar_review import build_grammar_review_item
+
+        retired = _make_grammar_topic(db_session, level='A1', order=1, retired=True)
+        user = _make_user(db_session, onboarding_level='A1')
+        assert build_grammar_review_item(user.id, real_db) is None
+        required = build_grammar_review_item(user.id, real_db, section='required')
+        assert required is not None and required.data['topic_id'] == retired.id
+
+        playable = _make_grammar_topic(db_session, level='A1', order=2)
+        optional = build_grammar_review_item(user.id, real_db)
+        assert optional is not None and optional.data['topic_id'] == playable.id
 
 
 class TestGraduatedStatePlan:

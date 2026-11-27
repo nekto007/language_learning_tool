@@ -8,13 +8,16 @@ were reviewed longest ago (stalest ``last_reviewed`` across
 falls back to the first topic at the user's CEFR level, or globally if
 no level-specific topics exist.
 
-Returns None only when no GrammarTopic rows exist at all.
+Ordinary optional review only offers topics that can start a practice session.
 """
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+from sqlalchemy import true
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.daily_plan.items import PlanItem
 
@@ -79,13 +82,17 @@ def build_grammar_review_item(
     section: str = 'optional',
 ) -> Optional[PlanItem]:
     """Return a grammar_review PlanItem or None when no topics exist."""
+    from app.grammar_lab.exercise_visibility import active_exercise_clause
+    from app.grammar_lab.models import GrammarTopic
     from app.onboarding.placement_reviews import plan_item
+
     targeted = plan_item(user_id, section)
     if targeted is not None:
         return targeted
-    topic = _stalest_practiced_topic(user_id, db)
+    eligible_topic = GrammarTopic.exercises.any(active_exercise_clause()) if section == 'optional' else true()
+    topic = _stalest_practiced_topic(user_id, db, eligible_topic=eligible_topic)
     if topic is None:
-        topic = _level_fallback_topic(user_id, db)
+        topic = _level_fallback_topic(user_id, db, eligible_topic=eligible_topic)
     if topic is None:
         return None
 
@@ -116,7 +123,9 @@ def build_grammar_review_item(
     )
 
 
-def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
+def _stalest_practiced_topic(
+    user_id: int, db: Any, *, eligible_topic: ColumnElement[bool] = true(),
+) -> Optional[Any]:
     """Return the topic practised longest ago by this user.
 
     Unions standalone grammar-lab practice (``UserGrammarExercise.last_reviewed``)
@@ -153,6 +162,7 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
             UserGrammarExercise.user_id == user_id,
             UserGrammarExercise.last_reviewed.isnot(None),
             GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+            eligible_topic,
         )
         .group_by(GrammarExercise.topic_id)
         .all()
@@ -173,6 +183,7 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
             Lessons.type == 'grammar',
             Lessons.grammar_topic_id.isnot(None),
             GrammarTopic.level.in_(PUBLIC_CEFR_CODES),
+            eligible_topic,
         )
         .group_by(Lessons.grammar_topic_id)
         .all()
@@ -186,7 +197,7 @@ def _stalest_practiced_topic(user_id: int, db: Any) -> Optional[Any]:
     return db.session.get(GrammarTopic, stalest_topic_id)
 
 
-def _level_fallback_topic(user_id: int, db: Any) -> Optional[Any]:
+def _level_fallback_topic(user_id: int, db: Any, *, eligible_topic: ColumnElement[bool]) -> Optional[Any]:
     """Return the first topic at the user's CEFR level, or any public topic globally."""
     from app.auth.models import User
     from app.curriculum.routes.public import PUBLIC_CEFR_CODES
@@ -198,7 +209,7 @@ def _level_fallback_topic(user_id: int, db: Any) -> Optional[Any]:
     if level_code and level_code in PUBLIC_CEFR_CODES:
         topic = (
             db.session.query(GrammarTopic)
-            .filter(GrammarTopic.level == level_code)
+            .filter(GrammarTopic.level == level_code, eligible_topic)
             .order_by(GrammarTopic.order.asc())
             .first()
         )
@@ -207,7 +218,7 @@ def _level_fallback_topic(user_id: int, db: Any) -> Optional[Any]:
 
     return (
         db.session.query(GrammarTopic)
-        .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES))
+        .filter(GrammarTopic.level.in_(PUBLIC_CEFR_CODES), eligible_topic)
         .order_by(GrammarTopic.id.asc())
         .first()
     )
