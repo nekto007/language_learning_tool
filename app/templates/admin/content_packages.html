@@ -7,8 +7,8 @@
 {% block content %}
 {{ page_header('Пакеты контента', 'Обновите модули, итоговые тесты или отдельные задания из ZIP.') }}
 {% if conflict %}
-<section class="alert alert-danger text-break" role="alert" aria-labelledby="package-conflict">
-    <h2 id="package-conflict" class="h6">Пакет не применён</h2>
+<section class="alert alert-danger text-break" role="alert" aria-labelledby="package-conflict" data-persist="true">
+    <h2 id="package-conflict" class="h6" tabindex="-1" data-admin-focus>Пакет не применён</h2>
     <p class="mb-1">Файл {{ conflict.file }}</p>
     <p class="mb-2">{{ conflict.level }} · Модуль {{ conflict.module }} · Урок {{ conflict.lesson_number }} «{{ conflict.lesson }}»</p>
     <p class="mb-2">
@@ -30,7 +30,7 @@
 {% if preview %}
 <section class="card mb-4" aria-labelledby="package-preview">
     <div class="card-body">
-        <h2 id="package-preview" class="h5">Предпросмотр архива «{{ preview.filename }}»</h2>
+        <h2 id="package-preview" class="h5" tabindex="-1" data-admin-focus>Предпросмотр архива «{{ preview.filename }}»</h2>
         <p>Архив проверен. Изменения ещё не применены.</p>
         <dl class="d-flex flex-wrap gap-3 p-3 border rounded bg-body-tertiary" aria-label="Сводка пакета">
             {% for label, count in totals %}
@@ -89,7 +89,9 @@
     <div class="card-body">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label class="form-label fw-semibold" for="content-zip">ZIP с учебными материалами</label>
-        <input class="form-control" type="file" name="file" id="content-zip" accept=".zip" required aria-describedby="package-format">
+        {% set upload_error = get_flashed_messages(category_filter=['danger', 'warning']) %}
+        <input class="form-control" type="file" name="file" id="content-zip" accept=".zip" required data-admin-focus
+               aria-describedby="{% if upload_error %}admin-action-message {% endif %}package-format"{% if upload_error %} aria-invalid="true"{% endif %}>
         <p class="form-text" id="package-format">Вложите JSON-файлы модулей или итоговых тестов. Точечные правки заданий загружайте отдельным ZIP. Размер ZIP — до 8 МиБ.</p>
         {% if preview %}<p class="form-text">Загрузка другого архива заменит текущий предпросмотр.</p>{% endif %}
         <button type="submit" class="btn btn-outline-primary">Проверить архив</button>

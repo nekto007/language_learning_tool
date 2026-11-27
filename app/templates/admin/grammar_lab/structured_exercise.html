@@ -26,8 +26,13 @@
 <p class="alert alert-info">Повторный импорт прежнего набора может снять изменённое упражнение с показа. Попытки и решения сохраняются в его истории.</p>
 {% endif %}
 {% endif %}
-{% if error %}<p class="alert alert-warning" role="alert" data-persist="true">{{ error }}</p>{% endif %}
-<form method="post" action="{{ url_for('.edit_exercise', exercise_id=exercise.id, materials_query=request.args.get('materials_query')) }}">
+{% if error %}
+<div id="exercise-form-error" class="alert alert-warning" role="alert" tabindex="-1" autofocus data-persist="true" data-admin-focus>
+    {{ error }}
+    <a class="alert-link" href="#{{ error_field }}">{{ 'К полям упражнения' if error_field == 'exercise-fields' else 'К полю для исправления' }}</a>
+</div>
+{% endif %}
+<form method="post" action="{{ url_for('.edit_exercise', exercise_id=exercise.id, materials_query=request.args.get('materials_query')) }}" data-admin-focus-fields>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="revision" value="{{ revision }}">
     <input type="hidden" name="editor_type" value="{{ exercise.exercise_type }}">
@@ -35,7 +40,7 @@
     {% if trial_result is not none %}
     <section class="card mb-3" aria-labelledby="exercise-trial-title">
         <div class="card-body text-break">
-            <h2 class="h5" id="exercise-trial-title">Проверка текущего ответа</h2>
+            <h2 class="h5" id="exercise-trial-title" tabindex="-1"{% if not error %} autofocus{% endif %} data-admin-focus>Проверка текущего ответа</h2>
             <p><span{% if not translation %} lang="en"{% endif %}>{{ trial }}</span> · {{ 'верно' if trial_result else 'неверно' }}</p>
             <p class="mb-0">Изменений в упражнении нет.</p>
         </div>
@@ -44,7 +49,7 @@
     {% if preview %}
     <section class="card mb-3" aria-labelledby="exercise-preview-title">
         <div class="card-body">
-            <h2 class="h5" id="exercise-preview-title">Предпросмотр</h2>
+            <h2 class="h5" id="exercise-preview-title" tabindex="-1"{% if not error %} autofocus{% endif %} data-admin-focus>Предпросмотр</h2>
             <div class="row gy-3 text-break">
                 {% for heading, row, prompt, accepted, result in preview.sides %}
                 <div class="col-md-6">
@@ -95,7 +100,7 @@
         </div>
     </section>
     {% endif %}
-    <div class="card mb-3" id="exercise-fields">
+    <div class="card mb-3" id="exercise-fields" tabindex="-1" data-admin-focus>
         <div class="card-body">
             <h2 class="h5">Условие</h2>
             {% if translation %}
@@ -111,7 +116,7 @@
                 <label class="form-label" for="question">{{ {'reorder': 'Справочный текст', 'error_correction': 'Запасная фраза с ошибкой',
                                                             'translation': 'Текст задания', 'fill_blank': 'Фраза с пропуском'}[kind] }}</label>
                 <textarea class="form-control" id="question" name="question" rows="2" maxlength="500"
-                          aria-describedby="exercise-question-help">{{ values.question }}</textarea>
+                          aria-describedby="{% if error and error_field == 'question' %}exercise-form-error {% endif %}exercise-question-help">{{ values.question }}</textarea>
                 <p class="form-text" id="exercise-question-help">
                     {% if reorder %}В практике ученик видит инструкцию.
                     {% elif translation %}Если отдельная исходная фраза пуста, этот текст показывается как фраза для перевода.
@@ -182,7 +187,7 @@
         {% if written and ('alternative_answers' in values or 'acceptable_answers' in values) %}
         {% set other_lines = ((values.get('alternative_answers', '') + '\n' + values.get('acceptable_answers', '')).splitlines()
                              | map('trim') | reject('equalto', '') | list) %}
-        <details class="border rounded p-3 mb-3" id="saved-aliases">
+        <details class="border rounded p-3 mb-3" id="saved-aliases"{% if error and error_field in ('acceptable_answers', 'alternative_answers') %} open{% endif %}>
             <summary>Другие сохранённые варианты ({{ other_lines|length }})</summary>
             <div class="mt-3">
                 {% for name, label in other_aliases if name in values %}

@@ -317,5 +317,6 @@ def decide(case_id: int) -> Response | tuple[str, int]:
     flash(result, 'success')
     if request.form.get('next') == '1':
         next_id = _next_case_id(case.id)
-        return redirect(url_for('.detail', case_id=next_id) if next_id else url_for('.index'), code=303)
-    return redirect(url_for('.detail', case_id=case.id), code=303)
+        return redirect(url_for('.detail', case_id=next_id, _anchor='admin-action-message')
+                        if next_id else url_for('.index', _anchor='admin-action-message'), code=303)
+    return redirect(url_for('.detail', case_id=case.id, _anchor='admin-action-message'), code=303)

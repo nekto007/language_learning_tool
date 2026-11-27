@@ -15,7 +15,7 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <!-- Design System -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css', v='20261127-admin-focus') }}">
 
     {% block extra_css %}{% endblock %}
 </head>
@@ -313,7 +313,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert"{% if loop.last %} id="admin-action-message" tabindex="-1" data-admin-focus{% endif %}>
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
                     </div>
@@ -501,6 +501,9 @@
             const alerts = document.querySelectorAll('.alert:not([data-persist="true"])');
             alerts.forEach(alert => {
                 setTimeout(() => {
+                    const descriptionIds = document.activeElement?.getAttribute('aria-describedby')?.split(/\s+/);
+                    if (alert.matches(':target') || alert.contains(document.activeElement)
+                        || (alert.id && descriptionIds?.includes(alert.id))) return;
                     const bsAlert = new bootstrap.Alert(alert);
                     bsAlert.close();
                 }, 5000);

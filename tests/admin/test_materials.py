@@ -101,7 +101,8 @@ def test_editor_back_link_and_save_keep_search_and_page(
             preview = _page(admin_client.post(editor_url, data={**data, 'action': 'preview'}))
             data.update(action='apply', preview_token=preview.select_one('input[name=preview_token]')['value'])
         saved = admin_client.post(editor_url, data=data)
-        assert saved.status_code == (302 if kind == 'lesson' else 303) and saved.location == back
+        expected = back if kind == 'lesson' else f'{back}#materials-results'
+        assert saved.status_code == (302 if kind == 'lesson' else 303) and saved.location == expected
         assert _results(_page(admin_client.get(saved.location))) == _results(page)
         if kind == 'lesson':
             assert db_session.get(Lessons, item_id).description == 'Saved via catalog'

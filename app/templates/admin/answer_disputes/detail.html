@@ -30,10 +30,19 @@
         {% if next_case_id %}<a href="{{ url_for('.detail', case_id=next_case_id) }}">Следующий спор →</a>{% endif %}
     </header>
 
-    {% if error %}<div class="alert alert-danger" role="alert" tabindex="-1" autofocus>{{ error }}</div>{% endif %}
+    {% if error %}
+    <div id="dispute-form-error" class="alert alert-danger" role="alert" tabindex="-1" autofocus data-persist="true" data-admin-focus>
+        {{ error }}
+        {% if editable %}
+        <a class="alert-link" href="{{ '#dispute-answer' if action in ('add', 'replace') else '#decision' }}">
+            {{ 'К варианту ответа' if action in ('add', 'replace') else 'К полям решения' }}
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
     {% if preview and preview_token %}
     <section class="disputes-panel disputes-preview" aria-labelledby="preview-heading">
-        <h2 id="preview-heading" tabindex="-1" autofocus>Предпросмотр решения</h2>
+        <h2 id="preview-heading" tabindex="-1" autofocus data-admin-focus>Предпросмотр решения</h2>
         <p class="disputes-preview-action">{{ decisions.get(preview.action, preview.action) }}</p>
         {% if preview.action in ('add', 'replace') %}
         <div class="disputes-comparison">
@@ -105,7 +114,7 @@
     {% endif %}
 
     {% if editable %}
-    <form method="post" action="{{ url_for('.preview', case_id=case.id) }}#preview-heading" class="disputes-panel" id="decision">
+    <form method="post" action="{{ url_for('.preview', case_id=case.id) }}#preview-heading" class="disputes-panel" id="decision" tabindex="-1" data-admin-focus>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="version" value="{{ version }}">
         <fieldset><legend>Решение</legend>
@@ -117,7 +126,8 @@
             </div>
         </fieldset>
         <label for="dispute-answer" class="disputes-label">Вариант ответа для проверки</label>
-        <textarea id="dispute-answer" class="form-control" name="answer" rows="2" maxlength="500" aria-describedby="dispute-answer-help">{{ answer if answer is not none else case.answer }}</textarea>
+        <textarea id="dispute-answer" class="form-control" name="answer" rows="2" maxlength="500" data-admin-focus
+                  aria-describedby="{% if error and action in ('add', 'replace') %}dispute-form-error {% endif %}dispute-answer-help">{{ answer if answer is not none else case.answer }}</textarea>
         <p id="dispute-answer-help" class="disputes-note">Для добавления варианта или замены ключа можно отредактировать ответ ученика.</p>
         <button class="btn btn-primary" type="submit">Предпросмотр решения</button>
     </form>

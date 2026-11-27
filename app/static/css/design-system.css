@@ -4904,6 +4904,15 @@ body.dark-theme #translationPopup {
     max-width: 1400px;
 }
 
+.admin-main :is([data-admin-focus], [data-admin-focus-fields] :target) {
+    scroll-margin-top: calc(var(--admin-header-height) + var(--space-4));
+}
+
+.admin-main :is([data-admin-focus], [data-admin-focus-fields] :target):focus-visible {
+    outline: 2px solid var(--primary-700);
+    outline-offset: 4px;
+}
+
 /* Admin Stats Cards */
 .stat-card {
     padding: var(--space-5);

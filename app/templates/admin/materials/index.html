@@ -41,7 +41,7 @@
     </form>
 
     <section aria-labelledby="materials-results">
-        <h2 id="materials-results">Результаты <span>{{ total }}</span></h2>
+        <h2 id="materials-results" tabindex="-1" data-admin-focus>Результаты <span>{{ total }}</span></h2>
         {% if rows %}
         <ul class="materials-list">
             {% for row in rows %}

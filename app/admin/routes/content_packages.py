@@ -58,6 +58,7 @@ def index() -> str | Response:
     session.pop(_CONFLICT_KEY, None)
     _discard()
     upload = request.files.get('file')
+    focus = 'content-zip'
     try:
         if not upload or not (upload.filename or '').lower().endswith('.zip'):
             raise ValueError('Выберите ZIP с учебными материалами.')
@@ -67,8 +68,10 @@ def index() -> str | Response:
             'owner': current_user.id, 'expires': time() + _PREVIEW_LIFETIME,
             'filename': upload.filename[:160], 'summary': summary, 'entries': entries,
         }, prefix=_FILE_PREFIX)
+        focus = 'package-preview'
     except QuestionAnchorConflict as error:
         session[_CONFLICT_KEY] = display_question_conflict(error)
+        focus = 'package-conflict'
     except ValueError as error:
         # Flash messages travel in the session cookie. A schema can report an error for every row.
         flash(str(error)[:350], 'danger')
@@ -76,7 +79,7 @@ def index() -> str | Response:
         db.session.rollback()
         logger.exception('Content archive preview failed')
         flash('Не удалось подготовить предпросмотр. Загрузите архив ещё раз.', 'danger')
-    return redirect(url_for('.index'), code=303)
+    return redirect(url_for('.index', _anchor=focus), code=303)
 
 
 @content_packages_bp.post('/content-packages/apply')
@@ -91,13 +94,14 @@ def apply() -> Response:
     preview_id = request.form.get('preview_id')
     if not preview_id or preview_id != session.get(_SESSION_KEY) or not (data := _preview()):
         flash('Предпросмотр устарел. Проверьте архив ещё раз.', 'warning')
-        return redirect(url_for('.index'), code=303)
+        return redirect(url_for('.index', _anchor='content-zip'), code=303)
+    focus = 'content-zip'
     try:
         # Workers can read the same preview concurrently. Only the one that
         # removes the staged file owns this confirmation, even for an unchanged lesson.
         if not delete_import_data(preview_id, prefix=_FILE_PREFIX):
             flash('Предпросмотр уже закрыт. Для новой проверки загрузите архив ещё раз.', 'warning')
-            return redirect(url_for('.index'), code=303)
+            return redirect(url_for('.index', _anchor='content-zip'), code=303)
         apply_package(data['entries'], data['summary'])
         log_admin_action(current_user.id, 'content_package.apply', target_type='curriculum',
                          required=any(row['kind'] == 'lesson_rows' for row in data['summary']))
@@ -105,6 +109,7 @@ def apply() -> Response:
     except QuestionAnchorConflict as error:
         db.session.rollback()
         session[_CONFLICT_KEY] = display_question_conflict(error)
+        focus = 'package-conflict'
     except ValueError as error:
         db.session.rollback()
         flash(str(error)[:350], 'danger')
@@ -116,6 +121,7 @@ def apply() -> Response:
         curriculum_cache.cache.clear()
         totals = ' · '.join(f'{label} — {count}' for label, count in package_totals(data['summary']))
         flash(f"Пакет «{data['filename']}» применён. {totals}.", 'success')
+        focus = 'admin-action-message'
     finally:
         session.pop(_SESSION_KEY, None)
-    return redirect(url_for('.index'), code=303)
+    return redirect(url_for('.index', _anchor=focus), code=303)

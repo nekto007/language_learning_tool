@@ -45,6 +45,12 @@ class ExerciseEdit:
     needs_confirmation: bool
 
 
+class ExerciseFieldError(ValueError):
+    def __init__(self, field: str, message: str) -> None:
+        super().__init__(message)
+        self.field = field
+
+
 def editor_revision(exercise: GrammarExercise) -> str:
     return content_digest([
         exercise.id, exercise.topic_id, exercise.exercise_type, exercise.content,
@@ -156,26 +162,32 @@ def _validate(exercise: GrammarExercise, row: dict) -> None:
         key = row['correct_answer']
         keys = key if isinstance(key, list) else [key]
         if not all(isinstance(value, str) and grade_row(exercise, row, value)['is_correct'] for value in keys):
-            raise ValueError('Укажите текстовый ключ, который принимает проверка.')
+            raise ExerciseFieldError('correct_answer', 'Укажите текстовый ключ, который принимает проверка.')
         if exercise.exercise_type == 'translation' and not _translation_phrase(row):
-            raise ValueError('Укажите исходную фразу для перевода.')
+            raise ExerciseFieldError('sentence', 'Укажите исходную фразу для перевода.')
         if exercise.exercise_type == 'fill_blank' and not has_blank_gap(row.get('question')):
-            raise ValueError('Обозначьте пропуск двумя или более подчёркиваниями.')
+            raise ExerciseFieldError('question', 'Обозначьте пропуск двумя или более подчёркиваниями.')
         return
     if exercise.exercise_type == 'error_correction':
-        if not (row.get('sentence') or row.get('question')) or not accepted_answers(exercise, row):
-            raise ValueError('Нужны ошибочная фраза и хотя бы один ответ, который принимает проверка.')
+        has_sentence = row.get('sentence') or row.get('question')
+        if not has_sentence or not accepted_answers(exercise, row):
+            raise ExerciseFieldError('correct_answer' if has_sentence else 'sentence',
+                                     'Нужны ошибочная фраза и хотя бы один ответ, который принимает проверка.')
         return
     words, key = row.get('words'), row.get('correct_answer')
     if (not isinstance(words, list) or not 2 <= len(words) <= 40
             or not all(isinstance(word, str) and word.strip() and len(word) <= 120 for word in words)):
-        raise ValueError('Введите от 2 до 40 непустых плиток, по одной на строку.')
-    for value in [key, *(row.get('alternatives') or [])]:
+        raise ExerciseFieldError('words', 'Введите от 2 до 40 непустых плиток, по одной на строку.')
+    for index, value in enumerate([key, *(row.get('alternatives') or [])]):
+        field = 'alternatives' if index else 'correct_answer'
         if not isinstance(value, str):
-            raise ValueError('Ключ и варианты должны содержать текст.')
-        order = _tile_order(words, value)
+            raise ExerciseFieldError(field, 'Ключ и варианты должны содержать текст.')
+        try:
+            order = _tile_order(words, value)
+        except ValueError as error:
+            raise ExerciseFieldError('words', str(error)) from error
         if order is None or not grade_row(exercise, row, order)['is_correct']:
-            raise ValueError(f'Ответ «{value}» не собирается из всех показанных плиток.')
+            raise ExerciseFieldError(field, f'Ответ «{value}» не собирается из всех показанных плиток.')
 
 
 def plan_edit(
@@ -184,7 +196,8 @@ def plan_edit(
     valid_difficulty = exercise.difficulty is None if difficulty is None else difficulty in (1, 2, 3)
     valid_order = exercise.order is None if order is None else 0 <= order <= 2_147_483_647
     if not valid_difficulty or not valid_order:
-        raise ValueError('Порядок должен быть неотрицательным, а сложность от 1 до 3.')  # noqa: RUF001 -- Russian form message.
+        raise ExerciseFieldError('difficulty' if not valid_difficulty else 'order',
+                                 'Порядок должен быть неотрицательным, а сложность от 1 до 3.')  # noqa: RUF001 -- Russian form message.
     before = effective_content(exercise)
     active = active_lab_override(exercise)
     authored = exercise.content.copy()
@@ -192,7 +205,7 @@ def plan_edit(
     for key, value in submitted.items():
         if key == 'direction':
             if value not in _DIRECTIONS:
-                raise ValueError('Выберите направление перевода.')
+                raise ExerciseFieldError('direction', 'Выберите направление перевода.')
             if value != _translation_direction(before):
                 authored['source_lang'], authored['target_lang'] = _DIRECTIONS[value]
             continue
@@ -201,7 +214,10 @@ def plan_edit(
         key_list = key == 'correct_answer' and exercise.exercise_type in WRITTEN_TYPES and (
             isinstance(before.get(key), list) or '\n' in value
         )
-        new = _field_value('alternatives' if key_list else key, value, before.get(key))
+        try:
+            new = _field_value('alternatives' if key_list else key, value, before.get(key))
+        except ValueError as error:
+            raise ExerciseFieldError(key, str(error)) from error
         if active and key in _PATCH_FIELDS:
             patch[key] = new
         elif new or key == 'correct_answer':

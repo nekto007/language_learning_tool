@@ -29,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 from app.admin.audit import log_admin_action
 from app.admin.services.grammar_exercise_editor import (
     EDITABLE_TYPES,
+    ExerciseFieldError,
     accepted_answers,
     editor_revision,
     fields_for,
@@ -598,6 +599,7 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
     difficulty = '' if exercise.difficulty is None else str(exercise.difficulty)
     order = '' if exercise.order is None else str(exercise.order)
     token, error, trial, status = '', '', '', 200
+    error_field = 'exercise-fields'
     preview = None
     trial_result = None
     if request.method == 'POST':
@@ -617,7 +619,7 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
                 if action == 'apply':
                     raise BadSignature('no changes to apply')
                 if not trial:
-                    raise ValueError('Изменений нет. Введите пробный ответ для проверки.')
+                    raise ExerciseFieldError('trial', 'Изменений нет. Введите пробный ответ для проверки.')
                 trial_result = grade_row(exercise, before, trial)['is_correct']
             else:
                 serializer = URLSafeTimedSerializer(current_app.secret_key, salt='admin-lab-exercise-edit')
@@ -636,8 +638,12 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
                                          exercise.id, required=True)
                         db.session.commit()
                         flash('Упражнение сохранено.', 'success')
-                        return redirect(materials_return_url() or url_for('.edit_topic', topic_id=exercise.topic_id), code=303)
+                        catalog = materials_return_url()
+                        destination = (f'{catalog}#materials-results' if catalog else
+                                       url_for('.edit_topic', topic_id=exercise.topic_id, _anchor='admin-action-message'))
+                        return redirect(destination, code=303)
                     error, status = 'Подтвердите сверку старых и новых ответов.', 422
+                    error_field = 'decision-checked'
                 sides = [(caption, row, written_prompt(exercise.exercise_type, row), accepted_answers(exercise, row),
                           grade_row(exercise, row, trial)['is_correct'] if trial else None)
                          for caption, row in (('Сейчас', before), ('После сохранения', planned.effective))]
@@ -649,6 +655,8 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
         except (ValueError, TypeError) as exc:
             db.session.rollback()
             error, status = str(exc), 422
+            if isinstance(exc, ExerciseFieldError):
+                error_field = exc.field
         except Exception:
             db.session.rollback()
             logger.exception('Structured grammar exercise edit failed exercise_id=%s admin_id=%s',
@@ -657,7 +665,7 @@ def _structured_exercise_form(exercise: GrammarExercise) -> ResponseReturnValue:
     response = current_app.make_response((render_template(
         'admin/grammar_lab/structured_exercise.html', exercise=exercise, topic=exercise.topic, values=values,
         difficulty=difficulty, order=order, revision=revision, preview=preview, token=token, trial=trial, error=error,
-        trial_result=trial_result, decision=active_lab_override(exercise) is not None,
+        trial_result=trial_result, error_field=error_field, decision=active_lab_override(exercise) is not None,
     ), status))
     response.headers['Cache-Control'] = 'private, no-store'
     return response
