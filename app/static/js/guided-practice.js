@@ -10,6 +10,8 @@
   const readingPreview = root.dataset.readingPreview === 'true';
   const coursePractice = root.dataset.coursePractice === 'true';
   const readingLayout = root.dataset.readingLayout === 'true';
+  const listeningLayout = root.dataset.listeningLayout === 'true';
+  const compactLayout = readingLayout || listeningLayout;
   const drafts = !readingPreview && window.LLTPracticeDrafts ? new window.LLTPracticeDrafts.Store(window, root.dataset.account, root.dataset.lesson) : null;
   const draftStorage = () => drafts || window.sessionStorage;
   const lessonKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:`;
@@ -98,7 +100,7 @@
     if (busy) return;
     focusAfterDraw = screen.contains(document.activeElement);
     busy = true; errorBox.hidden = true;
-    if (readingLayout) refreshButton.hidden = true;
+    if (compactLayout) refreshButton.hidden = true;
     screen.setAttribute('aria-busy', 'true');
     root.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try { await action(); } catch (error) {
@@ -107,7 +109,7 @@
       }
       if (!lesson && error.code === 'lesson_locked') screen.querySelector('[data-practice-loading]')?.remove();
       errorBox.textContent = error.message; errorBox.hidden = false;
-      if (readingLayout && !accountInvalid && !['lesson_locked', 'plan_paused'].includes(error.code)) refreshButton.hidden = false;
+      if (compactLayout && !accountInvalid && !['lesson_locked', 'plan_paused'].includes(error.code)) refreshButton.hidden = false;
       errorBox.scrollIntoView({block: 'nearest'});
     } finally {
       busy = false; screen.setAttribute('aria-busy', 'false'); draw();
@@ -220,7 +222,7 @@
         next.href = root.dataset.courseNext;
         resultActions.append(next);
       }
-      if (!readingLayout) {
+      if (!compactLayout) {
         const back = node('a', 'К урокам модуля', 'btn btn-outline-secondary');
         back.href = root.querySelector('a').href;
         resultActions.append(back);
@@ -247,7 +249,7 @@
       const next = node('a', plan.title, 'btn btn-primary');
       next.href = plan.url; controls.append(next);
     }
-    if (!readingLayout) {
+    if (!compactLayout) {
       const exit = node('a', 'К плану дня', showNext ? 'btn btn-outline-secondary' : 'btn btn-primary');
       exit.href = root.querySelector('a').href; controls.append(exit);
     }
@@ -356,6 +358,10 @@
     const explanation = (feedback.explanation || '').trim();
     if (!checkedChoice) {
       const resolution = feedback.web_resolution;
+      if (listeningLayout && title != null && resolution) {
+        box.dataset.verdict = resolution.rank > 1 ? 'corrected' : 'correct';
+        if (resolution.rank === 1) box.append(node('p', 'Верно с первой попытки', 'fw-semibold'));
+      }
       if (answer) box.append(node('p', (resolution ? 'Первый ответ: ' : 'Мой ответ: ') + readingAnswerLabel(question, answer)));
       if (resolution?.rank > 1) {
         const of = resolution.rank === 2 ? 'со' : 'с';
@@ -447,13 +453,13 @@
       });
       if (help.choices?.length) box.append(node('p', 'Варианты: ' + help.choices.join(' · '), 'text-secondary mt-2'));
     } else if (isChoiceQuestion(q)) {
-      const correctValue = readingLayout ? correctReadingOption(q, state.answers[q.id], checked) : undefined;
+      const correctValue = compactLayout ? correctReadingOption(q, state.answers[q.id], checked) : undefined;
       q.options.forEach(option => {
-        const label = node('label', null, readingLayout ? 'practice-reading-choice' : 'card card-body mb-2');
+        const label = node('label', null, compactLayout ? 'practice-reading-choice' : 'card card-body mb-2');
         const field = node('input'); field.type = 'radio'; field.name = 'answer'; field.value = option.value;
         field.checked = state.answers[q.id] === option.value; field.disabled = !!checked;
         field.addEventListener('change', () => set(option.value));
-        if (readingLayout) {
+        if (compactLayout) {
           const content = node('span', readingAnswerLabel(q, readingBoolean(q) ? option.value : option.label));
           if (checked) {
             const correct = option.value === correctValue;
@@ -706,7 +712,7 @@
     }
     const feedback = state.checks[q.id];
     if (feedback) {
-      if (readingLayout) {
+      if (compactLayout) {
         appendReadingFeedback(screen, q, feedback, {reference});
       } else {
         const box = node('div', null, feedback.correct ? 'alert alert-success' : 'alert alert-warning');
@@ -867,7 +873,7 @@
     save(); draw();
   };
   refreshButton = button('Обновить задание', () => openEditor());
-  if (readingLayout) {
+  if (compactLayout) {
     refreshButton.textContent = 'Повторить загрузку';
     refreshButton.hidden = true;
     root.querySelector('.practice-reading-header').append(refreshButton);
