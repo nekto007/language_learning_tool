@@ -12,6 +12,8 @@
   const readingLayout = root.dataset.readingLayout === 'true';
   const listeningLayout = root.dataset.listeningLayout === 'true';
   const compactLayout = readingLayout || listeningLayout;
+  const finalLayout = root.dataset.finalLayout === 'true';
+  const compactHeader = compactLayout || finalLayout;
   const drafts = !readingPreview && window.LLTPracticeDrafts ? new window.LLTPracticeDrafts.Store(window, root.dataset.account, root.dataset.lesson) : null;
   const draftStorage = () => drafts || window.sessionStorage;
   const lessonKey = `llt:practice:${root.dataset.account}:${root.dataset.lesson}:`;
@@ -100,7 +102,7 @@
     if (busy) return;
     focusAfterDraw = screen.contains(document.activeElement);
     busy = true; errorBox.hidden = true;
-    if (compactLayout) refreshButton.hidden = true;
+    if (compactHeader) refreshButton.hidden = true;
     screen.setAttribute('aria-busy', 'true');
     root.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try { await action(); } catch (error) {
@@ -109,7 +111,7 @@
       }
       if (!lesson && error.code === 'lesson_locked') screen.querySelector('[data-practice-loading]')?.remove();
       errorBox.textContent = error.message; errorBox.hidden = false;
-      if (compactLayout && !accountInvalid && !['lesson_locked', 'plan_paused'].includes(error.code)) refreshButton.hidden = false;
+      if (compactHeader && !accountInvalid && !['lesson_locked', 'plan_paused'].includes(error.code)) refreshButton.hidden = false;
       errorBox.scrollIntoView({block: 'nearest'});
     } finally {
       busy = false; screen.setAttribute('aria-busy', 'false'); draw();
@@ -455,7 +457,7 @@
     } else if (isChoiceQuestion(q)) {
       const correctValue = compactLayout ? correctReadingOption(q, state.answers[q.id], checked) : undefined;
       q.options.forEach(option => {
-        const label = node('label', null, compactLayout ? 'practice-reading-choice' : 'card card-body mb-2');
+        const label = node('label', null, compactHeader ? 'practice-reading-choice' : 'card card-body mb-2');
         const field = node('input'); field.type = 'radio'; field.name = 'answer'; field.value = option.value;
         field.checked = state.answers[q.id] === option.value; field.disabled = !!checked;
         field.addEventListener('change', () => set(option.value));
@@ -553,6 +555,7 @@
   const drawContent = () => {
     if (!lesson || !state) return;
     resultActions = null;
+    if (finalLayout) screen.classList.remove('exam-question');
     screen.replaceChildren();
     if (state.result) {
       const r = state.result, first = lesson.correction;
@@ -678,10 +681,25 @@
       screen.append(node('h2', step.title, 'h4')); blocks(screen, step.theory);
       screen.append(button('Правило понятно — к практике', () => { state.readSteps.push(step.id); save(); draw(); }, true)); return;
     }
-    screen.append(node('p', state.roundPhase === 'correction'
+    const position = node('p', state.roundPhase === 'correction'
       ? `Исправление · осталось заданий: ${state.roundRemaining}`
-      : `${isCorrection() ? 'Исправление' : 'Вопрос'} ${state.index + 1} из ${lesson.questions.length}`, 'text-secondary'));
-    screen.append(node('h2', q.instruction, 'h5'), node('p', q.prompt, 'fs-4 fw-bold'));
+      : `${isCorrection() ? 'Исправление' : 'Вопрос'} ${state.index + 1} из ${lesson.questions.length}`, 'text-secondary');
+    if (finalLayout) {
+      screen.classList.add('exam-question');
+      const track = node('progress');
+      track.max = lesson.questions.length;
+      track.value = state.index + 1;
+      track.setAttribute('aria-hidden', 'true');
+      position.className = 'exam-position';
+      position.append(track);
+    }
+    screen.append(position);
+    if (finalLayout) {
+      if (q.instruction && q.instruction !== 'Выбери ответ') screen.append(node('p', q.instruction, 'text-secondary mb-1'));
+      screen.append(node('h2', q.prompt, 'h4 mb-3'));
+    } else {
+      screen.append(node('h2', q.instruction, 'h5'), node('p', q.prompt, 'fs-4 fw-bold'));
+    }
     if (q.context) screen.append(node('p', q.context)); audio(q.audio_url || lesson.audio_url);
     if (q.image_url) { const img = node('img'); img.src = q.image_url; img.alt = 'Иллюстрация к заданию'; img.className = 'img-fluid my-3'; screen.append(img); }
     if (q.video_url || lesson.video_url) { const video = node('video'); video.controls = true; video.src = q.video_url || lesson.video_url; video.className = 'w-100 my-3'; screen.append(video); }
@@ -877,7 +895,7 @@
     save(); draw();
   };
   refreshButton = button('Обновить задание', () => openEditor());
-  if (compactLayout) {
+  if (compactHeader) {
     refreshButton.textContent = 'Повторить загрузку';
     refreshButton.hidden = true;
     root.querySelector('.practice-reading-header').append(refreshButton);

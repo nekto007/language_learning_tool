@@ -27,6 +27,44 @@
 .practice-reading-choice:focus-within { outline: 2px solid #3454a5; outline-offset: 2px; }
 .practice-reading-choice[data-verdict="correct"] { border-color: #237447; background: #eaf5ef; color: #174d31; }
 .practice-reading-choice[data-verdict="incorrect"] { border-color: #a13b3b; background: #fff0ef; color: #782525; }
+[data-final-layout] .practice-reading-header { padding: 0; margin: 0 0 .65rem; border: 0; }
+[data-final-layout] .practice-reading-header a { margin: 0 !important; padding-inline: 0; color: #40516a; }
+[data-final-layout] h1 { font-size: clamp(1.35rem, 3vw, 1.9rem); text-wrap: balance; letter-spacing: -.025em; }
+[data-final-layout] .exam-question {
+  --exam-accent: #235c77; background: #fff; color: #1a2e42; padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid #d9e3e9; border-radius: 1.5rem; box-shadow: 0 6px 24px rgb(36 65 87 / 6%);
+}
+.exam-question .exam-position {
+  display: flex; align-items: center; gap: 1rem; color: var(--exam-accent);
+  font-size: .9rem; font-weight: 600; margin-bottom: 1rem;
+}
+.exam-position progress {
+  flex: 1; min-width: 0; height: .35rem; appearance: none; border: 0;
+  overflow: hidden; border-radius: 1rem; background: #e7eff2; color: var(--exam-accent);
+}
+.exam-position progress::-webkit-progress-bar { background: #e7eff2; }
+.exam-position progress::-webkit-progress-value { background: var(--exam-accent); border-radius: 1rem; }
+.exam-position progress::-moz-progress-bar { background: var(--exam-accent); border-radius: 1rem; }
+.exam-question h2 { line-height: 1.3; text-wrap: pretty; }
+.exam-question .practice-reading-choice {
+  align-items: center; gap: .8rem; padding: .65rem 1rem; cursor: pointer;
+  background: #f6f9fa; border: 1px solid #d9e3e9; border-radius: .95rem;
+}
+.exam-question .practice-reading-choice input { margin: 0; accent-color: var(--exam-accent); }
+.exam-question .practice-reading-choice:has(input:checked) {
+  border-color: var(--exam-accent); background: #e7f2f6; color: #143f52;
+  box-shadow: inset 0 0 0 1px var(--exam-accent);
+}
+.exam-question .practice-reading-choice:focus-within { outline: none; }
+.exam-question .practice-reading-choice:has(input:focus-visible) { outline: 2px solid var(--exam-accent); outline-offset: 2px; }
+#guided-practice .exam-question .btn { border-radius: .95rem; }
+#guided-practice .exam-question .btn-primary { background: var(--exam-accent); border-color: var(--exam-accent); }
+@media (hover: hover) {
+  .exam-question .practice-reading-choice:hover { border-color: #7c9aa8; }
+}
+@media (max-width: 480px) {
+  #guided-practice .exam-question .btn-primary { width: 100%; }
+}
 .practice-reading-choice small { display: block; font-weight: 700; }
 .practice-reading-feedback { padding: .9rem 1rem; border: 1px solid #cbd5e1; border-radius: .6rem; margin-block: .85rem; }
 .practice-reading-feedback[data-verdict="correct"] { border-inline-start: 4px solid #237447; }
@@ -40,6 +78,7 @@
 </style>
 {% endblock %}
 {% block content %}
+{% set final_layout = lesson.type == 'final_test' %}
 {% set listening_layout = lesson.type == 'listening_quiz' %}
 <main id="guided-practice" class="container py-4" style="max-width:800px"
       data-endpoint="{{ reading_preview_endpoint or url_for('curriculum_lessons.practice_document', lesson_id=lesson.id) }}"
@@ -48,8 +87,9 @@
       {% else %}data-result-plan="{{ url_for('words.daily_plan_next_step') }}"{% endif %}
       {% if lesson.type in ('reading', 'text') %}data-reading-layout="true"{% elif listening_layout %}data-listening-layout="true"{% endif %}
       {% if not reading_preview_endpoint %}data-weighted-practice="true"{% endif %}
+      {% if final_layout %}data-final-layout="true"{% endif %}
       data-account="{{ current_user.id }}" data-lesson="{{ lesson.id }}">
-  {% if lesson.type in ('reading', 'text') or listening_layout %}<header class="practice-reading-header">{% endif %}
+  {% if lesson.type in ('reading', 'text') or listening_layout or final_layout %}<header class="practice-reading-header">{% endif %}
   {% if reading_preview_endpoint %}
   <a href="{{ url_for('curriculum_admin.view_lesson', lesson_id=lesson.id) }}" class="btn btn-outline-secondary mb-3">К карточке урока</a>
   {% elif course_practice %}
@@ -57,7 +97,7 @@
   {% else %}
   <a href="{{ url_for('words.dashboard') }}" class="btn btn-outline-secondary mb-3">К плану дня</a>
   {% endif %}
-  {% if lesson.type in ('reading', 'text') or listening_layout %}</header>{% endif %}
+  {% if lesson.type in ('reading', 'text') or listening_layout or final_layout %}</header>{% endif %}
   {% if reading_preview_endpoint %}<p class="text-secondary small">Предпросмотр ученика. Ответы и результат не сохраняются.</p>{% endif %}
   <h1 class="h3">{{ lesson.title }}</h1>
   <p id="practice-goal" class="text-secondary" hidden></p>
@@ -71,5 +111,5 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/practice-drafts.js', v='20261124-resume') }}" defer></script>
-<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261127-result-review') }}" defer></script>
+<script src="{{ url_for('static', filename='js/guided-practice.js', v='20261127-final-panel') }}" defer></script>
 {% endblock %}
