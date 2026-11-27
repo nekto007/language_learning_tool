@@ -42,8 +42,8 @@ def build_study_start_card(user_id, db, plan, completion):
     The card is temporary: it disappears after two attained curriculum lessons.
     It does not create progress, reset answers, or invent a new lesson order.
     """
-    if plan.get('day_secured'):
-        return None  # Keep the existing day-completion celebration visible.
+    if plan.get('day_secured') or plan.get('blocked_module'):
+        return None  # Keep the day's completion or prerequisite visible.
     item = next_unified_item(plan, completion)
     if item is None or not str(item['url']).startswith('/') or str(item['url']).startswith('//'):
         return None

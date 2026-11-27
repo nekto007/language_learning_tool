@@ -301,7 +301,7 @@ def test_reconciler_is_applied_in_unified_plan_without_changing_frozen_snapshot(
     monkeypatch.setattr(plan, '_compute_module_progress', lambda *args: None)
     monkeypatch.setattr(plan, 'build_optional', lambda *args, **kwargs: ([], False))
     monkeypatch.setattr(plan, 'build_setup', lambda *args: [])
-    monkeypatch.setattr(snapshot, 'resolve_snapshot_for_today', lambda *args: frozen)
+    monkeypatch.setattr(snapshot, 'resolve_snapshot_for_today', lambda *args, **kwargs: frozen)
     monkeypatch.setattr(snapshot, 'overlay_completion', lambda *args: deepcopy(original))
     _get_cache().clear()
     first = plan.get_daily_plan(user.id, db)

@@ -89,6 +89,9 @@ def resolve_snapshot_for_today(
     user_id: int,
     today_local: Any,
     db: Any,
+    *,
+    spine_blocked: bool | None = None,
+    next_lesson_available: bool = False,
 ) -> dict[str, Any]:
     """Return the snapshot for ``today_local``, building/rolling as needed.
 
@@ -117,12 +120,26 @@ def resolve_snapshot_for_today(
         return _empty_snapshot(today_local)
 
     existing = _valid_snapshot(log.plan_json)
-    if existing is not None:
+    if existing is not None and (existing['items'] or not next_lesson_available):
         return existing
+
+    if spine_blocked is None:
+        from app.daily_plan.linear.progression import find_next_lesson_state
+
+        lesson, blocking_module_id = find_next_lesson_state(user_id, db)
+        spine_blocked = lesson is None and blocking_module_id is not None
+    if spine_blocked:
+        # No new plan to freeze yet. Once the prerequisite is met, an
+        # ordinary build can resume without persisting a blocked rollover.
+        return _empty_snapshot(today_local)
 
     yesterday = today_local - timedelta(days=1)
     explicit_level_change = isinstance(log.plan_json, dict) and log.plan_json.get('placement_rebuild') is True
-    rolled = None if explicit_level_change else _try_rollover_from_yesterday(user_id, yesterday, today_local, db)
+    # Empty snapshots saved before content became available are rebuilt
+    # from the live spine rather than importing a stale previous queue.
+    rolled = None if explicit_level_change or existing is not None else _try_rollover_from_yesterday(
+        user_id, yesterday, today_local, db,
+    )
     if rolled is not None:
         log.plan_json = rolled
         db.session.flush()

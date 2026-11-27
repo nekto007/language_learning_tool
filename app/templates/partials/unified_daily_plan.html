@@ -253,6 +253,37 @@
     </div>
   {% endif %}
 
+  {% if u_blocked_module %}
+    <section class="daily-plan__empty-state" aria-labelledby="blocked-module-heading" data-blocked-plan>
+      <h2 class="h4" id="blocked-module-heading">Следующие уроки пока недоступны</h2>
+      <p class="daily-plan__empty">
+        Модуль «{{ u_blocked_module.get('module_title') }}»{% if u_blocked_module.get('level_code') %} ({{ u_blocked_module.get('level_code') }}){% endif %}.
+      </p>
+      {% if u_blocked_module.get('reasons') %}
+      <ul class="daily-plan__empty-reasons">
+        {% for reason in u_blocked_module.get('reasons') %}<li>{{ reason }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% set blocked_next = namespace(item=none) %}
+      {% set available_steps = u_required + u_optional if not u_required_total or u_required_settled or u_day_secured else u_required %}
+      {% for item in available_steps %}
+        {% set completed = item.get('completed') or (plan_completion and plan_completion.get(item.get('id'))) %}
+        {% if blocked_next.item is none and item.get('url') and not (completed or item.get('blocked') or item.get('skipped')) %}
+          {% set blocked_next.item = item %}
+        {% endif %}
+      {% endfor %}
+      {% if blocked_next.item %}
+        {% set blocked_url = blocked_next.item.get('url') %}
+        {% if blocked_url.startswith('/grammar-lab/practice/topic/') %}
+          {% set blocked_url = url_for('grammar_lab.practice', topic_id=blocked_next.item.get('data', {}).get('topic_id'), return_url=url_for('words.dashboard')) %}
+        {% endif %}
+        <a class="btn btn-primary" data-blocked-plan-next href="{{ blocked_url }}">Открыть «{{ blocked_next.item.get('title') }}»</a>
+      {% else %}
+        <a class="btn btn-outline-primary" href="{{ url_for('courses.catalog') }}">Открыть каталог курсов</a>
+      {% endif %}
+    </section>
+  {% endif %}
+
   {# ── REQUIRED ── #}
   <div class="daily-plan__section daily-plan__section--required" data-section="required">
     {% if not dashboard_today %}
@@ -541,12 +572,9 @@
           </div>
         </div>
       {% endif %}
-    {% elif not dashboard_today or not u_day_secured %}
+    {% elif (not dashboard_today or not u_day_secured) and not u_blocked_module %}
       <div class="daily-plan__empty-state" role="status" aria-live="polite">
         <span class="daily-plan__empty-icon" aria-hidden="true">&#128203;</span>
-        {# A blocked spine also empties the required list, but for a reason the
-           learner can act on — name the module and the unmet condition instead
-           of sending them to a setup they have already done. #}
         {% if u_show_plan_status %}
           {% set status_title = 'План на паузе' if u_paused else 'Курс завершён' %}
           {% if dashboard_today %}<h1 class="h4">{{ status_title }}</h1>
@@ -573,26 +601,6 @@
               <a href="{{ url_for('courses.catalog') }}">Открыть каталог курсов</a>
             {% endif %}
           </p>
-        {% elif u_blocked_module %}
-        {# u_blocked_module is the module the learner CANNOT open (its own
-           prerequisites are unmet) — not the module they have to finish. The
-           requirement lives in `reasons` below, so this sentence must not tell
-           them to «complete» a locked module. #}
-        <p class="daily-plan__empty">
-          Следующие уроки закрыты — модуль
-          «{{ u_blocked_module.get('module_title') }}»{% if u_blocked_module.get('level_code') %} ({{ u_blocked_module.get('level_code') }}){% endif %}
-          пока недоступен{% if u_blocked_module.get('reasons') %}:{% else %}.{% endif %}
-        </p>
-        {% if u_blocked_module.get('reasons') %}
-        <ul class="daily-plan__empty-reasons">
-          {% for reason in u_blocked_module.get('reasons') %}
-          <li>{{ reason }}</li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-        <p class="daily-plan__empty">
-          Пока можно заниматься из раздела «Дополнительно» ниже — день всё равно засчитается.
-        </p>
         {% else %}
         <p class="daily-plan__empty">
           Завершите настройку ниже, чтобы получить план дня.

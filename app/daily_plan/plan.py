@@ -557,9 +557,21 @@ def get_daily_plan(
         from app.utils.time_utils import get_user_local_date
 
         today_local = get_user_local_date(user_id, session)
-        snapshot = resolve_snapshot_for_today(user_id, today_local, session)
+        snapshot = resolve_snapshot_for_today(
+            user_id, today_local, session, spine_blocked=spine_blocked,
+            next_lesson_available=next_lesson is not None,
+        )
         snapshot_had_items = bool(snapshot.get('items'))
         required_dicts = overlay_completion(user_id, snapshot, session)
+        if spine_blocked:
+            # Keep completed steps and independent work in the frozen day.
+            # The live spine has no available lesson or linked final test.
+            required_dicts = [
+                item for item in required_dicts
+                if item.get('completed') or (
+                    item['kind'] != 'curriculum' and not (item.get('data') or {}).get('pre_final_test')
+                )
+            ]
         # The self-repair (DP-005/DP-033/DP-044) drops frozen items that can no
         # longer be finished. When it drops the LAST one, required goes empty
         # while graduated/blocked_module_id are both false — and
@@ -568,7 +580,7 @@ def get_daily_plan(
         # for the rest of the study day: the exact outcome the repair exists to
         # prevent. Reachable with a one-item snapshot (calm tier, no due SRS, no
         # reading preference) whose lesson an admin deletes mid-day.
-        required_self_healed = snapshot_had_items and not required_dicts
+        required_self_healed = snapshot_had_items and not required_dicts and not spine_blocked
         if required_self_healed:
             logger.warning(
                 "unified_plan_assemble user=%s required emptied by self-repair "
@@ -610,9 +622,10 @@ def get_daily_plan(
 
     from app.daily_plan.quiz_corrections import reconcile_quiz_corrections
 
-    required_dicts, optional_dicts = reconcile_quiz_corrections(
-        user_id, session, required_dicts, optional_dicts,
-    )
+    if not spine_blocked:
+        required_dicts, optional_dicts = reconcile_quiz_corrections(
+            user_id, session, required_dicts, optional_dicts,
+        )
 
     # ETA from the reconciled list — carried/completed slots cost 0 minutes.
     total_estimated_minutes = sum(

@@ -960,10 +960,14 @@ class TestGraduatedDaySecured:
         The learner has to be told which module is in the way — an empty plan
         with no explanation is the dead end this state exists to avoid.
         """
+        from app.daily_plan.models import DailyPlanLog
+        from app.daily_plan.snapshot import SNAPSHOT_VERSION
+        from app.utils.time_utils import get_user_local_date
+
         level = _make_level(db_session, order=900)
         blocked = _make_module(db_session, level, number=1)
         gate = _make_module(db_session, level, number=2)
-        _make_lesson(db_session, blocked, number=1, type_='vocabulary')
+        blocked_lesson = _make_lesson(db_session, blocked, number=1, type_='vocabulary')
         _make_lesson(db_session, gate, number=1, type_='vocabulary')
         # The first module of the level demands a module the user has not done,
         # so the whole level — and with it the spine — is hidden.
@@ -971,6 +975,17 @@ class TestGraduatedDaySecured:
         db_session.commit()
 
         user = _make_user(db_session, onboarding_level=level.code)
+        today = get_user_local_date(user.id, real_db)
+        frozen_item = {
+            'id': f'curriculum:lesson:{blocked_lesson.id}', 'kind': 'curriculum',
+            'title': blocked_lesson.title, 'url': f'/learn/{blocked_lesson.id}/',
+            'data': {'lesson_id': blocked_lesson.id},
+        }
+        saved = DailyPlanLog(user_id=user.id, plan_date=today, plan_json={
+            'version': SNAPSHOT_VERSION, 'date': today.isoformat(), 'items': [frozen_item],
+        })
+        db_session.add(saved)
+        db_session.commit()
         plan = get_daily_plan(user.id, real_db)
 
         assert plan.get('graduated') is False
@@ -978,6 +993,9 @@ class TestGraduatedDaySecured:
         assert blocked_module.get('module_id') == blocked.id
         assert blocked_module.get('module_title') == blocked.title
         assert blocked_module.get('reasons'), 'the unmet condition must be listed'
+        assert not plan['required']
+        db_session.refresh(saved)
+        assert saved.plan_json['items'] == [frozen_item]
 
         from app.daily_plan.service import get_daily_plan_unified
         meta = (get_daily_plan_unified(user.id) or {}).get('_plan_meta', {})
