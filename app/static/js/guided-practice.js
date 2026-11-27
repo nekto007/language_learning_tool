@@ -368,13 +368,18 @@
     if (explanation && explanation !== expected && explanation !== answer
         && explanation !== 'Сравни свой ответ с образцом: ' + expected) {
       box.append(node('p', 'Пояснение: ' + explanation));
-    } else if (reference) {
-      box.append(button('Сверить с текстом урока', () => {
+    }
+    if (!feedback.correct && reference) {
+      const link = node('a', 'Посмотреть в тексте', 'small text-decoration-underline');
+      link.href = '#' + reference.id;
+      link.addEventListener('click', event => {
+        event.preventDefault();
         reference.open = true;
         const summary = reference.querySelector('summary');
         summary.focus({preventScroll: true});
         summary.scrollIntoView({block: 'center'});
-      }));
+      });
+      box.append(link);
     }
     parent.append(box);
   };
@@ -676,7 +681,9 @@
     }
     let reference;
     if (['reading','text','listening_immersion_quiz'].includes(lesson.type) && lesson.theory?.length) {
-      reference = node('details', null, 'my-3'); reference.append(node('summary', 'Текст урока'));
+      reference = node('details', null, 'my-3');
+      reference.id = 'practice-lesson-text';
+      reference.append(node('summary', 'Текст урока'));
       if (readingLayout) story(reference);
       else blocks(reference, lesson.theory);
       screen.append(reference);
