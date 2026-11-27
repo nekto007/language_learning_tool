@@ -48,6 +48,7 @@ _LINEAR_SLOT_POINTS = {
 
 words = Blueprint('words', __name__)
 PUBLIC_DICTIONARY_ALPHABET = tuple('abcdefghijklmnopqrstuvwxyz')
+PUBLIC_DICTIONARY_ORIGIN = 'public_dictionary'
 
 
 def encode_word_slug(english_word: str) -> str:
@@ -58,6 +59,30 @@ def encode_word_slug(english_word: str) -> str:
 def decode_word_slug(slug: str) -> str:
     """Inverse of encode_word_slug: '_' → space, preserve hyphens."""
     return (slug or '').strip().lower().replace('_', ' ')
+
+
+def _word_by_public_term(term: str) -> CollectionWords | None:
+    return CollectionWords.query.filter(func.lower(CollectionWords.english_word) == term).first()
+
+
+def _has_public_word_page(word: CollectionWords) -> bool:
+    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
+
+    return not word.level or word.level in PUBLIC_CEFR_CODES
+
+
+def public_dictionary_study_return_url(word_id: int) -> str | None:
+    """Resolve the public destination of this cabinet word by its server ID."""
+    word = db.session.get(CollectionWords, word_id)
+    if word is None or not _has_public_word_page(word):
+        return None
+    slug = encode_word_slug(word.english_word)
+    if not slug:
+        return None
+    public_word = _word_by_public_term(decode_word_slug(slug))
+    if public_word is None or public_word.id != word_id:
+        return None
+    return url_for('words.public_word', word_slug=slug)
 
 
 @words.app_template_filter('word_slug')
@@ -212,23 +237,18 @@ def public_word(word_slug: str):
     # Slug uses '_' for spaces; hyphens are preserved (e.g. 'mother-in-law').
     search_term = decode_word_slug(word_slug)
 
-    word = CollectionWords.query.filter(
-        func.lower(CollectionWords.english_word) == search_term
-    ).first()
+    word = _word_by_public_term(search_term)
 
     if not word:
         # Legacy fallback: older slug format used '-' for spaces; if a hyphen
         # was used as a space separator, try interpreting all hyphens as spaces.
         legacy_term = word_slug.strip().lower().replace('-', ' ').replace('_', ' ')
         if legacy_term != search_term:
-            word = CollectionWords.query.filter(
-                func.lower(CollectionWords.english_word) == legacy_term
-            ).first()
+            word = _word_by_public_term(legacy_term)
         if not word:
             abort(404)
 
-    from app.curriculum.routes.public import PUBLIC_CEFR_CODES
-    if word.level and word.level not in PUBLIC_CEFR_CODES:
+    if not _has_public_word_page(word):
         abort(404)
 
     # Single canonical address per word — 301 non-canonical casing / legacy
@@ -1707,6 +1727,9 @@ def word_detail(word_id):
         word_profile=word_profile,
         word_profile_public=False,
         study_summary=study_summary,
+        study_origin=PUBLIC_DICTIONARY_ORIGIN if (
+            request.args.get('origin') == PUBLIC_DICTIONARY_ORIGIN and _has_public_word_page(word)
+        ) else None,
         books=books,
         related_words=related_words
     )

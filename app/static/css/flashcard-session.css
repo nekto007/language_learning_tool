@@ -1297,7 +1297,25 @@
 @media (max-width: 480px) { .cards-page { padding-inline: .5rem; } .cards-page .cards-progress__badges { gap: .25rem; } .cards-page .cards-badge { font-size: .7rem; } }
 body.dark-theme .cards-page { --cards-primary: #b9b2ff; --cards-primary-dark: #b9b2ff; --cards-gradient: linear-gradient(135deg,#b9b2ff,#b9b2ff); --cards-surface: #20202e; --cards-surface-alt: #292736; --cards-text: #eeeaf6; --cards-text-muted: #c0bacf; --cards-border: #403c50; }
 body.dark-theme .cards-page #show-answer-btn { color: #27205e; }
-@media (prefers-reduced-motion: reduce) { .cards-page *, .cards-page *::before, .cards-page *::after { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+    .cards-page *, .cards-page *::before, .cards-page *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    /* Show the finished state even when the entrance animations do not run. */
+    .cards-page #session-complete :is(
+        .celebration-icon, .celebration-title, .celebration-stats,
+        .xp-reward, .celebration-streak, .celebration-actions
+    ) {
+        opacity: 1;
+        transform: none;
+    }
+
+    .cards-page #session-complete .checkmark-path {
+        stroke-dashoffset: 0;
+    }
+}
 
 .cards-page #front-word, .cards-page #back-word { color: var(--cards-text); }
 .cards-page .flashcard .text-secondary { color: var(--cards-text-muted) !important; }

@@ -197,6 +197,59 @@ def test_saved_status_and_duplicate_save_preserve_srs(entry: Any, state: str) ->
     assert UserWord.query.filter_by(user_id=user.id, word_id=entry['word'].id).count() == 1
 
 
+def test_public_saved_word_review_returns_to_its_canonical_card(entry: Any) -> None:
+    word = entry['word']
+    word.english_word += ' blue jay'
+    db.session.commit()
+    entry['target'] = '/dictionary/' + word.english_word.replace(' ', '_')
+    user = _user()
+    assert _login(entry, user).status_code == 302
+    client = entry['client']
+    action, fields, _ = _form(client, entry['target'], '[data-save-word]')
+    saved = client.post(action, data=fields)
+    assert saved.location == entry['target']
+    card = BeautifulSoup(client.get(saved.location).data, 'html.parser')
+    cabinet_url = card.select_one('a.pubw-banner__btn[href^="/words/"]')['href']
+    assert parse_qs(urlparse(cabinet_url).query) == {'origin': ['public_dictionary']}
+
+    cabinet = client.get(cabinet_url)
+    assert cabinet.status_code == 200
+    assert 'const wordStudyUrl = ' in cabinet.text
+    assert 'origin=public_dictionary' in cabinet.text.split('const wordStudyUrl = ', 1)[1].splitlines()[0]
+
+    params = {'source': 'word_detail', 'word_id': word.id, 'extra_study': 'true'}
+    for origin, target in [('public_dictionary', entry['target']), (None, f'/words/{word.id}')]:
+        response = client.get('/study/cards', query_string={
+            **params, 'origin': origin, 'next': 'https://example.invalid/',
+        })
+        assert response.status_code == 200
+        result = BeautifulSoup(response.data, 'html.parser')
+        assert result.select_one(f'#session-complete a[href="{target}"]')
+    assert UserWord.query.filter_by(user_id=user.id, word_id=word.id).count() == 1
+
+
+def test_forged_public_review_origin_keeps_nonpublic_word_in_cabinet(entry: Any) -> None:
+    word = entry['word']
+    word.level = 'C2'
+    db.session.commit()
+    user = _user()
+    assert _login(entry, user).status_code == 302
+    user.set_word_status(word.id, 1)
+    client = entry['client']
+    cabinet_url = f'/words/{word.id}'
+    assert client.get(entry['target']).status_code == 404
+    response = client.get(cabinet_url, query_string={'origin': 'public_dictionary'})
+    assert response.status_code == 200
+    assert 'origin=public_dictionary' not in response.text.split('const wordStudyUrl = ', 1)[1].splitlines()[0]
+    response = client.get('/study/cards', query_string={
+        'source': 'word_detail', 'word_id': word.id, 'origin': 'public_dictionary', 'next': entry['target'],
+    })
+    assert response.status_code == 200
+    result = BeautifulSoup(response.data, 'html.parser')
+    assert result.select_one(f'#session-complete a[href="{cabinet_url}"]')
+    assert not result.select_one(f'#session-complete a[href="{entry["target"]}"]')
+
+
 def test_disabled_dictionary_keeps_public_meaning_but_does_not_offer_or_accept_save(entry: Any, monkeypatch: Any) -> None:
     from app.modules.service import ModuleService
     user = _user(); _login(entry, user)

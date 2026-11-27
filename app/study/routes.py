@@ -464,6 +464,11 @@ def cards():
     back_url = url_for('words.word_detail', word_id=word_id_arg) if from_word_detail else (
         url_for('words.dashboard') if from_daily_plan else url_for('study.index')
     )
+    if from_word_detail:
+        from app.words.routes import PUBLIC_DICTIONARY_ORIGIN, public_dictionary_study_return_url
+
+        if request.args.get('origin') == PUBLIC_DICTIONARY_ORIGIN:
+            back_url = public_dictionary_study_return_url(word_id_arg) or back_url
 
     return render_template(
         'study/cards.html',

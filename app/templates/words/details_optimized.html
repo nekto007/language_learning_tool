@@ -70,7 +70,7 @@
       </div>
 
       <div class="wdet-hero__actions">
-        {% set primary_study_url = url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') if summary.primary_action_extra_study else url_for('study.cards', source='word_detail', word_id=word.id) %}
+        {% set primary_study_url = url_for('study.cards', source='word_detail', word_id=word.id, origin=study_origin, extra_study='true' if summary.primary_action_extra_study else none) %}
         {% if word.get_download and word.listening %}
         {% set audio_url = url_for('static', filename='audio/' + (word.listening|audio_filename)) %}
         <button class="wdet-hero__btn wdet-hero__btn--glass" onclick='playAudio({{ audio_url|tojson }})'>
@@ -97,7 +97,7 @@
         {% endif %}
 
         {% if summary.secondary_action_label %}
-        <a href="{{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true') }}" class="wdet-hero__btn wdet-hero__btn--glass">
+        <a href="{{ url_for('study.cards', source='word_detail', word_id=word.id, origin=study_origin, extra_study='true') }}" class="wdet-hero__btn wdet-hero__btn--glass">
           {{ _(summary.secondary_action_label) }}
         </a>
         {% endif %}
@@ -279,7 +279,7 @@
 const currentWordStatus = '{{ word.user_status or "new" }}';
 const currentStudyStatus = '{{ summary.status or "new" }}';
 const wordId = {{ word.id }};
-const wordStudyUrl = {{ url_for('study.cards', source='word_detail', word_id=word.id, extra_study='true')|tojson }};
+const wordStudyUrl = {{ url_for('study.cards', source='word_detail', word_id=word.id, origin=study_origin, extra_study='true')|tojson }};
 
 let defaultDeckCache = null;
 let defaultDeckLoaded = false;

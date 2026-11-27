@@ -420,7 +420,7 @@
       <h2 class="pubw-banner__title">Слово в вашем словаре</h2>
       <p class="pubw-banner__desc">{{ saved_summary.status_label }}. {{ saved_summary.status_description }}</p>
       {% if not dictionary_enabled %}<p class="pubw-banner__desc">Доступ к работе со словарём временно отключён. Сохранённый прогресс не изменён.</p>{% endif %}
-      {% if dictionary_enabled %}<a href="{{ url_for('words.word_detail', word_id=word.id) }}" class="pubw-banner__btn">Открыть мою карточку</a>{% endif %}
+      {% if dictionary_enabled %}<a href="{{ url_for('words.word_detail', word_id=word.id, origin='public_dictionary') }}" class="pubw-banner__btn">Открыть мою карточку</a>{% endif %}
       {% elif dictionary_enabled %}
       <h2 class="pubw-banner__title">Сохраните это слово</h2>
       <p class="pubw-banner__desc">Добавьте слово в свой словарь, чтобы вернуться к нему на повторениях.</p>
