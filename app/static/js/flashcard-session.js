@@ -824,8 +824,8 @@ class FlashcardSession {
         }
 
         // Examples
-        if ((this.config.showExamples || card.is_recovery) && card.examples) {
-            const example = this._extractExampleParts(card.examples);
+        const example = (this.config.showExamples || card.is_recovery) ? this._extractExampleParts(card) : null;
+        if (example && (example.en || example.ru)) {
             if (this.els.exampleText) this.els.exampleText.textContent = example.en;
             if (this.els.exampleTranslation) this.els.exampleTranslation.textContent = example.ru;
             if (this.els.examplesContainer) this.els.examplesContainer.style.display = 'block';
@@ -1627,31 +1627,40 @@ class FlashcardSession {
         }
     }
 
-    _extractExampleParts(examples) {
-        if (!examples) return { en: '', ru: '' };
+    _extractExampleParts(card) {
+        const en = typeof card.example_en === 'string' ? card.example_en.trim() : '';
+        const ru = typeof card.example_ru === 'string' ? card.example_ru.trim() : '';
+        if (en || ru) return { en, ru };
+
+        const examples = card.examples;
+        if (typeof examples !== 'string' || !examples.trim()) return { en: '', ru: '' };
 
         const withNewlines = examples.replace(/<br\s*\/?>/gi, '\n');
         const cleanedExamples = withNewlines.replace(/<[^>]*>/g, '');
 
-        let lines = cleanedExamples.split('\n').filter(line => line.trim() !== '');
+        const lines = cleanedExamples.split('\n').filter(line => line.trim() !== '');
 
         if (lines.length >= 2) {
             return { en: lines[0].trim(), ru: lines[1].trim() };
         }
 
-        lines = cleanedExamples.split(/\n\s*-\s*/).filter(line => line.trim() !== '');
-        if (lines.length >= 2) {
-            return { en: lines[0].trim(), ru: lines[1].trim() };
+        // Older course cards join the English and Russian fields with a pipe.
+        const separator = cleanedExamples.indexOf('|');
+        if (separator >= 0 && /[А-Яа-яЁё]/.test(cleanedExamples.slice(separator + 1))) {
+            return { en: cleanedExamples.slice(0, separator).trim(), ru: cleanedExamples.slice(separator + 1).trim() };
         }
 
-        const hasCyrillic = /[А-Яа-я]/.test(cleanedExamples);
-        const hasLatin = /[A-Za-z]/.test(cleanedExamples);
-
-        if (hasCyrillic && hasLatin) {
-            const parts = cleanedExamples.split(/[;.]\s*/).filter(part => part.trim() !== '');
-            const enPart = parts.find(part => /[A-Za-z]/.test(part)) || '';
-            const ruPart = parts.find(part => /[А-Яа-я]/.test(part)) || '';
-            return { en: enPart.trim(), ru: ruPart.trim() };
+        // Split an unmarked legacy pair only where the next language starts.
+        const firstLetter = cleanedExamples.match(/[A-Za-zА-Яа-яЁё]/);
+        const russianFirst = firstLetter && /[А-Яа-яЁё]/.test(firstLetter[0]);
+        const boundary = russianFirst
+            ? /([.!?;])\s*(?=[A-Za-z])/.exec(cleanedExamples)
+            : /([.!?;])\s*(?=[А-Яа-яЁё])/.exec(cleanedExamples);
+        if (boundary) {
+            const end = boundary.index + (boundary[1] === ';' ? 0 : 1);
+            const first = cleanedExamples.slice(0, end).trim();
+            const second = cleanedExamples.slice(boundary.index + boundary[0].length).trim();
+            return russianFirst ? { en: second, ru: first } : { en: first, ru: second };
         }
 
         return { en: cleanedExamples.trim(), ru: '' };

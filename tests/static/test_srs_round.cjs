@@ -80,3 +80,17 @@ test('finishing the last SRS step leaves results visible with a clickable plan e
     assert.equal(dashboard.href, '/dashboard?day_secured=1');
     assert.equal(next.style.display, 'none');
 });
+
+test('bilingual examples retain abbreviations and punctuation across course and legacy cards', () => {
+    const { session } = setupAudio({});
+    const en = 'My bedtime is at 10 p.m.';
+    const ru = 'Моё время сна — в 10 вечера.';
+    for (const examples of [en + '|' + ru, en + '<br>' + ru, en + '\n' + ru, en + ' ' + ru]) {
+        assert.deepEqual({ ...session._extractExampleParts({examples}) }, { en, ru });
+    }
+    assert.deepEqual({ ...session._extractExampleParts({examples: ru + ' ' + en}) }, { en, ru });
+    const authored = 'Choose A | B at 10 p.m.';
+    assert.deepEqual({ ...session._extractExampleParts({example_en: authored, example_ru: ru, examples: 'old'}) },
+        { en: authored, ru });
+    assert.deepEqual({ ...session._extractExampleParts({example_en: en}) }, { en, ru: '' });
+});
