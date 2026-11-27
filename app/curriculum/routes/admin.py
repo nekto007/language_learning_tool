@@ -5,6 +5,7 @@ import json
 import logging
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 
 from flask import Blueprint, Response, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -17,6 +18,7 @@ from app.admin.services.guided_topic_guard import managed_lesson_editor
 from app.admin.utils.decorators import admin_required
 from app.curriculum.models import CEFRLevel, LessonProgress, Lessons, Module
 from app.curriculum.security import safe_int, sanitize_json_content, validate_file_upload
+from app.utils.audio import parse_audio_filename
 from app.utils.db import db
 
 logger = logging.getLogger(__name__)
@@ -492,6 +494,41 @@ def edit_lesson(lesson_id):
     ), response_status
 
 
+def _lesson_audio_href(row: object) -> str | None:
+    """Resolve an authored audio reference without failing the admin preview."""
+    from app.api.native_content import media_url
+
+    if not isinstance(row, dict):
+        return None
+    for field in ('audio_url', 'audio', 'audio_clip_url'):
+        value = row.get(field)
+        if isinstance(value, dict):
+            value = value.get('url') or value.get('src')
+        if not isinstance(value, str):
+            continue
+        value = value.strip()
+        if value.startswith('[sound:'):
+            filename = parse_audio_filename(value)
+            if filename is None or value != f'[sound:{filename}]':
+                continue
+            value = filename.strip()
+        if not value or len(value) > 4096 or '\\' in value or any(ord(char) < 32 or ord(char) == 127 for char in value):
+            continue
+        try:
+            parts = urlsplit(value)
+            if parts.scheme or parts.netloc:
+                if (parts.scheme in ('', 'http', 'https') and parts.hostname and not parts.username
+                        and not parts.password and not any(char.isspace() for char in parts.netloc)):
+                    _ = parts.port  # Validate an explicit port without changing signed URLs.
+                    return value
+                continue
+        except ValueError:
+            continue
+        if parts.path and not value.startswith('[') and (href := media_url(value)):
+            return href
+    return None
+
+
 @admin_bp.route('/admin/lesson/<int:lesson_id>/view')
 @login_required
 @admin_required
@@ -522,7 +559,8 @@ def view_lesson(lesson_id):
         'admin/curriculum/view_lesson.html',
         lesson=lesson,
         progress_stats=progress_stats,
-        recent_progress=recent_progress
+        recent_progress=recent_progress,
+        lesson_audio_href=_lesson_audio_href,
     )
 
 
@@ -650,7 +688,6 @@ def delete_lesson(lesson_id):
 
 def _extract_sound_filename(value: str) -> str | None:
     """Extract filename from '[sound:name.mp3]' or plain 'name.mp3'."""
-    from app.utils.audio import parse_audio_filename
     return parse_audio_filename(value)
 
 

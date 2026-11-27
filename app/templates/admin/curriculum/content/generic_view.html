@@ -3,6 +3,11 @@
      writing_prompt, final_test, sentence_completion, collocation_matching, etc.).
      Renders the common content shapes instead of dropping to raw JSON. -->
 
+{% macro _render_audio(row, spacing='mb-2') %}
+  {% set href = lesson_audio_href(row) %}
+  {% if href %}<div class="{{ spacing }}"><i class="fas fa-volume-up me-1 text-primary"></i><a href="{{ href }}" target="_blank" rel="noopener">{{ href }}</a></div>{% endif %}
+{% endmacro %}
+
 {% macro _render_exercise(ex, idx) %}
 <div class="card mb-2">
   <div class="card-header py-2 d-flex justify-content-between align-items-center">
@@ -13,8 +18,7 @@
     {% set prompt = ex.question or ex.text or ex.prompt or ex.sentence or ex.statement or ex.instruction or ex.original or ex.incorrect_sentence %}
     {% if prompt %}<p class="mb-2"><strong>{{ prompt }}</strong></p>{% endif %}
 
-    {% set audio = ex.audio_url or ex.audio %}
-    {% if audio %}<div class="mb-2"><i class="fas fa-volume-up me-1 text-primary"></i><a href="{{ audio }}" target="_blank" rel="noopener">{{ audio }}</a></div>{% endif %}
+    {{ _render_audio(ex) }}
 
     {% if ex.words %}
       <div class="mb-2"><span class="text-muted small">Слова:</span>
@@ -87,10 +91,7 @@
     </div>
   {% endif %}
 
-  {% set top_audio = lesson.content.audio_url or lesson.content.audio %}
-  {% if top_audio %}
-    <div class="mb-3"><i class="fas fa-volume-up me-1 text-primary"></i><a href="{{ top_audio }}" target="_blank" rel="noopener">{{ top_audio }}</a></div>
-  {% endif %}
+  {{ _render_audio(lesson.content, 'mb-3') }}
 
   {% if lesson.content.instructions %}
     <div class="alert alert-light border mb-3"><strong>Инструкция:</strong> {{ lesson.content.instructions }}</div>
@@ -103,11 +104,13 @@
 
   {# Main exercise list under common keys #}
   {% set ex_list = lesson.content.exercises or lesson.content.questions or lesson.content.get('items') or lesson.content.tasks %}
+  {% set sections = lesson.content.test_sections or lesson.content.sections %}
   {% if ex_list %}
     {{ _render_list(ex_list, 'Задания') }}
-  {% elif lesson.content.test_sections %}
-    {% for sec in lesson.content.test_sections %}
+  {% elif sections is sequence and sections is not string and sections is not mapping %}
+    {% for sec in sections if sec is mapping %}
       <h6 class="mt-3 mb-2">{{ sec.title or sec.name or ('Секция ' ~ loop.index) }}{% if sec.type %} <span class="badge bg-info">{{ sec.type }}</span>{% endif %}</h6>
+      {{ _render_audio(sec) }}
       {% for ex in (sec.exercises or sec.questions or sec.get('items') or sec.tasks or []) %}{{ _render_exercise(ex, loop.index) }}{% endfor %}
     {% endfor %}
   {% elif not body_text and not lesson.content.writing_prompt %}
