@@ -12,6 +12,7 @@ from datetime import date, datetime
 from unittest.mock import patch
 
 import pytz
+from sqlalchemy.orm import scoped_session
 
 from app.achievements.daily_race import (
     DailyRaceParticipant,
@@ -20,11 +21,29 @@ from app.achievements.daily_race import (
     get_or_create_race,
     get_race_standings,
     update_race_points,
+    update_race_points_from_linear_plan,
     _ghost_target_points,
     _progress_fraction,
 )
 from app.achievements.models import UserStatistics
 from app.auth.models import User
+
+
+def test_two_required_lessons_of_one_kind_score_by_slot_id(db_session: scoped_session) -> None:
+    user = _make_user(db_session)
+    day = date(2026, 10, 21)
+    get_or_create_race(user.id, day)
+    slots = [{'id': 'curriculum:lesson:10', 'kind': 'curriculum'},
+             {'id': 'curriculum:lesson:11', 'kind': 'curriculum'}]
+
+    first = update_race_points_from_linear_plan(user.id, day, slots, {slots[0]['id']: True, slots[1]['id']: False})
+    assert first is not None and first.points == 22 and first.finished_at is None
+    complete = {slot['id']: True for slot in slots}
+    second = update_race_points_from_linear_plan(user.id, day, slots, complete)
+    assert second is not None and second.points == 44 and second.finished_at is not None
+    finish = second.finished_at
+    replay = update_race_points_from_linear_plan(user.id, day, slots, complete)
+    assert replay is not None and (replay.points, replay.finished_at) == (44, finish)
 
 
 def _make_user(db_session, *, suffix: str | None = None) -> User:

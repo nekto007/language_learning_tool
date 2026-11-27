@@ -400,10 +400,32 @@ def update_race_points(
     )
     if participant is None:
         return None
+    _apply_race_points(participant, points, finished, now_utc)
+    return participant
+
+
+def _apply_race_points(
+    participant: DailyRaceParticipant, points: int, finished: bool, now_utc: datetime | None = None,
+) -> None:
     participant.points = max(0, int(points))
     if finished and participant.finished_at is None:
         participant.finished_at = now_utc or datetime.now(timezone.utc)
-    return participant
+
+
+def score_race_slots(
+    baseline_slots: Iterable[Mapping], plan_completion: Mapping[str, bool],
+) -> tuple[int, bool]:
+    """Score each required slot using its ID, or its kind for old linear plans."""
+    slots = list(baseline_slots)
+    total = 0
+    all_required_done = bool(slots)
+    for slot in slots:
+        kind = slot.get('kind', '')
+        if plan_completion.get(slot.get('id') or kind, False):
+            total += linear_slot_points(kind)
+        else:
+            all_required_done = False
+    return total, all_required_done
 
 
 def update_race_points_from_linear_plan(
@@ -417,25 +439,15 @@ def update_race_points_from_linear_plan(
 ) -> Optional[DailyRaceParticipant]:
     """Recompute participant points from a linear plan's baseline slots.
 
-    Linear plan uses slot ``kind`` as the completion key (e.g. 'curriculum',
-    'srs', 'reading') whereas mission plan uses phase ``id``. All baseline
-    slots are treated as required — extension slots are bonus and excluded
+    Unified plans use slot IDs, and old linear plans use slot kinds.
+    All baseline slots are required. Extension slots are bonus and excluded
     from ``all_required_done`` (callers pass only baseline_slots).
     ``challenge_bonus`` adds a flat bonus (default 0) for completing the daily
     challenge.
     """
     if not is_daily_race_enabled():
         return None
-    slots = list(baseline_slots)
-    total = 0
-    all_required_done = bool(slots)
-    for slot in slots:
-        kind = slot.get('kind', '')
-        done = bool(plan_completion.get(kind, False))
-        if not done:
-            all_required_done = False
-        if done:
-            total += linear_slot_points(kind)
+    total, all_required_done = score_race_slots(baseline_slots, plan_completion)
     return update_race_points(
         user_id,
         race_date,
@@ -552,6 +564,7 @@ def get_race_standings(
     *,
     tz: str | None = None,
     now: datetime | None = None,
+    current_progress: tuple[int, bool] | None = None,
 ) -> Optional[dict]:
     """Return the current race view for ``user_id`` on ``race_date``.
 
@@ -564,6 +577,8 @@ def get_race_standings(
       ``rank``, ``finished_at``
     - ``my_rank``: current user's 1-indexed rank
 
+    If supplied, apply the current user's points and finish flag before
+    ranking. The caller owns the transaction.
     Returns ``None`` when the daily race feature is disabled in SiteSettings.
     """
     if not is_daily_race_enabled():
@@ -576,6 +591,8 @@ def get_race_standings(
     entries: list[dict] = []
 
     for p in cohort.participants:
+        if p.user_id == user_id and current_progress is not None:
+            _apply_race_points(p, *current_progress, now_utc=now)
         username: Optional[str] = None
         user_obj = db.session.get(User, p.user_id) if p.user_id else None
         if user_obj is not None:

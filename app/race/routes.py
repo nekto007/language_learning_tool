@@ -6,6 +6,7 @@ from flask import render_template, url_for
 from flask_login import current_user, login_required
 
 from app.modules.decorators import module_required
+from app.utils.db import db
 
 from . import race_bp
 
@@ -34,7 +35,10 @@ def today() -> str:
 
     try:
         daily_race = _build_daily_race_widget(current_user.id, tz)
+        if daily_race is not None:
+            db.session.commit()
     except Exception:
+        db.session.rollback()
         logger.exception(
             "Failed to build daily race widget for user %s", current_user.id
         )

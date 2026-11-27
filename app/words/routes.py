@@ -720,7 +720,8 @@ def _compute_daily_race_state(plan: dict, daily_summary: dict, streak: int) -> d
 def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     from datetime import datetime as _dt_age
 
-    from app.achievements.daily_race import get_race_standings
+    from app.achievements.daily_race import get_race_standings, score_race_slots
+    from app.achievements.streak_service import compute_plan_steps
     from app.admin.site_settings import get_site_setting
     from app.auth.models import User
     from app.daily_plan.service import get_daily_plan_unified
@@ -748,7 +749,14 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
     # 00:00-02:00, и один реальный день давал две кохорты (DP-012).
     local_today = get_user_local_date(current_user_id, db)
 
-    standings = get_race_standings(current_user_id, local_today, tz=tz)
+    current_plan = get_daily_plan_unified(current_user_id, tz=tz)
+    current_summary = get_daily_summary(current_user_id, tz=tz)
+    current_progress = None
+    required = current_plan.get('required')
+    if required and current_plan.get('study_day') == local_today.isoformat():
+        completion, *_ = compute_plan_steps(current_plan, current_summary)
+        current_progress = score_race_slots(required, completion)
+    standings = get_race_standings(current_user_id, local_today, tz=tz, current_progress=current_progress)
     if not standings:
         return None
 
@@ -768,8 +776,11 @@ def _build_daily_race_widget(current_user_id: int, tz: str) -> dict | None:
             continue
         user_tz = user.timezone or tz
         try:
-            plan = get_daily_plan_unified(user.id, tz=user_tz)
-            summary = get_daily_summary(user.id, tz=user_tz)
+            if user.id == current_user_id:
+                plan, summary = current_plan, current_summary
+            else:
+                plan = get_daily_plan_unified(user.id, tz=user_tz)
+                summary = get_daily_summary(user.id, tz=user_tz)
             streak = get_current_streak(user.id, tz=user_tz)
             race_state = _compute_daily_race_state(plan, summary, streak)
         except Exception as e:
