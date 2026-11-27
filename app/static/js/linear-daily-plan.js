@@ -3,7 +3,8 @@
  * - Opens #book-select-modal when a slot link points at it
  *   (href="#book-select-modal" or data-linear-action="select-book").
  * - Loads /api/books/catalog on first open and renders book cards.
- * - On book click, POSTs to /api/books/select and closes the modal.
+ * - The pilot offers a read-only excerpt and an explicit select action.
+ * - On book selection, POSTs to /api/books/select and closes the modal.
  *   On success, refreshes the dashboard so the reading slot reflects
  *   the new selection (cheaper than partial re-rendering for now).
  */
@@ -20,6 +21,10 @@
     var MODAL_ID = 'book-select-modal';
     var STATUS_ID = 'book-select-modal-status';
     var LIST_ID = 'book-select-modal-list';
+    var modalTrigger = null;
+    var excerptTrigger = null;
+    var excerptRequest = null;
+    var catalogScroll = 0;
 
     function $(id) { return document.getElementById(id); }
 
@@ -28,21 +33,84 @@
         return meta ? meta.getAttribute('content') : '';
     }
 
-    function openModal() {
+    function openModal(trigger) {
         var modal = $(MODAL_ID);
         if (!modal) return;
+        modalTrigger = trigger;
         modal.hidden = false;
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('linear-modal-open');
+        modal.querySelector('.linear-modal__close').focus();
         loadCatalog();
     }
 
     function closeModal() {
         var modal = $(MODAL_ID);
         if (!modal) return;
+        closeExcerpt(false);
         modal.hidden = true;
         modal.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('linear-modal-open');
+        if (modalTrigger) modalTrigger.focus();
+        modalTrigger = null;
+    }
+
+    function closeExcerpt(restoreFocus) {
+        var excerpt = $('book-plan-excerpt');
+        if (!excerpt || excerpt.hidden) return;
+        var trigger = excerptTrigger;
+        excerptTrigger = null;
+        if (excerptRequest) excerptRequest.abort();
+        excerptRequest = null;
+        excerpt.hidden = true;
+        $('book-select-catalog').hidden = false;
+        $('book-select-modal-body').scrollTop = catalogScroll;
+        if (restoreFocus && trigger) trigger.focus({preventScroll: true});
+    }
+
+    async function openExcerpt(book, trigger) {
+        var body = $('book-select-modal-body');
+        var heading = $('book-plan-excerpt-title');
+        var status = $('book-plan-excerpt-status');
+        var content = $('book-plan-excerpt-body');
+        var controller = new AbortController();
+        excerptRequest = controller;
+        excerptTrigger = trigger;
+        catalogScroll = body.scrollTop;
+        $('book-select-catalog').hidden = true;
+        $('book-plan-excerpt').hidden = false;
+        heading.textContent = book.title;
+        content.hidden = true;
+        status.textContent = _t('plan_excerpt_loading', 'Загрузка отрывка…');
+        body.scrollTop = 0;
+        heading.focus({preventScroll: true});
+        try {
+            var response = await fetch(book.plan_excerpt_url, {
+                credentials: 'same-origin', headers: {'Accept': 'application/json'}, signal: controller.signal
+            });
+            if (!response.ok) throw new Error('excerpt_unavailable');
+            var data = await response.json();
+            if (controller.signal.aborted) return;
+            var meta = [
+                _t('plan_excerpt_level', 'Уровень {level}').replace('{level}', data.level),
+                _t('plan_excerpt_duration', '≈ {minutes} мин чтения').replace('{minutes}', data.minutes)
+            ];
+            if (data.chapter_title) meta.unshift(data.chapter_title);
+            $('book-plan-excerpt-meta').textContent = meta.join(' · ');
+            var text = $('book-plan-excerpt-text');
+            text.replaceChildren();
+            data.paragraphs.forEach(function (value) {
+                var paragraph = document.createElement('p');
+                paragraph.textContent = value;
+                text.appendChild(paragraph);
+            });
+            status.textContent = '';
+            content.hidden = false;
+        } catch (_) {
+            if (!controller.signal.aborted) {
+                status.textContent = _t('plan_excerpt_unavailable', 'Отрывок недоступен. Вернитесь к выбору книги.');
+            }
+        }
     }
 
     function setStatus(text) {
@@ -70,8 +138,6 @@
             var li = document.createElement('li');
             var card = document.createElement('div');
             card.className = 'linear-book-card';
-            card.setAttribute('role', 'button');
-            card.setAttribute('tabindex', '0');
             card.setAttribute('data-book-id', String(book.id));
 
             if (book.cover_image) {
@@ -109,13 +175,33 @@
             }
 
             card.appendChild(body);
-            card.addEventListener('click', function () { selectBook(book.id); });
-            card.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    selectBook(book.id);
-                }
-            });
+            if (book.plan_excerpt_url) {
+                card.classList.add('linear-book-card--excerpt');
+                var actions = document.createElement('div');
+                actions.className = 'plan-excerpt__actions';
+                var read = document.createElement('button');
+                read.type = 'button';
+                read.className = 'btn btn-sm btn-outline-primary';
+                read.textContent = _t('plan_excerpt_read', 'Читать отрывок');
+                read.addEventListener('click', function () { openExcerpt(book, read); });
+                var choose = document.createElement('button');
+                choose.type = 'button';
+                choose.className = 'btn btn-sm btn-primary';
+                choose.textContent = _t('plan_excerpt_choose', 'Выбрать в план');
+                choose.addEventListener('click', function () { selectBook(book.id); });
+                actions.append(read, choose);
+                body.appendChild(actions);
+            } else {
+                card.setAttribute('role', 'button');
+                card.setAttribute('tabindex', '0');
+                card.addEventListener('click', function () { selectBook(book.id); });
+                card.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectBook(book.id);
+                    }
+                });
+            }
             li.appendChild(card);
             list.appendChild(li);
         });
@@ -125,7 +211,7 @@
         setStatus(_t('catalog_loading', 'Загрузка каталога…'));
         var list = $(LIST_ID);
         if (list) list.innerHTML = '';
-        fetch('/api/books/catalog', {
+        fetch('/api/books/catalog?view=plan_picker', {
             method: 'GET',
             credentials: 'same-origin',
             headers: { 'Accept': 'application/json' }
@@ -241,6 +327,10 @@
     }
 
     document.addEventListener('click', function (event) {
+        if (event.target.closest && event.target.closest('[data-book-excerpt-back]')) {
+            closeExcerpt(true);
+            return;
+        }
         var closeTarget = event.target.closest && event.target.closest('[data-linear-close="' + MODAL_ID + '"]');
         if (closeTarget) {
             event.preventDefault();
@@ -263,14 +353,33 @@
         }
         if (isLinearReadingTrigger(event.target)) {
             event.preventDefault();
-            openModal();
+            openModal(event.target.closest('a[href="#book-select-modal"], [data-linear-action="select-book"]'));
         }
     });
 
     document.addEventListener('keydown', function (event) {
-        if (event.key !== 'Escape') return;
         var modal = $(MODAL_ID);
-        if (modal && !modal.hidden) closeModal();
+        if (!modal || modal.hidden) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            if (excerptTrigger) closeExcerpt(true);
+            else closeModal();
+        } else if (event.key === 'Tab') {
+            var controls = Array.from(modal.querySelectorAll('a[href], button:not([disabled]), [tabindex="0"]'))
+                .filter(function (node) { return node.getClientRects().length; });
+            var first = controls[0];
+            var last = controls[controls.length - 1];
+            if (document.activeElement === $('book-plan-excerpt-title')) {
+                event.preventDefault();
+                (event.shiftKey ? first : last).focus();
+            } else if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
     });
 
     /* Day-secured banner integration.

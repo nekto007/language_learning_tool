@@ -1,0 +1,55 @@
+#book-select-modal {
+    z-index: 1100;
+}
+
+.linear-book-card--excerpt {
+    cursor: default;
+}
+
+.plan-excerpt__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.plan-excerpt__actions .btn,
+.plan-excerpt__back {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.plan-excerpt__back {
+    margin-bottom: 1rem;
+}
+
+.plan-excerpt h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.3rem;
+}
+
+.plan-excerpt__meta,
+.plan-excerpt__note {
+    color: #475569;
+    font-size: 0.875rem;
+}
+
+.plan-excerpt__text {
+    padding: clamp(0.875rem, 3vw, 1.5rem);
+    border-inline-start: 3px solid #9a7959;
+    background: #faf5ea;
+    color: #2a251f;
+    font-family: Georgia, serif;
+    font-size: 1.08rem;
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+.plan-excerpt__text p:last-child {
+    margin-bottom: 0;
+}
+
+.plan-excerpt__note {
+    margin: 0.75rem 0 0;
+}

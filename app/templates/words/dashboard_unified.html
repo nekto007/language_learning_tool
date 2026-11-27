@@ -4,6 +4,7 @@
 {% block extra_css %}
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/learning-journey.css', v='20261124-placement') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/books/plan_excerpt.css') }}">
 {% if study_start %}<link rel="stylesheet" href="{{ url_for('static', filename='css/onboarding/study-start.css') }}">{% endif %}
 {% endblock %}
 {% block content %}
@@ -33,18 +34,30 @@
       <h2 class="linear-modal__title" id="book-select-modal-title">Выбрать книгу для чтения</h2>
       <button type="button" class="linear-modal__close" data-linear-close="book-select-modal" aria-label="Закрыть">×</button>
     </div>
-    <div class="linear-modal__body">
-      {% set book_setup = (unified_plan.get('setup') or []) | selectattr('kind', 'equalto', 'setup_book') | first %}
-      <p id="book-select-modal-goal">
-        {% if book_setup %}{{ book_setup.subtitle }} Уже заданная норма сохраняется. При смене книги сохраняется и выбор «По желанию, без нормы».{% endif %}
-        Норму чтения можно изменить в <a href="{{ url_for('study.settings', _anchor='reading_minutes_per_day') }}">настройках занятий</a>.
-      </p>
-      <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
-      <div id="book-select-modal-list" class="linear-modal__grid"></div>
+    <div class="linear-modal__body" id="book-select-modal-body">
+      <div id="book-select-catalog">
+        {% set book_setup = (unified_plan.get('setup') or []) | selectattr('kind', 'equalto', 'setup_book') | first %}
+        <p id="book-select-modal-goal">
+          {% if book_setup %}{{ book_setup.subtitle }} Уже заданная норма сохраняется. При смене книги сохраняется и выбор «По желанию, без нормы».{% endif %}
+          Норму чтения можно изменить в <a href="{{ url_for('study.settings', _anchor='reading_minutes_per_day') }}">настройках занятий</a>.
+        </p>
+        <div id="book-select-modal-status" class="linear-modal__status" aria-live="polite">Загрузка каталога…</div>
+        <ul id="book-select-modal-list" class="linear-book-list"></ul>
+      </div>
+      <section id="book-plan-excerpt" class="plan-excerpt" aria-labelledby="book-plan-excerpt-title" hidden>
+        <button type="button" class="btn btn-sm btn-outline-secondary plan-excerpt__back" data-book-excerpt-back>К выбору книг</button>
+        <h3 id="book-plan-excerpt-title" tabindex="-1"></h3>
+        <p id="book-plan-excerpt-status" class="linear-modal__status" aria-live="polite"></p>
+        <div id="book-plan-excerpt-body" hidden>
+          <p id="book-plan-excerpt-meta" class="plan-excerpt__meta"></p>
+          <div id="book-plan-excerpt-text" class="plan-excerpt__text" lang="en"></div>
+          <p class="plan-excerpt__note">Просмотр отрывка не меняет дневную цель.</p>
+        </div>
+      </section>
     </div>
   </div>
 </div>
-<script src="{{ url_for('static', filename='js/linear-daily-plan.js') }}"></script>
+<script src="{{ url_for('static', filename='js/linear-daily-plan.js', v='20261127-book-excerpt') }}"></script>
 <script src="{{ url_for('static', filename='js/onboarding/placement-invitation.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/fox-day-complete.js') }}"></script>
 {% if study_start %}

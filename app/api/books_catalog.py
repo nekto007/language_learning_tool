@@ -13,9 +13,12 @@ level window. Browser selection keeps CSRF protection on.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
+from math import ceil
 
-from flask import Blueprint, jsonify, request, url_for
+from flask import Blueprint, current_app, jsonify, request, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from sqlalchemy import exists, func, or_, select
 
@@ -25,7 +28,7 @@ from app.books.access import accessible_books_filter, can_user_access_book
 from app.books.models import Book, Chapter, UserChapterProgress
 from app.books.progress import _progress_from_records, get_book_completion_state, get_completed_book_ids
 from app.books.readability import book_has_text, chapter_has_text
-from app.books.text_access import book_allows_learner_text, book_allows_text
+from app.books.text_access import book_allows_learner_text, book_allows_text, visible_chapter_text
 from app.curriculum.models import CEFRLevel
 from app.daily_plan.level_utils import _cefr_code_to_order, get_user_current_cefr_level
 from app.daily_plan.linear.models import UserReadingPreference
@@ -35,6 +38,15 @@ from app.utils.db import db
 logger = logging.getLogger(__name__)
 
 api_books_catalog = Blueprint('api_books_catalog', __name__)
+_EXCERPT_MAX_WORDS = 160
+_EXCERPT_MAX_CHARS = 2600
+_EXCERPT_WORDS_PER_MINUTE = 120
+
+
+def _plan_excerpt_book(book: Book) -> bool:
+    slug = current_app.config.get('BOOK_PLAN_EXCERPT_SLUG')
+    return bool(slug and book.slug == slug and book.is_published and book.level
+                and book.rights_status == 'public_domain')
 
 
 def _level_window_codes(user_level_code: str) -> list[str]:
@@ -83,12 +95,54 @@ def get_books_catalog():
     books = [book for book in books if book.id not in completed_book_ids]
 
     result = {'user_level': user_level, 'books': [_book_payload(book) for book in books]}
+    if request.args.get('view') == 'plan_picker':
+        for book, row in zip(books, result['books'], strict=True):
+            if _plan_excerpt_book(book):
+                row['plan_excerpt_url'] = url_for('.get_plan_excerpt', book_id=book.id)
     if request.args.get('include_library') == '1':
         result['library_books'] = _account_library(current_user)
     shelf_books = result['books'] + [item['book'] for item in result.get('library_books', [])]
     _add_book_courses(shelf_books)
     response = jsonify(result)
     response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@api_books_catalog.route('/books/<int:book_id>/plan-excerpt', methods=['GET'])
+@api_auth_required
+def get_plan_excerpt(book_id: int) -> ResponseReturnValue:
+    """Project a short, read-only learner excerpt for the configured book."""
+    book = db.session.get(Book, book_id)
+    if book is None or not _plan_excerpt_book(book) or not can_user_access_book(current_user, book):
+        return api_error('excerpt_not_found', 'Отрывок недоступен', 404)
+    chapter = db.session.query(Chapter.title, Chapter.text_raw).filter(
+        Chapter.book_id == book.id, chapter_has_text(),
+    ).order_by(Chapter.chap_num, Chapter.id).first()
+    if chapter is None:
+        return api_error('excerpt_not_found', 'Отрывок недоступен', 404)
+
+    projected, _ = visible_chapter_text(book, chapter.text_raw, admin=False)
+    text = projected.replace('\\n', '\n').replace('\r\n', '\n').strip()
+    words = list(re.finditer(r'\S+', text[:_EXCERPT_MAX_CHARS]))
+    if (len(text) > _EXCERPT_MAX_CHARS and not text[_EXCERPT_MAX_CHARS].isspace()
+            and words and words[-1].end() == _EXCERPT_MAX_CHARS):
+        words.pop()
+    if not words:
+        return api_error('excerpt_not_found', 'Отрывок недоступен', 404)
+    if len(text) > _EXCERPT_MAX_CHARS or len(words) > _EXCERPT_MAX_WORDS:
+        stop = words[min(len(words), _EXCERPT_MAX_WORDS) - 1].end()
+        text = text[:stop]
+        boundaries = list(re.finditer(r"""[.!?]["'\u2019\u201d]?(?=\s|$)""", text))
+        if boundaries and boundaries[-1].end() >= stop // 2:
+            text = text[:boundaries[-1].end()]
+        else:
+            text += '…'
+    count = len(text.split())
+    response = jsonify(
+        title=book.title, chapter_title=chapter.title, level=book.level,
+        paragraphs=re.split(r'\n\s*\n', text), words=count, minutes=ceil(count / _EXCERPT_WORDS_PER_MINUTE),
+    )
+    response.headers['Cache-Control'] = 'private, no-store'
     return response
 
 

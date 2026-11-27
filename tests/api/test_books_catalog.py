@@ -13,10 +13,16 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from flask import Flask
+from flask.testing import FlaskClient
+from sqlalchemy.orm import scoped_session
 
+from app.auth.models import User
 from app.books.models import Book, Chapter, UserChapterProgress
+from app.books.reading_session import UserReadingSession
 from app.curriculum.models import CEFRLevel
 from app.daily_plan.linear.models import UserReadingPreference
+from app.study.models import StudySettings
 from app.utils.db import db as real_db
 
 
@@ -84,6 +90,71 @@ def cefr_levels(db_session):
         'B2': _ensure_level(db_session, 'B2', 4),
     }
     return levels
+
+
+def test_pilot_excerpt_is_counted_from_the_projected_text_and_does_not_choose_the_book(
+    app: Flask, authenticated_client: FlaskClient, db_session: scoped_session, test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pilot = _make_book(db_session, 'A1')
+    extra = _make_book(db_session, 'A1')
+    pilot.slug, extra.slug = 'excerpt-pilot', 'another-open-book'
+    pilot_chapters, _ = _add_chapters(db_session, pilot), _add_chapters(db_session, extra)
+    pilot_chapters[0].text_raw = '\n \t '
+    pilot_chapters[1].text_raw = ('The little boat crosses the river. ' * 45).strip() + ' Hidden ending.'
+    db_session.commit()
+    settings = StudySettings.get_settings(test_user.id)
+    settings.reading_minutes_per_day = 0
+    db_session.commit()
+    picker = '/api/books/catalog?view=plan_picker'
+    path = f'/api/books/{pilot.id}/plan-excerpt'
+    assert authenticated_client.get(path).status_code == 404
+    monkeypatch.setitem(app.config, 'BOOK_PLAN_EXCERPT_SLUG', pilot.slug)
+    regular = authenticated_client.get('/api/books/catalog').json['books']
+    assert all('plan_excerpt_url' not in row for row in regular)
+    rows = {row['id']: row for row in authenticated_client.get(picker).json['books']}
+    assert rows[pilot.id]['plan_excerpt_url'] == path and 'plan_excerpt_url' not in rows[extra.id]
+    assert authenticated_client.get(f'/api/books/{extra.id}/plan-excerpt').status_code == 404
+    response = authenticated_client.get(path)
+    assert response.status_code == 200 and response.headers['Cache-Control'] == 'private, no-store'
+    document = response.json
+    excerpt = ' '.join(document['paragraphs'])
+    assert document['level'] == 'A1' and document['chapter_title'] == 'Chapter 2'
+    assert document['words'] == len(excerpt.split()) == 156 and document['minutes'] == 2
+    assert excerpt.endswith('river.') and 'Hidden ending.' not in excerpt
+    assert settings.reading_minutes_per_day == 0
+    assert not UserReadingPreference.query.filter_by(user_id=test_user.id).count()
+    assert not UserChapterProgress.query.filter_by(user_id=test_user.id).count()
+    assert not UserReadingSession.query.filter_by(user_id=test_user.id).count()
+    assert authenticated_client.post('/api/books/select', json={'book_id': pilot.id}).status_code == 200
+    assert settings.reading_minutes_per_day == 5
+    settings.reading_minutes_per_day = 9
+    db_session.commit()
+    assert authenticated_client.post('/api/books/select', json={'book_id': extra.id}).status_code == 200
+    assert settings.reading_minutes_per_day == 9
+
+
+@pytest.mark.parametrize('reason', ['draft', 'private', 'empty'])
+def test_picker_and_direct_excerpt_hide_unavailable_pilot(
+    app: Flask, authenticated_client: FlaskClient, db_session: scoped_session,
+    monkeypatch: pytest.MonkeyPatch, reason: str,
+) -> None:
+    pilot = _make_book(db_session, 'A1', chapters=1)
+    chapter, = _add_chapters(db_session, pilot)
+    pilot.slug = 'unavailable-pilot'
+    monkeypatch.setitem(app.config, 'BOOK_PLAN_EXCERPT_SLUG', pilot.slug)
+    if reason == 'draft':
+        pilot.is_published = False
+    elif reason == 'private':
+        pilot.rights_status = 'companion_only'
+    else:
+        chapter.text_raw = '\\n\t '
+    db_session.commit()
+    picker = authenticated_client.get('/api/books/catalog?view=plan_picker')
+    assert picker.status_code == 200
+    assert pilot.id not in [entry['id'] for entry in picker.json['books']]
+    response = authenticated_client.get(f'/api/books/{pilot.id}/plan-excerpt')
+    assert response.status_code == 404 and 'paragraphs' not in response.json
 
 
 class TestCatalogEndpoint:
