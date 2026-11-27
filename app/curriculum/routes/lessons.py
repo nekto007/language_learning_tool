@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from datetime import UTC, datetime
 
 from flask import (
-    Blueprint, flash, has_request_context, jsonify, redirect, render_template,
+    Blueprint, Response, flash, has_request_context, jsonify, redirect, render_template,
     request, session, url_for,
 )
 from flask_login import current_user, login_required
@@ -115,7 +115,7 @@ def clear_lesson_retry(lesson_id: int) -> None:
         session.pop(_retry_session_key(lesson_id), None)
 
 
-def _record_self_assessed_attempt(lesson: 'Lessons', user_id: int, result: dict) -> None:
+def _record_self_assessed_attempt(lesson: 'Lessons', user_id: int, result: dict, *, commit: bool = True) -> None:
     """Keep completion analytics for lesson types without a server grader."""
     try:
         from app.curriculum.models import LessonAttempt
@@ -134,8 +134,11 @@ def _record_self_assessed_attempt(lesson: 'Lessons', user_id: int, result: dict)
         attempt.completed_at = datetime.now(UTC)
         attempt.score = result.get('score')
         attempt.passed = True
-        db.session.commit()
+        if commit:
+            db.session.commit()
     except Exception:
+        if not commit:
+            raise
         logger.warning(
             "Failed to record self-assessed LessonAttempt for user=%s lesson=%s",
             user_id, lesson.id, exc_info=True,
@@ -668,6 +671,81 @@ def _grade_web_guided_grammar(exercises, answers, *, option_text=False):
     return grade_guided_answers(exercises, values)
 
 
+def _run_lesson_challenge(lesson_id: int, user_id: int, data: dict, result: dict) -> bool:
+    from app.daily_plan.challenge import maybe_auto_complete_challenge
+
+    elapsed = data.get('time_spent_seconds')
+    time_spent = int(elapsed) if isinstance(elapsed, (int, float)) and elapsed >= 0 else None
+    challenge = maybe_auto_complete_challenge(
+        user_id=user_id, lesson_id=lesson_id, passed=True, score=result.get('score'),
+        time_spent_seconds=time_spent, db=db,
+    )
+    if challenge and not challenge.get('already_completed'):
+        result['challenge_completed'] = True
+        result['challenge_bonus_xp'] = challenge.get('bonus_xp', 0)
+        return True
+    return False
+
+
+def _attach_lesson_context(lesson_id: int, user_id: int, result: dict) -> None:
+    try:
+        from app.daily_plan.linear.lesson_context import build_lesson_context
+
+        result['daily_plan_ctx'] = build_lesson_context(user_id, db, current_lesson_id=lesson_id).to_dict()
+    except Exception as error:
+        logger.warning("daily_plan_ctx attach failed for lesson %s: %s", lesson_id, error)
+
+
+def _submit_identified_writing(lesson_id: int, user_id: int, data: dict) -> Response | tuple[Response, int]:
+    from app.api.errors import api_error
+    from app.curriculum.models import UserWritingAttempt
+    from app.curriculum.services.progress_service import _lock_progress_writer
+    from app.curriculum.writing_context import current_web_snapshot, verify_web_context, web_submission_fingerprint
+
+    context, error = verify_web_context(data.get('writing_context'), lesson_id, user_id)
+    if context is None:
+        return jsonify(success=False, error=error), 403 if error == 'access_denied' else 400
+    fingerprint = web_submission_fingerprint(data, context['opening'])
+    if fingerprint is None:
+        return jsonify(success=False, error='invalid_writing_submission'), 400
+
+    lesson = Lessons.query.filter_by(id=lesson_id).with_for_update(read=True).populate_existing().first_or_404()
+    _lock_progress_writer(user_id)
+    submission_id = data['writing_submission_id']
+    history = UserWritingAttempt.query.filter_by(user_id=user_id, lesson_id=lesson_id, web_submission_id=submission_id)
+    existing = history.one_or_none()
+    if existing is not None:
+        receipt = existing.web_submission_receipt
+        if receipt['fingerprint'] != fingerprint:
+            return jsonify(success=False, error='writing_submission_conflict'), 409
+        clear_lesson_retry(lesson_id)
+        return jsonify(receipt['result'])
+
+    snapshot = current_web_snapshot(context, lesson, words_required=_writing_words_required(lesson))
+    if snapshot is None:
+        return jsonify(success=False, error='lesson_changed'), 409
+    if _count_writing_attempts_today(user_id) >= WRITING_DAILY_LIMIT:
+        return api_error('rate_limit_exceeded', 'Daily writing attempt limit reached.', 429)
+    result = _process_writing_prompt_submission(
+        lesson, user_id, data, prompt_snapshot=snapshot, web_submission_id=submission_id,
+    )
+    if result['completed']:
+        _record_self_assessed_attempt(lesson, user_id, result, commit=False)
+        try:
+            with db.session.begin_nested():
+                _run_lesson_challenge(lesson_id, user_id, data, result)
+        except Exception as error:
+            result.pop('challenge_completed', None)
+            result.pop('challenge_bonus_xp', None)
+            logger.warning("Challenge auto-complete failed for lesson %s: %s", lesson_id, error)
+    _attach_lesson_context(lesson_id, user_id, result)
+    if result['completed']:
+        history.one().web_submission_receipt = {'fingerprint': fingerprint, 'result': result}
+        db.session.commit()
+        clear_lesson_retry(lesson_id)
+    return jsonify(result)
+
+
 @lessons_bp.route('/api/lesson/<int:lesson_id>/submit', methods=['POST'])
 @login_required
 @limiter.limit("30 per minute", key_func=get_authenticated_user_key)
@@ -679,6 +757,8 @@ def submit_lesson(lesson_id):
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
             return jsonify(success=False, error='invalid_input'), 400
+        if 'writing_submission_id' in data:
+            return _submit_identified_writing(lesson_id, current_user.id, data)
         prompt_snapshot = None
         if 'writing_context' in data:
             from app.curriculum.writing_context import resolve_web_context
@@ -828,41 +908,13 @@ def submit_lesson(lesson_id):
             } and not (lesson.type == 'listening_immersion' and result.get('total_questions')):
                 _record_self_assessed_attempt(lesson, current_user.id, result)
             try:
-                from app.daily_plan.challenge import maybe_auto_complete_challenge
-                time_spent = data.get('time_spent_seconds') if isinstance(data, dict) else None
-                if isinstance(time_spent, (int, float)) and time_spent >= 0:
-                    time_spent = int(time_spent)
-                else:
-                    time_spent = None
-                challenge_result = maybe_auto_complete_challenge(
-                    user_id=current_user.id,
-                    lesson_id=lesson_id,
-                    passed=True,
-                    score=result.get('score'),
-                    time_spent_seconds=time_spent,
-                    db=db,
-                )
-                if challenge_result and not challenge_result.get('already_completed'):
-                    result['challenge_completed'] = True
-                    result['challenge_bonus_xp'] = challenge_result.get('bonus_xp', 0)
+                if _run_lesson_challenge(lesson_id, current_user.id, data, result):
                     db.session.commit()
             except Exception as ch_err:
                 db.session.rollback()
                 logger.warning("Challenge auto-complete failed for lesson %s: %s", lesson_id, ch_err)
 
-        # Attach a refreshed daily_plan_ctx so the client completion helper
-        # can update its CTA href/title (and trigger the day-secured redirect
-        # to /dashboard?day_secured=1 when this slot just closed the day).
-        # Always safe: returns is_daily_plan=False when ?from=linear_plan is
-        # absent from the originating request.
-        try:
-            from app.daily_plan.linear.lesson_context import build_lesson_context
-            dp_ctx = build_lesson_context(
-                current_user.id, db, current_lesson_id=lesson_id
-            )
-            result['daily_plan_ctx'] = dp_ctx.to_dict()
-        except Exception as ctx_err:
-            logger.warning("daily_plan_ctx attach failed for lesson %s: %s", lesson_id, ctx_err)
+        _attach_lesson_context(lesson_id, current_user.id, result)
 
         return jsonify(result)
 
@@ -2209,6 +2261,7 @@ def writing_prompt_lesson(lesson_id: int):
 
 def _process_writing_prompt_submission(
     lesson: 'Lessons', user_id: int, data: dict, *, prompt_snapshot: dict[str, str | None] | None = None,
+    web_submission_id: str | None = None,
 ) -> dict:
     """Save a writing prompt attempt, mark lesson complete, award XP, return result."""
     from app.curriculum.models import save_writing_attempt
@@ -2296,16 +2349,18 @@ def _process_writing_prompt_submission(
         from app.utils.languagetool import check_text
         # Best-effort: None при выключенном/упавшем LT — submit не блокируем.
         grammar_check = check_text(response_text)
-        try:
-            with db.session.begin_nested():
-                save_writing_attempt(
-                    user_id, lesson.id, response_text, checklist_completed, db,
-                    grammar_check=grammar_check,
-                    prompt_snapshot=prompt_snapshot,
-                )
-                db.session.flush()
-        except Exception as save_err:
-            logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
+        if web_submission_id is not None:
+            if completed:
+                save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db,
+                                     grammar_check=grammar_check, prompt_snapshot=prompt_snapshot,
+                                     web_submission_id=web_submission_id)
+        else:
+            try:
+                with db.session.begin_nested():
+                    save_writing_attempt(user_id, lesson.id, response_text, checklist_completed, db,
+                                         grammar_check=grammar_check, prompt_snapshot=prompt_snapshot)
+            except Exception as save_err:
+                logger.warning(f"Writing attempt save failed for lesson {lesson.id}: {save_err}")
 
     if completed:
         progress = LessonProgress.query.filter_by(
@@ -2343,10 +2398,11 @@ def _process_writing_prompt_submission(
                 data=progress_data,
             )
             db.session.add(progress)
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+        if web_submission_id is None:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         try:
             from app.daily_plan.linear.xp import (
@@ -2361,16 +2417,22 @@ def _process_writing_prompt_submission(
                 # → full base, the same contract as a reading without questions.
                 maybe_award_curriculum_xp(user_id, lesson, db_session=db, score=None)
                 maybe_award_writing_xp(user_id, lesson.id, db_session=db)
-            db.session.commit()
+            if web_submission_id is None:
+                db.session.commit()
         except Exception as xp_err:
+            if web_submission_id is not None:
+                raise
             db.session.rollback()
             logger.warning(f"Writing prompt XP award failed for lesson {lesson.id}: {xp_err}")
 
         try:
             from app.achievements.services import check_writing_achievements
             check_writing_achievements(user_id, db_session=db.session)
-            db.session.commit()
+            if web_submission_id is None:
+                db.session.commit()
         except Exception as ach_err:
+            if web_submission_id is not None:
+                raise
             db.session.rollback()
             logger.warning(f"Writing achievements check failed for user {user_id}: {ach_err}")
 

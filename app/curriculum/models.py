@@ -532,11 +532,14 @@ class UserWritingAttempt(db.Model):
     grammar_error_count = Column(Integer, nullable=True)
     grammar_matches = Column(db.JSON, nullable=True)
     prompt_snapshot = Column(db.JSON(none_as_null=True), nullable=True)
+    web_submission_id = Column(String(32), nullable=True)
+    web_submission_receipt = Column(db.JSON(none_as_null=True), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     __table_args__ = (
         Index('idx_writing_attempts_user_created', 'user_id', 'created_at'),
         Index('idx_writing_attempts_user_lesson', 'user_id', 'lesson_id'),
+        db.UniqueConstraint('user_id', 'lesson_id', 'web_submission_id', name='uq_writing_web_submission'),
     )
 
     def __repr__(self) -> str:
@@ -555,6 +558,7 @@ def save_writing_attempt(
     grammar_check: 'Optional[dict]' = None,
     *,
     prompt_snapshot: dict[str, str | None] | None = None,
+    web_submission_id: str | None = None,
 ) -> 'UserWritingAttempt':
     """Persist a writing attempt and return the new row.
 
@@ -574,6 +578,7 @@ def save_writing_attempt(
         word_count=word_count,
         checklist_completed=checklist_completed,
         prompt_snapshot=prompt_snapshot,
+        web_submission_id=web_submission_id,
     )
     if grammar_check is not None:
         attempt.grammar_error_count = grammar_check.get('error_count', 0)
