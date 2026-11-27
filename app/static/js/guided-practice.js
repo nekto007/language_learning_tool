@@ -591,9 +591,13 @@
           await load(true);
         })));
       }
-      (r.feedback || []).forEach(f => {
+      if (!r.feedback?.length) return;
+      const review = node('details', null, 'my-3');
+      review.append(node('summary', 'Разбор ответов'));
+      screen.append(review);
+      r.feedback.forEach(f => {
         if (readingLayout || r.web_weighted) {
-          appendReadingFeedback(screen, lesson.questions?.find(q => q.id === f.id), f, {title: f.prompt || 'Ответ к заданию'});
+          appendReadingFeedback(review, lesson.questions?.find(q => q.id === f.id), f, {title: f.prompt || 'Ответ к заданию'});
           return;
         }
         const card = node('article', null, 'card card-body my-3');
@@ -603,7 +607,7 @@
           const expected = node('p', 'Образец: ' + f.expected); expected.style.whiteSpace = 'pre-wrap';
           card.append(expected, node('p', f.explanation));
         }
-        screen.append(card);
+        review.append(card);
       });
       return;
     }
