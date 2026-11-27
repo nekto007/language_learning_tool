@@ -15,6 +15,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
 from app import limiter
+from app.books.grammar_example import grammar_book_example
 from app.curriculum.routes.public import PUBLIC_CEFR_CODES
 from app.grammar_lab import grammar_lab_bp
 from app.grammar_lab.models import GrammarExercise, GrammarTopic, UserGrammarExercise
@@ -191,6 +192,7 @@ def topic_detail(slug):
     raw_return_url = request.args.get('return_url', '')
     return_url = get_safe_redirect_url(raw_return_url, fallback='grammar_lab.topics') if raw_return_url else ''
 
+    example = grammar_book_example(current_user, topic_slug=slug)
     return render_template(
         'grammar_lab/topic_detail.html',
         topic=topic,
@@ -200,6 +202,8 @@ def topic_detail(slug):
         prev_topic=adjacent['prev'],
         next_topic=adjacent['next'],
         return_url=return_url,
+        book_example_url=example.reader_link(url_for('.topic_detail', slug=slug)) if example else None,
+        book_example_title=example.book.title if example else None,
     )
 
 
@@ -235,11 +239,14 @@ def practice(topic_id=None):
     session.setdefault('exercise_revisions', {})
     for exercise in session['exercises']:
         exercise['submission_id'] = str(uuid4())
+    example = grammar_book_example(current_user, topic_slug=topic['slug']) if topic else None
+    practice_url = url_for('.practice', topic_id=topic_id, return_url=return_url or None) if example else None
     response = Response(render_template(
         'grammar_lab/practice.html',
         session=session,
         topic=topic,
-        return_url=return_url
+        return_url=return_url,
+        book_example_url=example.reader_link(practice_url) if example else None,
     ))
     response.headers['Cache-Control'] = 'private, no-store'
     return response

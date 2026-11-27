@@ -167,7 +167,7 @@ def test_web_get_assigns_fresh_submission_ids_and_keeps_empty_shell(mixed: Any, 
     assert response.headers['Cache-Control'] == 'private, no-store'
     page = BeautifulSoup(response.data, 'html.parser')
     assert page.select_one('#start-btn') and page.select_one('#check-btn')
-    assert page.select_one('script[src$="js/grammar/practice.js?v=20261125-blank-gap"]')
+    assert page.select_one('script[src$="js/grammar/practice.js?v=20261127-book-example"]')
     inline = next(tag.string for tag in page.select('script') if tag.string and 'let exercises =' in tag.string)
     exercises = json.loads(inline.split('let exercises = ', 1)[1].split(';', 1)[0])
     assert len(exercises) == len(rows)

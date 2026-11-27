@@ -123,6 +123,10 @@
   </div>
   {% endif %}
 
+  {% if book_example_url %}
+  <p class="mb-3"><a href="{{ book_example_url }}" data-grammar-book-example>Пример в книге «{{ book_example_title }}»</a></p>
+  {% endif %}
+
   <!-- Hero -->
   <div class="topic-hero topic-hero--{{ topic.level[0]|lower }}">
     <div class="topic-hero__bg-shapes">

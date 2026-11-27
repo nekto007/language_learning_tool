@@ -19,7 +19,12 @@ async function practice(options={}) {
   const first=options.matching?{id:41,exercise_type:'matching',pairs:[{left:'a',right:'b'}]}:{id:41,exercise_type:'fill_blank',question:'She ___ here.'};
   first.submission_id=firstKey;
   const context={exercises:[first,{id:42,exercise_type:'fill_blank',question:'I ___ here.',submission_id:secondKey}],exerciseRevisions:options.revisions || {41:firstRevision,42:secondRevision},topicId:4,sessionId:'session-one',
-    document:{getElementById:el,createElement:element,querySelector:selector=>selector.includes('csrf')?{getAttribute:()=> 'csrf-token'}:selector.includes('llt-account-id')?{content:options.actor || '1'}:{value:'1'},querySelectorAll:()=>[],addEventListener:(name,fn)=>{events['document:'+name]=fn;}},
+    document:{getElementById:el,createElement:element,querySelector(selector){
+      if(selector==='#practice-book-example') return null;
+      if(selector.includes('csrf')) return {getAttribute:()=> 'csrf-token'};
+      if(selector.includes('llt-account-id')) return {content:options.actor || '1'};
+      return {value:'1'};
+    },querySelectorAll:()=>[],addEventListener:(name,fn)=>{events['document:'+name]=fn;}},
     window:{addEventListener:(name,fn)=>{events[name]=fn;},location:{reload:()=>{events.reloaded=true;}}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
     setTimeout:(fn,delay)=>{const t={fn,delay};timers.push(t);return t;},clearTimeout:t=>{const i=timers.indexOf(t);if(i>=0)timers.splice(i,1);},AbortController,
     console:{error(){}},alert:message=>{throw Error(message);},

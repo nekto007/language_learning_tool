@@ -23,6 +23,7 @@ from app.books.access import (
     can_user_access_book,
 )
 from app.books.forms import BookContentForm
+from app.books.grammar_example import grammar_book_example
 from app.books.models import Book, Chapter, UserChapterProgress
 from app.books.readability import book_has_text, chapter_has_text
 from app.books.reading_session import CHAPTER_COMPLETION_THRESHOLD
@@ -361,6 +362,17 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
     context_missing = request.args.get('reader_quote_missing') == '1' or (
         requested_paragraph is not None and context_paragraph is None
     )
+    example = grammar_book_example(current_user, book=book, chapter=current_chapter.chap_num)
+    if example and example.revision == chapter_revision:
+        if request.args.get('grammar_example') == example.topic.slug:
+            context_paragraph = example.paragraph
+            context_missing = False
+        if back_path == url_for('grammar_lab.practice', topic_id=example.topic.id):
+            return_label = 'К практике'  # noqa: RUF001 -- Russian reader label.
+        elif back_path == url_for('grammar_lab.topic_detail', slug=example.topic.slug):
+            return_label = 'К правилу'  # noqa: RUF001 -- Russian reader label.
+    else:
+        example = None
 
     index = chapters.index(current_chapter)
     first_named_chapter = next((
@@ -380,6 +392,7 @@ def read_book_chapters(book_id=None, book_slug=None, chapter_num=None):
         chapter_revision=chapter_revision, phrase_url=phrase_url,
         context_paragraph=context_paragraph, context_missing=context_missing,
         context_offset=request.args.get('reader_offset', type=int) if context_paragraph is not None else None,
+        grammar_example=example,
     )
 
 

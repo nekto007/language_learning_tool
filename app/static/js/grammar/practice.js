@@ -132,20 +132,40 @@ function getCSRFToken() {
 
 const practiceActor = document.querySelector('meta[name="llt-account-id"]')?.content;
 const sessionKey = practiceActor ? `grammar_practice:${practiceActor}:${topicId || 'srs'}` : null;
+const bookExample = document.querySelector('#practice-book-example');
+let bookExampleDraft = null;
 
 function saveSessionState() {
-  if (!sessionKey) return;
+  if (!sessionKey) return false;
   try {
     const revisions = Object.fromEntries(exercises.map(ex => [ex.id, sessionRevisions[ex.id]]));
     sessionStorage.setItem(sessionKey, JSON.stringify({
       exercises, revisions, sessionId: currentPracticeSessionId(), currentIndex, correctCount, wrongCount, totalXP, checkedAnswer, pendingGrade, queueChanged,
-      timestamp: Date.now()
+      bookExampleDraft: bookExampleDraft || undefined, timestamp: Date.now()
     }));
     pendingSaved = Boolean(pendingGrade);
+    return true;
   } catch (_) {
     pendingSaved = false;
     // Storage can be unavailable or full; a confirmed grade is still final in this tab.
+    return false;
   }
+}
+
+if (bookExample) {
+  const link = bookExample.querySelector('a');
+  link.addEventListener('click', () => {
+    link.removeAttribute('target');
+    const exercise = exercises[currentIndex];
+    const input = document.getElementById('user-answer');
+    if (exercise?.exercise_type !== 'fill_blank' || !input || checkedAnswer || pendingGrade) return;
+    bookExampleDraft = {exerciseId: exercise.id, text: input.value};
+    if (!saveSessionState()) {
+      link.target = '_blank';
+      link.rel = 'noopener';
+    }
+    bookExampleDraft = null;
+  });
 }
 
 function clearSessionState() {
@@ -247,6 +267,11 @@ async function restoreSession() {
   pendingGrade = hasPending ? state.pendingGrade : null;
   pendingSaved = hasPending;
   queueChanged = state.queueChanged === true || !fresh;
+  if (fresh && !result && !hasPending && restoredItems[index].exercise_type === 'fill_blank'
+      && state.bookExampleDraft?.exerciseId === restoredItems[index].id
+      && typeof state.bookExampleDraft.text === 'string') {
+    bookExampleDraft = state.bookExampleDraft;
+  }
   saveSessionState();
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('exercise-screen').style.display = 'block';
@@ -336,6 +361,7 @@ function showExercise(index) {
   const exercise = exercises[index];
   if (!exercise) return;
   clearDispute();
+  if (bookExample) bookExample.hidden = exercise.exercise_type !== 'fill_blank';
 
   // Update progress
   const answeredCount = correctCount + wrongCount;
@@ -367,6 +393,14 @@ function showExercise(index) {
   // Render question
   const questionArea = document.getElementById('question-area');
   questionArea.innerHTML = renderExercise(exercise);
+  if (bookExampleDraft) {
+    const input = document.getElementById('user-answer');
+    if (exercise.exercise_type === 'fill_blank' && bookExampleDraft.exerciseId === exercise.id && input) {
+      input.value = bookExampleDraft.text;
+    }
+    bookExampleDraft = null;
+    saveSessionState();
+  }
 
   // Reset UI — fully restore the check button to a clean, clickable state.
   // The submit handler leaves it disabled and showing the «Проверка…» spinner

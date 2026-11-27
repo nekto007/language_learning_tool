@@ -1,7 +1,7 @@
 {% extends "books/reader_base.html" %}
 {% from "books/_chapter_label.html" import chapter_label %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/books/reader_simple.css', v='reader-20261126-nav2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/books/reader_simple.css', v='reader-20261127-book-example') }}">
 {% if book.is_short_reading %}<link rel="stylesheet" href="{{ url_for('static', filename='css/books/short_reading.css') }}">{% endif %}
 {% endblock %}
 {% block title %}{{ current_chapter.title or book.title }} · {{ book.title }}{% endblock %}
@@ -100,6 +100,14 @@
       <div id="chapterContent">
         {{ (chapter_text if chapter_text is defined else current_chapter.text_raw) | format_chapter_text }}
       </div>
+
+      {% if grammar_example %}
+      <template id="reader-grammar-example" data-paragraph="{{ grammar_example.paragraph }}">
+          <aside class="rdr-grammar-example">
+              <a href="{{ url_for('grammar_lab.topic_detail', slug=grammar_example.topic.slug) }}">Правило Grammar Lab · {{ grammar_example.topic.title }}</a>
+          </aside>
+      </template>
+      {% endif %}
 
       {% if not chapter_text %}
       <p class="rdr-license-notice">Текст этой части недоступен.</p>
@@ -1224,6 +1232,10 @@ window.addEventListener('pagehide', () => hideTranslationPopup());
 
 makeWordsClickable();
 locateLastLine();
+const grammarExample = document.getElementById('reader-grammar-example');
+if (grammarExample) {
+    chapterParagraphs[Number(grammarExample.dataset.paragraph)]?.after(grammarExample.content.cloneNode(true));
+}
 showVisibleProgress();
 
 // Keyboard shortcuts
@@ -1247,7 +1259,7 @@ document.addEventListener('keydown', (e) => {
 {% if book.is_short_reading %}<script src="{{ url_for('static', filename='js/books/short_reading.js') }}?v=20261123-draft2"></script>{% endif %}
 {% if plan_mode %}<script src="{{ url_for('static', filename='js/linear-plan-context.js') }}"></script>{% endif %}
 <script src="{{ url_for('static', filename='js/books/reader_preferences.js', v='20261126') }}"></script>
-{% if phrase_url %}<script src="{{ url_for('static', filename='js/books/reader_selection.js', v='20261126') }}"></script>{% endif %}
+{% if phrase_url %}<script src="{{ url_for('static', filename='js/books/reader_selection.js', v='20261127-book-example') }}"></script>{% endif %}
 {% if current_chapter.audio_url %}
 <script nonce="{{ csp_nonce }}">
 (function() {

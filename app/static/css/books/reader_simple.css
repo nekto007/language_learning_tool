@@ -504,6 +504,17 @@
 }
 .rdr-content #chapterContent p { margin: 0 0 .95em; }
 .rdr-content #chapterContent p:last-child { margin-bottom: 0; }
+.rdr-grammar-example {
+    margin-block: 0.6em 1.1em;
+    padding: 0.45em 0.75em;
+    border-inline-start: 2px solid currentColor;
+    font: 0.9rem/1.45 system-ui, sans-serif;
+}
+.rdr-grammar-example a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+}
 
 .rdr-license-notice {
   margin: 0 0 1rem;

@@ -43,7 +43,7 @@
                 const selected = [...range.toString().trim()];
                 if (selected.length <= 200 && /[A-Za-z]/.test(selected.join(''))) {
                     candidate = {
-                        paragraph: Array.prototype.indexOf.call(chapter.children, paragraph),
+                        paragraph: Array.prototype.indexOf.call(chapter.querySelectorAll(':scope > p'), paragraph),
                         start: charOffset(paragraph, range.startContainer, range.startOffset),
                         end: charOffset(paragraph, range.endContainer, range.endOffset),
                         revision: reader.dataset.revision,
