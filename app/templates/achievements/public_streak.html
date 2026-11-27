@@ -136,10 +136,10 @@
 (function() {
     var activeDates = {{ calendar.active_dates | tojson }};
     var grid = document.getElementById('streak-grid');
-    var today = new Date();
+    var today = new Date({{ calendar.study_day | tojson }} + 'T00:00:00Z');
     for (var i = 89; i >= 0; i--) {
         var d = new Date(today);
-        d.setDate(d.getDate() - i);
+        d.setUTCDate(d.getUTCDate() - i);
         var iso = d.toISOString().slice(0, 10);
         var el = document.createElement('div');
         el.className = 'strk-day' + (activeDates.indexOf(iso) >= 0 ? ' strk-day--active' : '');

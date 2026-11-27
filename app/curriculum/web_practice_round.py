@@ -63,6 +63,22 @@ def _view(state: dict, round_id: str) -> dict:
     }
 
 
+def _saved_round_view(row: WebPracticeRound, progress: LessonProgress | None = None) -> dict:
+    state = row.state
+    if row.completed and not state.get('result'):
+        # Earlier one-question rounds could commit their attempt and receipt
+        # while losing the final JSON field on the round itself.
+        if progress is None:
+            progress = LessonProgress.query.filter_by(user_id=row.user_id, lesson_id=row.lesson_id).first()
+        data = progress.data if progress is not None else None
+        receipt = data.get('_native_submission') if isinstance(data, dict) else None
+        if isinstance(receipt, dict) and receipt.get('nonce') == row.id:
+            result = receipt.get('response')
+            if isinstance(result, dict) and result.get('completed') is True:
+                state = {**state, 'result': result}
+    return _view(state, row.id)
+
+
 def _initial(question_ids: list[str]) -> dict:
     return {'question_ids': question_ids, 'events': [], 'first': {}, 'queue': [], 'solved': {}}
 
@@ -90,7 +106,7 @@ def attach_round(value: dict, lesson_id: int) -> None:
     if row and row.completed:
         sealed['version'] = row.progress_version
     lesson['session_token'] = _signer().dumps(sealed)
-    lesson['web_round'] = _view(state, round_id)
+    lesson['web_round'] = _saved_round_view(row) if row else _view(state, round_id)
 
 
 def read_token(token: object, lesson_id: int) -> tuple[dict, bool]:
@@ -186,7 +202,7 @@ def check_round(lesson_id: int, body: object) -> dict:
         event = row.state['events'][step]
         if (qid, answer) != (event['question_id'], event['answer']):
             raise NativeLessonError('round_step_changed', 409)
-        return {'success': True, 'feedback': event['feedback'], 'round': _view(row.state, row.id)}
+        return {'success': True, 'feedback': event['feedback'], 'round': _saved_round_view(row, progress)}
 
     if row and row.completed and step == len(row.state['events']) and not qid and not answer and row.state.get('explicit_finish'):
         return {'success': True, 'feedback': None, 'round': _view(row.state, row.id)}
@@ -219,9 +235,11 @@ def check_round(lesson_id: int, body: object) -> dict:
         feedback = check_course_answer(lesson, by_id[qid], answer)
         _record(state, by_id[qid], answer, feedback)
     if row is None:
+        # Finishing also flushes the new row. Keep its JSON separate so the
+        # assignment containing the result afterwards is tracked as a change.
         row = WebPracticeRound(id=sealed['nonce'], user_id=current_user.id, lesson_id=lesson_id,
                                revision=sealed['revision'], progress_version=sealed['version'],
-                               web_course=bool(sealed.get('web_course')), completed=False, state=state)
+                               web_course=bool(sealed.get('web_course')), completed=False, state=deepcopy(state))
         db.session.add(row)
     if len(state['solved']) == len(by_id):
         sealed.update(started_at=state['started_at'], revision=row.revision)

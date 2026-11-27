@@ -808,12 +808,13 @@ def public_streak(username: str):
     from flask import abort
 
     from app.achievements.streak_service import get_streak_calendar
+    from app.utils.time_utils import get_user_timezone_name
 
     user = User.query.filter_by(username=username, active=True).first()
     if not user or not _public_page_visible(user):
         abort(404)
 
-    calendar = get_streak_calendar(user.id, days=90)
+    calendar = get_streak_calendar(user.id, days=90, tz=get_user_timezone_name(user.id))
 
     meta_description = (
         f'{user.username} имеет стрик {calendar["current_streak"]} дней '

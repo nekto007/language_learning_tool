@@ -49,6 +49,39 @@ def test_weights_are_floored_after_exact_summation() -> None:
         assert weighted_score({str(i): rank for i in range(7)}, 7) == score
 
 
+@pytest.mark.parametrize(('question_count', 'legacy_missing_result'), [(1, False), (2, False), (1, True)])
+def test_completed_round_survives_lost_response_and_cold_reopen(
+    web_round: dict[str, Any], question_count: int, legacy_missing_result: bool,
+) -> None:
+    lesson, user = web_round['lesson'], web_round['user']
+    lesson.content = {'questions': lesson.content['questions'][:question_count]}
+    db.session.commit()
+    doc = document(web_round)
+    for step in range(question_count):
+        final = send(web_round, doc, step, str(step), '0')
+        assert final.status_code == 200
+    saved_view = final.json['round']
+    assert saved_view['phase'] == 'final' and saved_view['result']['score'] == 100
+    row = db.session.get(WebPracticeRound, saved_view['id'])
+    assert row.completed and row.state['result'] == saved_view['result']
+    if legacy_missing_result:
+        row.state = {key: value for key, value in row.state.items() if key != 'result'}
+        db.session.commit()
+
+    xp = UserStatistics.query.filter_by(user_id=user.id).one().total_xp
+    db.session.expire_all()
+    cold = web_round['app'].test_client()
+    auth = sign_in(cold, web_round['app'], user)
+    reopened = {**web_round, 'client': cold, 'headers': auth}
+    assert document(reopened, '&round=' + saved_view['id'])['web_round'] == saved_view
+    retry = send(reopened, doc, question_count - 1, str(question_count - 1), '0')
+    assert retry.status_code == 200 and retry.json == final.json
+    assert LessonAttempt.query.filter_by(user_id=user.id, lesson_id=lesson.id).count() == 1
+    assert UserStatistics.query.filter_by(user_id=user.id).one().total_xp == xp
+    if legacy_missing_result:
+        assert 'result' not in db.session.get(WebPracticeRound, row.id).state
+
+
 def test_requeue_reload_receipt_and_weighted_progress(web_round: dict[str, Any]) -> None:
     r = web_round
     doc = document(r)

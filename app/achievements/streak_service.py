@@ -608,6 +608,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
     generate hundreds of queries.
 
     Returns dict with:
+      - study_day: current study date in the requested timezone (YYYY-MM-DD)
       - active_dates: list of date strings (YYYY-MM-DD) where user was active
       - total_active_days: total count
       - longest_streak: longest consecutive run
@@ -742,6 +743,7 @@ def get_streak_calendar(user_id: int, days: int = 90, tz: str = DEFAULT_TIMEZONE
         curr_streak = get_current_streak(user_id, tz=tz)
 
     return {
+        'study_day': local_today.isoformat(),
         'active_dates': active_dates_str,
         'total_active_days': len(all_active),
         'longest_streak': max(longest, curr_streak),

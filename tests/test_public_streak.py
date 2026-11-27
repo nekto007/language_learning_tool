@@ -1,9 +1,13 @@
 """Tests for public streak page and calendar data."""
 import pytest
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from flask import Flask, g
+from freezegun import freeze_time
+from sqlalchemy.orm import scoped_session
 from app.auth.models import User
 from app.achievements.models import StreakEvent
+from app.curriculum.models import LessonProgress, Lessons, Module
 from tests.support_dates import study_today
 
 
@@ -79,3 +83,38 @@ class TestPublicStreakPage:
         response = client.get(f'/streak/{streak_user.username}')
         html = response.data.decode()
         assert 'register' in html.lower()
+
+
+def test_public_calendar_dates_follow_the_owner_for_guest_and_signed_in_viewer(
+    app: Flask, db_session: scoped_session, test_user: User, admin_user: User, test_module: Module,
+) -> None:
+    owner, viewer = test_user, admin_user
+    owner.timezone = 'Europe/Moscow'
+    owner.profile_is_public = True
+    viewer.timezone = 'UTC'
+    viewer_client = app.test_client()
+    with viewer_client.session_transaction() as session:
+        session['_user_id'] = viewer.get_id()
+        session['_fresh'] = True
+    guest = app.test_client()
+    path = f'/streak/{owner.username}'
+    for number, instant, study_day, count in (
+        (1, datetime(2026, 10, 20, 22, 59, tzinfo=UTC), '2026-10-20', 1),
+        (2, datetime(2026, 10, 20, 23, 1, tzinfo=UTC), '2026-10-21', 2),
+    ):
+        lesson = Lessons(module_id=test_module.id, number=number, type='quiz', title='Synthetic boundary')
+        db_session.add(lesson)
+        db_session.flush()
+        db_session.add(LessonProgress(user_id=owner.id, lesson_id=lesson.id, status='completed',
+                                      last_activity=instant, completed_at=instant))
+        db_session.commit()
+        with freeze_time(instant):
+            for client in (guest, viewer_client):
+                g.pop('_login_user', None)
+                response = client.get(path)
+                assert response.status_code == 200
+                html = response.get_data(as_text=True)
+                assert f"""new Date("{study_day}" + 'T00:00:00Z')""" in html
+                assert f'<div class="strk-stat__value">{count}</div>' in html
+                active_dates = '["2026-10-20"]' if count == 1 else '["2026-10-20", "2026-10-21"]'
+                assert f'var activeDates = {active_dates};' in html
