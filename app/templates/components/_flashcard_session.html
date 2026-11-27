@@ -22,6 +22,7 @@
       - fc_show_audio: show audio controls (default: true)
       - fc_on_complete_url: URL for "continue" button after completion
       - fc_on_complete_text: text for "continue" button
+      - fc_single_word: show only the return to this word on standalone completion
       - fc_nothing_to_study: show empty state (default: false)
       - fc_next_review_time: next review time string for empty state (optional)
       - fc_limit_reached: show limit state (default: false)
@@ -409,6 +410,7 @@
                        через fc_* переменные, поэтому проксируем их. #}
                     {% with back_url=fc_back_url|default('/learn/'),
                             next_url=fc_on_complete_url|default('/'),
+                            hide_standalone_back=fc_single_word|default(false),
                             next_label=fc_on_complete_text|default(_('Следующий урок')) %}
                       {% include 'components/_lesson_completion_actions.html' %}
                     {% endwith %}

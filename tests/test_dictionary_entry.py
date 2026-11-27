@@ -224,7 +224,8 @@ def test_public_saved_word_review_returns_to_its_canonical_card(entry: Any) -> N
         })
         assert response.status_code == 200
         result = BeautifulSoup(response.data, 'html.parser')
-        assert result.select_one(f'#session-complete a[href="{target}"]')
+        actions = result.select('#session-complete a[data-standalone-cta]')
+        assert [(link['href'], link.get_text(strip=True)) for link in actions] == [(target, 'К слову')]
     assert UserWord.query.filter_by(user_id=user.id, word_id=word.id).count() == 1
 
 

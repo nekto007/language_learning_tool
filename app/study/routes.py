@@ -491,6 +491,7 @@ def cards():
         fc_complete_url='/study/api/complete-session',
         fc_on_complete_url=back_url,
         fc_on_complete_text='К слову' if from_word_detail else ('К плану дня' if from_daily_plan else 'К колодам'),
+        fc_single_word=from_word_detail,
         fc_session_id=session.id,
         fc_show_examples=settings.include_examples if settings else True,
         fc_show_audio=settings.include_audio if settings else True,
